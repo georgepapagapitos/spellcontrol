@@ -43,11 +43,11 @@ export interface ColorInfo {
 }
 
 export const COLOR_INFO: Record<string, ColorInfo> = {
-  W: { label: 'White', pip: '#f9f6d4', border: '#c8b830', order: 0 },
-  U: { label: 'Blue', pip: '#b8d4f0', border: '#3878c0', order: 1 },
-  B: { label: 'Black', pip: '#c0b8d0', border: '#7060a0', order: 2 },
-  R: { label: 'Red', pip: '#f0c8b8', border: '#d05030', order: 3 },
-  G: { label: 'Green', pip: '#b8e0b8', border: '#409040', order: 4 },
+  W: { label: 'White', pip: '#faf6e0', border: '#b8a828', order: 0 },
+  U: { label: 'Blue', pip: '#b8d4f0', border: '#1060b0', order: 1 },
+  B: { label: 'Black', pip: '#989098', border: '#201c28', order: 2 },
+  R: { label: 'Red', pip: '#f0c8b8', border: '#c82818', order: 3 },
+  G: { label: 'Green', pip: '#b8e0b8', border: '#1e7030', order: 4 },
   M: { label: 'Multicolor', pip: '#f8e8a0', border: '#c89820', order: 5 },
   C: { label: 'Colorless / Artifact', pip: '#d8d8d8', border: '#909090', order: 6 },
   L: { label: 'Land', pip: '#e0d0b0', border: '#a08040', order: 7 },
