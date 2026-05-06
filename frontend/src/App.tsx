@@ -8,6 +8,7 @@ import { BinderTabs } from './components/BinderTabs';
 import { BinderView } from './components/BinderView';
 import { BinderEditor } from './components/BinderEditor';
 import { Footer } from './components/Footer';
+import { Header } from './components/Header';
 
 export default function App() {
   const {
@@ -50,106 +51,110 @@ export default function App() {
   }, [cards, binders, search]);
 
   return (
-    <div className="container">
-      <h1>MTG Binder Planner</h1>
-      <div className="subtitle">Try binder layouts before you commit a single sleeve.</div>
-
-      {hydrating ? (
-        <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
-          <div className="upload-icon">
-            <span className="spinner" />
+    <>
+      <Header />
+      <div className="container">
+        {hydrating ? (
+          <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
+            <div className="upload-icon">
+              <span className="spinner" />
+            </div>
+            <div className="upload-text">Loading...</div>
           </div>
-          <div className="upload-text">Loading...</div>
-        </div>
-      ) : (
-        <>
-          {error && cards.length === 0 && (
-            <div className="error-banner" style={{ marginBottom: '1rem' }}>
-              {error}
-              <button className="btn-link" style={{ marginLeft: 8 }} onClick={() => setError(null)}>
-                Dismiss
-              </button>
-            </div>
-          )}
-          <UploadPanel />
-        </>
-      )}
-
-      {!hydrating && cards.length > 0 && (
-        <>
-          <StatsBar binders={materialized} uncategorized={uncategorized} />
-          <hr />
-          <Legend />
-          <BinderTabs binders={materialized} uncategorized={uncategorized} />
-          {(() => {
-            const activeBinder =
-              activeTab === 'uncategorized'
-                ? null
-                : materialized.find((b) => b.def.id === activeTab);
-            const totals =
-              activeTab === 'uncategorized'
-                ? {
-                    name: 'Uncategorized',
-                    cards: uncategorized.totalCards,
-                    pages: uncategorized.totalPages,
-                  }
-                : activeBinder
-                  ? {
-                      name: activeBinder.def.name,
-                      cards: activeBinder.totalCards,
-                      pages: activeBinder.totalPages,
-                    }
-                  : null;
-            if (!totals || totals.cards === 0) return null;
-            return (
-              <div className="binder-summary" aria-live="polite">
-                <span className="binder-summary-name">{totals.name}</span>
-                <span className="binder-summary-meta">
-                  {totals.cards.toLocaleString()} cards · {totals.pages.toLocaleString()} page
-                  {totals.pages !== 1 ? 's' : ''}
-                </span>
-              </div>
-            );
-          })()}
-          {binders.length === 0 && (
-            <div className="empty-state">
-              No binders yet.{' '}
-              <button
-                className="btn btn-primary"
-                onClick={() => setEditingBinder('new')}
-                style={{ marginLeft: 8 }}
-              >
-                Create your first binder
-              </button>
-            </div>
-          )}
-          <div className="binder-toolbar">
-            <div className="binder-toolbar-search">
-              <input
-                type="search"
-                placeholder="Filter cards by name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Filter cards by name"
-              />
-              {search && (
+        ) : (
+          <>
+            {error && cards.length === 0 && (
+              <div className="error-banner" style={{ marginBottom: '1rem' }}>
+                {error}
                 <button
-                  type="button"
                   className="btn-link"
-                  onClick={() => setSearch('')}
-                  aria-label="Clear search"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => setError(null)}
                 >
-                  Clear
+                  Dismiss
                 </button>
-              )}
-            </div>
-          </div>
-          <BinderView binders={materialized} uncategorized={uncategorized} />
-        </>
-      )}
+              </div>
+            )}
+            <UploadPanel />
+          </>
+        )}
 
-      <BinderEditor />
-      <Footer />
-    </div>
+        {!hydrating && cards.length > 0 && (
+          <>
+            <StatsBar binders={materialized} uncategorized={uncategorized} />
+            <hr />
+            <Legend />
+            <BinderTabs binders={materialized} uncategorized={uncategorized} />
+            {(() => {
+              const activeBinder =
+                activeTab === 'uncategorized'
+                  ? null
+                  : materialized.find((b) => b.def.id === activeTab);
+              const totals =
+                activeTab === 'uncategorized'
+                  ? {
+                      name: 'Uncategorized',
+                      cards: uncategorized.totalCards,
+                      pages: uncategorized.totalPages,
+                    }
+                  : activeBinder
+                    ? {
+                        name: activeBinder.def.name,
+                        cards: activeBinder.totalCards,
+                        pages: activeBinder.totalPages,
+                      }
+                    : null;
+              if (!totals || totals.cards === 0) return null;
+              return (
+                <div className="binder-summary" aria-live="polite">
+                  <span className="binder-summary-name">{totals.name}</span>
+                  <span className="binder-summary-meta">
+                    {totals.cards.toLocaleString()} cards · {totals.pages.toLocaleString()} page
+                    {totals.pages !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              );
+            })()}
+            {binders.length === 0 && (
+              <div className="empty-state">
+                No binders yet.{' '}
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setEditingBinder('new')}
+                  style={{ marginLeft: 8 }}
+                >
+                  Create your first binder
+                </button>
+              </div>
+            )}
+            <div className="binder-toolbar">
+              <div className="binder-toolbar-search">
+                <input
+                  type="search"
+                  placeholder="Filter cards by name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Filter cards by name"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            <BinderView binders={materialized} uncategorized={uncategorized} />
+          </>
+        )}
+
+        <BinderEditor />
+        <Footer />
+      </div>
+    </>
   );
 }
