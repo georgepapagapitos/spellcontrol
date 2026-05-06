@@ -43,6 +43,7 @@ export default function App() {
           sections: [],
           totalPages: 0,
           effectivePocketSize: 9 as const,
+          effectiveSorts: [],
         },
       };
     }
@@ -87,7 +88,7 @@ export default function App() {
   return (
     <div className="container">
       <h1>MTG Binder Planner</h1>
-      <div className="subtitle">Plan how your collection lays out across physical binders.</div>
+      <div className="subtitle">Try binder layouts before you commit a single sleeve.</div>
 
       {hydrating ? (
         <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>

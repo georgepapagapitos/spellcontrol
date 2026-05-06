@@ -39,9 +39,7 @@ export function BinderTabs({ binders, uncategorized }: Props) {
               }
             >
               {b.def.name}
-              <span className="tab-count">
-                {b.totalCards} · {b.totalPages}pp
-              </span>
+              <span className="tab-count">{b.totalCards.toLocaleString()}</span>
             </button>
 
             {isActive && (
@@ -87,9 +85,7 @@ export function BinderTabs({ binders, uncategorized }: Props) {
         onClick={() => setActiveTab('uncategorized')}
       >
         Uncategorized
-        <span className="tab-count">
-          {uncategorized.totalCards} · {uncategorized.totalPages}pp
-        </span>
+        <span className="tab-count">{uncategorized.totalCards.toLocaleString()}</span>
       </button>
 
       <button

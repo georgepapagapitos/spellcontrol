@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function StatsBar({ binders, uncategorized }: Props) {
-  const { cards, scryfallMisses } = useCollectionStore();
+  const { cards, scryfallMisses, binders: binderDefs } = useCollectionStore();
 
   const totalValue = cards.reduce((sum, c) => sum + c.purchasePrice, 0);
 
@@ -17,6 +17,19 @@ export function StatsBar({ binders, uncategorized }: Props) {
   const binnedPct = denom > 0 ? Math.round((binnedCount / denom) * 100) : 0;
 
   const totalBinderPages = binders.reduce((s, b) => s + b.totalPages, 0) + uncategorized.totalPages;
+
+  // Detect a stale import: a binder rule references treatment/border filters,
+  // but the cached cards lack borderColor (a field we always populate from Scryfall now).
+  const usesNewFilters = binderDefs.some((b) =>
+    b.rules.some(
+      (r) =>
+        (r.treatments && r.treatments.length > 0) ||
+        (r.borderColors && r.borderColors.length > 0)
+    )
+  );
+  const cardsLackNewFields =
+    cards.length > 0 && !cards.some((c) => c.borderColor !== undefined);
+  const showStaleBanner = usesNewFilters && cardsLackNewFields;
 
   return (
     <>
@@ -35,6 +48,12 @@ export function StatsBar({ binders, uncategorized }: Props) {
         <Stat label="Binder pages" value={totalBinderPages.toString()} />
         <Stat label="Collection value" value={`$${totalValue.toFixed(0)}`} />
       </div>
+      {showStaleBanner && (
+        <div className="warn-banner">
+          ⚠️ Your cards are missing some Scryfall fields — re-import your collection to use the
+          new Treatment / Border filters.
+        </div>
+      )}
       {scryfallMisses > 0 && (
         <div className="warn-banner">
           ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched with

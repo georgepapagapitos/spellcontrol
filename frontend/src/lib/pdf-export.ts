@@ -7,7 +7,6 @@ import type {
   PocketSize,
   UncategorizedBucket,
 } from '../types';
-import { COLOR_INFO } from './colors';
 import { fetchImagesAsDataUrls } from './image-fetch';
 
 export interface ExportOptions {
@@ -47,7 +46,7 @@ export async function exportBindersToPDF(
     drawCoverPage(doc, mb.def.name, mb.totalCards, mb.totalPages, mb.sections);
 
     for (const section of mb.sections) {
-      const info = COLOR_INFO[section.colorKey] || { label: section.colorKey };
+      const info = { label: section.label };
       for (const page of section.pages) {
         doc.addPage();
         drawBinderPage(
@@ -74,7 +73,7 @@ export async function exportBindersToPDF(
       uncategorized.sections
     );
     for (const section of uncategorized.sections) {
-      const info = COLOR_INFO[section.colorKey] || { label: section.colorKey };
+      const info = { label: section.label };
       for (const page of section.pages) {
         doc.addPage();
         drawBinderPage(
@@ -123,7 +122,7 @@ function drawCoverPage(
   label: string,
   totalCards: number,
   totalPages: number,
-  sections: Array<{ colorKey: string; cards: EnrichedCard[]; pages: BinderPage[] }>
+  sections: Array<{ key: string; label: string; cards: EnrichedCard[]; pages: BinderPage[] }>
 ) {
   doc.setFontSize(28);
   doc.setFont('helvetica', 'normal');
@@ -131,16 +130,15 @@ function drawCoverPage(
 
   doc.setFontSize(12);
   doc.setTextColor(120);
-  doc.text(`${totalCards} cards · ${totalPages} physical pages`, 105, 72, {
+  doc.text(`${totalCards} cards · ${totalPages} pages`, 105, 72, {
     align: 'center',
   });
 
   doc.setFontSize(10);
   let y = 100;
   for (const section of sections) {
-    const info = COLOR_INFO[section.colorKey] || { label: section.colorKey };
     doc.setTextColor(50);
-    doc.text(info.label, 60, y);
+    doc.text(section.label, 60, y);
     doc.setTextColor(140);
     doc.text(`${section.cards.length} cards (${section.pages.length} pages)`, 150, y, {
       align: 'right',

@@ -1,25 +1,19 @@
 import type { EnrichedCard } from '../types';
 
 /**
- * Color identity grouping key. Uses Scryfall's color_identity (most authoritative for EDH binders),
- * falling back to type-line heuristic for lands and a "C" colorless bucket otherwise.
+ * Color-identity grouping key. Lands group by their color identity too —
+ * Forest → G, Plains → W, Wastes → C, dual lands → M.
  *
  * Returns:
- *   'L' for lands
- *   'W'/'U'/'B'/'R'/'G' for monocolor
+ *   'W'/'U'/'B'/'R'/'G' for monocolor (or mono-color-identity lands)
  *   'M' for any multicolor combination
- *   'C' for colorless non-lands
+ *   'C' for colorless (incl. basic Wastes / colorless lands)
  *   '?' if Scryfall data is missing (so user knows lookup failed)
  */
 export function getColorKey(card: EnrichedCard): string {
-  // Lands: detect via type line first (most reliable), then fall back to basic name check
-  const type = (card.typeLine || '').toLowerCase();
-  if (type.includes('land')) return 'L';
-
   if (!card.colorIdentity) {
-    // Scryfall lookup missed — use a coarse fallback based on basic land names
-    if (isBasicLandByName(card.name)) return 'L';
-    return '?';
+    // Scryfall lookup missed — basic lands have well-known names so we can still bucket those.
+    return basicLandColorByName(card.name) ?? '?';
   }
 
   const ci = card.colorIdentity;
@@ -28,9 +22,23 @@ export function getColorKey(card: EnrichedCard): string {
   return 'M';
 }
 
-function isBasicLandByName(name: string): boolean {
+/** True if the card is a land — used for slot styling, not for color grouping. */
+export function isLand(card: EnrichedCard): boolean {
+  const type = (card.typeLine || '').toLowerCase();
+  if (type.includes('land')) return true;
+  return basicLandColorByName(card.name) !== null;
+}
+
+/** Color-identity of a basic land detected purely by name. Returns null if not a basic. */
+function basicLandColorByName(name: string): string | null {
   const n = name.toLowerCase();
-  return ['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes'].some((b) => n.startsWith(b));
+  if (n.startsWith('plains')) return 'W';
+  if (n.startsWith('island')) return 'U';
+  if (n.startsWith('swamp')) return 'B';
+  if (n.startsWith('mountain')) return 'R';
+  if (n.startsWith('forest')) return 'G';
+  if (n.startsWith('wastes')) return 'C';
+  return null;
 }
 
 export interface ColorInfo {

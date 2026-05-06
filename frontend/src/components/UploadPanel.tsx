@@ -134,59 +134,20 @@ export function UploadPanel() {
         </div>
       )}
 
-      {hasCollection && importOpen && (
-        <div className="import-mode-row">
-          <span className="rule-label">When importing more</span>
-          <label className="field-checkbox">
-            <input
-              type="radio"
-              name="import-mode"
-              checked={mode === 'replace'}
-              onChange={() => setMode('replace')}
-            />
-            Replace existing
-          </label>
-          <label className="field-checkbox">
-            <input
-              type="radio"
-              name="import-mode"
-              checked={mode === 'merge'}
-              onChange={() => setMode('merge')}
-            />
-            Add to existing
-          </label>
-        </div>
-      )}
-
       {importOpen && (
-        <div className="upload-grid">
-          {/* File side */}
-          <div
-            className={`upload-card ${isLoading ? 'loading' : ''}`}
-            onClick={handlePickFile}
-            role="button"
-            tabIndex={0}
-            aria-disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <div className="upload-icon">
-                  <span className="spinner" />
-                </div>
-                <div className="upload-text">Importing...</div>
-                <div className="upload-sub">parsing &amp; resolving via Scryfall</div>
-              </>
-            ) : (
-              <>
-                <div className="upload-icon">&#128194;</div>
-                <div className="upload-text">
-                  {hasCollection ? 'Import another file' : 'Upload a CSV file'}
-                </div>
-                <div className="upload-sub">
-                  ManaBox · Archidekt · Moxfield · Deckbox · or any CSV
-                </div>
-              </>
-            )}
+        <div className="import-card">
+          <div className="import-card-header">
+            <h2 className="import-card-title">Import Collection</h2>
+            <button
+              type="button"
+              className="btn import-upload-btn"
+              onClick={handlePickFile}
+              disabled={isLoading}
+              title="Upload a CSV/TSV file (ManaBox, Archidekt, Moxfield, Deckbox, etc.)"
+            >
+              {isLoading && <span className="spinner" />}
+              <span>Upload CSV</span>
+            </button>
             <input
               type="file"
               ref={fileInputRef}
@@ -197,26 +158,55 @@ export function UploadPanel() {
             />
           </div>
 
-          {/* Paste side */}
-          <div className="upload-card upload-card-paste">
-            <div className="upload-icon">&#128203;</div>
-            <div className="upload-text">Paste a card list</div>
-            <textarea
-              className="paste-textarea"
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder={'1 Sol Ring\n4 Lightning Bolt\n1 Fire // Ice (APC) 128\nRhystic Study'}
-              disabled={isLoading}
-            />
-            <div className="upload-sub">
-              One per line · MTGA format · CSV · quantities supported
+          <p className="import-card-desc">
+            Paste card names (one per line, CSV, or MTGA format). Quantities supported. Or upload a
+            CSV from ManaBox · Archidekt · Moxfield · Deckbox.
+          </p>
+
+          {hasCollection && (
+            <div className="import-mode-row">
+              <span className="rule-label">When importing more</span>
+              <label className="field-checkbox">
+                <input
+                  type="radio"
+                  name="import-mode"
+                  checked={mode === 'replace'}
+                  onChange={() => setMode('replace')}
+                />
+                Replace existing
+              </label>
+              <label className="field-checkbox">
+                <input
+                  type="radio"
+                  name="import-mode"
+                  checked={mode === 'merge'}
+                  onChange={() => setMode('merge')}
+                />
+                Add to existing
+              </label>
             </div>
+          )}
+
+          <textarea
+            className="paste-textarea import-textarea"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={
+              '1 Sol Ring\n4 Arcane Signet\n1 Fire // Ice (APC) 128\nDemonic Tutor\n…'
+            }
+            disabled={isLoading}
+          />
+
+          <div className="import-card-footer">
+            <span className="import-card-hint">
+              One per line · MTGA format · CSV · quantities supported
+            </span>
             <button
               className="btn btn-primary"
               onClick={handlePasteImport}
               disabled={isLoading || !pasteText.trim()}
             >
-              {isLoading ? 'Importing...' : 'Import list'}
+              {isLoading ? 'Importing…' : 'Import Cards'}
             </button>
           </div>
         </div>
