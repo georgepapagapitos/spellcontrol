@@ -33,7 +33,7 @@ function Page18({ page, pageNum }: { page: Page; pageNum: number }) {
 
   return (
     <div className="page-wrap">
-      <div className="page-num">page {pageNum}</div>
+      <div className="page-num">p{pageNum}</div>
       <div className="page-18">
         <Side label="front" cards={front} />
         <Side label="back" cards={back} />

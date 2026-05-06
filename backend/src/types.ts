@@ -6,16 +6,26 @@ export interface ScryfallCard {
   id: string;
   name: string;
   mana_cost?: string;
-  cmc: number;
-  type_line: string;
+  /** Null for some multi-face layouts (e.g. reversible_card). Fall back to card_faces[0]. */
+  cmc?: number;
+  /** Null for some multi-face layouts (e.g. reversible_card). Fall back to card_faces[0]. */
+  type_line?: string;
   colors?: string[];
-  color_identity: string[];
+  /** Always present at top level except for tokens / oddball layouts. */
+  color_identity?: string[];
   rarity: string;
   set: string;
   set_name: string;
   collector_number: string;
+  layout?: string;
   /** EDHREC popularity rank. Lower = more popular. Missing for some cards (tokens, weird sets). */
   edhrec_rank?: number;
+  /** Cosmetic treatments on this printing (e.g. "fullart", "extendedart", "showcase", "etched"). */
+  frame_effects?: string[];
+  /** Older full-art lands set this without populating frame_effects. */
+  full_art?: boolean;
+  /** "black" | "white" | "borderless" | "silver" | "gold". */
+  border_color?: string;
   image_uris?: {
     small?: string;
     normal?: string;
@@ -23,6 +33,9 @@ export interface ScryfallCard {
   };
   card_faces?: Array<{
     name: string;
+    type_line?: string;
+    cmc?: number;
+    colors?: string[];
     image_uris?: {
       small?: string;
       normal?: string;
@@ -61,6 +74,12 @@ export interface EnrichedCard {
   edhrecRank?: number;
   imageSmall?: string;
   imageNormal?: string;
+  /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
+  frameEffects?: string[];
+  /** Convenience: true if either Scryfall's full_art flag OR frameEffects contains 'fullart'. */
+  fullArt?: boolean;
+  /** "black" | "white" | "borderless" | "silver" | "gold". */
+  borderColor?: string;
 }
 
 export interface UploadResponse {

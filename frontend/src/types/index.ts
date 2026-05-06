@@ -21,6 +21,12 @@ export interface EnrichedCard {
   edhrecRank?: number;
   imageSmall?: string;
   imageNormal?: string;
+  /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
+  frameEffects?: string[];
+  /** True when the printing is a full-art treatment (covers both Scryfall's full_art flag and the 'fullart' frame effect). */
+  fullArt?: boolean;
+  /** "black" | "white" | "borderless" | "silver" | "gold". */
+  borderColor?: string;
 }
 
 export interface UploadResponse {
@@ -51,6 +57,15 @@ export type ColorChoice = 'W' | 'U' | 'B' | 'R' | 'G' | 'C' | 'M';
 
 export type FoilChoice = 'any' | 'foil' | 'nonfoil';
 
+/**
+ * Treatment / frame effect on a printing. "fullart" is special-cased to also
+ * include older lands where Scryfall sets `full_art: true` but leaves
+ * frame_effects empty.
+ */
+export type Treatment = 'fullart' | 'extendedart' | 'showcase' | 'etched' | 'inverted';
+
+export type BorderColor = 'black' | 'white' | 'borderless' | 'silver' | 'gold';
+
 export interface BinderRule {
   rarities?: Rarity[];
   priceMin?: number;
@@ -71,6 +86,13 @@ export interface BinderRule {
    * EDHREC popularity threshold. Card matches if its edhrec_rank ≤ this number.
    */
   edhrecRankMax?: number;
+  /**
+   * Cosmetic treatments. Card matches if any of its treatments is in this list.
+   * 'fullart' matches both Scryfall's full_art flag and the 'fullart' frame effect.
+   */
+  treatments?: Treatment[];
+  /** Card matches if its borderColor is in this list. */
+  borderColors?: BorderColor[];
 }
 
 export interface BinderDef {
@@ -107,8 +129,23 @@ export interface BinderPage {
 }
 
 export interface BinderSection {
-  /** Color identity key: W/U/B/R/G/M/C/L/?/ALL */
-  colorKey: string;
+  /**
+   * Stable grouping key — depends on the binder's primary sort:
+   *   color  → W/U/B/R/G/M/C/L/?
+   *   type   → creature/instant/sorcery/...
+   *   rarity → mythic/rare/uncommon/common/...
+   *   cmc    → cmc-0/cmc-1/.../cmc-7+
+   *   set    → setCode
+   *   name   → name-A/name-B/.../name-#
+   *   price  → price-0/price-lt1/...
+   *   edhrec → edhrec-100/edhrec-1000/...
+   *   none   → ALL
+   */
+  key: string;
+  /** Display label for the section header (e.g. "White", "Creature", "CMC 3"). */
+  label: string;
+  /** Optional color-pip styling — populated only when grouping by color. */
+  pip?: { background: string; border: string };
   cards: EnrichedCard[];
   pages: BinderPage[];
 }
@@ -116,6 +153,8 @@ export interface BinderSection {
 export interface MaterializedBinder {
   def: BinderDef;
   effectivePocketSize: PocketSize;
+  /** Sort chain actually applied (includes the implicit Name tiebreaker if added). */
+  effectiveSorts: SortField[];
   sections: BinderSection[];
   totalCards: number;
   totalPages: number;
@@ -126,4 +165,5 @@ export interface UncategorizedBucket {
   sections: BinderSection[];
   totalPages: number;
   effectivePocketSize: PocketSize;
+  effectiveSorts: SortField[];
 }

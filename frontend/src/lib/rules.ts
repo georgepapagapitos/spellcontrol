@@ -26,10 +26,10 @@ export function cardMatchesSingleRule(card: EnrichedCard, rule: BinderRule): boo
   if (rule.priceMin !== undefined && card.purchasePrice < rule.priceMin) return false;
   if (rule.priceMax !== undefined && card.purchasePrice > rule.priceMax) return false;
 
-  // Colors
+  // Colors — match by color identity (lands match too: Forest → G, Wastes → C, dual lands → M).
   if (rule.colors && rule.colors.length > 0) {
     const key = getColorKey(card);
-    if (key === 'L' || key === '?') return false;
+    if (key === '?') return false;
     if (!rule.colors.includes(key as never)) return false;
   }
 
@@ -79,6 +79,23 @@ export function cardMatchesSingleRule(card: EnrichedCard, rule: BinderRule): boo
     if (card.edhrecRank > rule.edhrecRankMax) return false;
   }
 
+  // Treatments — ANY of the selected treatments matches. 'fullart' is special:
+  // it matches both the explicit fullArt flag and any 'fullart' frame effect.
+  if (rule.treatments && rule.treatments.length > 0) {
+    const effects = card.frameEffects || [];
+    const matched = rule.treatments.some((t) => {
+      if (t === 'fullart') return card.fullArt === true || effects.includes('fullart');
+      return effects.includes(t);
+    });
+    if (!matched) return false;
+  }
+
+  // Border color — ANY-of match.
+  if (rule.borderColors && rule.borderColors.length > 0) {
+    if (!card.borderColor) return false;
+    if (!rule.borderColors.includes(card.borderColor as never)) return false;
+  }
+
   return true;
 }
 
@@ -96,7 +113,9 @@ export function isRuleEmpty(rule: BinderRule): boolean {
     (!rule.setCodes || rule.setCodes.length === 0) &&
     (!rule.foil || rule.foil === 'any') &&
     !rule.sourceCategoryContains?.trim() &&
-    rule.edhrecRankMax === undefined
+    rule.edhrecRankMax === undefined &&
+    (!rule.treatments || rule.treatments.length === 0) &&
+    (!rule.borderColors || rule.borderColors.length === 0)
   );
 }
 
