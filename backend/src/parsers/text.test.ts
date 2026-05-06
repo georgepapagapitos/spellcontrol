@@ -142,7 +142,7 @@ describe('parseTextList', () => {
         '1 Sol Ring (CMR) 472',
         '',
         'Sideboard',
-        '1 Tormod\'s Crypt (M21) 240',
+        "1 Tormod's Crypt (M21) 240",
       ].join('\n');
       const { rows, format } = parseTextList(input);
       expect(rows).toHaveLength(3);

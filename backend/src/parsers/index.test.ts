@@ -25,7 +25,8 @@ describe('parseImport — format detection', () => {
 
   describe('CSV detection', () => {
     it('detects Moxfield CSV by headers', () => {
-      const csv = 'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number\n1,,Sol Ring,CMR,NM,English,,,,472';
+      const csv =
+        'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number\n1,,Sol Ring,CMR,NM,English,,,,472';
       const result = parseImport(csv);
       expect(result.format).toBe('moxfield');
       expect(result.rows).toHaveLength(1);
@@ -34,7 +35,8 @@ describe('parseImport — format detection', () => {
 
     it('detects Archidekt CSV by headers', () => {
       // Archidekt detection requires: name|card name, edition|edition code, quantity
-      const csv = 'quantity,name,edition,collector number,foil,condition\n1,Sol Ring,CMR,472,False,NM';
+      const csv =
+        'quantity,name,edition,collector number,foil,condition\n1,Sol Ring,CMR,472,False,NM';
       const result = parseImport(csv);
       expect(result.format).toBe('archidekt');
     });

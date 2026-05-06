@@ -51,7 +51,7 @@ const HEADER_ALIASES: Record<string, keyof FieldMap> = {
   // Scryfall ID
   'scryfall id': 'scryfallId',
   scryfallid: 'scryfallId',
-  'scryfall_id': 'scryfallId',
+  scryfall_id: 'scryfallId',
 
   // Price
   'purchase price': 'purchasePrice',
@@ -117,7 +117,10 @@ export function detectCsvFormat(headers: string[]): ImportFormat | null {
 }
 
 export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
-  const lines = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .split(/\r?\n/);
   if (lines.length < 2) return { rows: [], format, unparsedLines: [] };
 
   const delim = detectDelimiter(lines[0]);
@@ -150,11 +153,10 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
         fieldMap.collectorNumber >= 0 ? vals[fieldMap.collectorNumber] || undefined : undefined,
       foil: fieldMap.foil >= 0 ? parseFoil(vals[fieldMap.foil]) : undefined,
       rarity:
-        fieldMap.rarity >= 0
-          ? (vals[fieldMap.rarity] || '').toLowerCase() || undefined
-          : undefined,
+        fieldMap.rarity >= 0 ? (vals[fieldMap.rarity] || '').toLowerCase() || undefined : undefined,
       scryfallId: fieldMap.scryfallId >= 0 ? vals[fieldMap.scryfallId] || undefined : undefined,
-      purchasePrice: fieldMap.purchasePrice >= 0 ? parsePrice(vals[fieldMap.purchasePrice]) : undefined,
+      purchasePrice:
+        fieldMap.purchasePrice >= 0 ? parsePrice(vals[fieldMap.purchasePrice]) : undefined,
       sourceCategory:
         fieldMap.sourceCategory >= 0 ? vals[fieldMap.sourceCategory] || undefined : undefined,
       sourceFormat: format,
@@ -234,6 +236,16 @@ function parseFoil(raw: string | undefined): boolean | undefined {
   if (!raw) return undefined;
   const v = raw.toLowerCase().trim();
   if (v === 'foil' || v === 'true' || v === '1' || v === 'yes' || v === 'y') return true;
-  if (v === 'normal' || v === 'nonfoil' || v === 'non-foil' || v === 'false' || v === '0' || v === 'no' || v === 'n' || v === '') return false;
+  if (
+    v === 'normal' ||
+    v === 'nonfoil' ||
+    v === 'non-foil' ||
+    v === 'false' ||
+    v === '0' ||
+    v === 'no' ||
+    v === 'n' ||
+    v === ''
+  )
+    return false;
   return undefined;
 }

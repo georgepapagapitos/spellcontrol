@@ -22,7 +22,10 @@ export function looksLikeManabox(text: string): boolean {
  * against embedded tabs in card/set names.
  */
 export function parseManabox(text: string): ParseResult {
-  const lines = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .split(/\r?\n/);
   if (lines.length < 2) return { rows: [], format: 'manabox', unparsedLines: [] };
 
   const headers = splitLine(lines[0], '\t');
@@ -93,8 +96,7 @@ export function parseManabox(text: string): ParseResult {
       quantity: qty,
       setCode: idx.setCode >= 0 ? row[idx.setCode] || undefined : undefined,
       setName: idx.setName >= 0 ? row[idx.setName] || undefined : undefined,
-      collectorNumber:
-        idx.collectorNumber >= 0 ? row[idx.collectorNumber] || undefined : undefined,
+      collectorNumber: idx.collectorNumber >= 0 ? row[idx.collectorNumber] || undefined : undefined,
       foil: idx.foil >= 0 ? (row[idx.foil] || '').toLowerCase() === 'foil' : undefined,
       rarity: idx.rarity >= 0 ? (row[idx.rarity] || '').toLowerCase() || undefined : undefined,
       scryfallId: idx.scryfallId >= 0 ? row[idx.scryfallId] || undefined : undefined,
