@@ -1669,6 +1669,8 @@ hr {
   display: flex;
   align-items: stretch;
   backface-visibility: hidden;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .card-preview-slide {
