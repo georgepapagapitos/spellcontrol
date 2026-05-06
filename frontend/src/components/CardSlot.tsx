@@ -19,10 +19,16 @@ const VIEWPORT_PAD = 6;
 // Devices with a real hover capability (mouse, trackpad) get the floating
 // tooltip on mouseenter. Touch screens (no hover) instead open the swipeable
 // CardPreview modal on tap, opted into via CardPreviewContext.
+//
+// `(hover: hover)` alone is unreliable on Chrome/Android, which often reports
+// hover capability as true because the device *could* connect a stylus or
+// mouse — even when the user is tapping with a finger. Combine with
+// `(pointer: coarse)` so a coarse primary pointer (finger) wins regardless.
 const hasHover =
   typeof window !== 'undefined' &&
   typeof window.matchMedia === 'function' &&
-  window.matchMedia('(hover: hover)').matches;
+  window.matchMedia('(hover: hover)').matches &&
+  !window.matchMedia('(pointer: coarse)').matches;
 
 export function CardSlot({ card }: Props) {
   const preview = useContext(CardPreviewContext);
