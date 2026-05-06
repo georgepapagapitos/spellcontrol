@@ -3,7 +3,6 @@ import { useCollectionStore } from './store/collection';
 import { materializeBinders } from './lib/materialize';
 import { exportBindersToPDF } from './lib/pdf-export';
 import { UploadPanel } from './components/UploadPanel';
-import { ConfigPanel } from './components/ConfigPanel';
 import { StatsBar } from './components/StatsBar';
 import { Legend } from './components/Legend';
 import { BinderTabs } from './components/BinderTabs';
@@ -18,11 +17,11 @@ export default function App() {
     binders,
     hydrating,
     error,
-    globalPocketSize,
     search,
     hydrateCards,
     setEditingBinder,
     setError,
+    setSearch,
   } = useCollectionStore();
 
   // Hydrate from IndexedDB once on mount. The store starts with hydrating=true so the UI
@@ -42,16 +41,13 @@ export default function App() {
           totalCards: 0,
           sections: [],
           totalPages: 0,
-          effectivePocketSize: globalPocketSize,
+          effectivePocketSize: 9 as const,
         },
       };
     }
-    const result = materializeBinders(cards, binders, {
-      globalPocketSize,
-      search,
-    });
+    const result = materializeBinders(cards, binders, { search });
     return { materialized: result.binders, unbinned: result.unbinned };
-  }, [cards, binders, globalPocketSize, search]);
+  }, [cards, binders, search]);
 
   const handleExportPDF = () => {
     if (cards.length === 0) return;
@@ -92,7 +88,6 @@ export default function App() {
 
       {!hydrating && cards.length > 0 && (
         <>
-          <ConfigPanel />
           <StatsBar binders={materialized} unbinned={unbinned} />
           <hr />
           <Legend />
@@ -109,7 +104,26 @@ export default function App() {
               </button>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <div className="binder-toolbar">
+            <div className="binder-toolbar-search">
+              <input
+                type="search"
+                placeholder="Filter cards by name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Filter cards by name"
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
             <button className="btn" onClick={handleExportPDF}>
               Export PDF
             </button>
