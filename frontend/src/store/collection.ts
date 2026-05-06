@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { BinderDef, BinderInput, EnrichedCard, PocketSize, UploadResponse } from '../types';
+import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
 
 function newBinderId(): string {
@@ -31,7 +31,6 @@ interface CollectionState {
   activeTab: string;
   editingBinder: string | null;
 
-  globalPocketSize: PocketSize;
   search: string;
 
   // Card actions
@@ -52,7 +51,6 @@ interface CollectionState {
   setEditingBinder: (id: string | null) => void;
 
   // Config actions
-  setGlobalPocketSize: (size: PocketSize) => void;
   setSearch: (s: string) => void;
 }
 
@@ -89,7 +87,6 @@ export const useCollectionStore = create<CollectionState>()(
 
       // Persisted defaults
       binders: [],
-      globalPocketSize: 9,
 
       // Card actions
       hydrateCards: async () => {
@@ -218,7 +215,6 @@ export const useCollectionStore = create<CollectionState>()(
       setActiveTab: (tab) => set({ activeTab: tab }),
       setEditingBinder: (id) => set({ editingBinder: id }),
 
-      setGlobalPocketSize: (size) => set({ globalPocketSize: size }),
       setSearch: (s) => set({ search: s }),
     }),
     {
@@ -227,7 +223,6 @@ export const useCollectionStore = create<CollectionState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
-        globalPocketSize: s.globalPocketSize,
       }),
       /**
        * Migrations:

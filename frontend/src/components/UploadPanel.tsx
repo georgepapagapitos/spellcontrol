@@ -9,6 +9,7 @@ export function UploadPanel() {
   const [mode, setMode] = useState<ImportMode>('replace');
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const {
     fileName,
@@ -25,6 +26,8 @@ export function UploadPanel() {
   } = useCollectionStore();
 
   const hasCollection = cards.length > 0;
+  // When a collection is loaded, the import area collapses to a thin bar; new users see the full UI.
+  const importOpen = !hasCollection || expanded;
 
   const handlePickFile = () => {
     if (isLoading) return;
@@ -61,6 +64,7 @@ export function UploadPanel() {
         parts.push(`${result.unresolvedNames.length} unresolved`);
       }
       setSuccessMsg(parts.join(' · '));
+      setExpanded(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -73,6 +77,7 @@ export function UploadPanel() {
     await clearCards();
     setShowUnresolved(false);
     setSuccessMsg(null);
+    setExpanded(false);
   };
 
   return (
@@ -90,9 +95,19 @@ export function UploadPanel() {
               </div>
             </div>
           </div>
-          <button className="btn-link-danger" onClick={handleClear} disabled={isLoading}>
-            Clear cached collection
-          </button>
+          <div className="upload-current-actions">
+            <button
+              className="btn-link"
+              onClick={() => setExpanded((v) => !v)}
+              disabled={isLoading}
+              aria-expanded={importOpen}
+            >
+              {importOpen ? 'Hide import' : 'Import more'}
+            </button>
+            <button className="btn-link-danger" onClick={handleClear} disabled={isLoading}>
+              Clear cached collection
+            </button>
+          </div>
         </div>
       )}
 
@@ -121,7 +136,7 @@ export function UploadPanel() {
         </div>
       )}
 
-      {hasCollection && (
+      {hasCollection && importOpen && (
         <div className="import-mode-row">
           <span className="rule-label">When importing more</span>
           <label className="field-checkbox">
@@ -145,6 +160,7 @@ export function UploadPanel() {
         </div>
       )}
 
+      {importOpen && (
       <div className="upload-grid">
         {/* File side */}
         <div
@@ -206,6 +222,7 @@ export function UploadPanel() {
           </button>
         </div>
       </div>
+      )}
 
       {error && <div className="error-banner">{error}</div>}
     </div>
