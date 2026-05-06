@@ -1,0 +1,193 @@
+/**
+ * Theme system. One block per guild — each is self-contained, designed
+ * around the *vibe* of the guild rather than mechanically composing
+ * its two colors. Some are light, some are dark.
+ *
+ * Only semantic UI tokens are overridden here. Mana pip colors live in
+ * lib/colors.ts; rarity colors live in :root in global.css. Both are
+ * MTG-canonical and intentionally never themed so card data and
+ * warnings always read consistently.
+ */
+
+/* ── LIGHT ─────────────────────────────────────────────────────────────── */
+
+/* Azorius — order, law, sky parchment */
+[data-theme='azorius'] {
+  --bg: #eaecf0;
+  --surface: #f4f6fa;
+  --surface2: #fafcff;
+  --border: #b8c4d8;
+  --border2: #8fa1bc;
+  --text: #1a2438;
+  --text2: #4a5670;
+  --text3: #7888a0;
+  --accent: #2c5d99;
+  --accent-hover: #3d72b4;
+  --accent-light: color-mix(in srgb, #2c5d99 16%, transparent);
+  --on-accent: #fafcff;
+}
+
+/* Boros — sunlit dawn, banners, valor */
+[data-theme='boros'] {
+  --bg: #f4ead8;
+  --surface: #fcf4e2;
+  --surface2: #fff9ec;
+  --border: #d8b890;
+  --border2: #b8956a;
+  --text: #3a1a10;
+  --text2: #6a4a30;
+  --text3: #8a6a48;
+  --accent: #c4381c;
+  --accent-hover: #d84e30;
+  --accent-light: color-mix(in srgb, #c4381c 14%, transparent);
+  --on-accent: #fcf4e2;
+}
+
+/* Selesnya — sunlit garden, harmony, growth */
+[data-theme='selesnya'] {
+  --bg: #e8eedc;
+  --surface: #f2f6e6;
+  --surface2: #faf9f0;
+  --border: #b4c490;
+  --border2: #8aa066;
+  --text: #1a2a14;
+  --text2: #4a5a30;
+  --text3: #788858;
+  --accent: #4a8a3a;
+  --accent-hover: #5a9d48;
+  --accent-light: color-mix(in srgb, #4a8a3a 16%, transparent);
+  --on-accent: #f2f6e6;
+}
+
+/* Simic — clean lab, kelp, fluid biomancy */
+[data-theme='simic'] {
+  --bg: #d8eae6;
+  --surface: #e6f2ee;
+  --surface2: #f0f8f4;
+  --border: #a0c4bc;
+  --border2: #74a39a;
+  --text: #0e2a26;
+  --text2: #3a564f;
+  --text3: #6a847b;
+  --accent: #1a8a6a;
+  --accent-hover: #2aa380;
+  --accent-light: color-mix(in srgb, #1a8a6a 16%, transparent);
+  --on-accent: #e6f2ee;
+}
+
+/* ── DARK ──────────────────────────────────────────────────────────────── */
+
+/* Dimir — deep shadow, conspiracy, midnight */
+[data-theme='dimir'] {
+  --bg: #0c0e1c;
+  --surface: #15182a;
+  --surface2: #1f243a;
+  --border: #2e3550;
+  --border2: #455070;
+  --text: #d8dce8;
+  --text2: #9aa3bc;
+  --text3: #5e6884;
+  --accent: #6a8ad8;
+  --accent-hover: #8ba5e8;
+  --accent-light: color-mix(in srgb, #6a8ad8 18%, transparent);
+  --on-accent: #0c0e1c;
+}
+
+/* Golgari — rotting bog, undergrowth */
+[data-theme='golgari'] {
+  --bg: #14180e;
+  --surface: #1d2218;
+  --surface2: #2a3024;
+  --border: #3c4632;
+  --border2: #555f44;
+  --text: #d8d6c4;
+  --text2: #9c9c84;
+  --text3: #6a6a55;
+  --accent: #8aa84a;
+  --accent-hover: #a5c062;
+  --accent-light: color-mix(in srgb, #8aa84a 18%, transparent);
+  --on-accent: #14180e;
+}
+
+/* Gruul — savage forest, raw fire */
+[data-theme='gruul'] {
+  --bg: #1c1410;
+  --surface: #2a1d16;
+  --surface2: #38271e;
+  --border: #503624;
+  --border2: #6e4e34;
+  --text: #e8d8c0;
+  --text2: #b09478;
+  --text3: #806858;
+  --accent: #88c060;
+  --accent-hover: #a3d878;
+  --accent-light: color-mix(in srgb, #88c060 18%, transparent);
+  --on-accent: #1c1410;
+}
+
+/* Izzet — lab at night, electric */
+[data-theme='izzet'] {
+  --bg: #0a0e22;
+  --surface: #14193a;
+  --surface2: #1f2654;
+  --border: #303a78;
+  --border2: #4854a8;
+  --text: #e0e6f8;
+  --text2: #a0acd0;
+  --text3: #6c7898;
+  --accent: #ff5a3a;
+  --accent-hover: #ff7355;
+  --accent-light: color-mix(in srgb, #ff5a3a 18%, transparent);
+  --on-accent: #0a0e22;
+}
+
+/* Orzhov — gothic gloom, cathedral shadow, gold */
+[data-theme='orzhov'] {
+  --bg: #14101a;
+  --surface: #1d1828;
+  --surface2: #281f35;
+  --border: #3a3048;
+  --border2: #4f405d;
+  --text: #e0d8c8;
+  --text2: #aaa098;
+  --text3: #786e6a;
+  --accent: #d4ad48;
+  --accent-hover: #e8c060;
+  --accent-light: color-mix(in srgb, #d4ad48 16%, transparent);
+  --on-accent: #14101a;
+}
+
+/* Rakdos — blood cult, smoke and ash */
+[data-theme='rakdos'] {
+  --bg: #170c10;
+  --surface: #221218;
+  --surface2: #2e1820;
+  --border: #481a26;
+  --border2: #602534;
+  --text: #e8d4d4;
+  --text2: #b89090;
+  --text3: #806060;
+  --accent: #d83d3d;
+  --accent-hover: #ee5555;
+  --accent-light: color-mix(in srgb, #d83d3d 18%, transparent);
+  --on-accent: #170c10;
+}
+
+/**
+ * Status colors for light themes. The :root defaults are tuned for dark
+ * surfaces (pale text on dark bg); on light surfaces they read as
+ * washed-out pink/gold. Override with deeper hues so warnings and
+ * errors stay legible.
+ */
+[data-theme='azorius'],
+[data-theme='boros'],
+[data-theme='selesnya'],
+[data-theme='simic'] {
+  --warn-bg: #f6e8c0;
+  --warn-border: #b8862a;
+  --warn-text: #6a4810;
+
+  --err-bg: #f4d8d8;
+  --err-border: #b03434;
+  --err-text: #8a1818;
+}
