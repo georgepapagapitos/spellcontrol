@@ -57,8 +57,7 @@ export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
   const goPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const goNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
-  const card = cards[selected];
-  if (!card) return null;
+  if (!cards[selected]) return null;
 
   const hasPrev = selected > 0;
   const hasNext = selected < cards.length - 1;
@@ -75,20 +74,6 @@ export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
           ×
         </button>
 
-        <div className="card-preview-name">{card.name}</div>
-        <div className="card-preview-meta">
-          {card.rarity} · ${card.purchasePrice.toFixed(2)}
-          {card.cmc !== undefined ? ` · CMC ${card.cmc}` : ''}
-          <br />
-          {card.setName || card.setCode}
-          {card.typeLine ? (
-            <>
-              <br />
-              {card.typeLine}
-            </>
-          ) : null}
-        </div>
-
         <div className="card-preview-viewport" ref={emblaRef}>
           <div className="card-preview-track">
             {cards.map((c, i) => {
@@ -96,6 +81,19 @@ export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
               const near = Math.abs(i - selected) <= 1;
               return (
                 <div className="card-preview-slide" key={`${c.scryfallId}-${i}`}>
+                  <div className="card-preview-name">{c.name}</div>
+                  <div className="card-preview-meta">
+                    {c.rarity} · ${c.purchasePrice.toFixed(2)}
+                    {c.cmc !== undefined ? ` · CMC ${c.cmc}` : ''}
+                    <br />
+                    {c.setName || c.setCode}
+                    {c.typeLine ? (
+                      <>
+                        <br />
+                        {c.typeLine}
+                      </>
+                    ) : null}
+                  </div>
                   <div className="card-preview-image-frame">
                     {c.imageNormal && !errored && near ? (
                       <img
