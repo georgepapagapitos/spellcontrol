@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -8,63 +9,63 @@ interface Props {
   onClose: () => void;
 }
 
-const SWIPE_THRESHOLD = 50;
-
 export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
-  const card = cards[index];
-  const [imgError, setImgError] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    startIndex: index,
+    align: 'center',
+    loop: false,
+    skipSnaps: false,
+    duration: 22,
+    containScroll: 'trimSnaps',
+  });
+  const [selected, setSelected] = useState(index);
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
+  // Sync embla → parent index.
   useEffect(() => {
-    setImgError(false);
-  }, [card?.scryfallId]);
+    if (!emblaApi) return;
+    const onSelect = () => {
+      const i = emblaApi.selectedScrollSnap();
+      setSelected(i);
+      onIndexChange(i);
+    };
+    emblaApi.on('select', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi, onIndexChange]);
+
+  // Sync parent index → embla (e.g. arrow buttons or external changes).
+  useEffect(() => {
+    if (!emblaApi) return;
+    if (emblaApi.selectedScrollSnap() !== index) {
+      emblaApi.scrollTo(index);
+    }
+  }, [emblaApi, index]);
 
   // Keyboard navigation: arrow keys + ESC.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft' && index > 0) onIndexChange(index - 1);
-      else if (e.key === 'ArrowRight' && index < cards.length - 1) onIndexChange(index + 1);
+      else if (e.key === 'ArrowLeft') emblaApi?.scrollPrev();
+      else if (e.key === 'ArrowRight') emblaApi?.scrollNext();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [index, cards.length, onIndexChange, onClose]);
+  }, [emblaApi, onClose]);
 
+  const goPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const goNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  const card = cards[selected];
   if (!card) return null;
 
-  const hasPrev = index > 0;
-  const hasNext = index < cards.length - 1;
-  const goPrev = () => hasPrev && onIndexChange(index - 1);
-  const goNext = () => hasNext && onIndexChange(index + 1);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    touchStartX.current = t.clientX;
-    touchStartY.current = t.clientY;
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStartX.current;
-    const dy = t.clientY - touchStartY.current;
-    touchStartX.current = null;
-    touchStartY.current = null;
-    // Horizontal swipe wins only if it dominates vertical movement.
-    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
-      if (dx < 0) goNext();
-      else goPrev();
-    }
-  };
+  const hasPrev = selected > 0;
+  const hasNext = selected < cards.length - 1;
 
   return (
     <div className="card-preview-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div
-        className="card-preview"
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-      >
+      <div className="card-preview" onClick={(e) => e.stopPropagation()}>
         <button
           className="card-preview-close"
           onClick={onClose}
@@ -88,19 +89,34 @@ export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
           ) : null}
         </div>
 
-        {card.imageNormal && !imgError ? (
-          <img
-            src={card.imageNormal}
-            alt={card.name}
-            className="card-preview-image"
-            onError={() => setImgError(true)}
-          />
-        ) : card.imageNormal && imgError ? (
-          <div className="card-preview-image-fallback">Image unavailable</div>
-        ) : null}
+        <div className="card-preview-viewport" ref={emblaRef}>
+          <div className="card-preview-track">
+            {cards.map((c, i) => {
+              const errored = imgErrors[c.scryfallId];
+              const near = Math.abs(i - selected) <= 1;
+              return (
+                <div className="card-preview-slide" key={`${c.scryfallId}-${i}`}>
+                  <div className="card-preview-image-frame">
+                    {c.imageNormal && !errored && near ? (
+                      <img
+                        src={c.imageNormal}
+                        alt={c.name}
+                        className="card-preview-image"
+                        draggable={false}
+                        onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
+                      />
+                    ) : c.imageNormal && errored ? (
+                      <div className="card-preview-image-fallback">Image unavailable</div>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="card-preview-counter">
-          {index + 1} / {cards.length}
+          {selected + 1} / {cards.length}
         </div>
 
         <button
