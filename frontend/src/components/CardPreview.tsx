@@ -28,7 +28,7 @@ export function CardPreview({
     align: 'center',
     loop: false,
     skipSnaps: false,
-    duration: 35,
+    duration: 25,
     dragThreshold: 12,
     containScroll: false,
   });
@@ -61,7 +61,23 @@ export function CardPreview({
 
   useEffect(() => {
     if (!emblaApi) return;
-    const onSelect = () => {
+    // Mount neighboring images on pointerDown so they're decoded *before* the
+    // snap animation runs. Notify React (panel + parent) on settle, after the
+    // animation completes — running setState mid-RAF drops frames and reads
+    // as a "jerk" on release.
+    const onPointerDown = () => {
+      const i = emblaApi.selectedScrollSnap();
+      let added = false;
+      for (let j = i - PRELOAD_RADIUS - 1; j <= i + PRELOAD_RADIUS + 1; j++) {
+        const id = cards[j]?.scryfallId;
+        if (id && !mountedRef.current.has(id)) {
+          mountedRef.current.add(id);
+          added = true;
+        }
+      }
+      if (added) forceRender((n) => n + 1);
+    };
+    const onSettle = () => {
       const i = emblaApi.selectedScrollSnap();
       setSelected(i);
       onIndexChangeRef.current(i);
@@ -76,9 +92,11 @@ export function CardPreview({
       }
       if (added) forceRender((n) => n + 1);
     };
-    emblaApi.on('select', onSelect);
+    emblaApi.on('pointerDown', onPointerDown);
+    emblaApi.on('settle', onSettle);
     return () => {
-      emblaApi.off('select', onSelect);
+      emblaApi.off('pointerDown', onPointerDown);
+      emblaApi.off('settle', onSettle);
     };
   }, [emblaApi, cards]);
 
