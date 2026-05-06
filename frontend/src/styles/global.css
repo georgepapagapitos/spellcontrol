@@ -1658,26 +1658,32 @@ hr {
   background: rgba(0, 0, 0, 0.7);
 }
 
-.card-preview-carousel {
-  width: 100%;
-  overflow: hidden;
-  touch-action: pan-y;
-  padding: 0;
-  flex: 0 0 auto;
-}
-
 .card-preview-track {
   display: flex;
   align-items: center;
-  margin-left: calc(var(--slide-spacing) * -1);
-  backface-visibility: hidden;
-  will-change: transform;
+  gap: var(--slide-spacing);
+  width: 100%;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Center the first/last slide by padding the scroll area with the same
+     gap that the peek occupies on either side. */
+  padding-inline: calc((100% - var(--slide-size)) / 2);
+  scrollbar-width: none;
+}
+
+.card-preview-track::-webkit-scrollbar {
+  display: none;
 }
 
 .card-preview-slide {
   flex: 0 0 var(--slide-size);
   min-width: 0;
-  padding-left: var(--slide-spacing);
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
 }
 
 .card-preview-image-frame {
