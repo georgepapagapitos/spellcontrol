@@ -401,13 +401,11 @@ input[type=text] { width: 200px; }
   position: relative;
 }
 .slot.empty { background: var(--surface2); border: 0.5px dashed var(--border); }
-.slot.mythic    { background: #fff0d8; border: 0.5px solid #d4a020; color: #7a4a00; }
-.slot.rare      { background: #deeaf7; border: 0.5px solid #7ab0e0; color: #1a4070; }
-.slot.bulk-rare { background: #eeeef0; border: 0.5px solid #a0a0b8; color: #404060; }
-.slot.uncommon  { background: #e2f0dc; border: 0.5px solid #80b870; color: #2a5a1a; }
-.slot.common    { background: #ececec; border: 0.5px solid #b0b0b0; color: #444; }
-.slot.staple    { background: #f5e0ee; border: 0.5px solid #c878a8; color: #7a2058; }
-.slot.land      { background: #f0e8d8; border: 0.5px solid #c0a870; color: #5a3a10; }
+.slot.mythic    { background: linear-gradient(135deg, #ffd090, #e88020); border: 0.5px solid #b84800; color: #5a2000; }
+.slot.rare      { background: linear-gradient(135deg, #f0d860, #c8a020); border: 0.5px solid #906800; color: #403000; }
+.slot.uncommon  { background: linear-gradient(135deg, #b8c0d0, #8090a8); border: 0.5px solid #405878; color: #1a2838; }
+.slot.common    { background: linear-gradient(135deg, #c0c0c0, #909090); border: 0.5px solid #404040; color: #181818; }
+.slot.land      { background: linear-gradient(135deg, #e0c880, #b08030); border: 0.5px solid #785010; color: #3a1800; }
 
 /* Tooltip */
 .tooltip {
