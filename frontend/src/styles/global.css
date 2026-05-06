@@ -1680,7 +1680,6 @@ hr {
   align-items: stretch;
   backface-visibility: hidden;
   will-change: transform;
-  transform: translate3d(0, 0, 0);
 }
 
 .card-preview-slide {
@@ -1691,7 +1690,6 @@ hr {
   align-items: center;
   justify-content: flex-start;
   gap: 0.5rem;
-  padding: 0 0.25rem;
 }
 
 .card-preview-image-frame {
