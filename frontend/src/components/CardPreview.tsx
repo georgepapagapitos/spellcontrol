@@ -25,11 +25,10 @@ export function CardPreview({
 }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     startIndex: index,
-    align: 'center',
+    align: 'start',
     loop: false,
     skipSnaps: true,
-    duration: 18,
-    containScroll: 'trimSnaps',
+    duration: 20,
   });
   const [selected, setSelected] = useState(index);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
