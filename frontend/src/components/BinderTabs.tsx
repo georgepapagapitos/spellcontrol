@@ -43,7 +43,7 @@ export function BinderTabs({ binders, uncategorized }: Props) {
             </button>
 
             {isActive && (
-              <div className="tab-actions">
+              <div className="tab-actions" style={{ borderColor: b.def.color }}>
                 <button
                   className="tab-action"
                   onClick={() => moveBinder(b.def.id, 'up')}
