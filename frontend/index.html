@@ -1,11 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="azorius">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#1a1d2b" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light dark" />
     <title>MTG Binder Planner</title>
+    <script>
+      // Set data-theme synchronously so the right [data-theme] CSS rules
+      // apply on first paint. Mirrors bootstrapTheme() in store/theme.ts —
+      // keep the storage key and id list in sync if either changes.
+      (function () {
+        var VALID = ['azorius','boros','dimir','golgari','gruul','izzet','orzhov','rakdos','selesnya','simic'];
+        var DEFAULT = 'azorius';
+        var id = DEFAULT;
+        try {
+          var raw = localStorage.getItem('mtg-binder-theme');
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var saved = parsed && parsed.state && parsed.state.theme;
+            if (saved && VALID.indexOf(saved) !== -1) id = saved;
+          }
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', id);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
