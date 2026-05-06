@@ -47,10 +47,7 @@ export interface LookupResult {
  * Sol Ring all share one Scryfall ID). We dedupe identifiers before calling Scryfall, then map
  * a single resolved card back to every row that produced that identifier.
  */
-export async function resolveCards(
-  rows: ImportRow[],
-  cache: ScryfallCache
-): Promise<LookupResult> {
+export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Promise<LookupResult> {
   const resolved: Array<ScryfallCard | undefined> = new Array(rows.length).fill(undefined);
 
   // Step 1: build the identifier each row needs, and group rows by identifier key.
@@ -109,7 +106,9 @@ export async function resolveCards(
     );
 
     if (!json) {
-      console.warn(`[scryfall] batch ${batchNum} returned no data, skipping ${batch.length} identifiers`);
+      console.warn(
+        `[scryfall] batch ${batchNum} returned no data, skipping ${batch.length} identifiers`
+      );
       continue;
     }
 

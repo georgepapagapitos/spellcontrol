@@ -106,7 +106,9 @@ export function BinderEditor() {
       return;
     }
 
-    const cleaned = rules.map(cleanRule).filter((r) => Object.keys(r).length > 0 || rules.length === 1);
+    const cleaned = rules
+      .map(cleanRule)
+      .filter((r) => Object.keys(r).length > 0 || rules.length === 1);
     const finalRules = cleaned.length > 0 ? cleaned : [{}];
 
     const input: BinderInput = {
@@ -141,11 +143,7 @@ export function BinderEditor() {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{existing ? 'Edit binder' : 'New binder'}</h2>
-          <button
-            className="modal-close"
-            onClick={() => setEditingBinder(null)}
-            aria-label="Close"
-          >
+          <button className="modal-close" onClick={() => setEditingBinder(null)} aria-label="Close">
             ×
           </button>
         </div>
@@ -414,7 +412,7 @@ function RuleGroupEditor({
       <div className="rule-row">
         <span
           className="rule-label has-tooltip"
-          title="Some collection tools (ManaBox, Moxfield, Deckbox) let you tag or categorize cards. If your import included a category label, you can filter on it here. Substring match, case-insensitive."
+          title="Some collection tools let you tag or categorize cards (e.g. Moxfield tags, ManaBox binders, Deckbox folders). If your import included a category label, you can filter on it here. Substring match, case-insensitive."
         >
           Source category contains <span className="tooltip-marker">ⓘ</span>
         </span>
@@ -464,24 +462,14 @@ function RuleGroupEditor({
             }
             style={{ width: 90 }}
           />
-          <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
-            most popular EDH cards
-          </span>
+          <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>most popular EDH cards</span>
         </div>
       </div>
     </div>
   );
 }
 
-function Chip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button className={`chip ${active ? 'active' : ''}`} onClick={onClick}>
       {label}
@@ -531,13 +519,7 @@ function NumberRangeInput({
   );
 }
 
-function SortSelect({
-  value,
-  onChange,
-}: {
-  value: SortField;
-  onChange: (v: SortField) => void;
-}) {
+function SortSelect({ value, onChange }: { value: SortField; onChange: (v: SortField) => void }) {
   return (
     <select
       style={{ fontSize: '0.85rem' }}

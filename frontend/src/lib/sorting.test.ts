@@ -21,24 +21,65 @@ function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   };
 }
 
-const redInstant = makeCard({ name: 'Lightning Bolt', colorIdentity: ['R'], typeLine: 'Instant', cmc: 1, rarity: 'common', purchasePrice: 2 });
-const blueCreature = makeCard({ name: 'Merfolk Wizard', colorIdentity: ['U'], typeLine: 'Creature — Merfolk Wizard', cmc: 2, rarity: 'uncommon', purchasePrice: 1 });
-const whiteEnchantment = makeCard({ name: 'Ghostly Prison', colorIdentity: ['W'], typeLine: 'Enchantment', cmc: 2, rarity: 'uncommon', purchasePrice: 3 });
-const colorlessArtifact = makeCard({ name: 'Sol Ring', colorIdentity: [], typeLine: 'Artifact', cmc: 1, rarity: 'uncommon', purchasePrice: 5, edhrecRank: 1 });
-const multiCreature = makeCard({ name: 'Atraxa', colorIdentity: ['W', 'U', 'B', 'G'], typeLine: 'Legendary Creature — Phyrexian', cmc: 4, rarity: 'mythic', purchasePrice: 15, edhrecRank: 50 });
+const redInstant = makeCard({
+  name: 'Lightning Bolt',
+  colorIdentity: ['R'],
+  typeLine: 'Instant',
+  cmc: 1,
+  rarity: 'common',
+  purchasePrice: 2,
+});
+const blueCreature = makeCard({
+  name: 'Merfolk Wizard',
+  colorIdentity: ['U'],
+  typeLine: 'Creature — Merfolk Wizard',
+  cmc: 2,
+  rarity: 'uncommon',
+  purchasePrice: 1,
+});
+const whiteEnchantment = makeCard({
+  name: 'Ghostly Prison',
+  colorIdentity: ['W'],
+  typeLine: 'Enchantment',
+  cmc: 2,
+  rarity: 'uncommon',
+  purchasePrice: 3,
+});
+const colorlessArtifact = makeCard({
+  name: 'Sol Ring',
+  colorIdentity: [],
+  typeLine: 'Artifact',
+  cmc: 1,
+  rarity: 'uncommon',
+  purchasePrice: 5,
+  edhrecRank: 1,
+});
+const multiCreature = makeCard({
+  name: 'Atraxa',
+  colorIdentity: ['W', 'U', 'B', 'G'],
+  typeLine: 'Legendary Creature — Phyrexian',
+  cmc: 4,
+  rarity: 'mythic',
+  purchasePrice: 15,
+  edhrecRank: 50,
+});
 
 describe('cardSortValue', () => {
   it('color: returns numeric order', () => {
     expect(cardSortValue(whiteEnchantment, 'color')).toBe(0); // W
-    expect(cardSortValue(blueCreature, 'color')).toBe(1);     // U
-    expect(cardSortValue(redInstant, 'color')).toBe(3);       // R
-    expect(cardSortValue(multiCreature, 'color')).toBe(5);    // M
+    expect(cardSortValue(blueCreature, 'color')).toBe(1); // U
+    expect(cardSortValue(redInstant, 'color')).toBe(3); // R
+    expect(cardSortValue(multiCreature, 'color')).toBe(5); // M
     expect(cardSortValue(colorlessArtifact, 'color')).toBe(6); // C
   });
 
   it('rarity: mythic < rare < uncommon < common', () => {
-    expect(cardSortValue(multiCreature, 'rarity') as number).toBeLessThan(cardSortValue(colorlessArtifact, 'rarity') as number);
-    expect(cardSortValue(colorlessArtifact, 'rarity') as number).toBeLessThan(cardSortValue(redInstant, 'rarity') as number);
+    expect(cardSortValue(multiCreature, 'rarity') as number).toBeLessThan(
+      cardSortValue(colorlessArtifact, 'rarity') as number
+    );
+    expect(cardSortValue(colorlessArtifact, 'rarity') as number).toBeLessThan(
+      cardSortValue(redInstant, 'rarity') as number
+    );
   });
 
   it('cmc: returns numeric CMC', () => {
@@ -119,7 +160,9 @@ describe('sortCards', () => {
   it('sorts by name alphabetically', () => {
     const result = sortCards(cards, ['name']);
     const names = result.map((c) => c.name);
-    expect(names).toEqual([...names].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())));
+    expect(names).toEqual(
+      [...names].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+    );
   });
 
   it('sorts by price descending (highest first)', () => {

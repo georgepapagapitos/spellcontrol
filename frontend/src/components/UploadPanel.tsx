@@ -111,16 +111,14 @@ export function UploadPanel() {
         </div>
       )}
 
-      {successMsg && !error && (
-        <div className="success-banner">{successMsg}</div>
-      )}
+      {successMsg && !error && <div className="success-banner">{successMsg}</div>}
 
       {hasCollection && unresolvedNames.length > 0 && (
         <div className="unresolved-banner">
           <div className="unresolved-summary">
             <span>
-              {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} couldn't
-              be matched to Scryfall data. These cards will appear without images or metadata.
+              {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} couldn't be
+              matched to Scryfall data. These cards will appear without images or metadata.
             </span>
             <button className="btn-link" onClick={() => setShowUnresolved((v) => !v)}>
               {showUnresolved ? 'Hide list' : 'Show list'}
@@ -161,67 +159,67 @@ export function UploadPanel() {
       )}
 
       {importOpen && (
-      <div className="upload-grid">
-        {/* File side */}
-        <div
-          className={`upload-card ${isLoading ? 'loading' : ''}`}
-          onClick={handlePickFile}
-          role="button"
-          tabIndex={0}
-          aria-disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <div className="upload-icon">
-                <span className="spinner" />
-              </div>
-              <div className="upload-text">Importing...</div>
-              <div className="upload-sub">parsing &amp; resolving via Scryfall</div>
-            </>
-          ) : (
-            <>
-              <div className="upload-icon">&#128194;</div>
-              <div className="upload-text">
-                {hasCollection ? 'Import another file' : 'Upload a CSV file'}
-              </div>
-              <div className="upload-sub">
-                ManaBox · Archidekt · Moxfield · Deckbox · or any CSV
-              </div>
-            </>
-          )}
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept=".csv,.tsv,.txt"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-            disabled={isLoading}
-          />
-        </div>
-
-        {/* Paste side */}
-        <div className="upload-card upload-card-paste">
-          <div className="upload-icon">&#128203;</div>
-          <div className="upload-text">Paste a card list</div>
-          <textarea
-            className="paste-textarea"
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder={'1 Sol Ring\n4 Lightning Bolt\n1 Fire // Ice (APC) 128\nRhystic Study'}
-            disabled={isLoading}
-          />
-          <div className="upload-sub">
-            One per line · MTGA format · CSV · quantities supported
-          </div>
-          <button
-            className="btn btn-primary"
-            onClick={handlePasteImport}
-            disabled={isLoading || !pasteText.trim()}
+        <div className="upload-grid">
+          {/* File side */}
+          <div
+            className={`upload-card ${isLoading ? 'loading' : ''}`}
+            onClick={handlePickFile}
+            role="button"
+            tabIndex={0}
+            aria-disabled={isLoading}
           >
-            {isLoading ? 'Importing...' : 'Import list'}
-          </button>
+            {isLoading ? (
+              <>
+                <div className="upload-icon">
+                  <span className="spinner" />
+                </div>
+                <div className="upload-text">Importing...</div>
+                <div className="upload-sub">parsing &amp; resolving via Scryfall</div>
+              </>
+            ) : (
+              <>
+                <div className="upload-icon">&#128194;</div>
+                <div className="upload-text">
+                  {hasCollection ? 'Import another file' : 'Upload a CSV file'}
+                </div>
+                <div className="upload-sub">
+                  ManaBox · Archidekt · Moxfield · Deckbox · or any CSV
+                </div>
+              </>
+            )}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv,.tsv,.txt"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* Paste side */}
+          <div className="upload-card upload-card-paste">
+            <div className="upload-icon">&#128203;</div>
+            <div className="upload-text">Paste a card list</div>
+            <textarea
+              className="paste-textarea"
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={'1 Sol Ring\n4 Lightning Bolt\n1 Fire // Ice (APC) 128\nRhystic Study'}
+              disabled={isLoading}
+            />
+            <div className="upload-sub">
+              One per line · MTGA format · CSV · quantities supported
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handlePasteImport}
+              disabled={isLoading || !pasteText.trim()}
+            >
+              {isLoading ? 'Importing...' : 'Import list'}
+            </button>
+          </div>
         </div>
-      </div>
       )}
 
       {error && <div className="error-banner">{error}</div>}

@@ -1,23 +1,22 @@
 import { useCollectionStore } from '../store/collection';
-import type { MaterializedBinder, UnbinnedBucket } from '../types';
+import type { MaterializedBinder, UncategorizedBucket } from '../types';
 
 interface Props {
   binders: MaterializedBinder[];
-  unbinned: UnbinnedBucket;
+  uncategorized: UncategorizedBucket;
 }
 
-export function StatsBar({ binders, unbinned }: Props) {
+export function StatsBar({ binders, uncategorized }: Props) {
   const { cards, scryfallMisses } = useCollectionStore();
 
   const totalValue = cards.reduce((sum, c) => sum + c.purchasePrice, 0);
 
   const binnedCount = binders.reduce((s, b) => s + b.totalCards, 0);
-  const unbinnedCount = unbinned.totalCards;
-  const denom = binnedCount + unbinnedCount;
+  const uncategorizedCount = uncategorized.totalCards;
+  const denom = binnedCount + uncategorizedCount;
   const binnedPct = denom > 0 ? Math.round((binnedCount / denom) * 100) : 0;
 
-  const totalBinderPages =
-    binders.reduce((s, b) => s + b.totalPages, 0) + unbinned.totalPages;
+  const totalBinderPages = binders.reduce((s, b) => s + b.totalPages, 0) + uncategorized.totalPages;
 
   return (
     <>
@@ -29,8 +28,8 @@ export function StatsBar({ binders, unbinned }: Props) {
           sub={denom > 0 ? `${binnedPct}%` : undefined}
         />
         <Stat
-          label="Still in bulk"
-          value={unbinnedCount.toLocaleString()}
+          label="Uncategorized"
+          value={uncategorizedCount.toLocaleString()}
           sub={denom > 0 ? `${100 - binnedPct}%` : undefined}
         />
         <Stat label="Binder pages" value={totalBinderPages.toString()} />
@@ -38,8 +37,8 @@ export function StatsBar({ binders, unbinned }: Props) {
       </div>
       {scryfallMisses > 0 && (
         <div className="warn-banner">
-          ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched
-          with Scryfall data — color/CMC/type sorting may be inaccurate for those cards.
+          ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched with
+          Scryfall data — color/CMC/type sorting may be inaccurate for those cards.
         </div>
       )}
     </>

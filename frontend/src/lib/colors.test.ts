@@ -20,17 +20,31 @@ function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
 
 describe('getColorKey', () => {
   it('returns "L" for cards with "land" in type line', () => {
-    expect(getColorKey(makeCard({ typeLine: 'Basic Land — Forest', colorIdentity: ['G'] }))).toBe('L');
+    expect(getColorKey(makeCard({ typeLine: 'Basic Land — Forest', colorIdentity: ['G'] }))).toBe(
+      'L'
+    );
     expect(getColorKey(makeCard({ typeLine: 'Land', colorIdentity: [] }))).toBe('L');
   });
 
   it('returns "L" for basic land names when colorIdentity is missing', () => {
-    expect(getColorKey(makeCard({ name: 'Forest', typeLine: undefined, colorIdentity: undefined }))).toBe('L');
-    expect(getColorKey(makeCard({ name: 'Plains', typeLine: undefined, colorIdentity: undefined }))).toBe('L');
-    expect(getColorKey(makeCard({ name: 'Island', typeLine: undefined, colorIdentity: undefined }))).toBe('L');
-    expect(getColorKey(makeCard({ name: 'Swamp', typeLine: undefined, colorIdentity: undefined }))).toBe('L');
-    expect(getColorKey(makeCard({ name: 'Mountain', typeLine: undefined, colorIdentity: undefined }))).toBe('L');
-    expect(getColorKey(makeCard({ name: 'Wastes', typeLine: undefined, colorIdentity: undefined }))).toBe('L');
+    expect(
+      getColorKey(makeCard({ name: 'Forest', typeLine: undefined, colorIdentity: undefined }))
+    ).toBe('L');
+    expect(
+      getColorKey(makeCard({ name: 'Plains', typeLine: undefined, colorIdentity: undefined }))
+    ).toBe('L');
+    expect(
+      getColorKey(makeCard({ name: 'Island', typeLine: undefined, colorIdentity: undefined }))
+    ).toBe('L');
+    expect(
+      getColorKey(makeCard({ name: 'Swamp', typeLine: undefined, colorIdentity: undefined }))
+    ).toBe('L');
+    expect(
+      getColorKey(makeCard({ name: 'Mountain', typeLine: undefined, colorIdentity: undefined }))
+    ).toBe('L');
+    expect(
+      getColorKey(makeCard({ name: 'Wastes', typeLine: undefined, colorIdentity: undefined }))
+    ).toBe('L');
   });
 
   it('returns "?" when colorIdentity is missing and card is not a basic land', () => {
@@ -52,7 +66,9 @@ describe('getColorKey', () => {
 
   it('returns "M" for multicolor cards', () => {
     expect(getColorKey(makeCard({ typeLine: 'Instant', colorIdentity: ['U', 'R'] }))).toBe('M');
-    expect(getColorKey(makeCard({ typeLine: 'Creature', colorIdentity: ['W', 'U', 'B', 'R', 'G'] }))).toBe('M');
+    expect(
+      getColorKey(makeCard({ typeLine: 'Creature', colorIdentity: ['W', 'U', 'B', 'R', 'G'] }))
+    ).toBe('M');
   });
 
   it('land type takes precedence over colorIdentity', () => {
