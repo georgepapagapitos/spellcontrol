@@ -103,9 +103,7 @@ export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
                         alt={c.name}
                         className="card-preview-image"
                         draggable={false}
-                        onError={() =>
-                          setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
-                        }
+                        onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
                       />
                     ) : c.imageNormal && errored ? (
                       <div className="card-preview-image-fallback">Image unavailable</div>
