@@ -1661,7 +1661,6 @@ hr {
 .card-preview-carousel {
   width: 100%;
   overflow: hidden;
-  touch-action: pan-y;
   padding: 0;
   flex: 0 0 auto;
 }
@@ -1670,6 +1669,7 @@ hr {
   display: flex;
   align-items: center;
   margin-left: calc(var(--slide-spacing) * -1);
+  touch-action: pan-y pinch-zoom;
   backface-visibility: hidden;
   will-change: transform;
 }
