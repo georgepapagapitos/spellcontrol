@@ -1,24 +1,19 @@
 import { useCollectionStore } from '../store/collection';
-import type { MaterializedBinder, UnbinnedBucket } from '../types';
+import type { MaterializedBinder, UncategorizedBucket } from '../types';
 
 interface Props {
   binders: MaterializedBinder[];
-  unbinned: UnbinnedBucket;
+  uncategorized: UncategorizedBucket;
 }
 
-export function BinderTabs({ binders, unbinned }: Props) {
-  const {
-    activeTab,
-    setActiveTab,
-    setEditingBinder,
-    moveBinder,
-    deleteBinder,
-  } = useCollectionStore();
+export function BinderTabs({ binders, uncategorized }: Props) {
+  const { activeTab, setActiveTab, setEditingBinder, moveBinder, deleteBinder } =
+    useCollectionStore();
 
   const handleDelete = (id: string, name: string) => {
     if (
       !confirm(
-        `Delete the binder "${name}"? Its cards will be re-routed through your other binders (or fall into bulk if nothing else matches).`
+        `Delete the binder "${name}"? Its cards will be re-routed through your other binders (or land in Uncategorized if nothing else matches).`
       )
     )
       return;
@@ -88,12 +83,12 @@ export function BinderTabs({ binders, unbinned }: Props) {
       })}
 
       <button
-        className={`tab ${activeTab === 'unbinned' ? 'active' : ''}`}
-        onClick={() => setActiveTab('unbinned')}
+        className={`tab ${activeTab === 'uncategorized' ? 'active' : ''}`}
+        onClick={() => setActiveTab('uncategorized')}
       >
-        Bulk (unbinned)
+        Uncategorized
         <span className="tab-count">
-          {unbinned.totalCards} · {unbinned.totalPages}pp
+          {uncategorized.totalCards} · {uncategorized.totalPages}pp
         </span>
       </button>
 
