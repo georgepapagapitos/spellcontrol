@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { EnrichedCard } from '../types';
 import { getColorKey } from '../lib/colors';
+import { truncateLongWords } from '../lib/slot-text';
 
 interface Props {
   card: EnrichedCard | null;
@@ -33,7 +34,7 @@ export function CardSlot({ card }: Props) {
   if (!card) return <div className="slot empty" />;
 
   const cls = getSlotClass(card);
-  const shortName = card.name.substring(0, 10);
+  const displayName = truncateLongWords(card.name);
 
   return (
     <>
@@ -42,7 +43,7 @@ export function CardSlot({ card }: Props) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {shortName}
+        <span className="slot-name">{displayName}</span>
       </div>
       {hovered && (
         <div className="tooltip" style={{ left: pos.x, top: pos.y }}>

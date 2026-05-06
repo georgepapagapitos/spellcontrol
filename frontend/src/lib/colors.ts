@@ -30,9 +30,7 @@ export function getColorKey(card: EnrichedCard): string {
 
 function isBasicLandByName(name: string): boolean {
   const n = name.toLowerCase();
-  return ['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes'].some((b) =>
-    n.startsWith(b)
-  );
+  return ['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes'].some((b) => n.startsWith(b));
 }
 
 export interface ColorInfo {

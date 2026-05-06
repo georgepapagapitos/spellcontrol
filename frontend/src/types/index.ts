@@ -121,7 +121,7 @@ export interface MaterializedBinder {
   totalPages: number;
 }
 
-export interface UnbinnedBucket {
+export interface UncategorizedBucket {
   totalCards: number;
   sections: BinderSection[];
   totalPages: number;

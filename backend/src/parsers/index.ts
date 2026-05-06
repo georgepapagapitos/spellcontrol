@@ -27,7 +27,11 @@ export function parseImport(text: string): ParseResult {
   const firstLine = text.split(/\r?\n/, 1)[0] || '';
   const hasDelim = firstLine.includes(',') || firstLine.includes('\t') || firstLine.includes(';');
   if (hasDelim) {
-    const delim = firstLine.includes('\t') ? '\t' : firstLine.includes(';') && !firstLine.includes(',') ? ';' : ',';
+    const delim = firstLine.includes('\t')
+      ? '\t'
+      : firstLine.includes(';') && !firstLine.includes(',')
+        ? ';'
+        : ',';
     const headers = firstLine.split(delim).map((h) => h.trim().replace(/^"|"$/g, ''));
     const csvFormat = detectCsvFormat(headers);
     if (csvFormat) {
