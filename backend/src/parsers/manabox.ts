@@ -56,7 +56,7 @@ export function parseManabox(text: string): ParseResult {
         acc[i] = v;
         return acc;
       }, {});
-    } else {
+    } else if (vals.length > numCols && numCols > 10) {
       // Embedded tabs in name/set caused extra columns — stitch the middle back together.
       const tailLen = numCols - 10;
       const head = vals.slice(0, 9);
@@ -67,6 +67,9 @@ export function parseManabox(text: string): ParseResult {
       // Index 9 is Scryfall ID per ManaBox convention
       row[9] = middle.join('');
       tail.forEach((v, i) => (row[10 + i] = v));
+    } else {
+      unparsedLines.push(line);
+      continue;
     }
 
     const name = idx.name >= 0 ? row[idx.name] || '' : '';
