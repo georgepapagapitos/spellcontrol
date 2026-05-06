@@ -1,6 +1,7 @@
 /**
  * Attribution footer. Scryfall asks consumers of their API to display a notice indicating
- * that card data comes from them; this is the cheapest way to honor that.
+ * that card data comes from them; this is the cheapest way to honor that. Also disclaims
+ * affiliation with Wizards of the Coast.
  */
 export function Footer() {
   return (
@@ -10,20 +11,16 @@ export function Footer() {
         <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
           Scryfall
         </a>
-        . Collection data imported from{' '}
-        <a href="https://manabox.app" target="_blank" rel="noopener noreferrer">
-          ManaBox
-        </a>
-        .
+        . Import your collection from ManaBox, Moxfield, Archidekt, Deckbox, or any compatible CSV.
       </p>
       <p className="footer-fineprint">
         This tool is unofficial and not affiliated with, endorsed, sponsored, or specifically
-        approved by Wizards of the Coast LLC, Scryfall, or ManaBox. Magic: The Gathering and all
-        related assets are the property of Wizards of the Coast.
+        approved by Wizards of the Coast LLC or Scryfall. Magic: The Gathering and all related
+        assets are the property of Wizards of the Coast.
       </p>
       <p className="footer-fineprint">
-        Your binder configurations and uploaded collection are stored locally in your browser.
-        They are not synced across devices.
+        Your binder configurations and uploaded collection are stored locally in your browser. They
+        are not synced across devices.
       </p>
     </footer>
   );

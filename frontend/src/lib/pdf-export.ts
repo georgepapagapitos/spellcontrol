@@ -8,16 +8,35 @@ import type {
   UnbinnedBucket,
 } from '../types';
 import { COLOR_INFO } from './colors';
+import { fetchImagesAsDataUrls } from './image-fetch';
+
+export interface ExportOptions {
+  /** Embed Scryfall card images inside each pocket. Default true. */
+  includeImages?: boolean;
+  /** Reports image-fetch progress as `(done, total)`. */
+  onProgress?: (done: number, total: number) => void;
+}
 
 /**
  * Generates a printable PDF of all binders + the unbinned bucket.
- * One PDF page per physical binder page.
+ * One PDF page per physical binder page. When `includeImages` is set,
+ * card art is embedded in each pocket; otherwise cells render as a text
+ * card (name / set / price / CMC).
  */
-export function exportBindersToPDF(
+export async function exportBindersToPDF(
   binders: MaterializedBinder[],
   unbinned: UnbinnedBucket | null,
-  fileName: string
-): void {
+  fileName: string,
+  opts: ExportOptions = {}
+): Promise<void> {
+  const includeImages = opts.includeImages ?? true;
+
+  const images = includeImages
+    ? await fetchImagesAsDataUrls(collectImageUrls(binders, unbinned), {
+        onProgress: opts.onProgress,
+      })
+    : new Map<string, string>();
+
   const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
   let firstPage = true;
 
@@ -38,7 +57,8 @@ export function exportBindersToPDF(
           page.pageNum,
           section.pages.length,
           page.slots,
-          mb.effectivePocketSize
+          mb.effectivePocketSize,
+          images
         );
       }
     }
@@ -64,7 +84,8 @@ export function exportBindersToPDF(
           page.pageNum,
           section.pages.length,
           page.slots,
-          unbinned.effectivePocketSize
+          unbinned.effectivePocketSize,
+          images
         );
       }
     }
@@ -72,6 +93,29 @@ export function exportBindersToPDF(
 
   const safeName = (fileName || 'collection').replace(/\.[^.]+$/, '');
   doc.save(`${safeName}-binder-layout.pdf`);
+}
+
+function collectImageUrls(
+  binders: MaterializedBinder[],
+  unbinned: UnbinnedBucket | null
+): string[] {
+  const urls: string[] = [];
+  const visit = (slots: (EnrichedCard | null)[]) => {
+    for (const c of slots) {
+      if (c?.imageNormal) urls.push(c.imageNormal);
+    }
+  };
+  for (const mb of binders) {
+    for (const section of mb.sections) {
+      for (const page of section.pages) visit(page.slots);
+    }
+  }
+  if (unbinned) {
+    for (const section of unbinned.sections) {
+      for (const page of section.pages) visit(page.slots);
+    }
+  }
+  return urls;
 }
 
 function drawCoverPage(
@@ -113,7 +157,8 @@ function drawBinderPage(
   pageNum: number,
   totalPages: number,
   page: Page,
-  pocketSize: PocketSize
+  pocketSize: PocketSize,
+  images: Map<string, string>
 ) {
   doc.setFontSize(10);
   doc.setTextColor(120);
@@ -121,12 +166,12 @@ function drawBinderPage(
   doc.text(`Page ${pageNum} of ${totalPages}`, 195, 15, { align: 'right' });
 
   if (pocketSize === 18) {
-    drawGrid(doc, page.slice(0, 9), 3, 3, 15, 25, 85, 110, 'Front');
-    drawGrid(doc, page.slice(9, 18), 3, 3, 110, 25, 85, 110, 'Back');
+    drawGrid(doc, page.slice(0, 9), 3, 3, 15, 25, 85, 110, images, 'Front');
+    drawGrid(doc, page.slice(9, 18), 3, 3, 110, 25, 85, 110, images, 'Back');
   } else if (pocketSize === 4) {
-    drawGrid(doc, page, 2, 2, 30, 30, 150, 200);
+    drawGrid(doc, page, 2, 2, 30, 30, 150, 200, images);
   } else {
-    drawGrid(doc, page, 3, 3, 25, 25, 160, 220);
+    drawGrid(doc, page, 3, 3, 25, 25, 160, 220, images);
   }
 }
 
@@ -139,6 +184,7 @@ function drawGrid(
   startY: number,
   totalWidth: number,
   totalHeight: number,
+  images: Map<string, string>,
   label?: string
 ) {
   if (label) {
@@ -158,29 +204,44 @@ function drawGrid(
     const x = startX + c * cellW;
     const y = startY + r * cellH;
 
+    const innerX = x + padding;
+    const innerY = y + padding;
+    const innerW = cellW - padding * 2;
+    const innerH = cellH - padding * 2;
+
+    const dataUrl = card?.imageNormal ? images.get(card.imageNormal) : undefined;
+    if (card && dataUrl) {
+      try {
+        doc.addImage(dataUrl, 'JPEG', innerX, innerY, innerW, innerH, undefined, 'FAST');
+        continue;
+      } catch {
+        // Fall through to the text cell on decode failure.
+      }
+    }
+
     doc.setDrawColor(200);
     doc.setLineWidth(0.2);
-    doc.rect(x + padding, y + padding, cellW - padding * 2, cellH - padding * 2);
+    doc.rect(innerX, innerY, innerW, innerH);
 
     if (!card) continue;
 
     doc.setFontSize(6.5);
     doc.setTextColor(40);
-    const innerX = x + padding + 1;
-    const innerY = y + padding + 4;
-    const maxWidth = cellW - padding * 2 - 2;
+    const textX = innerX + 1;
+    const textY = innerY + 3;
+    const maxWidth = innerW - 2;
 
     const nameLines = doc.splitTextToSize(card.name, maxWidth);
     const trimmedNameLines = nameLines.slice(0, 2);
-    doc.text(trimmedNameLines, innerX, innerY);
+    doc.text(trimmedNameLines, textX, textY);
 
     doc.setFontSize(5.5);
     doc.setTextColor(120);
     const setText = card.setCode ? card.setCode.toUpperCase() : '';
-    doc.text(setText, innerX, innerY + trimmedNameLines.length * 3 + 1);
-    doc.text(`$${card.purchasePrice.toFixed(2)}`, innerX, innerY + trimmedNameLines.length * 3 + 5);
+    doc.text(setText, textX, textY + trimmedNameLines.length * 3 + 1);
+    doc.text(`$${card.purchasePrice.toFixed(2)}`, textX, textY + trimmedNameLines.length * 3 + 5);
     if (card.cmc !== undefined) {
-      doc.text(`CMC ${card.cmc}`, innerX, innerY + trimmedNameLines.length * 3 + 9);
+      doc.text(`CMC ${card.cmc}`, textX, textY + trimmedNameLines.length * 3 + 9);
     }
   }
 }

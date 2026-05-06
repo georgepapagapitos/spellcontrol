@@ -35,9 +35,7 @@ export function materializeBinders(
   opts: MaterializeOptions
 ): { binders: MaterializedBinder[]; unbinned: UnbinnedBucket } {
   const search = opts.search.trim().toLowerCase();
-  const isMatch = search
-    ? (c: EnrichedCard) => c.name.toLowerCase().includes(search)
-    : () => true;
+  const isMatch = search ? (c: EnrichedCard) => c.name.toLowerCase().includes(search) : () => true;
 
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
 
@@ -59,7 +57,9 @@ export function materializeBinders(
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
     const cardsInBinder = buckets.get(def.id)!;
-    const effectivePocketSize = (def.pocketSize ?? (opts.globalPocketSize ?? DEFAULT_POCKET_SIZE)) as PocketSize;
+    const effectivePocketSize = (def.pocketSize ??
+      opts.globalPocketSize ??
+      DEFAULT_POCKET_SIZE) as PocketSize;
     const sections = buildSections(cardsInBinder, def.sorts, effectivePocketSize, isMatch);
     return {
       def,
@@ -74,7 +74,7 @@ export function materializeBinders(
   const unbinnedSections = buildSections(
     unbinned,
     unbinnedSorts,
-    (opts.globalPocketSize ?? DEFAULT_POCKET_SIZE),
+    opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
     isMatch
   );
 
@@ -84,7 +84,7 @@ export function materializeBinders(
       totalCards: unbinnedSections.reduce((s, sec) => s + sec.cards.length, 0),
       sections: unbinnedSections,
       totalPages: unbinnedSections.reduce((s, sec) => s + sec.pages.length, 0),
-      effectivePocketSize: (opts.globalPocketSize ?? DEFAULT_POCKET_SIZE),
+      effectivePocketSize: opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
     },
   };
 }

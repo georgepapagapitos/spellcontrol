@@ -1,11 +1,6 @@
 import { useCollectionStore } from '../store/collection';
 import { COLOR_INFO } from '../lib/colors';
-import type {
-  BinderSection,
-  MaterializedBinder,
-  PocketSize,
-  UnbinnedBucket,
-} from '../types';
+import type { BinderSection, MaterializedBinder, PocketSize, UnbinnedBucket } from '../types';
 import { PageGrid } from './PageGrid';
 
 interface Props {
@@ -19,9 +14,7 @@ export function BinderView({ binders, unbinned }: Props) {
   if (activeTab === 'unbinned') {
     if (unbinned.totalCards === 0) {
       return (
-        <div className="empty-state">
-          🎉 Everything's been binned. Your bulk box is empty.
-        </div>
+        <div className="empty-state">🎉 Everything's been binned. Your bulk box is empty.</div>
       );
     }
     return (
@@ -32,10 +25,7 @@ export function BinderView({ binders, unbinned }: Props) {
             binder or tweak existing rules to whittle this down.
           </p>
         </div>
-        <SectionList
-          sections={unbinned.sections}
-          pocketSize={unbinned.effectivePocketSize}
-        />
+        <SectionList sections={unbinned.sections} pocketSize={unbinned.effectivePocketSize} />
       </>
     );
   }
@@ -64,9 +54,7 @@ export function BinderView({ binders, unbinned }: Props) {
     );
   }
 
-  return (
-    <SectionList sections={active.sections} pocketSize={active.effectivePocketSize} />
-  );
+  return <SectionList sections={active.sections} pocketSize={active.effectivePocketSize} />;
 }
 
 function SectionList({
@@ -79,13 +67,12 @@ function SectionList({
   return (
     <>
       {sections.map((section) => {
-        const info =
-          COLOR_INFO[section.colorKey] || {
-            label: section.colorKey,
-            pip: '#eee',
-            border: '#aaa',
-            order: 99,
-          };
+        const info = COLOR_INFO[section.colorKey] || {
+          label: section.colorKey,
+          pip: '#eee',
+          border: '#aaa',
+          order: 99,
+        };
         return (
           <div key={section.colorKey} className="binder-section">
             <div className="section-header">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from './store/collection';
 import { materializeBinders } from './lib/materialize';
 import { exportBindersToPDF } from './lib/pdf-export';
@@ -18,6 +18,7 @@ export default function App() {
     hydrating,
     error,
     search,
+    activeTab,
     hydrateCards,
     setEditingBinder,
     setError,
@@ -49,17 +50,41 @@ export default function App() {
     return { materialized: result.binders, unbinned: result.unbinned };
   }, [cards, binders, search]);
 
-  const handleExportPDF = () => {
-    if (cards.length === 0) return;
-    exportBindersToPDF(materialized, unbinned, fileName);
+  const [includeImages, setIncludeImages] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(
+    null
+  );
+  const handleExportPDF = async () => {
+    if (cards.length === 0 || exporting) return;
+    // Scope export to whichever tab is active — the binder being viewed,
+    // or the unbinned bucket. Avoids surprising "exported everything" runs.
+    const exportBinders =
+      activeTab === 'unbinned' ? [] : materialized.filter((b) => b.def.id === activeTab);
+    const exportUnbinned = activeTab === 'unbinned' ? unbinned : null;
+    if (exportBinders.length === 0 && (!exportUnbinned || exportUnbinned.totalCards === 0)) {
+      return;
+    }
+    setExporting(true);
+    setExportProgress(null);
+    try {
+      await exportBindersToPDF(exportBinders, exportUnbinned, fileName, {
+        includeImages,
+        onProgress: (done, total) => setExportProgress({ done, total }),
+      });
+    } catch (err) {
+      console.error(err);
+      setError('PDF export failed. Try again, or disable card images.');
+    } finally {
+      setExporting(false);
+      setExportProgress(null);
+    }
   };
 
   return (
     <div className="container">
       <h1>MTG Binder Planner</h1>
-      <div className="subtitle">
-        ManaBox CSV → custom binders · cards flow top-to-bottom into the first matching binder
-      </div>
+      <div className="subtitle">Plan how your collection lays out across physical binders.</div>
 
       {hydrating ? (
         <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
@@ -73,11 +98,7 @@ export default function App() {
           {error && cards.length === 0 && (
             <div className="error-banner" style={{ marginBottom: '1rem' }}>
               {error}
-              <button
-                className="btn-link"
-                style={{ marginLeft: 8 }}
-                onClick={() => setError(null)}
-              >
+              <button className="btn-link" style={{ marginLeft: 8 }} onClick={() => setError(null)}>
                 Dismiss
               </button>
             </div>
@@ -124,8 +145,24 @@ export default function App() {
                 </button>
               )}
             </div>
-            <button className="btn" onClick={handleExportPDF}>
-              Export PDF
+            <label
+              className="field-checkbox"
+              title="Embed card art in each pocket. Slower exports and larger files."
+            >
+              <input
+                type="checkbox"
+                checked={includeImages}
+                onChange={(e) => setIncludeImages(e.target.checked)}
+                disabled={exporting}
+              />
+              Card images
+            </label>
+            <button className="btn" onClick={handleExportPDF} disabled={exporting}>
+              {exporting
+                ? exportProgress
+                  ? `Exporting… ${exportProgress.done}/${exportProgress.total}`
+                  : 'Exporting…'
+                : 'Export PDF'}
             </button>
           </div>
           <BinderView binders={materialized} unbinned={unbinned} />

@@ -16,8 +16,7 @@ export function StatsBar({ binders, unbinned }: Props) {
   const denom = binnedCount + unbinnedCount;
   const binnedPct = denom > 0 ? Math.round((binnedCount / denom) * 100) : 0;
 
-  const totalBinderPages =
-    binders.reduce((s, b) => s + b.totalPages, 0) + unbinned.totalPages;
+  const totalBinderPages = binders.reduce((s, b) => s + b.totalPages, 0) + unbinned.totalPages;
 
   return (
     <>
@@ -38,8 +37,8 @@ export function StatsBar({ binders, unbinned }: Props) {
       </div>
       {scryfallMisses > 0 && (
         <div className="warn-banner">
-          ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched
-          with Scryfall data — color/CMC/type sorting may be inaccurate for those cards.
+          ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched with
+          Scryfall data — color/CMC/type sorting may be inaccurate for those cards.
         </div>
       )}
     </>

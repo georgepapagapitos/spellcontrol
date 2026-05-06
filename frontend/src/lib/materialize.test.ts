@@ -94,7 +94,10 @@ describe('materializeBinders', () => {
     const cards = Array.from({ length: 10 }, () => makeCard({ colorIdentity: [] }));
     const binder = makeBinder({ rules: [{}], sorts: ['none'] });
 
-    const { binders } = materializeBinders(cards, [binder], { ...defaultOpts, globalPocketSize: 9 });
+    const { binders } = materializeBinders(cards, [binder], {
+      ...defaultOpts,
+      globalPocketSize: 9,
+    });
     const totalPages = binders[0].sections.reduce((s, sec) => s + sec.pages.length, 0);
     expect(totalPages).toBe(2);
   });
@@ -103,7 +106,10 @@ describe('materializeBinders', () => {
     const cards = Array.from({ length: 5 }, () => makeCard({ colorIdentity: [] }));
     const binder = makeBinder({ rules: [{}], sorts: ['none'], pocketSize: 4 });
 
-    const { binders } = materializeBinders(cards, [binder], { ...defaultOpts, globalPocketSize: 9 });
+    const { binders } = materializeBinders(cards, [binder], {
+      ...defaultOpts,
+      globalPocketSize: 9,
+    });
     expect(binders[0].effectivePocketSize).toBe(4);
     const totalPages = binders[0].sections.reduce((s, sec) => s + sec.pages.length, 0);
     expect(totalPages).toBe(2); // 4+1
@@ -115,7 +121,10 @@ describe('materializeBinders', () => {
       const ring = makeCard({ name: 'Sol Ring', colorIdentity: [], typeLine: 'Artifact' });
       const binder = makeBinder({ rules: [{}], sorts: ['none'] });
 
-      const { binders } = materializeBinders([bolt, ring], [binder], { ...defaultOpts, search: 'bolt' });
+      const { binders } = materializeBinders([bolt, ring], [binder], {
+        ...defaultOpts,
+        search: 'bolt',
+      });
       const section = binders[0].sections[0];
       expect(section.cards).toHaveLength(1);
       expect(section.cards[0].name).toBe('Lightning Bolt');
@@ -129,11 +138,10 @@ describe('materializeBinders', () => {
       );
       const binder = makeBinder({ rules: [{}], sorts: ['none'] });
 
-      const { binders } = materializeBinders(
-        [matching, ...nonMatching],
-        [binder],
-        { ...defaultOpts, search: 'bolt' }
-      );
+      const { binders } = materializeBinders([matching, ...nonMatching], [binder], {
+        ...defaultOpts,
+        search: 'bolt',
+      });
       const pages = binders[0].sections.flatMap((s) => s.pages);
       expect(pages).toHaveLength(1);
     });
@@ -146,11 +154,10 @@ describe('materializeBinders', () => {
       const target = makeCard({ name: 'Target Card', colorIdentity: [] });
       const binder = makeBinder({ rules: [{}], sorts: ['none'] });
 
-      const { binders } = materializeBinders(
-        [...filler, target],
-        [binder],
-        { ...defaultOpts, search: 'target' }
-      );
+      const { binders } = materializeBinders([...filler, target], [binder], {
+        ...defaultOpts,
+        search: 'target',
+      });
       const pages = binders[0].sections.flatMap((s) => s.pages);
       expect(pages).toHaveLength(1);
       expect(pages[0].pageNum).toBe(2);

@@ -7,13 +7,8 @@ interface Props {
 }
 
 export function BinderTabs({ binders, unbinned }: Props) {
-  const {
-    activeTab,
-    setActiveTab,
-    setEditingBinder,
-    moveBinder,
-    deleteBinder,
-  } = useCollectionStore();
+  const { activeTab, setActiveTab, setEditingBinder, moveBinder, deleteBinder } =
+    useCollectionStore();
 
   const handleDelete = (id: string, name: string) => {
     if (

@@ -29,11 +29,15 @@ describe('cardMatchesSingleRule', () => {
 
   describe('rarity', () => {
     it('matches card with matching rarity', () => {
-      expect(cardMatchesSingleRule(makeCard({ rarity: 'rare' }), { rarities: ['rare'] })).toBe(true);
+      expect(cardMatchesSingleRule(makeCard({ rarity: 'rare' }), { rarities: ['rare'] })).toBe(
+        true
+      );
     });
 
     it('rejects card with non-matching rarity', () => {
-      expect(cardMatchesSingleRule(makeCard({ rarity: 'common' }), { rarities: ['rare'] })).toBe(false);
+      expect(cardMatchesSingleRule(makeCard({ rarity: 'common' }), { rarities: ['rare'] })).toBe(
+        false
+      );
     });
 
     it('matches when rarity is in a list of rarities', () => {
@@ -42,7 +46,9 @@ describe('cardMatchesSingleRule', () => {
     });
 
     it('is case-insensitive for rarity', () => {
-      expect(cardMatchesSingleRule(makeCard({ rarity: 'Rare' }), { rarities: ['rare'] })).toBe(true);
+      expect(cardMatchesSingleRule(makeCard({ rarity: 'Rare' }), { rarities: ['rare'] })).toBe(
+        true
+      );
     });
   });
 
@@ -134,15 +140,21 @@ describe('cardMatchesSingleRule', () => {
 
   describe('nameContains', () => {
     it('matches when name contains the substring (case-insensitive)', () => {
-      expect(cardMatchesSingleRule(makeCard({ name: 'Lightning Bolt' }), { nameContains: 'bolt' })).toBe(true);
+      expect(
+        cardMatchesSingleRule(makeCard({ name: 'Lightning Bolt' }), { nameContains: 'bolt' })
+      ).toBe(true);
     });
 
     it('rejects when name does not contain the substring', () => {
-      expect(cardMatchesSingleRule(makeCard({ name: 'Sol Ring' }), { nameContains: 'bolt' })).toBe(false);
+      expect(cardMatchesSingleRule(makeCard({ name: 'Sol Ring' }), { nameContains: 'bolt' })).toBe(
+        false
+      );
     });
 
     it('ignores whitespace-only nameContains', () => {
-      expect(cardMatchesSingleRule(makeCard({ name: 'Sol Ring' }), { nameContains: '   ' })).toBe(true);
+      expect(cardMatchesSingleRule(makeCard({ name: 'Sol Ring' }), { nameContains: '   ' })).toBe(
+        true
+      );
     });
   });
 
@@ -152,7 +164,9 @@ describe('cardMatchesSingleRule', () => {
     });
 
     it('rejects card with non-matching set code', () => {
-      expect(cardMatchesSingleRule(makeCard({ setCode: 'IKO' }), { setCodes: ['CMR'] })).toBe(false);
+      expect(cardMatchesSingleRule(makeCard({ setCode: 'IKO' }), { setCodes: ['CMR'] })).toBe(
+        false
+      );
     });
 
     it('is case-insensitive for set codes', () => {
@@ -197,25 +211,39 @@ describe('cardMatchesSingleRule', () => {
 
   describe('edhrecRankMax', () => {
     it('matches card with rank at or below the threshold', () => {
-      expect(cardMatchesSingleRule(makeCard({ edhrecRank: 500 }), { edhrecRankMax: 1000 })).toBe(true);
-      expect(cardMatchesSingleRule(makeCard({ edhrecRank: 1000 }), { edhrecRankMax: 1000 })).toBe(true);
+      expect(cardMatchesSingleRule(makeCard({ edhrecRank: 500 }), { edhrecRankMax: 1000 })).toBe(
+        true
+      );
+      expect(cardMatchesSingleRule(makeCard({ edhrecRank: 1000 }), { edhrecRankMax: 1000 })).toBe(
+        true
+      );
     });
 
     it('rejects card with rank above the threshold', () => {
-      expect(cardMatchesSingleRule(makeCard({ edhrecRank: 2000 }), { edhrecRankMax: 1000 })).toBe(false);
+      expect(cardMatchesSingleRule(makeCard({ edhrecRank: 2000 }), { edhrecRankMax: 1000 })).toBe(
+        false
+      );
     });
 
     it('rejects card without an edhrec rank', () => {
-      expect(cardMatchesSingleRule(makeCard({ edhrecRank: undefined }), { edhrecRankMax: 1000 })).toBe(false);
+      expect(
+        cardMatchesSingleRule(makeCard({ edhrecRank: undefined }), { edhrecRankMax: 1000 })
+      ).toBe(false);
     });
   });
 
   describe('multiple constraints combined', () => {
     it('requires ALL constraints to pass (AND logic within a rule)', () => {
       const rule: BinderRule = { rarities: ['rare'], priceMin: 5 };
-      expect(cardMatchesSingleRule(makeCard({ rarity: 'rare', purchasePrice: 10 }), rule)).toBe(true);
-      expect(cardMatchesSingleRule(makeCard({ rarity: 'rare', purchasePrice: 1 }), rule)).toBe(false);
-      expect(cardMatchesSingleRule(makeCard({ rarity: 'common', purchasePrice: 10 }), rule)).toBe(false);
+      expect(cardMatchesSingleRule(makeCard({ rarity: 'rare', purchasePrice: 10 }), rule)).toBe(
+        true
+      );
+      expect(cardMatchesSingleRule(makeCard({ rarity: 'rare', purchasePrice: 1 }), rule)).toBe(
+        false
+      );
+      expect(cardMatchesSingleRule(makeCard({ rarity: 'common', purchasePrice: 10 }), rule)).toBe(
+        false
+      );
     });
   });
 });
@@ -254,7 +282,9 @@ describe('isRuleEmpty', () => {
   });
 
   it('treats empty arrays and "any" foil as empty', () => {
-    expect(isRuleEmpty({ rarities: [], colors: [], types: [], setCodes: [], foil: 'any' })).toBe(true);
+    expect(isRuleEmpty({ rarities: [], colors: [], types: [], setCodes: [], foil: 'any' })).toBe(
+      true
+    );
   });
 
   it('treats whitespace-only nameContains as empty', () => {

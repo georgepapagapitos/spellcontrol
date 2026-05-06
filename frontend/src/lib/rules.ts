@@ -66,9 +66,7 @@ export function cardMatchesSingleRule(card: EnrichedCard, rule: BinderRule): boo
   // Source category substring (ManaBox binder name, Moxfield tag, etc)
   if (rule.sourceCategoryContains && rule.sourceCategoryContains.trim()) {
     if (
-      !card.sourceCategory
-        .toLowerCase()
-        .includes(rule.sourceCategoryContains.trim().toLowerCase())
+      !card.sourceCategory.toLowerCase().includes(rule.sourceCategoryContains.trim().toLowerCase())
     ) {
       return false;
     }

@@ -139,7 +139,8 @@ export const useCollectionStore = create<CollectionState>()(
         } catch (err) {
           console.warn('[store] Failed to persist collection:', err);
           set({
-            error: 'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
+            error:
+              'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
           });
         }
       },
@@ -193,8 +194,7 @@ export const useCollectionStore = create<CollectionState>()(
             .filter((b) => b.id !== id)
             .sort((a, b) => a.position - b.position)
             .map((b, i) => ({ ...b, position: i }));
-          const newActive =
-            s.activeTab === id ? remaining[0]?.id || 'unbinned' : s.activeTab;
+          const newActive = s.activeTab === id ? remaining[0]?.id || 'unbinned' : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
       },
