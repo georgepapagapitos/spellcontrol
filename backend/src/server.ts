@@ -38,13 +38,16 @@ app.post('/api/import', upload.single('file'), async (req: Request, res: Respons
   try {
     const text = await readImportText(req);
     if (!text) {
-      return res.status(400).json({ error: 'Provide either a file (multipart) or JSON body { text: string }' });
+      return res
+        .status(400)
+        .json({ error: 'Provide either a file (multipart) or JSON body { text: string }' });
     }
 
     const parseResult = parseImport(text);
     if (parseResult.rows.length === 0) {
       return res.status(400).json({
-        error: 'No cards found in the input. Try uploading a CSV from a supported tool, or pasting card names one per line.',
+        error:
+          'No cards found in the input. Try uploading a CSV from a supported tool, or pasting card names one per line.',
       });
     }
 
