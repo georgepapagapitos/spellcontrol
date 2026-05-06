@@ -40,48 +40,62 @@ export class ScryfallCache {
   getMany(scryfallIds: string[]): Map<string, ScryfallCard> {
     if (scryfallIds.length === 0) return new Map();
 
-    const placeholders = scryfallIds.map(() => '?').join(',');
-    const stmt = this.db.prepare(
-      `SELECT scryfall_id, data, cached_at FROM cards WHERE scryfall_id IN (${placeholders})`
-    );
-    const rows = stmt.all(...scryfallIds) as Array<{
-      scryfall_id: string;
-      data: string;
-      cached_at: number;
-    }>;
+    try {
+      const placeholders = scryfallIds.map(() => '?').join(',');
+      const stmt = this.db.prepare(
+        `SELECT scryfall_id, data, cached_at FROM cards WHERE scryfall_id IN (${placeholders})`
+      );
+      const rows = stmt.all(...scryfallIds) as Array<{
+        scryfall_id: string;
+        data: string;
+        cached_at: number;
+      }>;
 
-    const result = new Map<string, ScryfallCard>();
-    const now = Date.now();
-    for (const row of rows) {
-      if (now - row.cached_at > TTL_MS) continue;
-      try {
-        result.set(row.scryfall_id, JSON.parse(row.data));
-      } catch {
-        /* skip malformed */
+      const result = new Map<string, ScryfallCard>();
+      const now = Date.now();
+      for (const row of rows) {
+        if (now - row.cached_at > TTL_MS) continue;
+        try {
+          result.set(row.scryfall_id, JSON.parse(row.data));
+        } catch {
+          /* skip malformed */
+        }
       }
+      return result;
+    } catch (err) {
+      console.error('[cache] getMany failed, treating as cache miss:', err);
+      return new Map();
     }
-    return result;
   }
 
   /** Bulk insert/update — wrapped in a transaction for performance. */
   setMany(cards: ScryfallCard[]): void {
-    const insert = this.db.transaction((items: ScryfallCard[]) => {
-      const now = Date.now();
-      for (const card of items) {
-        this.setStmt.run(card.id, JSON.stringify(card), now);
-      }
-    });
-    insert(cards);
+    try {
+      const insert = this.db.transaction((items: ScryfallCard[]) => {
+        const now = Date.now();
+        for (const card of items) {
+          this.setStmt.run(card.id, JSON.stringify(card), now);
+        }
+      });
+      insert(cards);
+    } catch (err) {
+      console.error('[cache] setMany failed, cards will not be cached:', err);
+    }
   }
 
   stats(): { total: number; fresh: number } {
-    const total = (this.db.prepare('SELECT COUNT(*) as n FROM cards').get() as { n: number }).n;
-    const fresh = (
-      this.db
-        .prepare('SELECT COUNT(*) as n FROM cards WHERE cached_at > ?')
-        .get(Date.now() - TTL_MS) as { n: number }
-    ).n;
-    return { total, fresh };
+    try {
+      const total = (this.db.prepare('SELECT COUNT(*) as n FROM cards').get() as { n: number }).n;
+      const fresh = (
+        this.db
+          .prepare('SELECT COUNT(*) as n FROM cards WHERE cached_at > ?')
+          .get(Date.now() - TTL_MS) as { n: number }
+      ).n;
+      return { total, fresh };
+    } catch (err) {
+      console.error('[cache] stats query failed:', err);
+      return { total: -1, fresh: -1 };
+    }
   }
 
   close(): void {

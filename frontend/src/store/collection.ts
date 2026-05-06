@@ -104,8 +104,9 @@ export const useCollectionStore = create<CollectionState>()(
               uploadedAt: stored.uploadedAt,
             });
           }
-        } catch {
-          /* silent — user sees the upload prompt as if no cache existed */
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Failed to load saved collection';
+          set({ error: msg });
         } finally {
           set({ hydrating: false });
         }
@@ -140,6 +141,9 @@ export const useCollectionStore = create<CollectionState>()(
           });
         } catch (err) {
           console.warn('[store] Failed to persist collection:', err);
+          set({
+            error: 'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
+          });
         }
       },
 
