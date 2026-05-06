@@ -100,11 +100,11 @@ function SectionList({
               </span>
             </div>
             <div className="page-row">
-              {section.pages.map((page, idx) => (
+              {section.pages.map((page) => (
                 <PageGrid
-                  key={idx}
-                  page={page}
-                  pageNum={idx + 1}
+                  key={page.pageNum}
+                  page={page.slots}
+                  pageNum={page.pageNum}
                   pocketSize={pocketSize}
                 />
               ))}
