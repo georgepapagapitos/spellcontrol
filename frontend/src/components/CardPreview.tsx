@@ -28,7 +28,7 @@ export function CardPreview({
     align: 'center',
     loop: false,
     skipSnaps: false,
-    duration: 25,
+    duration: 45,
     dragThreshold: 12,
     containScroll: false,
   });
