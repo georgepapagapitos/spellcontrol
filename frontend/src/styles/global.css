@@ -1694,7 +1694,6 @@ hr {
 
 .card-preview-image-frame {
   width: 100%;
-  max-width: 320px;
   aspect-ratio: 5 / 7;
   border-radius: 8px;
   overflow: hidden;
