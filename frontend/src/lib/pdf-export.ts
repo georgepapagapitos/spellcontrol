@@ -5,7 +5,7 @@ import type {
   MaterializedBinder,
   Page,
   PocketSize,
-  UnbinnedBucket,
+  UncategorizedBucket,
 } from '../types';
 import { COLOR_INFO } from './colors';
 import { fetchImagesAsDataUrls } from './image-fetch';
@@ -18,21 +18,21 @@ export interface ExportOptions {
 }
 
 /**
- * Generates a printable PDF of all binders + the unbinned bucket.
+ * Generates a printable PDF of all binders + the uncategorized bucket.
  * One PDF page per physical binder page. When `includeImages` is set,
  * card art is embedded in each pocket; otherwise cells render as a text
  * card (name / set / price / CMC).
  */
 export async function exportBindersToPDF(
   binders: MaterializedBinder[],
-  unbinned: UnbinnedBucket | null,
+  uncategorized: UncategorizedBucket | null,
   fileName: string,
   opts: ExportOptions = {}
 ): Promise<void> {
   const includeImages = opts.includeImages ?? true;
 
   const images = includeImages
-    ? await fetchImagesAsDataUrls(collectImageUrls(binders, unbinned), {
+    ? await fetchImagesAsDataUrls(collectImageUrls(binders, uncategorized), {
         onProgress: opts.onProgress,
       })
     : new Map<string, string>();
@@ -64,27 +64,27 @@ export async function exportBindersToPDF(
     }
   }
 
-  if (unbinned && unbinned.totalCards > 0) {
+  if (uncategorized && uncategorized.totalCards > 0) {
     if (!firstPage) doc.addPage();
     drawCoverPage(
       doc,
-      'Bulk (unbinned)',
-      unbinned.totalCards,
-      unbinned.totalPages,
-      unbinned.sections
+      'Uncategorized',
+      uncategorized.totalCards,
+      uncategorized.totalPages,
+      uncategorized.sections
     );
-    for (const section of unbinned.sections) {
+    for (const section of uncategorized.sections) {
       const info = COLOR_INFO[section.colorKey] || { label: section.colorKey };
       for (const page of section.pages) {
         doc.addPage();
         drawBinderPage(
           doc,
-          'Bulk (unbinned)',
+          'Uncategorized',
           info.label,
           page.pageNum,
           section.pages.length,
           page.slots,
-          unbinned.effectivePocketSize,
+          uncategorized.effectivePocketSize,
           images
         );
       }
@@ -97,7 +97,7 @@ export async function exportBindersToPDF(
 
 function collectImageUrls(
   binders: MaterializedBinder[],
-  unbinned: UnbinnedBucket | null
+  uncategorized: UncategorizedBucket | null
 ): string[] {
   const urls: string[] = [];
   const visit = (slots: (EnrichedCard | null)[]) => {
@@ -110,8 +110,8 @@ function collectImageUrls(
       for (const page of section.pages) visit(page.slots);
     }
   }
-  if (unbinned) {
-    for (const section of unbinned.sections) {
+  if (uncategorized) {
+    for (const section of uncategorized.sections) {
       for (const page of section.pages) visit(page.slots);
     }
   }
