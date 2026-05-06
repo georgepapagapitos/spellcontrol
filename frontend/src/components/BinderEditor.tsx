@@ -99,8 +99,14 @@ export function BinderEditor() {
       setErrorMsg('Name is required');
       return;
     }
+
+    const rangeError = validateRanges(rules);
+    if (rangeError) {
+      setErrorMsg(rangeError);
+      return;
+    }
+
     const cleaned = rules.map(cleanRule).filter((r) => Object.keys(r).length > 0 || rules.length === 1);
-    // If user removed all constraints from all groups, we still want a single empty rule (= match all)
     const finalRules = cleaned.length > 0 ? cleaned : [{}];
 
     const input: BinderInput = {
@@ -556,6 +562,29 @@ function SortSelect({
 
 function toggle<T>(arr: T[], item: T): T[] {
   return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+}
+
+function validateRanges(rules: BinderRule[]): string | null {
+  for (let i = 0; i < rules.length; i++) {
+    const r = rules[i];
+    const group = rules.length > 1 ? ` (Group ${i + 1})` : '';
+    if (r.priceMin !== undefined && r.priceMax !== undefined && r.priceMin > r.priceMax) {
+      return `Price minimum cannot exceed maximum${group}`;
+    }
+    if (r.cmcMin !== undefined && r.cmcMax !== undefined && r.cmcMin > r.cmcMax) {
+      return `CMC minimum cannot exceed maximum${group}`;
+    }
+    if (r.priceMin !== undefined && r.priceMin < 0) {
+      return `Price cannot be negative${group}`;
+    }
+    if (r.cmcMin !== undefined && r.cmcMin < 0) {
+      return `CMC cannot be negative${group}`;
+    }
+    if (r.edhrecRankMax !== undefined && r.edhrecRankMax < 1) {
+      return `EDHREC top N must be at least 1${group}`;
+    }
+  }
+  return null;
 }
 
 /** Strip empty strings/arrays/undefineds from a single rule. */
