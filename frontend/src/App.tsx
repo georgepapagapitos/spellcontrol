@@ -17,10 +17,12 @@ export default function App() {
     fileName,
     binders,
     hydrating,
+    error,
     globalPocketSize,
     search,
     hydrateCards,
     setEditingBinder,
+    setError,
   } = useCollectionStore();
 
   // Hydrate from IndexedDB once on mount. The store starts with hydrating=true so the UI
@@ -71,7 +73,21 @@ export default function App() {
           <div className="upload-text">Loading...</div>
         </div>
       ) : (
-        <UploadPanel />
+        <>
+          {error && cards.length === 0 && (
+            <div className="error-banner" style={{ marginBottom: '1rem' }}>
+              {error}
+              <button
+                className="btn-link"
+                style={{ marginLeft: 8 }}
+                onClick={() => setError(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+          <UploadPanel />
+        </>
       )}
 
       {!hydrating && cards.length > 0 && (

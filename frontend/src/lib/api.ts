@@ -1,11 +1,18 @@
 import type { UploadResponse } from '../types';
 
+const TIMEOUT_MS = 120_000;
+
 async function handle<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let msg = `Request failed: HTTP ${response.status}`;
     try {
-      const err = await response.json();
-      if (err.error) msg = err.error;
+      const body = await response.text();
+      try {
+        const err = JSON.parse(body);
+        if (err.error) msg = err.error;
+      } catch {
+        if (body.length > 0 && body.length < 200) msg = body;
+      }
     } catch {
       /* ignore */
     }
@@ -14,17 +21,34 @@ async function handle<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  return fetch(url, { ...opts, signal: controller.signal })
+    .catch((err) => {
+      if (err.name === 'AbortError') {
+        throw new Error(
+          'The request timed out. This can happen with very large collections — try importing a smaller batch.'
+        );
+      }
+      throw new Error(
+        'Could not reach the server. Make sure the backend is running and try again.'
+      );
+    })
+    .finally(() => clearTimeout(timer));
+}
+
 /** Import via file upload (CSV, TSV, or text). */
 export async function importFile(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await fetch('/api/import', { method: 'POST', body: formData });
+  const response = await fetchWithTimeout('/api/import', { method: 'POST', body: formData });
   return handle<UploadResponse>(response);
 }
 
 /** Import via pasted text — MTGA format, plain card names, or CSV-as-text. */
 export async function importText(text: string): Promise<UploadResponse> {
-  const response = await fetch('/api/import', {
+  const response = await fetchWithTimeout('/api/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),

@@ -320,6 +320,10 @@ input[type=text] { width: 200px; }
   border-color: var(--accent);
 }
 .btn-primary:hover { background: #1f5028; }
+.btn:disabled, .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .btn-spacer { margin-left: auto; }
 
 /* Binder sections */
@@ -464,6 +468,50 @@ hr { border: none; border-top: 0.5px solid var(--border); margin: 1.5rem 0; }
   border-radius: var(--radius);
   margin-bottom: 1rem;
   font-size: 0.9rem;
+}
+
+.success-banner {
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  color: #1a4a22;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.error-boundary {
+  max-width: 500px;
+  margin: 4rem auto;
+  padding: 2rem;
+  text-align: center;
+  background: var(--surface);
+  border: 0.5px solid #d04040;
+  border-radius: var(--radius-lg);
+}
+.error-boundary h2 {
+  font-size: 1.2rem;
+  font-weight: normal;
+  color: #7a1010;
+  margin-bottom: 0.75rem;
+}
+.error-boundary p {
+  color: var(--text2);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  font-family: monospace;
+}
+
+.tooltip-img-fallback {
+  margin-top: 6px;
+  padding: 12px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 0.75rem;
+  font-family: monospace;
+  background: var(--surface2);
+  border-radius: 4px;
 }
 
 .spinner {
