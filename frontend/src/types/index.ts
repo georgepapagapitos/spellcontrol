@@ -95,11 +95,22 @@ export type BinderInput = Omit<BinderDef, 'id' | 'createdAt' | 'updatedAt'>;
 /** Page = array of card slots. nulls represent empty slots in a partial last page. */
 export type Page = (EnrichedCard | null)[];
 
+/**
+ * A page within a section, tagged with its 1-based page number from the unfiltered
+ * layout. When search is active, non-matching cards become null in `slots` and
+ * pages with zero matches are dropped — but `pageNum` keeps pointing at the original
+ * physical page so the user can find the card in the real binder.
+ */
+export interface BinderPage {
+  slots: Page;
+  pageNum: number;
+}
+
 export interface BinderSection {
   /** Color identity key: W/U/B/R/G/M/C/L/?/ALL */
   colorKey: string;
   cards: EnrichedCard[];
-  pages: Page[];
+  pages: BinderPage[];
 }
 
 export interface MaterializedBinder {
