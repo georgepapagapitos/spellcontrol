@@ -5,11 +5,13 @@ import { hasEmptyRule } from '../lib/rules';
 import type {
   BinderInput,
   BinderRule,
+  BorderColor,
   ColorChoice,
   FoilChoice,
   PocketSize,
   Rarity,
   SortField,
+  Treatment,
 } from '../types';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
@@ -31,6 +33,20 @@ const TYPE_OPTIONS = [
   'artifact',
   'land',
   'battle',
+];
+const TREATMENT_OPTIONS: { key: Treatment; label: string }[] = [
+  { key: 'fullart', label: 'Full art' },
+  { key: 'extendedart', label: 'Extended art' },
+  { key: 'showcase', label: 'Showcase' },
+  { key: 'etched', label: 'Etched' },
+  { key: 'inverted', label: 'Inverted' },
+];
+const BORDER_OPTIONS: { key: BorderColor; label: string }[] = [
+  { key: 'black', label: 'Black' },
+  { key: 'white', label: 'White' },
+  { key: 'borderless', label: 'Borderless' },
+  { key: 'silver', label: 'Silver' },
+  { key: 'gold', label: 'Gold' },
 ];
 const PRESET_COLORS = [
   '#7a8a70',
@@ -377,6 +393,47 @@ function RuleGroupEditor({
         </select>
       </div>
 
+      {/* Treatment (frame effects + full-art) */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Cosmetic treatment of the printing. Full art = full-art lands and cards. Extended art = art that extends to the card edges. Showcase = special frame variants. Etched = etched-foil printings. Matches if any selected treatment is on the card."
+        >
+          Treatment <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <div className="chip-group">
+          {TREATMENT_OPTIONS.map((t) => (
+            <Chip
+              key={t.key}
+              label={t.label}
+              active={(rule.treatments || []).includes(t.key)}
+              onClick={() =>
+                onChange({ treatments: toggle(rule.treatments || [], t.key) as Treatment[] })
+              }
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Border color */}
+      <div className="rule-row">
+        <span className="rule-label">Border</span>
+        <div className="chip-group">
+          {BORDER_OPTIONS.map((b) => (
+            <Chip
+              key={b.key}
+              label={b.label}
+              active={(rule.borderColors || []).includes(b.key)}
+              onClick={() =>
+                onChange({
+                  borderColors: toggle(rule.borderColors || [], b.key) as BorderColor[],
+                })
+              }
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Name contains */}
       <div className="rule-row">
         <span className="rule-label">Name contains</span>
@@ -579,5 +636,7 @@ function cleanRule(rule: BinderRule): BinderRule {
     cleaned.sourceCategoryContains = rule.sourceCategoryContains.trim();
   if (rule.edhrecRankMax !== undefined && !isNaN(rule.edhrecRankMax))
     cleaned.edhrecRankMax = rule.edhrecRankMax;
+  if (rule.treatments && rule.treatments.length) cleaned.treatments = rule.treatments;
+  if (rule.borderColors && rule.borderColors.length) cleaned.borderColors = rule.borderColors;
   return cleaned;
 }

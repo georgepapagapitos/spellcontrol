@@ -174,18 +174,45 @@ describe('materializeBinders', () => {
     const binder = makeBinder({ rules: [{}], sorts: ['color'] });
 
     const { binders } = materializeBinders([redCard, blueCard], [binder], defaultOpts);
-    const colorKeys = binders[0].sections.map((s) => s.colorKey);
-    expect(colorKeys).toContain('U');
-    expect(colorKeys).toContain('R');
-    expect(colorKeys.indexOf('U')).toBeLessThan(colorKeys.indexOf('R'));
+    const keys = binders[0].sections.map((s) => s.key);
+    expect(keys).toContain('U');
+    expect(keys).toContain('R');
+    expect(keys.indexOf('U')).toBeLessThan(keys.indexOf('R'));
   });
 
-  it('produces one "ALL" section when primary sort is not color', () => {
+  it('groups by type when primary sort is "type"', () => {
+    const cards = [
+      makeCard({ name: 'Bolt', typeLine: 'Instant', colorIdentity: ['R'] }),
+      makeCard({ name: 'Bear', typeLine: 'Creature — Bear', colorIdentity: ['G'] }),
+    ];
+    const binder = makeBinder({ rules: [{}], sorts: ['type'] });
+
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    const keys = binders[0].sections.map((s) => s.key);
+    expect(keys).toEqual(['creature', 'instant']);
+    expect(binders[0].sections[0].label).toBe('Creature');
+  });
+
+  it('groups by cmc when primary sort is "cmc"', () => {
+    const cards = [
+      makeCard({ name: 'Three', cmc: 3, typeLine: 'Instant' }),
+      makeCard({ name: 'One', cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'Big', cmc: 9, typeLine: 'Sorcery' }),
+    ];
+    const binder = makeBinder({ rules: [{}], sorts: ['cmc'] });
+
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    expect(binders[0].sections.map((s) => s.key)).toEqual(['cmc-1', 'cmc-3', 'cmc-7+']);
+    expect(binders[0].sections[2].label).toBe('CMC 7+');
+  });
+
+  it('produces one "ALL" section when primary sort is "none"', () => {
     const cards = [makeCard({ colorIdentity: ['R'] }), makeCard({ colorIdentity: ['U'] })];
-    const binder = makeBinder({ rules: [{}], sorts: ['name'] });
+    const binder = makeBinder({ rules: [{}], sorts: ['none'] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].sections).toHaveLength(1);
-    expect(binders[0].sections[0].colorKey).toBe('ALL');
+    expect(binders[0].sections[0].key).toBe('ALL');
+    expect(binders[0].sections[0].label).toBe('All cards');
   });
 });
