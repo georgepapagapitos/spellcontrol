@@ -56,7 +56,7 @@ export function BinderEditor() {
 
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [pocketSize, setPocketSize] = useState<PocketSize | null>(null);
+  const [pocketSize, setPocketSize] = useState<PocketSize>(9);
   const [rules, setRules] = useState<BinderRule[]>([{}]);
   const [sorts, setSorts] = useState<SortField[]>([...NEW_BINDER_DEFAULT_SORTS]);
   const [saving, setSaving] = useState(false);
@@ -67,13 +67,13 @@ export function BinderEditor() {
     if (existing) {
       setName(existing.name);
       setColor(existing.color);
-      setPocketSize(existing.pocketSize);
+      setPocketSize(existing.pocketSize ?? 9);
       setRules(existing.rules.length > 0 ? existing.rules.map((r) => ({ ...r })) : [{}]);
       setSorts([...existing.sorts]);
     } else {
       setName('');
       setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
-      setPocketSize(null);
+      setPocketSize(9);
       setRules([{}]);
       setSorts([...NEW_BINDER_DEFAULT_SORTS]);
     }
@@ -168,16 +168,9 @@ export function BinderEditor() {
               <div className="field">
                 <label>Pocket size</label>
                 <select
-                  value={pocketSize === null ? 'default' : pocketSize}
-                  onChange={(e) =>
-                    setPocketSize(
-                      e.target.value === 'default'
-                        ? null
-                        : (parseInt(e.target.value) as PocketSize)
-                    )
-                  }
+                  value={pocketSize}
+                  onChange={(e) => setPocketSize(parseInt(e.target.value) as PocketSize)}
                 >
-                  <option value="default">Use default</option>
                   <option value={9}>9-pocket</option>
                   <option value={18}>18-pocket</option>
                   <option value={4}>4-pocket</option>
