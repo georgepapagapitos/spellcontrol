@@ -33,20 +33,12 @@ export function BinderView({ binders, uncategorized }: Props) {
       );
     }
     return (
-      <>
-        <div className="binder-intro">
-          <p style={{ color: 'var(--text2)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-            These cards didn't match any binder rule. Create a new binder or tweak existing rules to
-            whittle this down.
-          </p>
-        </div>
-        <SectionList
-          viewKey="uncategorized"
-          sections={uncategorized.sections}
-          pocketSize={uncategorized.effectivePocketSize}
-          sorts={uncategorized.effectiveSorts}
-        />
-      </>
+      <SectionList
+        viewKey="uncategorized"
+        sections={uncategorized.sections}
+        pocketSize={uncategorized.effectivePocketSize}
+        sorts={uncategorized.effectiveSorts}
+      />
     );
   }
 

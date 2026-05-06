@@ -19,6 +19,7 @@ export function UploadPanel() {
     error,
     unresolvedNames,
     detectedFormat,
+    importHistory,
     importCards,
     clearCards,
     setLoading,
@@ -86,13 +87,34 @@ export function UploadPanel() {
         <div className="upload-current">
           <div className="upload-current-info">
             <span className="upload-current-icon">&#10003;</span>
-            <div>
-              <div className="upload-current-name">{fileName}</div>
+            <div className="upload-current-text">
+              <div className="upload-current-name">
+                {importHistory.length > 1
+                  ? `${importHistory.length} imports merged`
+                  : prettyImportName(
+                      fileName || importHistory[0]?.name || 'Imported collection',
+                      detectedFormat
+                    )}
+              </div>
               <div className="upload-current-meta">
                 {cards.length.toLocaleString()} cards
                 {uploadedAt ? ` · ${formatRelative(uploadedAt)}` : ''}
                 {detectedFormat ? ` · ${detectedFormat}` : ''}
               </div>
+              {importHistory.length > 1 && (
+                <ul className="upload-current-history">
+                  {importHistory.map((h, i) => (
+                    <li key={i}>
+                      <span className="upload-history-name">
+                        {prettyImportName(h.name, h.format)}
+                      </span>
+                      <span className="upload-history-meta">
+                        {h.count.toLocaleString()} cards · {formatRelative(h.addedAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
           <div className="upload-current-actions">
@@ -137,7 +159,7 @@ export function UploadPanel() {
       {importOpen && (
         <div className="import-card">
           <div className="import-card-header">
-            <h2 className="import-card-title">Import Collection</h2>
+            <h2 className="import-card-title">Import your collection</h2>
             <button
               type="button"
               className="btn import-upload-btn"
@@ -158,53 +180,60 @@ export function UploadPanel() {
             />
           </div>
 
-          <p className="import-card-desc">
-            Paste card names (one per line, CSV, or MTGA format). Quantities supported. Or upload a
-            CSV from ManaBox · Archidekt · Moxfield · Deckbox.
-          </p>
-
           {hasCollection && (
             <div className="import-mode-row">
-              <span className="rule-label">When importing more</span>
-              <label className="field-checkbox">
-                <input
-                  type="radio"
-                  name="import-mode"
-                  checked={mode === 'replace'}
-                  onChange={() => setMode('replace')}
-                />
-                Replace existing
-              </label>
-              <label className="field-checkbox">
-                <input
-                  type="radio"
-                  name="import-mode"
-                  checked={mode === 'merge'}
-                  onChange={() => setMode('merge')}
-                />
-                Add to existing
-              </label>
+              <span className="import-mode-label">Mode:</span>
+              <div className="import-mode-options" role="radiogroup">
+                <button
+                  type="button"
+                  className={`import-mode-option ${mode === 'replace' ? 'active' : ''}`}
+                  onClick={() => setMode('replace')}
+                  role="radio"
+                  aria-checked={mode === 'replace'}
+                  title="Wipes the current collection and starts over"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  className={`import-mode-option ${mode === 'merge' ? 'active' : ''}`}
+                  onClick={() => setMode('merge')}
+                  role="radio"
+                  aria-checked={mode === 'merge'}
+                  title="Appends these cards onto the current collection"
+                >
+                  Add
+                </button>
+              </div>
+              <span className="import-mode-hint">
+                {mode === 'replace' ? 'wipes existing cards' : 'duplicates will stack'}
+              </span>
             </div>
           )}
+
+          <p className="import-card-desc">
+            Paste card names — plain text, MTGA format, or pasted CSV — or upload a CSV file. Each
+            card gets matched against Scryfall and routed through your binder rules.
+          </p>
 
           <textarea
             className="paste-textarea import-textarea"
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            placeholder={'1 Sol Ring\n4 Arcane Signet\n1 Fire // Ice (APC) 128\nDemonic Tutor\n…'}
+            placeholder={'4 Arcane Signet\n1 Cyclonic Rift\n2 Forest\n…'}
             disabled={isLoading}
           />
 
           <div className="import-card-footer">
             <span className="import-card-hint">
-              One per line · MTGA format · CSV · quantities supported
+              ManaBox · Archidekt · Moxfield · Deckbox · MTGA · plain CSV
             </span>
             <button
               className="btn btn-primary"
               onClick={handlePasteImport}
               disabled={isLoading || !pasteText.trim()}
             >
-              {isLoading ? 'Importing…' : 'Import Cards'}
+              {isLoading ? 'Importing…' : 'Import'}
             </button>
           </div>
         </div>
@@ -213,6 +242,32 @@ export function UploadPanel() {
       {error && <div className="error-banner">{error}</div>}
     </div>
   );
+}
+
+/**
+ * Replace the internal 'pasted-list' label with a friendlier name that names
+ * the detected text format ("Pasted MTGA list", "Pasted Moxfield CSV", etc).
+ */
+function prettyImportName(name: string, format: string): string {
+  if (name !== 'pasted-list') return name;
+  switch ((format || '').toLowerCase()) {
+    case 'mtga':
+      return 'Pasted MTGA list';
+    case 'plain':
+      return 'Pasted text';
+    case 'manabox':
+      return 'Pasted ManaBox CSV';
+    case 'archidekt':
+      return 'Pasted Archidekt CSV';
+    case 'moxfield':
+      return 'Pasted Moxfield CSV';
+    case 'deckbox':
+      return 'Pasted Deckbox CSV';
+    case 'generic-csv':
+      return 'Pasted CSV';
+    default:
+      return 'Pasted list';
+  }
 }
 
 function formatRelative(timestamp: number): string {

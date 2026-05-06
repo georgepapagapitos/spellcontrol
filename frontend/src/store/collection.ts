@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
-import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
+import {
+  saveCollection,
+  loadCollection,
+  clearCollection,
+  type ImportHistoryEntry,
+} from '../lib/local-cards';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -22,6 +27,8 @@ interface CollectionState {
   unresolvedNames: string[];
   /** Format detected by the most recent import (manabox / mtga / plain / etc). */
   detectedFormat: string;
+  /** Chronological list of imports that built up the current collection. */
+  importHistory: ImportHistoryEntry[];
 
   hydrating: boolean;
   isLoading: boolean;
@@ -78,6 +85,7 @@ export const useCollectionStore = create<CollectionState>()(
       uploadedAt: null,
       unresolvedNames: [],
       detectedFormat: '',
+      importHistory: [],
       hydrating: true,
       isLoading: false,
       error: null,
@@ -93,12 +101,27 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           const stored = await loadCollection();
           if (stored) {
+            // Back-fill history for collections saved before importHistory existed.
+            const history: ImportHistoryEntry[] =
+              stored.importHistory && stored.importHistory.length > 0
+                ? stored.importHistory
+                : stored.cards.length > 0
+                  ? [
+                      {
+                        name: stored.fileName || 'previous import',
+                        count: stored.cards.length,
+                        format: '',
+                        addedAt: stored.uploadedAt,
+                      },
+                    ]
+                  : [];
             set({
               cards: stored.cards,
               fileName: stored.fileName,
               scryfallHits: stored.scryfallHits,
               scryfallMisses: stored.scryfallMisses,
               uploadedAt: stored.uploadedAt,
+              importHistory: history,
             });
           }
         } catch (err) {
@@ -112,29 +135,37 @@ export const useCollectionStore = create<CollectionState>()(
       importCards: async (response, fileName, mode) => {
         const uploadedAt = Date.now();
         const existing = get().cards;
+        const existingHistory = get().importHistory;
         const newCards = mode === 'merge' ? mergeCards(existing, response.cards) : response.cards;
-        // For merge mode, we display the new file name but track lifetime hits/misses approximately.
-        const displayName =
-          mode === 'merge' && existing.length > 0 ? `${fileName} (merged)` : fileName;
+        const entry: ImportHistoryEntry = {
+          name: fileName,
+          count: response.cards.length,
+          format: response.detectedFormat,
+          addedAt: uploadedAt,
+        };
+        const importHistory =
+          mode === 'merge' && existing.length > 0 ? [...existingHistory, entry] : [entry];
 
         set({
           cards: newCards,
-          fileName: displayName,
+          fileName,
           scryfallHits: response.scryfallHits,
           scryfallMisses: response.scryfallMisses,
           unresolvedNames: response.unresolvedNames,
           detectedFormat: response.detectedFormat,
           uploadedAt,
+          importHistory,
           error: null,
         });
 
         try {
           await saveCollection({
             cards: newCards,
-            fileName: displayName,
+            fileName,
             scryfallHits: response.scryfallHits,
             scryfallMisses: response.scryfallMisses,
             uploadedAt,
+            importHistory,
           });
         } catch (err) {
           console.warn('[store] Failed to persist collection:', err);
@@ -154,6 +185,7 @@ export const useCollectionStore = create<CollectionState>()(
           uploadedAt: null,
           unresolvedNames: [],
           detectedFormat: '',
+          importHistory: [],
           error: null,
         });
         try {

@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCollectionStore } from './store/collection';
 import { materializeBinders } from './lib/materialize';
-import { exportBindersToPDF } from './lib/pdf-export';
 import { UploadPanel } from './components/UploadPanel';
 import { StatsBar } from './components/StatsBar';
 import { Legend } from './components/Legend';
@@ -13,7 +12,6 @@ import { Footer } from './components/Footer';
 export default function App() {
   const {
     cards,
-    fileName,
     binders,
     hydrating,
     error,
@@ -51,40 +49,6 @@ export default function App() {
     return { materialized: result.binders, uncategorized: result.uncategorized };
   }, [cards, binders, search]);
 
-  const [includeImages, setIncludeImages] = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(
-    null
-  );
-  const handleExportPDF = async () => {
-    if (cards.length === 0 || exporting) return;
-    // Scope export to whichever tab is active — the binder being viewed,
-    // or the uncategorized bucket. Avoids surprising "exported everything" runs.
-    const exportBinders =
-      activeTab === 'uncategorized' ? [] : materialized.filter((b) => b.def.id === activeTab);
-    const exportUncategorized = activeTab === 'uncategorized' ? uncategorized : null;
-    if (
-      exportBinders.length === 0 &&
-      (!exportUncategorized || exportUncategorized.totalCards === 0)
-    ) {
-      return;
-    }
-    setExporting(true);
-    setExportProgress(null);
-    try {
-      await exportBindersToPDF(exportBinders, exportUncategorized, fileName, {
-        includeImages,
-        onProgress: (done, total) => setExportProgress({ done, total }),
-      });
-    } catch (err) {
-      console.error(err);
-      setError('PDF export failed. Try again, or disable card images.');
-    } finally {
-      setExporting(false);
-      setExportProgress(null);
-    }
-  };
-
   return (
     <div className="container">
       <h1>MTG Binder Planner</h1>
@@ -117,6 +81,36 @@ export default function App() {
           <hr />
           <Legend />
           <BinderTabs binders={materialized} uncategorized={uncategorized} />
+          {(() => {
+            const activeBinder =
+              activeTab === 'uncategorized'
+                ? null
+                : materialized.find((b) => b.def.id === activeTab);
+            const totals =
+              activeTab === 'uncategorized'
+                ? {
+                    name: 'Uncategorized',
+                    cards: uncategorized.totalCards,
+                    pages: uncategorized.totalPages,
+                  }
+                : activeBinder
+                  ? {
+                      name: activeBinder.def.name,
+                      cards: activeBinder.totalCards,
+                      pages: activeBinder.totalPages,
+                    }
+                  : null;
+            if (!totals || totals.cards === 0) return null;
+            return (
+              <div className="binder-summary" aria-live="polite">
+                <span className="binder-summary-name">{totals.name}</span>
+                <span className="binder-summary-meta">
+                  {totals.cards.toLocaleString()} cards · {totals.pages.toLocaleString()} page
+                  {totals.pages !== 1 ? 's' : ''}
+                </span>
+              </div>
+            );
+          })()}
           {binders.length === 0 && (
             <div className="empty-state">
               No binders yet.{' '}
@@ -149,25 +143,6 @@ export default function App() {
                 </button>
               )}
             </div>
-            <label
-              className="field-checkbox"
-              title="Embed card art in each pocket. Slower exports and larger files."
-            >
-              <input
-                type="checkbox"
-                checked={includeImages}
-                onChange={(e) => setIncludeImages(e.target.checked)}
-                disabled={exporting}
-              />
-              Card images
-            </label>
-            <button className="btn" onClick={handleExportPDF} disabled={exporting}>
-              {exporting
-                ? exportProgress
-                  ? `Exporting… ${exportProgress.done}/${exportProgress.total}`
-                  : 'Exporting…'
-                : 'Export PDF'}
-            </button>
           </div>
           <BinderView binders={materialized} uncategorized={uncategorized} />
         </>
