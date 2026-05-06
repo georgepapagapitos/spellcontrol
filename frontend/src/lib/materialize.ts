@@ -14,13 +14,16 @@ import { cardMatchesRules } from './rules';
 import { sortCards } from './sorting';
 
 export interface MaterializeOptions {
-  globalPocketSize: PocketSize;
+  globalPocketSize?: PocketSize;
   search: string;
   /** Sort applied to the unbinned bucket. */
   unbinnedSorts?: SortField[];
 }
 
 const DEFAULT_UNBINNED_SORTS: SortField[] = ['color', 'cmc', 'name'];
+
+/** Fallback pocket size for binders that don't specify one and for the unbinned bucket. */
+export const DEFAULT_POCKET_SIZE: PocketSize = 9;
 
 /**
  * Routes cards through binder definitions in priority order.
@@ -56,7 +59,7 @@ export function materializeBinders(
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
     const cardsInBinder = buckets.get(def.id)!;
-    const effectivePocketSize = (def.pocketSize ?? opts.globalPocketSize) as PocketSize;
+    const effectivePocketSize = (def.pocketSize ?? (opts.globalPocketSize ?? DEFAULT_POCKET_SIZE)) as PocketSize;
     const sections = buildSections(cardsInBinder, def.sorts, effectivePocketSize, isMatch);
     return {
       def,
@@ -71,7 +74,7 @@ export function materializeBinders(
   const unbinnedSections = buildSections(
     unbinned,
     unbinnedSorts,
-    opts.globalPocketSize,
+    (opts.globalPocketSize ?? DEFAULT_POCKET_SIZE),
     isMatch
   );
 
@@ -81,7 +84,7 @@ export function materializeBinders(
       totalCards: unbinnedSections.reduce((s, sec) => s + sec.cards.length, 0),
       sections: unbinnedSections,
       totalPages: unbinnedSections.reduce((s, sec) => s + sec.pages.length, 0),
-      effectivePocketSize: opts.globalPocketSize,
+      effectivePocketSize: (opts.globalPocketSize ?? DEFAULT_POCKET_SIZE),
     },
   };
 }

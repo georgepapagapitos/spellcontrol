@@ -66,6 +66,7 @@ h1 {
   margin-bottom: 0.75rem;
 }
 .upload-current-info { display: flex; align-items: center; gap: 12px; }
+.upload-current-actions { display: flex; align-items: center; gap: 1rem; }
 .upload-current-icon {
   font-size: 1.4rem;
   color: var(--accent);
@@ -228,7 +229,7 @@ h1 {
 }
 .field-checkbox input { cursor: pointer; }
 
-select, input[type=number], input[type=text] {
+select, input[type=number], input[type=text], input[type=search] {
   font-size: 0.9rem;
   color: var(--text);
   background: var(--bg);
@@ -236,6 +237,25 @@ select, input[type=number], input[type=text] {
   border-radius: var(--radius);
   padding: 6px 10px;
   outline: none;
+}
+
+.binder-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.binder-toolbar-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.binder-toolbar-search input[type=search] {
+  flex: 1;
+  min-width: 0;
+  max-width: 360px;
 }
 select:focus,
 input[type=number]:focus,
