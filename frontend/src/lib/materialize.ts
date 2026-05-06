@@ -1,5 +1,6 @@
 import type {
   BinderDef,
+  BinderPage,
   BinderSection,
   EnrichedCard,
   MaterializedBinder,
@@ -31,9 +32,9 @@ export function materializeBinders(
   opts: MaterializeOptions
 ): { binders: MaterializedBinder[]; unbinned: UnbinnedBucket } {
   const search = opts.search.trim().toLowerCase();
-  const filtered = search
-    ? cards.filter((c) => c.name.toLowerCase().includes(search))
-    : cards;
+  const isMatch = search
+    ? (c: EnrichedCard) => c.name.toLowerCase().includes(search)
+    : () => true;
 
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
 
@@ -41,7 +42,7 @@ export function materializeBinders(
   orderedDefs.forEach((d) => buckets.set(d.id, []));
   const unbinned: EnrichedCard[] = [];
 
-  for (const card of filtered) {
+  for (const card of cards) {
     let matched = false;
     for (const def of orderedDefs) {
       if (cardMatchesRules(card, def.rules)) {
@@ -56,23 +57,28 @@ export function materializeBinders(
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
     const cardsInBinder = buckets.get(def.id)!;
     const effectivePocketSize = (def.pocketSize ?? opts.globalPocketSize) as PocketSize;
-    const sections = buildSections(cardsInBinder, def.sorts, effectivePocketSize);
+    const sections = buildSections(cardsInBinder, def.sorts, effectivePocketSize, isMatch);
     return {
       def,
       effectivePocketSize,
       sections,
-      totalCards: cardsInBinder.length,
+      totalCards: sections.reduce((s, sec) => s + sec.cards.length, 0),
       totalPages: sections.reduce((s, sec) => s + sec.pages.length, 0),
     };
   });
 
   const unbinnedSorts = opts.unbinnedSorts ?? DEFAULT_UNBINNED_SORTS;
-  const unbinnedSections = buildSections(unbinned, unbinnedSorts, opts.globalPocketSize);
+  const unbinnedSections = buildSections(
+    unbinned,
+    unbinnedSorts,
+    opts.globalPocketSize,
+    isMatch
+  );
 
   return {
     binders: materialized,
     unbinned: {
-      totalCards: unbinned.length,
+      totalCards: unbinnedSections.reduce((s, sec) => s + sec.cards.length, 0),
       sections: unbinnedSections,
       totalPages: unbinnedSections.reduce((s, sec) => s + sec.pages.length, 0),
       effectivePocketSize: opts.globalPocketSize,
@@ -83,20 +89,23 @@ export function materializeBinders(
 function buildSections(
   cards: EnrichedCard[],
   sorts: SortField[],
-  slotSize: number
+  slotSize: number,
+  isMatch: (c: EnrichedCard) => boolean
 ): BinderSection[] {
   const primary = sorts[0];
   const groupByColor = !primary || primary === 'none' || primary === 'color';
 
+  const buildSection = (colorKey: string, sectionCards: EnrichedCard[]): BinderSection | null => {
+    const pages = chunkIntoPages(sectionCards, slotSize, isMatch);
+    const matchingCards = sectionCards.filter(isMatch);
+    if (matchingCards.length === 0) return null;
+    return { colorKey, cards: matchingCards, pages };
+  };
+
   if (!groupByColor) {
     const sorted = sortCards(cards, sorts);
-    return [
-      {
-        colorKey: 'ALL',
-        cards: sorted,
-        pages: chunkIntoPages(sorted, slotSize),
-      },
-    ];
+    const section = buildSection('ALL', sorted);
+    return section ? [section] : [];
   }
 
   const groups: Record<string, EnrichedCard[]> = {};
@@ -112,34 +121,43 @@ function buildSections(
   for (const colorKey of COLOR_ORDER) {
     if (groups[colorKey] && groups[colorKey].length > 0) {
       const sorted = sortCards(groups[colorKey], subSorts);
-      sections.push({
-        colorKey,
-        cards: sorted,
-        pages: chunkIntoPages(sorted, slotSize),
-      });
+      const section = buildSection(colorKey, sorted);
+      if (section) sections.push(section);
     }
   }
 
   for (const colorKey of Object.keys(groups)) {
     if (!COLOR_ORDER.includes(colorKey)) {
       const sorted = sortCards(groups[colorKey], subSorts);
-      sections.push({
-        colorKey,
-        cards: sorted,
-        pages: chunkIntoPages(sorted, slotSize),
-      });
+      const section = buildSection(colorKey, sorted);
+      if (section) sections.push(section);
     }
   }
 
   return sections;
 }
 
-function chunkIntoPages(cards: EnrichedCard[], slotSize: number): Page[] {
-  const pages: Page[] = [];
+/**
+ * Slice the section's full card list into physical pages, then keep only pages
+ * that contain a search match. Surviving pages preserve their original 1-based
+ * page number and replace non-matching slots with null so a match stays in its
+ * real physical position.
+ */
+function chunkIntoPages(
+  cards: EnrichedCard[],
+  slotSize: number,
+  isMatch: (c: EnrichedCard) => boolean
+): BinderPage[] {
+  const pages: BinderPage[] = [];
+  let pageNum = 0;
   for (let i = 0; i < cards.length; i += slotSize) {
-    const page: Page = cards.slice(i, i + slotSize);
-    while (page.length < slotSize) page.push(null);
-    pages.push(page);
+    pageNum += 1;
+    const window = cards.slice(i, i + slotSize);
+    const slots: Page = window.map((c) => (isMatch(c) ? c : null));
+    while (slots.length < slotSize) slots.push(null);
+    if (slots.some((c) => c !== null)) {
+      pages.push({ slots, pageNum });
+    }
   }
   return pages;
 }

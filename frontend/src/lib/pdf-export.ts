@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import type {
+  BinderPage,
   EnrichedCard,
   MaterializedBinder,
   Page,
@@ -28,15 +29,15 @@ export function exportBindersToPDF(
 
     for (const section of mb.sections) {
       const info = COLOR_INFO[section.colorKey] || { label: section.colorKey };
-      for (let pageIdx = 0; pageIdx < section.pages.length; pageIdx++) {
+      for (const page of section.pages) {
         doc.addPage();
         drawBinderPage(
           doc,
           mb.def.name,
           info.label,
-          pageIdx + 1,
+          page.pageNum,
           section.pages.length,
-          section.pages[pageIdx],
+          page.slots,
           mb.effectivePocketSize
         );
       }
@@ -54,15 +55,15 @@ export function exportBindersToPDF(
     );
     for (const section of unbinned.sections) {
       const info = COLOR_INFO[section.colorKey] || { label: section.colorKey };
-      for (let pageIdx = 0; pageIdx < section.pages.length; pageIdx++) {
+      for (const page of section.pages) {
         doc.addPage();
         drawBinderPage(
           doc,
           'Bulk (unbinned)',
           info.label,
-          pageIdx + 1,
+          page.pageNum,
           section.pages.length,
-          section.pages[pageIdx],
+          page.slots,
           unbinned.effectivePocketSize
         );
       }
@@ -78,7 +79,7 @@ function drawCoverPage(
   label: string,
   totalCards: number,
   totalPages: number,
-  sections: Array<{ colorKey: string; cards: EnrichedCard[]; pages: Page[] }>
+  sections: Array<{ colorKey: string; cards: EnrichedCard[]; pages: BinderPage[] }>
 ) {
   doc.setFontSize(28);
   doc.setFont('helvetica', 'normal');
