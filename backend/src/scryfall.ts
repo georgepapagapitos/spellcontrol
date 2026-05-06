@@ -229,17 +229,24 @@ function identifierKey(ident: Identifier): string {
 /**
  * Picks the most-specific identifier for a given row. Returns null if there's not enough
  * info to do any kind of lookup.
+ *
+ * Multi-face card names are normalized to the front face. Scryfall's /cards/collection
+ * endpoint returns not_found when a "Front // Back" name is sent for split / DFC /
+ * adventure cards (Moxfield exports them in full form). The front face matches.
  */
 function buildIdentifier(row: ImportRow): Identifier | null {
   if (row.scryfallId) return { id: row.scryfallId };
   if (!row.name) return null;
 
+  const name = row.name.split(' // ')[0].trim();
+  if (!name) return null;
+
   const set = row.setCode?.toLowerCase().trim();
   const collector = row.collectorNumber?.trim();
 
-  if (set && collector) return { name: row.name, set, collector_number: collector };
-  if (set) return { name: row.name, set };
-  return { name: row.name };
+  if (set && collector) return { name, set, collector_number: collector };
+  if (set) return { name, set };
+  return { name };
 }
 
 /**

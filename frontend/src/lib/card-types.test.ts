@@ -72,6 +72,12 @@ describe('getCardType', () => {
     // Enchantment Artifact is unusual but should resolve to enchantment (comes first in TYPE_ORDER)
     expect(getCardType(makeCard('Enchantment Artifact'))).toBe('enchantment');
   });
+
+  it('handles multi-face type lines (split / MDFC / reversible)', () => {
+    expect(getCardType(makeCard('Land — Swamp Mountain // Land — Swamp Mountain'))).toBe('land');
+    expect(getCardType(makeCard('Creature — Werewolf // Creature — Werewolf'))).toBe('creature');
+    expect(getCardType(makeCard('Instant // Sorcery'))).toBe('instant');
+  });
 });
 
 describe('TYPE_ORDER', () => {

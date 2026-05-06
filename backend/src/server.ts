@@ -119,14 +119,21 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
   };
 
   if (scryfall) {
-    base.cmc = scryfall.cmc;
-    base.typeLine = scryfall.type_line;
+    // Some layouts (reversible_card, art_series, etc.) leave top-level type_line/cmc/colors
+    // null and put the real data on the faces. Fall back to the first face so binder routing
+    // and section grouping see real values for those printings.
+    const firstFace = scryfall.card_faces?.[0];
+    base.cmc = scryfall.cmc ?? firstFace?.cmc;
+    base.typeLine = scryfall.type_line ?? firstFace?.type_line;
     base.colorIdentity = scryfall.color_identity;
-    base.colors = scryfall.colors;
+    base.colors = scryfall.colors ?? firstFace?.colors;
     base.edhrecRank = scryfall.edhrec_rank;
-    const faceImages = scryfall.card_faces?.[0]?.image_uris;
-    base.imageSmall = scryfall.image_uris?.small || faceImages?.small;
-    base.imageNormal = scryfall.image_uris?.normal || faceImages?.normal;
+    base.imageSmall = scryfall.image_uris?.small || firstFace?.image_uris?.small;
+    base.imageNormal = scryfall.image_uris?.normal || firstFace?.image_uris?.normal;
+    base.frameEffects = scryfall.frame_effects;
+    // Older fullart lands don't put 'fullart' in frame_effects — they only set full_art.
+    base.fullArt = scryfall.full_art === true || scryfall.frame_effects?.includes('fullart');
+    base.borderColor = scryfall.border_color;
   }
 
   return base;

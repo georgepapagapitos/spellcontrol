@@ -9,8 +9,8 @@ import type {
   SortField,
   UncategorizedBucket,
 } from '../types';
-import { COLOR_ORDER, getColorKey } from './colors';
 import { cardMatchesRules } from './rules';
+import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
 import { sortCards } from './sorting';
 
 export interface MaterializeOptions {
@@ -60,17 +60,21 @@ export function materializeBinders(
     const effectivePocketSize = (def.pocketSize ??
       opts.globalPocketSize ??
       DEFAULT_POCKET_SIZE) as PocketSize;
-    const sections = buildSections(cardsInBinder, def.sorts, effectivePocketSize, isMatch);
+    const effectiveSorts = withImplicitTiebreaker(def.sorts);
+    const sections = buildSections(cardsInBinder, effectiveSorts, effectivePocketSize, isMatch);
     return {
       def,
       effectivePocketSize,
+      effectiveSorts,
       sections,
       totalCards: sections.reduce((s, sec) => s + sec.cards.length, 0),
       totalPages: sections.reduce((s, sec) => s + sec.pages.length, 0),
     };
   });
 
-  const uncategorizedSorts = opts.uncategorizedSorts ?? DEFAULT_UNCATEGORIZED_SORTS;
+  const uncategorizedSorts = withImplicitTiebreaker(
+    opts.uncategorizedSorts ?? DEFAULT_UNCATEGORIZED_SORTS
+  );
   const uncategorizedSections = buildSections(
     uncategorized,
     uncategorizedSorts,
@@ -85,8 +89,20 @@ export function materializeBinders(
       sections: uncategorizedSections,
       totalPages: uncategorizedSections.reduce((s, sec) => s + sec.pages.length, 0),
       effectivePocketSize: opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
+      effectiveSorts: uncategorizedSorts,
     },
   };
+}
+
+/**
+ * Append "name" as a deterministic final tiebreaker so cards that compare equal
+ * across all chosen sort fields land in stable alphabetical order instead of
+ * import order. Skipped if name is already in the chain.
+ */
+function withImplicitTiebreaker(sorts: SortField[]): SortField[] {
+  const active = sorts.filter((s) => s && s !== 'none');
+  if (active.includes('name')) return sorts;
+  return [...sorts, 'name'];
 }
 
 function buildSections(
@@ -96,50 +112,55 @@ function buildSections(
   isMatch: (c: EnrichedCard) => boolean
 ): BinderSection[] {
   const primary = sorts[0];
-  const groupByColor = !primary || primary === 'none' || primary === 'color';
+  const useGrouping = !!primary && primary !== 'none';
 
   let pageOffset = 0;
-  const buildSection = (colorKey: string, sectionCards: EnrichedCard[]): BinderSection | null => {
-    const sectionPageCount = Math.ceil(sectionCards.length / (slotSize > 0 ? slotSize : 9));
+  const buildSection = (meta: SectionMeta, sectionCards: EnrichedCard[]): BinderSection | null => {
+    const effectiveSlots = slotSize > 0 ? slotSize : 9;
+    const sectionPageCount = Math.ceil(sectionCards.length / effectiveSlots);
     const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffset);
     pageOffset += sectionPageCount;
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
-    return { colorKey, cards: matchingCards, pages };
+    return {
+      key: meta.key,
+      label: meta.label,
+      pip: meta.pip,
+      cards: matchingCards,
+      pages,
+    };
   };
 
-  if (!groupByColor) {
+  if (!useGrouping) {
     const sorted = sortCards(cards, sorts);
-    const section = buildSection('ALL', sorted);
+    const section = buildSection(ALL_SECTION, sorted);
     return section ? [section] : [];
   }
 
-  const groups: Record<string, EnrichedCard[]> = {};
+  // Group by primary sort. Preserve first-seen meta so set-name/label is captured
+  // from a real card (avoids needing a second lookup table).
+  const groups = new Map<string, { meta: SectionMeta; cards: EnrichedCard[] }>();
   for (const card of cards) {
-    const key = getColorKey(card);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(card);
+    const meta = getSectionMeta(card, primary);
+    const entry = groups.get(meta.key);
+    if (entry) entry.cards.push(card);
+    else groups.set(meta.key, { meta, cards: [card] });
   }
+
+  // Section ordering: by meta.order, ties broken by label (alphabetical).
+  // For set/name groupings, all groups share order=0 so label sort kicks in.
+  const ordered = [...groups.values()].sort((a, b) => {
+    if (a.meta.order !== b.meta.order) return a.meta.order - b.meta.order;
+    return a.meta.label.localeCompare(b.meta.label);
+  });
 
   const subSorts = sorts.slice(1);
   const sections: BinderSection[] = [];
-
-  for (const colorKey of COLOR_ORDER) {
-    if (groups[colorKey] && groups[colorKey].length > 0) {
-      const sorted = sortCards(groups[colorKey], subSorts);
-      const section = buildSection(colorKey, sorted);
-      if (section) sections.push(section);
-    }
+  for (const { meta, cards: gCards } of ordered) {
+    const sorted = sortCards(gCards, subSorts);
+    const section = buildSection(meta, sorted);
+    if (section) sections.push(section);
   }
-
-  for (const colorKey of Object.keys(groups)) {
-    if (!COLOR_ORDER.includes(colorKey)) {
-      const sorted = sortCards(groups[colorKey], subSorts);
-      const section = buildSection(colorKey, sorted);
-      if (section) sections.push(section);
-    }
-  }
-
   return sections;
 }
 
