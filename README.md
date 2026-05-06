@@ -67,7 +67,6 @@ mtg-binder-planner/
         │   ├── sorting.ts            Multi-level sort
         │   ├── colors.ts             Scryfall color-identity grouping
         │   ├── card-types.ts         Type-line parsing
-        │   ├── pdf-export.ts         PDF generator
         │   ├── local-cards.ts        IndexedDB persistence
         │   └── api.ts                Backend client
         ├── store/collection.ts       Zustand store

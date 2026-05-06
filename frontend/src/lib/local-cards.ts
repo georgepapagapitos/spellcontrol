@@ -17,12 +17,29 @@ const DB_VERSION = 1;
 const STORE_NAME = 'collection';
 const CURRENT_KEY = 'current';
 
+export interface ImportHistoryEntry {
+  /** Source file name or "pasted-list". */
+  name: string;
+  /** Number of cards added by this individual import. */
+  count: number;
+  /** Detected parser format (manabox / archidekt / mtga / plain / etc). */
+  format: string;
+  /** Wall-clock time of the import (ms). */
+  addedAt: number;
+}
+
 export interface StoredCollection {
   fileName: string;
   cards: EnrichedCard[];
   scryfallHits: number;
   scryfallMisses: number;
   uploadedAt: number;
+  /**
+   * History of imports that contributed to the current collection. After a
+   * `replace` import this contains a single entry; after merges, one entry per
+   * import in chronological order.
+   */
+  importHistory?: ImportHistoryEntry[];
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;

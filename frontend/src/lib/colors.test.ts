@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getColorKey } from './colors';
+import { getColorKey, isLand } from './colors';
 import type { EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -19,32 +19,38 @@ function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
 }
 
 describe('getColorKey', () => {
-  it('returns "L" for cards with "land" in type line', () => {
+  it('groups lands by their color identity', () => {
     expect(getColorKey(makeCard({ typeLine: 'Basic Land — Forest', colorIdentity: ['G'] }))).toBe(
-      'L'
+      'G'
     );
-    expect(getColorKey(makeCard({ typeLine: 'Land', colorIdentity: [] }))).toBe('L');
+    expect(getColorKey(makeCard({ typeLine: 'Basic Land — Plains', colorIdentity: ['W'] }))).toBe(
+      'W'
+    );
+    // Wastes / colorless lands → C
+    expect(getColorKey(makeCard({ typeLine: 'Basic Land — Wastes', colorIdentity: [] }))).toBe('C');
+    // Dual / fetch lands → M
+    expect(getColorKey(makeCard({ typeLine: 'Land', colorIdentity: ['U', 'R'] }))).toBe('M');
   });
 
-  it('returns "L" for basic land names when colorIdentity is missing', () => {
+  it('falls back to basic land names when colorIdentity is missing', () => {
     expect(
       getColorKey(makeCard({ name: 'Forest', typeLine: undefined, colorIdentity: undefined }))
-    ).toBe('L');
+    ).toBe('G');
     expect(
       getColorKey(makeCard({ name: 'Plains', typeLine: undefined, colorIdentity: undefined }))
-    ).toBe('L');
+    ).toBe('W');
     expect(
       getColorKey(makeCard({ name: 'Island', typeLine: undefined, colorIdentity: undefined }))
-    ).toBe('L');
+    ).toBe('U');
     expect(
       getColorKey(makeCard({ name: 'Swamp', typeLine: undefined, colorIdentity: undefined }))
-    ).toBe('L');
+    ).toBe('B');
     expect(
       getColorKey(makeCard({ name: 'Mountain', typeLine: undefined, colorIdentity: undefined }))
-    ).toBe('L');
+    ).toBe('R');
     expect(
       getColorKey(makeCard({ name: 'Wastes', typeLine: undefined, colorIdentity: undefined }))
-    ).toBe('L');
+    ).toBe('C');
   });
 
   it('returns "?" when colorIdentity is missing and card is not a basic land', () => {
@@ -70,9 +76,22 @@ describe('getColorKey', () => {
       getColorKey(makeCard({ typeLine: 'Creature', colorIdentity: ['W', 'U', 'B', 'R', 'G'] }))
     ).toBe('M');
   });
+});
 
-  it('land type takes precedence over colorIdentity', () => {
-    // A fetch land has colorIdentity but should still be L
-    expect(getColorKey(makeCard({ typeLine: 'Land', colorIdentity: ['U', 'R'] }))).toBe('L');
+describe('isLand', () => {
+  it('detects lands by type line', () => {
+    expect(isLand(makeCard({ typeLine: 'Basic Land — Forest' }))).toBe(true);
+    expect(isLand(makeCard({ typeLine: 'Land — Swamp Mountain' }))).toBe(true);
+    expect(isLand(makeCard({ typeLine: 'Legendary Land' }))).toBe(true);
+  });
+
+  it('detects basic lands by name when type line is missing', () => {
+    expect(isLand(makeCard({ name: 'Forest', typeLine: undefined }))).toBe(true);
+    expect(isLand(makeCard({ name: 'Wastes', typeLine: undefined }))).toBe(true);
+  });
+
+  it('returns false for non-lands', () => {
+    expect(isLand(makeCard({ typeLine: 'Instant' }))).toBe(false);
+    expect(isLand(makeCard({ typeLine: 'Creature — Bear' }))).toBe(false);
   });
 });

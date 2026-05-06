@@ -30,8 +30,9 @@ pnpm-debug.log*
 .claude/
 
 # Editor / IDE
-.vscode/
+.vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo
