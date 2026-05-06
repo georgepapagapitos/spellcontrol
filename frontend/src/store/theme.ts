@@ -24,8 +24,8 @@ export const useThemeStore = create<ThemeState>()(
         const id = state && isValidTheme(state.theme) ? state.theme : DEFAULT_THEME;
         document.documentElement.setAttribute('data-theme', id);
       },
-    },
-  ),
+    }
+  )
 );
 
 /**
@@ -44,7 +44,7 @@ export function bootstrapTheme(): void {
     const id = parsed?.state?.theme;
     document.documentElement.setAttribute(
       'data-theme',
-      id && isValidTheme(id) ? id : DEFAULT_THEME,
+      id && isValidTheme(id) ? id : DEFAULT_THEME
     );
   } catch {
     document.documentElement.setAttribute('data-theme', DEFAULT_THEME);
