@@ -8,6 +8,7 @@ import { BinderTabs } from './components/BinderTabs';
 import { BinderView } from './components/BinderView';
 import { BinderEditor } from './components/BinderEditor';
 import { Footer } from './components/Footer';
+import { Header } from './components/Header';
 
 export default function App() {
   const {
@@ -50,10 +51,9 @@ export default function App() {
   }, [cards, binders, search]);
 
   return (
-    <div className="container">
-      <h1>MTG Binder Planner</h1>
-      <div className="subtitle">Try binder layouts before you commit a single sleeve.</div>
-
+    <>
+      <Header />
+      <div className="container">
       {hydrating ? (
         <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
           <div className="upload-icon">
@@ -150,6 +150,7 @@ export default function App() {
 
       <BinderEditor />
       <Footer />
-    </div>
+      </div>
+    </>
   );
 }

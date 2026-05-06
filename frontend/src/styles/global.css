@@ -80,7 +80,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding: 2rem 1rem;
+  padding: 0 1rem 2rem;
 }
 
 button {
@@ -96,20 +96,39 @@ select {
 .container {
   max-width: 1100px;
   margin: 0 auto;
+  padding-top: 1.5rem;
 }
 
-h1 {
-  font-size: 1.6rem;
-  font-weight: normal;
-  letter-spacing: -0.02em;
-  margin-bottom: 0.2rem;
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+  margin: 0 -1rem;
+  padding: 0 1rem;
+  backdrop-filter: blur(8px);
 }
 
-.subtitle {
-  font-size: 0.8rem;
-  color: var(--text3);
-  font-family: var(--font-mono);
-  margin-bottom: 2rem;
+.site-header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: 3.25rem;
+}
+
+.site-brand {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.site-brand:hover {
+  color: var(--accent-hover);
 }
 
 /* ── Upload panel ───────────────────────────────────────────────────────── */
@@ -1669,17 +1688,20 @@ hr {
 /* Tablet & smaller */
 @media (max-width: 900px) {
   body {
-    padding: 1.25rem 0.85rem;
+    padding: 0 0.85rem 1.25rem;
     padding-left: max(0.85rem, env(safe-area-inset-left));
     padding-right: max(0.85rem, env(safe-area-inset-right));
   }
 
-  h1 {
-    font-size: 1.4rem;
+  .site-header {
+    margin-left: -0.85rem;
+    margin-right: -0.85rem;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
   }
 
-  .subtitle {
-    margin-bottom: 1.25rem;
+  .site-header-inner {
+    height: 3rem;
   }
 
   .panel {
@@ -1699,19 +1721,20 @@ hr {
 /* Phone */
 @media (max-width: 700px) {
   body {
-    padding: 0.85rem 0.65rem;
+    padding: 0 0.65rem 0.85rem;
     padding-left: max(0.65rem, env(safe-area-inset-left));
     padding-right: max(0.65rem, env(safe-area-inset-right));
   }
 
-  h1 {
-    font-size: 1.2rem;
-    letter-spacing: -0.01em;
+  .site-header {
+    margin-left: -0.65rem;
+    margin-right: -0.65rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
   }
 
-  .subtitle {
-    font-size: 0.72rem;
-    margin-bottom: 1rem;
+  .site-brand {
+    font-size: 0.95rem;
   }
 
   /* Upload current banner: stack info above actions, full-width tappable */
