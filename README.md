@@ -1,14 +1,14 @@
 # MTG Binder Planner
 
-Take a collection export from any popular Magic: The Gathering tool, define your physical binders with custom rules, and see exactly which cards go where. Watch your bulk pile shrink as you whittle down the unbinned bucket.
+Take a collection export from any popular Magic: The Gathering tool, define your physical binders with custom rules, and see exactly which cards go where. Watch your collection take shape as you whittle down the Uncategorized bucket.
 
 ## How it works
 
 1. **Import your cards** — upload a CSV from ManaBox / Archidekt / Moxfield / Deckbox / TCGplayer / etc., or paste a list of card names. Format is auto-detected.
 2. **Create binders** — each binder is a set of filter rules (rarity, price, color, type, EDHREC popularity, etc.) plus a sort spec and pocket size.
-3. **Cards flow into binders by priority** — each card joins the first binder whose rules match. Anything that doesn't match any binder falls into the **Bulk (unbinned)** bucket.
+3. **Cards flow into binders by priority** — each card joins the first binder whose rules match. Anything that doesn't match any binder falls into the **Uncategorized** bucket.
 4. **Reorder binders** with up/down arrows on the active tab — higher position = first dibs.
-5. **Stats bar** shows how many cards are in binders vs still in bulk, so you can watch your progress.
+5. **Stats bar** shows how many cards are in binders vs uncategorized, so you can watch your progress.
 
 ## Supported import formats
 
@@ -63,7 +63,7 @@ mtg-binder-planner/
         │   └── Footer.tsx            Scryfall + ManaBox attribution
         ├── lib/
         │   ├── rules.ts              Rule-matching engine (OR groups)
-        │   ├── materialize.ts        Routes cards into binders + unbinned
+        │   ├── materialize.ts        Routes cards into binders + uncategorized
         │   ├── sorting.ts            Multi-level sort
         │   ├── colors.ts             Scryfall color-identity grouping
         │   ├── card-types.ts         Type-line parsing

@@ -109,10 +109,9 @@ describe('fetchImagesAsDataUrls', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     const onProgress = vi.fn();
-    await fetchImagesAsDataUrls(
-      ['https://x/a.jpg', 'https://x/b.jpg', 'https://x/missing.jpg'],
-      { onProgress }
-    );
+    await fetchImagesAsDataUrls(['https://x/a.jpg', 'https://x/b.jpg', 'https://x/missing.jpg'], {
+      onProgress,
+    });
 
     expect(onProgress).toHaveBeenCalledTimes(3);
     expect(onProgress).toHaveBeenLastCalledWith(3, 3);

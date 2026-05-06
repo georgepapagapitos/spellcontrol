@@ -81,7 +81,7 @@ export const useCollectionStore = create<CollectionState>()(
       hydrating: true,
       isLoading: false,
       error: null,
-      activeTab: 'unbinned',
+      activeTab: 'uncategorized',
       editingBinder: null,
       search: '',
 
@@ -194,7 +194,7 @@ export const useCollectionStore = create<CollectionState>()(
             .filter((b) => b.id !== id)
             .sort((a, b) => a.position - b.position)
             .map((b, i) => ({ ...b, position: i }));
-          const newActive = s.activeTab === id ? remaining[0]?.id || 'unbinned' : s.activeTab;
+          const newActive = s.activeTab === id ? remaining[0]?.id || 'uncategorized' : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
       },

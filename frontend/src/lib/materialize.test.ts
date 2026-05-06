@@ -39,11 +39,11 @@ function makeBinder(overrides: Partial<BinderDef> = {}): BinderDef {
 const defaultOpts = { globalPocketSize: 9 as const, search: '' };
 
 describe('materializeBinders', () => {
-  it('puts all cards in unbinned when no binders are defined', () => {
+  it('puts all cards in uncategorized when no binders are defined', () => {
     const cards = [makeCard(), makeCard()];
-    const { binders, unbinned } = materializeBinders(cards, [], defaultOpts);
+    const { binders, uncategorized } = materializeBinders(cards, [], defaultOpts);
     expect(binders).toHaveLength(0);
-    expect(unbinned.totalCards).toBe(2);
+    expect(uncategorized.totalCards).toBe(2);
   });
 
   it('routes cards matching a binder rule into that binder', () => {
@@ -51,9 +51,13 @@ describe('materializeBinders', () => {
     const commonCard = makeCard({ rarity: 'common' });
     const binder = makeBinder({ rules: [{ rarities: ['rare'] }], position: 0 });
 
-    const { binders, unbinned } = materializeBinders([rareCard, commonCard], [binder], defaultOpts);
+    const { binders, uncategorized } = materializeBinders(
+      [rareCard, commonCard],
+      [binder],
+      defaultOpts
+    );
     expect(binders[0].totalCards).toBe(1);
-    expect(unbinned.totalCards).toBe(1);
+    expect(uncategorized.totalCards).toBe(1);
   });
 
   it('routes card to the first matching binder (priority order)', () => {
@@ -81,12 +85,12 @@ describe('materializeBinders', () => {
     expect(highB.totalCards).toBe(0);
   });
 
-  it('places cards in unbinned when they match no binder', () => {
+  it('places cards in uncategorized when they match no binder', () => {
     const card = makeCard({ rarity: 'common' });
     const binder = makeBinder({ rules: [{ rarities: ['rare'] }] });
 
-    const { unbinned } = materializeBinders([card], [binder], defaultOpts);
-    expect(unbinned.totalCards).toBe(1);
+    const { uncategorized } = materializeBinders([card], [binder], defaultOpts);
+    expect(uncategorized.totalCards).toBe(1);
   });
 
   it('groups cards into pages using the pocket size', () => {

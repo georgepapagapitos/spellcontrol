@@ -7,7 +7,7 @@ import type {
   Page,
   PocketSize,
   SortField,
-  UnbinnedBucket,
+  UncategorizedBucket,
 } from '../types';
 import { COLOR_ORDER, getColorKey } from './colors';
 import { cardMatchesRules } from './rules';
@@ -16,24 +16,24 @@ import { sortCards } from './sorting';
 export interface MaterializeOptions {
   globalPocketSize?: PocketSize;
   search: string;
-  /** Sort applied to the unbinned bucket. */
-  unbinnedSorts?: SortField[];
+  /** Sort applied to the uncategorized bucket. */
+  uncategorizedSorts?: SortField[];
 }
 
-const DEFAULT_UNBINNED_SORTS: SortField[] = ['color', 'cmc', 'name'];
+const DEFAULT_UNCATEGORIZED_SORTS: SortField[] = ['color', 'cmc', 'name'];
 
-/** Fallback pocket size for binders that don't specify one and for the unbinned bucket. */
+/** Fallback pocket size for binders that don't specify one and for the uncategorized bucket. */
 export const DEFAULT_POCKET_SIZE: PocketSize = 9;
 
 /**
  * Routes cards through binder definitions in priority order.
- * Each card joins the FIRST binder whose rules match. Unmatched cards land in the unbinned bucket.
+ * Each card joins the FIRST binder whose rules match. Unmatched cards land in the uncategorized bucket.
  */
 export function materializeBinders(
   cards: EnrichedCard[],
   binderDefs: BinderDef[],
   opts: MaterializeOptions
-): { binders: MaterializedBinder[]; unbinned: UnbinnedBucket } {
+): { binders: MaterializedBinder[]; uncategorized: UncategorizedBucket } {
   const search = opts.search.trim().toLowerCase();
   const isMatch = search ? (c: EnrichedCard) => c.name.toLowerCase().includes(search) : () => true;
 
@@ -41,7 +41,7 @@ export function materializeBinders(
 
   const buckets = new Map<string, EnrichedCard[]>();
   orderedDefs.forEach((d) => buckets.set(d.id, []));
-  const unbinned: EnrichedCard[] = [];
+  const uncategorized: EnrichedCard[] = [];
 
   for (const card of cards) {
     let matched = false;
@@ -52,7 +52,7 @@ export function materializeBinders(
         break;
       }
     }
-    if (!matched) unbinned.push(card);
+    if (!matched) uncategorized.push(card);
   }
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
@@ -70,20 +70,20 @@ export function materializeBinders(
     };
   });
 
-  const unbinnedSorts = opts.unbinnedSorts ?? DEFAULT_UNBINNED_SORTS;
-  const unbinnedSections = buildSections(
-    unbinned,
-    unbinnedSorts,
+  const uncategorizedSorts = opts.uncategorizedSorts ?? DEFAULT_UNCATEGORIZED_SORTS;
+  const uncategorizedSections = buildSections(
+    uncategorized,
+    uncategorizedSorts,
     opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
     isMatch
   );
 
   return {
     binders: materialized,
-    unbinned: {
-      totalCards: unbinnedSections.reduce((s, sec) => s + sec.cards.length, 0),
-      sections: unbinnedSections,
-      totalPages: unbinnedSections.reduce((s, sec) => s + sec.pages.length, 0),
+    uncategorized: {
+      totalCards: uncategorizedSections.reduce((s, sec) => s + sec.cards.length, 0),
+      sections: uncategorizedSections,
+      totalPages: uncategorizedSections.reduce((s, sec) => s + sec.pages.length, 0),
       effectivePocketSize: opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
     },
   };

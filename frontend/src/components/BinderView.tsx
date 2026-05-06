@@ -1,31 +1,34 @@
 import { useCollectionStore } from '../store/collection';
 import { COLOR_INFO } from '../lib/colors';
-import type { BinderSection, MaterializedBinder, PocketSize, UnbinnedBucket } from '../types';
+import type { BinderSection, MaterializedBinder, PocketSize, UncategorizedBucket } from '../types';
 import { PageGrid } from './PageGrid';
 
 interface Props {
   binders: MaterializedBinder[];
-  unbinned: UnbinnedBucket;
+  uncategorized: UncategorizedBucket;
 }
 
-export function BinderView({ binders, unbinned }: Props) {
+export function BinderView({ binders, uncategorized }: Props) {
   const { activeTab, setEditingBinder } = useCollectionStore();
 
-  if (activeTab === 'unbinned') {
-    if (unbinned.totalCards === 0) {
+  if (activeTab === 'uncategorized') {
+    if (uncategorized.totalCards === 0) {
       return (
-        <div className="empty-state">🎉 Everything's been binned. Your bulk box is empty.</div>
+        <div className="empty-state">🎉 Every card has a binder. Nothing left to categorize.</div>
       );
     }
     return (
       <>
         <div className="binder-intro">
           <p style={{ color: 'var(--text2)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-            These cards didn't match any binder rule — they're still in your bulk box. Create a new
-            binder or tweak existing rules to whittle this down.
+            These cards didn't match any binder rule. Create a new binder or tweak existing rules to
+            whittle this down.
           </p>
         </div>
-        <SectionList sections={unbinned.sections} pocketSize={unbinned.effectivePocketSize} />
+        <SectionList
+          sections={uncategorized.sections}
+          pocketSize={uncategorized.effectivePocketSize}
+        />
       </>
     );
   }

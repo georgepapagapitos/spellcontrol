@@ -33,12 +33,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Materialize binders + unbinned bucket whenever cards, defs, or relevant config change
-  const { materialized, unbinned } = useMemo(() => {
+  // Materialize binders + uncategorized bucket whenever cards, defs, or relevant config change
+  const { materialized, uncategorized } = useMemo(() => {
     if (cards.length === 0) {
       return {
         materialized: [],
-        unbinned: {
+        uncategorized: {
           totalCards: 0,
           sections: [],
           totalPages: 0,
@@ -47,7 +47,7 @@ export default function App() {
       };
     }
     const result = materializeBinders(cards, binders, { search });
-    return { materialized: result.binders, unbinned: result.unbinned };
+    return { materialized: result.binders, uncategorized: result.uncategorized };
   }, [cards, binders, search]);
 
   const [includeImages, setIncludeImages] = useState(true);
@@ -58,17 +58,20 @@ export default function App() {
   const handleExportPDF = async () => {
     if (cards.length === 0 || exporting) return;
     // Scope export to whichever tab is active — the binder being viewed,
-    // or the unbinned bucket. Avoids surprising "exported everything" runs.
+    // or the uncategorized bucket. Avoids surprising "exported everything" runs.
     const exportBinders =
-      activeTab === 'unbinned' ? [] : materialized.filter((b) => b.def.id === activeTab);
-    const exportUnbinned = activeTab === 'unbinned' ? unbinned : null;
-    if (exportBinders.length === 0 && (!exportUnbinned || exportUnbinned.totalCards === 0)) {
+      activeTab === 'uncategorized' ? [] : materialized.filter((b) => b.def.id === activeTab);
+    const exportUncategorized = activeTab === 'uncategorized' ? uncategorized : null;
+    if (
+      exportBinders.length === 0 &&
+      (!exportUncategorized || exportUncategorized.totalCards === 0)
+    ) {
       return;
     }
     setExporting(true);
     setExportProgress(null);
     try {
-      await exportBindersToPDF(exportBinders, exportUnbinned, fileName, {
+      await exportBindersToPDF(exportBinders, exportUncategorized, fileName, {
         includeImages,
         onProgress: (done, total) => setExportProgress({ done, total }),
       });
@@ -109,10 +112,10 @@ export default function App() {
 
       {!hydrating && cards.length > 0 && (
         <>
-          <StatsBar binders={materialized} unbinned={unbinned} />
+          <StatsBar binders={materialized} uncategorized={uncategorized} />
           <hr />
           <Legend />
-          <BinderTabs binders={materialized} unbinned={unbinned} />
+          <BinderTabs binders={materialized} uncategorized={uncategorized} />
           {binders.length === 0 && (
             <div className="empty-state">
               No binders yet.{' '}
@@ -165,7 +168,7 @@ export default function App() {
                 : 'Export PDF'}
             </button>
           </div>
-          <BinderView binders={materialized} unbinned={unbinned} />
+          <BinderView binders={materialized} uncategorized={uncategorized} />
         </>
       )}
 
