@@ -85,23 +85,23 @@ mtg-binder-planner/
   - Linux: `sudo apt install build-essential python3`
   - Windows: install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the "Desktop development with C++" workload
 
-### Backend
+### Run both apps
 
 ```bash
-cd backend
-npm install
-npm run dev   # listens on :3737
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev   # listens on :5173, proxies /api → :3737
+npm install          # install root dev tools (concurrently)
+cd frontend && npm install && cd ..
+cd backend && npm install && cd ..
+npm run dev          # starts backend (:3737) + frontend (:5173) together
 ```
 
 Open http://localhost:5173.
+
+Or run them separately:
+
+```bash
+cd backend && npm run dev    # listens on :3737
+cd frontend && npm run dev   # listens on :5173, proxies /api → :3737
+```
 
 ## Rule semantics
 
@@ -143,7 +143,19 @@ Issues and pull requests welcome. Especially helpful:
 - Bug reports for cards that fail to resolve via Scryfall — include the card name, set, collector number, and the format you imported from.
 - New rule fields or sort options.
 
-For local development, both `backend` and `frontend` run with `npm run dev` and have TypeScript strict mode + `noUnusedLocals` enabled, so the typechecker will catch most issues. There are inline tests in a few key modules (parser dispatch, rules engine, Scryfall resolution) — to add a test, drop a `*.test.ts` file next to the module and run it with `npx tsx path/to/file.test.ts`.
+For local development, both `backend` and `frontend` run with `npm run dev` and have TypeScript strict mode + `noUnusedLocals` enabled, so the typechecker will catch most issues.
+
+Tests use [Vitest](https://vitest.dev/). Run them from the root or per-workspace:
+
+```bash
+npm test                        # run all tests (frontend then backend)
+npm run typecheck               # typecheck both workspaces
+
+cd frontend && npm test         # frontend only (rules, sorting, colors, materialize, etc.)
+cd backend  && npm test         # backend only (parsers, format detection)
+```
+
+To add a test, drop a `*.test.ts` file next to the module you're testing — Vitest picks it up automatically. CI runs on every push and pull request via GitHub Actions.
 
 ## License
 
