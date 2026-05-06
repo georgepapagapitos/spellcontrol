@@ -98,8 +98,11 @@ function buildSections(
   const primary = sorts[0];
   const groupByColor = !primary || primary === 'none' || primary === 'color';
 
+  let pageOffset = 0;
   const buildSection = (colorKey: string, sectionCards: EnrichedCard[]): BinderSection | null => {
-    const pages = chunkIntoPages(sectionCards, slotSize, isMatch);
+    const sectionPageCount = Math.ceil(sectionCards.length / (slotSize > 0 ? slotSize : 9));
+    const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffset);
+    pageOffset += sectionPageCount;
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
     return { colorKey, cards: matchingCards, pages };
@@ -149,11 +152,12 @@ function buildSections(
 function chunkIntoPages(
   cards: EnrichedCard[],
   slotSize: number,
-  isMatch: (c: EnrichedCard) => boolean
+  isMatch: (c: EnrichedCard) => boolean,
+  pageOffset = 0
 ): BinderPage[] {
   if (slotSize <= 0) slotSize = 9;
   const pages: BinderPage[] = [];
-  let pageNum = 0;
+  let pageNum = pageOffset;
   for (let i = 0; i < cards.length; i += slotSize) {
     pageNum += 1;
     const window = cards.slice(i, i + slotSize);
