@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import type { EnrichedCard } from '../types';
 
@@ -25,10 +25,11 @@ export function CardPreview({
 }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     startIndex: index,
-    align: 'start',
+    align: 'center',
     loop: false,
     skipSnaps: true,
     duration: 20,
+    containScroll: false,
   });
   const [selected, setSelected] = useState(index);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
@@ -48,7 +49,6 @@ export function CardPreview({
       }
     }
   }
-  // Bump this whenever we add to the mount set so render reflects it.
   const [, forceRender] = useState(0);
 
   // Stable callback ref so the embla listener doesn't re-register on each
@@ -58,7 +58,6 @@ export function CardPreview({
     onIndexChangeRef.current = onIndexChange;
   }, [onIndexChange]);
 
-  // Sync embla → parent index, and grow the mount set as we approach new cards.
   useEffect(() => {
     if (!emblaApi) return;
     const onSelect = () => {
@@ -82,7 +81,6 @@ export function CardPreview({
     };
   }, [emblaApi, cards]);
 
-  // Sync parent index → embla (e.g. arrow buttons or external changes).
   useEffect(() => {
     if (!emblaApi) return;
     if (emblaApi.selectedScrollSnap() !== index) {
@@ -90,7 +88,6 @@ export function CardPreview({
     }
   }, [emblaApi, index]);
 
-  // Keyboard navigation: arrow keys + ESC.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -101,93 +98,63 @@ export function CardPreview({
     return () => window.removeEventListener('keydown', onKey);
   }, [emblaApi, onClose]);
 
-  const goPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
-  const goNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
-
   if (!cards[selected]) return null;
 
-  const hasPrev = selected > 0;
-  const hasNext = selected < cards.length - 1;
+  const current = cards[selected];
 
   return (
     <div className="card-preview-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="card-preview" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="card-preview-close"
-          onClick={onClose}
-          aria-label="Close card preview"
-          type="button"
-        >
-          ×
-        </button>
+      <button
+        className="card-preview-close"
+        onClick={onClose}
+        aria-label="Close card preview"
+        type="button"
+      >
+        ×
+      </button>
 
+      <div className="card-preview-carousel" ref={emblaRef} onClick={(e) => e.stopPropagation()}>
+        <div className="card-preview-track">
+          {cards.map((c, i) => {
+            const errored = imgErrors[c.scryfallId];
+            const shouldMount = mountedRef.current.has(c.scryfallId);
+            return (
+              <div className="card-preview-slide" key={`${c.scryfallId}-${i}`}>
+                <div className="card-preview-image-frame">
+                  {c.imageNormal && !errored && shouldMount ? (
+                    <img
+                      src={c.imageNormal}
+                      alt={c.name}
+                      className="card-preview-image"
+                      draggable={false}
+                      decoding="async"
+                      onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
+                    />
+                  ) : c.imageNormal && errored ? (
+                    <div className="card-preview-image-fallback">Image unavailable</div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="card-preview-name">{current.name}</div>
         <div className="card-preview-context">
           {binderName} · {sectionLabel}
           {pageNumbers[selected] ? ` · p.${pageNumbers[selected]}` : ''}
         </div>
-
-        <div className="card-preview-viewport" ref={emblaRef}>
-          <div className="card-preview-track">
-            {cards.map((c, i) => {
-              const errored = imgErrors[c.scryfallId];
-              const shouldMount = mountedRef.current.has(c.scryfallId);
-              return (
-                <div className="card-preview-slide" key={`${c.scryfallId}-${i}`}>
-                  <div className="card-preview-name">{c.name}</div>
-                  <div className="card-preview-meta">
-                    {c.rarity} · ${c.purchasePrice.toFixed(2)}
-                    {c.cmc !== undefined ? ` · CMC ${c.cmc}` : ''}
-                    <br />
-                    {c.setName || c.setCode}
-                    {c.typeLine ? (
-                      <>
-                        <br />
-                        {c.typeLine}
-                      </>
-                    ) : null}
-                  </div>
-                  <div className="card-preview-image-frame">
-                    {c.imageNormal && !errored && shouldMount ? (
-                      <img
-                        src={c.imageNormal}
-                        alt={c.name}
-                        className="card-preview-image"
-                        draggable={false}
-                        decoding="async"
-                        onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
-                      />
-                    ) : c.imageNormal && errored ? (
-                      <div className="card-preview-image-fallback">Image unavailable</div>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="card-preview-meta">
+          {current.rarity} · ${current.purchasePrice.toFixed(2)}
+          {current.cmc !== undefined ? ` · CMC ${current.cmc}` : ''}
+          {current.setName || current.setCode ? ` · ${current.setName || current.setCode}` : ''}
+          {current.typeLine ? ` · ${current.typeLine}` : ''}
         </div>
-
         <div className="card-preview-counter">
           {selected + 1} / {cards.length}
         </div>
-
-        <button
-          className="card-preview-nav prev"
-          onClick={goPrev}
-          disabled={!hasPrev}
-          aria-label="Previous card"
-          type="button"
-        >
-          ‹
-        </button>
-        <button
-          className="card-preview-nav next"
-          onClick={goNext}
-          disabled={!hasNext}
-          aria-label="Next card"
-          type="button"
-        >
-          ›
-        </button>
       </div>
     </div>
   );
