@@ -72,7 +72,10 @@ app.post('/api/import', upload.single('file'), async (req: Request, res: Respons
     res.json(response);
   } catch (err) {
     console.error('[import] error:', err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({
+      error: `Import failed: ${message}. Please check your file format and try again.`,
+    });
   }
 });
 
@@ -139,6 +142,15 @@ function dedupePreservingOrder<T>(arr: T[]): T[] {
   }
   return out;
 }
+
+app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
+  if ((err as NodeJS.ErrnoException & { code?: string }).code === 'LIMIT_FILE_SIZE') {
+    res.status(413).json({ error: 'File is too large. Maximum size is 20 MB.' });
+    return;
+  }
+  console.error('[server] unhandled error:', err);
+  res.status(500).json({ error: 'An unexpected server error occurred.' });
+});
 
 app.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);

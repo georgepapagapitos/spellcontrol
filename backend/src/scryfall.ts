@@ -108,21 +108,21 @@ export async function resolveCards(
       batchNum
     );
 
-    if (json) {
-      // Distribute matched cards back to the rows that asked for them.
-      for (const [key, ident] of batch) {
-        const card = json.data.find((c) => identifierMatchesCard(ident, c));
-        if (card) {
-          for (const rowIdx of rowIdxsByKey.get(key)!) {
-            resolved[rowIdx] = card;
-          }
+    if (!json) {
+      console.warn(`[scryfall] batch ${batchNum} returned no data, skipping ${batch.length} identifiers`);
+      continue;
+    }
+
+    for (const [key, ident] of batch) {
+      const card = json.data.find((c) => identifierMatchesCard(ident, c));
+      if (card) {
+        for (const rowIdx of rowIdxsByKey.get(key)!) {
+          resolved[rowIdx] = card;
         }
       }
-      // Persist incrementally — that way a later batch failing doesn't waste this batch's work,
-      // and a re-import will hit cache for everything we got the first time.
-      if (json.data.length > 0) {
-        cache.setMany(json.data);
-      }
+    }
+    if (json.data.length > 0) {
+      cache.setMany(json.data);
     }
 
     if (i + BATCH_SIZE < pendingEntries.length) {
