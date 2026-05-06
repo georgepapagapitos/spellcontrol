@@ -26,10 +26,6 @@ export function CardPreview({
   const [emblaRef, emblaApi] = useEmblaCarousel({
     startIndex: index,
     align: 'center',
-    loop: false,
-    skipSnaps: false,
-    duration: 45,
-    dragThreshold: 12,
     containScroll: false,
   });
   const [selected, setSelected] = useState(index);
