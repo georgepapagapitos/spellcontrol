@@ -148,6 +148,7 @@ function chunkIntoPages(
   slotSize: number,
   isMatch: (c: EnrichedCard) => boolean
 ): BinderPage[] {
+  if (slotSize <= 0) slotSize = 9;
   const pages: BinderPage[] = [];
   let pageNum = 0;
   for (let i = 0; i < cards.length; i += slotSize) {

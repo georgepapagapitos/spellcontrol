@@ -9,12 +9,17 @@ interface Props {
 export function CardSlot({ card }: Props) {
   const [hovered, setHovered] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [card?.imageNormal]);
 
   useEffect(() => {
     if (!hovered) return;
     const handler = (e: MouseEvent) => {
       const tipWidth = 230;
-      const tipHeight = card?.imageNormal ? 320 : 80;
+      const tipHeight = card?.imageNormal && !imgError ? 320 : 80;
       let x = e.clientX + 14;
       let y = e.clientY - 10;
       if (x + tipWidth > window.innerWidth) x = e.clientX - tipWidth - 10;
@@ -23,7 +28,7 @@ export function CardSlot({ card }: Props) {
     };
     window.addEventListener('mousemove', handler);
     return () => window.removeEventListener('mousemove', handler);
-  }, [hovered, card]);
+  }, [hovered, card, imgError]);
 
   if (!card) return <div className="slot empty" />;
 
@@ -54,13 +59,17 @@ export function CardSlot({ card }: Props) {
               </>
             ) : null}
           </div>
-          {card.imageNormal && (
+          {card.imageNormal && !imgError && (
             <img
               src={card.imageNormal}
               alt={card.name}
               className="tooltip-image"
               loading="lazy"
+              onError={() => setImgError(true)}
             />
+          )}
+          {card.imageNormal && imgError && (
+            <div className="tooltip-img-fallback">Image unavailable</div>
           )}
         </div>
       )}

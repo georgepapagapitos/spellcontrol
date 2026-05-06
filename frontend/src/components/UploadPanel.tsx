@@ -8,6 +8,7 @@ export function UploadPanel() {
   const [pasteText, setPasteText] = useState('');
   const [mode, setMode] = useState<ImportMode>('replace');
   const [showUnresolved, setShowUnresolved] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const {
     fileName,
@@ -47,10 +48,19 @@ export function UploadPanel() {
   async function runImport(fn: () => Promise<UploadResponse>, label: string) {
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
     setShowUnresolved(false);
     try {
       const result = await fn();
       await importCards(result, label, hasCollection ? mode : 'replace');
+      const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
+      if (result.scryfallHits > 0) {
+        parts.push(`${result.scryfallHits.toLocaleString()} matched`);
+      }
+      if (result.unresolvedNames.length > 0) {
+        parts.push(`${result.unresolvedNames.length} unresolved`);
+      }
+      setSuccessMsg(parts.join(' · '));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
@@ -62,6 +72,7 @@ export function UploadPanel() {
     if (!confirm('Clear cached collection? You will need to re-import your cards.')) return;
     await clearCards();
     setShowUnresolved(false);
+    setSuccessMsg(null);
   };
 
   return (
@@ -69,7 +80,7 @@ export function UploadPanel() {
       {hasCollection && (
         <div className="upload-current">
           <div className="upload-current-info">
-            <span className="upload-current-icon">✓</span>
+            <span className="upload-current-icon">&#10003;</span>
             <div>
               <div className="upload-current-name">{fileName}</div>
               <div className="upload-current-meta">
@@ -85,12 +96,16 @@ export function UploadPanel() {
         </div>
       )}
 
+      {successMsg && !error && (
+        <div className="success-banner">{successMsg}</div>
+      )}
+
       {hasCollection && unresolvedNames.length > 0 && (
         <div className="unresolved-banner">
           <div className="unresolved-summary">
             <span>
-              ⚠️ {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} couldn't
-              be matched to Scryfall data.
+              {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} couldn't
+              be matched to Scryfall data. These cards will appear without images or metadata.
             </span>
             <button className="btn-link" onClick={() => setShowUnresolved((v) => !v)}>
               {showUnresolved ? 'Hide list' : 'Show list'}
@@ -132,18 +147,24 @@ export function UploadPanel() {
 
       <div className="upload-grid">
         {/* File side */}
-        <div className={`upload-card ${isLoading ? 'loading' : ''}`} onClick={handlePickFile}>
+        <div
+          className={`upload-card ${isLoading ? 'loading' : ''}`}
+          onClick={handlePickFile}
+          role="button"
+          tabIndex={0}
+          aria-disabled={isLoading}
+        >
           {isLoading ? (
             <>
               <div className="upload-icon">
                 <span className="spinner" />
               </div>
               <div className="upload-text">Importing...</div>
-              <div className="upload-sub">parsing & resolving via Scryfall</div>
+              <div className="upload-sub">parsing &amp; resolving via Scryfall</div>
             </>
           ) : (
             <>
-              <div className="upload-icon">📂</div>
+              <div className="upload-icon">&#128194;</div>
               <div className="upload-text">
                 {hasCollection ? 'Import another file' : 'Upload a CSV file'}
               </div>
@@ -158,12 +179,13 @@ export function UploadPanel() {
             accept=".csv,.tsv,.txt"
             style={{ display: 'none' }}
             onChange={handleFileChange}
+            disabled={isLoading}
           />
         </div>
 
         {/* Paste side */}
         <div className="upload-card upload-card-paste">
-          <div className="upload-icon">📋</div>
+          <div className="upload-icon">&#128203;</div>
           <div className="upload-text">Paste a card list</div>
           <textarea
             className="paste-textarea"
@@ -180,7 +202,7 @@ export function UploadPanel() {
             onClick={handlePasteImport}
             disabled={isLoading || !pasteText.trim()}
           >
-            Import list
+            {isLoading ? 'Importing...' : 'Import list'}
           </button>
         </div>
       </div>
