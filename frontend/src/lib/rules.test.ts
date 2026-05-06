@@ -239,9 +239,9 @@ describe('cardMatchesSingleRule', () => {
 
   describe('treatments', () => {
     it('matches fullart via the fullArt flag', () => {
-      expect(
-        cardMatchesSingleRule(makeCard({ fullArt: true }), { treatments: ['fullart'] })
-      ).toBe(true);
+      expect(cardMatchesSingleRule(makeCard({ fullArt: true }), { treatments: ['fullart'] })).toBe(
+        true
+      );
     });
 
     it('matches fullart via the frameEffects array', () => {

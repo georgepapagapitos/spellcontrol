@@ -23,12 +23,10 @@ export function StatsBar({ binders, uncategorized }: Props) {
   const usesNewFilters = binderDefs.some((b) =>
     b.rules.some(
       (r) =>
-        (r.treatments && r.treatments.length > 0) ||
-        (r.borderColors && r.borderColors.length > 0)
+        (r.treatments && r.treatments.length > 0) || (r.borderColors && r.borderColors.length > 0)
     )
   );
-  const cardsLackNewFields =
-    cards.length > 0 && !cards.some((c) => c.borderColor !== undefined);
+  const cardsLackNewFields = cards.length > 0 && !cards.some((c) => c.borderColor !== undefined);
   const showStaleBanner = usesNewFilters && cardsLackNewFields;
 
   return (
@@ -50,8 +48,8 @@ export function StatsBar({ binders, uncategorized }: Props) {
       </div>
       {showStaleBanner && (
         <div className="warn-banner">
-          ⚠️ Your cards are missing some Scryfall fields — re-import your collection to use the
-          new Treatment / Border filters.
+          ⚠️ Your cards are missing some Scryfall fields — re-import your collection to use the new
+          Treatment / Border filters.
         </div>
       )}
       {scryfallMisses > 0 && (

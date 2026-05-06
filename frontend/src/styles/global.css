@@ -1561,7 +1561,6 @@ hr {
 /* ── Responsive enhancements ────────────────────────────────────────────── */
 /* Prevent iOS auto-zoom on focused inputs (min 16px font size on mobile). */
 @media (max-width: 700px) {
-
   select,
   input[type='number'],
   input[type='text'],
@@ -1784,7 +1783,6 @@ hr {
 
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {

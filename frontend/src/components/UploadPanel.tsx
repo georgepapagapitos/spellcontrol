@@ -191,9 +191,7 @@ export function UploadPanel() {
             className="paste-textarea import-textarea"
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            placeholder={
-              '1 Sol Ring\n4 Arcane Signet\n1 Fire // Ice (APC) 128\nDemonic Tutor\n…'
-            }
+            placeholder={'1 Sol Ring\n4 Arcane Signet\n1 Fire // Ice (APC) 128\nDemonic Tutor\n…'}
             disabled={isLoading}
           />
 
