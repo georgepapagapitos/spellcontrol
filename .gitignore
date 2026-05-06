@@ -26,6 +26,9 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Claude Code
+.claude/
+
 # Editor / IDE
 .vscode/
 !.vscode/extensions.json
