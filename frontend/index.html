@@ -5,12 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <title>MTG Binder Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Eczar:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <script>
       // Set data-theme synchronously so the right [data-theme] CSS rules
       // apply on first paint. Mirrors bootstrapTheme() in store/theme.ts —
       // keep the storage key and id list in sync if either changes.
       (function () {
-        var VALID = ['azorius','boros','dimir','golgari','gruul','izzet','orzhov','rakdos','selesnya','simic'];
+        var VALID = [
+          'azorius',
+          'boros',
+          'dimir',
+          'golgari',
+          'gruul',
+          'izzet',
+          'orzhov',
+          'rakdos',
+          'selesnya',
+          'simic',
+        ];
         var DEFAULT = 'azorius';
         var id = DEFAULT;
         try {
