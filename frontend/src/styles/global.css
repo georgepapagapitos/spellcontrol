@@ -7,24 +7,25 @@
 }
 
 :root {
-  /* ── Theme: Dusk Library ──────────────────────────────────────────────── */
-  /* Chrome only. MTG-specific colors live in the `Magic colors` block below
-     and in lib/colors.ts (mana pips). Change theme by editing this block. */
+  /* ── Semantic UI tokens (fallback) ────────────────────────────────────── */
+  /* Themes in styles/themes.css override these via [data-theme="..."].
+     Mana pip colors live in lib/colors.ts and rarity colors below — those
+     are MTG-canonical and never themed. */
 
-  --bg: #1a1d2b;
-  --surface: #242838;
-  --surface2: #2d3245;
-  --border: #353a50;
-  --border2: #454a62;
+  --bg: #eaecf0;
+  --surface: #f4f6fa;
+  --surface2: #fafcff;
+  --border: #b8c4d8;
+  --border2: #8fa1bc;
 
-  --text: #ece6d4;
-  --text2: #b5af9d;
-  --text3: #7c7666;
+  --text: #1a2438;
+  --text2: #4a5670;
+  --text3: #7888a0;
 
-  --accent: #d4a557;
-  --accent-hover: #e8bb6e;
-  --accent-light: rgba(212, 165, 87, 0.14);
-  --on-accent: var(--bg);
+  --accent: #2c5d99;
+  --accent-hover: #3d72b4;
+  --accent-light: rgba(44, 93, 153, 0.16);
+  --on-accent: #fafcff;
 
   --warn-bg: #3a2f18;
   --warn-border: #8a6820;
@@ -129,6 +130,98 @@ select {
 
 .site-brand:hover {
   color: var(--accent-hover);
+}
+
+.site-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.theme-picker {
+  position: relative;
+}
+
+.theme-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+}
+
+.theme-picker-trigger:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.theme-picker-trigger-label {
+  white-space: nowrap;
+}
+
+.theme-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 0.5px solid var(--pip-border);
+  flex-shrink: 0;
+}
+
+.theme-picker-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 100;
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  min-width: 220px;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+}
+
+.theme-picker-option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.theme-picker-option:hover {
+  background: var(--surface2);
+}
+
+.theme-picker-option.is-active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.theme-picker-option-guild {
+  color: var(--text3);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 700px) {
+  .theme-picker-trigger-label {
+    display: none;
+  }
 }
 
 /* ── Upload panel ───────────────────────────────────────────────────────── */
@@ -379,8 +472,8 @@ select {
 }
 
 .upload-card.loading {
-  border-color: var(--warn-border);
-  background: var(--warn-bg);
+  border-color: var(--accent);
+  background: var(--accent-light);
 }
 
 .upload-card-paste {
