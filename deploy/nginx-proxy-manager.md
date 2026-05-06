@@ -5,10 +5,18 @@ published container port (same shape as jellyfin / overseerr / plex).
 
 ## 1. Bring up the binder stack
 
-From the repo root on the server:
+Images are published to GHCR by the `Build & publish images` GitHub Actions
+workflow on every merge to `main`. The server only needs `docker-compose.yml`
+— no source checkout required.
 
 ```bash
-docker compose up -d --build
+sudo mkdir -p /srv/docker/mtg-binder-planner
+cd /srv/docker/mtg-binder-planner
+sudo curl -fsSL \
+  https://raw.githubusercontent.com/georgepapagapitos/mtg-binder-planner/main/docker-compose.yml \
+  -o docker-compose.yml
+sudo docker compose pull
+sudo docker compose up -d
 ```
 
 This publishes:
@@ -17,6 +25,31 @@ This publishes:
 
 Both bind to all interfaces by default — your LAN can reach them directly,
 which is fine since only NPM is exposed to the public internet.
+
+### Updates
+
+Watchtower (already running on this host) will detect new `:latest` images
+within its poll interval and recreate the containers automatically. The
+backend's SQLite cache survives because `binder-data` is a named volume.
+
+To force an immediate update without waiting for Watchtower:
+
+```bash
+cd /srv/docker/mtg-binder-planner
+sudo docker compose pull && sudo docker compose up -d
+```
+
+### GHCR auth (only if the package is private)
+
+By default GHCR packages inherit the repo's visibility. If the repo is public
+the `:latest` tag is pullable without auth — nothing to do. If you make the
+package private later, you'll need to log in once on the server:
+
+```bash
+echo $GHCR_PAT | sudo docker login ghcr.io -u georgepapagapitos --password-stdin
+```
+
+(PAT needs `read:packages` scope.)
 
 ## 2. Add a Cloudflare DNS record
 
