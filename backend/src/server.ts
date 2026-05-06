@@ -152,14 +152,20 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   res.status(500).json({ error: 'An unexpected server error occurred.' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
   console.log(`[server] cache db: ${DB_PATH}`);
   console.log(`[server] cache stats:`, cache.stats());
 });
 
-process.on('SIGINT', () => {
+function shutdown() {
   console.log('\n[server] shutting down...');
-  cache.close();
-  process.exit(0);
-});
+  server.closeAllConnections();
+  server.close(() => {
+    cache.close();
+    process.exit(0);
+  });
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
