@@ -5,13 +5,24 @@ import type { EnrichedCard } from '../types';
 interface Props {
   cards: EnrichedCard[];
   index: number;
+  binderName: string;
+  sectionLabel: string;
+  pageNumbers: number[];
   onIndexChange: (i: number) => void;
   onClose: () => void;
 }
 
 const PRELOAD_RADIUS = 2;
 
-export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
+export function CardPreview({
+  cards,
+  index,
+  binderName,
+  sectionLabel,
+  pageNumbers,
+  onIndexChange,
+  onClose,
+}: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     startIndex: index,
     align: 'center',
@@ -110,6 +121,11 @@ export function CardPreview({ cards, index, onIndexChange, onClose }: Props) {
         >
           ×
         </button>
+
+        <div className="card-preview-context">
+          {binderName} · {sectionLabel}
+          {pageNumbers[selected] ? ` · p.${pageNumbers[selected]}` : ''}
+        </div>
 
         <div className="card-preview-viewport" ref={emblaRef}>
           <div className="card-preview-track">
