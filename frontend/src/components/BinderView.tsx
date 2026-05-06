@@ -35,6 +35,7 @@ export function BinderView({ binders, uncategorized }: Props) {
     return (
       <SectionList
         viewKey="uncategorized"
+        binderName="Uncategorized"
         sections={uncategorized.sections}
         pocketSize={uncategorized.effectivePocketSize}
         sorts={uncategorized.effectiveSorts}
@@ -69,6 +70,7 @@ export function BinderView({ binders, uncategorized }: Props) {
   return (
     <SectionList
       viewKey={active.def.id}
+      binderName={active.def.name}
       sections={active.sections}
       pocketSize={active.effectivePocketSize}
       sorts={active.effectiveSorts}
@@ -78,11 +80,13 @@ export function BinderView({ binders, uncategorized }: Props) {
 
 function SectionList({
   viewKey,
+  binderName,
   sections,
   pocketSize,
   sorts,
 }: {
   viewKey: string;
+  binderName: string;
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortField[];
@@ -112,7 +116,12 @@ function SectionList({
 
   // Tap-to-preview state (touch devices). Tracks which section's card list to
   // walk and the active card index. Closes when index goes out of range.
-  const [preview, setPreview] = useState<{ cards: EnrichedCard[]; index: number } | null>(null);
+  const [preview, setPreview] = useState<{
+    cards: EnrichedCard[];
+    index: number;
+    sectionLabel: string;
+    pageNumbers: number[];
+  } | null>(null);
 
   // Reset preview when switching binders so it doesn't survive a tab change.
   useEffect(() => {
@@ -148,7 +157,21 @@ function SectionList({
             onToggle={() => toggle(section.key)}
             onOpenCard={(card) => {
               const i = section.cards.indexOf(card);
-              if (i >= 0) setPreview({ cards: section.cards, index: i });
+              if (i < 0) return;
+              const pageNumbers: number[] = [];
+              const cardToPage = new Map<EnrichedCard, number>();
+              section.pages.forEach((page) => {
+                page.slots.forEach((slot) => {
+                  if (slot && !cardToPage.has(slot)) cardToPage.set(slot, page.pageNum);
+                });
+              });
+              section.cards.forEach((c) => pageNumbers.push(cardToPage.get(c) ?? 0));
+              setPreview({
+                cards: section.cards,
+                index: i,
+                sectionLabel: section.label,
+                pageNumbers,
+              });
             }}
           />
         );
@@ -157,6 +180,9 @@ function SectionList({
         <CardPreview
           cards={preview.cards}
           index={preview.index}
+          binderName={binderName}
+          sectionLabel={preview.sectionLabel}
+          pageNumbers={preview.pageNumbers}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
           onClose={() => setPreview(null)}
         />
