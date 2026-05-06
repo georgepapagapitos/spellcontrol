@@ -27,8 +27,9 @@ export function CardPreview({
     startIndex: index,
     align: 'center',
     loop: false,
-    skipSnaps: true,
-    duration: 20,
+    skipSnaps: false,
+    duration: 25,
+    dragThreshold: 12,
     containScroll: false,
   });
   const [selected, setSelected] = useState(index);
