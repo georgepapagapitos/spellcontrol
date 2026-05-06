@@ -1,5 +1,4 @@
 import express, { type Request, type Response } from 'express';
-import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
@@ -14,7 +13,6 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryf
 const app = express();
 const cache = new ScryfallCache(DB_PATH);
 
-app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 const upload = multer({
