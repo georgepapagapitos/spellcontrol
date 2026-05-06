@@ -1644,12 +1644,51 @@ hr {
   padding: 1rem 1rem 0.85rem;
   width: min(380px, 100%);
   max-height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+.card-preview-name {
+  min-height: 1.4em;
+}
+
+.card-preview-meta {
+  min-height: 3em;
+}
+
+.card-preview-viewport {
+  width: 100%;
+  overflow: hidden;
   touch-action: pan-y;
+}
+
+.card-preview-track {
+  display: flex;
+  align-items: stretch;
+  backface-visibility: hidden;
+}
+
+.card-preview-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-preview-image-frame {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 5 / 7;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-preview-close {
@@ -1695,11 +1734,13 @@ hr {
 
 .card-preview-image {
   width: 100%;
-  max-width: 320px;
+  height: 100%;
+  object-fit: contain;
   border-radius: 8px;
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+  pointer-events: none;
 }
 
 .card-preview-image-fallback {
