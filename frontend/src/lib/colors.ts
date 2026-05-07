@@ -49,18 +49,18 @@ export interface ColorInfo {
 }
 
 export const COLOR_INFO: Record<string, ColorInfo> = {
-  // Brighter / more saturated pips for better contrast on the dark surface and
-  // stronger separation between adjacent buckets (notably W vs M, B vs C).
-  W: { label: 'White', pip: '#f5efb8', border: '#a89530', order: 0 },
-  U: { label: 'Blue', pip: '#4a9ee0', border: '#1860a8', order: 1 },
-  B: { label: 'Black', pip: '#6b5878', border: '#2a2030', order: 2 },
-  R: { label: 'Red', pip: '#e85838', border: '#a02818', order: 3 },
-  G: { label: 'Green', pip: '#52b860', border: '#1e7030', order: 4 },
-  M: { label: 'Multicolor', pip: '#e8b020', border: '#b07810', order: 5 },
-  C: { label: 'Colorless / Artifact', pip: '#a0b0c8', border: '#506070', order: 6 },
-  L: { label: 'Land', pip: '#d0a060', border: '#806020', order: 7 },
-  '?': { label: 'Unknown (Scryfall miss)', pip: '#fadfad', border: '#c89020', order: 8 },
-  ALL: { label: 'All cards', pip: '#e0e0e0', border: '#b0b0b0', order: 99 },
+  // Saturated, theme-stable values — readable on both light and dark surfaces,
+  // with strong separation between adjacent buckets (W vs M, B vs C).
+  W: { label: 'White', pip: '#d9c469', border: '#8a7320', order: 0 },
+  U: { label: 'Blue', pip: '#3a85cc', border: '#1c5a96', order: 1 },
+  B: { label: 'Black', pip: '#4a3e58', border: '#1f1828', order: 2 },
+  R: { label: 'Red', pip: '#d8442a', border: '#9c2614', order: 3 },
+  G: { label: 'Green', pip: '#4ca352', border: '#1f6e2a', order: 4 },
+  M: { label: 'Multicolor', pip: '#dd8a1f', border: '#9a5e0e', order: 5 },
+  C: { label: 'Colorless / Artifact', pip: '#8a96ac', border: '#4a566a', order: 6 },
+  L: { label: 'Land', pip: '#b88848', border: '#6e4a14', order: 7 },
+  '?': { label: 'Unknown (Scryfall miss)', pip: '#e0b870', border: '#9a6a18', order: 8 },
+  ALL: { label: 'All cards', pip: '#a0a8b8', border: '#6a7080', order: 99 },
 };
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G', 'M', 'C', 'L', '?'];
