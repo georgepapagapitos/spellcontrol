@@ -18,15 +18,19 @@ export function StatsBar({ binders, uncategorized }: Props) {
 
   const totalBinderPages = binders.reduce((s, b) => s + b.totalPages, 0) + uncategorized.totalPages;
 
-  // Detect a stale import: a binder rule references treatment/border filters,
-  // but the cached cards lack borderColor (a field we always populate from Scryfall now).
-  const usesNewFilters = binderDefs.some((b) =>
-    b.rules.some(
-      (r) =>
-        (r.treatments && r.treatments.length > 0) || (r.borderColors && r.borderColors.length > 0)
-    )
-  );
-  const cardsLackNewFields = cards.length > 0 && !cards.some((c) => c.borderColor !== undefined);
+  // Detect a stale import: a filter references new Scryfall fields (legalities/oracle/layout/finishes)
+  // but cached cards predate that enrichment. Re-import resolves it.
+  const usesNewFilters = binderDefs.some((b) => {
+    const f = b.filter || {};
+    return (
+      (f.legalities && f.legalities.length > 0) ||
+      (f.oracleChips && f.oracleChips.length > 0) ||
+      (f.layouts && f.layouts.length > 0) ||
+      (f.finishes && f.finishes.length > 0) ||
+      f.manaCost
+    );
+  });
+  const cardsLackNewFields = cards.length > 0 && !cards.some((c) => c.legalities !== undefined);
   const showStaleBanner = usesNewFilters && cardsLackNewFields;
 
   return (
@@ -49,7 +53,7 @@ export function StatsBar({ binders, uncategorized }: Props) {
       {showStaleBanner && (
         <div className="warn-banner">
           ⚠️ Your cards are missing some Scryfall fields — re-import your collection to use the new
-          Treatment / Border filters.
+          format / oracle / layout / finish filters.
         </div>
       )}
       {scryfallMisses > 0 && (

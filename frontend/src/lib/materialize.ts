@@ -9,7 +9,7 @@ import type {
   SortField,
   UncategorizedBucket,
 } from '../types';
-import { cardMatchesRules } from './rules';
+import { cardMatchesFilter } from './rules';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
 import { sortCards } from './sorting';
 
@@ -46,7 +46,7 @@ export function materializeBinders(
   for (const card of cards) {
     let matched = false;
     for (const def of orderedDefs) {
-      if (cardMatchesRules(card, def.rules)) {
+      if (cardMatchesFilter(card, def.filter)) {
         buckets.get(def.id)!.push(card);
         matched = true;
         break;

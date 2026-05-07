@@ -5,7 +5,9 @@ interface Props {
   cards: EnrichedCard[];
   index: number;
   binderName: string;
-  sectionLabel: string;
+  /** Section label per card (parallel to `cards`). Updates as the user navigates across sections. */
+  sectionLabels: string[];
+  /** Page number per card (parallel to `cards`). */
   pageNumbers: number[];
   /** Total number of pages in the scope these cards belong to. */
   totalPages: number;
@@ -19,7 +21,7 @@ export function CardPreview({
   cards,
   index,
   binderName,
-  sectionLabel,
+  sectionLabels,
   pageNumbers,
   totalPages,
   onIndexChange,
@@ -265,8 +267,8 @@ export function CardPreview({
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
           <div className="card-preview-name">{current.name}</div>
           <div className="card-preview-context">
-            {binderName} · {sectionLabel}
-            {pageNumbers[selected] ? ` · p.${pageNumbers[selected]}` : ''}
+            {binderName}
+            {sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : ''}
           </div>
           <div className="card-preview-meta">
             {current.rarity} · ${current.purchasePrice.toFixed(2)}

@@ -251,55 +251,22 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'mtg-binder-planner',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
       }),
       /**
-       * Migrations:
-       *   v2 → v3: single rule → rules array, stapleOnly → edhrecRankMax: 100
-       *   v3 → v4: manaboxBinderContains → sourceCategoryContains; drop excludeDecks setting
+       * v5 reworks the rule schema entirely (BinderRule[] → single BinderFilter with
+       * IS/IS NOT chips, legalities, layouts, oracle text, etc). Older saved binders
+       * use a shape we no longer understand, so we wipe them. Users start fresh.
        */
       migrate: (persistedState, fromVersion) => {
         const state = persistedState as Record<string, unknown> | undefined;
         if (!state) return state as never;
-
-        if (fromVersion < 3 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Record<string, unknown>[]).map((b) => {
-            if ('rule' in b && !('rules' in b)) {
-              const oldRule = b.rule as Record<string, unknown>;
-              const newRule = { ...oldRule };
-              if (newRule.stapleOnly === true) {
-                delete newRule.stapleOnly;
-                newRule.edhrecRankMax = 100;
-              } else {
-                delete newRule.stapleOnly;
-              }
-              b.rules = [newRule];
-              delete b.rule;
-            }
-            return b;
-          });
+        if (fromVersion < 5) {
+          state.binders = [];
         }
-
-        if (fromVersion < 4 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Record<string, unknown>[]).map((b) => {
-            const rules = b.rules as Array<Record<string, unknown>> | undefined;
-            if (Array.isArray(rules)) {
-              b.rules = rules.map((r) => {
-                if ('manaboxBinderContains' in r) {
-                  r.sourceCategoryContains = r.manaboxBinderContains;
-                  delete r.manaboxBinderContains;
-                }
-                return r;
-              });
-            }
-            return b;
-          });
-          delete state.excludeDecks;
-        }
-
         return state as never;
       },
     }
