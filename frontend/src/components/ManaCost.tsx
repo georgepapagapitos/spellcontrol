@@ -16,7 +16,7 @@ export function ManaCost({ cost, className }: Props) {
     <span className={`mana-cost${className ? ` ${className}` : ''}`}>
       {faces.map((face, fi) => (
         <span key={fi} className="mana-cost-face">
-          {fi > 0 && <span className="mana-cost-sep">//</span>}
+          {fi > 0 && <span className="mana-cost-sep">{'//'}</span>}
           {parseSymbols(face).map((sym, i) => (
             <i key={i} className={symbolToClass(sym)} title={`{${sym}}`} aria-hidden />
           ))}

@@ -903,7 +903,7 @@ input[type='text'] {
 .breakdown-icon {
   width: 22px;
   height: 22px;
-  font-size: 16px;
+  font-size: var(--text-md);
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -917,11 +917,11 @@ input[type='text'] {
 .breakdown-icon-mana {
   width: auto;
   height: auto;
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 
 .breakdown-icon-rarity {
-  font-size: 16px;
+  font-size: var(--text-md);
 }
 
 .breakdown-icon-rarity.rarity-mythic {
@@ -1131,7 +1131,7 @@ input[type='text'] {
 }
 
 .section-color-icon {
-  font-size: 18px;
+  font-size: var(--text-lg);
   line-height: 1;
   flex-shrink: 0;
   display: inline-flex;
@@ -1536,7 +1536,7 @@ hr {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: 1.4em;
+  font-size: var(--text-xl);
   line-height: 1;
   cursor: pointer;
   border-radius: 50%;
@@ -3372,7 +3372,7 @@ hr {
   justify-content: center;
   width: 16px;
   height: 16px;
-  font-size: 16px;
+  font-size: var(--text-md);
   line-height: 1;
   color: inherit;
   flex-shrink: 0;
@@ -3441,7 +3441,7 @@ hr {
   border: 1px solid var(--border);
   color: var(--text3);
   cursor: pointer;
-  font-size: 1.1em;
+  font-size: var(--text-md);
   padding: 0;
 }
 
@@ -3517,7 +3517,7 @@ hr {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 0.95em;
+  font-size: var(--text-base);
 }
 
 .mana-cost-face {
