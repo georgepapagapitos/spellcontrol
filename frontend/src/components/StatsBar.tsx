@@ -154,10 +154,7 @@ export function StatsBar({ binders, uncategorized }: Props) {
               return (
                 <li key={b.key} className="breakdown-row">
                   <div className="breakdown-row-head">
-                    <i
-                      className={`ms ${b.ms} ms-cost breakdown-icon breakdown-icon-mana`}
-                      aria-hidden
-                    />
+                    <i className={`ms ${b.ms} ms-cost color-pip-mana`} aria-hidden />
                     <span className="breakdown-row-label">{b.label}</span>
                     <span className="breakdown-row-count">{count.toLocaleString()}</span>
                     <span className="breakdown-row-pct">({pct}%)</span>
