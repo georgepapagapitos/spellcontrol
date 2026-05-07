@@ -428,6 +428,14 @@ select {
   font-family: var(--font-mono);
 }
 
+.import-card-restore {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text2);
+}
+
 @media (max-width: 700px) {
   .import-card {
     padding: 1rem;
