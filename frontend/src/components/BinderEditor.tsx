@@ -821,8 +821,10 @@ function FilterGroupFields({
 
 /**
  * Build a short human-readable summary of a filter for use as the group's
- * legend placeholder and aria-label fallback. Keeps the 2–3 most distinguishing
- * fields and abbreviates the rest. Returns '' for an empty filter.
+ * legend placeholder and aria-label fallback. Walks every filter field;
+ * caps at 4 parts so the summary stays scannable. Returns '' for an empty
+ * filter. Field order is roughly "most distinguishing first" so when the
+ * cap kicks in you keep the parts a user is most likely to recognize.
  */
 function autoSummary(f: BinderFilter): string {
   const parts: string[] = [];
@@ -833,19 +835,42 @@ function autoSummary(f: BinderFilter): string {
     if (is.length <= max) return is.join(', ');
     return `${is.slice(0, max).join(', ')} +${is.length - max}`;
   };
-  const r = chipNames(f.rarities);
-  if (r) parts.push(r);
-  const c = chipNames(f.colors);
-  if (c) parts.push(c);
-  const t = chipNames(f.typeChips);
-  if (t) parts.push(t);
+  const push = (s: string | null | undefined) => {
+    if (s) parts.push(s);
+  };
+
+  push(chipNames(f.rarities));
+  push(chipNames(f.typeChips));
+  push(chipNames(f.colors));
+  push(chipNames(f.treatments));
+  push(chipNames(f.finishes));
+  push(chipNames(f.layouts));
+  push(chipNames(f.borderColors));
+  push(chipNames(f.legalities));
+  push(chipNames(f.oracleChips));
+
+  if (f.setCodes && f.setCodes.length > 0) {
+    push(
+      f.setCodes.length <= 2
+        ? f.setCodes.join(', ')
+        : `${f.setCodes.slice(0, 2).join(', ')} +${f.setCodes.length - 2}`
+    );
+  }
+
   if (f.priceMin !== undefined && f.priceMax !== undefined)
     parts.push(`$${f.priceMin}–${f.priceMax}`);
   else if (f.priceMin !== undefined) parts.push(`≥ $${f.priceMin}`);
   else if (f.priceMax !== undefined) parts.push(`≤ $${f.priceMax}`);
+
+  if (f.cmcMin !== undefined && f.cmcMax !== undefined) parts.push(`CMC ${f.cmcMin}–${f.cmcMax}`);
+  else if (f.cmcMin !== undefined) parts.push(`CMC ≥ ${f.cmcMin}`);
+  else if (f.cmcMax !== undefined) parts.push(`CMC ≤ ${f.cmcMax}`);
+
   if (f.edhrecRankMax !== undefined) parts.push(`EDH top ${f.edhrecRankMax}`);
+  if (f.manaCost?.trim()) parts.push(f.manaCost.trim());
   if (f.nameContains?.trim()) parts.push(`"${f.nameContains.trim()}"`);
-  return parts.slice(0, 3).join(' · ');
+
+  return parts.slice(0, 4).join(' · ');
 }
 
 /** Deep-clone the chip arrays of a filter (so duplication doesn't share mutable refs). */
