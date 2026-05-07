@@ -13,6 +13,13 @@ export interface EnrichedCard {
   sourceCategory: string;
   /** Which import format this row came from (e.g. "manabox", "mtga", "plain"). */
   sourceFormat: string;
+  /**
+   * Identifier of the import batch that added this card. Lets the user delete a
+   * specific import (samples, a one-off paste) without losing the rest of the
+   * collection. Optional because cards saved before this field existed won't
+   * have one — those cards stay until "Clear all".
+   */
+  importId?: string;
   foil: boolean;
   cmc?: number;
   typeLine?: string;
@@ -207,6 +214,8 @@ export interface BinderDef {
    */
   fixedCapacity: number | null;
   color: string;
+  /** Marks binders created via "Load samples" — purely for tagging in the UI. */
+  isSample?: boolean;
   createdAt: number;
   updatedAt: number;
 }

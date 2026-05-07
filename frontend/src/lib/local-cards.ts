@@ -18,6 +18,12 @@ const STORE_NAME = 'collection';
 const CURRENT_KEY = 'current';
 
 export interface ImportHistoryEntry {
+  /**
+   * Stable identifier for this import. Cards added by the import are stamped
+   * with the same id so a user can delete just this batch later. Optional for
+   * back-compat with histories saved before this field existed.
+   */
+  id?: string;
   /** Source file name or "pasted-list". */
   name: string;
   /** Number of cards added by this individual import. */
@@ -26,6 +32,8 @@ export interface ImportHistoryEntry {
   format: string;
   /** Wall-clock time of the import (ms). */
   addedAt: number;
+  /** Marks imports added via the "try a sample set" buttons. */
+  isSample?: boolean;
 }
 
 export interface StoredCollection {
