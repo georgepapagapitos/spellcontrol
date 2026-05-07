@@ -86,27 +86,43 @@ export function CardPreview({
     const track = trackRef.current;
     if (!track) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.intersectionRatio >= 0.5) {
-            const idx = slideRefs.current.indexOf(entry.target as HTMLDivElement);
-            if (idx < 0) continue;
-            setSelected(idx);
-            onIndexChangeRef.current(idx);
-
-            let added = false;
-            for (let j = idx - PRELOAD_RADIUS; j <= idx + PRELOAD_RADIUS; j++) {
-              const id = cards[j]?.scryfallId;
-              if (id && !mountedRef.current.has(id)) {
-                mountedRef.current.add(id);
-                added = true;
-              }
-            }
-            if (added) forceRender((n) => n + 1);
+      () => {
+        // Active = the slide whose center is closest to the track's center.
+        // Pure ratio-based picking ties when multiple slides are 100% visible
+        // (which happens whenever a neighbor fully fits the viewport too) and
+        // would lock onto the wrong one. Center-distance has no ties.
+        const trackRect = track.getBoundingClientRect();
+        const trackCenter = trackRect.left + trackRect.width / 2;
+        let bestIdx = -1;
+        let bestDist = Infinity;
+        for (let i = 0; i < slideRefs.current.length; i++) {
+          const el = slideRefs.current[i];
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          // Cheap visibility gate: if the slide is entirely outside the track
+          // viewport, skip the abs() math.
+          if (r.right < trackRect.left || r.left > trackRect.right) continue;
+          const dist = Math.abs(r.left + r.width / 2 - trackCenter);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
           }
         }
+        if (bestIdx < 0) return;
+        setSelected(bestIdx);
+        onIndexChangeRef.current(bestIdx);
+
+        let added = false;
+        for (let j = bestIdx - PRELOAD_RADIUS; j <= bestIdx + PRELOAD_RADIUS; j++) {
+          const id = cards[j]?.scryfallId;
+          if (id && !mountedRef.current.has(id)) {
+            mountedRef.current.add(id);
+            added = true;
+          }
+        }
+        if (added) forceRender((n) => n + 1);
       },
-      { root: track, threshold: [0.5] }
+      { root: track, threshold: [0, 0.25, 0.5, 0.75, 1] }
     );
     slideRefs.current.forEach((s) => s && observer.observe(s));
     return () => observer.disconnect();
@@ -267,13 +283,13 @@ export function CardPreview({
             const shouldMount = mountedRef.current.has(c.scryfallId);
             return (
               <div
-                className="card-preview-slide"
+                className={`card-preview-slide${i === selected ? ' is-active' : ''}`}
                 ref={(el) => {
                   slideRefs.current[i] = el;
                 }}
                 key={`${c.scryfallId}-${i}`}
               >
-                <div className="card-preview-image-frame">
+                <div className={`card-preview-image-frame${c.foil ? ' is-foil' : ''}`}>
                   {c.imageNormal && !errored && shouldMount ? (
                     <img
                       src={c.imageNormal}
@@ -286,6 +302,7 @@ export function CardPreview({
                   ) : c.imageNormal && errored ? (
                     <div className="card-preview-image-fallback">Image unavailable</div>
                   ) : null}
+                  {c.foil && <div className="card-preview-foil-overlay" aria-hidden="true" />}
                 </div>
               </div>
             );
@@ -305,6 +322,7 @@ export function CardPreview({
               >
                 {current.rarity}
               </span>
+              {current.foil && <span className="card-preview-foil">foil</span>}
               {' · '}${current.purchasePrice.toFixed(2)}
             </div>
             {(current.setName || current.setCode) && (

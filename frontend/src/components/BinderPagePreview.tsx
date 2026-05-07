@@ -41,7 +41,7 @@ export function BinderPagePreview({
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
 
   // O(1) lookup from card → flat page index, so we can keep the flipbook in
-  // sync as the user swipes through cards in the inner CardPreview.
+  // sync as the user navigates cards in the inner CardPreview.
   const cardToPageIndex = useMemo(() => {
     const m = new Map<EnrichedCard, number>();
     pages.forEach((p, i) => {
@@ -52,8 +52,10 @@ export function BinderPagePreview({
     return m;
   }, [pages]);
 
-  // When the user swipes inside the inner CardPreview, slide the background
-  // flipbook to whichever page contains the now-current card.
+  // Follow-along: when the user navigates to a card on a DIFFERENT page in the
+  // inner CardPreview, snap the background flipbook to that page. Instant
+  // (not smooth) so the background change reads as "stays in sync with the
+  // foreground" rather than as its own scrolling animation.
   useEffect(() => {
     if (!innerCard) return;
     const card = innerCard.cards[innerCard.index];
@@ -63,7 +65,7 @@ export function BinderPagePreview({
     slideRefs.current[target]?.scrollIntoView({
       inline: 'center',
       block: 'nearest',
-      behavior: 'smooth',
+      behavior: 'instant' as ScrollBehavior,
     });
   }, [innerCard, cardToPageIndex, selected]);
 
@@ -85,15 +87,27 @@ export function BinderPagePreview({
     const track = trackRef.current;
     if (!track) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.intersectionRatio >= 0.5) {
-            const idx = slideRefs.current.indexOf(entry.target as HTMLDivElement);
-            if (idx >= 0) setSelected(idx);
+      () => {
+        // Active = slide whose center is closest to the track's center.
+        // See CardPreview for why ratio-based picking is wrong here.
+        const trackRect = track.getBoundingClientRect();
+        const trackCenter = trackRect.left + trackRect.width / 2;
+        let bestIdx = -1;
+        let bestDist = Infinity;
+        for (let i = 0; i < slideRefs.current.length; i++) {
+          const el = slideRefs.current[i];
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.right < trackRect.left || r.left > trackRect.right) continue;
+          const dist = Math.abs(r.left + r.width / 2 - trackCenter);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
           }
         }
+        if (bestIdx >= 0) setSelected(bestIdx);
       },
-      { root: track, threshold: [0.5] }
+      { root: track, threshold: [0, 0.25, 0.5, 0.75, 1] }
     );
     slideRefs.current.forEach((s) => s && observer.observe(s));
     return () => observer.disconnect();
@@ -242,7 +256,7 @@ export function BinderPagePreview({
           <div className="binder-pages-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
             {pages.map((page, i) => (
               <div
-                className="binder-pages-slide"
+                className={`binder-pages-slide${i === selected ? ' is-active' : ''}`}
                 ref={(el) => {
                   slideRefs.current[i] = el;
                 }}
@@ -335,9 +349,9 @@ function Cell({ card, onTap }: { card: EnrichedCard | null; onTap: (card: Enrich
   return (
     <button
       type="button"
-      className="binder-pages-cell"
+      className={`binder-pages-cell${card.foil ? ' is-foil' : ''}`}
       onClick={() => onTap(card)}
-      aria-label={`Open ${card.name}`}
+      aria-label={`Open ${card.name}${card.foil ? ' (foil)' : ''}`}
     >
       {card.imageNormal ? (
         <img
