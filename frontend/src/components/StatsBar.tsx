@@ -22,16 +22,18 @@ export function StatsBar({ binders, uncategorized }: Props) {
 
   // Detect a stale import: a filter references new Scryfall fields (legalities/oracle/layout/finishes)
   // but cached cards predate that enrichment. Re-import resolves it.
-  const usesNewFilters = binderDefs.some((b) => {
-    const f = b.filter || {};
-    return (
-      (f.legalities && f.legalities.length > 0) ||
-      (f.oracleChips && f.oracleChips.length > 0) ||
-      (f.layouts && f.layouts.length > 0) ||
-      (f.finishes && f.finishes.length > 0) ||
-      f.manaCost
-    );
-  });
+  const usesNewFilters = binderDefs.some((b) =>
+    (b.filterGroups || []).some((g) => {
+      const f = g.filter || {};
+      return (
+        (f.legalities && f.legalities.length > 0) ||
+        (f.oracleChips && f.oracleChips.length > 0) ||
+        (f.layouts && f.layouts.length > 0) ||
+        (f.finishes && f.finishes.length > 0) ||
+        f.manaCost
+      );
+    })
+  );
   const cardsLackNewFields = cards.length > 0 && !cards.some((c) => c.legalities !== undefined);
   const showStaleBanner = usesNewFilters && cardsLackNewFields;
 

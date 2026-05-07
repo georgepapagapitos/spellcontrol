@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { SORT_FIELDS, NEW_BINDER_DEFAULT_SORTS, MAX_SORTS } from '../lib/sorting';
-import { isFilterEmpty } from '../lib/rules';
+import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type {
   BinderFilter,
+  BinderFilterGroup,
   BinderInput,
   BorderColor,
   ColorChoice,
+  EnrichedCard,
   Finish,
   Format,
   Layout,
@@ -91,6 +93,7 @@ const PRESET_COLORS = [
 const DEFAULT_EDHREC_TOP_N = 100;
 
 const EMPTY_FILTER: BinderFilter = {};
+const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
 export function BinderEditor() {
   const editingBinder = useCollectionStore((s) => s.editingBinder);
@@ -107,10 +110,13 @@ export function BinderEditor() {
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [pocketSize, setPocketSize] = useState<PocketSize>(9);
-  const [filter, setFilter] = useState<BinderFilter>(EMPTY_FILTER);
+  const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [sorts, setSorts] = useState<SortField[]>([...NEW_BINDER_DEFAULT_SORTS]);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [liveMsg, setLiveMsg] = useState('');
+  // After adding a group, set this to the new index so the group's name input can autofocus.
+  const [autofocusGroupIdx, setAutofocusGroupIdx] = useState<number | null>(null);
 
   // Set codes the user actually owns — used to populate the multi-select.
   const ownedSets = useMemo(() => {
@@ -130,40 +136,92 @@ export function BinderEditor() {
       setName(existing.name);
       setColor(existing.color);
       setPocketSize(existing.pocketSize ?? 9);
-      setFilter({ ...(existing.filter ?? EMPTY_FILTER) });
+      const existingGroups = existing.filterGroups?.length
+        ? existing.filterGroups.map((g) => ({
+            name: g.name,
+            filter: { ...(g.filter ?? EMPTY_FILTER) },
+          }))
+        : [newGroup()];
+      setGroups(existingGroups);
       setSorts([...existing.sorts]);
     } else {
       setName('');
       setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
       setPocketSize(9);
-      setFilter(EMPTY_FILTER);
+      setGroups([newGroup()]);
       setSorts([...NEW_BINDER_DEFAULT_SORTS]);
     }
     setErrorMsg(null);
+    setLiveMsg('');
+    setAutofocusGroupIdx(null);
   }, [isOpen, existing]);
 
   useLockBodyScroll(isOpen);
 
   if (!isOpen) return null;
 
-  const patch = (p: Partial<BinderFilter>) => setFilter((prev) => ({ ...prev, ...p }));
+  const updateGroup = (idx: number, patch: (g: BinderFilterGroup) => BinderFilterGroup) =>
+    setGroups((prev) => prev.map((g, i) => (i === idx ? patch(g) : g)));
+
+  const patchFilter = (idx: number, p: Partial<BinderFilter>) =>
+    updateGroup(idx, (g) => ({ ...g, filter: { ...g.filter, ...p } }));
+
+  const setGroupName = (idx: number, name: string) => updateGroup(idx, (g) => ({ ...g, name }));
+
+  const addGroup = () => {
+    setGroups((prev) => {
+      const next = [...prev, newGroup()];
+      setAutofocusGroupIdx(next.length - 1);
+      setLiveMsg(`Rule group ${next.length} added`);
+      return next;
+    });
+  };
+
+  const duplicateGroup = (idx: number) => {
+    setGroups((prev) => {
+      const src = prev[idx];
+      const copy: BinderFilterGroup = {
+        name: src.name ? `${src.name} (copy)` : undefined,
+        filter: { ...src.filter, ...cloneChips(src.filter) },
+      };
+      const next = [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+      setAutofocusGroupIdx(idx + 1);
+      setLiveMsg(`Rule group ${idx + 2} added (duplicated)`);
+      return next;
+    });
+  };
+
+  const removeGroup = (idx: number) => {
+    setGroups((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, i) => i !== idx);
+      setLiveMsg(`Rule group ${idx + 1} removed`);
+      return next;
+    });
+  };
 
   const handleSave = () => {
     if (!name.trim()) {
       setErrorMsg('Name is required');
       return;
     }
-    const rangeError = validateRanges(filter);
-    if (rangeError) {
-      setErrorMsg(rangeError);
-      return;
+    for (let i = 0; i < groups.length; i++) {
+      const rangeError = validateRanges(groups[i].filter);
+      if (rangeError) {
+        const label = groups[i].name?.trim() || `group ${i + 1}`;
+        setErrorMsg(`${rangeError} (${label})`);
+        return;
+      }
     }
 
-    const cleaned = cleanFilter(filter);
+    const cleanedGroups: BinderFilterGroup[] = groups.map((g) => ({
+      ...(g.name?.trim() ? { name: g.name.trim() } : {}),
+      filter: cleanFilter(g.filter),
+    }));
     const input: BinderInput = {
       name: name.trim(),
       position: existing?.position ?? 0,
-      filter: cleaned,
+      filterGroups: cleanedGroups,
       sorts,
       pocketSize,
       color,
@@ -185,8 +243,7 @@ export function BinderEditor() {
     }
   };
 
-  const showEmptyWarning = isFilterEmpty(filter);
-  const edhrecEnabled = filter.edhrecRankMax !== undefined;
+  const showEmptyWarning = areAllGroupsEmpty(groups);
 
   return (
     <div className="modal-backdrop" onClick={() => setEditingBinder(null)}>
@@ -248,224 +305,28 @@ export function BinderEditor() {
           <section className="editor-section">
             <h3>
               Filters{' '}
-              <span className="muted">— a card joins this binder if it matches every filter</span>
+              <span className="muted">
+                {groups.length === 1
+                  ? '— a card joins this binder if it matches every filter below'
+                  : '— a card joins this binder if it matches any rule group below'}
+              </span>
             </h3>
 
-            {/* Legalities */}
-            <div className="rule-row">
-              <span className="rule-label">Legalities</span>
-              <EnumChipBuilder
-                options={FORMATS.map((f) => ({ value: f, label: f }))}
-                chips={filter.legalities || []}
-                onChange={(next) => patch({ legalities: next })}
-                placeholder="Add format..."
-              />
-            </div>
+            <FilterGroupList
+              groups={groups}
+              cards={cards}
+              ownedSets={ownedSets}
+              autofocusIdx={autofocusGroupIdx}
+              clearAutofocus={() => setAutofocusGroupIdx(null)}
+              onPatchFilter={patchFilter}
+              onSetName={setGroupName}
+              onAdd={addGroup}
+              onDuplicate={duplicateGroup}
+              onRemove={removeGroup}
+            />
 
-            {/* Colors */}
-            <div className="rule-row">
-              <span className="rule-label">Color identity</span>
-              <EnumChipBuilder
-                options={COLORS.map((c) => ({ value: c.key, label: c.label }))}
-                chips={filter.colors || []}
-                onChange={(next) => patch({ colors: next })}
-                placeholder="Add color..."
-              />
-            </div>
-
-            {/* Rarity */}
-            <div className="rule-row">
-              <span className="rule-label">Rarity</span>
-              <EnumChipBuilder
-                options={RARITIES.map((r) => ({ value: r, label: r }))}
-                chips={filter.rarities || []}
-                onChange={(next) => patch({ rarities: next })}
-                placeholder="Add rarity..."
-              />
-            </div>
-
-            {/* CMC */}
-            <div className="rule-row">
-              <span className="rule-label">CMC</span>
-              <NumberRangeInput
-                min={filter.cmcMin}
-                max={filter.cmcMax}
-                step={1}
-                onMinChange={(v) => patch({ cmcMin: v })}
-                onMaxChange={(v) => patch({ cmcMax: v })}
-              />
-            </div>
-
-            {/* Mana cost */}
-            <div className="rule-row">
-              <span
-                className="rule-label has-tooltip"
-                title="Exact mana cost match. Use Scryfall syntax with curly braces, e.g. {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
-              >
-                Mana cost <span className="tooltip-marker">ⓘ</span>
-              </span>
-              <input
-                type="text"
-                value={filter.manaCost || ''}
-                onChange={(e) => patch({ manaCost: e.target.value })}
-                placeholder="{2}{G}{W}"
-                style={{ width: 240 }}
-              />
-            </div>
-
-            {/* Type chips (IS / IS NOT) */}
-            <div className="rule-row">
-              <span
-                className="rule-label has-tooltip"
-                title="Substring match against the type line. Toggle each chip between IS and IS NOT. Example: IS Creature + IS NOT Legendary excludes legendary creatures."
-              >
-                Type line <span className="tooltip-marker">ⓘ</span>
-              </span>
-              <ChipBuilder
-                chips={filter.typeChips || []}
-                onChange={(next) => patch({ typeChips: next })}
-                placeholder="e.g. creature, angel, legendary"
-              />
-            </div>
-
-            {/* Oracle text chips (IS / IS NOT) */}
-            <div className="rule-row">
-              <span
-                className="rule-label has-tooltip"
-                title="Substring match against the oracle (rules) text. Toggle each chip between IS and IS NOT."
-              >
-                Oracle text <span className="tooltip-marker">ⓘ</span>
-              </span>
-              <ChipBuilder
-                chips={filter.oracleChips || []}
-                onChange={(next) => patch({ oracleChips: next })}
-                placeholder="e.g. draw a card, flying"
-              />
-            </div>
-
-            {/* Sets */}
-            <div className="rule-row">
-              <span className="rule-label">Sets</span>
-              <SetMultiSelect
-                options={ownedSets}
-                selected={filter.setCodes || []}
-                onChange={(next) => patch({ setCodes: next })}
-              />
-            </div>
-
-            {/* Price */}
-            <div className="rule-row">
-              <span className="rule-label">Price ($)</span>
-              <NumberRangeInput
-                min={filter.priceMin}
-                max={filter.priceMax}
-                step={0.25}
-                onMinChange={(v) => patch({ priceMin: v })}
-                onMaxChange={(v) => patch({ priceMax: v })}
-              />
-            </div>
-
-            {/* Finishes */}
-            <div className="rule-row">
-              <span className="rule-label">Finishes</span>
-              <EnumChipBuilder
-                options={FINISHES.map((f) => ({ value: f.key, label: f.label }))}
-                chips={filter.finishes || []}
-                onChange={(next) => patch({ finishes: next })}
-                placeholder="Add finish..."
-              />
-            </div>
-
-            {/* Layout */}
-            <div className="rule-row">
-              <span className="rule-label">Layout</span>
-              <EnumChipBuilder
-                options={LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
-                chips={filter.layouts || []}
-                onChange={(next) => patch({ layouts: next })}
-                placeholder="Add layout..."
-              />
-            </div>
-
-            {/* Name contains */}
-            <div className="rule-row">
-              <span className="rule-label">Name contains</span>
-              <input
-                type="text"
-                value={filter.nameContains || ''}
-                onChange={(e) => patch({ nameContains: e.target.value })}
-                placeholder="e.g. dragon, sword..."
-                style={{ width: 240 }}
-              />
-            </div>
-
-            {/* Treatments */}
-            <div className="rule-row">
-              <span
-                className="rule-label has-tooltip"
-                title="Cosmetic treatment of the printing. Full art = full-art lands and cards. Extended art = art that extends to the card edges. Showcase = special frame variants. Etched = etched-foil printings."
-              >
-                Treatment <span className="tooltip-marker">ⓘ</span>
-              </span>
-              <EnumChipBuilder
-                options={TREATMENT_OPTIONS.map((t) => ({ value: t.key, label: t.label }))}
-                chips={filter.treatments || []}
-                onChange={(next) => patch({ treatments: next })}
-                placeholder="Add treatment..."
-              />
-            </div>
-
-            {/* Border color */}
-            <div className="rule-row">
-              <span className="rule-label">Border</span>
-              <EnumChipBuilder
-                options={BORDER_OPTIONS.map((b) => ({ value: b.key, label: b.label }))}
-                chips={filter.borderColors || []}
-                onChange={(next) => patch({ borderColors: next })}
-                placeholder="Add border..."
-              />
-            </div>
-
-            {/* EDHREC */}
-            <div className="rule-row">
-              <span
-                className="rule-label has-tooltip"
-                title="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
-              >
-                EDHREC popularity <span className="tooltip-marker">ⓘ</span>
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <label className="field-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={edhrecEnabled}
-                    onChange={(e) =>
-                      patch({
-                        edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
-                      })
-                    }
-                  />
-                  Top
-                </label>
-                <input
-                  type="number"
-                  value={filter.edhrecRankMax ?? ''}
-                  min={1}
-                  max={50000}
-                  step={50}
-                  disabled={!edhrecEnabled}
-                  placeholder={String(DEFAULT_EDHREC_TOP_N)}
-                  onChange={(e) =>
-                    patch({
-                      edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
-                    })
-                  }
-                  style={{ width: 90 }}
-                />
-                <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
-                  most popular EDH cards
-                </span>
-              </div>
+            <div className="sr-only" role="status" aria-live="polite">
+              {liveMsg}
             </div>
 
             {showEmptyWarning && (
@@ -551,6 +412,457 @@ export function BinderEditor() {
       </div>
     </div>
   );
+}
+
+/* ─────────────────────────── filter-group UI ─────────────────────────── */
+
+/**
+ * Renders the OR-list of filter groups. Each group is a `<fieldset>` whose
+ * `<legend>` carries the optional name (acting as a heading for assistive tech)
+ * and a remove button. An "OR" divider sits between groups (decorative;
+ * meaning is in the fieldset semantics). A single "+ Add OR group" button
+ * follows the list.
+ */
+function FilterGroupList({
+  groups,
+  cards,
+  ownedSets,
+  autofocusIdx,
+  clearAutofocus,
+  onPatchFilter,
+  onSetName,
+  onAdd,
+  onDuplicate,
+  onRemove,
+}: {
+  groups: BinderFilterGroup[];
+  cards: EnrichedCard[];
+  ownedSets: { code: string; label: string }[];
+  autofocusIdx: number | null;
+  clearAutofocus: () => void;
+  onPatchFilter: (idx: number, p: Partial<BinderFilter>) => void;
+  onSetName: (idx: number, name: string) => void;
+  onAdd: () => void;
+  onDuplicate: (idx: number) => void;
+  onRemove: (idx: number) => void;
+}) {
+  // Per-group match counts + deduped total. Single pass over cards: for each
+  // card, check each compiled group; first hit increments `total`, every hit
+  // increments that group's count. Compile is cached per render of this list.
+  const { perGroup, total } = useMemo(() => {
+    const compiled = compileFilterGroups(groups);
+    const perGroup = new Array(compiled.length).fill(0) as number[];
+    let total = 0;
+    for (const card of cards) {
+      let any = false;
+      for (let i = 0; i < compiled.length; i++) {
+        if (cardMatchesCompiled(card, compiled[i])) {
+          perGroup[i]++;
+          any = true;
+        }
+      }
+      if (any) total++;
+    }
+    return { perGroup, total };
+  }, [groups, cards]);
+
+  return (
+    <div className="filter-group-list">
+      {groups.map((g, i) => (
+        <div key={i}>
+          <FilterGroupCard
+            group={g}
+            index={i}
+            total={groups.length}
+            matchCount={perGroup[i] ?? 0}
+            ownedSets={ownedSets}
+            autofocus={autofocusIdx === i}
+            onAutofocusHandled={clearAutofocus}
+            onPatchFilter={(p) => onPatchFilter(i, p)}
+            onSetName={(n) => onSetName(i, n)}
+            onDuplicate={() => onDuplicate(i)}
+            onRemove={() => onRemove(i)}
+          />
+          {i < groups.length - 1 && (
+            <div className="filter-group-or" aria-hidden="true">
+              <span>OR</span>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="filter-group-footer">
+        <button type="button" className="btn btn-add-group" onClick={onAdd}>
+          + Add OR group
+        </button>
+        {groups.length > 1 && (
+          <span className="filter-group-total" aria-live="polite">
+            Matches <strong>{total.toLocaleString()}</strong> {total === 1 ? 'card' : 'cards'} total
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FilterGroupCard({
+  group,
+  index,
+  total,
+  matchCount,
+  ownedSets,
+  autofocus,
+  onAutofocusHandled,
+  onPatchFilter,
+  onSetName,
+  onDuplicate,
+  onRemove,
+}: {
+  group: BinderFilterGroup;
+  index: number;
+  total: number;
+  matchCount: number;
+  ownedSets: { code: string; label: string }[];
+  autofocus: boolean;
+  onAutofocusHandled: () => void;
+  onPatchFilter: (p: Partial<BinderFilter>) => void;
+  onSetName: (n: string) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
+  const nameRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (autofocus && nameRef.current) {
+      nameRef.current.focus();
+      onAutofocusHandled();
+    }
+  }, [autofocus, onAutofocusHandled]);
+
+  const summary = autoSummary(group.filter);
+  const fallback = `Rule group ${index + 1}`;
+  const displayLabel = group.name?.trim() || summary || fallback;
+
+  return (
+    <fieldset className="filter-group">
+      <legend className="filter-group-legend">
+        <input
+          ref={nameRef}
+          className="filter-group-name"
+          value={group.name ?? ''}
+          onChange={(e) => onSetName(e.target.value)}
+          placeholder={summary || fallback}
+          aria-label={`Rule group ${index + 1} name`}
+        />
+        <span className="filter-group-count" aria-label={`${matchCount} cards match`}>
+          {matchCount.toLocaleString()} {matchCount === 1 ? 'card' : 'cards'}
+        </span>
+        <span className="filter-group-actions">
+          <button
+            type="button"
+            className="tab-action"
+            onClick={onDuplicate}
+            title="Duplicate this rule group"
+            aria-label={`Duplicate rule group: ${displayLabel}`}
+          >
+            ⎘
+          </button>
+          <button
+            type="button"
+            className="tab-action"
+            onClick={onRemove}
+            disabled={total <= 1}
+            title={total <= 1 ? 'A binder needs at least one rule group' : 'Remove this rule group'}
+            aria-label={`Remove rule group: ${displayLabel}`}
+          >
+            ×
+          </button>
+        </span>
+      </legend>
+      <FilterGroupFields filter={group.filter} onPatch={onPatchFilter} ownedSets={ownedSets} />
+    </fieldset>
+  );
+}
+
+/**
+ * The 16 rule-rows that make up a single filter group. Pure presentation —
+ * receives `filter` and a patch callback. `idPrefix` namespaces input ids so
+ * multiple groups don't collide for assistive tech.
+ */
+function FilterGroupFields({
+  filter,
+  onPatch,
+  ownedSets,
+}: {
+  filter: BinderFilter;
+  onPatch: (p: Partial<BinderFilter>) => void;
+  ownedSets: { code: string; label: string }[];
+}) {
+  const patch = onPatch;
+  const edhrecEnabled = filter.edhrecRankMax !== undefined;
+  return (
+    <>
+      {/* Legalities */}
+      <div className="rule-row">
+        <span className="rule-label">Legalities</span>
+        <EnumChipBuilder
+          options={FORMATS.map((f) => ({ value: f, label: f }))}
+          chips={filter.legalities || []}
+          onChange={(next) => patch({ legalities: next })}
+          placeholder="Add format..."
+        />
+      </div>
+
+      {/* Colors */}
+      <div className="rule-row">
+        <span className="rule-label">Color identity</span>
+        <EnumChipBuilder
+          options={COLORS.map((c) => ({ value: c.key, label: c.label }))}
+          chips={filter.colors || []}
+          onChange={(next) => patch({ colors: next })}
+          placeholder="Add color..."
+        />
+      </div>
+
+      {/* Rarity */}
+      <div className="rule-row">
+        <span className="rule-label">Rarity</span>
+        <EnumChipBuilder
+          options={RARITIES.map((r) => ({ value: r, label: r }))}
+          chips={filter.rarities || []}
+          onChange={(next) => patch({ rarities: next })}
+          placeholder="Add rarity..."
+        />
+      </div>
+
+      {/* CMC */}
+      <div className="rule-row">
+        <span className="rule-label">CMC</span>
+        <NumberRangeInput
+          min={filter.cmcMin}
+          max={filter.cmcMax}
+          step={1}
+          onMinChange={(v) => patch({ cmcMin: v })}
+          onMaxChange={(v) => patch({ cmcMax: v })}
+        />
+      </div>
+
+      {/* Mana cost */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Exact mana cost match. Use Scryfall syntax with curly braces, e.g. {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
+        >
+          Mana cost <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <input
+          type="text"
+          value={filter.manaCost || ''}
+          onChange={(e) => patch({ manaCost: e.target.value })}
+          placeholder="{2}{G}{W}"
+          style={{ width: 240 }}
+        />
+      </div>
+
+      {/* Type chips */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Substring match against the type line. Toggle each chip between IS and IS NOT. Example: IS Creature + IS NOT Legendary excludes legendary creatures."
+        >
+          Type line <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <ChipBuilder
+          chips={filter.typeChips || []}
+          onChange={(next) => patch({ typeChips: next })}
+          placeholder="e.g. creature, angel, legendary"
+        />
+      </div>
+
+      {/* Oracle text */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Substring match against the oracle (rules) text. Toggle each chip between IS and IS NOT."
+        >
+          Oracle text <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <ChipBuilder
+          chips={filter.oracleChips || []}
+          onChange={(next) => patch({ oracleChips: next })}
+          placeholder="e.g. draw a card, flying"
+        />
+      </div>
+
+      {/* Sets */}
+      <div className="rule-row">
+        <span className="rule-label">Sets</span>
+        <SetMultiSelect
+          options={ownedSets}
+          selected={filter.setCodes || []}
+          onChange={(next) => patch({ setCodes: next })}
+        />
+      </div>
+
+      {/* Price */}
+      <div className="rule-row">
+        <span className="rule-label">Price ($)</span>
+        <NumberRangeInput
+          min={filter.priceMin}
+          max={filter.priceMax}
+          step={0.25}
+          onMinChange={(v) => patch({ priceMin: v })}
+          onMaxChange={(v) => patch({ priceMax: v })}
+        />
+      </div>
+
+      {/* Finishes */}
+      <div className="rule-row">
+        <span className="rule-label">Finishes</span>
+        <EnumChipBuilder
+          options={FINISHES.map((f) => ({ value: f.key, label: f.label }))}
+          chips={filter.finishes || []}
+          onChange={(next) => patch({ finishes: next })}
+          placeholder="Add finish..."
+        />
+      </div>
+
+      {/* Layout */}
+      <div className="rule-row">
+        <span className="rule-label">Layout</span>
+        <EnumChipBuilder
+          options={LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
+          chips={filter.layouts || []}
+          onChange={(next) => patch({ layouts: next })}
+          placeholder="Add layout..."
+        />
+      </div>
+
+      {/* Name contains */}
+      <div className="rule-row">
+        <span className="rule-label">Name contains</span>
+        <input
+          type="text"
+          value={filter.nameContains || ''}
+          onChange={(e) => patch({ nameContains: e.target.value })}
+          placeholder="e.g. dragon, sword..."
+          style={{ width: 240 }}
+        />
+      </div>
+
+      {/* Treatments */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Cosmetic treatment of the printing. Full art = full-art lands and cards. Extended art = art that extends to the card edges. Showcase = special frame variants. Etched = etched-foil printings."
+        >
+          Treatment <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <EnumChipBuilder
+          options={TREATMENT_OPTIONS.map((t) => ({ value: t.key, label: t.label }))}
+          chips={filter.treatments || []}
+          onChange={(next) => patch({ treatments: next })}
+          placeholder="Add treatment..."
+        />
+      </div>
+
+      {/* Border */}
+      <div className="rule-row">
+        <span className="rule-label">Border</span>
+        <EnumChipBuilder
+          options={BORDER_OPTIONS.map((b) => ({ value: b.key, label: b.label }))}
+          chips={filter.borderColors || []}
+          onChange={(next) => patch({ borderColors: next })}
+          placeholder="Add border..."
+        />
+      </div>
+
+      {/* EDHREC */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
+        >
+          EDHREC popularity <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <label className="field-checkbox">
+            <input
+              type="checkbox"
+              checked={edhrecEnabled}
+              onChange={(e) =>
+                patch({
+                  edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
+                })
+              }
+            />
+            Top
+          </label>
+          <input
+            type="number"
+            value={filter.edhrecRankMax ?? ''}
+            min={1}
+            max={50000}
+            step={50}
+            disabled={!edhrecEnabled}
+            placeholder={String(DEFAULT_EDHREC_TOP_N)}
+            onChange={(e) =>
+              patch({
+                edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
+              })
+            }
+            style={{ width: 90 }}
+          />
+          <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>most popular EDH cards</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Build a short human-readable summary of a filter for use as the group's
+ * legend placeholder and aria-label fallback. Keeps the 2–3 most distinguishing
+ * fields and abbreviates the rest. Returns '' for an empty filter.
+ */
+function autoSummary(f: BinderFilter): string {
+  const parts: string[] = [];
+  const chipNames = (chips: NegatableChip[] | undefined, max = 2) => {
+    if (!chips || chips.length === 0) return null;
+    const is = chips.filter((c) => !c.negate).map((c) => c.value);
+    if (is.length === 0) return null;
+    if (is.length <= max) return is.join(', ');
+    return `${is.slice(0, max).join(', ')} +${is.length - max}`;
+  };
+  const r = chipNames(f.rarities);
+  if (r) parts.push(r);
+  const c = chipNames(f.colors);
+  if (c) parts.push(c);
+  const t = chipNames(f.typeChips);
+  if (t) parts.push(t);
+  if (f.priceMin !== undefined && f.priceMax !== undefined)
+    parts.push(`$${f.priceMin}–${f.priceMax}`);
+  else if (f.priceMin !== undefined) parts.push(`≥ $${f.priceMin}`);
+  else if (f.priceMax !== undefined) parts.push(`≤ $${f.priceMax}`);
+  if (f.edhrecRankMax !== undefined) parts.push(`EDH top ${f.edhrecRankMax}`);
+  if (f.nameContains?.trim()) parts.push(`"${f.nameContains.trim()}"`);
+  return parts.slice(0, 3).join(' · ');
+}
+
+/** Deep-clone the chip arrays of a filter (so duplication doesn't share mutable refs). */
+function cloneChips(f: BinderFilter): Partial<BinderFilter> {
+  const dup = (chips?: NegatableChip[]) => chips?.map((c) => ({ ...c }));
+  return {
+    legalities: dup(f.legalities),
+    colors: dup(f.colors),
+    rarities: dup(f.rarities),
+    typeChips: dup(f.typeChips),
+    oracleChips: dup(f.oracleChips),
+    finishes: dup(f.finishes),
+    layouts: dup(f.layouts),
+    treatments: dup(f.treatments),
+    borderColors: dup(f.borderColors),
+    setCodes: f.setCodes ? [...f.setCodes] : undefined,
+  };
 }
 
 /* ─────────────────────────── small components ─────────────────────────── */
