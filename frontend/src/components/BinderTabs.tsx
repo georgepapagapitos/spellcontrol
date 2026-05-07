@@ -1,12 +1,11 @@
 import { useCollectionStore } from '../store/collection';
-import type { MaterializedBinder, UncategorizedBucket } from '../types';
+import type { MaterializedBinder } from '../types';
 
 interface Props {
   binders: MaterializedBinder[];
-  uncategorized: UncategorizedBucket;
 }
 
-export function BinderTabs({ binders, uncategorized }: Props) {
+export function BinderTabs({ binders }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -16,7 +15,7 @@ export function BinderTabs({ binders, uncategorized }: Props) {
   const handleDelete = (id: string, name: string) => {
     if (
       !confirm(
-        `Delete the binder "${name}"? Its cards will be re-routed through your other binders (or land in Uncategorized if nothing else matches).`
+        `Delete the binder "${name}"? Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`
       )
     )
       return;
@@ -82,14 +81,6 @@ export function BinderTabs({ binders, uncategorized }: Props) {
           </div>
         );
       })}
-
-      <button
-        className={`tab ${activeTab === 'uncategorized' ? 'active' : ''}`}
-        onClick={() => setActiveTab('uncategorized')}
-      >
-        Uncategorized
-        <span className="tab-count">{uncategorized.totalCards.toLocaleString()}</span>
-      </button>
 
       <button
         className="tab tab-new"

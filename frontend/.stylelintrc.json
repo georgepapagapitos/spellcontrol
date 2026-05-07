@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "declaration-property-value-disallowed-list": {
+      "font-size": ["/^-?[0-9.]+(rem|px|em)$/"]
+    }
+  }
+}

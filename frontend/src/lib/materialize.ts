@@ -9,7 +9,7 @@ import type {
   SortField,
   UncategorizedBucket,
 } from '../types';
-import { cardMatchesFilter } from './rules';
+import { compileFilter, cardMatchesCompiled } from './rules';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
 import { sortCards } from './sorting';
 
@@ -38,6 +38,8 @@ export function materializeBinders(
   const isMatch = search ? (c: EnrichedCard) => c.name.toLowerCase().includes(search) : () => true;
 
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
+  // Compile each filter once instead of re-parsing it per card.
+  const compiledFilters = orderedDefs.map((d) => compileFilter(d.filter));
 
   const buckets = new Map<string, EnrichedCard[]>();
   orderedDefs.forEach((d) => buckets.set(d.id, []));
@@ -45,9 +47,9 @@ export function materializeBinders(
 
   for (const card of cards) {
     let matched = false;
-    for (const def of orderedDefs) {
-      if (cardMatchesFilter(card, def.filter)) {
-        buckets.get(def.id)!.push(card);
+    for (let i = 0; i < orderedDefs.length; i++) {
+      if (cardMatchesCompiled(card, compiledFilters[i])) {
+        buckets.get(orderedDefs[i].id)!.push(card);
         matched = true;
         break;
       }

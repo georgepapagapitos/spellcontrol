@@ -2,107 +2,155 @@ import type { BinderFilter, EnrichedCard, NegatableChip } from '../types';
 import { getColorKey } from './colors';
 
 /**
- * Returns true iff the card matches the binder filter.
- *
- * All filter fields AND together; empty fields impose no constraint.
- * An empty filter (no fields set) matches every card.
+ * A chip list split into IS/IS-NOT halves with values pre-trimmed and
+ * pre-lowercased so the per-card matcher does no string work itself.
  */
-export function cardMatchesFilter(card: EnrichedCard, filter: BinderFilter): boolean {
-  // Legalities — IS = legal in that format; IS NOT = not legal in that format.
-  // Multiple IS chips: card must be legal in ALL of them.
-  if (filter.legalities && hasActiveChips(filter.legalities)) {
-    if (!legalityChipsMatch(card.legalities, filter.legalities)) return false;
+interface CompiledChips {
+  is: string[];
+  not: string[];
+}
+
+/**
+ * Pre-processed filter ready for the per-card matching hot path.
+ *
+ * Materializing a binder runs `cardMatchesFilter` once per (card × binder).
+ * For a 10k-card collection × 10 binders × ~5 chip lists per filter, the
+ * naive shape rebuilds and lowercases the chip arrays ~500k times. This
+ * struct does that work once per filter so the inner loop is just
+ * comparisons.
+ */
+export interface CompiledFilter {
+  legalities?: CompiledChips;
+  colors?: CompiledChips;
+  rarities?: CompiledChips;
+  typeChips?: CompiledChips;
+  oracleChips?: CompiledChips;
+  finishes?: CompiledChips;
+  layouts?: CompiledChips;
+  treatments?: CompiledChips;
+  borderColors?: CompiledChips;
+  setCodesLower?: string[];
+  nameContainsLower?: string;
+  manaCostNormalized?: string;
+  priceMin?: number;
+  priceMax?: number;
+  cmcMin?: number;
+  cmcMax?: number;
+  edhrecRankMax?: number;
+}
+
+function compileChips(chips: NegatableChip[] | undefined): CompiledChips | undefined {
+  if (!chips) return undefined;
+  const is: string[] = [];
+  const not: string[] = [];
+  for (const c of chips) {
+    const v = c.value.trim().toLowerCase();
+    if (!v) continue;
+    if (c.negate) not.push(v);
+    else is.push(v);
   }
+  if (is.length === 0 && not.length === 0) return undefined;
+  return { is, not };
+}
 
-  // Rarity — IS / IS NOT exact match (case-insensitive).
-  if (filter.rarities && hasActiveChips(filter.rarities)) {
-    if (!exactChipsMatch(card.rarity, filter.rarities)) return false;
-  }
+export function compileFilter(filter: BinderFilter): CompiledFilter {
+  const out: CompiledFilter = {};
+  out.legalities = compileChips(filter.legalities);
+  out.colors = compileChips(filter.colors);
+  out.rarities = compileChips(filter.rarities);
+  out.typeChips = compileChips(filter.typeChips);
+  out.oracleChips = compileChips(filter.oracleChips);
+  out.finishes = compileChips(filter.finishes);
+  out.layouts = compileChips(filter.layouts);
+  out.treatments = compileChips(filter.treatments);
+  out.borderColors = compileChips(filter.borderColors);
 
-  // Price range
-  if (filter.priceMin !== undefined && card.purchasePrice < filter.priceMin) return false;
-  if (filter.priceMax !== undefined && card.purchasePrice > filter.priceMax) return false;
-
-  // Colors — IS / IS NOT against the card's primary color key (W/U/B/R/G/M/C).
-  // Lands match too: Forest → G, Wastes → C, dual lands → M.
-  if (filter.colors && hasActiveChips(filter.colors)) {
-    const key = getColorKey(card);
-    // '?' = unknown color (no Scryfall data). A filter with any IS chip rejects unknown;
-    // a filter with only IS NOT chips trivially passes since '?' equals nothing.
-    const value = key === '?' ? '' : key;
-    if (!exactChipsMatch(value, filter.colors)) return false;
-  }
-
-  // Type chips — IS / IS NOT substring match on type_line.
-  if (filter.typeChips && hasActiveChips(filter.typeChips)) {
-    if (!substringChipsMatch(card.typeLine, filter.typeChips)) return false;
-  }
-
-  // Oracle text chips — IS / IS NOT substring match.
-  if (filter.oracleChips && hasActiveChips(filter.oracleChips)) {
-    if (!substringChipsMatch(card.oracleText, filter.oracleChips)) return false;
-  }
-
-  // CMC range — if Scryfall didn't enrich, treat as 0.
-  if (filter.cmcMin !== undefined && (card.cmc ?? 0) < filter.cmcMin) return false;
-  if (filter.cmcMax !== undefined && (card.cmc ?? 0) > filter.cmcMax) return false;
-
-  // Mana cost — exact string match (case-insensitive, whitespace-trimmed).
-  if (filter.manaCost && filter.manaCost.trim()) {
-    const target = normalizeMana(filter.manaCost);
-    const actual = normalizeMana(card.manaCost || '');
-    if (target !== actual) return false;
-  }
-
-  // Name substring
-  if (filter.nameContains && filter.nameContains.trim()) {
-    if (!card.name.toLowerCase().includes(filter.nameContains.trim().toLowerCase())) {
-      return false;
-    }
-  }
-
-  // Set codes — exact match, ANY-of (no IS/IS NOT).
   if (filter.setCodes && filter.setCodes.length > 0) {
-    const sc = card.setCode.toLowerCase();
-    if (!filter.setCodes.some((s) => s.toLowerCase() === sc)) return false;
+    out.setCodesLower = filter.setCodes.map((s) => s.toLowerCase());
   }
 
-  // Finishes — operates on the set of finishes the printing offers.
-  // Falls back to legacy `foil` boolean when Scryfall data is absent.
-  if (filter.finishes && hasActiveChips(filter.finishes)) {
+  const name = filter.nameContains?.trim().toLowerCase();
+  if (name) out.nameContainsLower = name;
+
+  const manaTrimmed = filter.manaCost?.trim();
+  if (manaTrimmed) out.manaCostNormalized = normalizeMana(manaTrimmed);
+
+  if (filter.priceMin !== undefined) out.priceMin = filter.priceMin;
+  if (filter.priceMax !== undefined) out.priceMax = filter.priceMax;
+  if (filter.cmcMin !== undefined) out.cmcMin = filter.cmcMin;
+  if (filter.cmcMax !== undefined) out.cmcMax = filter.cmcMax;
+  if (filter.edhrecRankMax !== undefined) out.edhrecRankMax = filter.edhrecRankMax;
+
+  return out;
+}
+
+/**
+ * Returns true iff the card matches the compiled filter.
+ * All filter fields AND together; absent fields impose no constraint.
+ */
+export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): boolean {
+  if (f.legalities && !legalityMatches(card.legalities, f.legalities)) return false;
+
+  if (f.rarities && !exactMatches(card.rarity, f.rarities)) return false;
+
+  if (f.priceMin !== undefined && card.purchasePrice < f.priceMin) return false;
+  if (f.priceMax !== undefined && card.purchasePrice > f.priceMax) return false;
+
+  if (f.colors) {
+    const key = getColorKey(card);
+    // '?' = unknown color (no Scryfall data). A filter with any IS chip rejects
+    // unknown; an IS-NOT-only filter passes since '?' equals nothing.
+    const value = key === '?' ? '' : key;
+    if (!exactMatches(value, f.colors)) return false;
+  }
+
+  if (f.typeChips && !substringMatches(card.typeLine, f.typeChips)) return false;
+  if (f.oracleChips && !substringMatches(card.oracleText, f.oracleChips)) return false;
+
+  if (f.cmcMin !== undefined && (card.cmc ?? 0) < f.cmcMin) return false;
+  if (f.cmcMax !== undefined && (card.cmc ?? 0) > f.cmcMax) return false;
+
+  if (f.manaCostNormalized !== undefined) {
+    if (normalizeMana(card.manaCost || '') !== f.manaCostNormalized) return false;
+  }
+
+  if (f.nameContainsLower !== undefined) {
+    if (!card.name.toLowerCase().includes(f.nameContainsLower)) return false;
+  }
+
+  if (f.setCodesLower) {
+    const sc = card.setCode.toLowerCase();
+    if (!f.setCodesLower.includes(sc)) return false;
+  }
+
+  if (f.finishes) {
+    // Falls back to legacy `foil` boolean when Scryfall data is absent.
     const available =
       card.finishes && card.finishes.length > 0 ? card.finishes : [card.foil ? 'foil' : 'nonfoil'];
-    if (!setChipsMatch(available, filter.finishes)) return false;
+    if (!setMatches(available, f.finishes)) return false;
   }
 
-  // Layout — exact match on the card's layout.
-  if (filter.layouts && hasActiveChips(filter.layouts)) {
-    if (!exactChipsMatch(card.layout, filter.layouts)) return false;
-  }
+  if (f.layouts && !exactMatches(card.layout, f.layouts)) return false;
 
-  // EDHREC rank threshold
-  if (filter.edhrecRankMax !== undefined) {
+  if (f.edhrecRankMax !== undefined) {
     if (card.edhrecRank === undefined) return false;
-    if (card.edhrecRank > filter.edhrecRankMax) return false;
+    if (card.edhrecRank > f.edhrecRankMax) return false;
   }
 
-  // Treatments — set semantics with the 'fullart' special case (matches both the
-  // explicit fullArt flag and any 'fullart' frame effect).
-  if (filter.treatments && hasActiveChips(filter.treatments)) {
-    const available = effectiveTreatments(card);
-    if (!setChipsMatch(available, filter.treatments)) return false;
-  }
+  if (f.treatments && !setMatches(effectiveTreatments(card), f.treatments)) return false;
 
-  // Border color — exact match on borderColor.
-  if (filter.borderColors && hasActiveChips(filter.borderColors)) {
-    if (!exactChipsMatch(card.borderColor, filter.borderColors)) return false;
-  }
+  if (f.borderColors && !exactMatches(card.borderColor, f.borderColors)) return false;
 
   return true;
 }
 
-function hasActiveChips(chips: NegatableChip[]): boolean {
-  return chips.some((c) => c.value.trim().length > 0);
+/**
+ * Compile-and-match in one shot. Use this for one-off checks where you
+ * don't have a hot loop. For the materialize path, compile once with
+ * `compileFilter` and call `cardMatchesCompiled` per card instead.
+ */
+export function cardMatchesFilter(card: EnrichedCard, filter: BinderFilter): boolean {
+  return cardMatchesCompiled(card, compileFilter(filter));
 }
 
 /**
@@ -112,17 +160,11 @@ function hasActiveChips(chips: NegatableChip[]): boolean {
  * Empty/missing haystack: IS chips never match (so any IS chip → fail);
  * IS NOT chips can never match either, so they're trivially satisfied.
  */
-function substringChipsMatch(haystack: string | undefined, chips: NegatableChip[]): boolean {
+function substringMatches(haystack: string | undefined, chips: CompiledChips): boolean {
   const hay = (haystack || '').toLowerCase();
-  const isChips = chips.filter((c) => !c.negate && c.value.trim());
-  const notChips = chips.filter((c) => c.negate && c.value.trim());
-
-  if (isChips.length > 0) {
-    const anyIs = isChips.some((c) => hay.includes(c.value.trim().toLowerCase()));
-    if (!anyIs) return false;
-  }
-  for (const c of notChips) {
-    if (hay.includes(c.value.trim().toLowerCase())) return false;
+  if (chips.is.length > 0 && !chips.is.some((v) => hay.includes(v))) return false;
+  for (const v of chips.not) {
+    if (hay.includes(v)) return false;
   }
   return true;
 }
@@ -131,37 +173,24 @@ function substringChipsMatch(haystack: string | undefined, chips: NegatableChip[
  * Exact-match variant — used for controlled-vocabulary single-valued fields
  * (rarity, color key, layout, border color). Comparison is case-insensitive.
  */
-function exactChipsMatch(value: string | undefined, chips: NegatableChip[]): boolean {
+function exactMatches(value: string | undefined, chips: CompiledChips): boolean {
   const v = (value || '').toLowerCase();
-  const isChips = chips.filter((c) => !c.negate && c.value.trim());
-  const notChips = chips.filter((c) => c.negate && c.value.trim());
-
-  if (isChips.length > 0) {
-    const anyIs = isChips.some((c) => c.value.trim().toLowerCase() === v);
-    if (!anyIs) return false;
-  }
-  for (const c of notChips) {
-    if (c.value.trim().toLowerCase() === v) return false;
-  }
+  if (chips.is.length > 0 && !chips.is.includes(v)) return false;
+  if (chips.not.includes(v)) return false;
   return true;
 }
 
 /**
  * Set-membership variant — for fields where the card has a SET of values
  * (finishes, treatments). IS = card's set contains the chip; IS NOT = it doesn't.
- * Multiple IS chips OR among themselves; multiple IS NOT chips all must miss.
  */
-function setChipsMatch(cardValues: string[], chips: NegatableChip[]): boolean {
-  const set = new Set(cardValues.map((v) => v.toLowerCase()));
-  const isChips = chips.filter((c) => !c.negate && c.value.trim());
-  const notChips = chips.filter((c) => c.negate && c.value.trim());
-
-  if (isChips.length > 0) {
-    const anyIs = isChips.some((c) => set.has(c.value.trim().toLowerCase()));
-    if (!anyIs) return false;
-  }
-  for (const c of notChips) {
-    if (set.has(c.value.trim().toLowerCase())) return false;
+function setMatches(cardValues: string[], chips: CompiledChips): boolean {
+  // Lower-case scan in place; cardValues is small (typically 1-3 items) so we
+  // skip building an actual Set.
+  const lowered = cardValues.map((v) => v.toLowerCase());
+  if (chips.is.length > 0 && !chips.is.some((v) => lowered.includes(v))) return false;
+  for (const v of chips.not) {
+    if (lowered.includes(v)) return false;
   }
   return true;
 }
@@ -170,19 +199,16 @@ function setChipsMatch(cardValues: string[], chips: NegatableChip[]): boolean {
  * Legality-specific matcher: each chip names a format, and IS means "card is legal in that format".
  * Multiple IS chips therefore AND together (legal in every format named).
  */
-function legalityChipsMatch(
+function legalityMatches(
   legalities: Record<string, string> | undefined,
-  chips: NegatableChip[]
+  chips: CompiledChips
 ): boolean {
   const legs = legalities || {};
-  const isChips = chips.filter((c) => !c.negate && c.value.trim());
-  const notChips = chips.filter((c) => c.negate && c.value.trim());
-
-  for (const c of isChips) {
-    if (legs[c.value.trim().toLowerCase()] !== 'legal') return false;
+  for (const v of chips.is) {
+    if (legs[v] !== 'legal') return false;
   }
-  for (const c of notChips) {
-    if (legs[c.value.trim().toLowerCase()] === 'legal') return false;
+  for (const v of chips.not) {
+    if (legs[v] === 'legal') return false;
   }
   return true;
 }

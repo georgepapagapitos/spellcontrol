@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardPreview } from './CardPreview';
 import { useDebouncedValue } from '../lib/use-debounced-value';
+import { RARITY_ORDER } from '../lib/sorting';
 
 interface Props {
   cards: EnrichedCard[];
@@ -18,15 +19,6 @@ interface Row {
 }
 
 type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'binder';
-
-const RARITY_ORDER: Record<string, number> = {
-  mythic: 0,
-  rare: 1,
-  uncommon: 2,
-  common: 3,
-  special: 4,
-  bonus: 5,
-};
 
 const ROW_HEIGHT = 44;
 

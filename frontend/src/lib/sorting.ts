@@ -13,11 +13,13 @@ export const SORT_FIELDS: { value: SortField; label: string }[] = [
   { value: 'edhrec', label: 'EDHREC rank' },
 ];
 
-const RARITY_ORDER: Record<string, number> = {
+export const RARITY_ORDER: Record<string, number> = {
   mythic: 0,
   rare: 1,
   uncommon: 2,
   common: 3,
+  special: 4,
+  bonus: 5,
 };
 
 export function cardSortValue(card: EnrichedCard, field: SortField): number | string {
