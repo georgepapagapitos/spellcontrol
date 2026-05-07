@@ -1,4 +1,5 @@
 import { useCollectionStore } from '../store/collection';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { MaterializedBinder, EnrichedCard } from '../types';
 import {
   buildBackup,
@@ -19,6 +20,7 @@ interface Props {
 type ExportKind = 'binder' | 'all-binders' | 'full';
 
 export function BinderExportDialog({ binders, activeId, onClose }: Props) {
+  useLockBodyScroll();
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
 
   const active = binders.find((b) => b.def.id === activeId) ?? null;

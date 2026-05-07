@@ -74,11 +74,14 @@ interface CollectionState {
 
   // Binder actions
   /**
-   * Imports the bundled sample card pack (tagged isSample in import history)
-   * and creates the sample binder defs (tagged isSample on BinderDef).
+   * Creates the sample binder defs (tagged isSample on BinderDef). When
+   * `importResponse` is provided, the bundled starter pack is also imported
+   * (tagged isSample in import history). Pass `null` to load just the binders
+   * — used when the user already has a real collection and only wants the
+   * curated rule examples to filter against their own cards.
    * Returns the created binder ids so the caller can switch the active tab.
    */
-  loadSampleBinders: (importResponse: UploadResponse) => Promise<string[]>;
+  loadSampleBinders: (importResponse: UploadResponse | null) => Promise<string[]>;
   createBinder: (input: BinderInput) => BinderDef;
   updateBinder: (id: string, input: Partial<BinderInput>) => void;
   deleteBinder: (id: string) => void;
@@ -337,10 +340,13 @@ export const useCollectionStore = create<CollectionState>()(
 
       // Binder actions
       loadSampleBinders: async (importResponse) => {
-        // Add the bundled cards via the same path as a normal paste import,
-        // tagging the history entry as a sample so users can find/delete it.
-        const mode: ImportMode = get().cards.length > 0 ? 'merge' : 'replace';
-        await get().importCards(importResponse, SAMPLE_IMPORT_LABEL, mode, { isSample: true });
+        // When an importResponse is supplied, add the bundled starter pack
+        // alongside the binders (tagged isSample in history). Otherwise the
+        // caller already has a real collection and only wants the binder defs.
+        if (importResponse) {
+          const mode: ImportMode = get().cards.length > 0 ? 'merge' : 'replace';
+          await get().importCards(importResponse, SAMPLE_IMPORT_LABEL, mode, { isSample: true });
+        }
 
         const now = Date.now();
         const startPosition = get().binders.length;

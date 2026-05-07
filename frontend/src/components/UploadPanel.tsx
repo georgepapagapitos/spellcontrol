@@ -3,6 +3,8 @@ import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
 import type { UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
+import { useConfirm } from '../lib/use-confirm';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 
 interface PendingImport {
   /** Runs the actual import call. */
@@ -39,6 +41,7 @@ export function UploadPanel() {
   const restoreFromBackup = useCollectionStore((s) => s.restoreFromBackup);
 
   const hasCollection = cards.length > 0;
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const handlePickFile = () => {
     if (isLoading) return;
@@ -99,7 +102,13 @@ export function UploadPanel() {
   }
 
   const handleClearAll = async () => {
-    if (!confirm('Clear all cards from your collection? You will need to re-import them.')) return;
+    const ok = await confirm({
+      title: 'Clear your collection?',
+      body: 'All cards will be removed. You will need to re-import them.',
+      confirmLabel: 'Clear all',
+      danger: true,
+    });
+    if (!ok) return;
     await clearCards();
     setShowUnresolved(false);
     setSuccessMsg(null);
@@ -129,12 +138,15 @@ export function UploadPanel() {
     );
   };
 
-  const handlePickBackup = () => {
+  const handlePickBackup = async () => {
     if (isLoading) return;
     if (cards.length > 0 || binders.length > 0) {
-      const ok = confirm(
-        'Restoring a backup will replace your current collection and binders. This cannot be undone. Continue?'
-      );
+      const ok = await confirm({
+        title: 'Restore backup?',
+        body: 'This will replace your current collection and binders. This cannot be undone.',
+        confirmLabel: 'Restore',
+        danger: true,
+      });
       if (!ok) return;
     }
     backupInputRef.current?.click();
@@ -168,6 +180,7 @@ export function UploadPanel() {
 
   return (
     <div className="upload-panel">
+      {confirmDialog}
       {successMsg && !error && (
         <div className="success-banner">
           <span>{successMsg}</span>
@@ -417,6 +430,7 @@ interface DeleteImportsDialogProps {
 }
 
 function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDialogProps) {
+  useLockBodyScroll();
   const totalCards = imports.reduce((sum, h) => sum + h.count, 0);
   return (
     <div className="modal-backdrop" onClick={onCancel} role="presentation">
@@ -475,6 +489,7 @@ function ImportModeDialog({
   onPick,
   onCancel,
 }: ImportModeDialogProps) {
+  useLockBodyScroll();
   return (
     <div className="modal-backdrop" onClick={onCancel} role="presentation">
       <div
