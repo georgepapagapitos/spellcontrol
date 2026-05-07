@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
   BinderSection,
@@ -12,6 +12,7 @@ import { SORT_FIELDS } from '../lib/sorting';
 import { PageGrid } from './PageGrid';
 import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
+import { BinderPagePreview } from './BinderPagePreview';
 
 const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
@@ -36,6 +37,8 @@ export function BinderView({ binders, uncategorized }: Props) {
       <SectionList
         viewKey="uncategorized"
         binderName="Uncategorized"
+        totalCards={uncategorized.totalCards}
+        totalPages={uncategorized.totalPages}
         sections={uncategorized.sections}
         pocketSize={uncategorized.effectivePocketSize}
         sorts={uncategorized.effectiveSorts}
@@ -71,6 +74,8 @@ export function BinderView({ binders, uncategorized }: Props) {
     <SectionList
       viewKey={active.def.id}
       binderName={active.def.name}
+      totalCards={active.totalCards}
+      totalPages={active.totalPages}
       sections={active.sections}
       pocketSize={active.effectivePocketSize}
       sorts={active.effectiveSorts}
@@ -81,12 +86,16 @@ export function BinderView({ binders, uncategorized }: Props) {
 function SectionList({
   viewKey,
   binderName,
+  totalCards,
+  totalPages,
   sections,
   pocketSize,
   sorts,
 }: {
   viewKey: string;
   binderName: string;
+  totalCards: number;
+  totalPages: number;
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortField[];
@@ -123,13 +132,79 @@ function SectionList({
     pageNumbers: number[];
   } | null>(null);
 
-  // Reset preview when switching binders so it doesn't survive a tab change.
+  // Binder-wide flipbook: all sections' pages flattened into one swipe
+  // sequence. The Open button starts at 0; per-page p{N} links start at the
+  // global offset of that page.
+  const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
+
+  // Reset previews when switching binders so they don't survive a tab change.
   useEffect(() => {
     setPreview(null);
+    setPagesStartIndex(null);
   }, [viewKey]);
+
+  // Binder-wide page list + per-page section labels (parallel arrays).
+  const flatPages = useMemo(() => sections.flatMap((s) => s.pages), [sections]);
+  const flatPageLabels = useMemo(
+    () => sections.flatMap((s) => s.pages.map(() => s.label)),
+    [sections]
+  );
+
+  // Cumulative page-offset per section, for translating section-local page
+  // indices (from p{N} clicks) into the global flat-pages index.
+  const sectionPageOffsets = useMemo(() => {
+    let offset = 0;
+    return sections.map((s) => {
+      const o = offset;
+      offset += s.pages.length;
+      return o;
+    });
+  }, [sections]);
+
+  // Cards live in their original section even when the binder-wide flipbook
+  // is open — tapping a card resolves to that section's scope so prev/next
+  // in the inner CardPreview stays meaningful.
+  const cardSectionLookup = useMemo(() => {
+    const m = new Map<EnrichedCard, BinderSection>();
+    sections.forEach((s) => s.cards.forEach((c) => m.set(c, s)));
+    return m;
+  }, [sections]);
+
+  const resolveCard = useCallback(
+    (card: EnrichedCard) => {
+      const section = cardSectionLookup.get(card);
+      if (!section) return null;
+      const i = section.cards.indexOf(card);
+      if (i < 0) return null;
+      return {
+        cards: section.cards,
+        index: i,
+        sectionLabel: section.label,
+        pageNumbers: pageNumbersForSection(section),
+      };
+    },
+    [cardSectionLookup]
+  );
 
   return (
     <>
+      <div className="binder-summary" aria-live="polite">
+        <span className="binder-summary-name">{binderName}</span>
+        <span className="binder-summary-meta">
+          {totalCards.toLocaleString()} cards · {totalPages.toLocaleString()} page
+          {totalPages !== 1 ? 's' : ''}
+        </span>
+        {flatPages.length > 0 && (
+          <button
+            type="button"
+            className="binder-summary-open"
+            onClick={() => setPagesStartIndex(0)}
+            aria-label={`Open ${binderName} as flipbook`}
+          >
+            Open ↗
+          </button>
+        )}
+      </div>
       {sections.length > 1 && (
         <div className="section-controls">
           <button
@@ -141,7 +216,7 @@ function SectionList({
           </button>
         </div>
       )}
-      {sections.map((section) => {
+      {sections.map((section, sectionIdx) => {
         const isCollapsed = collapsed.has(section.key);
         const headerId = `section-header-${viewKey}-${section.key}`;
         const panelId = `section-panel-${viewKey}-${section.key}`;
@@ -158,21 +233,16 @@ function SectionList({
             onOpenCard={(card) => {
               const i = section.cards.indexOf(card);
               if (i < 0) return;
-              const pageNumbers: number[] = [];
-              const cardToPage = new Map<EnrichedCard, number>();
-              section.pages.forEach((page) => {
-                page.slots.forEach((slot) => {
-                  if (slot && !cardToPage.has(slot)) cardToPage.set(slot, page.pageNum);
-                });
-              });
-              section.cards.forEach((c) => pageNumbers.push(cardToPage.get(c) ?? 0));
               setPreview({
                 cards: section.cards,
                 index: i,
                 sectionLabel: section.label,
-                pageNumbers,
+                pageNumbers: pageNumbersForSection(section),
               });
             }}
+            onOpenPages={(localPageIndex) =>
+              setPagesStartIndex(sectionPageOffsets[sectionIdx] + localPageIndex)
+            }
           />
         );
       })}
@@ -187,8 +257,31 @@ function SectionList({
           onClose={() => setPreview(null)}
         />
       )}
+      {pagesStartIndex !== null && (
+        <BinderPagePreview
+          pages={flatPages}
+          pageLabels={flatPageLabels}
+          startPageIndex={pagesStartIndex}
+          pocketSize={pocketSize}
+          binderName={binderName}
+          resolveCard={resolveCard}
+          onClose={() => setPagesStartIndex(null)}
+        />
+      )}
     </>
   );
+}
+
+// Build a parallel array mapping each card in `section.cards` to the page
+// number it lives on. Used by both previews to show "p.N" alongside a card.
+function pageNumbersForSection(section: BinderSection): number[] {
+  const cardToPage = new Map<EnrichedCard, number>();
+  section.pages.forEach((page) => {
+    page.slots.forEach((slot) => {
+      if (slot && !cardToPage.has(slot)) cardToPage.set(slot, page.pageNum);
+    });
+  });
+  return section.cards.map((c) => cardToPage.get(c) ?? 0);
 }
 
 function SectionBlock({
@@ -200,6 +293,7 @@ function SectionBlock({
   pocketSize,
   onToggle,
   onOpenCard,
+  onOpenPages,
 }: {
   section: BinderSection;
   isCollapsed: boolean;
@@ -209,9 +303,14 @@ function SectionBlock({
   pocketSize: PocketSize;
   onToggle: () => void;
   onOpenCard: (card: EnrichedCard) => void;
+  onOpenPages: (startPageIndex: number) => void;
 }) {
-  // Stable per-section context — CardSlot calls openCard on tap (touch only).
-  const ctxValue = useMemo(() => ({ openCard: onOpenCard }), [onOpenCard]);
+  // Stable per-section context — CardSlot calls openCard on tap (touch only),
+  // PageGrid calls openPages when the page number label is tapped.
+  const ctxValue = useMemo(
+    () => ({ openCard: onOpenCard, openPages: onOpenPages }),
+    [onOpenCard, onOpenPages]
+  );
 
   return (
     <div className="binder-section">
@@ -246,11 +345,12 @@ function SectionBlock({
       {!isCollapsed && (
         <CardPreviewContext.Provider value={ctxValue}>
           <div id={panelId} role="region" aria-labelledby={headerId} className="page-row">
-            {section.pages.map((page) => (
+            {section.pages.map((page, idx) => (
               <PageGrid
                 key={page.pageNum}
                 page={page.slots}
                 pageNum={page.pageNum}
+                pageIndex={idx}
                 pocketSize={pocketSize}
               />
             ))}
