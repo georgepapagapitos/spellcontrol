@@ -39,6 +39,16 @@
   --font-serif: 'Eczar', 'Georgia', serif;
   --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
 
+  /* Type scale — 7 steps. Use these instead of raw rem values so adjacent
+     sizes don't drift apart by a single pixel and look like accidents. */
+  --text-xs: 0.72rem; /* micro labels, badges, footnotes */
+  --text-sm: 0.82rem; /* small body, hints, secondary meta */
+  --text-base: 0.95rem; /* primary body text */
+  --text-md: 1.05rem; /* emphasized body, modal titles */
+  --text-lg: 1.25rem; /* section titles */
+  --text-xl: 1.5rem; /* page titles, taglines */
+  --text-2xl: 2rem; /* hero */
+
   /* ── Effects ──────────────────────────────────────────────────────────── */
   --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.5);
@@ -121,7 +131,7 @@ select {
 }
 
 .site-brand {
-  font-size: 1.05rem;
+  font-size: var(--text-md);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--accent);
@@ -152,7 +162,7 @@ select {
   color: var(--text2);
   border: 0.5px solid var(--border2);
   border-radius: var(--radius);
-  font-size: 0.85rem;
+  font-size: var(--text-base);
 }
 
 .theme-picker-trigger:hover {
@@ -199,7 +209,7 @@ select {
   color: var(--text);
   border: none;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   text-align: left;
 }
 
@@ -214,7 +224,7 @@ select {
 
 .theme-picker-option-guild {
   color: var(--text3);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-family: var(--font-mono);
 }
 
@@ -261,7 +271,7 @@ select {
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 .upload-history-name {
   color: var(--text2);
@@ -272,7 +282,7 @@ select {
 .upload-history-meta {
   color: var(--text3);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -283,24 +293,24 @@ select {
 }
 
 .upload-current-icon {
-  font-size: 1.4rem;
+  font-size: var(--text-xl);
   color: var(--accent);
 }
 
 .upload-current-name {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text);
 }
 
 .upload-current-meta {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   margin-top: 2px;
 }
 
 .import-mode-hint {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
 }
@@ -311,7 +321,7 @@ select {
   flex-wrap: wrap;
 }
 .import-mode-label {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -328,7 +338,7 @@ select {
 }
 .import-mode-option {
   font-family: var(--font-serif);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   padding: 4px 10px;
   background: transparent;
   border: none;
@@ -388,14 +398,14 @@ select {
 }
 
 .import-card-title {
-  font-size: 1.05rem;
+  font-size: var(--text-md);
   font-weight: normal;
   color: var(--text);
   margin: 0;
 }
 
 .import-card-tagline {
-  font-size: 1.15rem;
+  font-size: var(--text-lg);
   color: var(--accent);
   margin: 0 0 1rem;
   font-style: italic;
@@ -410,7 +420,7 @@ select {
 }
 
 .import-card-desc {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
   line-height: 1.5;
@@ -431,7 +441,7 @@ select {
 }
 
 .import-card-hint {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
 }
@@ -440,7 +450,7 @@ select {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   color: var(--text2);
 }
 
@@ -509,17 +519,17 @@ select {
 }
 
 .upload-icon {
-  font-size: 2rem;
+  font-size: var(--text-2xl);
   margin-bottom: 0.3rem;
 }
 
 .upload-text {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text2);
 }
 
 .upload-sub {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   margin-top: 0.3rem;
   font-family: var(--font-mono);
@@ -528,7 +538,7 @@ select {
 
 .paste-textarea {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   width: 100%;
   min-height: 100px;
   padding: 8px 10px;
@@ -553,7 +563,7 @@ select {
    stay at 16px to suppress iOS auto-zoom on focus, but the hint text
    shouldn't dominate the textarea at rest. */
 .paste-textarea::placeholder {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
   opacity: 0.7;
 }
@@ -570,7 +580,7 @@ select {
   border-radius: var(--radius);
   padding: 0.7rem 1rem;
   margin-bottom: 0.75rem;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   color: var(--warn-text);
 }
 
@@ -588,7 +598,7 @@ select {
   max-height: 200px;
   overflow-y: auto;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
 }
 
 .unresolved-list li {
@@ -599,7 +609,7 @@ select {
   background: none;
   border: none;
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-family: var(--font-serif);
   cursor: pointer;
   padding: 2px 6px;
@@ -631,7 +641,7 @@ select {
 }
 
 .field label {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -642,7 +652,7 @@ select {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   color: var(--text2);
 }
 
@@ -654,7 +664,7 @@ select,
 input[type='number'],
 input[type='text'],
 input[type='search'] {
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   color: var(--text);
   background: var(--bg);
   border: 0.5px solid var(--border2);
@@ -672,11 +682,11 @@ input[type='search'] {
   flex-wrap: wrap;
 }
 .binder-summary-name {
-  font-size: 1.05rem;
+  font-size: var(--text-md);
   color: var(--text);
 }
 .binder-summary-meta {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
 }
@@ -749,7 +759,7 @@ input[type='text'] {
 }
 
 .stat-label {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -758,13 +768,13 @@ input[type='text'] {
 }
 
 .stat-value {
-  font-size: 1.6rem;
+  font-size: var(--text-2xl);
   color: var(--text);
 }
 
 /* Warnings */
 .warn-banner {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--warn-text);
   background: var(--warn-bg);
   border: 0.5px solid var(--warn-border);
@@ -783,7 +793,7 @@ input[type='text'] {
 }
 
 .tab {
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   padding: 6px 14px;
   border-radius: var(--radius);
   border: 0.5px solid var(--border2);
@@ -806,19 +816,19 @@ input[type='text'] {
 }
 
 .tab-count {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   opacity: 0.7;
   margin-left: 4px;
 }
 
 /* Sort panel */
 .sort-arrow {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text3);
 }
 
 .sort-label {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -827,7 +837,7 @@ input[type='text'] {
 }
 
 .btn {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   padding: 6px 14px;
   border-radius: var(--radius);
   border: 0.5px solid var(--border2);
@@ -901,7 +911,7 @@ input[type='text'] {
 
 .section-chevron {
   display: inline-block;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   color: var(--text3);
   width: 14px;
   text-align: center;
@@ -931,19 +941,19 @@ input[type='text'] {
 }
 
 .section-title {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text);
 }
 
 .section-meta {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
   margin-left: auto;
 }
 
 .section-breadcrumb {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   text-transform: lowercase;
@@ -970,7 +980,7 @@ input[type='text'] {
 }
 
 .page-num {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
 }
@@ -1038,7 +1048,7 @@ input[type='text'] {
 }
 
 .page-18-side-label {
-  font-size: 0.6rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   text-align: center;
@@ -1059,6 +1069,8 @@ input[type='text'] {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Card-name micro-thumbnail: needs sub-token precision to fit the slot. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
   font-size: 7.5px;
   text-align: center;
   overflow: hidden;
@@ -1146,7 +1158,7 @@ input[type='text'] {
   border: 0.5px solid var(--border2);
   border-radius: var(--radius);
   padding: 8px 12px;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   pointer-events: none;
   z-index: 9999;
   max-width: 260px;
@@ -1162,7 +1174,7 @@ input[type='text'] {
 .tooltip-meta {
   color: var(--text3);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
 }
 
 .tooltip-rarity {
@@ -1187,7 +1199,7 @@ input[type='text'] {
   display: inline-block;
   margin-left: 0.4rem;
   padding: 0.05rem 0.4rem;
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   border-radius: 999px;
   background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
   color: #1a2438;
@@ -1201,7 +1213,7 @@ input[type='text'] {
   margin-top: 2px;
   color: var(--text3);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -1236,7 +1248,7 @@ input[type='text'] {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
 }
 
@@ -1256,7 +1268,7 @@ hr {
 .empty-state {
   text-align: center;
   color: var(--text3);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   padding: 3rem;
   font-family: var(--font-mono);
 }
@@ -1264,7 +1276,7 @@ hr {
 .empty-state-tagline {
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 1.4rem;
+  font-size: var(--text-xl);
   color: var(--accent);
   margin: 0 0 0.75rem;
   letter-spacing: -0.01em;
@@ -1272,7 +1284,7 @@ hr {
 
 .empty-state-hint {
   font-family: var(--font-serif);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text2);
   margin: 0 0 1.5rem;
   max-width: 28rem;
@@ -1287,7 +1299,7 @@ hr {
   padding: 10px 14px;
   border-radius: var(--radius);
   margin-bottom: 1rem;
-  font-size: 0.9rem;
+  font-size: var(--text-base);
 }
 
 .success-banner {
@@ -1297,7 +1309,7 @@ hr {
   padding: 10px 14px;
   border-radius: var(--radius);
   margin-bottom: 0.75rem;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   font-family: var(--font-mono);
 }
 
@@ -1312,7 +1324,7 @@ hr {
 }
 
 .error-boundary h2 {
-  font-size: 1.2rem;
+  font-size: var(--text-lg);
   font-weight: normal;
   color: var(--err-text);
   margin-bottom: 0.75rem;
@@ -1320,7 +1332,7 @@ hr {
 
 .error-boundary p {
   color: var(--text2);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
   margin-bottom: 1.5rem;
   font-family: var(--font-mono);
 }
@@ -1330,7 +1342,7 @@ hr {
   padding: 12px;
   text-align: center;
   color: var(--text3);
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-family: var(--font-mono);
   background: var(--surface2);
   border-radius: 4px;
@@ -1356,7 +1368,7 @@ hr {
 
 /* ── Stat sublabel ──────────────────────────────────────────────────────── */
 .stat-sub {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   margin-top: 2px;
@@ -1399,7 +1411,7 @@ hr {
   border: none;
   border-left: 0.5px solid var(--border);
   padding: 0 8px;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--text2);
   cursor: pointer;
   transition: background 0.1s;
@@ -1471,7 +1483,7 @@ hr {
 }
 
 .modal-header h2 {
-  font-size: 1.2rem;
+  font-size: var(--text-lg);
   font-weight: normal;
   color: var(--text);
   margin: 0;
@@ -1480,7 +1492,7 @@ hr {
 .modal-close {
   background: none;
   border: none;
-  font-size: 1.6rem;
+  font-size: var(--text-2xl);
   color: var(--text3);
   cursor: pointer;
   line-height: 1;
@@ -1528,14 +1540,14 @@ hr {
 }
 
 .editor-section h3 {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: normal;
   margin-bottom: 0.6rem;
   color: var(--text);
 }
 
 .editor-section h3 .muted {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
 }
@@ -1550,7 +1562,7 @@ hr {
 
 .muted {
   color: var(--text3);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
 }
 
 .sort-editor {
@@ -1571,7 +1583,7 @@ hr {
 
 .sort-editor-num {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   width: 1.5rem;
 }
@@ -1589,7 +1601,7 @@ hr {
 
 .sort-editor-actions .tab-action {
   padding: 4px 10px;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 
 /* ── Rule rows ──────────────────────────────────────────────────────────── */
@@ -1602,7 +1614,7 @@ hr {
 }
 
 .rule-label {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -1626,7 +1638,7 @@ hr {
 
 .chip {
   font-family: var(--font-serif);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   padding: 4px 10px;
   border-radius: 12px;
   border: 0.5px solid var(--border2);
@@ -1690,7 +1702,7 @@ hr {
   left: 1rem;
   background: var(--accent);
   color: var(--on-accent);
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   font-family: var(--font-mono);
   padding: 2px 8px;
   border-radius: 10px;
@@ -1707,7 +1719,7 @@ hr {
 }
 
 .rule-group-title {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
   text-transform: uppercase;
@@ -1718,7 +1730,7 @@ hr {
   background: none;
   border: none;
   color: var(--err-text);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   font-family: var(--font-serif);
   cursor: pointer;
   padding: 2px 6px;
@@ -1731,7 +1743,7 @@ hr {
 
 .btn-add-group {
   font-family: var(--font-serif);
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   padding: 8px 16px;
   border-radius: var(--radius);
   border: 1px dashed var(--border2);
@@ -1753,7 +1765,7 @@ hr {
   align-items: stretch;
   gap: 0;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-family: var(--font-serif);
   overflow: hidden;
   line-height: 1;
@@ -1761,7 +1773,7 @@ hr {
 
 .chip-builder-toggle {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 5px 7px;
@@ -1800,7 +1812,7 @@ hr {
   color: color-mix(in srgb, var(--on-accent) 55%, transparent);
   cursor: pointer;
   padding: 5px 8px 5px 2px;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -1837,7 +1849,7 @@ hr {
   border: none;
   cursor: pointer;
   text-align: left;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-family: var(--font-serif);
   color: var(--text);
 }
@@ -1853,7 +1865,7 @@ hr {
 
 .set-dropdown-item .set-code {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   min-width: 40px;
   text-transform: uppercase;
@@ -1870,7 +1882,7 @@ hr {
 }
 
 .tooltip-marker {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   margin-left: 2px;
 }
@@ -1880,7 +1892,7 @@ hr {
   margin-top: 4rem;
   padding-top: 1.5rem;
   border-top: 0.5px solid var(--border);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
   text-align: center;
   line-height: 1.6;
@@ -1901,7 +1913,7 @@ hr {
 }
 
 .footer-fineprint {
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
   max-width: 600px;
@@ -1943,7 +1955,7 @@ hr {
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  font-size: 1.5rem;
+  font-size: var(--text-xl);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -2290,7 +2302,7 @@ hr {
   padding: 2rem;
   color: var(--text3);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   text-align: center;
 }
 
@@ -2310,21 +2322,21 @@ hr {
 
 .card-preview-name {
   font-family: var(--font-serif);
-  font-size: 1.25rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
 }
 
 .card-preview-context {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
 }
 
 .card-preview-meta {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.7);
   font-family: var(--font-mono);
   line-height: 1.45;
@@ -2348,7 +2360,7 @@ hr {
 }
 
 .card-preview-set {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-mono);
   letter-spacing: 0.03em;
@@ -2371,7 +2383,7 @@ hr {
 }
 
 .card-preview-counter {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.45);
   font-family: var(--font-mono);
   letter-spacing: 0.05em;
@@ -2523,7 +2535,7 @@ hr {
 }
 
 .binder-pages-cell-fallback {
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-mono);
   text-align: center;
@@ -2548,20 +2560,20 @@ hr {
 
 .binder-pages-name {
   font-family: var(--font-serif);
-  font-size: 1.25rem;
+  font-size: var(--text-lg);
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
 }
 
 .binder-pages-context {
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.7);
   font-family: var(--font-mono);
 }
 
 .binder-pages-counter {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.45);
   font-family: var(--font-mono);
   letter-spacing: 0.05em;
@@ -2584,7 +2596,7 @@ hr {
   input[type='number'],
   input[type='text'],
   input[type='search'] {
-    font-size: 16px;
+    font-size: var(--text-base);
   }
 }
 
@@ -2617,7 +2629,7 @@ hr {
   }
 
   .stat-value {
-    font-size: 1.35rem;
+    font-size: var(--text-xl);
   }
 }
 
@@ -2637,7 +2649,7 @@ hr {
   }
 
   .site-brand {
-    font-size: 0.95rem;
+    font-size: var(--text-base);
   }
 
   /* Upload current banner: stack info above actions, full-width tappable */
@@ -2703,14 +2715,14 @@ hr {
   /* Larger touch targets on tab actions */
   .tab {
     padding: 8px 14px;
-    font-size: 0.88rem;
+    font-size: var(--text-base);
   }
 
   .tab-action {
     padding: 0 12px;
     min-width: 36px;
     min-height: 34px;
-    font-size: 0.85rem;
+    font-size: var(--text-base);
   }
 
   .btn {
@@ -2837,7 +2849,7 @@ hr {
   border-radius: var(--radius);
   color: var(--text2);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   font-weight: 500;
   transition:
     background 0.12s,
@@ -2862,7 +2874,7 @@ hr {
 
   .site-nav-link {
     padding: 0.35rem 0.55rem;
-    font-size: 0.88rem;
+    font-size: var(--text-base);
   }
 }
 
@@ -2893,7 +2905,7 @@ hr {
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .card-list-binder-filter {
@@ -2902,12 +2914,12 @@ hr {
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: var(--text-base);
 }
 
 .card-list-summary {
   margin-left: auto;
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
 }
@@ -2919,7 +2931,7 @@ hr {
   border-radius: var(--radius);
   background: var(--surface2);
   overflow: hidden;
-  font-size: 0.92rem;
+  font-size: var(--text-base);
 }
 
 .card-list-grid-header {
@@ -3007,7 +3019,7 @@ hr {
   display: inline-block;
   margin-left: 0.4rem;
   padding: 0.05rem 0.35rem;
-  font-size: 0.7rem;
+  font-size: var(--text-xs);
   background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
   color: #1a2438;
   border-radius: 999px;
@@ -3028,7 +3040,7 @@ hr {
   background: var(--surface);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text2);
   letter-spacing: 0.04em;
@@ -3037,7 +3049,7 @@ hr {
 .card-list-cn {
   margin-left: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   color: var(--text3);
 }
 
@@ -3045,7 +3057,7 @@ hr {
   display: inline-block;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3087,7 +3099,7 @@ hr {
   display: inline-block;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
@@ -3098,14 +3110,14 @@ hr {
 }
 
 .card-list-binder-none {
-  font-size: 0.85rem;
+  font-size: var(--text-base);
   color: var(--text3);
   font-style: italic;
 }
 
 @media (max-width: 700px) {
   .card-list-grid {
-    font-size: 0.85rem;
+    font-size: var(--text-base);
     --card-list-cols: minmax(140px, 1.6fr) 90px 95px 50px 80px minmax(110px, 1fr);
   }
 
