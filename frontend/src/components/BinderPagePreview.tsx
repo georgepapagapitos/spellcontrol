@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
 import { CardPreview } from './CardPreview';
 
@@ -38,6 +38,33 @@ export function BinderPagePreview({
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(startPageIndex);
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
+
+  // O(1) lookup from card → flat page index, so we can keep the flipbook in
+  // sync as the user swipes through cards in the inner CardPreview.
+  const cardToPageIndex = useMemo(() => {
+    const m = new Map<EnrichedCard, number>();
+    pages.forEach((p, i) => {
+      p.slots.forEach((slot) => {
+        if (slot && !m.has(slot)) m.set(slot, i);
+      });
+    });
+    return m;
+  }, [pages]);
+
+  // When the user swipes inside the inner CardPreview, slide the background
+  // flipbook to whichever page contains the now-current card.
+  useEffect(() => {
+    if (!innerCard) return;
+    const card = innerCard.cards[innerCard.index];
+    if (!card) return;
+    const target = cardToPageIndex.get(card);
+    if (target === undefined || target === selected) return;
+    slideRefs.current[target]?.scrollIntoView({
+      inline: 'center',
+      block: 'nearest',
+      behavior: 'smooth',
+    });
+  }, [innerCard, cardToPageIndex, selected]);
 
   // Initial scroll: jump to the requested page without animation.
   useLayoutEffect(() => {
