@@ -169,7 +169,7 @@ export function BinderPagePreview({
             ×
           </button>
           <div className="card-preview-grabber" aria-hidden="true" />
-          <div className="binder-pages-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
+          <div className="binder-pages-track" ref={trackRef}>
             {pages.map((page, i) => (
               <div
                 className={`binder-pages-slide${i === selected ? ' is-active' : ''}`}
@@ -177,6 +177,7 @@ export function BinderPagePreview({
                   slideRefs.current[i] = el;
                 }}
                 key={`${page.pageNum}-${i}`}
+                onClick={(e) => e.stopPropagation()}
               >
                 <div className="binder-pages-slide-label">page {page.pageNum}</div>
                 <SlideGrid

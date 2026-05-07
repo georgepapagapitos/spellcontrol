@@ -9,12 +9,20 @@ import {
   type StoredCollection,
 } from '../lib/local-cards';
 import { buildBackup, type Backup } from '../lib/backup';
+import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
   }
   return `bndr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function newImportId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `imp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export type ImportMode = 'replace' | 'merge';
@@ -44,7 +52,18 @@ interface CollectionState {
 
   // Card actions
   hydrateCards: () => Promise<void>;
-  importCards: (response: UploadResponse, fileName: string, mode: ImportMode) => Promise<void>;
+  importCards: (
+    response: UploadResponse,
+    fileName: string,
+    mode: ImportMode,
+    options?: { isSample?: boolean }
+  ) => Promise<void>;
+  /**
+   * Removes the import history entry with the given id and any cards stamped
+   * with that importId. No-op if the id is unknown. Cards that predate the
+   * importId field are never matched, so legacy data is left alone.
+   */
+  deleteImports: (ids: string[]) => Promise<void>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
@@ -54,9 +73,17 @@ interface CollectionState {
   restoreFromBackup: (backup: Backup) => Promise<void>;
 
   // Binder actions
+  /**
+   * Imports the bundled sample card pack (tagged isSample in import history)
+   * and creates the sample binder defs (tagged isSample on BinderDef).
+   * Returns the created binder ids so the caller can switch the active tab.
+   */
+  loadSampleBinders: (importResponse: UploadResponse) => Promise<string[]>;
   createBinder: (input: BinderInput) => BinderDef;
   updateBinder: (id: string, input: Partial<BinderInput>) => void;
   deleteBinder: (id: string) => void;
+  /** Removes every binder. Cards are unaffected — they fall back to Uncategorized. */
+  deleteAllBinders: () => void;
   moveBinder: (id: string, direction: 'up' | 'down') => void;
 
   // UI actions
@@ -138,16 +165,20 @@ export const useCollectionStore = create<CollectionState>()(
         }
       },
 
-      importCards: async (response, fileName, mode) => {
+      importCards: async (response, fileName, mode, options) => {
         const uploadedAt = Date.now();
+        const importId = newImportId();
         const existing = get().cards;
         const existingHistory = get().importHistory;
-        const newCards = mode === 'merge' ? mergeCards(existing, response.cards) : response.cards;
+        const stamped = response.cards.map((c) => ({ ...c, importId }));
+        const newCards = mode === 'merge' ? mergeCards(existing, stamped) : stamped;
         const entry: ImportHistoryEntry = {
+          id: importId,
           name: fileName,
           count: response.cards.length,
           format: response.detectedFormat,
           addedAt: uploadedAt,
+          ...(options?.isSample ? { isSample: true } : {}),
         };
         const importHistory =
           mode === 'merge' && existing.length > 0 ? [...existingHistory, entry] : [entry];
@@ -179,6 +210,45 @@ export const useCollectionStore = create<CollectionState>()(
             error:
               'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
           });
+        }
+      },
+
+      deleteImports: async (ids) => {
+        if (ids.length === 0) return;
+        const idSet = new Set(ids);
+        const s = get();
+        const remainingCards = s.cards.filter((c) => !c.importId || !idSet.has(c.importId));
+        const remainingHistory = s.importHistory.filter((h) => !h.id || !idSet.has(h.id));
+        set({
+          cards: remainingCards,
+          importHistory: remainingHistory,
+          // Drop top-level metadata that referred to a since-removed import.
+          ...(remainingHistory.length === 0
+            ? {
+                fileName: '',
+                scryfallHits: 0,
+                scryfallMisses: 0,
+                uploadedAt: null,
+                unresolvedNames: [],
+                detectedFormat: '',
+              }
+            : {}),
+        });
+        try {
+          if (remainingCards.length === 0 && remainingHistory.length === 0) {
+            await clearCollection();
+          } else {
+            await saveCollection({
+              cards: remainingCards,
+              fileName: remainingHistory.length === 0 ? '' : s.fileName,
+              scryfallHits: s.scryfallHits,
+              scryfallMisses: s.scryfallMisses,
+              uploadedAt: s.uploadedAt ?? Date.now(),
+              importHistory: remainingHistory,
+            });
+          }
+        } catch (err) {
+          console.warn('[store] Failed to persist after deleteImports:', err);
         }
       },
 
@@ -266,6 +336,28 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       // Binder actions
+      loadSampleBinders: async (importResponse) => {
+        // Add the bundled cards via the same path as a normal paste import,
+        // tagging the history entry as a sample so users can find/delete it.
+        const mode: ImportMode = get().cards.length > 0 ? 'merge' : 'replace';
+        await get().importCards(importResponse, SAMPLE_IMPORT_LABEL, mode, { isSample: true });
+
+        const now = Date.now();
+        const startPosition = get().binders.length;
+        const created: BinderDef[] = SAMPLE_BINDERS.map((tpl, i) => ({
+          ...tpl.input,
+          id: newBinderId(),
+          position: startPosition + i,
+          createdAt: now,
+          updatedAt: now,
+        }));
+        set((s) => ({
+          binders: [...s.binders, ...created],
+          activeTab: created[0]?.id ?? s.activeTab,
+        }));
+        return created.map((b) => b.id);
+      },
+
       createBinder: (input) => {
         const now = Date.now();
         const created: BinderDef = {
@@ -296,6 +388,10 @@ export const useCollectionStore = create<CollectionState>()(
           const newActive = s.activeTab === id ? remaining[0]?.id || 'uncategorized' : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
+      },
+
+      deleteAllBinders: () => {
+        set({ binders: [], activeTab: 'uncategorized' });
       },
 
       moveBinder: (id, direction) => {

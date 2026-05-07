@@ -11,6 +11,13 @@ import type { EnrichedCard } from '../types';
 export interface CardPreviewCtx {
   openCard: (card: EnrichedCard) => void;
   openPages: (startPageIndex: number) => void;
+  /**
+   * True while a preview modal (single card or page flipbook) is open. Read
+   * by CardSlot to suppress its hover tooltip — without this, mouseenter
+   * events on slots underneath the modal still fire and the tooltip pops up
+   * over the carousel.
+   */
+  isPreviewOpen: boolean;
 }
 
 export const CardPreviewContext = createContext<CardPreviewCtx | null>(null);
