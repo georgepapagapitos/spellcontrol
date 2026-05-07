@@ -110,6 +110,8 @@ export function BinderEditor() {
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [pocketSize, setPocketSize] = useState<PocketSize>(9);
+  const [doubleSided, setDoubleSided] = useState(false);
+  const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [sorts, setSorts] = useState<SortField[]>([...NEW_BINDER_DEFAULT_SORTS]);
   const [saving, setSaving] = useState(false);
@@ -136,6 +138,8 @@ export function BinderEditor() {
       setName(existing.name);
       setColor(existing.color);
       setPocketSize(existing.pocketSize ?? 9);
+      setDoubleSided(!!existing.doubleSided);
+      setFixedCapacity(existing.fixedCapacity ?? null);
       const existingGroups = existing.filterGroups?.length
         ? existing.filterGroups.map((g) => ({
             name: g.name,
@@ -148,6 +152,8 @@ export function BinderEditor() {
       setName('');
       setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
       setPocketSize(9);
+      setDoubleSided(false);
+      setFixedCapacity(null);
       setGroups([newGroup()]);
       setSorts([...NEW_BINDER_DEFAULT_SORTS]);
     }
@@ -157,6 +163,21 @@ export function BinderEditor() {
   }, [isOpen, existing]);
 
   useLockBodyScroll(isOpen);
+
+  const binderMatchCount = useMemo(() => {
+    if (fixedCapacity === null) return 0;
+    const compiled = compileFilterGroups(groups);
+    let n = 0;
+    for (const card of cards) {
+      for (let i = 0; i < compiled.length; i++) {
+        if (cardMatchesCompiled(card, compiled[i])) {
+          n++;
+          break;
+        }
+      }
+    }
+    return n;
+  }, [cards, groups, fixedCapacity]);
 
   if (!isOpen) return null;
 
@@ -224,6 +245,8 @@ export function BinderEditor() {
       filterGroups: cleanedGroups,
       sorts,
       pocketSize,
+      doubleSided,
+      fixedCapacity,
       color,
     };
 
@@ -244,6 +267,11 @@ export function BinderEditor() {
   };
 
   const showEmptyWarning = areAllGroupsEmpty(groups);
+  const capacity = fixedCapacity ?? 0;
+  // Suppress over-capacity warning when filters are empty — an unfiltered binder
+  // would match every card by definition, which is never what the warning is
+  // trying to flag.
+  const overCapacity = fixedCapacity !== null && !showEmptyWarning && binderMatchCount > capacity;
 
   return (
     <div className="modal-backdrop" onClick={() => setEditingBinder(null)}>
@@ -259,7 +287,7 @@ export function BinderEditor() {
           {/* Basics */}
           <section className="editor-section">
             <div className="editor-row">
-              <div className="field" style={{ flex: 1 }}>
+              <div className="field" style={{ flex: 1, minWidth: 0 }}>
                 <label>Binder name</label>
                 <input
                   type="text"
@@ -267,20 +295,100 @@ export function BinderEditor() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Standard staples, Cube reserves..."
                   autoFocus
+                  style={{ width: '100%' }}
                 />
               </div>
-              <div className="field">
-                <label>Pocket size</label>
-                <select
-                  value={pocketSize}
-                  onChange={(e) => setPocketSize(parseInt(e.target.value) as PocketSize)}
+            </div>
+            <div className="editor-row" style={{ alignItems: 'flex-start' }}>
+              <div className="field" style={{ flex: 1 }}>
+                <label>Pocket layout</label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
                 >
-                  <option value={9}>9-pocket</option>
-                  <option value={18}>18-pocket</option>
-                  <option value={4}>4-pocket</option>
-                </select>
+                  <select
+                    value={pocketSize}
+                    onChange={(e) => setPocketSize(parseInt(e.target.value) as PocketSize)}
+                  >
+                    <option value={4}>4-pocket</option>
+                    <option value={9}>9-pocket</option>
+                    <option value={12}>12-pocket</option>
+                  </select>
+                  <label
+                    className="field-checkbox"
+                    style={{ margin: 0, whiteSpace: 'nowrap' }}
+                    title="Each sheet stores cards on both sides — back of each sheet counts as its own page."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={doubleSided}
+                      onChange={(e) => setDoubleSided(e.target.checked)}
+                    />
+                    Double-sided
+                  </label>
+                </div>
               </div>
             </div>
+            <div className="editor-row">
+              <div className="field" style={{ flex: 1 }}>
+                <label>Capacity</label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <label className="field-checkbox" style={{ margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={fixedCapacity !== null}
+                      onChange={(e) =>
+                        setFixedCapacity(
+                          e.target.checked ? pocketSize * (doubleSided ? 40 : 20) : null
+                        )
+                      }
+                    />
+                    Fixed
+                  </label>
+                  {fixedCapacity !== null && (
+                    <>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100000}
+                        step={1}
+                        value={fixedCapacity}
+                        onChange={(e) => {
+                          const cards = parseInt(e.target.value);
+                          setFixedCapacity(Number.isFinite(cards) && cards > 0 ? cards : 1);
+                        }}
+                        aria-label="Capacity in cards"
+                        style={{ width: 100 }}
+                      />
+                      <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
+                        cards · ≈{' '}
+                        <strong>{Math.ceil(fixedCapacity / pocketSize).toLocaleString()}</strong>{' '}
+                        {Math.ceil(fixedCapacity / pocketSize) === 1 ? 'page' : 'pages'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            {overCapacity && (
+              <div className="warn-banner" style={{ marginTop: '0.5rem' }}>
+                ⚠️ This binder matches {binderMatchCount.toLocaleString()} cards but its capacity is
+                only {capacity.toLocaleString()}. The extra{' '}
+                {(binderMatchCount - capacity).toLocaleString()} won't fit physically — they'll
+                still display, just flagged as over-capacity.
+              </div>
+            )}
             <div className="editor-row">
               <div className="field">
                 <label>Tab color</label>

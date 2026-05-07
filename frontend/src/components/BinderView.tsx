@@ -69,6 +69,7 @@ export function BinderView({ binders }: Props) {
       sections={active.sections}
       pocketSize={active.effectivePocketSize}
       sorts={active.effectiveSorts}
+      fixedCapacity={active.def.fixedCapacity ?? null}
     />
   );
 }
@@ -81,6 +82,7 @@ function SectionList({
   sections,
   pocketSize,
   sorts,
+  fixedCapacity,
 }: {
   viewKey: string;
   binderName: string;
@@ -89,6 +91,7 @@ function SectionList({
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortField[];
+  fixedCapacity: number | null;
 }) {
   const activeSorts = sorts.filter((s) => s && s !== 'none');
   const subSortLabels = activeSorts.slice(1).map((s) => SORT_LABEL[s] ?? s);
@@ -191,8 +194,27 @@ function SectionList({
       <div className="binder-summary" aria-live="polite">
         <span className="binder-summary-name">{binderName}</span>
         <span className="binder-summary-meta">
-          {totalCards.toLocaleString()} cards · {totalPages.toLocaleString()} page
-          {totalPages !== 1 ? 's' : ''}
+          {fixedCapacity !== null ? (
+            <>
+              {totalCards.toLocaleString()} / {fixedCapacity.toLocaleString()} cards
+              {totalCards > fixedCapacity && (
+                <span
+                  className="binder-summary-overcap"
+                  title={`Over capacity by ${(totalCards - fixedCapacity).toLocaleString()} cards`}
+                >
+                  {' '}
+                  ⚠ over capacity
+                </span>
+              )}{' '}
+              · {totalPages.toLocaleString()} /{' '}
+              {Math.ceil(fixedCapacity / pocketSize).toLocaleString()} pages
+            </>
+          ) : (
+            <>
+              {totalCards.toLocaleString()} cards · {totalPages.toLocaleString()} page
+              {totalPages !== 1 ? 's' : ''}
+            </>
+          )}
           {flatPages.length > 0 && (
             <>
               {' · '}
