@@ -377,6 +377,8 @@ select {
   padding-top: 0.85rem;
   border-top: 1px solid var(--border);
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .import-history-title {
@@ -484,6 +486,16 @@ select {
   font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
+}
+
+.import-card-hint a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.import-card-hint a:hover {
+  color: var(--accent-hover);
 }
 
 .import-card-restore {

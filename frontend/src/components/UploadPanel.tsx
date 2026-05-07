@@ -102,6 +102,12 @@ export function UploadPanel() {
 
   const handlePickBackup = () => {
     if (isLoading) return;
+    if (cards.length > 0 || binders.length > 0) {
+      const ok = confirm(
+        'Restoring a backup will replace your current collection and binders. This cannot be undone. Continue?'
+      );
+      if (!ok) return;
+    }
     backupInputRef.current?.click();
   };
 
@@ -109,13 +115,6 @@ export function UploadPanel() {
     const file = e.target.files?.[0];
     if (backupInputRef.current) backupInputRef.current.value = '';
     if (!file) return;
-
-    if (cards.length > 0 || binders.length > 0) {
-      const ok = confirm(
-        'Restoring a backup will replace your current collection and binders. Continue?'
-      );
-      if (!ok) return;
-    }
 
     setLoading(true);
     setError(null);
@@ -185,16 +184,6 @@ export function UploadPanel() {
             <div className="import-card-header-actions">
               <button
                 type="button"
-                className="upload-action"
-                onClick={handlePickBackup}
-                disabled={isLoading}
-                title="Restore from a previously exported backup (replaces current data)"
-              >
-                <RestoreIcon />
-                <span>Restore</span>
-              </button>
-              <button
-                type="button"
                 className="btn import-upload-btn"
                 onClick={handlePickFile}
                 disabled={isLoading}
@@ -229,7 +218,30 @@ export function UploadPanel() {
 
           <div className="import-card-footer">
             <span className="import-card-hint">
-              ManaBox · Archidekt · Moxfield · Deckbox · MTGA · plain CSV
+              {'Plain CSV or TXT · '}
+              <a href="https://manabox.app/" target="_blank" rel="noopener noreferrer">
+                ManaBox
+              </a>
+              {' · '}
+              <a href="https://archidekt.com/" target="_blank" rel="noopener noreferrer">
+                Archidekt
+              </a>
+              {' · '}
+              <a href="https://moxfield.com/" target="_blank" rel="noopener noreferrer">
+                Moxfield
+              </a>
+              {' · '}
+              <a href="https://deckbox.org/" target="_blank" rel="noopener noreferrer">
+                Deckbox
+              </a>
+              {' · '}
+              <a
+                href="https://magic.wizards.com/en/mtgarena"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                MTGA
+              </a>
             </span>
             <button
               className="btn btn-primary"
@@ -265,6 +277,16 @@ export function UploadPanel() {
               <p className="import-history-empty">No imports recorded for this collection.</p>
             )}
             <div className="import-history-footer">
+              <button
+                type="button"
+                className="upload-action"
+                onClick={handlePickBackup}
+                disabled={isLoading}
+                title="Restore from a previously exported backup (replaces current data)"
+              >
+                <RestoreIcon />
+                <span>Restore</span>
+              </button>
               <button
                 type="button"
                 className="upload-action upload-action-danger"
