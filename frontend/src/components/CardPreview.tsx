@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import useEmblaCarousel from 'embla-carousel-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -23,84 +22,103 @@ export function CardPreview({
   onIndexChange,
   onClose,
 }: Props) {
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    startIndex: index,
-    align: 'center',
-    loop: false,
-    skipSnaps: false,
-    duration: 25,
-    dragThreshold: 12,
-    containScroll: false,
-  });
+  const trackRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
-  // Track which images have ever been mounted; once mounted, stay mounted to
-  // avoid DOM thrash mid-swipe.
+  // Mount neighboring images; once mounted, stay mounted to avoid mid-swipe
+  // DOM thrash when a new image first appears.
   const mountedRef = useRef<Set<string>>(new Set());
-  const initialMountedIds = useRef<string[]>([]);
-  if (initialMountedIds.current.length === 0) {
+  if (mountedRef.current.size === 0) {
     for (let i = 0; i < cards.length; i++) {
       if (Math.abs(i - index) <= PRELOAD_RADIUS) {
         const id = cards[i]?.scryfallId;
-        if (id) {
-          mountedRef.current.add(id);
-          initialMountedIds.current.push(id);
-        }
+        if (id) mountedRef.current.add(id);
       }
     }
   }
   const [, forceRender] = useState(0);
 
-  // Stable callback ref so the embla listener doesn't re-register on each
-  // parent render (which causes mid-snap stutter).
   const onIndexChangeRef = useRef(onIndexChange);
   useEffect(() => {
     onIndexChangeRef.current = onIndexChange;
   }, [onIndexChange]);
 
-  useEffect(() => {
-    if (!emblaApi) return;
-    const onSelect = () => {
-      const i = emblaApi.selectedScrollSnap();
-      setSelected(i);
-      onIndexChangeRef.current(i);
-
-      let added = false;
-      for (let j = i - PRELOAD_RADIUS; j <= i + PRELOAD_RADIUS; j++) {
-        const id = cards[j]?.scryfallId;
-        if (id && !mountedRef.current.has(id)) {
-          mountedRef.current.add(id);
-          added = true;
-        }
-      }
-      if (added) forceRender((n) => n + 1);
-    };
-    emblaApi.on('select', onSelect);
-    return () => {
-      emblaApi.off('select', onSelect);
-    };
-  }, [emblaApi, cards]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    if (emblaApi.selectedScrollSnap() !== index) {
-      emblaApi.scrollTo(index);
+  // Initial scroll: jump to the requested slide without animation.
+  useLayoutEffect(() => {
+    const slide = slideRefs.current[index];
+    if (slide) {
+      slide.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: 'instant' as ScrollBehavior,
+      });
     }
-  }, [emblaApi, index]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Detect which slide is centered. IntersectionObserver with threshold 0.5
+  // fires when any slide crosses the halfway-visible mark — exactly the
+  // "halfway commits" semantic.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.intersectionRatio >= 0.5) {
+            const idx = slideRefs.current.indexOf(entry.target as HTMLDivElement);
+            if (idx < 0) continue;
+            setSelected(idx);
+            onIndexChangeRef.current(idx);
+
+            let added = false;
+            for (let j = idx - PRELOAD_RADIUS; j <= idx + PRELOAD_RADIUS; j++) {
+              const id = cards[j]?.scryfallId;
+              if (id && !mountedRef.current.has(id)) {
+                mountedRef.current.add(id);
+                added = true;
+              }
+            }
+            if (added) forceRender((n) => n + 1);
+          }
+        }
+      },
+      { root: track, threshold: [0.5] }
+    );
+    slideRefs.current.forEach((s) => s && observer.observe(s));
+    return () => observer.disconnect();
+  }, [cards]);
+
+  // Sync parent → carousel if the parent index changes externally.
+  useEffect(() => {
+    if (index === selected) return;
+    const slide = slideRefs.current[index];
+    if (slide) {
+      slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft') emblaApi?.scrollPrev();
-      else if (e.key === 'ArrowRight') emblaApi?.scrollNext();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      let next: number | null = null;
+      if (e.key === 'ArrowLeft') next = Math.max(0, selected - 1);
+      else if (e.key === 'ArrowRight') next = Math.min(cards.length - 1, selected + 1);
+      if (next === null || next === selected) return;
+      const slide = slideRefs.current[next];
+      slide?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [emblaApi, onClose]);
+  }, [onClose, selected, cards.length]);
 
   if (!cards[selected]) return null;
-
   const current = cards[selected];
 
   return (
@@ -114,31 +132,35 @@ export function CardPreview({
         ×
       </button>
 
-      <div className="card-preview-carousel" ref={emblaRef} onClick={(e) => e.stopPropagation()}>
-        <div className="card-preview-track">
-          {cards.map((c, i) => {
-            const errored = imgErrors[c.scryfallId];
-            const shouldMount = mountedRef.current.has(c.scryfallId);
-            return (
-              <div className="card-preview-slide" key={`${c.scryfallId}-${i}`}>
-                <div className="card-preview-image-frame">
-                  {c.imageNormal && !errored && shouldMount ? (
-                    <img
-                      src={c.imageNormal}
-                      alt={c.name}
-                      className="card-preview-image"
-                      draggable={false}
-                      decoding="async"
-                      onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
-                    />
-                  ) : c.imageNormal && errored ? (
-                    <div className="card-preview-image-fallback">Image unavailable</div>
-                  ) : null}
-                </div>
+      <div className="card-preview-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
+        {cards.map((c, i) => {
+          const errored = imgErrors[c.scryfallId];
+          const shouldMount = mountedRef.current.has(c.scryfallId);
+          return (
+            <div
+              className="card-preview-slide"
+              ref={(el) => {
+                slideRefs.current[i] = el;
+              }}
+              key={`${c.scryfallId}-${i}`}
+            >
+              <div className="card-preview-image-frame">
+                {c.imageNormal && !errored && shouldMount ? (
+                  <img
+                    src={c.imageNormal}
+                    alt={c.name}
+                    className="card-preview-image"
+                    draggable={false}
+                    decoding="async"
+                    onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
+                  />
+                ) : c.imageNormal && errored ? (
+                  <div className="card-preview-image-fallback">Image unavailable</div>
+                ) : null}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
