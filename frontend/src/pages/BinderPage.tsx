@@ -77,12 +77,7 @@ export function BinderPage() {
       <BinderTabs binders={materialized} uncategorized={uncategorized} />
       {binders.length === 0 && (
         <div className="empty-state">
-          No binders yet.{' '}
-          <button
-            className="btn btn-primary"
-            onClick={() => setEditingBinder('new')}
-            style={{ marginLeft: 8 }}
-          >
+          <button className="btn btn-primary" onClick={() => setEditingBinder('new')}>
             Create your first binder
           </button>
         </div>

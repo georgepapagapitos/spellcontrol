@@ -143,7 +143,7 @@ export function CardSlot({ card }: Props) {
     <>
       <div
         ref={slotRef}
-        className={`slot ${cls}`}
+        className={`slot ${cls}${card.foil ? ' foil' : ''}`}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
@@ -152,7 +152,7 @@ export function CardSlot({ card }: Props) {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Open details for ${card.name}`}
+        aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}`}
       >
         <span className="slot-name">{displayName}</span>
       </div>
@@ -172,6 +172,7 @@ export function CardSlot({ card }: Props) {
             <span className={`tooltip-rarity rarity-${(card.rarity || '').toLowerCase()}`}>
               {card.rarity}
             </span>
+            {card.foil && <span className="tooltip-foil">foil</span>}
             {' · '}${card.purchasePrice.toFixed(2)}
           </div>
           {(card.setName || card.setCode) && (
