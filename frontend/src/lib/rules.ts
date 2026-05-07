@@ -124,10 +124,12 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
   }
 
   if (f.finishes) {
-    // Falls back to legacy `foil` boolean when Scryfall data is absent.
-    const available =
-      card.finishes && card.finishes.length > 0 ? card.finishes : [card.foil ? 'foil' : 'nonfoil'];
-    if (!setMatches(available, f.finishes)) return false;
+    // Test the finish the user *owns* (single value), not the printing's
+    // available finishes. `card.finishes` from Scryfall lists every finish
+    // a printing comes in — for most modern basics that's both nonfoil and
+    // foil, which would make "Finishes IS foil" match every nonfoil basic.
+    const owned = card.foil ? 'foil' : 'nonfoil';
+    if (!setMatches([owned], f.finishes)) return false;
   }
 
   if (f.layouts && !exactMatches(card.layout, f.layouts)) return false;
