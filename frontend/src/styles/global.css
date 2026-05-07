@@ -739,6 +739,11 @@ input[type='search'] {
   font-family: var(--font-mono);
 }
 
+.binder-summary-overcap {
+  color: var(--warn, #c98a3a);
+  font-weight: 600;
+}
+
 .binder-summary-open {
   background: none;
   border: none;
@@ -1256,40 +1261,11 @@ input[type='text'] {
   width: 112px;
 }
 
-/* 18-pocket */
-.page-18 {
-  display: flex;
-  gap: 0;
-  border: 0.5px solid var(--border2);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.page-18-side {
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.page-18-side:first-child {
-  border-right: 1.5px solid var(--border2);
-}
-
-.page-18-side-label {
-  font-size: var(--text-xs);
-  color: var(--text3);
-  font-family: var(--font-mono);
-  text-align: center;
-  margin-bottom: 2px;
-}
-
-.grid-18-half {
+.grid-12 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  width: 150px;
+  width: 200px;
 }
 
 /* Slots — MTG rarity colors. Tokens defined in :root → "Magic colors". */
@@ -3018,12 +2994,22 @@ hr {
   min-width: 0;
   scroll-snap-align: center;
   scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.binder-pages-slide-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.65);
+  text-align: center;
+  letter-spacing: 0.04em;
 }
 
 .binder-pages-page {
   display: grid;
-  /* 3 cols of 5:7 cards => page aspect 5:7 (matches a single card). */
-  aspect-ratio: 5 / 7;
+  /* aspect-ratio is set inline per slide so wide grids (12/24-pocket) aren't squished. */
   width: 100%;
   gap: 6px;
   padding: 8px;
@@ -3031,21 +3017,6 @@ hr {
   border: 0.5px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-}
-
-.binder-pages-page.page-18 {
-  aspect-ratio: auto;
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.binder-pages-page-side {
-  display: grid;
-  gap: 6px;
 }
 
 .binder-pages-cell {

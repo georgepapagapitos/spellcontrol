@@ -150,7 +150,35 @@ export function parseBackup(raw: string): Backup {
     );
   }
 
-  const binders = Array.isArray(obj.binders) ? (obj.binders as BinderDef[]) : [];
+  const binders = Array.isArray(obj.binders)
+    ? (obj.binders as Array<Record<string, unknown>>).map((b) => {
+        const raw = b as {
+          fixedCapacity?: number | null;
+          fixedPageCount?: number | null;
+          pocketSize?: number | null;
+          doubleSided?: boolean;
+        } & Record<string, unknown>;
+        // Split legacy 18/24 pocketSize → 9/12 + doubleSided flag.
+        let pocketSize: number | null = raw.pocketSize ?? null;
+        let doubleSided = !!raw.doubleSided;
+        if (pocketSize === 18) {
+          pocketSize = 9;
+          doubleSided = true;
+        } else if (pocketSize === 24) {
+          pocketSize = 12;
+          doubleSided = true;
+        }
+        const pocketForCapacity = pocketSize ?? 9;
+        const fixedCapacity =
+          typeof raw.fixedCapacity === 'number'
+            ? raw.fixedCapacity
+            : typeof raw.fixedPageCount === 'number'
+              ? raw.fixedPageCount * pocketForCapacity
+              : null;
+        const { fixedPageCount: _drop, ...rest } = raw;
+        return { ...rest, pocketSize, doubleSided, fixedCapacity } as BinderDef;
+      })
+    : [];
   const collection =
     obj.collection && typeof obj.collection === 'object'
       ? (obj.collection as StoredCollection)

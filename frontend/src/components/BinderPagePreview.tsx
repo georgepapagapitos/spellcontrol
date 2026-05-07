@@ -40,6 +40,17 @@ export function BinderPagePreview({
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  // Each page is one carousel slide. (Double-sided binders are modelled as
+  // pocketSize-per-side already; the back of a sheet is its own page in the
+  // pages[] list.)
+  const cols = pocketSize === 4 ? 2 : pocketSize === 12 ? 4 : 3;
+  const rows = pocketSize === 4 ? 2 : 3;
+  // Card faces are 5:7. Slide aspect = (cols × 5) : (rows × 7) keeps each
+  // slot square-ish — otherwise 4-wide grids get squished into a 5:7 frame
+  // and waste horizontal space.
+  const slideAspect = `${cols * 5} / ${rows * 7}`;
+
   const [selected, setSelected] = useState(startPageIndex);
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
 
@@ -130,6 +141,7 @@ export function BinderPagePreview({
   } as React.CSSProperties;
 
   const currentPage = pages[selected];
+  const currentLabel = pageLabels[selected] ?? '';
 
   return (
     <>
@@ -166,7 +178,13 @@ export function BinderPagePreview({
                 }}
                 key={`${page.pageNum}-${i}`}
               >
-                <PageThumb page={page} pocketSize={pocketSize} onTapCard={handleCardTap} />
+                <div className="binder-pages-slide-label">page {page.pageNum}</div>
+                <SlideGrid
+                  slots={page.slots}
+                  cols={cols}
+                  aspect={slideAspect}
+                  onTapCard={handleCardTap}
+                />
               </div>
             ))}
           </div>
@@ -174,7 +192,7 @@ export function BinderPagePreview({
           <div className="binder-pages-panel" onClick={(e) => e.stopPropagation()}>
             <div className="binder-pages-name">{binderName}</div>
             <div className="binder-pages-context">
-              {pageLabels[selected] ? `${pageLabels[selected]} · ` : ''}page {currentPage?.pageNum}
+              {currentLabel ? `${currentLabel} · ` : ''}page {currentPage?.pageNum}
             </div>
             <div className="binder-pages-counter">
               Page {selected + 1} of {pages.length}
@@ -199,49 +217,23 @@ export function BinderPagePreview({
   );
 }
 
-function PageThumb({
-  page,
-  pocketSize,
-  onTapCard,
-}: {
-  page: BinderPage;
-  pocketSize: PocketSize;
-  onTapCard: (card: EnrichedCard) => void;
-}) {
-  if (pocketSize === 18) {
-    const front = page.slots.slice(0, 9);
-    const back = page.slots.slice(9, 18);
-    while (front.length < 9) front.push(null);
-    while (back.length < 9) back.push(null);
-    return (
-      <div className="binder-pages-page page-18">
-        <PageSide cards={front} cols={3} onTapCard={onTapCard} />
-        <PageSide cards={back} cols={3} onTapCard={onTapCard} />
-      </div>
-    );
-  }
-  const cols = pocketSize === 4 ? 2 : 3;
-  return (
-    <div className="binder-pages-page" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-      {page.slots.map((card, i) => (
-        <Cell key={i} card={card} onTap={onTapCard} />
-      ))}
-    </div>
-  );
-}
-
-function PageSide({
-  cards,
+function SlideGrid({
+  slots,
   cols,
+  aspect,
   onTapCard,
 }: {
-  cards: (EnrichedCard | null)[];
+  slots: (EnrichedCard | null)[];
   cols: number;
+  aspect: string;
   onTapCard: (card: EnrichedCard) => void;
 }) {
   return (
-    <div className="binder-pages-page-side" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-      {cards.map((card, i) => (
+    <div
+      className="binder-pages-page"
+      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, aspectRatio: aspect }}
+    >
+      {slots.map((card, i) => (
         <Cell key={i} card={card} onTap={onTapCard} />
       ))}
     </div>
