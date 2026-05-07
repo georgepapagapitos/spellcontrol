@@ -19,7 +19,7 @@ export function Header() {
             to="/binder"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            Binder
+            Binders
           </NavLink>
         </nav>
         <nav className="site-nav">

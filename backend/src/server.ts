@@ -149,6 +149,7 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     base.layout = scryfall.layout;
     base.legalities = scryfall.legalities;
     base.finishes = scryfall.finishes;
+    base.promoTypes = scryfall.promo_types;
 
     // Mana cost / oracle text — multi-face cards leave the top-level fields empty
     // and put data on each face. Join faces with separators so substring matching works.
