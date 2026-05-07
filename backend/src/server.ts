@@ -134,6 +134,28 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     // Older fullart lands don't put 'fullart' in frame_effects — they only set full_art.
     base.fullArt = scryfall.full_art === true || scryfall.frame_effects?.includes('fullart');
     base.borderColor = scryfall.border_color;
+    base.layout = scryfall.layout;
+    base.legalities = scryfall.legalities;
+    base.finishes = scryfall.finishes;
+
+    // Mana cost / oracle text — multi-face cards leave the top-level fields empty
+    // and put data on each face. Join faces with separators so substring matching works.
+    const faces = scryfall.card_faces;
+    if (scryfall.mana_cost) {
+      base.manaCost = scryfall.mana_cost;
+    } else if (faces && faces.length > 0) {
+      const joined = faces.map((f) => f.mana_cost ?? '').join(' // ');
+      if (joined.replace(/\s|\/\//g, '').length > 0) base.manaCost = joined;
+    }
+    if (scryfall.oracle_text) {
+      base.oracleText = scryfall.oracle_text;
+    } else if (faces && faces.length > 0) {
+      const joined = faces
+        .map((f) => f.oracle_text ?? '')
+        .filter(Boolean)
+        .join('\n//\n');
+      if (joined.length > 0) base.oracleText = joined;
+    }
   }
 
   return base;

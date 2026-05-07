@@ -26,7 +26,7 @@ function makeBinder(overrides: Partial<BinderDef> = {}): BinderDef {
     id: `binder-${Math.random()}`,
     name: 'Test Binder',
     position: 0,
-    rules: [],
+    filter: {},
     sorts: ['color', 'cmc', 'name'],
     pocketSize: null,
     color: '#fff',
@@ -49,7 +49,10 @@ describe('materializeBinders', () => {
   it('routes cards matching a binder rule into that binder', () => {
     const rareCard = makeCard({ rarity: 'rare' });
     const commonCard = makeCard({ rarity: 'common' });
-    const binder = makeBinder({ rules: [{ rarities: ['rare'] }], position: 0 });
+    const binder = makeBinder({
+      filter: { rarities: [{ value: 'rare', negate: false }] },
+      position: 0,
+    });
 
     const { binders, uncategorized } = materializeBinders(
       [rareCard, commonCard],
@@ -62,8 +65,12 @@ describe('materializeBinders', () => {
 
   it('routes card to the first matching binder (priority order)', () => {
     const card = makeCard({ rarity: 'rare', purchasePrice: 10 });
-    const highValueBinder = makeBinder({ id: 'high', position: 0, rules: [{ priceMin: 5 }] });
-    const rareBinder = makeBinder({ id: 'rare', position: 1, rules: [{ rarities: ['rare'] }] });
+    const highValueBinder = makeBinder({ id: 'high', position: 0, filter: { priceMin: 5 } });
+    const rareBinder = makeBinder({
+      id: 'rare',
+      position: 1,
+      filter: { rarities: [{ value: 'rare', negate: false }] },
+    });
 
     const { binders } = materializeBinders([card], [highValueBinder, rareBinder], defaultOpts);
     const highBinder = binders.find((b) => b.def.id === 'high')!;
@@ -74,8 +81,12 @@ describe('materializeBinders', () => {
 
   it('respects binder position order regardless of array order', () => {
     const card = makeCard({ rarity: 'rare', purchasePrice: 10 });
-    const rareBinder = makeBinder({ id: 'rare', position: 0, rules: [{ rarities: ['rare'] }] });
-    const highValueBinder = makeBinder({ id: 'high', position: 1, rules: [{ priceMin: 5 }] });
+    const rareBinder = makeBinder({
+      id: 'rare',
+      position: 0,
+      filter: { rarities: [{ value: 'rare', negate: false }] },
+    });
+    const highValueBinder = makeBinder({ id: 'high', position: 1, filter: { priceMin: 5 } });
 
     // Pass binders in reverse position order
     const { binders } = materializeBinders([card], [highValueBinder, rareBinder], defaultOpts);
@@ -87,7 +98,7 @@ describe('materializeBinders', () => {
 
   it('places cards in uncategorized when they match no binder', () => {
     const card = makeCard({ rarity: 'common' });
-    const binder = makeBinder({ rules: [{ rarities: ['rare'] }] });
+    const binder = makeBinder({ filter: { rarities: [{ value: 'rare', negate: false }] } });
 
     const { uncategorized } = materializeBinders([card], [binder], defaultOpts);
     expect(uncategorized.totalCards).toBe(1);
@@ -96,7 +107,7 @@ describe('materializeBinders', () => {
   it('groups cards into pages using the pocket size', () => {
     // 10 cards into a 9-pocket binder = 2 pages (9 + 1)
     const cards = Array.from({ length: 10 }, () => makeCard({ colorIdentity: [] }));
-    const binder = makeBinder({ rules: [{}], sorts: ['none'] });
+    const binder = makeBinder({ filter: {}, sorts: ['none'] });
 
     const { binders } = materializeBinders(cards, [binder], {
       ...defaultOpts,
@@ -108,7 +119,7 @@ describe('materializeBinders', () => {
 
   it('uses binder pocketSize when set instead of globalPocketSize', () => {
     const cards = Array.from({ length: 5 }, () => makeCard({ colorIdentity: [] }));
-    const binder = makeBinder({ rules: [{}], sorts: ['none'], pocketSize: 4 });
+    const binder = makeBinder({ filter: {}, sorts: ['none'], pocketSize: 4 });
 
     const { binders } = materializeBinders(cards, [binder], {
       ...defaultOpts,
@@ -123,7 +134,7 @@ describe('materializeBinders', () => {
     it('filters cards by name search — non-matching slots become null, page is kept', () => {
       const bolt = makeCard({ name: 'Lightning Bolt', colorIdentity: [], typeLine: 'Instant' });
       const ring = makeCard({ name: 'Sol Ring', colorIdentity: [], typeLine: 'Artifact' });
-      const binder = makeBinder({ rules: [{}], sorts: ['none'] });
+      const binder = makeBinder({ filter: {}, sorts: ['none'] });
 
       const { binders } = materializeBinders([bolt, ring], [binder], {
         ...defaultOpts,
@@ -140,7 +151,7 @@ describe('materializeBinders', () => {
       const nonMatching = Array.from({ length: 9 }, () =>
         makeCard({ name: 'Sol Ring', colorIdentity: [] })
       );
-      const binder = makeBinder({ rules: [{}], sorts: ['none'] });
+      const binder = makeBinder({ filter: {}, sorts: ['none'] });
 
       const { binders } = materializeBinders([matching, ...nonMatching], [binder], {
         ...defaultOpts,
@@ -156,7 +167,7 @@ describe('materializeBinders', () => {
         makeCard({ name: 'Filler', colorIdentity: [] })
       );
       const target = makeCard({ name: 'Target Card', colorIdentity: [] });
-      const binder = makeBinder({ rules: [{}], sorts: ['none'] });
+      const binder = makeBinder({ filter: {}, sorts: ['none'] });
 
       const { binders } = materializeBinders([...filler, target], [binder], {
         ...defaultOpts,
@@ -171,7 +182,7 @@ describe('materializeBinders', () => {
   it('groups by color when primary sort is "color"', () => {
     const redCard = makeCard({ name: 'Red', colorIdentity: ['R'], typeLine: 'Instant', cmc: 1 });
     const blueCard = makeCard({ name: 'Blue', colorIdentity: ['U'], typeLine: 'Instant', cmc: 1 });
-    const binder = makeBinder({ rules: [{}], sorts: ['color'] });
+    const binder = makeBinder({ filter: {}, sorts: ['color'] });
 
     const { binders } = materializeBinders([redCard, blueCard], [binder], defaultOpts);
     const keys = binders[0].sections.map((s) => s.key);
@@ -185,7 +196,7 @@ describe('materializeBinders', () => {
       makeCard({ name: 'Bolt', typeLine: 'Instant', colorIdentity: ['R'] }),
       makeCard({ name: 'Bear', typeLine: 'Creature — Bear', colorIdentity: ['G'] }),
     ];
-    const binder = makeBinder({ rules: [{}], sorts: ['type'] });
+    const binder = makeBinder({ filter: {}, sorts: ['type'] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     const keys = binders[0].sections.map((s) => s.key);
@@ -199,7 +210,7 @@ describe('materializeBinders', () => {
       makeCard({ name: 'One', cmc: 1, typeLine: 'Instant' }),
       makeCard({ name: 'Big', cmc: 9, typeLine: 'Sorcery' }),
     ];
-    const binder = makeBinder({ rules: [{}], sorts: ['cmc'] });
+    const binder = makeBinder({ filter: {}, sorts: ['cmc'] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].sections.map((s) => s.key)).toEqual(['cmc-1', 'cmc-3', 'cmc-7+']);
@@ -208,7 +219,7 @@ describe('materializeBinders', () => {
 
   it('produces one "ALL" section when primary sort is "none"', () => {
     const cards = [makeCard({ colorIdentity: ['R'] }), makeCard({ colorIdentity: ['U'] })];
-    const binder = makeBinder({ rules: [{}], sorts: ['none'] });
+    const binder = makeBinder({ filter: {}, sorts: ['none'] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].sections).toHaveLength(1);

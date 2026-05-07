@@ -8,7 +8,7 @@ export interface EnrichedCard {
   purchasePrice: number;
   /**
    * Optional category label from the source export — ManaBox binder name, Moxfield tag, etc.
-   * Empty string if the source had no category.
+   * Kept on the card for debugging/display, but no longer filterable.
    */
   sourceCategory: string;
   /** Which import format this row came from (e.g. "manabox", "mtga", "plain"). */
@@ -27,6 +27,16 @@ export interface EnrichedCard {
   fullArt?: boolean;
   /** "black" | "white" | "borderless" | "silver" | "gold". */
   borderColor?: string;
+  /** Card layout: normal, split, flip, transform, modal_dfc, adventure, saga, token, emblem, etc. */
+  layout?: string;
+  /** Mana cost string e.g. "{2}{G}{W}". For multi-face cards, faces joined with " // ". */
+  manaCost?: string;
+  /** Oracle (rules) text, lowercased substring search. For multi-face cards, faces joined. */
+  oracleText?: string;
+  /** Per-format legality. Keys e.g. standard, pioneer, modern, legacy, vintage, commander, pauper. */
+  legalities?: Record<string, string>;
+  /** Available finishes for this printing — subset of ["nonfoil","foil","etched"]. */
+  finishes?: string[];
 }
 
 export interface UploadResponse {
@@ -55,8 +65,6 @@ export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic' | 'special' | 'bo
 
 export type ColorChoice = 'W' | 'U' | 'B' | 'R' | 'G' | 'C' | 'M';
 
-export type FoilChoice = 'any' | 'foil' | 'nonfoil';
-
 /**
  * Treatment / frame effect on a printing. "fullart" is special-cased to also
  * include older lands where Scryfall sets `full_art: true` but leaves
@@ -66,44 +74,95 @@ export type Treatment = 'fullart' | 'extendedart' | 'showcase' | 'etched' | 'inv
 
 export type BorderColor = 'black' | 'white' | 'borderless' | 'silver' | 'gold';
 
-export interface BinderRule {
-  rarities?: Rarity[];
-  priceMin?: number;
-  priceMax?: number;
-  colors?: ColorChoice[];
-  types?: string[];
+export type Finish = 'nonfoil' | 'foil' | 'etched';
+
+export type Format =
+  | 'standard'
+  | 'pioneer'
+  | 'modern'
+  | 'legacy'
+  | 'vintage'
+  | 'commander'
+  | 'pauper';
+
+/**
+ * Card layouts we surface as filter chips. Card.layout values from Scryfall.
+ * Multi-face layouts a player typically cares about for binder organization.
+ */
+export type Layout =
+  | 'normal'
+  | 'split'
+  | 'flip'
+  | 'transform'
+  | 'modal_dfc'
+  | 'adventure'
+  | 'meld'
+  | 'leveler'
+  | 'saga'
+  | 'planar'
+  | 'scheme'
+  | 'vanguard'
+  | 'token'
+  | 'double_faced_token'
+  | 'emblem'
+  | 'augment'
+  | 'host'
+  | 'class';
+
+/**
+ * A type-line or oracle-text chip with an IS / IS NOT toggle.
+ * Within a single chip list, IS chips are OR'd among themselves and IS NOT chips
+ * are all required to NOT match (AND-of-negations). Card matches the chip list iff:
+ *   (no IS chips OR matches at least one IS chip) AND (matches no IS NOT chip).
+ */
+export interface NegatableChip {
+  value: string;
+  negate: boolean;
+}
+
+/**
+ * Single filter set per binder. All fields AND together; empty fields impose no constraint.
+ */
+export interface BinderFilter {
+  /**
+   * Legality chips with IS / IS NOT semantics. IS = card legal in that format;
+   * IS NOT = card not legal in that format. Multiple IS chips: card must be legal in ALL of them.
+   */
+  legalities?: NegatableChip[];
+  colors?: NegatableChip[];
+  /** Rarity chips with IS / IS NOT semantics. Exact match (no substring). */
+  rarities?: NegatableChip[];
   cmcMin?: number;
   cmcMax?: number;
-  nameContains?: string;
+  /** Exact match on mana cost string e.g. "{2}{G}{W}" (case-insensitive, whitespace-trimmed). */
+  manaCost?: string;
+  /** Type-line chips with IS / IS NOT semantics. Substring match. */
+  typeChips?: NegatableChip[];
+  /** Oracle-text chips with IS / IS NOT semantics. Substring match. */
+  oracleChips?: NegatableChip[];
   setCodes?: string[];
-  foil?: FoilChoice;
-  /**
-   * Substring match on the source category (ManaBox binder name, Moxfield tag, etc).
-   * Useful for users who pre-categorize cards in their collection tool.
-   */
-  sourceCategoryContains?: string;
-  /**
-   * EDHREC popularity threshold. Card matches if its edhrec_rank ≤ this number.
-   */
+  priceMin?: number;
+  priceMax?: number;
+  /** Finish chips with IS / IS NOT semantics. Tests against the card's available finishes set. */
+  finishes?: NegatableChip[];
+  /** Layout chips with IS / IS NOT semantics. Exact match. */
+  layouts?: NegatableChip[];
+  /** Substring match on card name (case-insensitive). */
+  nameContains?: string;
+  /** EDHREC popularity threshold. Card matches if its edhrec_rank ≤ this number. */
   edhrecRankMax?: number;
-  /**
-   * Cosmetic treatments. Card matches if any of its treatments is in this list.
-   * 'fullart' matches both Scryfall's full_art flag and the 'fullart' frame effect.
-   */
-  treatments?: Treatment[];
-  /** Card matches if its borderColor is in this list. */
-  borderColors?: BorderColor[];
+  /** Treatment chips with IS / IS NOT semantics. 'fullart' is special-cased. */
+  treatments?: NegatableChip[];
+  /** Border chips with IS / IS NOT semantics. Exact match on borderColor. */
+  borderColors?: NegatableChip[];
 }
 
 export interface BinderDef {
   id: string;
   name: string;
   position: number;
-  /**
-   * Match groups. A card joins this binder if it matches ANY group.
-   * Empty array means "match nothing"; a single empty rule means "match everything".
-   */
-  rules: BinderRule[];
+  /** Single filter set. Empty filter (no fields) matches every card. */
+  filter: BinderFilter;
   sorts: SortField[];
   /** null = inherit global default pocket size */
   pocketSize: PocketSize | null;
