@@ -272,7 +272,7 @@ export function CardPreview({
             {current.typeLine ? ` · ${current.typeLine}` : ''}
           </div>
           <div className="card-preview-counter">
-            {selected + 1} / {cards.length}
+            Card {selected + 1} of {cards.length}
           </div>
         </div>
       </div>

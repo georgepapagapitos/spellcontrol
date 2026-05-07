@@ -247,7 +247,7 @@ export function BinderPagePreview({
               {currentPage?.pageNum}
             </div>
             <div className="binder-pages-counter">
-              {selected + 1} / {pages.length}
+              Page {selected + 1} of {pages.length}
             </div>
           </div>
         </div>
