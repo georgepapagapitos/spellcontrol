@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
@@ -6,7 +6,6 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { Legend } from '../components/Legend';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderView } from '../components/BinderView';
-import { BinderExportDialog } from '../components/BinderExportDialog';
 
 export function BinderPage() {
   const cards = useCollectionStore((s) => s.cards);
@@ -14,11 +13,9 @@ export function BinderPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const search = useCollectionStore((s) => s.search);
-  const activeTab = useCollectionStore((s) => s.activeTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const setError = useCollectionStore((s) => s.setError);
   const setSearch = useCollectionStore((s) => s.setSearch);
-  const [exportOpen, setExportOpen] = useState(false);
 
   // Debounce the value materialize() sees so each keystroke doesn't trigger a
   // full filter/sort/group pass over the whole collection. The input itself
@@ -104,39 +101,8 @@ export function BinderPage() {
             </button>
           )}
         </div>
-        <button
-          type="button"
-          className="upload-action"
-          onClick={() => setExportOpen(true)}
-          title="Export this binder, all binders, or the full collection"
-        >
-          <DownloadIcon />
-          <span>Export</span>
-        </button>
       </div>
       <BinderView binders={materialized} />
-      {exportOpen && (
-        <BinderExportDialog
-          binders={materialized}
-          activeId={activeTab}
-          onClose={() => setExportOpen(false)}
-        />
-      )}
     </>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M8 3v8M8 11l-3-3M8 11l3-3"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M3 13h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
+import { BinderExportDialog } from './BinderExportDialog';
 
 interface Props {
   binders: MaterializedBinder[];
@@ -11,6 +13,7 @@ export function BinderTabs({ binders }: Props) {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const moveBinder = useCollectionStore((s) => s.moveBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const handleDelete = (id: string, name: string) => {
     if (
@@ -89,6 +92,40 @@ export function BinderTabs({ binders }: Props) {
       >
         + New binder
       </button>
+
+      <button
+        type="button"
+        className="binder-tab-export upload-action"
+        onClick={() => setExportOpen(true)}
+        disabled={binders.length === 0}
+        title="Export this binder, all binders, or the full collection"
+      >
+        <DownloadIcon />
+        <span>Export</span>
+      </button>
+
+      {exportOpen && (
+        <BinderExportDialog
+          binders={binders}
+          activeId={activeTab}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M8 3v8M8 11l-3-3M8 11l3-3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M3 13h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }
