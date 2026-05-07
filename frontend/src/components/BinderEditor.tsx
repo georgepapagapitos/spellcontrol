@@ -258,10 +258,9 @@ export function BinderEditor() {
         <div className="modal-body">
           {/* Basics */}
           <section className="editor-section">
-            <h3>Basics</h3>
             <div className="editor-row">
               <div className="field" style={{ flex: 1 }}>
-                <label>Name</label>
+                <label>Binder name</label>
                 <input
                   type="text"
                   value={name}
@@ -296,6 +295,15 @@ export function BinderEditor() {
                       aria-label={`Color ${c}`}
                     />
                   ))}
+                  <label
+                    className={`color-swatch color-swatch-custom ${
+                      !PRESET_COLORS.includes(color) ? 'selected' : ''
+                    }`}
+                    title="Custom color"
+                    aria-label="Custom color"
+                  >
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+                  </label>
                 </div>
               </div>
             </div>
