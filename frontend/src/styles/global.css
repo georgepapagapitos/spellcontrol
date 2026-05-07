@@ -2036,6 +2036,35 @@ hr {
   transform: scale(1.1);
 }
 
+.color-swatch-custom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(
+    from 0deg,
+    #ff0000,
+    #ffff00,
+    #00ff00,
+    #00ffff,
+    #0000ff,
+    #ff00ff,
+    #ff0000
+  );
+  position: relative;
+  overflow: hidden;
+}
+
+.color-swatch-custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 /* ── Rule groups (OR-able) ──────────────────────────────────────────────── */
 .rule-group {
   border: 0.5px solid var(--border);
@@ -2537,13 +2566,15 @@ hr {
   transform-style: preserve-3d;
   will-change: transform;
   backface-visibility: hidden;
-  transition: transform 240ms ease;
+  transition:
+    transform 240ms ease,
+    box-shadow 240ms ease;
 }
 
 /* While the cursor is moving, the hook lerps every frame — disable the
-   transition so we don't double-smooth (which feels laggy). The hook only
-   writes --rx / --ry on the active foil frame, so this scope is correct. */
-.card-preview-image-frame.is-foil[style*='--rx'] {
+   transition so we don't double-smooth (which feels laggy). The hook
+   writes --rx / --ry on whichever frame is active, foil or not. */
+.card-preview-image-frame[style*='--rx'] {
   transition: none;
 }
 
@@ -2557,220 +2588,260 @@ hr {
   pointer-events: none;
 }
 
-/* MTG-style rainbow foil. Cursor position is fed in via --mx/--my (0–100%)
-   and --hyp (0 center → 1 corner). We layer two effects on a single overlay:
-   1. a rainbow band whose angle and offset shift with the cursor (color-dodge
-      blend so it lifts the art rather than darkening it),
-   2. a soft white glare radial centered on the pointer.
-   --hyp scales opacity so the foil is calm at rest and pops near the edges. */
+/* Holographic foil — minimal recipe.
+   Just two things, both driven by cursor position (--mx/--my in 0..100%):
+     1. A parallax color gradient that shifts across the card as the cursor
+        moves. Each variant defines its own --foil-rainbow palette.
+     2. A soft white glare radial centered on the cursor for the wet-light
+        highlight.
+   --hyp (0 center → 1 corner) scales opacity so it's calm at rest. */
 .card-preview-image-frame.is-foil {
   position: relative;
   isolation: isolate;
 }
 
-.card-preview-foil-overlay {
+/* Foil paints in TWO sibling elements (matches simey/pokemon-cards-css's
+   .card__shine + .card__glare structure) so each layer can have its own
+   mix-blend-mode independent of the other:
+
+     .card-preview-foil-shine  — the parallax rainbow, vignette-masked so
+                                 it concentrates toward the center (mimics
+                                 the Pokémon-style clipped art window on
+                                 our full-bleed cards)
+     .card-preview-foil-glare  — the cursor highlight, always overlay-blended
+                                 and unmasked so it can track to the edges
+
+   --active (written by useHolographic, 0 at rest, 1 during cursor
+   interaction) gates both so foil only appears while the cursor is on
+   the card.
+
+   Per-variant tuning knobs (set on the .foil-* class on the frame):
+     --foil-rainbow   — the gradient image (palette + cycle pattern)
+     --foil-strength  — opacity multiplier; higher = more splashy (default 0.35)
+     --foil-blend     — mix-blend-mode for the shine; overlay is gentle,
+                        color-dodge / screen are punchier (default overlay) */
+.card-preview-foil-shine,
+.card-preview-foil-glare {
   position: absolute;
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 255, 255, 0.55) 0%,
-      rgba(255, 255, 255, 0.18) 18%,
-      transparent 45%
-    ),
-    linear-gradient(
-      var(--foil-angle, 115deg),
-      transparent 0%,
-      rgba(255, 80, 200, 0.6) 20%,
-      rgba(120, 200, 255, 0.6) 35%,
-      rgba(120, 255, 180, 0.6) 50%,
-      rgba(255, 220, 120, 0.6) 65%,
-      rgba(255, 120, 200, 0.6) 80%,
-      transparent 100%
-    );
-  background-size:
-    100% 100%,
-    220% 220%;
-  background-position:
-    0 0,
-    calc(var(--mx, 50%) * 2 - 100%) calc(var(--my, 50%) * 2 - 100%);
-  mix-blend-mode: color-dodge;
-  opacity: calc(0.35 + var(--hyp, 0) * 0.45);
-  transition:
-    opacity 240ms ease,
-    background-position 120ms ease;
+  transition: opacity 320ms ease;
 }
 
-/* ── Per-variant overrides ──────────────────────────────────────────────────
-   Each variant rewrites the rainbow band (and sometimes the glare or blend)
-   to match the real-world finish. The cursor-driven mechanics are unchanged. */
-
-/* Etched: warm silver/gold linear shimmer, no purple/cyan. Softer blend. */
-.foil-etched .card-preview-foil-overlay {
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 240, 200, 0.45) 0%,
-      rgba(255, 240, 200, 0.12) 22%,
-      transparent 50%
-    ),
-    linear-gradient(
-      115deg,
-      transparent 0%,
-      rgba(255, 220, 150, 0.55) 35%,
-      rgba(255, 245, 220, 0.7) 50%,
-      rgba(220, 180, 100, 0.55) 65%,
-      transparent 100%
-    );
-  mix-blend-mode: soft-light;
-  opacity: calc(0.5 + var(--hyp, 0) * 0.4);
-}
-
-/* Textured: high-contrast scattered prismatic. Tighter band, harder edges,
-   and a fine grain via repeating-conic. */
-.foil-textured .card-preview-foil-overlay {
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 255, 255, 0.6) 0%,
-      transparent 35%
-    ),
-    repeating-conic-gradient(
-      from 0deg at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 80, 200, 0.55) 0deg,
-      rgba(120, 200, 255, 0.55) 30deg,
-      rgba(120, 255, 180, 0.55) 60deg,
-      rgba(255, 220, 120, 0.55) 90deg,
-      rgba(255, 80, 200, 0.55) 120deg
-    );
-  background-size:
-    100% 100%,
-    100% 100%;
-  mix-blend-mode: color-dodge;
-  opacity: calc(0.4 + var(--hyp, 0) * 0.5);
-}
-
-/* Oil slick: dark iridescent purple/teal/magenta. Overlay blend, low base. */
-.foil-oilslick .card-preview-foil-overlay {
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(180, 220, 255, 0.4) 0%,
-      transparent 40%
-    ),
-    linear-gradient(
-      115deg,
-      rgba(40, 0, 60, 0.5) 0%,
-      rgba(180, 60, 200, 0.6) 25%,
-      rgba(60, 180, 200, 0.6) 50%,
-      rgba(180, 60, 140, 0.6) 75%,
-      rgba(20, 0, 40, 0.5) 100%
-    );
-  background-size:
-    100% 100%,
-    220% 220%;
-  background-position:
-    0 0,
-    calc(var(--mx, 50%) * 2 - 100%) calc(var(--my, 50%) * 2 - 100%);
-  mix-blend-mode: overlay;
-  opacity: calc(0.55 + var(--hyp, 0) * 0.4);
-}
-
-/* Gilded: gold-only, edge-biased. No rainbow. */
-.foil-gilded .card-preview-foil-overlay {
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 230, 160, 0.55) 0%,
-      transparent 40%
-    ),
-    linear-gradient(
-      115deg,
-      rgba(180, 130, 40, 0.5) 0%,
-      rgba(255, 220, 140, 0.7) 50%,
-      rgba(180, 130, 40, 0.5) 100%
-    );
-  mix-blend-mode: color-dodge;
-  opacity: calc(0.45 + var(--hyp, 0) * 0.45);
-}
-
-/* Fracture: crystalline shard streaks. Hard-edged repeating bands cross the
-   card at a steep angle on top of a prismatic base, suggesting cracked glass.
-   The shard angle eases with the cursor so the fracture lines "rotate" as you
-   move across the card. */
-.foil-fracture .card-preview-foil-overlay {
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255, 255, 255, 0.7) 0%,
-      transparent 30%
-    ),
+.card-preview-foil-shine {
+  background-image: var(
+    --foil-rainbow,
     repeating-linear-gradient(
-      62deg,
-      transparent 0px,
-      transparent 14px,
-      rgba(255, 255, 255, 0.55) 14px,
-      rgba(255, 255, 255, 0.55) 16px,
-      transparent 16px,
-      transparent 28px,
-      rgba(180, 220, 255, 0.45) 28px,
-      rgba(180, 220, 255, 0.45) 30px
-    ),
-    linear-gradient(
-      115deg,
-      transparent 0%,
-      rgba(255, 120, 220, 0.5) 25%,
-      rgba(140, 220, 255, 0.55) 50%,
-      rgba(220, 180, 255, 0.5) 75%,
-      transparent 100%
-    );
-  background-size:
-    100% 100%,
-    100% 100%,
-    220% 220%;
-  background-position:
-    0 0,
-    0 0,
-    calc(var(--mx, 50%) * 2 - 100%) calc(var(--my, 50%) * 2 - 100%);
-  mix-blend-mode: color-dodge;
-  opacity: calc(0.5 + var(--hyp, 0) * 0.45);
+      110deg,
+      #c929f1,
+      #0dbde9,
+      #21e985,
+      #eedf10,
+      #f80e35,
+      #c929f1,
+      #0dbde9,
+      #21e985,
+      #eedf10,
+      #f80e35,
+      #c929f1,
+      #0dbde9,
+      #21e985,
+      #eedf10,
+      #f80e35
+    )
+  );
+  background-size: 320% 320%;
+  background-position: calc((50% - var(--mx, 50%)) * 2 + 50%)
+    calc((50% - var(--my, 50%)) * 2.5 + 50%);
+  mix-blend-mode: var(--foil-blend, overlay);
+  opacity: calc(var(--active, 0) * var(--foil-strength, 0.35));
+  /* Inner vignette: foil at full strength across the central ~75% of the
+     card, fading to invisible at the corners. Without this the rainbow
+     covers art edge-to-edge and competes with frame/text/borders. */
+  -webkit-mask-image: radial-gradient(
+    ellipse 100% 100% at 50% 50%,
+    black 0%,
+    black 60%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 0%, black 60%, transparent 100%);
 }
 
-/* Halo / surge: cool blue–silver glow, central white halo dominates. */
-.foil-halo .card-preview-foil-overlay {
-  background:
-    radial-gradient(
-      circle at var(--mx, 50%) var(--my, 50%),
-      rgba(220, 240, 255, 0.7) 0%,
-      rgba(180, 220, 255, 0.3) 22%,
-      transparent 55%
-    ),
-    linear-gradient(
-      115deg,
-      transparent 0%,
-      rgba(140, 200, 255, 0.55) 35%,
-      rgba(220, 240, 255, 0.65) 50%,
-      rgba(140, 180, 255, 0.55) 65%,
-      transparent 100%
-    );
-  mix-blend-mode: screen;
-  opacity: calc(0.45 + var(--hyp, 0) * 0.4);
+.card-preview-foil-glare {
+  background-image: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 55%
+  );
+  mix-blend-mode: overlay;
+  opacity: calc(var(--active, 0) * 0.6);
+}
+
+/* Per-variant palettes — only --foil-rainbow (and sometimes mix-blend-mode)
+   change between variants. Same parallax + glare mechanics for all. */
+
+/* Regular: classic rainbow. Default strength + overlay blend. */
+.foil-regular {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    #c929f1,
+    #0dbde9,
+    #21e985,
+    #eedf10,
+    #f80e35,
+    #c929f1,
+    #0dbde9,
+    #21e985,
+    #eedf10,
+    #f80e35,
+    #c929f1,
+    #0dbde9,
+    #21e985,
+    #eedf10,
+    #f80e35
+  );
+}
+
+/* Etched: subtle warm gold/silver shimmer. Soft-light blend keeps it gentle. */
+.foil-etched {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    hsl(40, 60%, 65%),
+    hsl(48, 85%, 88%),
+    hsl(36, 55%, 55%),
+    hsl(40, 60%, 65%),
+    hsl(48, 85%, 88%),
+    hsl(36, 55%, 55%),
+    hsl(40, 60%, 65%),
+    hsl(48, 85%, 88%),
+    hsl(36, 55%, 55%)
+  );
+  --foil-blend: soft-light;
+  --foil-strength: 0.45;
+}
+
+/* Oil slick: dark moody iridescence. Slightly punchier than default. */
+.foil-oilslick {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    hsl(280, 80%, 30%),
+    hsl(310, 80%, 50%),
+    hsl(190, 75%, 50%),
+    hsl(330, 80%, 45%),
+    hsl(265, 80%, 25%),
+    hsl(280, 80%, 30%),
+    hsl(310, 80%, 50%),
+    hsl(190, 75%, 50%),
+    hsl(330, 80%, 45%),
+    hsl(265, 80%, 25%),
+    hsl(280, 80%, 30%),
+    hsl(310, 80%, 50%),
+    hsl(190, 75%, 50%),
+    hsl(330, 80%, 45%),
+    hsl(265, 80%, 25%)
+  );
+  --foil-strength: 0.42;
+}
+
+/* Gilded: warm gold-only, no rainbow. Stays subtle. */
+.foil-gilded {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    hsl(36, 60%, 40%),
+    hsl(45, 90%, 75%),
+    hsl(36, 60%, 40%),
+    hsl(45, 90%, 75%),
+    hsl(36, 60%, 40%),
+    hsl(45, 90%, 75%),
+    hsl(36, 60%, 40%),
+    hsl(45, 90%, 75%)
+  );
+  --foil-strength: 0.4;
+}
+
+/* Textured: vibrant prismatic. Splashier — color-dodge and higher strength
+   to give it that "rough sparkly stock" punch. */
+.foil-textured {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    hsl(330, 100%, 70%),
+    hsl(40, 100%, 70%),
+    hsl(110, 95%, 65%),
+    hsl(180, 95%, 70%),
+    hsl(220, 100%, 72%),
+    hsl(280, 95%, 72%),
+    hsl(330, 100%, 70%),
+    hsl(40, 100%, 70%),
+    hsl(110, 95%, 65%),
+    hsl(180, 95%, 70%),
+    hsl(220, 100%, 72%),
+    hsl(280, 95%, 72%),
+    hsl(330, 100%, 70%),
+    hsl(40, 100%, 70%),
+    hsl(110, 95%, 65%),
+    hsl(180, 95%, 70%),
+    hsl(220, 100%, 72%),
+    hsl(280, 95%, 72%)
+  );
+  --foil-blend: color-dodge;
+  --foil-strength: 0.45;
+}
+
+/* Fracture: most splashy. High-saturation crystalline shards via dense color
+   cycles + color-dodge blend + the highest strength of any variant. The
+   "wow" foil for premium cards. */
+.foil-fracture {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    hsl(310, 100%, 78%),
+    hsl(190, 100%, 78%),
+    hsl(280, 95%, 80%),
+    hsl(40, 100%, 78%),
+    hsl(150, 95%, 75%),
+    hsl(310, 100%, 78%),
+    hsl(190, 100%, 78%),
+    hsl(280, 95%, 80%),
+    hsl(40, 100%, 78%),
+    hsl(150, 95%, 75%),
+    hsl(310, 100%, 78%),
+    hsl(190, 100%, 78%),
+    hsl(280, 95%, 80%),
+    hsl(40, 100%, 78%),
+    hsl(150, 95%, 75%)
+  );
+  --foil-blend: color-dodge;
+  --foil-strength: 0.55;
+}
+
+/* Halo / surge: bright cool glow. Screen blend for radiant feel. */
+.foil-halo {
+  --foil-rainbow: repeating-linear-gradient(
+    110deg,
+    hsl(210, 70%, 55%),
+    hsl(200, 90%, 85%),
+    hsl(0, 0%, 95%),
+    hsl(220, 90%, 85%),
+    hsl(220, 70%, 55%),
+    hsl(210, 70%, 55%),
+    hsl(200, 90%, 85%),
+    hsl(0, 0%, 95%),
+    hsl(220, 90%, 85%),
+    hsl(220, 70%, 55%),
+    hsl(210, 70%, 55%),
+    hsl(200, 90%, 85%),
+    hsl(0, 0%, 95%),
+    hsl(220, 90%, 85%),
+    hsl(220, 70%, 55%)
+  );
+  --foil-blend: screen;
+  --foil-strength: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-preview-foil-overlay {
-    /* Static rainbow at rest; no cursor-driven motion. */
-    opacity: 0.4;
-    background: linear-gradient(
-      115deg,
-      transparent 0%,
-      rgba(255, 80, 200, 0.5) 30%,
-      rgba(120, 200, 255, 0.5) 50%,
-      rgba(255, 220, 120, 0.5) 70%,
-      transparent 100%
-    );
+  .card-preview-foil-shine {
+    background-position: 50% 50%;
   }
   .card-preview-image-frame {
     transform: scale(var(--slide-scale, 1));
