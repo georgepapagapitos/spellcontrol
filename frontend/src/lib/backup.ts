@@ -1,4 +1,4 @@
-import type { BinderDef } from '../types';
+import type { BinderDef, EnrichedCard } from '../types';
 import type { StoredCollection } from './local-cards';
 
 /**
@@ -29,20 +29,89 @@ export function buildBackup(collection: StoredCollection | null, binders: Binder
   };
 }
 
-export function backupFileName(now: Date = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
-  return `mtg-binder-planner-backup-${stamp}.json`;
+/**
+ * Backup containing a single binder definition and only the cards routed to it.
+ * Restoring this overlays one binder onto a collection.
+ */
+export function buildBinderBackup(binder: BinderDef, binderCards: EnrichedCard[]): Backup {
+  return {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    collection: cardsAsCollection(binderCards, `binder-${binder.name}`),
+    binders: [binder],
+  };
 }
 
-export function downloadBackup(backup: Backup): void {
+/**
+ * Backup containing every binder definition and every card routed to any binder.
+ * Cards that don't match any binder ("Uncategorized") are not included.
+ */
+export function buildAllBindersBackup(binders: BinderDef[], binderCards: EnrichedCard[]): Backup {
+  return {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    collection: cardsAsCollection(binderCards, 'all-binders'),
+    binders,
+  };
+}
+
+function cardsAsCollection(cards: EnrichedCard[], label: string): StoredCollection {
+  return {
+    fileName: label,
+    cards,
+    scryfallHits: cards.length,
+    scryfallMisses: 0,
+    uploadedAt: Date.now(),
+    importHistory: [
+      {
+        name: label,
+        count: cards.length,
+        format: 'export',
+        addedAt: Date.now(),
+      },
+    ],
+  };
+}
+
+function timestamp(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+}
+
+/** Sanitize a binder name for use in a filename. Spaces → '-', drop everything else. */
+function safeName(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9._-]/g, '')
+      .replace(/^-+|-+$/g, '') || 'binder'
+  );
+}
+
+export function backupFileName(now: Date = new Date()): string {
+  return `mtg-binder-planner-backup-${timestamp(now)}.json`;
+}
+
+export function binderBackupFileName(binderName: string, now: Date = new Date()): string {
+  return `mtg-binder-${safeName(binderName)}-${timestamp(now)}.json`;
+}
+
+export function allBindersBackupFileName(now: Date = new Date()): string {
+  return `mtg-binders-all-${timestamp(now)}.json`;
+}
+
+export function downloadBackup(backup: Backup, fileName?: string): void {
   const blob = new Blob([JSON.stringify(backup, null, 2)], {
     type: 'application/json',
   });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = backupFileName();
+  a.download = fileName ?? backupFileName();
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
