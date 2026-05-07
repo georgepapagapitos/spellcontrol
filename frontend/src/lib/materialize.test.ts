@@ -41,6 +41,8 @@ function makeBinder(overrides: BinderOverrides = {}): BinderDef {
     filterGroups: groups,
     sorts: ['color', 'cmc', 'name'],
     pocketSize: null,
+    doubleSided: false,
+    fixedCapacity: null,
     color: '#fff',
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -140,6 +142,31 @@ describe('materializeBinders', () => {
     expect(binders[0].effectivePocketSize).toBe(4);
     const totalPages = binders[0].sections.reduce((s, sec) => s + sec.pages.length, 0);
     expect(totalPages).toBe(2); // 4+1
+  });
+
+  it('chunks into pages of 12 for 12-pocket binders', () => {
+    const cards = Array.from({ length: 25 }, () => makeCard({ colorIdentity: [] }));
+    const binder = makeBinder({ filter: {}, sorts: ['none'], pocketSize: 12 });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    expect(binders[0].effectivePocketSize).toBe(12);
+    expect(binders[0].totalPages).toBe(3); // ceil(25 / 12)
+  });
+
+  it('treats double-sided sheets as twice as many pages', () => {
+    // 9-pocket double-sided binder: each sheet has 2 pages (front + back).
+    // For chunking purposes that means cards still divide by pocketSize (9),
+    // but one sheet of "real" capacity = 18 cards.
+    const cards = Array.from({ length: 50 }, () => makeCard({ colorIdentity: [] }));
+    const binder = makeBinder({
+      filter: {},
+      sorts: ['none'],
+      pocketSize: 9,
+      doubleSided: true,
+    });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    expect(binders[0].effectivePocketSize).toBe(9);
+    expect(binders[0].totalPages).toBe(6); // ceil(50 / 9)
+    expect(binders[0].sections[0].pages[0].slots).toHaveLength(9);
   });
 
   describe('search filtering', () => {
