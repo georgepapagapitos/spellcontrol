@@ -70,7 +70,8 @@ export function UploadPanel() {
       setSuccessMsg(parts.join(' · '));
       setExpanded(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      const fallback = 'Could not read that file. Double-check the format and try again.';
+      setError(err instanceof Error ? err.message : fallback);
     } finally {
       setLoading(false);
     }
@@ -232,6 +233,9 @@ export function UploadPanel() {
 
       {importOpen && (
         <div className="import-card">
+          {!hasCollection && (
+            <p className="import-card-tagline">Plan your binder before you touch a card.</p>
+          )}
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <button

@@ -394,6 +394,14 @@ select {
   margin: 0;
 }
 
+.import-card-tagline {
+  font-size: 1.15rem;
+  color: var(--accent);
+  margin: 0 0 1rem;
+  font-style: italic;
+  letter-spacing: -0.005em;
+}
+
 .import-upload-btn {
   display: inline-flex;
   align-items: center;
@@ -1251,6 +1259,25 @@ hr {
   font-size: 0.9rem;
   padding: 3rem;
   font-family: var(--font-mono);
+}
+
+.empty-state-tagline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.4rem;
+  color: var(--accent);
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.empty-state-hint {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  color: var(--text2);
+  margin: 0 0 1.5rem;
+  max-width: 28rem;
+  margin-inline: auto;
+  line-height: 1.5;
 }
 
 .error-banner {

@@ -195,7 +195,7 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
     return;
   }
   console.error('[server] unhandled error:', err);
-  res.status(500).json({ error: 'An unexpected server error occurred.' });
+  res.status(500).json({ error: 'Something went wrong on the server. Try again in a moment.' });
 });
 
 const server = app.listen(PORT, () => {
