@@ -350,7 +350,10 @@ function SectionBlock({
           ▾
         </span>
         {section.pip && (
-          <i className={`ms ${colorKeyToMs(section.key)} ms-cost section-color-icon`} aria-hidden />
+          <i
+            className={`ms ${colorKeyToMs(section.key)} ms-cost color-pip-mana color-pip-mana--lg`}
+            aria-hidden
+          />
         )}
         <span className="section-title">{section.label}</span>
         {subSortLabels.length > 0 && (
