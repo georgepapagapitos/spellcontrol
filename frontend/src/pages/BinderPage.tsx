@@ -2,13 +2,25 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { Legend } from '../components/Legend';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderView } from '../components/BinderView';
 
 export function BinderPage() {
-  const { cards, binders, hydrating, error, search, setEditingBinder, setError, setSearch } =
-    useCollectionStore();
+  const cards = useCollectionStore((s) => s.cards);
+  const binders = useCollectionStore((s) => s.binders);
+  const hydrating = useCollectionStore((s) => s.hydrating);
+  const error = useCollectionStore((s) => s.error);
+  const search = useCollectionStore((s) => s.search);
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+  const setError = useCollectionStore((s) => s.setError);
+  const setSearch = useCollectionStore((s) => s.setSearch);
+
+  // Debounce the value materialize() sees so each keystroke doesn't trigger a
+  // full filter/sort/group pass over the whole collection. The input itself
+  // still reflects live keystrokes via the un-debounced `search`.
+  const debouncedSearch = useDebouncedValue(search, 180);
 
   const { materialized, uncategorized } = useMemo(() => {
     if (cards.length === 0) {
@@ -23,9 +35,9 @@ export function BinderPage() {
         },
       };
     }
-    const result = materializeBinders(cards, binders, { search });
+    const result = materializeBinders(cards, binders, { search: debouncedSearch });
     return { materialized: result.binders, uncategorized: result.uncategorized };
-  }, [cards, binders, search]);
+  }, [cards, binders, debouncedSearch]);
 
   if (hydrating) {
     return (

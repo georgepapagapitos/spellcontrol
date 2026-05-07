@@ -25,7 +25,8 @@ interface Props {
 }
 
 export function BinderView({ binders, uncategorized }: Props) {
-  const { activeTab, setEditingBinder } = useCollectionStore();
+  const activeTab = useCollectionStore((s) => s.activeTab);
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
 
   if (activeTab === 'uncategorized') {
     if (uncategorized.totalCards === 0) {

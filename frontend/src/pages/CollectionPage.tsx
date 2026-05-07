@@ -6,7 +6,11 @@ import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 
 export function CollectionPage() {
-  const { cards, binders, hydrating, error, setError } = useCollectionStore();
+  const cards = useCollectionStore((s) => s.cards);
+  const binders = useCollectionStore((s) => s.binders);
+  const hydrating = useCollectionStore((s) => s.hydrating);
+  const error = useCollectionStore((s) => s.error);
+  const setError = useCollectionStore((s) => s.setError);
 
   // Materialize without search — the collection table has its own local search.
   const { materialized, uncategorized } = useMemo(() => {

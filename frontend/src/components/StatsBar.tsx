@@ -7,7 +7,9 @@ interface Props {
 }
 
 export function StatsBar({ binders, uncategorized }: Props) {
-  const { cards, scryfallMisses, binders: binderDefs } = useCollectionStore();
+  const cards = useCollectionStore((s) => s.cards);
+  const scryfallMisses = useCollectionStore((s) => s.scryfallMisses);
+  const binderDefs = useCollectionStore((s) => s.binders);
 
   const totalValue = cards.reduce((sum, c) => sum + c.purchasePrice, 0);
 
