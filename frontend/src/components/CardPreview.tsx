@@ -184,7 +184,7 @@ export function CardPreview({
           ×
         </button>
         <div className="card-preview-grabber" aria-hidden="true" />
-        <div className="card-preview-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
+        <div className="card-preview-track" ref={trackRef}>
           {cards.map((c, i) => {
             const errored = imgErrors[c.scryfallId];
             const shouldMount = mountedRef.current.has(c.scryfallId);
@@ -201,6 +201,7 @@ export function CardPreview({
                 <div
                   className={`card-preview-image-frame${foilClass}`}
                   ref={i === selected ? holoRef : undefined}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <div
                     className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
