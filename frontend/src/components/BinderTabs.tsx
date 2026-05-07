@@ -13,7 +13,9 @@ export function BinderTabs({ binders }: Props) {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const moveBinder = useCollectionStore((s) => s.moveBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const [exportOpen, setExportOpen] = useState(false);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const handleDelete = (id: string, name: string) => {
     if (
@@ -104,6 +106,18 @@ export function BinderTabs({ binders }: Props) {
         <span>Export</span>
       </button>
 
+      {binders.length > 1 && (
+        <button
+          type="button"
+          className="tab tab-delete-all"
+          onClick={() => setConfirmDeleteAll(true)}
+          title="Delete every binder (cards are unaffected — they fall back to Uncategorized)"
+        >
+          <TrashIcon />
+          <span>Delete all</span>
+        </button>
+      )}
+
       {exportOpen && (
         <BinderExportDialog
           binders={binders}
@@ -111,7 +125,68 @@ export function BinderTabs({ binders }: Props) {
           onClose={() => setExportOpen(false)}
         />
       )}
+
+      {confirmDeleteAll && (
+        <DeleteAllBindersDialog
+          count={binders.length}
+          onConfirm={() => {
+            deleteAllBinders();
+            setConfirmDeleteAll(false);
+          }}
+          onCancel={() => setConfirmDeleteAll(false)}
+        />
+      )}
     </div>
+  );
+}
+
+interface DeleteAllBindersDialogProps {
+  count: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function DeleteAllBindersDialog({ count, onConfirm, onCancel }: DeleteAllBindersDialogProps) {
+  return (
+    <div className="modal-backdrop" onClick={onCancel} role="presentation">
+      <div
+        className="choice-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-all-binders-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="delete-all-binders-title" className="choice-dialog-title">
+          Delete all {count} binders?
+        </h2>
+        <p className="choice-dialog-body">
+          Every binder definition will be removed. Your cards stay where they are — they'll fall
+          back to the Uncategorized view until you build new binders. This cannot be undone.
+        </p>
+        <div className="choice-dialog-actions">
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn btn-danger" onClick={onConfirm} autoFocus>
+            Delete all binders
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3 4h10M6.5 4V2.5h3V4M5 4l.6 8.5a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9L11 4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

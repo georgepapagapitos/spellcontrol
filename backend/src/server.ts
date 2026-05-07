@@ -119,6 +119,29 @@ function expandByQuantity(rows: ImportRow[]): ImportRow[] {
   return expanded;
 }
 
+/**
+ * Resolve the price to display for a card. Always prefer Scryfall's current
+ * market value (the "what it's worth now" number users actually want for
+ * binder planning) over whatever the import row carried. Foils prefer
+ * usd_foil → usd_etched → usd; non-foils prefer usd → usd_etched → usd_foil.
+ * Falls back to the row price (e.g. a ManaBox purchase price) when Scryfall
+ * has no price, then to 0.
+ */
+function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): number {
+  const p = scryfall?.prices;
+  if (p) {
+    const candidates = row.foil
+      ? [p.usd_foil, p.usd_etched, p.usd]
+      : [p.usd, p.usd_etched, p.usd_foil];
+    for (const raw of candidates) {
+      if (!raw) continue;
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return row.purchasePrice ?? 0;
+}
+
 function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
   const base: EnrichedCard = {
     name: scryfall?.name || row.name,
@@ -127,7 +150,7 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     collectorNumber: scryfall?.collector_number || row.collectorNumber || '',
     rarity: (scryfall?.rarity || row.rarity || '').toLowerCase(),
     scryfallId: scryfall?.id || row.scryfallId || '',
-    purchasePrice: row.purchasePrice ?? 0,
+    purchasePrice: resolvePrice(row, scryfall),
     sourceCategory: row.sourceCategory || '',
     sourceFormat: row.sourceFormat,
     foil: row.foil ?? false,
