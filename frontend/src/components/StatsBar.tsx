@@ -1,13 +1,8 @@
 import { useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
-import type { EnrichedCard, MaterializedBinder, UncategorizedBucket } from '../types';
+import type { EnrichedCard } from '../types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
-
-interface Props {
-  binders: MaterializedBinder[];
-  uncategorized: UncategorizedBucket;
-}
 
 const COLOR_BUCKETS: Array<{ key: string; label: string; color: string; ms: string }> = [
   { key: 'W', label: 'White', color: COLOR_INFO.W.pip, ms: 'ms-w' },
@@ -49,13 +44,12 @@ const RARITY_BUCKETS: Array<{ key: string; label: string; color: string }> = [
   { key: 'common', label: 'Common', color: 'var(--rarity-common-to)' },
 ];
 
-export function StatsBar({ binders, uncategorized }: Props) {
+export function StatsBar() {
   const cards = useCollectionStore((s) => s.cards);
   const scryfallMisses = useCollectionStore((s) => s.scryfallMisses);
   const binderDefs = useCollectionStore((s) => s.binders);
 
   const totalValue = cards.reduce((sum, c) => sum + c.purchasePrice, 0);
-  const totalBinderPages = binders.reduce((s, b) => s + b.totalPages, 0) + uncategorized.totalPages;
 
   // Unique printings (by scryfallId) — breakdowns count one per unique printing,
   // matching the reference UI where 3,365 unique sums to 6,440 total copies.
@@ -127,18 +121,11 @@ export function StatsBar({ binders, uncategorized }: Props) {
     <>
       <div className="collection-summary">
         <div>
-          <span className="collection-summary-num">{uniqueTotal.toLocaleString()}</span>{' '}
-          <span className="collection-summary-label">unique</span>
-          <span className="collection-summary-sep"> · </span>
           <span className="collection-summary-num">{cards.length.toLocaleString()}</span>{' '}
-          <span className="collection-summary-label">total</span>
-        </div>
-        <div>
+          <span className="collection-summary-label">cards</span>
+          <span className="collection-summary-sep"> · </span>
           <span className="collection-summary-num">${totalValue.toFixed(0)}</span>{' '}
           <span className="collection-summary-label">value</span>
-          <span className="collection-summary-sep"> · </span>
-          <span className="collection-summary-num">{totalBinderPages}</span>{' '}
-          <span className="collection-summary-label">pages</span>
         </div>
       </div>
 

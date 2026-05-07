@@ -13,21 +13,10 @@ export function CollectionPage() {
   const setError = useCollectionStore((s) => s.setError);
 
   // Materialize without search — the collection table has its own local search.
-  const { materialized, uncategorized } = useMemo(() => {
-    if (cards.length === 0) {
-      return {
-        materialized: [],
-        uncategorized: {
-          totalCards: 0,
-          sections: [],
-          totalPages: 0,
-          effectivePocketSize: 9 as const,
-          effectiveSorts: [],
-        },
-      };
-    }
+  const { materialized } = useMemo(() => {
+    if (cards.length === 0) return { materialized: [] };
     const result = materializeBinders(cards, binders, { search: '' });
-    return { materialized: result.binders, uncategorized: result.uncategorized };
+    return { materialized: result.binders };
   }, [cards, binders]);
 
   return (
@@ -55,7 +44,7 @@ export function CollectionPage() {
 
       {!hydrating && cards.length > 0 && (
         <>
-          <StatsBar binders={materialized} uncategorized={uncategorized} />
+          <StatsBar />
           <hr />
           <CardListTable cards={cards} binders={materialized} />
         </>
