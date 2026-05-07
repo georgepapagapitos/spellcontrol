@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { EnrichedCard } from '../types';
+import { getSetMap, type SetMap } from '../lib/api';
 
 interface Props {
   cards: EnrichedCard[];
@@ -31,6 +32,21 @@ export function CardPreview({
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  const [setMap, setSetMap] = useState<SetMap | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSetMap()
+      .then((m) => {
+        if (!cancelled) setSetMap(m);
+      })
+      .catch(() => {
+        /* fall back to text-only set line */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Mount neighboring images; once mounted, stay mounted to avoid mid-swipe
   // DOM thrash when a new image first appears.
@@ -265,20 +281,45 @@ export function CardPreview({
         </div>
 
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
-          <div className="card-preview-name">{current.name}</div>
-          <div className="card-preview-context">
-            {binderName}
-            {sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : ''}
-          </div>
-          <div className="card-preview-meta">
-            {current.rarity} · ${current.purchasePrice.toFixed(2)}
-            {current.cmc !== undefined ? ` · CMC ${current.cmc}` : ''}
-            {current.setName || current.setCode ? ` · ${current.setName || current.setCode}` : ''}
-            {current.typeLine ? ` · ${current.typeLine}` : ''}
-          </div>
-          <div className="card-preview-counter">
-            Card {selected + 1} of {cards.length}
-            {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
+          <div className="card-preview-panel-inner">
+            <div className="card-preview-name">{current.name}</div>
+            <div className="card-preview-context">
+              {binderName}
+              {sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : ''}
+            </div>
+            <div className="card-preview-meta">
+              <span
+                className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
+              >
+                {current.rarity}
+              </span>
+              {' · '}${current.purchasePrice.toFixed(2)}
+            </div>
+            {(current.setName || current.setCode) && (
+              <div className="card-preview-set">
+                {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
+                  <img
+                    src={setMap[current.setCode.toUpperCase()].iconSvgUri}
+                    alt=""
+                    aria-hidden="true"
+                    className="card-preview-set-icon"
+                  />
+                ) : null}
+                <span>
+                  {current.setName || current.setCode}
+                  {current.setName && current.setCode ? (
+                    <span className="card-preview-set-code">
+                      {' '}
+                      ({current.setCode.toUpperCase()})
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+            )}
+            <div className="card-preview-counter">
+              Card {selected + 1} of {cards.length}
+              {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
+            </div>
           </div>
         </div>
       </div>

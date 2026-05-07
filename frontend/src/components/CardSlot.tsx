@@ -3,6 +3,7 @@ import type { EnrichedCard } from '../types';
 import { isLand } from '../lib/colors';
 import { truncateLongWords } from '../lib/slot-text';
 import { CardPreviewContext } from './CardPreviewContext';
+import { getSetMap, type SetMap } from '../lib/api';
 
 interface Props {
   card: EnrichedCard | null;
@@ -35,12 +36,30 @@ export function CardSlot({ card }: Props) {
   const [hovered, setHovered] = useState(false);
   const [pos, setPos] = useState<TooltipPos | null>(null);
   const [imgError, setImgError] = useState(false);
+  const [setMap, setSetMap] = useState<SetMap | null>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setImgError(false);
   }, [card?.imageNormal]);
+
+  // Lazy-load the set map the first time a tooltip actually opens, so binder
+  // pages that never get hovered don't trigger the fetch.
+  useEffect(() => {
+    if (!hovered || setMap) return;
+    let cancelled = false;
+    getSetMap()
+      .then((m) => {
+        if (!cancelled) setSetMap(m);
+      })
+      .catch(() => {
+        /* fall back to text-only set line */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hovered, setMap]);
 
   // Measure the rendered tooltip and pick the best placement around the slot:
   // right → left → below → above, with viewport clamping. Measuring the real DOM
@@ -150,17 +169,24 @@ export function CardSlot({ card }: Props) {
         >
           <div className="tooltip-name">{card.name}</div>
           <div className="tooltip-meta">
-            {card.rarity} · ${card.purchasePrice.toFixed(2)}
-            {card.cmc !== undefined ? ` · CMC ${card.cmc}` : ''}
-            <br />
-            {card.setName || card.setCode}
-            {card.typeLine ? (
-              <>
-                <br />
-                {card.typeLine}
-              </>
-            ) : null}
+            <span className={`tooltip-rarity rarity-${(card.rarity || '').toLowerCase()}`}>
+              {card.rarity}
+            </span>
+            {' · '}${card.purchasePrice.toFixed(2)}
           </div>
+          {(card.setName || card.setCode) && (
+            <div className="tooltip-set">
+              {card.setCode && setMap?.[card.setCode.toUpperCase()]?.iconSvgUri ? (
+                <img
+                  src={setMap[card.setCode.toUpperCase()].iconSvgUri}
+                  alt=""
+                  aria-hidden="true"
+                  className="tooltip-set-icon"
+                />
+              ) : null}
+              <span>{card.setName || card.setCode}</span>
+            </div>
+          )}
           {card.imageNormal && !imgError && (
             <img
               src={card.imageNormal}
