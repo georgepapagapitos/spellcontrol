@@ -318,7 +318,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'mtg-binder-planner',
-      version: 6,
+      version: 10,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -345,6 +345,50 @@ export const useCollectionStore = create<CollectionState>()(
               ...rest,
               filterGroups: [{ filter: filter ?? {} }],
             };
+          });
+        }
+        // v7→v8: rename fixedPageCount (number of pages) → fixedCapacity (number
+        // of cards). Capacity = old pageCount × the binder's effective pocket size.
+        // Earlier v7 stores never shipped to users, but be defensive anyway.
+        if (fromVersion < 8 && Array.isArray(state.binders)) {
+          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
+            const { fixedPageCount, ...rest } = b as {
+              fixedPageCount?: number | null;
+              fixedCapacity?: number | null;
+              pocketSize?: number | null;
+            } & Record<string, unknown>;
+            const pocket = (rest.pocketSize as number | null) ?? 9;
+            const carriedCapacity =
+              typeof rest.fixedCapacity === 'number' ? rest.fixedCapacity : null;
+            const derivedCapacity =
+              typeof fixedPageCount === 'number' ? fixedPageCount * pocket : null;
+            return {
+              ...rest,
+              fixedCapacity: carriedCapacity ?? derivedCapacity ?? null,
+            };
+          });
+        }
+        // v8→v9: split pocketSize into per-page pockets (4 | 9 | 12) plus a
+        // separate `doubleSided` flag. Legacy 18 → {pocketSize 9, doubleSided},
+        // 24 → {pocketSize 12, doubleSided}. "Page" now uniformly means one
+        // side of a sheet, so totals and capacity divide cleanly by pocketSize.
+        if (fromVersion < 10 && Array.isArray(state.binders)) {
+          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
+            const raw = b as { pocketSize?: number | null; doubleSided?: boolean } & Record<
+              string,
+              unknown
+            >;
+            const ps = raw.pocketSize;
+            let pocketSize: number | null = ps ?? null;
+            let doubleSided = !!raw.doubleSided;
+            if (ps === 18) {
+              pocketSize = 9;
+              doubleSided = true;
+            } else if (ps === 24) {
+              pocketSize = 12;
+              doubleSided = true;
+            }
+            return { ...raw, pocketSize, doubleSided };
           });
         }
         return state as never;
