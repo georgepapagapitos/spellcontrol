@@ -222,7 +222,7 @@ export function CardListTable({ cards, binders }: Props) {
               className={`collection-type-chip${active ? ' is-active' : ''}`}
               onClick={() => setTypeFilter(active ? 'all' : t)}
             >
-              <i className={`ms ms-${typeIcon(t)} ms-cost`} aria-hidden />
+              <i className={`ms ms-${typeIcon(t)} chip-type-icon`} aria-hidden />
               <span>
                 {TYPE_LABELS[t] ?? t} {typeCounts[t]}
               </span>

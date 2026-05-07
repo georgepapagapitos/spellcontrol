@@ -9,15 +9,26 @@ interface Props {
   uncategorized: UncategorizedBucket;
 }
 
-const COLOR_BUCKETS: Array<{ key: string; label: string; color: string }> = [
-  { key: 'W', label: 'White', color: COLOR_INFO.W.pip },
-  { key: 'U', label: 'Blue', color: COLOR_INFO.U.pip },
-  { key: 'B', label: 'Black', color: COLOR_INFO.B.pip },
-  { key: 'R', label: 'Red', color: COLOR_INFO.R.pip },
-  { key: 'G', label: 'Green', color: COLOR_INFO.G.pip },
-  { key: 'M', label: 'Multicolor', color: COLOR_INFO.M.pip },
-  { key: 'C', label: 'Colorless', color: COLOR_INFO.C.pip },
+const COLOR_BUCKETS: Array<{ key: string; label: string; color: string; ms: string }> = [
+  { key: 'W', label: 'White', color: COLOR_INFO.W.pip, ms: 'ms-w' },
+  { key: 'U', label: 'Blue', color: COLOR_INFO.U.pip, ms: 'ms-u' },
+  { key: 'B', label: 'Black', color: COLOR_INFO.B.pip, ms: 'ms-b' },
+  { key: 'R', label: 'Red', color: COLOR_INFO.R.pip, ms: 'ms-r' },
+  { key: 'G', label: 'Green', color: COLOR_INFO.G.pip, ms: 'ms-g' },
+  { key: 'M', label: 'Multicolor', color: COLOR_INFO.M.pip, ms: 'ms-multicolor' },
+  { key: 'C', label: 'Colorless', color: COLOR_INFO.C.pip, ms: 'ms-c' },
 ];
+
+const TYPE_ICONS: Record<string, string> = {
+  creature: 'ms-creature',
+  instant: 'ms-instant',
+  sorcery: 'ms-sorcery',
+  artifact: 'ms-artifact',
+  enchantment: 'ms-enchantment',
+  land: 'ms-land',
+  planeswalker: 'ms-planeswalker',
+  battle: 'ms-battle',
+};
 
 const TYPE_LABELS: Record<string, string> = {
   creature: 'Creature',
@@ -143,12 +154,8 @@ export function StatsBar({ binders, uncategorized }: Props) {
               return (
                 <li key={b.key} className="breakdown-row">
                   <div className="breakdown-row-head">
-                    <span
-                      className="breakdown-pip"
-                      style={{
-                        background: b.color,
-                        borderColor: COLOR_INFO[b.key]?.border,
-                      }}
+                    <i
+                      className={`ms ${b.ms} ms-cost breakdown-icon breakdown-icon-mana`}
                       aria-hidden
                     />
                     <span className="breakdown-row-label">{b.label}</span>
@@ -176,6 +183,9 @@ export function StatsBar({ binders, uncategorized }: Props) {
               return (
                 <li key={t.key} className="breakdown-row">
                   <div className="breakdown-row-head">
+                    {TYPE_ICONS[t.key] && (
+                      <i className={`ms ${TYPE_ICONS[t.key]} breakdown-icon`} aria-hidden />
+                    )}
                     <span className="breakdown-row-label">{t.label}</span>
                     <span className="breakdown-row-count">{t.total.toLocaleString()}</span>
                   </div>
@@ -213,9 +223,8 @@ export function StatsBar({ binders, uncategorized }: Props) {
               return (
                 <li key={b.key} className="breakdown-row">
                   <div className="breakdown-row-head">
-                    <span
-                      className="breakdown-pip breakdown-pip-dot"
-                      style={{ background: b.color }}
+                    <i
+                      className={`ms ms-planeswalker breakdown-icon breakdown-icon-rarity rarity-${b.key}`}
                       aria-hidden
                     />
                     <span className="breakdown-row-label">{b.label}</span>

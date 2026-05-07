@@ -279,6 +279,25 @@ function SectionList({
 
 // Build a parallel array mapping each card in `section.cards` to the page
 // number it lives on. Used by both previews to show "p.N" alongside a card.
+/** Map a color section key (W/U/B/R/G/M/C/L/?) to its mana-font class. */
+function colorKeyToMs(key: string): string {
+  switch (key) {
+    case 'W':
+    case 'U':
+    case 'B':
+    case 'R':
+    case 'G':
+      return `ms-${key.toLowerCase()}`;
+    case 'M':
+      return 'ms-multicolor';
+    case 'C':
+    case 'L':
+      return 'ms-c';
+    default:
+      return 'ms-c';
+  }
+}
+
 function pageNumbersForSection(section: BinderSection): number[] {
   const cardToPage = new Map<EnrichedCard, number>();
   section.pages.forEach((page) => {
@@ -331,10 +350,7 @@ function SectionBlock({
           ▾
         </span>
         {section.pip && (
-          <div
-            className="color-pip"
-            style={{ background: section.pip.background, borderColor: section.pip.border }}
-          />
+          <i className={`ms ${colorKeyToMs(section.key)} ms-cost section-color-icon`} aria-hidden />
         )}
         <span className="section-title">{section.label}</span>
         {subSortLabels.length > 0 && (
