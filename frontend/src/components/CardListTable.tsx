@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardPreview } from './CardPreview';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 
 interface Props {
   cards: EnrichedCard[];
@@ -26,25 +28,24 @@ const RARITY_ORDER: Record<string, number> = {
   bonus: 5,
 };
 
+const ROW_HEIGHT = 44;
+
 export function CardListTable({ cards, binders }: Props) {
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 180);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [binderFilter, setBinderFilter] = useState<string>('all');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
-  // scryfallId -> { binderName, binderColor }. Each card lives in its first matching binder.
+  // scryfallId+foil -> binder assignment. First-match wins, mirroring materialize.
   const cardToBinder = useMemo(() => {
     const map = new Map<string, { name: string; color: string }>();
     for (const b of binders) {
       for (const section of b.sections) {
         for (const c of section.cards) {
-          if (!map.has(c.scryfallId + (c.foil ? ':f' : ''))) {
-            map.set(c.scryfallId + (c.foil ? ':f' : ''), {
-              name: b.def.name,
-              color: b.def.color,
-            });
-          }
+          const k = c.scryfallId + (c.foil ? ':f' : '');
+          if (!map.has(k)) map.set(k, { name: b.def.name, color: b.def.color });
         }
       }
     }
@@ -73,7 +74,7 @@ export function CardListTable({ cards, binders }: Props) {
   }, [cards, cardToBinder]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return rows.filter((r) => {
       if (q && !r.card.name.toLowerCase().includes(q) && !r.card.setCode.toLowerCase().includes(q))
         return false;
@@ -81,7 +82,7 @@ export function CardListTable({ cards, binders }: Props) {
       if (binderFilter === '__uncategorized') return r.binderName === null;
       return r.binderName === binderFilter;
     });
-  }, [rows, search, binderFilter]);
+  }, [rows, debouncedSearch, binderFilter]);
 
   const sorted = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -113,6 +114,14 @@ export function CardListTable({ cards, binders }: Props) {
     });
     return out;
   }, [filtered, sortKey, sortDir]);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -184,87 +193,81 @@ export function CardListTable({ cards, binders }: Props) {
       {sorted.length === 0 ? (
         <div className="empty-state">No cards match your filters.</div>
       ) : (
-        <div className="card-list-table-wrap">
-          <table className="card-list-table">
-            <thead>
-              <tr>
-                <th>
-                  <button className="card-list-sort" onClick={() => handleSort('name')}>
-                    Name{sortIndicator('name')}
-                  </button>
-                </th>
-                <th>
-                  <button className="card-list-sort" onClick={() => handleSort('set')}>
-                    Set{sortIndicator('set')}
-                  </button>
-                </th>
-                <th>
-                  <button className="card-list-sort" onClick={() => handleSort('rarity')}>
-                    Rarity{sortIndicator('rarity')}
-                  </button>
-                </th>
-                <th className="num">
-                  <button className="card-list-sort" onClick={() => handleSort('qty')}>
-                    Qty{sortIndicator('qty')}
-                  </button>
-                </th>
-                <th className="num">
-                  <button className="card-list-sort" onClick={() => handleSort('price')}>
-                    Price{sortIndicator('price')}
-                  </button>
-                </th>
-                <th>
-                  <button className="card-list-sort" onClick={() => handleSort('binder')}>
-                    Binder{sortIndicator('binder')}
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((r, i) => (
-                <tr
-                  key={r.key}
-                  className="card-list-row"
-                  onClick={() => setPreviewIndex(i)}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setPreviewIndex(i);
-                    }
-                  }}
-                >
-                  <td>
-                    <span className="card-list-name">{r.card.name}</span>
-                    {r.card.foil && <span className="card-list-foil-tag">foil</span>}
-                  </td>
-                  <td className="card-list-set">
-                    <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
-                    <span className="card-list-cn">#{r.card.collectorNumber}</span>
-                  </td>
-                  <td>
-                    <span className={`card-list-rarity rarity-${r.card.rarity}`}>
-                      {r.card.rarity}
-                    </span>
-                  </td>
-                  <td className="num">{r.qty}</td>
-                  <td className="num">${(r.card.purchasePrice * r.qty).toFixed(2)}</td>
-                  <td>
-                    {r.binderName ? (
-                      <span
-                        className="card-list-binder-chip"
-                        style={{ background: r.binderColor ?? undefined }}
-                      >
-                        {r.binderName}
+        <div className="card-list-grid">
+          <div className="card-list-grid-header" role="row">
+            <button className="card-list-sort" onClick={() => handleSort('name')}>
+              Name{sortIndicator('name')}
+            </button>
+            <button className="card-list-sort" onClick={() => handleSort('set')}>
+              Set{sortIndicator('set')}
+            </button>
+            <button className="card-list-sort" onClick={() => handleSort('rarity')}>
+              Rarity{sortIndicator('rarity')}
+            </button>
+            <button className="card-list-sort num" onClick={() => handleSort('qty')}>
+              Qty{sortIndicator('qty')}
+            </button>
+            <button className="card-list-sort num" onClick={() => handleSort('price')}>
+              Price{sortIndicator('price')}
+            </button>
+            <button className="card-list-sort" onClick={() => handleSort('binder')}>
+              Binder{sortIndicator('binder')}
+            </button>
+          </div>
+          <div className="card-list-scroll" ref={scrollRef}>
+            <div className="card-list-virtual" style={{ height: virtualizer.getTotalSize() }}>
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const r = sorted[virtualRow.index];
+                return (
+                  <div
+                    key={r.key}
+                    className="card-list-grid-row"
+                    role="row"
+                    tabIndex={0}
+                    style={{
+                      height: virtualRow.size,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    onClick={() => setPreviewIndex(virtualRow.index)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setPreviewIndex(virtualRow.index);
+                      }
+                    }}
+                  >
+                    <div>
+                      <span className="card-list-name">{r.card.name}</span>
+                      {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                    </div>
+                    <div className="card-list-set">
+                      <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
+                      <span className="card-list-cn">#{r.card.collectorNumber}</span>
+                    </div>
+                    <div>
+                      <span className={`card-list-rarity rarity-${r.card.rarity}`}>
+                        {r.card.rarity}
                       </span>
-                    ) : (
-                      <span className="card-list-binder-none">Uncategorized</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </div>
+                    <div className="num">{r.qty}</div>
+                    <div className="num">${(r.card.purchasePrice * r.qty).toFixed(2)}</div>
+                    <div>
+                      {r.binderName ? (
+                        <span
+                          className="card-list-binder-chip"
+                          style={{ background: r.binderColor ?? undefined }}
+                        >
+                          {r.binderName}
+                        </span>
+                      ) : (
+                        <span className="card-list-binder-none">Uncategorized</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
