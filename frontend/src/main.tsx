@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import 'mana-font/css/mana.min.css';
 import './styles/global.css';
 import './styles/themes.css';
 import { bootstrapTheme } from './store/theme';
