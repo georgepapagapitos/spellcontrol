@@ -62,7 +62,14 @@ export type SortField =
   | 'price'
   | 'edhrec';
 
-export type PocketSize = 4 | 9 | 18;
+/**
+ * Pockets per *page* (one side of a physical sheet). A double-sided binder
+ * stores `pocketSize × 2` cards per sheet, but in this app a "page" always
+ * means one side — so totals, capacity, and slide counts all use this number
+ * as the per-page divisor. See `doubleSided` on BinderDef for the metadata
+ * flag.
+ */
+export type PocketSize = 4 | 9 | 12;
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic' | 'special' | 'bonus';
 
@@ -183,6 +190,20 @@ export interface BinderDef {
   sorts: SortField[];
   /** null = inherit global default pocket size */
   pocketSize: PocketSize | null;
+  /**
+   * True if each physical sheet stores cards on both sides (e.g. a "9-pocket
+   * double-sided" binder = pockets-per-page 9, two pages per sheet). Pure
+   * metadata — display, totals, and chunking are driven by `pocketSize`
+   * alone (each side is its own page).
+   */
+  doubleSided: boolean;
+  /**
+   * Fixed binder capacity in cards. null = flexible (binder grows with cards).
+   * Stored as a raw card count so users can express off-multiples (e.g. a binder
+   * with a torn page). Page count is derived: ceil(fixedCapacity / pocketSize).
+   * Over-capacity is surfaced as a non-blocking warning, not enforced.
+   */
+  fixedCapacity: number | null;
   color: string;
   createdAt: number;
   updatedAt: number;

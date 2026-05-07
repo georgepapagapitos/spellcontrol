@@ -64,7 +64,7 @@ export function sortCards(cards: EnrichedCard[], sorts: SortField[]): EnrichedCa
 }
 
 /** Suggested defaults for newly-created binders. */
-export const NEW_BINDER_DEFAULT_SORTS: SortField[] = ['name'];
+export const NEW_BINDER_DEFAULT_SORTS: SortField[] = ['color'];
 
 /** Maximum number of sort fields a binder can chain. */
 export const MAX_SORTS = 3;
