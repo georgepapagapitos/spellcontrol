@@ -40,6 +40,17 @@ export interface ScryfallCard {
     normal?: string;
     large?: string;
   };
+  /**
+   * Scryfall's market-price snapshot. Strings (or null) keyed by finish.
+   * Used as the fallback for `purchasePrice` when the import row didn't carry
+   * one — e.g. plain text / MTGA pastes — so the in-app value column is
+   * meaningful even without a CSV that has a price column.
+   */
+  prices?: {
+    usd?: string | null;
+    usd_foil?: string | null;
+    usd_etched?: string | null;
+  };
   card_faces?: Array<{
     name: string;
     type_line?: string;
