@@ -14,6 +14,9 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryf
 const app = express();
 const cache = new ScryfallCache(DB_PATH);
 
+// Don't advertise the framework — small fingerprinting hygiene.
+app.disable('x-powered-by');
+
 app.use(express.json({ limit: '10mb' }));
 
 const upload = multer({
