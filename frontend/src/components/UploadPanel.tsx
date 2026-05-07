@@ -2,9 +2,11 @@ import { useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
 import type { UploadResponse } from '../types';
+import { downloadBackup, parseBackup } from '../lib/backup';
 
 export function UploadPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
   const [mode, setMode] = useState<ImportMode>('replace');
   const [showUnresolved, setShowUnresolved] = useState(false);
@@ -13,6 +15,7 @@ export function UploadPanel() {
 
   const fileName = useCollectionStore((s) => s.fileName);
   const cards = useCollectionStore((s) => s.cards);
+  const binders = useCollectionStore((s) => s.binders);
   const uploadedAt = useCollectionStore((s) => s.uploadedAt);
   const isLoading = useCollectionStore((s) => s.isLoading);
   const error = useCollectionStore((s) => s.error);
@@ -23,6 +26,8 @@ export function UploadPanel() {
   const clearCards = useCollectionStore((s) => s.clearCards);
   const setLoading = useCollectionStore((s) => s.setLoading);
   const setError = useCollectionStore((s) => s.setError);
+  const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
+  const restoreFromBackup = useCollectionStore((s) => s.restoreFromBackup);
 
   const hasCollection = cards.length > 0;
   // When a collection is loaded, the import area collapses to a thin bar; new users see the full UI.
@@ -65,7 +70,8 @@ export function UploadPanel() {
       setSuccessMsg(parts.join(' · '));
       setExpanded(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      const fallback = 'Could not read that file. Double-check the format and try again.';
+      setError(err instanceof Error ? err.message : fallback);
     } finally {
       setLoading(false);
     }
@@ -77,6 +83,61 @@ export function UploadPanel() {
     setShowUnresolved(false);
     setSuccessMsg(null);
     setExpanded(false);
+  };
+
+  const handleExportBackup = () => {
+    try {
+      const snapshot = buildBackupSnapshot();
+      downloadBackup(snapshot);
+      setError(null);
+      const parts: string[] = [];
+      if (snapshot.collection) {
+        parts.push(`${snapshot.collection.cards.length.toLocaleString()} cards`);
+      }
+      parts.push(`${snapshot.binders.length} binder${snapshot.binders.length === 1 ? '' : 's'}`);
+      setSuccessMsg(`Backup downloaded · ${parts.join(' · ')}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Backup failed');
+    }
+  };
+
+  const handlePickBackup = () => {
+    if (isLoading) return;
+    backupInputRef.current?.click();
+  };
+
+  const handleBackupChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (backupInputRef.current) backupInputRef.current.value = '';
+    if (!file) return;
+
+    if (cards.length > 0 || binders.length > 0) {
+      const ok = confirm(
+        'Restoring a backup will replace your current collection and binders. Continue?'
+      );
+      if (!ok) return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccessMsg(null);
+    setShowUnresolved(false);
+    try {
+      const text = await file.text();
+      const backup = parseBackup(text);
+      await restoreFromBackup(backup);
+      const parts: string[] = [];
+      if (backup.collection) {
+        parts.push(`${backup.collection.cards.length.toLocaleString()} cards`);
+      }
+      parts.push(`${backup.binders.length} binder${backup.binders.length === 1 ? '' : 's'}`);
+      setSuccessMsg(`Backup restored · ${parts.join(' · ')}`);
+      setExpanded(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Restore failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -124,6 +185,22 @@ export function UploadPanel() {
             >
               {importOpen ? 'Hide import' : 'Import more'}
             </button>
+            <button
+              className="btn-link"
+              onClick={handleExportBackup}
+              disabled={isLoading}
+              title="Download a JSON file containing your collection and binders"
+            >
+              Export backup
+            </button>
+            <button
+              className="btn-link"
+              onClick={handlePickBackup}
+              disabled={isLoading}
+              title="Restore from a previously exported backup (replaces current data)"
+            >
+              Restore backup
+            </button>
             <button className="btn-link-danger" onClick={handleClear} disabled={isLoading}>
               Clear cached collection
             </button>
@@ -156,6 +233,9 @@ export function UploadPanel() {
 
       {importOpen && (
         <div className="import-card">
+          {!hasCollection && (
+            <p className="import-card-tagline">Plan your binder before you touch a card.</p>
+          )}
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <button
@@ -234,8 +314,31 @@ export function UploadPanel() {
               {isLoading ? 'Importing…' : 'Import'}
             </button>
           </div>
+
+          {!hasCollection && (
+            <div className="import-card-restore">
+              Restoring from a previous export?{' '}
+              <button
+                type="button"
+                className="btn-link"
+                onClick={handlePickBackup}
+                disabled={isLoading}
+              >
+                Restore backup
+              </button>
+            </div>
+          )}
         </div>
       )}
+
+      <input
+        type="file"
+        ref={backupInputRef}
+        accept="application/json,.json"
+        style={{ display: 'none' }}
+        onChange={handleBackupChange}
+        disabled={isLoading}
+      />
 
       {error && <div className="error-banner">{error}</div>}
     </div>

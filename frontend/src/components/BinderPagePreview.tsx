@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
 import { CardPreview } from './CardPreview';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useCenteredSlide } from '../lib/use-centered-slide';
+import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -82,49 +85,9 @@ export function BinderPagePreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Detect centered page via IntersectionObserver — same pattern as CardPreview.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const observer = new IntersectionObserver(
-      () => {
-        // Active = slide whose center is closest to the track's center.
-        // See CardPreview for why ratio-based picking is wrong here.
-        const trackRect = track.getBoundingClientRect();
-        const trackCenter = trackRect.left + trackRect.width / 2;
-        let bestIdx = -1;
-        let bestDist = Infinity;
-        for (let i = 0; i < slideRefs.current.length; i++) {
-          const el = slideRefs.current[i];
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          if (r.right < trackRect.left || r.left > trackRect.right) continue;
-          const dist = Math.abs(r.left + r.width / 2 - trackCenter);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestIdx = i;
-          }
-        }
-        if (bestIdx >= 0) setSelected(bestIdx);
-      },
-      { root: track, threshold: [0, 0.25, 0.5, 0.75, 1] }
-    );
-    slideRefs.current.forEach((s) => s && observer.observe(s));
-    return () => observer.disconnect();
-  }, [pages]);
+  useCenteredSlide(trackRef, slideRefs, setSelected, [pages]);
 
-  // Lock body scroll while open.
-  useEffect(() => {
-    const { body } = document;
-    const prevOverflow = body.style.overflow;
-    const prevOverscroll = body.style.overscrollBehavior;
-    body.style.overflow = 'hidden';
-    body.style.overscrollBehavior = 'contain';
-    return () => {
-      body.style.overflow = prevOverflow;
-      body.style.overscrollBehavior = prevOverscroll;
-    };
-  }, []);
+  useLockBodyScroll();
 
   // Keyboard nav.
   useEffect(() => {
@@ -148,66 +111,10 @@ export function BinderPagePreview({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, selected, pages.length, innerCard]);
 
-  // Swipe-down-to-dismiss (mirrors CardPreview).
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
-  const axisLockRef = useRef<'h' | 'v' | null>(null);
-  const lockedScrollLeftRef = useRef<number | null>(null);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    const t = e.touches[0];
-    dragStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    axisLockRef.current = null;
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    const start = dragStartRef.current;
-    if (!start) return;
-    const t = e.touches[0];
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    if (axisLockRef.current === null) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-        axisLockRef.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
-        if (axisLockRef.current === 'v') setIsDragging(true);
-      }
-    }
-    if (axisLockRef.current === 'v') {
-      setDragY(Math.max(0, dy));
-      const track = trackRef.current;
-      if (track) {
-        if (lockedScrollLeftRef.current === null) {
-          lockedScrollLeftRef.current = track.scrollLeft;
-        }
-        track.scrollLeft = lockedScrollLeftRef.current;
-      }
-    }
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = dragStartRef.current;
-    dragStartRef.current = null;
-    setIsDragging(false);
-    if (!start || axisLockRef.current !== 'v') {
-      setDragY(0);
-      axisLockRef.current = null;
-      lockedScrollLeftRef.current = null;
-      return;
-    }
-    const t = e.changedTouches[0];
-    const dy = t.clientY - start.y;
-    const dt = Math.max(1, Date.now() - start.t);
-    const velocity = dy / dt;
-    axisLockRef.current = null;
-    lockedScrollLeftRef.current = null;
-    if (dy > 120 || velocity > 0.6) {
-      onClose();
-    } else {
-      setDragY(0);
-    }
-  };
+  const { dragY, isDragging, touchHandlers } = useSwipeDownDismiss({
+    onDismiss: onClose,
+    trackRef,
+  });
 
   const handleCardTap = (card: EnrichedCard) => {
     const scope = resolveCard(card);
@@ -236,10 +143,7 @@ export function BinderPagePreview({
         <div
           className={`binder-pages-sheet${isDragging ? ' is-dragging' : ''}`}
           style={sheetStyle}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onTouchCancel={onTouchEnd}
+          {...touchHandlers}
         >
           <button
             type="button"
