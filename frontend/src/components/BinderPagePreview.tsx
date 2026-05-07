@@ -7,6 +7,7 @@ export interface InnerCardScope {
   index: number;
   sectionLabel: string;
   pageNumbers: number[];
+  totalPages: number;
 }
 
 interface Props {
@@ -260,6 +261,7 @@ export function BinderPagePreview({
           binderName={binderName}
           sectionLabel={innerCard.sectionLabel}
           pageNumbers={innerCard.pageNumbers}
+          totalPages={innerCard.totalPages}
           onIndexChange={(i) => setInnerCard((prev) => (prev ? { ...prev, index: i } : prev))}
           onClose={() => setInnerCard(null)}
         />

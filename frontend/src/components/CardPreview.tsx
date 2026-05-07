@@ -7,6 +7,8 @@ interface Props {
   binderName: string;
   sectionLabel: string;
   pageNumbers: number[];
+  /** Total number of pages in the scope these cards belong to. */
+  totalPages: number;
   onIndexChange: (i: number) => void;
   onClose: () => void;
 }
@@ -19,6 +21,7 @@ export function CardPreview({
   binderName,
   sectionLabel,
   pageNumbers,
+  totalPages,
   onIndexChange,
   onClose,
 }: Props) {
@@ -273,6 +276,7 @@ export function CardPreview({
           </div>
           <div className="card-preview-counter">
             Card {selected + 1} of {cards.length}
+            {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
           </div>
         </div>
       </div>
