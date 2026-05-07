@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Drives a holographic foil effect by tracking the cursor over a target element
@@ -11,7 +11,20 @@ import { useCallback, useEffect, useState } from 'react';
  * Returns a callback ref so listeners re-bind whenever the target element changes
  * (e.g. carousel swaps which slide is active).
  */
-export function useHolographic(enabled: boolean) {
+interface HolographicOptions {
+  /** Optional getter that returns true when tilt should be suppressed (e.g. during
+   *  a touch swipe gesture handled by a parent). When true, glare/shimmer still
+   *  track the cursor but rotateX/rotateY are pinned to 0 so the card doesn't
+   *  fight the swipe visually. */
+  shouldSuppressTilt?: () => boolean;
+}
+
+export function useHolographic(enabled: boolean, options: HolographicOptions = {}) {
+  // Stash in a ref so the effect doesn't have to re-bind listeners every render
+  // when the caller passes a fresh function.
+  const suppressRef = useRef(options.shouldSuppressTilt);
+  suppressRef.current = options.shouldSuppressTilt;
+
   const [el, setEl] = useState<HTMLElement | null>(null);
   const ref = useCallback((node: HTMLElement | null) => setEl(node), []);
 
@@ -66,8 +79,11 @@ export function useHolographic(enabled: boolean) {
       const cy = Math.max(0, Math.min(1, y));
       // Tilt range: ±18° matches the codepen reference — strong enough to read
       // as a real tilt without going past the card's plausible motion arc.
-      target.ry = (cx - 0.5) * 36;
-      target.rx = (0.5 - cy) * 36;
+      // Suppressed during parent-owned swipe gestures so the tilt doesn't fight
+      // the navigation/dismiss flick.
+      const suppressed = suppressRef.current?.() === true;
+      target.ry = suppressed ? 0 : (cx - 0.5) * 36;
+      target.rx = suppressed ? 0 : (0.5 - cy) * 36;
       target.mx = cx * 100;
       target.my = cy * 100;
       // Hypotenuse: 0 at center, 1 at corner — used to crank up shimmer near edges.
