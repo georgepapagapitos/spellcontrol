@@ -332,23 +332,28 @@ export function CardListTable({ cards, binders }: Props) {
           ))}
           <option value="__uncategorized">Uncategorized</option>
         </select>
-        <select
-          className="collection-select collection-select-sort"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as typeof sort)}
-          aria-label="Sort"
-        >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="card-list-summary-line">
-        {sorted.length.toLocaleString()} {sorted.length === 1 ? 'card' : 'cards'} ·{' '}
-        {totalQty.toLocaleString()} total · ${totalValue.toFixed(0)}
+        <span>
+          {sorted.length.toLocaleString()} {sorted.length === 1 ? 'card' : 'cards'} ·{' '}
+          {totalQty.toLocaleString()} total · ${totalValue.toFixed(0)}
+        </span>
+        <label className="collection-sort-inline">
+          <span className="collection-sort-inline-label">Sort</span>
+          <select
+            className="collection-sort-inline-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            aria-label="Sort"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {previewIndex !== null && sorted[previewIndex] && (
