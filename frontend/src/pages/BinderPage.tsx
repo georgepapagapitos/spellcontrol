@@ -62,8 +62,7 @@ export function BinderPage() {
           </div>
         )}
         <div className="empty-state">
-          No cards loaded yet.{' '}
-          <Link to="/collection" className="btn btn-primary" style={{ marginLeft: 8 }}>
+          <Link to="/collection" className="btn btn-primary">
             Import your collection
           </Link>
         </div>

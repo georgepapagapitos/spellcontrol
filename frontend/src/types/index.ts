@@ -37,6 +37,9 @@ export interface EnrichedCard {
   legalities?: Record<string, string>;
   /** Available finishes for this printing — subset of ["nonfoil","foil","etched"]. */
   finishes?: string[];
+  /** Promo treatments — specialty foil variants like "textured", "surgefoil", "halofoil",
+   *  "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
+  promoTypes?: string[];
 }
 
 export interface UploadResponse {

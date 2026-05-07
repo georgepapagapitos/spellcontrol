@@ -1,0 +1,33 @@
+import type { EnrichedCard } from '../types';
+
+/**
+ * Visual foil variants we paint distinctly. Maps from Scryfall's promo_types /
+ * finishes / frame_effects onto a small set of styles — niche promo types
+ * (confetti, raised, step-and-repeat) fold into the closest visual cousin
+ * rather than each getting their own one-off treatment.
+ */
+export type FoilStyle =
+  | 'none'
+  | 'regular'
+  | 'etched'
+  | 'textured'
+  | 'oilslick'
+  | 'gilded'
+  | 'halo'
+  | 'fracture';
+
+export function classifyFoil(card: EnrichedCard): FoilStyle {
+  if (!card.foil) return 'none';
+  const promo = new Set(card.promoTypes ?? []);
+  // Order matters: promo treatments override the generic 'etched' finish.
+  if (promo.has('fracturefoil')) return 'fracture';
+  if (promo.has('oilslick')) return 'oilslick';
+  if (promo.has('gilded') || promo.has('neonink')) return 'gilded';
+  if (promo.has('halofoil') || promo.has('surgefoil')) return 'halo';
+  if (promo.has('textured') || promo.has('confettifoil') || promo.has('raisedfoil'))
+    return 'textured';
+  const finishes = new Set(card.finishes ?? []);
+  const frame = new Set(card.frameEffects ?? []);
+  if (finishes.has('etched') || frame.has('etched')) return 'etched';
+  return 'regular';
+}
