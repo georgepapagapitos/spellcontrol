@@ -971,32 +971,51 @@ input[type='text'] {
   color: var(--text);
 }
 
-/* Collection summary line — compact totals above the breakdown cards */
-.collection-summary {
+/* Header row above the breakdown grid — section label + collection totals */
+.breakdown-overview {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem 1.25rem;
-  margin-bottom: 0.75rem;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--text2);
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.collection-summary-num {
-  color: var(--text);
+.breakdown-overview-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-xs);
+  color: var(--text3);
   font-weight: 600;
 }
 
-.collection-summary-label {
+.breakdown-overview-stats {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown-overview-num {
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--text-lg);
+}
+
+.breakdown-overview-unit {
   color: var(--text3);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: var(--text-xs);
 }
 
-.collection-summary-sep {
+.breakdown-overview-sep {
   color: var(--text3);
+  margin: 0 0.2rem;
 }
 
 /* Breakdown cards — Colors / Types / Rarity */
@@ -3990,15 +4009,45 @@ hr {
   max-width: 100%;
 }
 
-.collection-select-sort {
-  margin-left: auto;
+@media (max-width: 1100px) {
+  .collection-filter-row .color-filter-row {
+    flex-basis: 100%;
+  }
 }
 
 .card-list-summary-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
   font-size: var(--text-sm);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.6rem;
+}
+
+.collection-sort-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.collection-sort-inline-label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+}
+
+.collection-sort-inline-select {
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-xs);
+  cursor: pointer;
 }
 
 /* Set code + collector number (used in list view) */
