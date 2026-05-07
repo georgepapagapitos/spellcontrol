@@ -16,14 +16,14 @@ interface TooltipPos {
 const TIP_MARGIN = 8;
 const VIEWPORT_PAD = 6;
 
-// Devices with a real hover capability (mouse, trackpad) get the floating
-// tooltip on mouseenter. Touch screens (no hover) instead open the swipeable
-// CardPreview modal on tap, opted into via CardPreviewContext.
+// Hover-capable pointers (real mouse/trackpad) get the floating tooltip on
+// mouseenter. Click/tap opens the CardPreview modal on every device.
 //
 // `(hover: hover)` alone is unreliable on Chrome/Android, which often reports
 // hover capability as true because the device *could* connect a stylus or
 // mouse — even when the user is tapping with a finger. Combine with
-// `(pointer: coarse)` so a coarse primary pointer (finger) wins regardless.
+// `(pointer: coarse)` so a coarse primary pointer (finger) suppresses the
+// hover tooltip regardless.
 const hasHover =
   typeof window !== 'undefined' &&
   typeof window.matchMedia === 'function' &&
@@ -106,7 +106,13 @@ export function CardSlot({ card }: Props) {
     setPos(null);
   };
   const handleClick = () => {
-    if (!hasHover && card) preview?.openCard(card);
+    if (card) preview?.openCard(card);
+  };
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
   };
 
   if (!card) return <div className="slot empty" />;
@@ -124,9 +130,10 @@ export function CardSlot({ card }: Props) {
         onFocus={show}
         onBlur={hide}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         tabIndex={0}
-        role={!hasHover ? 'button' : undefined}
-        aria-label={!hasHover ? `Open details for ${card.name}` : undefined}
+        role="button"
+        aria-label={`Open details for ${card.name}`}
       >
         <span className="slot-name">{displayName}</span>
       </div>
