@@ -313,8 +313,8 @@ function SamplesIntroDialog({
         </p>
         <ul className="samples-intro-list">
           <li>
-            Each sample binder has an <span className="kbd-inline">✕</span> on its tab — that
-            removes just that binder.
+            Each sample binder has an <span className="kbd-inline kbd-inline-danger">✕</span> on its
+            tab — that removes just that binder.
           </li>
           {!bindersOnly && (
             <li>

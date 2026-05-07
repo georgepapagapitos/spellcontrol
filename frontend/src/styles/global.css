@@ -617,6 +617,12 @@ select {
   font-size: var(--text-xs);
 }
 
+.kbd-inline-danger {
+  color: var(--err-text);
+  border-color: var(--err-border);
+  background: var(--err-bg);
+}
+
 .delete-imports-list {
   list-style: none;
   margin: 0.5rem 0;
