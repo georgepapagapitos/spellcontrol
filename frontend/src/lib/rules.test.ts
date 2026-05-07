@@ -212,27 +212,33 @@ describe('cardMatchesFilter', () => {
     });
   });
 
-  describe('finishes', () => {
-    it('matches when card offers any selected finish', () => {
-      const card = makeCard({ finishes: ['nonfoil', 'foil'] });
-      expect(cardMatchesFilter(card, { finishes: chips('foil') })).toBe(true);
-      expect(cardMatchesFilter(card, { finishes: chips('etched') })).toBe(false);
+  describe('finishes (tests the finish the user OWNS, not the printing)', () => {
+    it('IS foil matches a foil copy regardless of printing availability', () => {
+      // Even though the printing is also available in nonfoil, this row is foil.
+      const foilCopy = makeCard({ foil: true, finishes: ['nonfoil', 'foil'] });
+      expect(cardMatchesFilter(foilCopy, { finishes: chips('foil') })).toBe(true);
     });
 
-    it('falls back to legacy foil flag when finishes data is missing', () => {
-      expect(cardMatchesFilter(makeCard({ foil: true }), { finishes: chips('foil') })).toBe(true);
+    it('IS foil rejects a nonfoil copy of a printing that exists in foil', () => {
+      // This is the bug fix: printing has both finishes available, but the user
+      // owns nonfoil — must not match a "foil" filter.
+      const nonfoilCopy = makeCard({ foil: false, finishes: ['nonfoil', 'foil'] });
+      expect(cardMatchesFilter(nonfoilCopy, { finishes: chips('foil') })).toBe(false);
+    });
+
+    it('IS nonfoil matches nonfoil copies and rejects foil copies', () => {
       expect(cardMatchesFilter(makeCard({ foil: false }), { finishes: chips('nonfoil') })).toBe(
         true
       );
-      expect(cardMatchesFilter(makeCard({ foil: false }), { finishes: chips('foil') })).toBe(false);
+      expect(cardMatchesFilter(makeCard({ foil: true }), { finishes: chips('nonfoil') })).toBe(
+        false
+      );
     });
 
-    it('IS NOT etched excludes etched-only printings', () => {
-      const etched = makeCard({ finishes: ['etched'] });
-      const normal = makeCard({ finishes: ['nonfoil'] });
-      const filter: BinderFilter = { finishes: [chip('etched', true)] };
-      expect(cardMatchesFilter(etched, filter)).toBe(false);
-      expect(cardMatchesFilter(normal, filter)).toBe(true);
+    it('IS NOT foil excludes foil copies', () => {
+      const filter: BinderFilter = { finishes: [chip('foil', true)] };
+      expect(cardMatchesFilter(makeCard({ foil: true }), filter)).toBe(false);
+      expect(cardMatchesFilter(makeCard({ foil: false }), filter)).toBe(true);
     });
   });
 
