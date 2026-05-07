@@ -138,11 +138,12 @@ export function CardPreview({
     trackRef,
   });
 
-  const activeFoil = Boolean(cards[selected]?.foil);
+  // Tilt + cursor tracking applies to every card; the foil overlay is the
+  // only thing gated to foil cards (handled in CSS via the .is-foil class).
   // Suppress tilt while a touch swipe gesture is in flight — once the parent's
   // axis lock commits to either 'h' (carousel) or 'v' (dismiss), letting the
-  // card tilt at the same time looks noisy. Glare/shimmer still track.
-  const holoRef = useHolographic(activeFoil, {
+  // card tilt at the same time looks noisy.
+  const holoRef = useHolographic(true, {
     shouldSuppressTilt: () => axisLockRef.current !== null,
   });
 
@@ -198,7 +199,7 @@ export function CardPreview({
               >
                 <div
                   className={`card-preview-image-frame${foilClass}`}
-                  ref={i === selected && c.foil ? holoRef : undefined}
+                  ref={i === selected ? holoRef : undefined}
                 >
                   {c.imageNormal && !errored && shouldMount ? (
                     <img
@@ -212,7 +213,12 @@ export function CardPreview({
                   ) : c.imageNormal && errored ? (
                     <div className="card-preview-image-fallback">Image unavailable</div>
                   ) : null}
-                  {c.foil && <div className="card-preview-foil-overlay" aria-hidden="true" />}
+                  {c.foil && (
+                    <>
+                      <div className="card-preview-foil-shine" aria-hidden="true" />
+                      <div className="card-preview-foil-glare" aria-hidden="true" />
+                    </>
+                  )}
                 </div>
               </div>
             );

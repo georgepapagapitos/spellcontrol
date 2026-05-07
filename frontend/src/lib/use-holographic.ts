@@ -33,8 +33,15 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
 
     let rafId: number | null = null;
     // Targets are what mousemove writes; current is what we lerp toward them.
-    const target = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0 };
-    const current = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0 };
+    // gx/gy are normalized cursor offset in [-1, 1] — used by CSS for tilt-aware
+    // shadow direction and inner-bevel highlight, where percentages can't be
+    // multiplied into px values directly.
+    // act is 0..1 — 1 while the cursor is on the card, lerps to 0 on leave.
+    // CSS reads it as --active and uses it to gate the foil overlay opacity
+    // so foil only appears during interaction (matches simey/pokemon-cards
+    // approach of opacity = card-opacity).
+    const target = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0, gx: 0, gy: 0, act: 0 };
+    const current = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0, gx: 0, gy: 0, act: 0 };
     let active = false;
 
     const apply = () => {
@@ -46,12 +53,18 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       current.mx += (target.mx - current.mx) * k;
       current.my += (target.my - current.my) * k;
       current.hyp += (target.hyp - current.hyp) * k;
+      current.gx += (target.gx - current.gx) * k;
+      current.gy += (target.gy - current.gy) * k;
+      current.act += (target.act - current.act) * k;
 
       el.style.setProperty('--rx', `${current.rx.toFixed(2)}deg`);
       el.style.setProperty('--ry', `${current.ry.toFixed(2)}deg`);
       el.style.setProperty('--mx', `${current.mx.toFixed(2)}%`);
       el.style.setProperty('--my', `${current.my.toFixed(2)}%`);
       el.style.setProperty('--hyp', current.hyp.toFixed(3));
+      el.style.setProperty('--gx', current.gx.toFixed(3));
+      el.style.setProperty('--gy', current.gy.toFixed(3));
+      el.style.setProperty('--active', current.act.toFixed(3));
 
       // Stop the loop when we've settled close to neutral.
       const settled =
@@ -90,6 +103,10 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       const dx = cx - 0.5;
       const dy = cy - 0.5;
       target.hyp = Math.min(1, Math.hypot(dx, dy) * 2);
+      // Normalized -1..1 offsets for shadow/bevel direction in CSS.
+      target.gx = (cx - 0.5) * 2;
+      target.gy = (cy - 0.5) * 2;
+      target.act = 1;
       active = true;
       ensureLoop();
     };
@@ -100,6 +117,9 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       target.mx = 50;
       target.my = 50;
       target.hyp = 0;
+      target.gx = 0;
+      target.gy = 0;
+      target.act = 0;
       active = false;
       ensureLoop();
     };
@@ -171,6 +191,9 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       el.style.removeProperty('--mx');
       el.style.removeProperty('--my');
       el.style.removeProperty('--hyp');
+      el.style.removeProperty('--gx');
+      el.style.removeProperty('--gy');
+      el.style.removeProperty('--active');
     };
   }, [el, enabled]);
 
