@@ -92,9 +92,9 @@ describe('cardMatchesFilter', () => {
 
   describe('price range', () => {
     it('matches in range, boundaries inclusive', () => {
-      expect(
-        cardMatchesFilter(makeCard({ purchasePrice: 5 }), { priceMin: 1, priceMax: 10 })
-      ).toBe(true);
+      expect(cardMatchesFilter(makeCard({ purchasePrice: 5 }), { priceMin: 1, priceMax: 10 })).toBe(
+        true
+      );
       expect(cardMatchesFilter(makeCard({ purchasePrice: 1 }), { priceMin: 1 })).toBe(true);
       expect(cardMatchesFilter(makeCard({ purchasePrice: 10 }), { priceMax: 10 })).toBe(true);
     });
@@ -183,9 +183,9 @@ describe('cardMatchesFilter', () => {
       expect(
         cardMatchesFilter(card, { oracleChips: [{ value: 'draw a card', negate: false }] })
       ).toBe(true);
-      expect(
-        cardMatchesFilter(card, { oracleChips: [{ value: 'trample', negate: false }] })
-      ).toBe(false);
+      expect(cardMatchesFilter(card, { oracleChips: [{ value: 'trample', negate: false }] })).toBe(
+        false
+      );
     });
   });
 
@@ -240,9 +240,9 @@ describe('cardMatchesFilter', () => {
       );
     });
     it('rejects when layout missing', () => {
-      expect(
-        cardMatchesFilter(makeCard({ layout: undefined }), { layouts: chips('normal') })
-      ).toBe(false);
+      expect(cardMatchesFilter(makeCard({ layout: undefined }), { layouts: chips('normal') })).toBe(
+        false
+      );
     });
   });
 

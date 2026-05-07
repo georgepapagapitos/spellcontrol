@@ -244,8 +244,7 @@ export function BinderPagePreview({
           <div className="binder-pages-panel" onClick={(e) => e.stopPropagation()}>
             <div className="binder-pages-name">{binderName}</div>
             <div className="binder-pages-context">
-              {pageLabels[selected] ? `${pageLabels[selected]} · ` : ''}page{' '}
-              {currentPage?.pageNum}
+              {pageLabels[selected] ? `${pageLabels[selected]} · ` : ''}page {currentPage?.pageNum}
             </div>
             <div className="binder-pages-counter">
               Page {selected + 1} of {pages.length}

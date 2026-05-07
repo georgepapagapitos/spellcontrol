@@ -902,7 +902,6 @@ function cleanFilter(f: BinderFilter): BinderFilter {
   if (f.priceMin !== undefined && !isNaN(f.priceMin)) out.priceMin = f.priceMin;
   if (f.priceMax !== undefined && !isNaN(f.priceMax)) out.priceMax = f.priceMax;
   if (f.nameContains?.trim()) out.nameContains = f.nameContains.trim();
-  if (f.edhrecRankMax !== undefined && !isNaN(f.edhrecRankMax))
-    out.edhrecRankMax = f.edhrecRankMax;
+  if (f.edhrecRankMax !== undefined && !isNaN(f.edhrecRankMax)) out.edhrecRankMax = f.edhrecRankMax;
   return out;
 }

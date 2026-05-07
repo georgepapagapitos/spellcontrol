@@ -49,7 +49,10 @@ describe('materializeBinders', () => {
   it('routes cards matching a binder rule into that binder', () => {
     const rareCard = makeCard({ rarity: 'rare' });
     const commonCard = makeCard({ rarity: 'common' });
-    const binder = makeBinder({ filter: { rarities: [{ value: 'rare', negate: false }] }, position: 0 });
+    const binder = makeBinder({
+      filter: { rarities: [{ value: 'rare', negate: false }] },
+      position: 0,
+    });
 
     const { binders, uncategorized } = materializeBinders(
       [rareCard, commonCard],
@@ -63,7 +66,11 @@ describe('materializeBinders', () => {
   it('routes card to the first matching binder (priority order)', () => {
     const card = makeCard({ rarity: 'rare', purchasePrice: 10 });
     const highValueBinder = makeBinder({ id: 'high', position: 0, filter: { priceMin: 5 } });
-    const rareBinder = makeBinder({ id: 'rare', position: 1, filter: { rarities: [{ value: 'rare', negate: false }] } });
+    const rareBinder = makeBinder({
+      id: 'rare',
+      position: 1,
+      filter: { rarities: [{ value: 'rare', negate: false }] },
+    });
 
     const { binders } = materializeBinders([card], [highValueBinder, rareBinder], defaultOpts);
     const highBinder = binders.find((b) => b.def.id === 'high')!;
@@ -74,7 +81,11 @@ describe('materializeBinders', () => {
 
   it('respects binder position order regardless of array order', () => {
     const card = makeCard({ rarity: 'rare', purchasePrice: 10 });
-    const rareBinder = makeBinder({ id: 'rare', position: 0, filter: { rarities: [{ value: 'rare', negate: false }] } });
+    const rareBinder = makeBinder({
+      id: 'rare',
+      position: 0,
+      filter: { rarities: [{ value: 'rare', negate: false }] },
+    });
     const highValueBinder = makeBinder({ id: 'high', position: 1, filter: { priceMin: 5 } });
 
     // Pass binders in reverse position order
