@@ -6,7 +6,7 @@ import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 
 export function Layout() {
-  const { hydrateCards } = useCollectionStore();
+  const hydrateCards = useCollectionStore((s) => s.hydrateCards);
 
   useEffect(() => {
     hydrateCards();
