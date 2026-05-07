@@ -130,6 +130,7 @@ function SectionList({
     index: number;
     sectionLabel: string;
     pageNumbers: number[];
+    totalPages: number;
   } | null>(null);
 
   // Binder-wide flipbook: all sections' pages flattened into one swipe
@@ -181,6 +182,7 @@ function SectionList({
         index: i,
         sectionLabel: section.label,
         pageNumbers: pageNumbersForSection(section),
+        totalPages: section.pages.length,
       };
     },
     [cardSectionLookup]
@@ -238,6 +240,7 @@ function SectionList({
                 index: i,
                 sectionLabel: section.label,
                 pageNumbers: pageNumbersForSection(section),
+                totalPages: section.pages.length,
               });
             }}
             onOpenPages={(localPageIndex) =>
@@ -253,6 +256,7 @@ function SectionList({
           binderName={binderName}
           sectionLabel={preview.sectionLabel}
           pageNumbers={preview.pageNumbers}
+          totalPages={preview.totalPages}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
           onClose={() => setPreview(null)}
         />
