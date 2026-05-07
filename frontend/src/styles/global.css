@@ -665,6 +665,30 @@ input[type='search'] {
   font-family: var(--font-mono);
 }
 
+.binder-summary-open {
+  margin-left: auto;
+  background: none;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 4px 12px;
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  color: var(--text2);
+  cursor: pointer;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.binder-summary-open:hover,
+.binder-summary-open:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
 .binder-toolbar {
   display: flex;
   align-items: center;
@@ -940,6 +964,26 @@ input[type='text'] {
   font-size: 0.7rem;
   color: var(--text3);
   font-family: var(--font-mono);
+}
+
+.page-num-link {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition:
+    color 0.12s,
+    text-decoration-color 0.12s;
+}
+
+.page-num-link:hover,
+.page-num-link:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+  outline: none;
 }
 
 .page {
@@ -1752,6 +1796,162 @@ hr {
 @media (min-width: 600px) {
   .card-preview-backdrop {
     --slide-size: 420px;
+  }
+}
+
+/* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
+.binder-pages-backdrop {
+  --slide-spacing: 1rem;
+  --slide-size: 88%;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 1100;
+  animation: fade-in 0.15s ease-out;
+}
+
+.binder-pages-sheet {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  will-change: transform;
+}
+
+.binder-pages-sheet:not(.is-dragging) {
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.binder-pages-track {
+  display: flex;
+  align-items: center;
+  gap: var(--slide-spacing);
+  width: 100%;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  padding-inline: calc((100% - var(--slide-size)) / 2);
+  scrollbar-width: none;
+}
+
+.binder-pages-track::-webkit-scrollbar {
+  display: none;
+}
+
+.binder-pages-slide {
+  flex: 0 0 var(--slide-size);
+  min-width: 0;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.binder-pages-page {
+  display: grid;
+  /* Maintain card aspect ratio: 3 cols of 5:7 cards = 5:7 page aspect. */
+  aspect-ratio: 5 / 7;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(20, 20, 22, 0.6);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.binder-pages-page.page-18 {
+  aspect-ratio: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.binder-pages-page-side {
+  display: grid;
+  gap: 6px;
+}
+
+.binder-pages-cell {
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 5 / 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.binder-pages-cell.empty {
+  cursor: default;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.binder-pages-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.binder-pages-cell-fallback {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-mono);
+  text-align: center;
+  padding: 4px;
+  pointer-events: none;
+}
+
+.binder-pages-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 15, 18, 0.92);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+  padding: 0.9rem 1.1rem;
+  padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: #fff;
+}
+
+.binder-pages-name {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.binder-pages-context {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-mono);
+}
+
+.binder-pages-counter {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}
+
+@media (min-width: 600px) {
+  .binder-pages-backdrop {
+    --slide-size: 480px;
   }
 }
 
