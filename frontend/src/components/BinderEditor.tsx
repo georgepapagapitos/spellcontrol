@@ -92,8 +92,12 @@ const DEFAULT_EDHREC_TOP_N = 100;
 const EMPTY_FILTER: BinderFilter = {};
 
 export function BinderEditor() {
-  const { editingBinder, binders, cards, setEditingBinder, createBinder, updateBinder } =
-    useCollectionStore();
+  const editingBinder = useCollectionStore((s) => s.editingBinder);
+  const binders = useCollectionStore((s) => s.binders);
+  const cards = useCollectionStore((s) => s.cards);
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+  const createBinder = useCollectionStore((s) => s.createBinder);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
 
   const isOpen = editingBinder !== null;
   const isNew = editingBinder === 'new';

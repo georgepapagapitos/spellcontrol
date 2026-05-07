@@ -11,20 +11,18 @@ export function UploadPanel() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  const {
-    fileName,
-    cards,
-    uploadedAt,
-    isLoading,
-    error,
-    unresolvedNames,
-    detectedFormat,
-    importHistory,
-    importCards,
-    clearCards,
-    setLoading,
-    setError,
-  } = useCollectionStore();
+  const fileName = useCollectionStore((s) => s.fileName);
+  const cards = useCollectionStore((s) => s.cards);
+  const uploadedAt = useCollectionStore((s) => s.uploadedAt);
+  const isLoading = useCollectionStore((s) => s.isLoading);
+  const error = useCollectionStore((s) => s.error);
+  const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);
+  const detectedFormat = useCollectionStore((s) => s.detectedFormat);
+  const importHistory = useCollectionStore((s) => s.importHistory);
+  const importCards = useCollectionStore((s) => s.importCards);
+  const clearCards = useCollectionStore((s) => s.clearCards);
+  const setLoading = useCollectionStore((s) => s.setLoading);
+  const setError = useCollectionStore((s) => s.setError);
 
   const hasCollection = cards.length > 0;
   // When a collection is loaded, the import area collapses to a thin bar; new users see the full UI.
