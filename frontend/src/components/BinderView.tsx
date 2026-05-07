@@ -128,7 +128,7 @@ function SectionList({
   const [preview, setPreview] = useState<{
     cards: EnrichedCard[];
     index: number;
-    sectionLabel: string;
+    sectionLabels: string[];
     pageNumbers: number[];
     totalPages: number;
   } | null>(null);
@@ -162,30 +162,38 @@ function SectionList({
     });
   }, [sections]);
 
-  // Cards live in their original section even when the binder-wide flipbook
-  // is open — tapping a card resolves to that section's scope so prev/next
-  // in the inner CardPreview stays meaningful.
-  const cardSectionLookup = useMemo(() => {
-    const m = new Map<EnrichedCard, BinderSection>();
-    sections.forEach((s) => s.cards.forEach((c) => m.set(c, s)));
-    return m;
+  // Flat binder-wide arrays so CardPreview can navigate past section boundaries.
+  // Each parallel array is keyed by the global card index.
+  const flatCards = useMemo(() => {
+    const cards: EnrichedCard[] = [];
+    const sectionLabels: string[] = [];
+    const pageNumbers: number[] = [];
+    const cardIndex = new Map<EnrichedCard, number>();
+    for (const section of sections) {
+      const sectionPageNumbers = pageNumbersForSection(section);
+      section.cards.forEach((card, i) => {
+        cardIndex.set(card, cards.length);
+        cards.push(card);
+        sectionLabels.push(section.label);
+        pageNumbers.push(sectionPageNumbers[i] ?? 0);
+      });
+    }
+    return { cards, sectionLabels, pageNumbers, cardIndex };
   }, [sections]);
 
   const resolveCard = useCallback(
     (card: EnrichedCard) => {
-      const section = cardSectionLookup.get(card);
-      if (!section) return null;
-      const i = section.cards.indexOf(card);
-      if (i < 0) return null;
+      const i = flatCards.cardIndex.get(card);
+      if (i === undefined) return null;
       return {
-        cards: section.cards,
+        cards: flatCards.cards,
         index: i,
-        sectionLabel: section.label,
-        pageNumbers: pageNumbersForSection(section),
-        totalPages: section.pages.length,
+        sectionLabels: flatCards.sectionLabels,
+        pageNumbers: flatCards.pageNumbers,
+        totalPages,
       };
     },
-    [cardSectionLookup]
+    [flatCards, totalPages]
   );
 
   return (
@@ -195,17 +203,20 @@ function SectionList({
         <span className="binder-summary-meta">
           {totalCards.toLocaleString()} cards · {totalPages.toLocaleString()} page
           {totalPages !== 1 ? 's' : ''}
+          {flatPages.length > 0 && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="binder-summary-open"
+                onClick={() => setPagesStartIndex(0)}
+                aria-label={`Browse pages of ${binderName}`}
+              >
+                Browse pages
+              </button>
+            </>
+          )}
         </span>
-        {flatPages.length > 0 && (
-          <button
-            type="button"
-            className="binder-summary-open"
-            onClick={() => setPagesStartIndex(0)}
-            aria-label={`Open ${binderName} as flipbook`}
-          >
-            Open ↗
-          </button>
-        )}
       </div>
       {sections.length > 1 && (
         <div className="section-controls">
@@ -233,14 +244,14 @@ function SectionList({
             pocketSize={pocketSize}
             onToggle={() => toggle(section.key)}
             onOpenCard={(card) => {
-              const i = section.cards.indexOf(card);
-              if (i < 0) return;
+              const i = flatCards.cardIndex.get(card);
+              if (i === undefined) return;
               setPreview({
-                cards: section.cards,
+                cards: flatCards.cards,
                 index: i,
-                sectionLabel: section.label,
-                pageNumbers: pageNumbersForSection(section),
-                totalPages: section.pages.length,
+                sectionLabels: flatCards.sectionLabels,
+                pageNumbers: flatCards.pageNumbers,
+                totalPages,
               });
             }}
             onOpenPages={(localPageIndex) =>
@@ -254,7 +265,7 @@ function SectionList({
           cards={preview.cards}
           index={preview.index}
           binderName={binderName}
-          sectionLabel={preview.sectionLabel}
+          sectionLabels={preview.sectionLabels}
           pageNumbers={preview.pageNumbers}
           totalPages={preview.totalPages}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
