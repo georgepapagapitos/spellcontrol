@@ -145,6 +145,12 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     base.edhrecRank = scryfall.edhrec_rank;
     base.imageSmall = scryfall.image_uris?.small || firstFace?.image_uris?.small;
     base.imageNormal = scryfall.image_uris?.normal || firstFace?.image_uris?.normal;
+    // Two-sided layouts (transform / modal_dfc / reversible / double_faced_token)
+    // give each face its own image_uris. Capture the back so the preview can flip.
+    const backFace = scryfall.card_faces?.[1];
+    if (backFace?.image_uris?.normal) {
+      base.imageNormalBack = backFace.image_uris.normal;
+    }
     base.frameEffects = scryfall.frame_effects;
     // Older fullart lands don't put 'fullart' in frame_effects — they only set full_art.
     base.fullArt = scryfall.full_art === true || scryfall.frame_effects?.includes('fullart');

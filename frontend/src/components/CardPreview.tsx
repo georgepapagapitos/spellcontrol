@@ -38,6 +38,7 @@ export function CardPreview({
   const [selected, setSelected] = useState(index);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   const [setMap, setSetMap] = useState<SetMap | null>(null);
+  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -201,29 +202,74 @@ export function CardPreview({
                   className={`card-preview-image-frame${foilClass}`}
                   ref={i === selected ? holoRef : undefined}
                 >
-                  {c.imageNormal && !errored && shouldMount ? (
-                    <img
-                      src={c.imageNormal}
-                      alt={c.name}
-                      className="card-preview-image"
-                      draggable={false}
-                      decoding="async"
-                      onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
-                    />
-                  ) : c.imageNormal && errored ? (
-                    <div className="card-preview-image-fallback">Image unavailable</div>
-                  ) : null}
-                  {c.foil && (
-                    <>
-                      <div className="card-preview-foil-shine" aria-hidden="true" />
-                      <div className="card-preview-foil-glare" aria-hidden="true" />
-                    </>
-                  )}
+                  <div
+                    className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
+                  >
+                    <div className="card-preview-face card-preview-face-front">
+                      {c.imageNormal && !errored && shouldMount ? (
+                        <img
+                          src={c.imageNormal}
+                          alt={c.name}
+                          className="card-preview-image"
+                          draggable={false}
+                          decoding="async"
+                          onError={() =>
+                            setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
+                          }
+                        />
+                      ) : c.imageNormal && errored ? (
+                        <div className="card-preview-image-fallback">Image unavailable</div>
+                      ) : null}
+                      {c.foil && (
+                        <>
+                          <div className="card-preview-foil-shine" aria-hidden="true" />
+                          <div className="card-preview-foil-glare" aria-hidden="true" />
+                        </>
+                      )}
+                    </div>
+                    {c.imageNormalBack && (
+                      <div className="card-preview-face card-preview-face-back">
+                        <img
+                          src={c.imageNormalBack}
+                          alt={`${c.name} (back)`}
+                          className="card-preview-image"
+                          draggable={false}
+                          decoding="async"
+                        />
+                        {c.foil && (
+                          <>
+                            <div className="card-preview-foil-shine" aria-hidden="true" />
+                            <div className="card-preview-foil-glare" aria-hidden="true" />
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
+
+        {current.imageNormalBack && (
+          <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="card-preview-flip-btn"
+              onClick={() =>
+                setFlipped((prev) => ({
+                  ...prev,
+                  [current.scryfallId]: !prev[current.scryfallId],
+                }))
+              }
+              aria-label={flipped[current.scryfallId] ? 'Show front face' : 'Show back face'}
+              title={flipped[current.scryfallId] ? 'Show front face' : 'Show back face'}
+            >
+              <FlipIcon />
+              <span>Flip</span>
+            </button>
+          </div>
+        )}
 
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
           <div className="card-preview-panel-inner">
@@ -270,5 +316,26 @@ export function CardPreview({
         </div>
       </div>
     </div>
+  );
+}
+
+function FlipIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
   );
 }
