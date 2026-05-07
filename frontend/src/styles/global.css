@@ -666,26 +666,19 @@ input[type='search'] {
 }
 
 .binder-summary-open {
-  margin-left: auto;
   background: none;
-  border: 0.5px solid var(--border2);
-  border-radius: var(--radius);
-  padding: 4px 12px;
-  font-family: var(--font-serif);
-  font-size: 0.85rem;
-  color: var(--text2);
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
   cursor: pointer;
-  transition:
-    color 0.12s,
-    border-color 0.12s,
-    background 0.12s;
+  outline: none;
+  transition: color 0.12s;
 }
 
 .binder-summary-open:hover,
 .binder-summary-open:focus-visible {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-light);
+  color: var(--accent-hover);
   outline: none;
 }
 
@@ -1453,6 +1446,41 @@ hr {
   align-items: center;
 }
 
+.sort-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sort-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-editor-num {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text3);
+  width: 1.5rem;
+}
+
+.sort-editor-list .btn-add-group {
+  width: auto;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+}
+
+.sort-editor-actions {
+  border-radius: var(--radius);
+  border-left: 0.5px solid var(--accent);
+}
+
+.sort-editor-actions .tab-action {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
 /* ── Rule rows ──────────────────────────────────────────────────────────── */
 .rule-row {
   display: flex;
@@ -1606,6 +1634,122 @@ hr {
 .btn-add-group:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ── ChipBuilder (IS / IS NOT chips) ────────────────────────────────────── */
+.chip-builder-chip {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: var(--font-serif);
+  overflow: hidden;
+  line-height: 1;
+}
+
+.chip-builder-toggle {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 5px 7px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chip-builder-chip.is .chip-builder-toggle {
+  background: #3f9d4f;
+}
+
+.chip-builder-chip.is-not .chip-builder-toggle {
+  background: #c44a4a;
+}
+
+.chip-builder-toggle:hover {
+  filter: brightness(1.12);
+}
+
+.chip-builder-value {
+  padding: 5px 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  text-transform: capitalize;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.chip-builder-remove {
+  background: var(--accent);
+  border: none;
+  color: color-mix(in srgb, var(--on-accent) 55%, transparent);
+  cursor: pointer;
+  padding: 5px 8px 5px 2px;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chip-builder-remove:hover {
+  color: var(--on-accent);
+}
+
+/* ── Set multi-select dropdown ──────────────────────────────────────────── */
+.set-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  z-index: 50;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  min-width: 240px;
+}
+
+.set-dropdown-item {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.82rem;
+  font-family: var(--font-serif);
+  color: var(--text);
+}
+
+.set-dropdown-item:hover {
+  background: var(--surface2);
+}
+
+.set-dropdown-item.selected {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.set-dropdown-item .set-code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text3);
+  min-width: 40px;
+  text-transform: uppercase;
+}
+
+.set-dropdown-item .set-name {
+  flex: 1;
 }
 
 /* ── Tooltip marker on labels ───────────────────────────────────────────── */

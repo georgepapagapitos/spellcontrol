@@ -18,6 +18,12 @@ export interface ScryfallCard {
   set_name: string;
   collector_number: string;
   layout?: string;
+  /** Per-format legality. Each value is "legal" | "not_legal" | "restricted" | "banned". */
+  legalities?: Record<string, string>;
+  /** Rules text. Null on multi-face layouts; faces hold per-face oracle text. */
+  oracle_text?: string;
+  /** Available finishes for this printing. e.g. ["nonfoil","foil"] or ["etched"]. */
+  finishes?: string[];
   /** EDHREC popularity rank. Lower = more popular. Missing for some cards (tokens, weird sets). */
   edhrec_rank?: number;
   /** Cosmetic treatments on this printing (e.g. "fullart", "extendedart", "showcase", "etched"). */
@@ -36,6 +42,8 @@ export interface ScryfallCard {
     type_line?: string;
     cmc?: number;
     colors?: string[];
+    mana_cost?: string;
+    oracle_text?: string;
     image_uris?: {
       small?: string;
       normal?: string;
@@ -80,6 +88,16 @@ export interface EnrichedCard {
   fullArt?: boolean;
   /** "black" | "white" | "borderless" | "silver" | "gold". */
   borderColor?: string;
+  /** Card layout: normal, split, flip, transform, modal_dfc, adventure, saga, token, emblem, etc. */
+  layout?: string;
+  /** Mana cost string e.g. "{2}{G}{W}". For multi-face cards, faces joined with " // ". */
+  manaCost?: string;
+  /** Oracle (rules) text. For multi-face cards, faces joined with "\n//\n". */
+  oracleText?: string;
+  /** Per-format legality. Keys: standard, pioneer, modern, legacy, vintage, commander, pauper, etc. */
+  legalities?: Record<string, string>;
+  /** Available finishes for this printing — subset of ["nonfoil","foil","etched"]. */
+  finishes?: string[];
 }
 
 export interface UploadResponse {
