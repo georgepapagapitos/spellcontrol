@@ -190,4 +190,17 @@
   --err-bg: #f4d8d8;
   --err-border: #b03434;
   --err-text: #8a1818;
+
+  /* Black-on-light SVGs render as-is. */
+  --svg-invert: 0;
+}
+
+[data-theme='dimir'],
+[data-theme='golgari'],
+[data-theme='gruul'],
+[data-theme='izzet'],
+[data-theme='orzhov'],
+[data-theme='rakdos'] {
+  /* Invert black-on-dark SVGs (e.g. set icons) so they read as light glyphs. */
+  --svg-invert: 1;
 }
