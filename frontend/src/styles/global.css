@@ -1124,6 +1124,42 @@ input[type='text'] {
   font-size: 0.75rem;
 }
 
+.tooltip-rarity {
+  text-transform: capitalize;
+  font-weight: 600;
+}
+.tooltip-rarity.rarity-mythic {
+  color: #c25a10;
+}
+.tooltip-rarity.rarity-rare {
+  color: #9a7410;
+}
+.tooltip-rarity.rarity-uncommon {
+  color: #4a6890;
+}
+.tooltip-rarity.rarity-common {
+  color: #555;
+}
+
+.tooltip-set {
+  margin-top: 2px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tooltip-set-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  object-fit: contain;
+  filter: invert(var(--svg-invert, 0));
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
 .tooltip-image {
   margin-top: 6px;
   width: 200px;
@@ -1812,9 +1848,8 @@ hr {
 .card-preview-sheet {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
   will-change: transform;
 }
 
@@ -1837,7 +1872,7 @@ hr {
   align-items: center;
   gap: var(--slide-spacing);
   width: 100%;
-  flex: 0 0 auto;
+  min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
@@ -1864,10 +1899,10 @@ hr {
 
 .card-preview-image-frame {
   width: 100%;
-  aspect-ratio: 5 / 7;
+  aspect-ratio: 488 / 680;
   border-radius: 14px;
   overflow: hidden;
-  background: var(--surface2);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1893,18 +1928,17 @@ hr {
 }
 
 .card-preview-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
   background: rgba(15, 15, 18, 0.92);
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
   padding: 0.9rem 1.1rem;
   padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+  color: #fff;
+}
+
+.card-preview-panel-inner {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  color: #fff;
 }
 
 .card-preview-name {
@@ -1929,6 +1963,46 @@ hr {
   line-height: 1.45;
 }
 
+.card-preview-rarity {
+  text-transform: capitalize;
+  font-weight: 600;
+}
+.card-preview-rarity.rarity-mythic {
+  color: #ff8a3d;
+}
+.card-preview-rarity.rarity-rare {
+  color: #f0c040;
+}
+.card-preview-rarity.rarity-uncommon {
+  color: #b8d0e8;
+}
+.card-preview-rarity.rarity-common {
+  color: #d8d8d8;
+}
+
+.card-preview-set {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.card-preview-set-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  object-fit: contain;
+  filter: invert(1);
+  opacity: 0.95;
+  flex-shrink: 0;
+}
+
+.card-preview-set-code {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .card-preview-counter {
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.45);
@@ -1940,6 +2014,12 @@ hr {
 @media (min-width: 600px) {
   .card-preview-backdrop {
     --slide-size: 420px;
+    --slide-spacing: 3.5rem;
+  }
+
+  .card-preview-panel-inner {
+    max-width: 420px;
+    margin: 0 auto;
   }
 }
 

@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
 import { resolveCards } from './scryfall';
+import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow } from './parsers/types';
 import type { EnrichedCard, ScryfallCard, UploadResponse } from './types';
@@ -22,6 +23,17 @@ const upload = multer({
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ ok: true, cache: cache.stats() });
+});
+
+app.get('/api/sets', async (_req: Request, res: Response) => {
+  try {
+    const sets = await getSetMap();
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ sets });
+  } catch (err) {
+    console.error('[sets] fetch failed:', err);
+    res.status(502).json({ error: 'Failed to fetch set list from Scryfall.' });
+  }
 });
 
 /**
