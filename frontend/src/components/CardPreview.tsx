@@ -241,7 +241,12 @@ export function CardPreview({
   };
 
   const activeFoil = Boolean(cards[selected]?.foil);
-  const holoRef = useHolographic(activeFoil);
+  // Suppress tilt while a touch swipe gesture is in flight — once the parent's
+  // axis lock commits to either 'h' (carousel) or 'v' (dismiss), letting the
+  // card tilt at the same time looks noisy. Glare/shimmer still track.
+  const holoRef = useHolographic(activeFoil, {
+    shouldSuppressTilt: () => axisLockRef.current !== null,
+  });
 
   if (!cards[selected]) return null;
   const current = cards[selected];
