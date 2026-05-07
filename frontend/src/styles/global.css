@@ -1442,12 +1442,40 @@ input[type='text'] {
 }
 
 /* Legend */
-.legend {
+.legend-disclosure {
+  display: inline-block;
+  position: relative;
+}
+
+.legend-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legend-trigger:hover {
+  color: var(--accent-hover, var(--accent));
+}
+
+.legend-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 1.25rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg1, #fff);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
 }
 
 .legend-item {
@@ -3119,8 +3147,25 @@ hr {
 
 @media (min-width: 600px) {
   .binder-pages-backdrop {
-    --slide-size: 360px;
-    --slide-spacing: clamp(3rem, 16vw, 12rem);
+    /* Width is also bounded by viewport height: 9-pocket slides are ~1.4× as
+       tall as they are wide, and the bottom panel + label eat ~140px, so cap
+       width by vh so the slide fits vertically without being clipped behind
+       the panel. */
+    --slide-size: min(72vw, 52vh);
+    --slide-spacing: clamp(2rem, 10vw, 8rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .binder-pages-backdrop {
+    --slide-size: min(60vw, 54vh);
+    --slide-spacing: clamp(3rem, 12vw, 10rem);
+  }
+}
+
+@media (min-width: 1440px) {
+  .binder-pages-backdrop {
+    --slide-size: min(48vw, 54vh);
   }
 }
 

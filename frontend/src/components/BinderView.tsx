@@ -12,6 +12,7 @@ import { PageGrid } from './PageGrid';
 import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { BinderPagePreview } from './BinderPagePreview';
+import { Legend } from './Legend';
 
 const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
@@ -228,6 +229,8 @@ function SectionList({
               </button>
             </>
           )}
+          {' · '}
+          <Legend />
         </span>
       </div>
       {sections.length > 1 && (
