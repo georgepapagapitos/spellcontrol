@@ -10,7 +10,7 @@ export function Legend() {
           letterSpacing: '0.05em',
         }}
       >
-        Rarity:
+        Key:
       </span>
       <Item label="Mythic" cls="mythic" />
       <Item label="Rare" cls="rare" />

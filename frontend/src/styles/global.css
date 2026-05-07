@@ -1098,6 +1098,31 @@ input[type='text'] {
   color: var(--rarity-land-text);
 }
 
+/* Foil indicator: rainbow iridescent ring sitting INSIDE the slot's bounds
+   (via mask-composite trick) so foil cards stay the same physical size as
+   non-foil ones. Same gradient palette as the CardPreview foil shimmer. */
+.slot.foil::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(
+    115deg,
+    #ff80c8 0%,
+    #78c8ff 25%,
+    #78ffb4 50%,
+    #ffdc78 75%,
+    #ff78c8 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* Tooltip */
 .tooltip {
   position: fixed;
@@ -1139,6 +1164,21 @@ input[type='text'] {
 }
 .tooltip-rarity.rarity-common {
   color: #555;
+}
+
+.tooltip-foil,
+.card-preview-foil {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
+  color: #1a2438;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
 }
 
 .tooltip-set {
@@ -1942,6 +1982,14 @@ hr {
   scroll-snap-stop: always;
 }
 
+/* Subtle 8% scale-up on the active slide's content. The transform is on the
+   inner element, not the slide, so the slide's box stays the same width and
+   IntersectionObserver / scroll-snap geometry are unaffected. */
+.card-preview-slide.is-active > * {
+  transform: scale(1.08);
+  transform-origin: center;
+}
+
 .card-preview-image-frame {
   width: 100%;
   aspect-ratio: 488 / 680;
@@ -1962,6 +2010,61 @@ hr {
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+}
+
+/* MTG-style rainbow foil shimmer. Two layered gradients drift independently:
+   the diagonal hue band gives the prismatic sweep, the second pass adds
+   highlight streaks. screen blend so it lights up the art instead of dimming it. */
+.card-preview-image-frame.is-foil {
+  position: relative;
+  isolation: isolate;
+}
+
+.card-preview-foil-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      rgba(255, 80, 200, 0.55) 20%,
+      rgba(120, 200, 255, 0.55) 35%,
+      rgba(120, 255, 180, 0.55) 50%,
+      rgba(255, 220, 120, 0.55) 65%,
+      rgba(255, 120, 200, 0.55) 80%,
+      transparent 100%
+    ),
+    linear-gradient(295deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  background-size:
+    220% 220%,
+    180% 180%;
+  background-position:
+    0% 0%,
+    100% 100%;
+  animation: foil-shimmer 6s linear infinite;
+}
+
+@keyframes foil-shimmer {
+  0% {
+    background-position:
+      0% 0%,
+      100% 100%;
+  }
+  100% {
+    background-position:
+      220% 220%,
+      -80% -80%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-preview-foil-overlay {
+    animation: none;
+  }
 }
 
 .card-preview-image-fallback {
@@ -2058,8 +2161,11 @@ hr {
 
 @media (min-width: 600px) {
   .card-preview-backdrop {
-    --slide-size: 420px;
-    --slide-spacing: 3.5rem;
+    --slide-size: 360px;
+    /* Spacing scales with viewport width so only ~1 neighbor peeks per side
+       on wide desktop monitors instead of 2-3 — keeps the "active vs dim"
+       contrast focused, matching how it reads on tablet. */
+    --slide-spacing: clamp(3rem, 16vw, 12rem);
   }
 
   .card-preview-panel-inner {
@@ -2081,9 +2187,8 @@ hr {
 .binder-pages-sheet {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
   will-change: transform;
 }
 
@@ -2096,7 +2201,7 @@ hr {
   align-items: center;
   gap: var(--slide-spacing);
   width: 100%;
-  flex: 0 0 auto;
+  min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
@@ -2118,10 +2223,16 @@ hr {
   scroll-snap-stop: always;
 }
 
+.binder-pages-slide.is-active > * {
+  transform: scale(1.08);
+  transform-origin: center;
+}
+
 .binder-pages-page {
   display: grid;
-  /* Maintain card aspect ratio: 3 cols of 5:7 cards = 5:7 page aspect. */
+  /* 3 cols of 5:7 cards => page aspect 5:7 (matches a single card). */
   aspect-ratio: 5 / 7;
+  width: 100%;
   gap: 6px;
   padding: 8px;
   background: rgba(20, 20, 22, 0.6);
@@ -2132,6 +2243,9 @@ hr {
 
 .binder-pages-page.page-18 {
   aspect-ratio: auto;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2143,6 +2257,7 @@ hr {
 }
 
 .binder-pages-cell {
+  position: relative;
   background: rgba(255, 255, 255, 0.04);
   border: 0.5px solid rgba(255, 255, 255, 0.06);
   border-radius: 6px;
@@ -2153,6 +2268,28 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.binder-pages-cell.is-foil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    115deg,
+    #ff80c8 0%,
+    #78c8ff 25%,
+    #78ffb4 50%,
+    #ffdc78 75%,
+    #ff78c8 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .binder-pages-cell.empty {
@@ -2219,7 +2356,8 @@ hr {
 
 @media (min-width: 600px) {
   .binder-pages-backdrop {
-    --slide-size: 480px;
+    --slide-size: 360px;
+    --slide-spacing: clamp(3rem, 16vw, 12rem);
   }
 }
 
