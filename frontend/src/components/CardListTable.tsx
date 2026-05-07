@@ -284,7 +284,10 @@ export function CardListTable({ cards, binders }: Props) {
                 aria-pressed={active}
                 title={c.label}
               >
-                <i className={`ms ms-${c.key.toLowerCase()} ms-cost`} aria-hidden />
+                <i
+                  className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
+                  aria-hidden
+                />
               </button>
             );
           })}

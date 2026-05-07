@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getColorKey, isLand } from './colors';
+import { getColorKey, isLand, COLOR_INFO } from './colors';
 import type { EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -75,6 +75,16 @@ describe('getColorKey', () => {
     expect(
       getColorKey(makeCard({ typeLine: 'Creature', colorIdentity: ['W', 'U', 'B', 'R', 'G'] }))
     ).toBe('M');
+  });
+});
+
+describe('COLOR_INFO', () => {
+  it('has an entry for every color key the rest of the app consumes', () => {
+    for (const k of ['W', 'U', 'B', 'R', 'G', 'M', 'C', 'L', '?', 'ALL']) {
+      expect(COLOR_INFO[k], `missing COLOR_INFO entry for "${k}"`).toBeDefined();
+      expect(COLOR_INFO[k].pip).toMatch(/^#[0-9a-f]{3,8}$/i);
+      expect(COLOR_INFO[k].label.length).toBeGreaterThan(0);
+    }
   });
 });
 
