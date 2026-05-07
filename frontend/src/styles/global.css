@@ -1613,7 +1613,7 @@ hr {
 /* ── Card preview (hero carousel + sticky info panel) ──────────────────── */
 .card-preview-backdrop {
   --slide-spacing: 1rem;
-  --slide-size: 78%;
+  --slide-size: 88%;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.72);
@@ -1775,7 +1775,7 @@ hr {
 
 @media (min-width: 600px) {
   .card-preview-backdrop {
-    --slide-size: 360px;
+    --slide-size: 420px;
   }
 }
 
