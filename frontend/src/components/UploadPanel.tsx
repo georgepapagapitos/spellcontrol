@@ -145,7 +145,6 @@ export function UploadPanel() {
       {hasCollection && (
         <div className="upload-current">
           <div className="upload-current-info">
-            <span className="upload-current-icon">&#10003;</span>
             <div className="upload-current-text">
               <div className="upload-current-name">
                 {importHistory.length > 1
