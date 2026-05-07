@@ -5,7 +5,7 @@ import { CardPreview } from './CardPreview';
 export interface InnerCardScope {
   cards: EnrichedCard[];
   index: number;
-  sectionLabel: string;
+  sectionLabels: string[];
   pageNumbers: number[];
   totalPages: number;
 }
@@ -244,8 +244,7 @@ export function BinderPagePreview({
           <div className="binder-pages-panel" onClick={(e) => e.stopPropagation()}>
             <div className="binder-pages-name">{binderName}</div>
             <div className="binder-pages-context">
-              {pageLabels[selected] ? `${pageLabels[selected]} · ` : ''}p.
-              {currentPage?.pageNum}
+              {pageLabels[selected] ? `${pageLabels[selected]} · ` : ''}page {currentPage?.pageNum}
             </div>
             <div className="binder-pages-counter">
               Page {selected + 1} of {pages.length}
@@ -259,7 +258,7 @@ export function BinderPagePreview({
           cards={innerCard.cards}
           index={innerCard.index}
           binderName={binderName}
-          sectionLabel={innerCard.sectionLabel}
+          sectionLabels={innerCard.sectionLabels}
           pageNumbers={innerCard.pageNumbers}
           totalPages={innerCard.totalPages}
           onIndexChange={(i) => setInnerCard((prev) => (prev ? { ...prev, index: i } : prev))}

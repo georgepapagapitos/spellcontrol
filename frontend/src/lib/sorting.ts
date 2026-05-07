@@ -3,7 +3,6 @@ import { COLOR_INFO, getColorKey } from './colors';
 import { TYPE_ORDER, getCardType } from './card-types';
 
 export const SORT_FIELDS: { value: SortField; label: string }[] = [
-  { value: 'none', label: '—' },
   { value: 'color', label: 'Color' },
   { value: 'type', label: 'Type' },
   { value: 'rarity', label: 'Rarity' },
@@ -63,4 +62,7 @@ export function sortCards(cards: EnrichedCard[], sorts: SortField[]): EnrichedCa
 }
 
 /** Suggested defaults for newly-created binders. */
-export const NEW_BINDER_DEFAULT_SORTS: SortField[] = ['color', 'cmc', 'name'];
+export const NEW_BINDER_DEFAULT_SORTS: SortField[] = ['name'];
+
+/** Maximum number of sort fields a binder can chain. */
+export const MAX_SORTS = 3;
