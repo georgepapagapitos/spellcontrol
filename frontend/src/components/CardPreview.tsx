@@ -101,6 +101,20 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
+  // Lock body scroll while the preview is open so swipe-down (or any other
+  // touch motion) can't bleed through and scroll the page behind.
+  useEffect(() => {
+    const { body } = document;
+    const prevOverflow = body.style.overflow;
+    const prevOverscroll = body.style.overscrollBehavior;
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'contain';
+    return () => {
+      body.style.overflow = prevOverflow;
+      body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
