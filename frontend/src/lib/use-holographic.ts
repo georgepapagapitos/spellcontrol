@@ -1,0 +1,120 @@
+import { useCallback, useEffect, useState } from 'react';
+
+/**
+ * Drives a holographic foil effect by tracking the cursor over a target element
+ * and writing CSS custom properties (--rx, --ry, --mx, --my, --hyp) directly to
+ * the DOM. CSS picks these up to animate tilt, glare position, and shimmer.
+ *
+ * Uses requestAnimationFrame for smoothing and bypasses React entirely on hover —
+ * mousemove fires often enough that going through setState would tank framerate.
+ *
+ * Returns a callback ref so listeners re-bind whenever the target element changes
+ * (e.g. carousel swaps which slide is active).
+ */
+export function useHolographic(enabled: boolean) {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  const ref = useCallback((node: HTMLElement | null) => setEl(node), []);
+
+  useEffect(() => {
+    if (!el || !enabled) return;
+
+    let rafId: number | null = null;
+    // Targets are what mousemove writes; current is what we lerp toward them.
+    const target = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0 };
+    const current = { rx: 0, ry: 0, mx: 50, my: 50, hyp: 0 };
+    let active = false;
+
+    const apply = () => {
+      // Lerp current → target. Higher factor = snappier. While the cursor is
+      // active we want it tracking tightly; on leave we ease back gently.
+      const k = active ? 0.28 : 0.1;
+      current.rx += (target.rx - current.rx) * k;
+      current.ry += (target.ry - current.ry) * k;
+      current.mx += (target.mx - current.mx) * k;
+      current.my += (target.my - current.my) * k;
+      current.hyp += (target.hyp - current.hyp) * k;
+
+      el.style.setProperty('--rx', `${current.rx.toFixed(2)}deg`);
+      el.style.setProperty('--ry', `${current.ry.toFixed(2)}deg`);
+      el.style.setProperty('--mx', `${current.mx.toFixed(2)}%`);
+      el.style.setProperty('--my', `${current.my.toFixed(2)}%`);
+      el.style.setProperty('--hyp', current.hyp.toFixed(3));
+
+      // Stop the loop when we've settled close to neutral.
+      const settled =
+        Math.abs(current.rx - target.rx) < 0.05 &&
+        Math.abs(current.ry - target.ry) < 0.05 &&
+        Math.abs(current.mx - target.mx) < 0.1 &&
+        Math.abs(current.my - target.my) < 0.1;
+      if (settled && !active) {
+        rafId = null;
+        return;
+      }
+      rafId = requestAnimationFrame(apply);
+    };
+
+    const ensureLoop = () => {
+      if (rafId == null) rafId = requestAnimationFrame(apply);
+    };
+
+    const onMove = (clientX: number, clientY: number) => {
+      const rect = el.getBoundingClientRect();
+      const x = (clientX - rect.left) / rect.width; // 0..1
+      const y = (clientY - rect.top) / rect.height;
+      // Clamp to viewport in case of subpixel overshoot.
+      const cx = Math.max(0, Math.min(1, x));
+      const cy = Math.max(0, Math.min(1, y));
+      // Tilt range: ±18° matches the codepen reference — strong enough to read
+      // as a real tilt without going past the card's plausible motion arc.
+      target.ry = (cx - 0.5) * 36;
+      target.rx = (0.5 - cy) * 36;
+      target.mx = cx * 100;
+      target.my = cy * 100;
+      // Hypotenuse: 0 at center, 1 at corner — used to crank up shimmer near edges.
+      const dx = cx - 0.5;
+      const dy = cy - 0.5;
+      target.hyp = Math.min(1, Math.hypot(dx, dy) * 2);
+      active = true;
+      ensureLoop();
+    };
+
+    const reset = () => {
+      target.rx = 0;
+      target.ry = 0;
+      target.mx = 50;
+      target.my = 50;
+      target.hyp = 0;
+      active = false;
+      ensureLoop();
+    };
+
+    const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) onMove(t.clientX, t.clientY);
+    };
+
+    el.addEventListener('mousemove', onMouseMove);
+    el.addEventListener('mouseleave', reset);
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', reset);
+    el.addEventListener('touchcancel', reset);
+
+    return () => {
+      el.removeEventListener('mousemove', onMouseMove);
+      el.removeEventListener('mouseleave', reset);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', reset);
+      el.removeEventListener('touchcancel', reset);
+      if (rafId != null) cancelAnimationFrame(rafId);
+      // Clear vars so the slide returns to flat instantly on prop change.
+      el.style.removeProperty('--rx');
+      el.style.removeProperty('--ry');
+      el.style.removeProperty('--mx');
+      el.style.removeProperty('--my');
+      el.style.removeProperty('--hyp');
+    };
+  }, [el, enabled]);
+
+  return ref;
+}

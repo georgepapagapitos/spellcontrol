@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { EnrichedCard } from '../types';
 import { getSetMap, type SetMap } from '../lib/api';
+import { useHolographic } from '../lib/use-holographic';
+import { classifyFoil } from '../lib/foil-style';
 
 interface Props {
   cards: EnrichedCard[];
@@ -238,6 +240,9 @@ export function CardPreview({
     }
   };
 
+  const activeFoil = Boolean(cards[selected]?.foil);
+  const holoRef = useHolographic(activeFoil);
+
   if (!cards[selected]) return null;
   const current = cards[selected];
 
@@ -281,6 +286,8 @@ export function CardPreview({
           {cards.map((c, i) => {
             const errored = imgErrors[c.scryfallId];
             const shouldMount = mountedRef.current.has(c.scryfallId);
+            const style = classifyFoil(c);
+            const foilClass = style !== 'none' ? ` is-foil foil-${style}` : '';
             return (
               <div
                 className={`card-preview-slide${i === selected ? ' is-active' : ''}`}
@@ -289,7 +296,10 @@ export function CardPreview({
                 }}
                 key={`${c.scryfallId}-${i}`}
               >
-                <div className={`card-preview-image-frame${c.foil ? ' is-foil' : ''}`}>
+                <div
+                  className={`card-preview-image-frame${foilClass}`}
+                  ref={i === selected && c.foil ? holoRef : undefined}
+                >
                   {c.imageNormal && !errored && shouldMount ? (
                     <img
                       src={c.imageNormal}

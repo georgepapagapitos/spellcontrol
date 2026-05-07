@@ -28,6 +28,9 @@ export interface ScryfallCard {
   edhrec_rank?: number;
   /** Cosmetic treatments on this printing (e.g. "fullart", "extendedart", "showcase", "etched"). */
   frame_effects?: string[];
+  /** Promo treatments — where Scryfall encodes specialty foils like "textured", "surgefoil",
+   *  "halofoil", "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
+  promo_types?: string[];
   /** Older full-art lands set this without populating frame_effects. */
   full_art?: boolean;
   /** "black" | "white" | "borderless" | "silver" | "gold". */
@@ -98,6 +101,9 @@ export interface EnrichedCard {
   legalities?: Record<string, string>;
   /** Available finishes for this printing — subset of ["nonfoil","foil","etched"]. */
   finishes?: string[];
+  /** Promo treatments — specialty foil variants like "textured", "surgefoil", "halofoil",
+   *  "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
+  promoTypes?: string[];
 }
 
 export interface UploadResponse {
