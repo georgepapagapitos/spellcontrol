@@ -17,7 +17,6 @@ export default function App() {
     hydrating,
     error,
     search,
-    activeTab,
     hydrateCards,
     setEditingBinder,
     setError,
@@ -85,36 +84,6 @@ export default function App() {
             <hr />
             <Legend />
             <BinderTabs binders={materialized} uncategorized={uncategorized} />
-            {(() => {
-              const activeBinder =
-                activeTab === 'uncategorized'
-                  ? null
-                  : materialized.find((b) => b.def.id === activeTab);
-              const totals =
-                activeTab === 'uncategorized'
-                  ? {
-                      name: 'Uncategorized',
-                      cards: uncategorized.totalCards,
-                      pages: uncategorized.totalPages,
-                    }
-                  : activeBinder
-                    ? {
-                        name: activeBinder.def.name,
-                        cards: activeBinder.totalCards,
-                        pages: activeBinder.totalPages,
-                      }
-                    : null;
-              if (!totals || totals.cards === 0) return null;
-              return (
-                <div className="binder-summary" aria-live="polite">
-                  <span className="binder-summary-name">{totals.name}</span>
-                  <span className="binder-summary-meta">
-                    {totals.cards.toLocaleString()} cards · {totals.pages.toLocaleString()} page
-                    {totals.pages !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              );
-            })()}
             {binders.length === 0 && (
               <div className="empty-state">
                 No binders yet.{' '}
