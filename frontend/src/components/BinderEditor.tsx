@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { useCollectionStore } from '../store/collection';
 import { SORT_FIELDS, NEW_BINDER_DEFAULT_SORTS, MAX_SORTS } from '../lib/sorting';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
@@ -131,6 +132,36 @@ export function BinderEditor() {
       .map(([code, label]) => ({ code, label }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [cards]);
+
+  // Autocomplete suggestions for type-line and oracle-text chips.
+  // Scryfall catalog data is fetched once and merged with tokens from the collection.
+  const [typeSuggestions, setTypeSuggestions] = useState<string[]>([]);
+  const [oracleSuggestions, setOracleSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Derive type tokens from the collection while the catalog fetch is in flight.
+    const collectionTokens = new Set<string>();
+    for (const c of cards) {
+      if (!c.typeLine) continue;
+      for (const tok of c.typeLine.split(/[\s——]+/)) {
+        const t = tok.trim();
+        if (t) collectionTokens.add(t);
+      }
+    }
+
+    fetchTypeSuggestions().then((catalog) => {
+      const merged = [...new Set([...catalog, ...collectionTokens])].sort((a, b) =>
+        a.localeCompare(b)
+      );
+      setTypeSuggestions(merged);
+    });
+
+    fetchOracleSuggestions().then((catalog) => {
+      setOracleSuggestions(catalog);
+    });
+    // Only re-run when the editor opens (isOpen), not on every card change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -432,6 +463,8 @@ export function BinderEditor() {
               groups={groups}
               cards={cards}
               ownedSets={ownedSets}
+              typeSuggestions={typeSuggestions}
+              oracleSuggestions={oracleSuggestions}
               autofocusIdx={autofocusGroupIdx}
               clearAutofocus={() => setAutofocusGroupIdx(null)}
               onPatchFilter={patchFilter}
@@ -543,6 +576,8 @@ function FilterGroupList({
   groups,
   cards,
   ownedSets,
+  typeSuggestions,
+  oracleSuggestions,
   autofocusIdx,
   clearAutofocus,
   onPatchFilter,
@@ -554,6 +589,8 @@ function FilterGroupList({
   groups: BinderFilterGroup[];
   cards: EnrichedCard[];
   ownedSets: { code: string; label: string }[];
+  typeSuggestions: string[];
+  oracleSuggestions: string[];
   autofocusIdx: number | null;
   clearAutofocus: () => void;
   onPatchFilter: (idx: number, p: Partial<BinderFilter>) => void;
@@ -592,6 +629,8 @@ function FilterGroupList({
             total={groups.length}
             matchCount={perGroup[i] ?? 0}
             ownedSets={ownedSets}
+            typeSuggestions={typeSuggestions}
+            oracleSuggestions={oracleSuggestions}
             autofocus={autofocusIdx === i}
             onAutofocusHandled={clearAutofocus}
             onPatchFilter={(p) => onPatchFilter(i, p)}
@@ -627,6 +666,8 @@ function FilterGroupCard({
   total,
   matchCount,
   ownedSets,
+  typeSuggestions,
+  oracleSuggestions,
   autofocus,
   onAutofocusHandled,
   onPatchFilter,
@@ -639,6 +680,8 @@ function FilterGroupCard({
   total: number;
   matchCount: number;
   ownedSets: { code: string; label: string }[];
+  typeSuggestions: string[];
+  oracleSuggestions: string[];
   autofocus: boolean;
   onAutofocusHandled: () => void;
   onPatchFilter: (p: Partial<BinderFilter>) => void;
@@ -694,7 +737,13 @@ function FilterGroupCard({
           </button>
         </span>
       </legend>
-      <FilterGroupFields filter={group.filter} onPatch={onPatchFilter} ownedSets={ownedSets} />
+      <FilterGroupFields
+        filter={group.filter}
+        onPatch={onPatchFilter}
+        ownedSets={ownedSets}
+        typeSuggestions={typeSuggestions}
+        oracleSuggestions={oracleSuggestions}
+      />
     </fieldset>
   );
 }
@@ -708,10 +757,14 @@ function FilterGroupFields({
   filter,
   onPatch,
   ownedSets,
+  typeSuggestions,
+  oracleSuggestions,
 }: {
   filter: BinderFilter;
   onPatch: (p: Partial<BinderFilter>) => void;
   ownedSets: { code: string; label: string }[];
+  typeSuggestions: string[];
+  oracleSuggestions: string[];
 }) {
   const patch = onPatch;
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
@@ -791,6 +844,7 @@ function FilterGroupFields({
           chips={filter.typeChips || []}
           onChange={(next) => patch({ typeChips: next })}
           placeholder="e.g. creature, angel, legendary"
+          suggestions={typeSuggestions}
         />
       </div>
 
@@ -805,7 +859,8 @@ function FilterGroupFields({
         <ChipBuilder
           chips={filter.oracleChips || []}
           onChange={(next) => patch({ oracleChips: next })}
-          placeholder="e.g. draw a card, flying"
+          placeholder="e.g. flying, draw a card"
+          suggestions={oracleSuggestions}
         />
       </div>
 
@@ -1009,72 +1064,145 @@ function cloneChips(f: BinderFilter): Partial<BinderFilter> {
 /* ─────────────────────────── small components ─────────────────────────── */
 
 /** ManaBox-style chip builder: type a value, hit Enter to add. Each chip toggles IS / IS NOT and has an X. */
+const MAX_SUGGESTIONS = 8;
+
 function ChipBuilder({
   chips,
   onChange,
   placeholder,
+  suggestions = [],
 }: {
   chips: NegatableChip[];
   onChange: (next: NegatableChip[]) => void;
   placeholder?: string;
+  suggestions?: string[];
 }) {
   const [draft, setDraft] = useState('');
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const listRef = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const commit = () => {
-    const v = draft.trim();
-    if (!v) return;
-    if (chips.some((c) => c.value.toLowerCase() === v.toLowerCase() && !c.negate)) {
+  const taken = useMemo(() => new Set(chips.map((c) => c.value.toLowerCase())), [chips]);
+
+  const filtered = useMemo(() => {
+    const q = draft.trim().toLowerCase();
+    if (!q) return [];
+    return suggestions
+      .filter((s) => s.toLowerCase().includes(q) && !taken.has(s.toLowerCase()))
+      .slice(0, MAX_SUGGESTIONS);
+  }, [draft, suggestions, taken]);
+
+  const open = filtered.length > 0;
+
+  const commit = useCallback(
+    (value?: string) => {
+      const v = (value ?? draft).trim();
+      if (!v) return;
+      if (chips.some((c) => c.value.toLowerCase() === v.toLowerCase())) {
+        setDraft('');
+        setActiveIdx(-1);
+        return;
+      }
+      onChange([...chips, { value: v, negate: false }]);
       setDraft('');
-      return;
-    }
-    onChange([...chips, { value: v, negate: false }]);
-    setDraft('');
-  };
+      setActiveIdx(-1);
+    },
+    [draft, chips, onChange]
+  );
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-      {chips.map((c, i) => (
-        <span
-          key={i}
-          className={`chip-builder-chip ${c.negate ? 'is-not' : 'is'}`}
-          title="Click IS / IS NOT to toggle"
-        >
-          <button
-            type="button"
-            className="chip-builder-toggle"
-            onClick={() =>
-              onChange(chips.map((x, j) => (j === i ? { ...x, negate: !x.negate } : x)))
-            }
+    <div className="chip-builder-wrap">
+      <div
+        className="chip-builder-inner"
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
+      >
+        {chips.map((c, i) => (
+          <span
+            key={i}
+            className={`chip-builder-chip ${c.negate ? 'is-not' : 'is'}`}
+            title="Click IS / IS NOT to toggle"
           >
-            {c.negate ? 'IS NOT' : 'IS'}
-          </button>
-          <span className="chip-builder-value">{c.value}</span>
-          <button
-            type="button"
-            className="chip-builder-remove"
-            aria-label="Remove"
-            onClick={() => onChange(chips.filter((_, j) => j !== i))}
-          >
-            ×
-          </button>
-        </span>
-      ))}
-      <input
-        type="text"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            commit();
-          } else if (e.key === 'Backspace' && draft === '' && chips.length > 0) {
-            onChange(chips.slice(0, -1));
-          }
-        }}
-        onBlur={commit}
-        placeholder={placeholder}
-        style={{ width: 220 }}
-      />
+            <button
+              type="button"
+              className="chip-builder-toggle"
+              onClick={() =>
+                onChange(chips.map((x, j) => (j === i ? { ...x, negate: !x.negate } : x)))
+              }
+            >
+              {c.negate ? 'IS NOT' : 'IS'}
+            </button>
+            <span className="chip-builder-value">{c.value}</span>
+            <button
+              type="button"
+              className="chip-builder-remove"
+              aria-label="Remove"
+              onClick={() => onChange(chips.filter((_, j) => j !== i))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <div className="chip-builder-input-wrap">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setActiveIdx(-1);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActiveIdx((i) => Math.max(i - 1, -1));
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                commit(activeIdx >= 0 ? filtered[activeIdx] : undefined);
+              } else if (e.key === 'Escape') {
+                setDraft('');
+                setActiveIdx(-1);
+              } else if (e.key === 'Backspace' && draft === '' && chips.length > 0) {
+                onChange(chips.slice(0, -1));
+              }
+            }}
+            onBlur={() => {
+              // Delay so click on suggestion fires first
+              setTimeout(() => {
+                commit();
+              }, 120);
+            }}
+            placeholder={placeholder}
+            style={{ width: 200 }}
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-activedescendant={activeIdx >= 0 ? `chip-suggest-${activeIdx}` : undefined}
+          />
+          {open && (
+            <ul ref={listRef} className="chip-suggest-list" role="listbox">
+              {filtered.map((s, i) => (
+                <li
+                  key={s}
+                  id={`chip-suggest-${i}`}
+                  role="option"
+                  aria-selected={i === activeIdx}
+                  className={`chip-suggest-item${i === activeIdx ? ' active' : ''}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commit(s);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  {s}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

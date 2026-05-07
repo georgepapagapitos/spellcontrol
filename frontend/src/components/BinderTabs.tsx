@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
+import { useConfirm } from '../lib/use-confirm';
 
 interface Props {
   binders: MaterializedBinder[];
@@ -15,16 +16,26 @@ export function BinderTabs({ binders }: Props) {
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const [exportOpen, setExportOpen] = useState(false);
-  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
-  const handleDelete = (id: string, name: string) => {
-    if (
-      !confirm(
-        `Delete the binder "${name}"? Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`
-      )
-    )
-      return;
-    deleteBinder(id);
+  const handleDelete = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: `Delete "${name}"?`,
+      body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
+      confirmLabel: 'Delete binder',
+      danger: true,
+    });
+    if (ok) deleteBinder(id);
+  };
+
+  const handleDeleteAll = async () => {
+    const ok = await confirm({
+      title: `Delete all ${binders.length} binders?`,
+      body: `Every binder definition will be removed. Your cards stay where they are — they'll fall back to the Uncategorized view until you build new binders. This cannot be undone.`,
+      confirmLabel: 'Delete all binders',
+      danger: true,
+    });
+    if (ok) deleteAllBinders();
   };
 
   // Sort by position so reorder arrows produce a consistent display
@@ -110,7 +121,7 @@ export function BinderTabs({ binders }: Props) {
         <button
           type="button"
           className="tab tab-delete-all"
-          onClick={() => setConfirmDeleteAll(true)}
+          onClick={handleDeleteAll}
           title="Delete every binder (cards are unaffected — they fall back to Uncategorized)"
         >
           <TrashIcon />
@@ -126,52 +137,7 @@ export function BinderTabs({ binders }: Props) {
         />
       )}
 
-      {confirmDeleteAll && (
-        <DeleteAllBindersDialog
-          count={binders.length}
-          onConfirm={() => {
-            deleteAllBinders();
-            setConfirmDeleteAll(false);
-          }}
-          onCancel={() => setConfirmDeleteAll(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-interface DeleteAllBindersDialogProps {
-  count: number;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-function DeleteAllBindersDialog({ count, onConfirm, onCancel }: DeleteAllBindersDialogProps) {
-  return (
-    <div className="modal-backdrop" onClick={onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-all-binders-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="delete-all-binders-title" className="choice-dialog-title">
-          Delete all {count} binders?
-        </h2>
-        <p className="choice-dialog-body">
-          Every binder definition will be removed. Your cards stay where they are — they'll fall
-          back to the Uncategorized view until you build new binders. This cannot be undone.
-        </p>
-        <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="btn btn-danger" onClick={onConfirm} autoFocus>
-            Delete all binders
-          </button>
-        </div>
-      </div>
+      {confirmDialog}
     </div>
   );
 }
