@@ -30,15 +30,15 @@ export function PageGrid({ page, pageNum, pageIndex, pocketSize }: Props) {
 
 function PageNum({ pageNum, pageIndex }: { pageNum: number; pageIndex: number }) {
   const ctx = useContext(CardPreviewContext);
-  if (!ctx) return <div className="page-num">p{pageNum}</div>;
+  if (!ctx) return <div className="page-num">page {pageNum}</div>;
   return (
     <button
       type="button"
       className="page-num page-num-link"
       onClick={() => ctx.openPages(pageIndex)}
-      aria-label={`Open page ${pageNum} in flipbook`}
+      aria-label={`Browse pages from page ${pageNum}`}
     >
-      p{pageNum}
+      page {pageNum}
     </button>
   );
 }
