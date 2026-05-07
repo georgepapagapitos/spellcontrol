@@ -119,14 +119,15 @@ export function StatsBar() {
 
   return (
     <>
-      <div className="collection-summary">
-        <div>
-          <span className="collection-summary-num">{cards.length.toLocaleString()}</span>{' '}
-          <span className="collection-summary-label">cards</span>
-          <span className="collection-summary-sep"> · </span>
-          <span className="collection-summary-num">${totalValue.toFixed(0)}</span>{' '}
-          <span className="collection-summary-label">value</span>
-        </div>
+      <div className="breakdown-overview">
+        <span className="breakdown-overview-label">Overview</span>
+        <span className="breakdown-overview-stats">
+          <span className="breakdown-overview-num">{cards.length.toLocaleString()}</span>
+          <span className="breakdown-overview-unit">cards</span>
+          <span className="breakdown-overview-sep">·</span>
+          <span className="breakdown-overview-num">${totalValue.toFixed(0)}</span>
+          <span className="breakdown-overview-unit">value</span>
+        </span>
       </div>
 
       <div className="breakdown-grid">
