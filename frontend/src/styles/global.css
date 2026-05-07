@@ -1701,9 +1701,20 @@ hr {
   border-color: var(--accent);
 }
 
-/* Export action sits on the right edge of the binder tab row */
-.binder-tab-export {
-  margin-left: auto;
+.tab-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tab-export:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tab-export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Modal ──────────────────────────────────────────────────────────────── */

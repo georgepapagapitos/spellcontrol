@@ -95,7 +95,7 @@ export function BinderTabs({ binders }: Props) {
 
       <button
         type="button"
-        className="binder-tab-export upload-action"
+        className="tab tab-export"
         onClick={() => setExportOpen(true)}
         disabled={binders.length === 0}
         title="Export this binder, all binders, or the full collection"
