@@ -14,6 +14,9 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryf
 const app = express();
 const cache = new ScryfallCache(DB_PATH);
 
+// Don't advertise the framework — small fingerprinting hygiene.
+app.disable('x-powered-by');
+
 app.use(express.json({ limit: '10mb' }));
 
 const upload = multer({
@@ -192,7 +195,7 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
     return;
   }
   console.error('[server] unhandled error:', err);
-  res.status(500).json({ error: 'An unexpected server error occurred.' });
+  res.status(500).json({ error: 'Something went wrong on the server. Try again in a moment.' });
 });
 
 const server = app.listen(PORT, () => {

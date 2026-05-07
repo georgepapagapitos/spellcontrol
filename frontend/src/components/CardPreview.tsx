@@ -3,6 +3,9 @@ import type { EnrichedCard } from '../types';
 import { getSetMap, type SetMap } from '../lib/api';
 import { useHolographic } from '../lib/use-holographic';
 import { classifyFoil } from '../lib/foil-style';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useCenteredSlide } from '../lib/use-centered-slide';
+import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 
 interface Props {
   cards: EnrichedCard[];
@@ -81,54 +84,25 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Detect which slide is centered. IntersectionObserver with threshold 0.5
-  // fires when any slide crosses the halfway-visible mark — exactly the
-  // "halfway commits" semantic.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const observer = new IntersectionObserver(
-      () => {
-        // Active = the slide whose center is closest to the track's center.
-        // Pure ratio-based picking ties when multiple slides are 100% visible
-        // (which happens whenever a neighbor fully fits the viewport too) and
-        // would lock onto the wrong one. Center-distance has no ties.
-        const trackRect = track.getBoundingClientRect();
-        const trackCenter = trackRect.left + trackRect.width / 2;
-        let bestIdx = -1;
-        let bestDist = Infinity;
-        for (let i = 0; i < slideRefs.current.length; i++) {
-          const el = slideRefs.current[i];
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          // Cheap visibility gate: if the slide is entirely outside the track
-          // viewport, skip the abs() math.
-          if (r.right < trackRect.left || r.left > trackRect.right) continue;
-          const dist = Math.abs(r.left + r.width / 2 - trackCenter);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestIdx = i;
-          }
-        }
-        if (bestIdx < 0) return;
-        setSelected(bestIdx);
-        onIndexChangeRef.current(bestIdx);
+  useCenteredSlide(
+    trackRef,
+    slideRefs,
+    (bestIdx) => {
+      setSelected(bestIdx);
+      onIndexChangeRef.current(bestIdx);
 
-        let added = false;
-        for (let j = bestIdx - PRELOAD_RADIUS; j <= bestIdx + PRELOAD_RADIUS; j++) {
-          const id = cards[j]?.scryfallId;
-          if (id && !mountedRef.current.has(id)) {
-            mountedRef.current.add(id);
-            added = true;
-          }
+      let added = false;
+      for (let j = bestIdx - PRELOAD_RADIUS; j <= bestIdx + PRELOAD_RADIUS; j++) {
+        const id = cards[j]?.scryfallId;
+        if (id && !mountedRef.current.has(id)) {
+          mountedRef.current.add(id);
+          added = true;
         }
-        if (added) forceRender((n) => n + 1);
-      },
-      { root: track, threshold: [0, 0.25, 0.5, 0.75, 1] }
-    );
-    slideRefs.current.forEach((s) => s && observer.observe(s));
-    return () => observer.disconnect();
-  }, [cards]);
+      }
+      if (added) forceRender((n) => n + 1);
+    },
+    [cards]
+  );
 
   // Sync parent → carousel if the parent index changes externally.
   useEffect(() => {
@@ -140,19 +114,7 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
-  // Lock body scroll while the preview is open so swipe-down (or any other
-  // touch motion) can't bleed through and scroll the page behind.
-  useEffect(() => {
-    const { body } = document;
-    const prevOverflow = body.style.overflow;
-    const prevOverscroll = body.style.overscrollBehavior;
-    body.style.overflow = 'hidden';
-    body.style.overscrollBehavior = 'contain';
-    return () => {
-      body.style.overflow = prevOverflow;
-      body.style.overscrollBehavior = prevOverscroll;
-    };
-  }, []);
+  useLockBodyScroll();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -171,74 +133,10 @@ export function CardPreview({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, selected, cards.length]);
 
-  // Swipe-down-to-dismiss. Track vertical drag on the sheet; axis-lock on
-  // first significant move so horizontal swipes inside the carousel still
-  // drive the native scroll-snap. Up swipes are intentionally ignored.
-  const [dragY, setDragY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
-  const axisLockRef = useRef<'h' | 'v' | null>(null);
-  // When the gesture locks vertical, pin the carousel's horizontal scroll
-  // position so any sideways finger motion during the dismiss drag can't
-  // also flip cards.
-  const lockedScrollLeftRef = useRef<number | null>(null);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    const t = e.touches[0];
-    dragStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    axisLockRef.current = null;
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    const start = dragStartRef.current;
-    if (!start) return;
-    const t = e.touches[0];
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    if (axisLockRef.current === null) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-        axisLockRef.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
-        if (axisLockRef.current === 'v') setIsDragging(true);
-      }
-    }
-    if (axisLockRef.current === 'v') {
-      // Only respond to downward drag; ignore upward.
-      setDragY(Math.max(0, dy));
-      // Pin horizontal scroll so the carousel can't change cards mid-dismiss.
-      const track = trackRef.current;
-      if (track) {
-        if (lockedScrollLeftRef.current === null) {
-          lockedScrollLeftRef.current = track.scrollLeft;
-        }
-        track.scrollLeft = lockedScrollLeftRef.current;
-      }
-    }
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = dragStartRef.current;
-    dragStartRef.current = null;
-    setIsDragging(false);
-    if (!start || axisLockRef.current !== 'v') {
-      setDragY(0);
-      axisLockRef.current = null;
-      lockedScrollLeftRef.current = null;
-      return;
-    }
-    const t = e.changedTouches[0];
-    const dy = t.clientY - start.y;
-    const dt = Math.max(1, Date.now() - start.t);
-    const velocity = dy / dt;
-    axisLockRef.current = null;
-    lockedScrollLeftRef.current = null;
-    // Dismiss if dragged far enough OR flicked down hard.
-    if (dy > 120 || velocity > 0.6) {
-      onClose();
-    } else {
-      setDragY(0);
-    }
-  };
+  const { dragY, isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
+    onDismiss: onClose,
+    trackRef,
+  });
 
   const activeFoil = Boolean(cards[selected]?.foil);
   // Suppress tilt while a touch swipe gesture is in flight — once the parent's
@@ -270,10 +168,7 @@ export function CardPreview({
       <div
         className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}`}
         style={sheetStyle}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        {...touchHandlers}
       >
         <button
           type="button"

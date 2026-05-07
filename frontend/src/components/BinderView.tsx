@@ -6,7 +6,6 @@ import type {
   MaterializedBinder,
   PocketSize,
   SortField,
-  UncategorizedBucket,
 } from '../types';
 import { SORT_FIELDS } from '../lib/sorting';
 import { PageGrid } from './PageGrid';
@@ -21,31 +20,21 @@ const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
 
 interface Props {
   binders: MaterializedBinder[];
-  uncategorized: UncategorizedBucket;
 }
 
-export function BinderView({ binders, uncategorized }: Props) {
+export function BinderView({ binders }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
+  const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
 
-  if (activeTab === 'uncategorized') {
-    if (uncategorized.totalCards === 0) {
-      return (
-        <div className="empty-state">🎉 Every card has a binder. Nothing left to categorize.</div>
-      );
-    }
-    return (
-      <SectionList
-        viewKey="uncategorized"
-        binderName="Uncategorized"
-        totalCards={uncategorized.totalCards}
-        totalPages={uncategorized.totalPages}
-        sections={uncategorized.sections}
-        pocketSize={uncategorized.effectivePocketSize}
-        sorts={uncategorized.effectiveSorts}
-      />
-    );
-  }
+  // The Uncategorized bucket is no longer a tab in this view — it lives in the
+  // Collection page filter. Migrate any legacy persisted activeTab to the first
+  // real binder so users do not land on a dead tab.
+  useEffect(() => {
+    const matchesABinder = binders.some((b) => b.def.id === activeTab);
+    if (matchesABinder || binders.length === 0) return;
+    setActiveTab(binders[0].def.id);
+  }, [activeTab, binders, setActiveTab]);
 
   const active = binders.find((b) => b.def.id === activeTab);
   if (!active) {

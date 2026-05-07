@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { SORT_FIELDS, NEW_BINDER_DEFAULT_SORTS, MAX_SORTS } from '../lib/sorting';
 import { isFilterEmpty } from '../lib/rules';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type {
   BinderFilter,
   BinderInput,
@@ -141,19 +142,7 @@ export function BinderEditor() {
     setErrorMsg(null);
   }, [isOpen, existing]);
 
-  // Lock body scroll while the modal is open so the page behind doesn't move.
-  useEffect(() => {
-    if (!isOpen) return;
-    const { body } = document;
-    const prevOverflow = body.style.overflow;
-    const prevOverscroll = body.style.overscrollBehavior;
-    body.style.overflow = 'hidden';
-    body.style.overscrollBehavior = 'contain';
-    return () => {
-      body.style.overflow = prevOverflow;
-      body.style.overscrollBehavior = prevOverscroll;
-    };
-  }, [isOpen]);
+  useLockBodyScroll(isOpen);
 
   if (!isOpen) return null;
 

@@ -14,9 +14,8 @@ export function Footer() {
         . Import your collection from ManaBox, Moxfield, Archidekt, Deckbox, or any compatible CSV.
       </p>
       <p className="footer-fineprint">
-        This tool is unofficial and not affiliated with, endorsed, sponsored, or specifically
-        approved by Wizards of the Coast LLC or Scryfall. Magic: The Gathering and all related
-        assets are the property of Wizards of the Coast.
+        Unofficial and not affiliated with Wizards of the Coast or Scryfall. Magic: The Gathering
+        and all related assets are property of Wizards of the Coast.
       </p>
       <p className="footer-fineprint">
         Your binder configurations and uploaded collection are stored locally in your browser. They

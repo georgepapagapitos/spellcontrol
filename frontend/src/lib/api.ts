@@ -28,12 +28,10 @@ function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
     .catch((err) => {
       if (err.name === 'AbortError') {
         throw new Error(
-          'The request timed out. This can happen with very large collections — try importing a smaller batch.'
+          'The request timed out. This can happen with very large collections. Try importing a smaller batch.'
         );
       }
-      throw new Error(
-        'Could not reach the server. Make sure the backend is running and try again.'
-      );
+      throw new Error('The server is not responding. Give it a moment and try again.');
     })
     .finally(() => clearTimeout(timer));
 }

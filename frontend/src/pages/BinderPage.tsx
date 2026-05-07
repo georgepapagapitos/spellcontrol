@@ -22,21 +22,9 @@ export function BinderPage() {
   // still reflects live keystrokes via the un-debounced `search`.
   const debouncedSearch = useDebouncedValue(search, 180);
 
-  const { materialized, uncategorized } = useMemo(() => {
-    if (cards.length === 0) {
-      return {
-        materialized: [],
-        uncategorized: {
-          totalCards: 0,
-          sections: [],
-          totalPages: 0,
-          effectivePocketSize: 9 as const,
-          effectiveSorts: [],
-        },
-      };
-    }
-    const result = materializeBinders(cards, binders, { search: debouncedSearch });
-    return { materialized: result.binders, uncategorized: result.uncategorized };
+  const materialized = useMemo(() => {
+    if (cards.length === 0) return [];
+    return materializeBinders(cards, binders, { search: debouncedSearch }).binders;
   }, [cards, binders, debouncedSearch]);
 
   if (hydrating) {
@@ -62,6 +50,10 @@ export function BinderPage() {
           </div>
         )}
         <div className="empty-state">
+          <p className="empty-state-tagline">Plan your binder before you touch a card.</p>
+          <p className="empty-state-hint">
+            No cards yet. Drop in a CSV from ManaBox, Moxfield, or Archidekt to get started.
+          </p>
           <Link to="/collection" className="btn btn-primary">
             Import your collection
           </Link>
@@ -70,17 +62,25 @@ export function BinderPage() {
     );
   }
 
+  if (binders.length === 0) {
+    return (
+      <div className="empty-state">
+        <p className="empty-state-tagline">Build your first binder.</p>
+        <p className="empty-state-hint">
+          A binder is a set of rules that catches cards from your collection. Make one for each
+          deck, format, or theme you want to plan around.
+        </p>
+        <button className="btn btn-primary" onClick={() => setEditingBinder('new')}>
+          Create your first binder
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <Legend />
-      <BinderTabs binders={materialized} uncategorized={uncategorized} />
-      {binders.length === 0 && (
-        <div className="empty-state">
-          <button className="btn btn-primary" onClick={() => setEditingBinder('new')}>
-            Create your first binder
-          </button>
-        </div>
-      )}
+      <BinderTabs binders={materialized} />
       <div className="binder-toolbar">
         <div className="binder-toolbar-search">
           <input
@@ -102,7 +102,7 @@ export function BinderPage() {
           )}
         </div>
       </div>
-      <BinderView binders={materialized} uncategorized={uncategorized} />
+      <BinderView binders={materialized} />
     </>
   );
 }
