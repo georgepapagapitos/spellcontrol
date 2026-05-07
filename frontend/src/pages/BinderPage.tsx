@@ -7,6 +7,8 @@ import { BinderTabs } from '../components/BinderTabs';
 import { BinderView } from '../components/BinderView';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
+import { useConfirm } from '../lib/use-confirm';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 
 export function BinderPage() {
   const cards = useCollectionStore((s) => s.cards);
@@ -18,15 +20,24 @@ export function BinderPage() {
   const setError = useCollectionStore((s) => s.setError);
   const setSearch = useCollectionStore((s) => s.setSearch);
   const loadSampleBinders = useCollectionStore((s) => s.loadSampleBinders);
+  const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
+
+  const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
+  // When the user already has a real collection, "Try it out" should only add
+  // the curated binder rules so they filter against the user's own cards —
+  // skipping the starter pack avoids polluting the collection.
+  const samplesBindersOnly = cards.length > 0;
 
   const handleConfirmLoadSamples = async () => {
     setLoadingSamples(true);
     setError(null);
     try {
-      const response = await importText(sampleCardsAsCsv());
+      const response = samplesBindersOnly ? null : await importText(sampleCardsAsCsv());
       await loadSampleBinders(response);
       setShowSamplesIntro(false);
     } catch (err) {
@@ -57,7 +68,8 @@ export function BinderPage() {
     );
   }
 
-  if (cards.length === 0) {
+  // State: no cards, no binders — fresh slate. Offer import or full samples.
+  if (cards.length === 0 && binders.length === 0) {
     return (
       <>
         {error && (
@@ -89,6 +101,7 @@ export function BinderPage() {
         {showSamplesIntro && (
           <SamplesIntroDialog
             loading={loadingSamples}
+            bindersOnly={false}
             onConfirm={handleConfirmLoadSamples}
             onCancel={() => setShowSamplesIntro(false)}
           />
@@ -97,6 +110,85 @@ export function BinderPage() {
     );
   }
 
+  // State: binders exist but no collection — keep the binder tabs visible so
+  // the user's work doesn't appear to vanish, and steer them to import.
+  if (cards.length === 0) {
+    return (
+      <>
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '1rem' }}>
+            {error}
+            <button className="btn-link" style={{ marginLeft: 8 }} onClick={() => setError(null)}>
+              Dismiss
+            </button>
+          </div>
+        )}
+        <div className="empty-state">
+          <p className="empty-state-tagline">Your binders are waiting on a collection.</p>
+          <p className="empty-state-hint">
+            {binders.length === 1 ? 'You have 1 binder' : `You have ${binders.length} binders`} set
+            up, but no cards to fill {binders.length === 1 ? 'it' : 'them'}. Import a CSV to see
+            your rules in action.
+          </p>
+          <ul className="empty-state-binder-list">
+            {[...binders]
+              .sort((a, b) => a.position - b.position)
+              .map((b) => (
+                <li key={b.id}>
+                  <span
+                    className="empty-state-binder-swatch"
+                    style={{ background: b.color ?? 'var(--accent)' }}
+                    aria-hidden="true"
+                  />
+                  <span className="empty-state-binder-name">{b.name}</span>
+                  <button
+                    type="button"
+                    className="empty-state-binder-remove"
+                    aria-label={`Delete binder ${b.name}`}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Delete "${b.name}"?`,
+                        body: 'This binder and its rules will be removed.',
+                        confirmLabel: 'Delete binder',
+                        danger: true,
+                      });
+                      if (ok) deleteBinder(b.id);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+          </ul>
+          <div className="empty-state-actions">
+            <Link to="/collection" className="btn btn-primary">
+              Import your collection
+            </Link>
+          </div>
+          {binders.length > 1 && (
+            <button
+              type="button"
+              className="btn-link empty-state-link-warn"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Delete all ${binders.length} binders?`,
+                  body: 'Every binder definition will be removed. Cards will fall back to Uncategorized once a collection is imported.',
+                  confirmLabel: 'Delete all binders',
+                  danger: true,
+                });
+                if (ok) deleteAllBinders();
+              }}
+            >
+              Delete all binders
+            </button>
+          )}
+        </div>
+        {confirmDialog}
+      </>
+    );
+  }
+
+  // State: collection loaded but no binders — first-binder nudge.
   if (binders.length === 0) {
     return (
       <>
@@ -110,22 +202,28 @@ export function BinderPage() {
             <button className="btn btn-primary" onClick={() => setEditingBinder('new')}>
               Create your first binder
             </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setShowSamplesIntro(true)}
-              disabled={loadingSamples}
-            >
-              Try it out
-            </button>
+            {!hasSampleBinders && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowSamplesIntro(true)}
+                disabled={loadingSamples}
+              >
+                Load sample binders
+              </button>
+            )}
           </div>
-          <p className="empty-state-hint" style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
-            Samples ship with a small starter card pack so the rules have something to match.
-          </p>
+          {!hasSampleBinders && (
+            <p className="empty-state-hint" style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
+              Sample binders are three curated rule sets that filter against your existing
+              collection — no extra cards added.
+            </p>
+          )}
         </div>
         {showSamplesIntro && (
           <SamplesIntroDialog
             loading={loadingSamples}
+            bindersOnly={samplesBindersOnly}
             onConfirm={handleConfirmLoadSamples}
             onCancel={() => setShowSamplesIntro(false)}
           />
@@ -165,11 +263,19 @@ export function BinderPage() {
 
 interface SamplesIntroDialogProps {
   loading: boolean;
+  /** When true, only the binder defs are added — the starter pack is skipped. */
+  bindersOnly: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-function SamplesIntroDialog({ loading, onConfirm, onCancel }: SamplesIntroDialogProps) {
+function SamplesIntroDialog({
+  loading,
+  bindersOnly,
+  onConfirm,
+  onCancel,
+}: SamplesIntroDialogProps) {
+  useLockBodyScroll();
   return (
     <div className="modal-backdrop" onClick={loading ? undefined : onCancel} role="presentation">
       <div
@@ -180,11 +286,20 @@ function SamplesIntroDialog({ loading, onConfirm, onCancel }: SamplesIntroDialog
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="samples-intro-title" className="choice-dialog-title">
-          Load samples?
+          {bindersOnly ? 'Load sample binders?' : 'Load samples?'}
         </h2>
         <p className="choice-dialog-body">
-          This will create {SAMPLE_BINDERS.length} sample binders that show off the rule system,
-          plus a starter pack of {SAMPLE_CARDS.length} cards so each binder has visible matches.
+          {bindersOnly ? (
+            <>
+              This will create {SAMPLE_BINDERS.length} sample binders that show off the rule system.
+              They will filter against your existing collection — no extra cards are added.
+            </>
+          ) : (
+            <>
+              This will create {SAMPLE_BINDERS.length} sample binders that show off the rule system,
+              plus a starter pack of {SAMPLE_CARDS.length} cards so each binder has visible matches.
+            </>
+          )}
         </p>
         <ul className="samples-intro-list">
           {SAMPLE_BINDERS.map((s) => (
@@ -201,13 +316,15 @@ function SamplesIntroDialog({ loading, onConfirm, onCancel }: SamplesIntroDialog
             Each sample binder has an <span className="kbd-inline">✕</span> on its tab — that
             removes just that binder.
           </li>
-          <li>
-            The bundled cards land in{' '}
-            <Link to="/collection" className="link-warn">
-              Collection → Import history
-            </Link>{' '}
-            as "Sample: starter pack". Tick its checkbox and Delete selected to remove them.
-          </li>
+          {!bindersOnly && (
+            <li>
+              The bundled cards land in{' '}
+              <Link to="/collection" className="link-warn">
+                Collection → Import history
+              </Link>{' '}
+              as "Sample: starter pack". Tick its checkbox and Delete selected to remove them.
+            </li>
+          )}
         </ul>
         <div className="choice-dialog-actions">
           <button type="button" className="btn" onClick={onCancel} disabled={loading}>
@@ -220,7 +337,7 @@ function SamplesIntroDialog({ loading, onConfirm, onCancel }: SamplesIntroDialog
             disabled={loading}
             autoFocus
           >
-            {loading ? 'Loading…' : 'Load samples'}
+            {loading ? 'Loading…' : bindersOnly ? 'Load sample binders' : 'Load samples'}
           </button>
         </div>
       </div>

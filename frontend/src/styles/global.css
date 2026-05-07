@@ -996,7 +996,7 @@ input[type='text'] {
 /* Breakdown cards — Colors / Types / Rarity */
 .breakdown-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 1.5rem;
 }
@@ -1664,6 +1664,80 @@ hr {
   max-width: 28rem;
   margin-inline: auto;
   line-height: 1.5;
+}
+
+.empty-state-binder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 1.5rem;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.empty-state-binder-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.empty-state-binder-swatch {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.empty-state-binder-name {
+  flex: 1;
+}
+
+.empty-state-binder-remove {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: 999px;
+  opacity: 0.45;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+}
+
+.empty-state-binder-remove:hover,
+.empty-state-binder-remove:focus-visible {
+  opacity: 1;
+  color: var(--err-text, var(--warn-text));
+  outline: none;
+}
+
+.empty-state-link-warn {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-size: var(--text-sm);
+  color: var(--text3);
+  background: transparent;
+  transition: color 0.15s;
+}
+
+.empty-state-link-warn:hover,
+.btn-link.empty-state-link-warn:hover,
+.empty-state-link-warn:focus-visible {
+  color: var(--warn-text);
+  background: transparent;
 }
 
 .error-banner {
@@ -2515,6 +2589,46 @@ hr {
 
 .chip-builder-remove:hover {
   color: var(--on-accent);
+}
+
+/* ── Chip builder autocomplete dropdown ─────────────────────────────────── */
+.chip-builder-input-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip-suggest-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--surface-raised, var(--surface));
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.chip-suggest-item {
+  padding: 0.4rem 0.75rem;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-suggest-item:hover,
+.chip-suggest-item.active {
+  background: var(--accent-light, var(--surface-alt));
+  color: var(--text1);
 }
 
 /* ── Set multi-select dropdown ──────────────────────────────────────────── */
@@ -3491,7 +3605,7 @@ hr {
   }
 
   .breakdown-card {
-    padding: 0.85rem 0.9rem;
+    padding: 0.75rem 0.85rem;
   }
 
   /* Binder toolbar: stack, search/input full width */
