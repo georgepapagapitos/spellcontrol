@@ -125,6 +125,10 @@ export function CardPreview({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const axisLockRef = useRef<'h' | 'v' | null>(null);
+  // When the gesture locks vertical, pin the carousel's horizontal scroll
+  // position so any sideways finger motion during the dismiss drag can't
+  // also flip cards.
+  const lockedScrollLeftRef = useRef<number | null>(null);
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
@@ -148,6 +152,14 @@ export function CardPreview({
     if (axisLockRef.current === 'v') {
       // Only respond to downward drag; ignore upward.
       setDragY(Math.max(0, dy));
+      // Pin horizontal scroll so the carousel can't change cards mid-dismiss.
+      const track = trackRef.current;
+      if (track) {
+        if (lockedScrollLeftRef.current === null) {
+          lockedScrollLeftRef.current = track.scrollLeft;
+        }
+        track.scrollLeft = lockedScrollLeftRef.current;
+      }
     }
   };
 
@@ -158,6 +170,7 @@ export function CardPreview({
     if (!start || axisLockRef.current !== 'v') {
       setDragY(0);
       axisLockRef.current = null;
+      lockedScrollLeftRef.current = null;
       return;
     }
     const t = e.changedTouches[0];
@@ -165,6 +178,7 @@ export function CardPreview({
     const dt = Math.max(1, Date.now() - start.t);
     const velocity = dy / dt;
     axisLockRef.current = null;
+    lockedScrollLeftRef.current = null;
     // Dismiss if dragged far enough OR flicked down hard.
     if (dy > 120 || velocity > 0.6) {
       onClose();
@@ -200,15 +214,6 @@ export function CardPreview({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
       >
-        <button
-          className="card-preview-close"
-          onClick={onClose}
-          aria-label="Close card preview"
-          type="button"
-        >
-          ×
-        </button>
-
         <div className="card-preview-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
           {cards.map((c, i) => {
             const errored = imgErrors[c.scryfallId];
