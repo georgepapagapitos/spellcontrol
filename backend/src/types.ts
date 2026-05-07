@@ -85,6 +85,7 @@ export interface EnrichedCard {
   edhrecRank?: number;
   imageSmall?: string;
   imageNormal?: string;
+  imageNormalBack?: string;
   /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
   frameEffects?: string[];
   /** Convenience: true if either Scryfall's full_art flag OR frameEffects contains 'fullart'. */
