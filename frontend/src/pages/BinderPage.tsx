@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { Legend } from '../components/Legend';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderView } from '../components/BinderView';
 
@@ -79,7 +78,6 @@ export function BinderPage() {
 
   return (
     <>
-      <Legend />
       <BinderTabs binders={materialized} />
       <div className="binder-toolbar">
         <div className="binder-toolbar-search">

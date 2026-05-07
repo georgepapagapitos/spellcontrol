@@ -377,6 +377,8 @@ select {
   padding-top: 0.85rem;
   border-top: 1px solid var(--border);
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .import-history-title {
@@ -484,6 +486,16 @@ select {
   font-size: var(--text-xs);
   color: var(--text3);
   font-family: var(--font-mono);
+}
+
+.import-card-hint a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.import-card-hint a:hover {
+  color: var(--accent-hover);
 }
 
 .import-card-restore {
@@ -1442,12 +1454,40 @@ input[type='text'] {
 }
 
 /* Legend */
-.legend {
+.legend-disclosure {
+  display: inline-block;
+  position: relative;
+}
+
+.legend-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legend-trigger:hover {
+  color: var(--accent-hover, var(--accent));
+}
+
+.legend-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 1.25rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg1, #fff);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
 }
 
 .legend-item {
@@ -2501,7 +2541,7 @@ hr {
 
 .card-preview-track {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--slide-spacing);
   width: 100%;
   min-height: 0;
@@ -2546,20 +2586,89 @@ hr {
   width: 100%;
   aspect-ratio: 488 / 680;
   border-radius: 14px;
-  overflow: hidden;
   background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
+  perspective: 1400px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   transform: scale(var(--slide-scale, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transform-origin: center;
   transform-style: preserve-3d;
   will-change: transform;
-  backface-visibility: hidden;
   transition:
     transform 240ms ease,
     box-shadow 240ms ease;
+}
+
+/* The flipper handles the 180° rotateY for back-face cards. It's nested
+   inside the frame so it composes cleanly with the frame's tilt transform
+   without fighting it. */
+.card-preview-flipper {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card-preview-flipper.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.card-preview-face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Use clip-path instead of overflow:hidden — the latter creates a paint
+     boundary that can override backface-visibility in some browsers, which
+     ends up showing the mirrored front face when the flipper is at 180°. */
+  clip-path: inset(0 round 14px);
+}
+
+.card-preview-face-back {
+  transform: rotateY(180deg);
+}
+
+.card-preview-flip-row {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 1rem 0.75rem;
+  pointer-events: none;
+}
+
+.card-preview-flip-row > * {
+  pointer-events: auto;
+}
+
+.card-preview-flip-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.card-preview-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.card-preview-flip-btn:active {
+  transform: scale(0.96);
 }
 
 /* While the cursor is moving, the hook lerps every frame — disable the
@@ -3119,8 +3228,25 @@ hr {
 
 @media (min-width: 600px) {
   .binder-pages-backdrop {
-    --slide-size: 360px;
-    --slide-spacing: clamp(3rem, 16vw, 12rem);
+    /* Width is also bounded by viewport height: 9-pocket slides are ~1.4× as
+       tall as they are wide, and the bottom panel + label eat ~140px, so cap
+       width by vh so the slide fits vertically without being clipped behind
+       the panel. */
+    --slide-size: min(72vw, 52vh);
+    --slide-spacing: clamp(2rem, 10vw, 8rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .binder-pages-backdrop {
+    --slide-size: min(60vw, 54vh);
+    --slide-spacing: clamp(3rem, 12vw, 10rem);
+  }
+}
+
+@media (min-width: 1440px) {
+  .binder-pages-backdrop {
+    --slide-size: min(48vw, 54vh);
   }
 }
 
