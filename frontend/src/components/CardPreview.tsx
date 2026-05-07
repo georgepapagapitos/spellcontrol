@@ -118,65 +118,143 @@ export function CardPreview({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, selected, cards.length]);
 
+  // Swipe-down-to-dismiss. Track vertical drag on the sheet; axis-lock on
+  // first significant move so horizontal swipes inside the carousel still
+  // drive the native scroll-snap. Up swipes are intentionally ignored.
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const axisLockRef = useRef<'h' | 'v' | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    dragStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    axisLockRef.current = null;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    const start = dragStartRef.current;
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (axisLockRef.current === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        axisLockRef.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+        if (axisLockRef.current === 'v') setIsDragging(true);
+      }
+    }
+    if (axisLockRef.current === 'v') {
+      // Only respond to downward drag; ignore upward.
+      setDragY(Math.max(0, dy));
+    }
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = dragStartRef.current;
+    dragStartRef.current = null;
+    setIsDragging(false);
+    if (!start || axisLockRef.current !== 'v') {
+      setDragY(0);
+      axisLockRef.current = null;
+      return;
+    }
+    const t = e.changedTouches[0];
+    const dy = t.clientY - start.y;
+    const dt = Math.max(1, Date.now() - start.t);
+    const velocity = dy / dt;
+    axisLockRef.current = null;
+    // Dismiss if dragged far enough OR flicked down hard.
+    if (dy > 120 || velocity > 0.6) {
+      onClose();
+    } else {
+      setDragY(0);
+    }
+  };
+
   if (!cards[selected]) return null;
   const current = cards[selected];
 
+  const dim = Math.max(0, 1 - dragY / 400);
+  const sheetStyle = {
+    transform: `translateY(${dragY}px)`,
+  } as React.CSSProperties;
+  const backdropStyle = {
+    backgroundColor: `rgba(0, 0, 0, ${0.72 * dim})`,
+  } as React.CSSProperties;
+
   return (
-    <div className="card-preview-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <button
-        className="card-preview-close"
-        onClick={onClose}
-        aria-label="Close card preview"
-        type="button"
+    <div
+      className="card-preview-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      style={backdropStyle}
+    >
+      <div
+        className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}`}
+        style={sheetStyle}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
       >
-        ×
-      </button>
+        <button
+          className="card-preview-close"
+          onClick={onClose}
+          aria-label="Close card preview"
+          type="button"
+        >
+          ×
+        </button>
 
-      <div className="card-preview-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
-        {cards.map((c, i) => {
-          const errored = imgErrors[c.scryfallId];
-          const shouldMount = mountedRef.current.has(c.scryfallId);
-          return (
-            <div
-              className="card-preview-slide"
-              ref={(el) => {
-                slideRefs.current[i] = el;
-              }}
-              key={`${c.scryfallId}-${i}`}
-            >
-              <div className="card-preview-image-frame">
-                {c.imageNormal && !errored && shouldMount ? (
-                  <img
-                    src={c.imageNormal}
-                    alt={c.name}
-                    className="card-preview-image"
-                    draggable={false}
-                    decoding="async"
-                    onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
-                  />
-                ) : c.imageNormal && errored ? (
-                  <div className="card-preview-image-fallback">Image unavailable</div>
-                ) : null}
+        <div className="card-preview-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
+          {cards.map((c, i) => {
+            const errored = imgErrors[c.scryfallId];
+            const shouldMount = mountedRef.current.has(c.scryfallId);
+            return (
+              <div
+                className="card-preview-slide"
+                ref={(el) => {
+                  slideRefs.current[i] = el;
+                }}
+                key={`${c.scryfallId}-${i}`}
+              >
+                <div className="card-preview-image-frame">
+                  {c.imageNormal && !errored && shouldMount ? (
+                    <img
+                      src={c.imageNormal}
+                      alt={c.name}
+                      className="card-preview-image"
+                      draggable={false}
+                      decoding="async"
+                      onError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
+                    />
+                  ) : c.imageNormal && errored ? (
+                    <div className="card-preview-image-fallback">Image unavailable</div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="card-preview-name">{current.name}</div>
-        <div className="card-preview-context">
-          {binderName} · {sectionLabel}
-          {pageNumbers[selected] ? ` · p.${pageNumbers[selected]}` : ''}
-        </div>
-        <div className="card-preview-meta">
-          {current.rarity} · ${current.purchasePrice.toFixed(2)}
-          {current.cmc !== undefined ? ` · CMC ${current.cmc}` : ''}
-          {current.setName || current.setCode ? ` · ${current.setName || current.setCode}` : ''}
-          {current.typeLine ? ` · ${current.typeLine}` : ''}
-        </div>
-        <div className="card-preview-counter">
-          {selected + 1} / {cards.length}
+        <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="card-preview-name">{current.name}</div>
+          <div className="card-preview-context">
+            {binderName} · {sectionLabel}
+            {pageNumbers[selected] ? ` · p.${pageNumbers[selected]}` : ''}
+          </div>
+          <div className="card-preview-meta">
+            {current.rarity} · ${current.purchasePrice.toFixed(2)}
+            {current.cmc !== undefined ? ` · CMC ${current.cmc}` : ''}
+            {current.setName || current.setCode ? ` · ${current.setName || current.setCode}` : ''}
+            {current.typeLine ? ` · ${current.typeLine}` : ''}
+          </div>
+          <div className="card-preview-counter">
+            {selected + 1} / {cards.length}
+          </div>
         </div>
       </div>
     </div>
