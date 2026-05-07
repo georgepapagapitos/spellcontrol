@@ -1819,10 +1819,13 @@ hr {
   background: var(--bg);
 }
 
+/* When the user hasn't typed a name, the input's placeholder carries the
+ * auto-summary of the group's filters. Style it to read as a real label
+ * (full color, full weight) so the group looks named. The user can still
+ * click in to type their own — the placeholder vanishes on focus/input. */
 .filter-group-name::placeholder {
-  font-weight: 400;
-  font-style: italic;
-  color: var(--text3);
+  color: var(--text1);
+  opacity: 1;
 }
 
 .filter-group-count {
