@@ -160,12 +160,26 @@ export interface BinderFilter {
   borderColors?: NegatableChip[];
 }
 
+/**
+ * One OR-branch of a binder's matching rules. The binder accepts a card if it
+ * matches ANY group; within a group, all `filter` fields AND together as before.
+ * `name` is an optional user-supplied label shown in the editor; the materialize
+ * path doesn't read it.
+ */
+export interface BinderFilterGroup {
+  name?: string;
+  filter: BinderFilter;
+}
+
 export interface BinderDef {
   id: string;
   name: string;
   position: number;
-  /** Single filter set. Empty filter (no fields) matches every card. */
-  filter: BinderFilter;
+  /**
+   * OR-list of filter groups. A card joins this binder if it matches any group.
+   * Always has length ≥ 1; a single group with an empty filter matches every card.
+   */
+  filterGroups: BinderFilterGroup[];
   sorts: SortField[];
   /** null = inherit global default pocket size */
   pocketSize: PocketSize | null;
