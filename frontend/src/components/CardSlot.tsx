@@ -33,7 +33,16 @@ const hasHover =
 
 export function CardSlot({ card }: Props) {
   const preview = useContext(CardPreviewContext);
+  const previewOpen = preview?.isPreviewOpen ?? false;
   const [hovered, setHovered] = useState(false);
+
+  // Mouseenter from a slot underneath the preview modal still fires (the
+  // backdrop doesn't capture pointer events from React's synthetic system),
+  // so a stale tooltip would float over the carousel. Force-hide whenever
+  // a preview is open.
+  useEffect(() => {
+    if (previewOpen) setHovered(false);
+  }, [previewOpen]);
   const [pos, setPos] = useState<TooltipPos | null>(null);
   const [imgError, setImgError] = useState(false);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
@@ -118,7 +127,7 @@ export function CardSlot({ card }: Props) {
   }, [hovered, reposition]);
 
   const show = () => {
-    if (hasHover) setHovered(true);
+    if (hasHover && !previewOpen) setHovered(true);
   };
   const hide = () => {
     setHovered(false);

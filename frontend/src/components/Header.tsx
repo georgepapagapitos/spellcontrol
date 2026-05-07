@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom';
+import { useCollectionStore } from '../store/collection';
 import { ThemePicker } from './ThemePicker';
 
 export function Header() {
+  const cardCount = useCollectionStore((s) => s.cards.length);
+  const binderCount = useCollectionStore((s) => s.binders.length);
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -16,13 +19,23 @@ export function Header() {
             to="/collection"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            Collection
+            <span>Collection</span>
+            {cardCount > 0 && (
+              <span className="site-nav-count" aria-label={`${cardCount} cards`}>
+                {formatCount(cardCount)}
+              </span>
+            )}
           </NavLink>
           <NavLink
             to="/binder"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
-            Binders
+            <span>Binders</span>
+            {binderCount > 0 && (
+              <span className="site-nav-count" aria-label={`${binderCount} binders`}>
+                {binderCount}
+              </span>
+            )}
           </NavLink>
         </nav>
         <nav className="site-nav">
@@ -31,4 +44,11 @@ export function Header() {
       </div>
     </header>
   );
+}
+
+/** Compact thousands formatting so a 12,000-card collection still fits the nav. */
+function formatCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  return `${Math.round(n / 1000)}k`;
 }
