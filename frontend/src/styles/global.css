@@ -1857,6 +1857,51 @@ hr {
   transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+.card-preview-close {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  z-index: 2;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background 0.12s,
+    transform 0.12s;
+}
+
+.card-preview-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.card-preview-close:active {
+  transform: scale(0.92);
+}
+
+.card-preview-grabber {
+  position: absolute;
+  top: max(0.5rem, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: 2.5rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -2018,8 +2063,7 @@ hr {
   }
 
   .card-preview-panel-inner {
-    max-width: 420px;
-    margin: 0 auto;
+    max-width: 75%;
   }
 }
 
@@ -2425,5 +2469,294 @@ hr {
 
   .color-swatch:hover {
     transform: none;
+  }
+}
+
+/* ── Top-nav links ─────────────────────────────────────────────────────── */
+.site-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 1rem;
+}
+
+.site-nav-link {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.site-nav-link:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.site-nav-link.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .site-nav-links {
+    margin-left: 0.5rem;
+    gap: 0;
+  }
+
+  .site-nav-link {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.88rem;
+  }
+}
+
+/* ── Card list table (Collection page) ─────────────────────────────────── */
+.card-list {
+  margin-top: 1rem;
+}
+
+.card-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.card-list-search {
+  flex: 1 1 280px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card-list-search input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.card-list-binder-filter {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.card-list-summary {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-list-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: auto;
+  background: var(--surface2);
+}
+
+.card-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.card-list-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  padding: 0;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+.card-list-table th.num,
+.card-list-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-list-sort {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0.6rem 0.75rem;
+  text-align: inherit;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card-list-sort:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.card-list-table tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.card-list-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.card-list-table tbody tr:hover {
+  background: var(--surface);
+}
+
+.card-list-row {
+  cursor: pointer;
+}
+
+.card-list-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.card-list-table td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: middle;
+}
+
+.card-list-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.card-list-foil-tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.7rem;
+  background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
+  color: #1a2438;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.card-list-set {
+  white-space: nowrap;
+}
+
+.card-list-set-code {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+
+.card-list-cn {
+  margin-left: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text3);
+}
+
+.card-list-rarity {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid;
+}
+
+.card-list-rarity.rarity-mythic {
+  background: linear-gradient(90deg, var(--rarity-mythic-from), var(--rarity-mythic-to));
+  color: var(--rarity-mythic-text);
+  border-color: var(--rarity-mythic-border);
+}
+
+.card-list-rarity.rarity-rare {
+  background: linear-gradient(90deg, var(--rarity-rare-from), var(--rarity-rare-to));
+  color: var(--rarity-rare-text);
+  border-color: var(--rarity-rare-border);
+}
+
+.card-list-rarity.rarity-uncommon {
+  background: linear-gradient(90deg, var(--rarity-uncommon-from), var(--rarity-uncommon-to));
+  color: var(--rarity-uncommon-text);
+  border-color: var(--rarity-uncommon-border);
+}
+
+.card-list-rarity.rarity-common {
+  background: linear-gradient(90deg, var(--rarity-common-from), var(--rarity-common-to));
+  color: var(--rarity-common-text);
+  border-color: var(--rarity-common-border);
+}
+
+.card-list-rarity.rarity-special,
+.card-list-rarity.rarity-bonus {
+  background: var(--surface);
+  color: var(--text2);
+  border-color: var(--border);
+}
+
+.card-list-binder-chip {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-list-binder-none {
+  font-size: 0.85rem;
+  color: var(--text3);
+  font-style: italic;
+}
+
+@media (max-width: 700px) {
+  .card-list-table {
+    font-size: 0.85rem;
+  }
+
+  .card-list-table th,
+  .card-list-sort {
+    padding: 0.5rem 0.55rem;
+  }
+
+  .card-list-table td {
+    padding: 0.4rem 0.55rem;
+  }
+
+  .card-list-summary {
+    width: 100%;
+    margin-left: 0;
+    text-align: right;
   }
 }

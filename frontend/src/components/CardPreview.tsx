@@ -249,6 +249,18 @@ export function CardPreview({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
       >
+        <button
+          type="button"
+          className="card-preview-close"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          aria-label="Close preview"
+        >
+          ×
+        </button>
+        <div className="card-preview-grabber" aria-hidden="true" />
         <div className="card-preview-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
           {cards.map((c, i) => {
             const errored = imgErrors[c.scryfallId];
