@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { cardMatchesFilter, isFilterEmpty } from './rules';
+import {
+  areAllGroupsEmpty,
+  cardMatchesAnyGroup,
+  cardMatchesFilter,
+  compileFilterGroups,
+  isFilterEmpty,
+} from './rules';
 import type { EnrichedCard, BinderFilter, NegatableChip } from '../types';
 
 function chip(value: string, negate = false): NegatableChip {
@@ -311,5 +317,43 @@ describe('isFilterEmpty', () => {
   });
   it('treats whitespace-only nameContains and manaCost as empty', () => {
     expect(isFilterEmpty({ nameContains: '   ', manaCost: '   ' })).toBe(true);
+  });
+});
+
+describe('cardMatchesAnyGroup (OR semantics)', () => {
+  it('matches if any group matches', () => {
+    const card = makeCard({ rarity: 'rare', purchasePrice: 0.1, edhrecRank: 50 });
+    const groups = compileFilterGroups([
+      { filter: { rarities: chips('common') } }, // doesn't match
+      { filter: { edhrecRankMax: 100 } }, // matches
+    ]);
+    expect(cardMatchesAnyGroup(card, groups)).toBe(true);
+  });
+
+  it('rejects if no group matches', () => {
+    const card = makeCard({ rarity: 'rare', purchasePrice: 0.1 });
+    const groups = compileFilterGroups([
+      { filter: { rarities: chips('common') } },
+      { filter: { priceMin: 5 } },
+    ]);
+    expect(cardMatchesAnyGroup(card, groups)).toBe(false);
+  });
+
+  it('a single empty group matches every card', () => {
+    const groups = compileFilterGroups([{ filter: {} }]);
+    expect(cardMatchesAnyGroup(makeCard(), groups)).toBe(true);
+  });
+
+  it('zero groups matches nothing (defensive)', () => {
+    expect(cardMatchesAnyGroup(makeCard(), [])).toBe(false);
+  });
+});
+
+describe('areAllGroupsEmpty', () => {
+  it('true when every group has no constraints', () => {
+    expect(areAllGroupsEmpty([{ filter: {} }, { filter: {} }])).toBe(true);
+  });
+  it('false when at least one group has a constraint', () => {
+    expect(areAllGroupsEmpty([{ filter: {} }, { filter: { priceMin: 1 } }])).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import type { BinderFilter, EnrichedCard, NegatableChip } from '../types';
+import type { BinderFilter, BinderFilterGroup, EnrichedCard, NegatableChip } from '../types';
 import { getColorKey } from './colors';
 
 /**
@@ -153,6 +153,22 @@ export function cardMatchesFilter(card: EnrichedCard, filter: BinderFilter): boo
   return cardMatchesCompiled(card, compileFilter(filter));
 }
 
+/** Compile every group in a binder so the per-card OR check does no string work. */
+export function compileFilterGroups(groups: BinderFilterGroup[]): CompiledFilter[] {
+  return groups.map((g) => compileFilter(g.filter));
+}
+
+/**
+ * OR semantics across compiled groups. Empty list (shouldn't happen — binders
+ * always have ≥1 group) conservatively matches nothing.
+ */
+export function cardMatchesAnyGroup(card: EnrichedCard, compiled: CompiledFilter[]): boolean {
+  for (let i = 0; i < compiled.length; i++) {
+    if (cardMatchesCompiled(card, compiled[i])) return true;
+  }
+  return false;
+}
+
 /**
  * IS / IS NOT chip semantics for a free-text haystack (substring match):
  *   - At least one IS chip must substring-match the haystack (or no IS chips exist).
@@ -226,6 +242,11 @@ function effectiveTreatments(card: EnrichedCard): string[] {
 /** Strip all whitespace and lowercase for mana-cost comparison. */
 function normalizeMana(s: string): string {
   return s.replace(/\s+/g, '').toLowerCase();
+}
+
+/** True if every group in the list is empty (binder would match every card). */
+export function areAllGroupsEmpty(groups: BinderFilterGroup[]): boolean {
+  return groups.every((g) => isFilterEmpty(g.filter));
 }
 
 /** True if a filter has no constraints (matches every card). */
