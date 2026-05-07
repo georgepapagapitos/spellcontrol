@@ -6,7 +6,9 @@ import {
   loadCollection,
   clearCollection,
   type ImportHistoryEntry,
+  type StoredCollection,
 } from '../lib/local-cards';
+import { buildBackup, type Backup } from '../lib/backup';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -46,6 +48,10 @@ interface CollectionState {
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
+
+  // Backup actions
+  buildBackupSnapshot: () => Backup;
+  restoreFromBackup: (backup: Backup) => Promise<void>;
 
   // Binder actions
   createBinder: (input: BinderInput) => BinderDef;
@@ -197,6 +203,67 @@ export const useCollectionStore = create<CollectionState>()(
 
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (err) => set({ error: err }),
+
+      buildBackupSnapshot: () => {
+        const s = get();
+        const collection: StoredCollection | null =
+          s.cards.length > 0
+            ? {
+                cards: s.cards,
+                fileName: s.fileName,
+                scryfallHits: s.scryfallHits,
+                scryfallMisses: s.scryfallMisses,
+                uploadedAt: s.uploadedAt ?? Date.now(),
+                importHistory: s.importHistory,
+              }
+            : null;
+        return buildBackup(collection, s.binders);
+      },
+
+      restoreFromBackup: async (backup) => {
+        const collection = backup.collection;
+        const uploadedAt = collection?.uploadedAt ?? Date.now();
+        const restoredHistory: ImportHistoryEntry[] = collection?.importHistory ?? [];
+
+        set({
+          cards: collection?.cards ?? [],
+          fileName: collection?.fileName ?? '',
+          scryfallHits: collection?.scryfallHits ?? 0,
+          scryfallMisses: collection?.scryfallMisses ?? 0,
+          unresolvedNames: [],
+          detectedFormat: '',
+          uploadedAt: collection ? uploadedAt : null,
+          importHistory: restoredHistory,
+          binders: backup.binders,
+          activeTab: backup.binders[0]?.id ?? 'uncategorized',
+          error: null,
+        });
+
+        if (collection) {
+          try {
+            await saveCollection({
+              cards: collection.cards,
+              fileName: collection.fileName,
+              scryfallHits: collection.scryfallHits,
+              scryfallMisses: collection.scryfallMisses,
+              uploadedAt,
+              importHistory: restoredHistory,
+            });
+          } catch (err) {
+            console.warn('[store] Failed to persist restored collection:', err);
+            set({
+              error:
+                'Backup restored to memory but could not be saved locally. It will be lost if you refresh the page.',
+            });
+          }
+        } else {
+          try {
+            await clearCollection();
+          } catch (err) {
+            console.warn('[store] Failed to clear cache during restore:', err);
+          }
+        }
+      },
 
       // Binder actions
       createBinder: (input) => {
