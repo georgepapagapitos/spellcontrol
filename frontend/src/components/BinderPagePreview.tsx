@@ -227,6 +227,18 @@ export function BinderPagePreview({
           onTouchEnd={onTouchEnd}
           onTouchCancel={onTouchEnd}
         >
+          <button
+            type="button"
+            className="card-preview-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            aria-label="Close preview"
+          >
+            ×
+          </button>
+          <div className="card-preview-grabber" aria-hidden="true" />
           <div className="binder-pages-track" ref={trackRef} onClick={(e) => e.stopPropagation()}>
             {pages.map((page, i) => (
               <div
