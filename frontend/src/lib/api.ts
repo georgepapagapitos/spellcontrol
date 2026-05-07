@@ -46,6 +46,29 @@ export async function importFile(file: File): Promise<UploadResponse> {
   return handle<UploadResponse>(response);
 }
 
+export interface SetSummary {
+  code: string;
+  name: string;
+  iconSvgUri: string;
+}
+export type SetMap = Record<string, SetSummary>;
+
+let setMapPromise: Promise<SetMap> | null = null;
+
+/** Fetches the Scryfall set list (cached per page-load). Resolves to a map keyed by uppercase set code. */
+export function getSetMap(): Promise<SetMap> {
+  if (!setMapPromise) {
+    setMapPromise = fetchWithTimeout('/api/sets', { method: 'GET' })
+      .then((r) => handle<{ sets: SetMap }>(r))
+      .then((j) => j.sets)
+      .catch((err) => {
+        setMapPromise = null;
+        throw err;
+      });
+  }
+  return setMapPromise;
+}
+
 /** Import via pasted text — MTGA format, plain card names, or CSV-as-text. */
 export async function importText(text: string): Promise<UploadResponse> {
   const response = await fetchWithTimeout('/api/import', {
