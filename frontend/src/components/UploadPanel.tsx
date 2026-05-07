@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
 import type { UploadResponse } from '../types';
-import { downloadBackup, parseBackup } from '../lib/backup';
+import { parseBackup } from '../lib/backup';
 
 interface PendingImport {
   /** Runs the actual import call. */
@@ -31,7 +31,6 @@ export function UploadPanel() {
   const clearCards = useCollectionStore((s) => s.clearCards);
   const setLoading = useCollectionStore((s) => s.setLoading);
   const setError = useCollectionStore((s) => s.setError);
-  const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
   const restoreFromBackup = useCollectionStore((s) => s.restoreFromBackup);
 
   const hasCollection = cards.length > 0;
@@ -99,22 +98,6 @@ export function UploadPanel() {
     await clearCards();
     setShowUnresolved(false);
     setSuccessMsg(null);
-  };
-
-  const handleExportBackup = () => {
-    try {
-      const snapshot = buildBackupSnapshot();
-      downloadBackup(snapshot);
-      setError(null);
-      const parts: string[] = [];
-      if (snapshot.collection) {
-        parts.push(`${snapshot.collection.cards.length.toLocaleString()} cards`);
-      }
-      parts.push(`${snapshot.binders.length} binder${snapshot.binders.length === 1 ? '' : 's'}`);
-      setSuccessMsg(`Backup downloaded · ${parts.join(' · ')}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Backup failed');
-    }
   };
 
   const handlePickBackup = () => {
@@ -200,16 +183,6 @@ export function UploadPanel() {
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">
-              <button
-                type="button"
-                className="upload-action"
-                onClick={handleExportBackup}
-                disabled={isLoading || !hasCollection}
-                title="Download a JSON file containing your collection and binders"
-              >
-                <DownloadIcon />
-                <span>Export</span>
-              </button>
               <button
                 type="button"
                 className="upload-action"
@@ -442,21 +415,6 @@ function ClearIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M8 3v8M8 11l-3-3M8 11l3-3"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M3 13h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
