@@ -11,6 +11,8 @@ interface PendingImport {
   label: string;
   /** Approximate item count for the prompt (line count for paste, unknown for files). */
   preview?: string;
+  /** True for sample-set imports — flagged in history so users can find & delete them. */
+  isSample?: boolean;
 }
 
 export function UploadPanel() {
@@ -20,6 +22,8 @@ export function UploadPanel() {
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
+  const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
 
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
@@ -28,6 +32,7 @@ export function UploadPanel() {
   const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const importCards = useCollectionStore((s) => s.importCards);
+  const deleteImports = useCollectionStore((s) => s.deleteImports);
   const clearCards = useCollectionStore((s) => s.clearCards);
   const setLoading = useCollectionStore((s) => s.setLoading);
   const setError = useCollectionStore((s) => s.setError);
@@ -75,7 +80,7 @@ export function UploadPanel() {
     setShowUnresolved(false);
     try {
       const result = await p.fn();
-      await importCards(result, p.label, mode);
+      await importCards(result, p.label, mode, { isSample: p.isSample });
       const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
       if (result.scryfallHits > 0) {
         parts.push(`${result.scryfallHits.toLocaleString()} matched`);
@@ -98,6 +103,30 @@ export function UploadPanel() {
     await clearCards();
     setShowUnresolved(false);
     setSuccessMsg(null);
+    setSelectedHistoryIds(new Set());
+  };
+
+  const toggleHistorySelection = (id: string) => {
+    setSelectedHistoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedHistoryIds);
+    if (ids.length === 0) return;
+    const totalCount = importHistory
+      .filter((h) => h.id && selectedHistoryIds.has(h.id))
+      .reduce((sum, h) => sum + h.count, 0);
+    await deleteImports(ids);
+    setSelectedHistoryIds(new Set());
+    setConfirmingDeleteImports(false);
+    setSuccessMsg(
+      `Removed ${ids.length} import${ids.length === 1 ? '' : 's'} · ${totalCount.toLocaleString()} card${totalCount === 1 ? '' : 's'}`
+    );
   };
 
   const handlePickBackup = () => {
@@ -176,9 +205,6 @@ export function UploadPanel() {
 
       <div className={`import-grid${hasCollection ? ' has-history' : ''}`}>
         <div className="import-card">
-          {!hasCollection && (
-            <p className="import-card-tagline">Plan your binder before you touch a card.</p>
-          )}
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">
@@ -261,42 +287,81 @@ export function UploadPanel() {
                 {[...importHistory]
                   .map((h, originalIdx) => ({ h, originalIdx }))
                   .reverse()
-                  .map(({ h, originalIdx }) => (
-                    <li key={originalIdx} className="import-history-item">
-                      <div className="import-history-name">
-                        {prettyImportName(h.name, h.format)}
-                      </div>
-                      <div className="import-history-meta">
-                        {h.count.toLocaleString()} cards · {formatRelative(h.addedAt)}
-                        {h.format ? ` · ${h.format}` : ''}
-                      </div>
-                    </li>
-                  ))}
+                  .map(({ h, originalIdx }) => {
+                    const selectable = !!h.id;
+                    const checked = !!h.id && selectedHistoryIds.has(h.id);
+                    return (
+                      <li key={originalIdx} className="import-history-item">
+                        <label
+                          className="import-history-check"
+                          title={
+                            selectable
+                              ? 'Select this import to delete'
+                              : 'This import predates the per-import delete feature and can only be removed via Clear all'
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!selectable || isLoading}
+                            onChange={() => h.id && toggleHistorySelection(h.id)}
+                            aria-label={`Select ${prettyImportName(h.name, h.format)}`}
+                          />
+                        </label>
+                        <div className="import-history-text">
+                          <div className="import-history-name">
+                            <span className="import-history-name-label">
+                              {prettyImportName(h.name, h.format)}
+                            </span>
+                          </div>
+                          <div className="import-history-meta">
+                            {h.count.toLocaleString()} cards · {formatRelative(h.addedAt)}
+                            {h.format ? ` · ${h.format}` : ''}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
               </ul>
             ) : (
               <p className="import-history-empty">No imports recorded for this collection.</p>
             )}
             <div className="import-history-footer">
-              <button
-                type="button"
-                className="upload-action"
-                onClick={handlePickBackup}
-                disabled={isLoading}
-                title="Restore from a previously exported backup (replaces current data)"
-              >
-                <RestoreIcon />
-                <span>Restore</span>
-              </button>
-              <button
-                type="button"
-                className="upload-action upload-action-danger"
-                onClick={handleClearAll}
-                disabled={isLoading}
-                title="Clear all cards from your collection"
-              >
-                <ClearIcon />
-                <span>Clear all</span>
-              </button>
+              {selectedHistoryIds.size > 0 ? (
+                <button
+                  type="button"
+                  className="upload-action upload-action-danger"
+                  onClick={() => setConfirmingDeleteImports(true)}
+                  disabled={isLoading}
+                  title="Remove the selected imports and all cards they added"
+                >
+                  <ClearIcon />
+                  <span>Delete selected ({selectedHistoryIds.size})</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="upload-action"
+                    onClick={handlePickBackup}
+                    disabled={isLoading}
+                    title="Restore from a previously exported backup (replaces current data)"
+                  >
+                    <RestoreIcon />
+                    <span>Restore</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="upload-action upload-action-danger"
+                    onClick={handleClearAll}
+                    disabled={isLoading}
+                    title="Clear all cards from your collection"
+                  >
+                    <ClearIcon />
+                    <span>Clear all</span>
+                  </button>
+                </>
+              )}
             </div>
           </aside>
         )}
@@ -333,6 +398,66 @@ export function UploadPanel() {
           onCancel={() => setPendingImport(null)}
         />
       )}
+
+      {confirmingDeleteImports && (
+        <DeleteImportsDialog
+          imports={importHistory.filter((h) => h.id && selectedHistoryIds.has(h.id))}
+          onConfirm={handleDeleteSelected}
+          onCancel={() => setConfirmingDeleteImports(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface DeleteImportsDialogProps {
+  imports: Array<{ id?: string; name: string; format: string; count: number }>;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDialogProps) {
+  const totalCards = imports.reduce((sum, h) => sum + h.count, 0);
+  return (
+    <div className="modal-backdrop" onClick={onCancel} role="presentation">
+      <div
+        className="choice-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-imports-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="delete-imports-title" className="choice-dialog-title">
+          Delete {imports.length} import{imports.length === 1 ? '' : 's'}?
+        </h2>
+        <p className="choice-dialog-body">
+          This removes the {totalCards.toLocaleString()} card
+          {totalCards === 1 ? '' : 's'} added by:
+        </p>
+        <ul className="delete-imports-list">
+          {imports.map((h, i) => (
+            <li key={i}>
+              {prettyImportName(h.name, h.format)} · {h.count.toLocaleString()} cards
+            </li>
+          ))}
+        </ul>
+        <p className="choice-dialog-body">
+          Other cards stay where they are. This cannot be undone.
+        </p>
+        <div className="choice-dialog-actions">
+          <button type="button" className="upload-action" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary upload-action-danger"
+            onClick={onConfirm}
+            autoFocus
+          >
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

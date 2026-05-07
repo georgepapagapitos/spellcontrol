@@ -257,6 +257,7 @@ function SectionList({
             panelId={panelId}
             subSortLabels={subSortLabels}
             pocketSize={pocketSize}
+            isPreviewOpen={preview !== null || pagesStartIndex !== null}
             onToggle={() => toggle(section.key)}
             onOpenCard={(card) => {
               const i = flatCards.cardIndex.get(card);
@@ -340,6 +341,7 @@ function SectionBlock({
   panelId,
   subSortLabels,
   pocketSize,
+  isPreviewOpen,
   onToggle,
   onOpenCard,
   onOpenPages,
@@ -350,6 +352,7 @@ function SectionBlock({
   panelId: string;
   subSortLabels: string[];
   pocketSize: PocketSize;
+  isPreviewOpen: boolean;
   onToggle: () => void;
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPages: (startPageIndex: number) => void;
@@ -357,8 +360,8 @@ function SectionBlock({
   // Stable per-section context — CardSlot calls openCard on tap (touch only),
   // PageGrid calls openPages when the page number label is tapped.
   const ctxValue = useMemo(
-    () => ({ openCard: onOpenCard, openPages: onOpenPages }),
-    [onOpenCard, onOpenPages]
+    () => ({ openCard: onOpenCard, openPages: onOpenPages, isPreviewOpen }),
+    [onOpenCard, onOpenPages, isPreviewOpen]
   );
 
   return (
