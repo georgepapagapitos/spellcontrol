@@ -318,7 +318,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'mtg-binder-planner',
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -327,12 +327,25 @@ export const useCollectionStore = create<CollectionState>()(
        * v5 reworks the rule schema entirely (BinderRule[] → single BinderFilter with
        * IS/IS NOT chips, legalities, layouts, oracle text, etc). Older saved binders
        * use a shape we no longer understand, so we wipe them. Users start fresh.
+       *
+       * v6 introduces OR-groups: `filter` becomes `filterGroups`, an array of
+       * `{ name?, filter }`. We wrap the existing single filter as a one-group
+       * list so behavior is preserved exactly.
        */
       migrate: (persistedState, fromVersion) => {
         const state = persistedState as Record<string, unknown> | undefined;
         if (!state) return state as never;
         if (fromVersion < 5) {
           state.binders = [];
+        }
+        if (fromVersion < 6 && Array.isArray(state.binders)) {
+          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
+            const { filter, ...rest } = b;
+            return {
+              ...rest,
+              filterGroups: [{ filter: filter ?? {} }],
+            };
+          });
         }
         return state as never;
       },

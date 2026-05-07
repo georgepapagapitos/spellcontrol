@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { materializeBinders } from './materialize';
-import type { EnrichedCard, BinderDef } from '../types';
+import type { EnrichedCard, BinderDef, BinderFilter, BinderFilterGroup } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
@@ -21,18 +21,30 @@ function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   };
 }
 
-function makeBinder(overrides: Partial<BinderDef> = {}): BinderDef {
+/**
+ * Test helper: accepts either `filter` (legacy single-filter shorthand, wrapped
+ * into a one-element `filterGroups`) or `filterGroups` directly.
+ */
+type BinderOverrides = Omit<Partial<BinderDef>, 'filterGroups'> & {
+  filter?: BinderFilter;
+  filterGroups?: BinderFilterGroup[];
+};
+
+function makeBinder(overrides: BinderOverrides = {}): BinderDef {
+  const { filter, filterGroups, ...rest } = overrides;
+  const groups: BinderFilterGroup[] =
+    filterGroups ?? (filter !== undefined ? [{ filter }] : [{ filter: {} }]);
   return {
     id: `binder-${Math.random()}`,
     name: 'Test Binder',
     position: 0,
-    filter: {},
+    filterGroups: groups,
     sorts: ['color', 'cmc', 'name'],
     pocketSize: null,
     color: '#fff',
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -225,5 +237,54 @@ describe('materializeBinders', () => {
     expect(binders[0].sections).toHaveLength(1);
     expect(binders[0].sections[0].key).toBe('ALL');
     expect(binders[0].sections[0].label).toBe('All cards');
+  });
+
+  describe('OR-groups (filterGroups)', () => {
+    it('matches a card if it satisfies ANY group', () => {
+      // Group A: commons/uncommons priced ≥ $0.70
+      // Group B: top-100 EDH regardless of price
+      const cheapCommon = makeCard({ rarity: 'common', purchasePrice: 0.05 }); // matches neither
+      const dollarUncommon = makeCard({ rarity: 'uncommon', purchasePrice: 1.5 }); // matches A
+      const popularRare = makeCard({ rarity: 'rare', purchasePrice: 0.1, edhrecRank: 42 }); // matches B
+      const both = makeCard({ rarity: 'common', purchasePrice: 5, edhrecRank: 50 }); // matches A and B
+
+      const binder = makeBinder({
+        sorts: ['none'],
+        filterGroups: [
+          {
+            name: 'Commons over $0.70',
+            filter: {
+              rarities: [
+                { value: 'common', negate: false },
+                { value: 'uncommon', negate: false },
+              ],
+              priceMin: 0.7,
+            },
+          },
+          {
+            name: 'Top 100 EDH',
+            filter: { edhrecRankMax: 100 },
+          },
+        ],
+      });
+
+      const { binders, uncategorized } = materializeBinders(
+        [cheapCommon, dollarUncommon, popularRare, both],
+        [binder],
+        defaultOpts
+      );
+      // Three cards match at least one group; deduplicated.
+      expect(binders[0].totalCards).toBe(3);
+      expect(uncategorized.totalCards).toBe(1);
+    });
+
+    it('a single empty group still matches every card', () => {
+      const binder = makeBinder({
+        sorts: ['none'],
+        filterGroups: [{ filter: {} }],
+      });
+      const { binders } = materializeBinders([makeCard(), makeCard()], [binder], defaultOpts);
+      expect(binders[0].totalCards).toBe(2);
+    });
   });
 });
