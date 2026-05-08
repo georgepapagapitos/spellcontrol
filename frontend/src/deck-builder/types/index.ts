@@ -18,6 +18,7 @@ export interface ScryfallCard {
   layout?: string; // Scryfall layout: "normal", "modal_dfc", "transform", etc.
   set: string;
   set_name: string;
+  collector_number?: string;
   edhrec_rank?: number;
   image_uris?: {
     small: string;

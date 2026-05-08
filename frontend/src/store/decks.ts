@@ -87,6 +87,8 @@ interface DecksState {
   updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>): void;
   renameDeck(id: string, name: string): void;
   deleteDeck(id: string): void;
+  /** Deep-clone a deck. Allocations reset — the original still claims those copies. */
+  duplicateDeck(id: string): string | null;
 
   addCard(deckId: string, card: ScryfallCard, allocatedScryfallId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
@@ -154,6 +156,32 @@ export const useDecksStore = create<DecksState>()(
         })),
 
       deleteDeck: (id) => set((s) => ({ decks: s.decks.filter((d) => d.id !== id) })),
+
+      duplicateDeck: (id) => {
+        const state = useDecksStore.getState();
+        const original = state.decks.find((d) => d.id === id);
+        if (!original) return null;
+        const newDeckId = newId('deck');
+        const now = Date.now();
+        const copy: Deck = {
+          ...original,
+          id: newDeckId,
+          name: `${original.name} (copy)`,
+          // Reset commander allocations — duplicated deck does not claim
+          // the same physical copies the original is using.
+          commanderAllocatedScryfallId: null,
+          partnerCommanderAllocatedScryfallId: null,
+          cards: original.cards.map((c) => ({
+            slotId: newId('slot'),
+            card: c.card,
+            allocatedScryfallId: null,
+          })),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((s) => ({ decks: [copy, ...s.decks] }));
+        return newDeckId;
+      },
 
       addCard: (deckId, card, allocatedScryfallId = null) => {
         const slotId = newId('slot');

@@ -110,6 +110,27 @@ function landProducedColors(card: ScryfallCard): string[] {
 
 type SortMode = 'name' | 'cmc' | 'price' | 'color';
 
+export type ExportFormat = 'mtga' | 'plain' | 'moxfield';
+
+const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
+  mtga: 'MTGA',
+  plain: 'Plaintext',
+  moxfield: 'Moxfield',
+};
+
+const EXPORT_FORMAT_STORAGE_KEY = 'mtg-decks-export-format';
+
+function readStoredFormat(): ExportFormat {
+  if (typeof window === 'undefined') return 'mtga';
+  try {
+    const v = window.localStorage.getItem(EXPORT_FORMAT_STORAGE_KEY);
+    if (v === 'mtga' || v === 'plain' || v === 'moxfield') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'mtga';
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
   /** Persisted slot id; when present, used for remove. Generated decks pre-save can omit this. */
@@ -241,6 +262,15 @@ export function DeckDisplay({
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('cmc');
   const [search, setSearch] = useState('');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredFormat());
+  const handleExportFormatChange = (f: ExportFormat) => {
+    setExportFormat(f);
+    try {
+      window.localStorage.setItem(EXPORT_FORMAT_STORAGE_KEY, f);
+    } catch {
+      /* ignore */
+    }
+  };
   // Stats panel collapses on tablet/mobile via the toggle in its header.
   // On desktop the sidebar overrides the [hidden] body and toggle in CSS.
   const [statsOpen, setStatsOpen] = useState(true);
@@ -327,8 +357,8 @@ export function DeckDisplay({
   }, [allCards]);
 
   const exportText = useMemo(
-    () => buildExport(commander, partnerCommander, cards),
-    [commander, partnerCommander, cards]
+    () => buildExport(commander, partnerCommander, cards, exportFormat),
+    [commander, partnerCommander, cards, exportFormat]
   );
   const handleCopy = async () => {
     try {
@@ -383,6 +413,8 @@ export function DeckDisplay({
           search={search}
           onSearch={setSearch}
           onCopy={handleCopy}
+          exportFormat={exportFormat}
+          onExportFormatChange={handleExportFormatChange}
         />
 
         <div className="deck-display-body">
@@ -483,6 +515,8 @@ interface ToolbarProps {
   search: string;
   onSearch: (s: string) => void;
   onCopy: () => void;
+  exportFormat: ExportFormat;
+  onExportFormatChange: (f: ExportFormat) => void;
 }
 
 function DeckToolbar({
@@ -497,6 +531,8 @@ function DeckToolbar({
   search,
   onSearch,
   onCopy,
+  exportFormat,
+  onExportFormatChange,
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
@@ -524,9 +560,23 @@ function DeckToolbar({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
         />
-        <button type="button" className="btn btn-primary" onClick={onCopy}>
-          Copy decklist
-        </button>
+        <span className="deck-toolbar-export">
+          <button type="button" className="btn btn-primary deck-toolbar-copy" onClick={onCopy}>
+            Copy
+          </button>
+          <select
+            className="deck-toolbar-export-format"
+            value={exportFormat}
+            onChange={(e) => onExportFormatChange(e.target.value as ExportFormat)}
+            aria-label="Export format"
+          >
+            {(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => (
+              <option key={f} value={f}>
+                {EXPORT_FORMAT_LABEL[f]}
+              </option>
+            ))}
+          </select>
+        </span>
       </div>
     </header>
   );
@@ -732,10 +782,10 @@ function DeckStatistics({
   open: boolean;
   onToggle: () => void;
 }) {
-  const cmcKeys = Object.keys(manaCurve)
-    .map(Number)
-    .sort((a, b) => a - b);
-  const maxBucket = Math.max(1, ...cmcKeys.map((k) => manaCurve[k]));
+  // Always render the full 0–7+ axis so a near-empty deck (e.g. just a
+  // commander) does not produce a single column stretched across the panel.
+  const cmcKeys = [0, 1, 2, 3, 4, 5, 6, 7];
+  const maxBucket = Math.max(1, ...cmcKeys.map((k) => manaCurve[k] ?? 0));
 
   const colorDist = useMemo(() => {
     const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
@@ -803,17 +853,20 @@ function DeckStatistics({
       <div className="deck-stats-grid" hidden={!open}>
         <Panel title="Mana curve">
           <div className="deck-curve">
-            {cmcKeys.map((cmc) => (
-              <div key={cmc} className="deck-curve-col">
-                <div
-                  className="deck-curve-bar"
-                  style={{ height: `${(manaCurve[cmc] / maxBucket) * 100}%` }}
-                  title={`${manaCurve[cmc]} card${manaCurve[cmc] === 1 ? '' : 's'} at CMC ${cmc}`}
-                />
-                <div className="deck-curve-label">{cmc === 7 ? '7+' : cmc}</div>
-                <div className="deck-curve-count">{manaCurve[cmc]}</div>
-              </div>
-            ))}
+            {cmcKeys.map((cmc) => {
+              const count = manaCurve[cmc] ?? 0;
+              return (
+                <div key={cmc} className="deck-curve-col">
+                  <div
+                    className="deck-curve-bar"
+                    style={{ height: `${(count / maxBucket) * 100}%` }}
+                    title={`${count} card${count === 1 ? '' : 's'} at CMC ${cmc}`}
+                  />
+                  <div className="deck-curve-label">{cmc === 7 ? '7+' : cmc}</div>
+                  <div className="deck-curve-count">{count}</div>
+                </div>
+              );
+            })}
           </div>
         </Panel>
 
@@ -1029,19 +1082,59 @@ function RolesPanel({
   );
 }
 
-// ── Export decklist (plaintext) ───────────────────────────────────────────
+// ── Export decklist ───────────────────────────────────────────────────────
+function formatLine(card: ScryfallCard, qty: number, format: ExportFormat): string {
+  switch (format) {
+    case 'mtga': {
+      const set = (card.set || '').toUpperCase();
+      const num = card.collector_number ?? '';
+      if (set && num) return `${qty} ${card.name} (${set}) ${num}`;
+      return `${qty} ${card.name}`;
+    }
+    case 'moxfield': {
+      const set = (card.set || '').toUpperCase();
+      const num = card.collector_number ?? '';
+      if (set && num) return `${qty} ${card.name} (${set}) ${num}`;
+      if (set) return `${qty} ${card.name} (${set})`;
+      return `${qty} ${card.name}`;
+    }
+    case 'plain':
+    default:
+      return `${qty} ${card.name}`;
+  }
+}
+
 function buildExport(
   commander: ScryfallCard | null,
   partner: ScryfallCard | null | undefined,
-  cards: DeckDisplayCard[]
+  cards: DeckDisplayCard[],
+  format: ExportFormat
 ): string {
   const lines: string[] = [];
-  if (commander) lines.push(`1 ${commander.name}`);
-  if (partner) lines.push(`1 ${partner.name}`);
-  const counts = new Map<string, number>();
-  for (const dc of cards) counts.set(dc.card.name, (counts.get(dc.card.name) ?? 0) + 1);
-  for (const [name, qty] of [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    lines.push(`${qty} ${name}`);
+  // MTGA decklist convention: commander section first.
+  if (format === 'mtga' && (commander || partner)) {
+    lines.push('Commander');
+    if (commander) lines.push(formatLine(commander, 1, format));
+    if (partner) lines.push(formatLine(partner, 1, format));
+    lines.push('');
+    lines.push('Deck');
+  } else {
+    if (commander) lines.push(formatLine(commander, 1, format));
+    if (partner) lines.push(formatLine(partner, 1, format));
+  }
+
+  const grouped = new Map<string, { card: ScryfallCard; qty: number }>();
+  for (const dc of cards) {
+    const existing = grouped.get(dc.card.name);
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      grouped.set(dc.card.name, { card: dc.card, qty: 1 });
+    }
+  }
+  const sorted = [...grouped.values()].sort((a, b) => a.card.name.localeCompare(b.card.name));
+  for (const { card, qty } of sorted) {
+    lines.push(formatLine(card, qty, format));
   }
   return lines.join('\n');
 }
