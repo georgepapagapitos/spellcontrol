@@ -4,7 +4,7 @@ import { useCollectionStore } from '../store/collection';
 import type { EnrichedCard } from '../types';
 
 /**
- * Per-allocation info: which deck claims this physical Scryfall printing,
+ * Per-allocation info: which deck claims this physical card copy,
  * and which logical card slot in that deck.
  */
 export interface AllocationInfo {
@@ -14,9 +14,9 @@ export interface AllocationInfo {
 }
 
 /**
- * Map<scryfallId → AllocationInfo>. Read by `CardSlot` and the binder UI
+ * Map<copyId → AllocationInfo>. Read by `CardSlot` and the binder UI
  * to grey out copies that are "checked out" to a saved deck. The map only
- * contains entries with a non-null `allocatedScryfallId`; cards in decks
+ * contains entries with a non-null `allocatedCopyId`; cards in decks
  * the user does not own (or that have been orphaned by a collection
  * delete) do not appear here.
  */
@@ -28,23 +28,23 @@ export function useAllocations(): Map<string, AllocationInfo> {
 export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
   const m = new Map<string, AllocationInfo>();
   for (const deck of decks) {
-    if (deck.commander && deck.commanderAllocatedScryfallId) {
-      m.set(deck.commanderAllocatedScryfallId, {
+    if (deck.commander && deck.commanderAllocatedCopyId) {
+      m.set(deck.commanderAllocatedCopyId, {
         deckId: deck.id,
         deckName: deck.name,
         cardName: deck.commander.name,
       });
     }
-    if (deck.partnerCommander && deck.partnerCommanderAllocatedScryfallId) {
-      m.set(deck.partnerCommanderAllocatedScryfallId, {
+    if (deck.partnerCommander && deck.partnerCommanderAllocatedCopyId) {
+      m.set(deck.partnerCommanderAllocatedCopyId, {
         deckId: deck.id,
         deckName: deck.name,
         cardName: deck.partnerCommander.name,
       });
     }
     for (const c of deck.cards) {
-      if (c.allocatedScryfallId) {
-        m.set(c.allocatedScryfallId, {
+      if (c.allocatedCopyId) {
+        m.set(c.allocatedCopyId, {
           deckId: deck.id,
           deckName: deck.name,
           cardName: c.card.name,
@@ -69,7 +69,7 @@ export function pickCollectionCopy(
   collection: EnrichedCard[],
   allocated: Map<string, AllocationInfo>
 ): EnrichedCard | null {
-  const candidates = collection.filter((c) => c.name === cardName && !allocated.has(c.scryfallId));
+  const candidates = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => {
     if (a.foil !== b.foil) return a.foil ? 1 : -1;
@@ -79,20 +79,20 @@ export function pickCollectionCopy(
 }
 
 /**
- * Lookup of `EnrichedCard` by `scryfallId` for the current collection.
+ * Lookup of `EnrichedCard` by `copyId` for the current collection.
  * Used by the editor to render allocation badges with set/finish info.
  *
  * Returns `undefined` while the collection store is still rehydrating
  * from localStorage so callers can avoid mis-classifying allocated slots
  * as orphans (which paints them red) on first render.
  */
-export function useCollectionByScryfallId(): Map<string, EnrichedCard> | undefined {
+export function useCollectionByCopyId(): Map<string, EnrichedCard> | undefined {
   const cards = useCollectionStore((s) => s.cards);
   const hydrating = useCollectionStore((s) => s.hydrating);
   return useMemo(() => {
     if (hydrating) return undefined;
     const m = new Map<string, EnrichedCard>();
-    for (const c of cards) m.set(c.scryfallId, c);
+    for (const c of cards) m.set(c.copyId, c);
     return m;
   }, [cards, hydrating]);
 }
@@ -104,12 +104,12 @@ export function useCollectionByScryfallId(): Map<string, EnrichedCard> | undefin
 export type AllocationStatus = 'allocated' | 'unowned' | 'orphan';
 
 export function classifyAllocation(
-  allocatedScryfallId: string | null,
+  allocatedCopyId: string | null,
   collectionById: Map<string, EnrichedCard> | undefined
 ): AllocationStatus {
-  if (!allocatedScryfallId) return 'unowned';
+  if (!allocatedCopyId) return 'unowned';
   // Collection store hasn't rehydrated yet — defer the orphan check so we
   // don't paint every allocated row red for one frame on load.
   if (!collectionById) return 'allocated';
-  return collectionById.has(allocatedScryfallId) ? 'allocated' : 'orphan';
+  return collectionById.has(allocatedCopyId) ? 'allocated' : 'orphan';
 }

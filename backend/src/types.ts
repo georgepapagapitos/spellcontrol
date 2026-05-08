@@ -71,6 +71,12 @@ export interface ScryfallCard {
  * with Scryfall data merged in when available.
  */
 export interface EnrichedCard {
+  /**
+   * Unique identifier for this physical card copy. Two copies of the same
+   * printing (same scryfallId) get distinct copyIds so the allocation system
+   * can track each one independently.
+   */
+  copyId: string;
   // From the import row
   name: string;
   setCode: string;

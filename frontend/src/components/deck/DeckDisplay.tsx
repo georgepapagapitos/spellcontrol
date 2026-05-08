@@ -228,7 +228,7 @@ export interface DeckDisplayCard {
   slotId?: string;
   card: ScryfallCard;
   /** scryfallId of the specific collection copy claimed by this slot, if any. */
-  allocatedScryfallId?: string | null;
+  allocatedCopyId?: string | null;
 }
 
 export interface DeckDisplayProps {
@@ -257,7 +257,7 @@ export interface DeckDisplayProps {
    */
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
-  collectionByScryfallId?: Map<string, EnrichedCard>;
+  collectionByCopyId?: Map<string, EnrichedCard>;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ interface Row {
   status: AllocationStatus;
   /**
    * Front-face image to display for this row. Prefers the user's owned
-   * printing (via `allocatedScryfallId` → collection EnrichedCard) so the
+   * printing (via `allocatedCopyId` → collection EnrichedCard) so the
    * deck mirrors what's actually in the binder, falling back to the
    * deck-stored ScryfallCard's image when the slot isn't allocated.
    */
@@ -312,8 +312,8 @@ function buildRows(
   for (const dc of cards) {
     const card = dc.card;
     const existing = map.get(card.name);
-    const status = classifyAllocation(dc.allocatedScryfallId ?? null, collectionById);
-    const owned = dc.allocatedScryfallId ? collectionById?.get(dc.allocatedScryfallId) : undefined;
+    const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionById);
+    const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
     if (existing) {
       existing.qty += 1;
       existing.price += priceOf(card, currency);
@@ -400,7 +400,7 @@ export function DeckDisplay({
   cardDrawSubtypeCounts,
   onRemoveCard,
   onSetQty,
-  collectionByScryfallId,
+  collectionByCopyId,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('name');
@@ -470,7 +470,7 @@ export function DeckDisplay({
 
   // Non-commander rows grouped by canonical type.
   const groups = useMemo(() => {
-    const rows = buildRows(cards, currency, collectionByScryfallId);
+    const rows = buildRows(cards, currency, collectionByCopyId);
     const buckets = new Map<TypeGroup, Row[]>();
     for (const row of rows) {
       const t = classifyType(row.card);
@@ -487,7 +487,7 @@ export function DeckDisplay({
       if (r && r.length > 0) ordered.push({ title: t, icon: TYPE_ICON[t], rows: r });
     }
     return ordered;
-  }, [cards, commanderRows, collectionByScryfallId]);
+  }, [cards, commanderRows, collectionByCopyId]);
 
   const visibleGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -520,13 +520,13 @@ export function DeckDisplay({
     let count = 0;
     let price = 0;
     for (const dc of cards) {
-      const status = classifyAllocation(dc.allocatedScryfallId ?? null, collectionByScryfallId);
+      const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);
       if (status === 'allocated') continue;
       count += 1;
       price += priceOf(dc.card, currency);
     }
     return { count, price };
-  }, [cards, collectionByScryfallId, currency]);
+  }, [cards, collectionByCopyId, currency]);
   const averageCmc = useMemo(() => {
     const nonLand = allCards.filter((c) => !(c.type_line || '').toLowerCase().includes('land'));
     if (nonLand.length === 0) return 0;
@@ -798,6 +798,7 @@ function scryfallToEnriched(
   const usd = card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched;
   const price = usd ? Number(usd) : NaN;
   return {
+    copyId: crypto.randomUUID(),
     name: card.name,
     setCode: card.set,
     setName: card.set_name,

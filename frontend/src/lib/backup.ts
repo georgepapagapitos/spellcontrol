@@ -188,6 +188,14 @@ export function parseBackup(raw: string): Backup {
     throw new Error('Backup collection is malformed (cards is not a list).');
   }
 
+  if (collection) {
+    for (const card of collection.cards) {
+      if (!card.copyId) {
+        card.copyId = crypto.randomUUID();
+      }
+    }
+  }
+
   return {
     format: BACKUP_FORMAT,
     version: obj.version,

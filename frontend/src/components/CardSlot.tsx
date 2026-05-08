@@ -154,7 +154,7 @@ export function CardSlot({ card }: Props) {
 
   const cls = getSlotClass(card);
   const displayName = truncateLongWords(card.name);
-  const allocation = allocations.get(card.scryfallId);
+  const allocation = allocations.get(card.copyId);
 
   return (
     <>
