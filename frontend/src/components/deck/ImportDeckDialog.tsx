@@ -60,25 +60,6 @@ export function ImportDeckDialog({ onClose }: Props) {
     [pendingResult]
   );
 
-  const handleImportResult = useCallback(
-    (result: DeckImportResponse) => {
-      if (result.commander) {
-        finalizeDeck(result, result.commander);
-        return;
-      }
-      const candidates = dedupeByName(result.cards.filter(isValidCommander));
-      if (candidates.length === 1) {
-        finalizeDeck(result, candidates[0]);
-        return;
-      }
-      setPendingResult(result);
-      setStep('commander');
-      setIsLoading(false);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [decks, collectionCards, createDeck, navigate]
-  );
-
   const finalizeDeck = useCallback(
     (result: DeckImportResponse, commander: ScryfallCard) => {
       const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
@@ -111,6 +92,24 @@ export function ImportDeckDialog({ onClose }: Props) {
       navigate(`/decks/${id}`);
     },
     [decks, collectionCards, createDeck, navigate, onClose]
+  );
+
+  const handleImportResult = useCallback(
+    (result: DeckImportResponse) => {
+      if (result.commander) {
+        finalizeDeck(result, result.commander);
+        return;
+      }
+      const candidates = dedupeByName(result.cards.filter(isValidCommander));
+      if (candidates.length === 1) {
+        finalizeDeck(result, candidates[0]);
+        return;
+      }
+      setPendingResult(result);
+      setStep('commander');
+      setIsLoading(false);
+    },
+    [finalizeDeck]
   );
 
   const handlePasteImport = useCallback(async () => {
