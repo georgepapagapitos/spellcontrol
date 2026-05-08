@@ -3,6 +3,7 @@ import { fetchCommanderThemes } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECTheme } from '@/deck-builder/types';
 
 const COLLAPSED_COUNT = 6;
+const EXPAND_STEP = 8;
 
 interface ThemePickerProps {
   commanderName: string;
@@ -14,14 +15,14 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
   const [themes, setThemes] = useState<EDHRECTheme[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [errored, setErrored] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(COLLAPSED_COUNT);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setErrored(false);
     setThemes(null);
-    setShowAll(false);
+    setVisibleCount(COLLAPSED_COUNT);
     fetchCommanderThemes(commanderName)
       .then((list) => {
         if (cancelled) return;
@@ -58,8 +59,8 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
       themes={themes}
       selectedSlugs={selectedSlugs}
       onToggle={onToggle}
-      showAll={showAll}
-      setShowAll={setShowAll}
+      visibleCount={visibleCount}
+      setVisibleCount={setVisibleCount}
     />
   );
 }
@@ -68,27 +69,27 @@ function ThemePickerList({
   themes,
   selectedSlugs,
   onToggle,
-  showAll,
-  setShowAll,
+  visibleCount,
+  setVisibleCount,
 }: {
   themes: EDHRECTheme[];
   selectedSlugs: Set<string>;
   onToggle: (theme: EDHRECTheme) => void;
-  showAll: boolean;
-  setShowAll: (v: boolean) => void;
+  visibleCount: number;
+  setVisibleCount: (updater: (prev: number) => number) => void;
 }) {
   // Always render selected themes alongside the top-N, even when their
   // deck count would normally place them below the fold. Users picking
   // a niche theme should still see it pinned in the visible row.
   const visible = useMemo(() => {
-    if (showAll) return themes;
-    const top = themes.slice(0, COLLAPSED_COUNT);
+    const top = themes.slice(0, visibleCount);
     const topSlugs = new Set(top.map((t) => t.slug));
     const pinned = themes.filter((t) => selectedSlugs.has(t.slug) && !topSlugs.has(t.slug));
     return [...top, ...pinned];
-  }, [themes, showAll, selectedSlugs]);
+  }, [themes, visibleCount, selectedSlugs]);
 
-  const hidden = themes.length - visible.length;
+  const remaining = Math.max(0, themes.length - visibleCount);
+  const nextStep = Math.min(EXPAND_STEP, remaining);
 
   return (
     <section className="deck-builder-section">
@@ -112,20 +113,20 @@ function ThemePickerList({
             </button>
           );
         })}
-        {!showAll && hidden > 0 && (
+        {remaining > 0 && (
           <button
             type="button"
             className="theme-chip theme-chip-more"
-            onClick={() => setShowAll(true)}
+            onClick={() => setVisibleCount((prev) => prev + EXPAND_STEP)}
           >
-            Show all ({themes.length})
+            Show {nextStep} more ({remaining} left)
           </button>
         )}
-        {showAll && themes.length > COLLAPSED_COUNT && (
+        {visibleCount > COLLAPSED_COUNT && (
           <button
             type="button"
             className="theme-chip theme-chip-more"
-            onClick={() => setShowAll(false)}
+            onClick={() => setVisibleCount(() => COLLAPSED_COUNT)}
           >
             Show fewer
           </button>
