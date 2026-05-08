@@ -2,7 +2,7 @@ import express, { type Request, type Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
-import { resolveCards } from './scryfall';
+import { resolveCards, fetchCardsByIds } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow } from './parsers/types';
@@ -96,6 +96,67 @@ app.post('/api/import', upload.single('file'), async (req: Request, res: Respons
 });
 
 /**
+ * Refreshes Scryfall market prices for a set of cards without re-importing.
+ * Body: { scryfallIds: string[] } (capped at 1000).
+ * Response: { prices: Record<scryfallId, { usd: number, pricedAt: number }> }
+ *
+ * Only resolved ids appear in the response. The frontend treats absent ids as
+ * "still no price" rather than zeroing them out. Foil-vs-non-foil disambiguation
+ * is intentionally skipped — the response gives a single usd per id, and the
+ * frontend stamps it on every copy of that printing.
+ */
+app.post('/api/refresh-prices', async (req: Request, res: Response) => {
+  try {
+    const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
+    if (!Array.isArray(raw)) {
+      return res.status(400).json({ error: 'Body must be { scryfallIds: string[] }.' });
+    }
+
+    const ids = Array.from(
+      new Set(raw.filter((x): x is string => typeof x === 'string' && x.length > 0))
+    ).slice(0, 1000);
+
+    if (ids.length === 0) {
+      return res.json({ prices: {} });
+    }
+
+    const cards = await fetchCardsByIds(ids, cache);
+
+    const now = Date.now();
+    const prices: Record<string, { usd: number; pricedAt: number }> = {};
+    for (const card of cards) {
+      const usd = pickUsdFromPrices(card);
+      if (usd > 0) {
+        prices[card.id] = { usd, pricedAt: now };
+      }
+    }
+
+    res.json({ prices });
+  } catch (err) {
+    console.error('[refresh-prices] error:', err);
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ error: `Price refresh failed: ${message}.` });
+  }
+});
+
+/**
+ * Picks a single usd value from a Scryfall card's price block. Prefers the
+ * non-foil price, falling back to etched then foil. Mirrors the non-foil branch
+ * of resolvePrice — refresh does not know each row's foil flag, so we pick a
+ * sensible single value and stamp it on every copy of the printing.
+ */
+function pickUsdFromPrices(card: ScryfallCard): number {
+  const p = card.prices;
+  if (!p) return 0;
+  for (const raw of [p.usd, p.usd_etched, p.usd_foil]) {
+    if (!raw) continue;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
+/**
  * Pulls the import text from whichever request shape was sent.
  */
 async function readImportText(req: Request): Promise<string | null> {
@@ -148,6 +209,7 @@ function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): numbe
 }
 
 function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
+  const price = resolvePrice(row, scryfall);
   const base: EnrichedCard = {
     name: scryfall?.name || row.name,
     setCode: scryfall?.set?.toUpperCase() || row.setCode || '',
@@ -155,11 +217,12 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     collectorNumber: scryfall?.collector_number || row.collectorNumber || '',
     rarity: (scryfall?.rarity || row.rarity || '').toLowerCase(),
     scryfallId: scryfall?.id || row.scryfallId || '',
-    purchasePrice: resolvePrice(row, scryfall),
+    purchasePrice: price,
     sourceCategory: row.sourceCategory || '',
     sourceFormat: row.sourceFormat,
     foil: row.foil ?? false,
   };
+  if (price > 0) base.pricedAt = Date.now();
 
   if (scryfall) {
     // Some layouts (reversible_card, art_series, etc.) leave top-level type_line/cmc/colors

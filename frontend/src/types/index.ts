@@ -7,6 +7,12 @@ export interface EnrichedCard {
   scryfallId: string;
   purchasePrice: number;
   /**
+   * Epoch ms when purchasePrice was last sourced from Scryfall. Optional so cards
+   * persisted before this field existed don't break — treat missing as stale.
+   * Omitted when Scryfall returned no price (purchasePrice === 0).
+   */
+  pricedAt?: number;
+  /**
    * Optional category label from the source export — ManaBox binder name, Moxfield tag, etc.
    * Kept on the card for debugging/display, but no longer filterable.
    */

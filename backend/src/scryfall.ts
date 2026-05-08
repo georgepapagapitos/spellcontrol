@@ -139,6 +139,35 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
 }
 
 /**
+ * Fetches fresh ScryfallCards by ID, bypassing cache. Used by the price-refresh
+ * endpoint, which needs current prices rather than the 7-day-cached snapshot.
+ * Honors the same 75/batch + 250ms delay + 429 backoff as bulk import.
+ * Updates the cache with whatever Scryfall returns. Returns one card per
+ * resolved id (missing ids are simply omitted).
+ */
+export async function fetchCardsByIds(
+  ids: string[],
+  cache: ScryfallCache
+): Promise<ScryfallCard[]> {
+  const out: ScryfallCard[] = [];
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const batch = ids.slice(i, i + BATCH_SIZE);
+    const json = await fetchBatchWithRetry(
+      batch.map((id) => ({ id })),
+      Math.floor(i / BATCH_SIZE)
+    );
+    if (json && json.data.length > 0) {
+      out.push(...json.data);
+      cache.setMany(json.data);
+    }
+    if (i + BATCH_SIZE < ids.length) {
+      await sleep(REQUEST_DELAY_MS);
+    }
+  }
+  return out;
+}
+
+/**
  * POSTs a batch to Scryfall's collection endpoint with exponential backoff on 429s.
  * Returns the parsed response, or null after MAX_RETRIES.
  *
