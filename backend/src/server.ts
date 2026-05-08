@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import express, { type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
@@ -314,6 +315,7 @@ function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): numbe
 function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
   const price = resolvePrice(row, scryfall);
   const base: EnrichedCard = {
+    copyId: crypto.randomUUID(),
     name: scryfall?.name || row.name,
     setCode: scryfall?.set?.toUpperCase() || row.setCode || '',
     setName: scryfall?.set_name || row.setName || '',

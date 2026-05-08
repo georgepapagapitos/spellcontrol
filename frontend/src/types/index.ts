@@ -1,4 +1,10 @@
 export interface EnrichedCard {
+  /**
+   * Unique identifier for this physical card copy. Two copies of the same
+   * printing (same scryfallId) get distinct copyIds so the allocation system
+   * can track each one independently.
+   */
+  copyId: string;
   name: string;
   setCode: string;
   setName: string;

@@ -9,8 +9,8 @@ import type { EnrichedCard } from '../../types';
 
 export interface AddCardChoice {
   card: ScryfallCard;
-  /** scryfallId of the collection copy claimed for this slot, or null if none. */
-  allocatedScryfallId: string | null;
+  /** copyId of the collection copy claimed for this slot, or null if none. */
+  allocatedCopyId: string | null;
 }
 
 export interface CardSearchPanelHandle {
@@ -235,7 +235,7 @@ function CollectionResults({
     const full = await getCardByName(c.name).catch(() => null);
     if (!full) return;
     const claim = pickCollectionCopy(c.name, collection, allocations);
-    onAdd({ card: full, allocatedScryfallId: claim?.scryfallId ?? null });
+    onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
   };
 
@@ -370,7 +370,7 @@ function ScryfallResults({
     if (!c) return;
     const owned = ownedNames.has(c.name);
     const claim = owned ? pickCollectionCopy(c.name, collection, allocations) : null;
-    onAdd({ card: c, allocatedScryfallId: claim?.scryfallId ?? null });
+    onAdd({ card: c, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
   };
 
