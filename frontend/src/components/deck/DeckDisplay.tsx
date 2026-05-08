@@ -174,6 +174,25 @@ interface Row {
   slotIds: string[];
   /** Allocation status of this row, summarised across the slots it covers. */
   status: AllocationStatus;
+  /**
+   * Front-face image to display for this row. Prefers the user's owned
+   * printing (via `allocatedScryfallId` → collection EnrichedCard) so the
+   * deck mirrors what's actually in the binder, falling back to the
+   * deck-stored ScryfallCard's image when the slot isn't allocated.
+   */
+  imageNormal?: string;
+  imageNormalBack?: string;
+}
+
+function frontFaceImage(card: ScryfallCard): string | undefined {
+  return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
+}
+
+function backFaceImage(card: ScryfallCard): string | undefined {
+  if (card.card_faces && card.card_faces.length > 1) {
+    return card.card_faces[1].image_uris?.normal;
+  }
+  return undefined;
 }
 
 function colorKeyOf(card: ScryfallCard): string {
@@ -189,10 +208,14 @@ function buildRows(
   collectionById: Map<string, EnrichedCard> | undefined
 ): Row[] {
   const map = new Map<string, Row>();
+  // Tracks whether a row's image was sourced from an owned printing — if so,
+  // we don't downgrade it to a deck-stored fallback later.
+  const ownedImage = new Set<string>();
   for (const dc of cards) {
     const card = dc.card;
     const existing = map.get(card.name);
     const status = classifyAllocation(dc.allocatedScryfallId ?? null, collectionById);
+    const owned = dc.allocatedScryfallId ? collectionById?.get(dc.allocatedScryfallId) : undefined;
     if (existing) {
       existing.qty += 1;
       existing.price += priceOf(card, currency);
@@ -201,8 +224,17 @@ function buildRows(
       if (statusSeverity(status) > statusSeverity(existing.status)) {
         existing.status = status;
       }
+      // First owned printing for this row wins — later duplicates may be
+      // unowned (and therefore have no collection image), but if an earlier
+      // copy fell back to the deck-stored image, an owned copy upgrades it.
+      if (owned?.imageNormal && !ownedImage.has(card.name)) {
+        existing.imageNormal = owned.imageNormal;
+        existing.imageNormalBack = owned.imageNormalBack;
+        ownedImage.add(card.name);
+      }
       continue;
     }
+    if (owned?.imageNormal) ownedImage.add(card.name);
     map.set(card.name, {
       name: card.name,
       qty: 1,
@@ -212,6 +244,8 @@ function buildRows(
       colorKey: colorKeyOf(card),
       slotIds: dc.slotId ? [dc.slotId] : [],
       status,
+      imageNormal: owned?.imageNormal ?? frontFaceImage(card),
+      imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
     });
   }
   return [...map.values()];
@@ -376,7 +410,7 @@ export function DeckDisplay({
     for (const g of visibleGroups) {
       for (const row of g.rows) {
         indexByName.set(row.name, enrichedCards.length);
-        enrichedCards.push(scryfallToEnriched(row.card));
+        enrichedCards.push(scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack));
         labels.push(g.title);
       }
     }
@@ -471,12 +505,18 @@ export function DeckDisplay({
 // Deck-builder cards never went through our import flow, so they have no
 // "purchase price" from a CSV. We fall back to Scryfall's listed USD price
 // so the carousel still shows a meaningful number instead of $0.00.
-function scryfallToEnriched(card: ScryfallCard): EnrichedCard {
-  const front = card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
+function scryfallToEnriched(
+  card: ScryfallCard,
+  frontOverride?: string,
+  backOverride?: string
+): EnrichedCard {
+  const front =
+    frontOverride ?? card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
   const back =
-    card.card_faces && card.card_faces.length > 1
+    backOverride ??
+    (card.card_faces && card.card_faces.length > 1
       ? card.card_faces[1].image_uris?.normal
-      : undefined;
+      : undefined);
   const usd = card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched;
   const price = usd ? Number(usd) : NaN;
   return {
@@ -646,7 +686,7 @@ function DeckCardRow({
   const [hover, setHover] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const showTimer = useRef<number | null>(null);
-  const imgUrl = row.card.image_uris?.normal ?? row.card.card_faces?.[0]?.image_uris?.normal;
+  const imgUrl = row.imageNormal;
 
   const HOVER_DELAY_MS = 350;
   const handleEnter = () => {
