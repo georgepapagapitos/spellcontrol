@@ -4,6 +4,7 @@ import { useCollectionStore } from '../store/collection';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
+import { ToastViewport } from './ToastViewport';
 
 export function Layout() {
   const hydrateCards = useCollectionStore((s) => s.hydrateCards);
@@ -21,6 +22,7 @@ export function Layout() {
         <BinderEditor />
         <Footer />
       </div>
+      <ToastViewport />
     </>
   );
 }
