@@ -3,7 +3,6 @@ import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel } from '../components/deck/CardSearchPanel';
-import { ShoppingList } from '../components/deck/ShoppingList';
 import { useCollectionByScryfallId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
@@ -126,11 +125,6 @@ export function DeckEditorPage() {
 
       <div className={`deck-editor-layout${showAddPanel ? ' with-panel' : ''}`}>
         <main className="deck-editor-main">
-          <ShoppingList
-            deckId={deck.id}
-            cards={deck.cards}
-            collectionByScryfallId={collectionById}
-          />
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}
