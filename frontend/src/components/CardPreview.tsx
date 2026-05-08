@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getSetMap, type SetMap } from '../lib/api';
 import { useHolographic } from '../lib/use-holographic';
@@ -6,6 +7,7 @@ import { classifyFoil } from '../lib/foil-style';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
+import { useAllocations } from '../lib/allocations';
 
 interface Props {
   cards: EnrichedCard[];
@@ -17,6 +19,12 @@ interface Props {
   pageNumbers: number[];
   /** Total number of pages in the scope these cards belong to. */
   totalPages: number;
+  /**
+   * Deck the preview is being opened from, if any. When the current card is
+   * allocated to this same deck, we suppress the "In deck" chip — repeating
+   * the deck name back to the user inside that deck's editor is just noise.
+   */
+  currentDeckId?: string;
   onIndexChange: (i: number) => void;
   onClose: () => void;
 }
@@ -30,9 +38,11 @@ export function CardPreview({
   sectionLabels,
   pageNumbers,
   totalPages,
+  currentDeckId,
   onIndexChange,
   onClose,
 }: Props) {
+  const allocations = useAllocations();
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
@@ -252,8 +262,11 @@ export function CardPreview({
           })}
         </div>
 
-        {current.imageNormalBack && (
-          <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
+        {/* Always rendered so single-faced and transform cards reserve the
+            same vertical space — otherwise navigating between them would
+            shift the panel up/down. */}
+        <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
+          {current.imageNormalBack && (
             <button
               type="button"
               className="card-preview-flip-btn"
@@ -269,8 +282,39 @@ export function CardPreview({
               <FlipIcon />
               <span>Flip</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
+
+        {(() => {
+          const allocation = allocations.get(current.scryfallId);
+          if (!allocation || allocation.deckId === currentDeckId) return null;
+          return (
+            <Link
+              to={`/decks/${allocation.deckId}`}
+              className="card-preview-deck-chip"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              title={`Open deck ${allocation.deckName}`}
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
+                <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
+                <rect x="6" y="0" width="9" height="11" rx="1.5" />
+              </svg>
+              <span className="card-preview-deck-chip-label">In deck</span>
+              <span className="card-preview-deck-chip-name">{allocation.deckName}</span>
+            </Link>
+          );
+        })()}
 
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
           <div className="card-preview-panel-inner">

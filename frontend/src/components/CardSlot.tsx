@@ -1,9 +1,11 @@
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { isLand } from '../lib/colors';
 import { truncateLongWords } from '../lib/slot-text';
 import { CardPreviewContext } from './CardPreviewContext';
 import { getSetMap, type SetMap } from '../lib/api';
+import { useAllocations } from '../lib/allocations';
 
 interface Props {
   card: EnrichedCard | null;
@@ -34,6 +36,7 @@ const hasHover =
 export function CardSlot({ card }: Props) {
   const preview = useContext(CardPreviewContext);
   const previewOpen = preview?.isPreviewOpen ?? false;
+  const allocations = useAllocations();
   const [hovered, setHovered] = useState(false);
 
   // Mouseenter from a slot underneath the preview modal still fires (the
@@ -147,12 +150,13 @@ export function CardSlot({ card }: Props) {
 
   const cls = getSlotClass(card);
   const displayName = truncateLongWords(card.name);
+  const allocation = allocations.get(card.scryfallId);
 
   return (
     <>
       <div
         ref={slotRef}
-        className={`slot ${cls}${card.foil ? ' foil' : ''}`}
+        className={`slot ${cls}${card.foil ? ' foil' : ''}${allocation ? ' is-allocated' : ''}`}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
@@ -161,9 +165,22 @@ export function CardSlot({ card }: Props) {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}`}
+        aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}${
+          allocation ? ` (in deck: ${allocation.deckName})` : ''
+        }`}
       >
         <span className="slot-name">{displayName}</span>
+        {allocation && (
+          <Link
+            to={`/decks/${allocation.deckId}`}
+            className="slot-deck-badge"
+            title={`In deck: ${allocation.deckName}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Open deck ${allocation.deckName}`}
+          >
+            <DeckIcon />
+          </Link>
+        )}
       </div>
       {hovered && (
         <div
@@ -198,14 +215,25 @@ export function CardSlot({ card }: Props) {
             </div>
           )}
           {card.imageNormal && !imgError && (
-            <img
-              src={card.imageNormal}
-              alt={card.name}
-              className="tooltip-image"
-              loading="lazy"
-              onError={() => setImgError(true)}
-              onLoad={reposition}
-            />
+            <div className="tooltip-image-wrap">
+              <img
+                src={card.imageNormal}
+                alt={card.name}
+                className="tooltip-image"
+                loading="lazy"
+                onError={() => setImgError(true)}
+                onLoad={reposition}
+              />
+              {allocation && (
+                <span
+                  className="slot-deck-badge tooltip-deck-badge"
+                  title={`In deck: ${allocation.deckName}`}
+                  aria-hidden="true"
+                >
+                  <DeckIcon size={14} />
+                </span>
+              )}
+            </div>
           )}
           {card.imageNormal && imgError && (
             <div className="tooltip-img-fallback">Image unavailable</div>
@@ -219,4 +247,23 @@ export function CardSlot({ card }: Props) {
 function getSlotClass(card: EnrichedCard): string {
   if (isLand(card)) return 'land';
   return card.rarity.toLowerCase() || 'common';
+}
+
+// Small stack-of-cards glyph used by the corner "in a deck" badge. Solid
+// fill so it stays legible against the slot art behind it.
+function DeckIcon({ size = 9 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
+      <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
+      <rect x="6" y="0" width="9" height="11" rx="1.5" />
+    </svg>
+  );
 }
