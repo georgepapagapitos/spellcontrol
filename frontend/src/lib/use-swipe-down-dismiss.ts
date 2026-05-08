@@ -89,6 +89,7 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
         if (lockedScrollLeftRef.current === null) {
           lockedScrollLeftRef.current = track.scrollLeft;
         }
+        // eslint-disable-next-line react-hooks/immutability -- imperative DOM scroll pin in event handler, not a render side-effect
         track.scrollLeft = lockedScrollLeftRef.current;
       }
     }

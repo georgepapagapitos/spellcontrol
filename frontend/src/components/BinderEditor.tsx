@@ -96,6 +96,10 @@ const DEFAULT_EDHREC_TOP_N = 100;
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
+function pickRandomPresetColor() {
+  return PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+}
+
 export function BinderEditor() {
   const editingBinder = useCollectionStore((s) => s.editingBinder);
   const binders = useCollectionStore((s) => s.binders);
@@ -110,6 +114,10 @@ export function BinderEditor() {
 
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
+  // Pre-compute the random color for the next "new binder" open. Kept in state
+  // (not a ref) so it can be safely read during the render-phase reset; updated
+  // via a macrotask so Math.random() is never called during render.
+  const [nextRandomColor, setNextRandomColor] = useState(PRESET_COLORS[0]);
   const [pocketSize, setPocketSize] = useState<PocketSize>(9);
   const [doubleSided, setDoubleSided] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
@@ -163,35 +171,48 @@ export function BinderEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    if (existing) {
-      setName(existing.name);
-      setColor(existing.color);
-      setPocketSize(existing.pocketSize ?? 9);
-      setDoubleSided(!!existing.doubleSided);
-      setFixedCapacity(existing.fixedCapacity ?? null);
-      const existingGroups = existing.filterGroups?.length
-        ? existing.filterGroups.map((g) => ({
-            name: g.name,
-            filter: { ...(g.filter ?? EMPTY_FILTER) },
-          }))
-        : [newGroup()];
-      setGroups(existingGroups);
-      setSorts([...existing.sorts]);
-    } else {
-      setName('');
-      setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
-      setPocketSize(9);
-      setDoubleSided(false);
-      setFixedCapacity(null);
-      setGroups([newGroup()]);
-      setSorts([...NEW_BINDER_DEFAULT_SORTS]);
+  // Sync form fields from props when the modal opens. Use the render-phase reset
+  // pattern: track the last `isOpen`/`existing` pair we initialized for, and
+  // re-init whenever either changes while the modal is open.
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevExisting, setPrevExisting] = useState(existing);
+  if (prevIsOpen !== isOpen || prevExisting !== existing) {
+    setPrevIsOpen(isOpen);
+    setPrevExisting(existing);
+    if (isOpen) {
+      if (existing) {
+        setName(existing.name);
+        setColor(existing.color);
+        setPocketSize(existing.pocketSize ?? 9);
+        setDoubleSided(!!existing.doubleSided);
+        setFixedCapacity(existing.fixedCapacity ?? null);
+        const existingGroups = existing.filterGroups?.length
+          ? existing.filterGroups.map((g) => ({
+              name: g.name,
+              filter: { ...(g.filter ?? EMPTY_FILTER) },
+            }))
+          : [newGroup()];
+        setGroups(existingGroups);
+        setSorts([...existing.sorts]);
+      } else {
+        setName('');
+        setColor(nextRandomColor);
+        setPocketSize(9);
+        setDoubleSided(false);
+        setFixedCapacity(null);
+        setGroups([newGroup()]);
+        setSorts([...NEW_BINDER_DEFAULT_SORTS]);
+      }
+      setErrorMsg(null);
+      setLiveMsg('');
+      setAutofocusGroupIdx(null);
     }
-    setErrorMsg(null);
-    setLiveMsg('');
-    setAutofocusGroupIdx(null);
-  }, [isOpen, existing]);
+  }
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setNextRandomColor(pickRandomPresetColor()), 0);
+    return () => window.clearTimeout(id);
+  }, [isOpen]);
 
   useLockBodyScroll(isOpen);
 

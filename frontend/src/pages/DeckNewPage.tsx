@@ -38,16 +38,23 @@ export function DeckNewPage() {
   const updateCustomization = useDeckBuilderStore((s) => s.updateCustomization);
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
 
+  const collectionCards = useCollectionStore((s) => s.cards);
+  const decks = useDecksStore((s) => s.decks);
+  const createDeck = useDecksStore((s) => s.createDeck);
+
+  const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>(() => prefill?.themes ?? []);
+
   // Reset the deck-builder store on mount so opening "New deck" after
   // creating a deck always starts at a blank commander search — the
   // store is in-memory and would otherwise retain the previous run's
   // commander, themes, and EDHREC data.
   useEffect(() => {
     resetDeckBuilder();
-    setSelectedThemes([]);
     if (prefill) {
       setCommander(prefill.commander);
-      setSelectedThemes(prefill.themes);
       updateCustomization({
         bracketLevel: prefill.bracketLevel as 'all' | 1 | 2 | 3 | 4 | 5,
         landCount: prefill.landCount,
@@ -56,26 +63,20 @@ export function DeckNewPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const collectionCards = useCollectionStore((s) => s.cards);
-  const decks = useDecksStore((s) => s.decks);
-  const createDeck = useDecksStore((s) => s.createDeck);
-
-  const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>([]);
   const selectedThemeSlugs = useMemo(
     () => new Set(selectedThemes.map((t) => t.slug)),
     [selectedThemes]
   );
 
-  const handleToggleTheme = useCallback((theme: EDHRECTheme) => {
-    setSelectedThemes((prev) => {
-      const exists = prev.some((t) => t.slug === theme.slug);
-      return exists ? prev.filter((t) => t.slug !== theme.slug) : [...prev, theme];
-    });
-  }, []);
+  const handleToggleTheme = useCallback(
+    (theme: EDHRECTheme) => {
+      setSelectedThemes((prev) => {
+        const exists = prev.some((t) => t.slug === theme.slug);
+        return exists ? prev.filter((t) => t.slug !== theme.slug) : [...prev, theme];
+      });
+    },
+    [setSelectedThemes]
+  );
 
   // Pre-fetch EDHREC land suggestion when commander is picked so the
   // customizer can show the "✓ suggested" badge before generation.
@@ -202,7 +203,7 @@ export function DeckNewPage() {
       setCommander(card);
       setSelectedThemes([]);
     },
-    [setCommander]
+    [setCommander, setSelectedThemes]
   );
 
   return (
