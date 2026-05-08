@@ -470,12 +470,23 @@ export function DeckDisplay({
     () => buildExport(commander, partnerCommander, cards, exportFormat),
     [commander, partnerCommander, cards, exportFormat]
   );
+  const [exportOpen, setExportOpen] = useState(false);
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(exportText);
     } catch {
       /* ignore */
     }
+  };
+  const handleDownload = () => {
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = title.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'deck';
+    a.download = `${safeName}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ── Card preview wiring ──────────────────────────────────────────────
@@ -524,9 +535,7 @@ export function DeckDisplay({
           onSort={setSort}
           search={search}
           onSearch={setSearch}
-          onCopy={handleCopy}
-          exportFormat={exportFormat}
-          onExportFormatChange={handleExportFormatChange}
+          onExport={() => setExportOpen(true)}
         />
 
         <div className="deck-display-body">
@@ -575,8 +584,93 @@ export function DeckDisplay({
             onClose={() => setPreviewIndex(null)}
           />
         )}
+        {exportOpen && (
+          <ExportDialog
+            text={exportText}
+            format={exportFormat}
+            onFormatChange={handleExportFormatChange}
+            onCopy={handleCopy}
+            onDownload={handleDownload}
+            onClose={() => setExportOpen(false)}
+          />
+        )}
       </div>
     </CardPreviewContext.Provider>
+  );
+}
+
+function ExportDialog({
+  text,
+  format,
+  onFormatChange,
+  onCopy,
+  onDownload,
+  onClose,
+}: {
+  text: string;
+  format: ExportFormat;
+  onFormatChange: (f: ExportFormat) => void;
+  onCopy: () => void;
+  onDownload: () => void;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const handleCopyClick = () => {
+    onCopy();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal export-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Export deck"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>Export deck</h2>
+          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <div className="modal-body export-dialog-body">
+          <div className="export-dialog-actions">
+            <button type="button" className="export-dialog-action" onClick={handleCopyClick}>
+              <span className="export-dialog-action-label">{copied ? 'Copied!' : 'Copy'}</span>
+            </button>
+            <button type="button" className="export-dialog-action" onClick={onDownload}>
+              <span className="export-dialog-action-label">Download</span>
+            </button>
+          </div>
+          <label className="export-dialog-format">
+            <span>Format</span>
+            <select value={format} onChange={(e) => onFormatChange(e.target.value as ExportFormat)}>
+              {(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => (
+                <option key={f} value={f}>
+                  {EXPORT_FORMAT_LABEL[f]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <textarea
+            className="export-dialog-preview"
+            value={text}
+            readOnly
+            spellCheck={false}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -635,9 +729,7 @@ interface ToolbarProps {
   onSort: (s: SortMode) => void;
   search: string;
   onSearch: (s: string) => void;
-  onCopy: () => void;
-  exportFormat: ExportFormat;
-  onExportFormatChange: (f: ExportFormat) => void;
+  onExport: () => void;
 }
 
 function DeckToolbar({
@@ -653,9 +745,7 @@ function DeckToolbar({
   onSort,
   search,
   onSearch,
-  onCopy,
-  exportFormat,
-  onExportFormatChange,
+  onExport,
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
@@ -691,23 +781,9 @@ function DeckToolbar({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
         />
-        <span className="deck-toolbar-export">
-          <button type="button" className="btn btn-primary deck-toolbar-copy" onClick={onCopy}>
-            Copy
-          </button>
-          <select
-            className="deck-toolbar-export-format"
-            value={exportFormat}
-            onChange={(e) => onExportFormatChange(e.target.value as ExportFormat)}
-            aria-label="Export format"
-          >
-            {(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => (
-              <option key={f} value={f}>
-                {EXPORT_FORMAT_LABEL[f]}
-              </option>
-            ))}
-          </select>
-        </span>
+        <button type="button" className="btn btn-primary" onClick={onExport}>
+          Export
+        </button>
       </div>
     </header>
   );

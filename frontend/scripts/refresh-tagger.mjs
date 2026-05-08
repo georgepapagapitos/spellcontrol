@@ -11,7 +11,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SOURCE_URL =
-  process.env.TAGGER_SOURCE_URL ?? 'https://mtg-deck-builder-tagger.s3.amazonaws.com/tagger-tags.json';
+  process.env.TAGGER_SOURCE_URL ??
+  'https://mtg-deck-builder-tagger.s3.amazonaws.com/tagger-tags.json';
 const MAX_AGE_DAYS = 30;
 const force = process.argv.includes('--force');
 
@@ -39,7 +40,9 @@ try {
   res = await fetch(SOURCE_URL);
 } catch (err) {
   if (Number.isFinite(age)) {
-    console.warn(`[tagger] Fetch failed (${err.message}), keeping existing snapshot (${age.toFixed(1)}d old)`);
+    console.warn(
+      `[tagger] Fetch failed (${err.message}), keeping existing snapshot (${age.toFixed(1)}d old)`
+    );
     process.exit(0);
   }
   console.error(`[tagger] Fetch failed and no local copy exists: ${err.message}`);
