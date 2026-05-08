@@ -211,27 +211,8 @@ export function CardListTable({ cards, binders }: Props) {
 
   return (
     <div className="card-list">
-      {/* Type chip row — quick filter */}
-      <div className="collection-type-chips">
-        {orderedTypes.map((t) => {
-          const active = typeFilter === t;
-          return (
-            <button
-              key={t}
-              type="button"
-              className={`collection-type-chip${active ? ' is-active' : ''}`}
-              onClick={() => setTypeFilter(active ? 'all' : t)}
-            >
-              <i className={`ms ms-${typeIcon(t)} chip-type-icon`} aria-hidden />
-              <span>
-                {TYPE_LABELS[t] ?? t} {typeCounts[t]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Search + view toggle */}
+      {/* Search + view toggle — primary row. Search is the highest-frequency
+          control across the table, so it leads. */}
       <div className="collection-toolbar-row">
         <div className="card-list-search">
           <input
@@ -269,7 +250,28 @@ export function CardListTable({ cards, binders }: Props) {
         </div>
       </div>
 
-      {/* Color icons + dropdowns */}
+      {/* Type chips — most diagnostic filter, sit just below search. */}
+      <div className="collection-type-chips" role="group" aria-label="Filter by type">
+        {orderedTypes.map((t) => {
+          const active = typeFilter === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              className={`collection-type-chip${active ? ' is-active' : ''}`}
+              onClick={() => setTypeFilter(active ? 'all' : t)}
+              aria-pressed={active}
+            >
+              <i className={`ms ms-${typeIcon(t)} chip-type-icon`} aria-hidden />
+              <span>
+                {TYPE_LABELS[t] ?? t} {typeCounts[t]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Narrow-further row — color chips + dropdowns share one line. */}
       <div className="collection-filter-row">
         <div className="color-filter-row" role="group" aria-label="Filter by color">
           {COLOR_FILTERS.map((c) => {
@@ -322,7 +324,9 @@ export function CardListTable({ cards, binders }: Props) {
       </div>
 
       <div className="card-list-summary-line">
-        <span>
+        {/* Announce filter result counts to screen readers when the result
+            set changes — keeps assistive tech in step with visual filtering. */}
+        <span aria-live="polite" aria-atomic="true">
           {sorted.length.toLocaleString()} {sorted.length === 1 ? 'card' : 'cards'} ·{' '}
           {totalQty.toLocaleString()} total · ${totalValue.toFixed(0)}
         </span>
