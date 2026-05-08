@@ -1,4 +1,6 @@
 import express, { type Request, type Response } from 'express';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
@@ -14,8 +16,10 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryf
 const app = express();
 const cache = new ScryfallCache(DB_PATH);
 
-// Don't advertise the framework — small fingerprinting hygiene.
-app.disable('x-powered-by');
+app.use(helmet());
+
+const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
+const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -47,53 +51,58 @@ app.get('/api/sets', async (_req: Request, res: Response) => {
  * Auto-detects format (ManaBox, Archidekt, Moxfield, generic CSV, MTGA, plain text)
  * and resolves cards via Scryfall by ID, name+set+collector, or name as available.
  */
-app.post('/api/import', upload.single('file'), async (req: Request, res: Response) => {
-  try {
-    const text = await readImportText(req);
-    if (!text) {
-      return res
-        .status(400)
-        .json({ error: 'Provide either a file (multipart) or JSON body { text: string }' });
-    }
+app.post(
+  '/api/import',
+  importLimiter,
+  upload.single('file'),
+  async (req: Request, res: Response) => {
+    try {
+      const text = await readImportText(req);
+      if (!text) {
+        return res
+          .status(400)
+          .json({ error: 'Provide either a file (multipart) or JSON body { text: string }' });
+      }
 
-    const parseResult = parseImport(text);
-    if (parseResult.rows.length === 0) {
-      return res.status(400).json({
-        error:
-          'No cards found in the input. Try uploading a CSV from a supported tool, or pasting card names one per line.',
+      const parseResult = parseImport(text);
+      if (parseResult.rows.length === 0) {
+        return res.status(400).json({
+          error:
+            'No cards found in the input. Try uploading a CSV from a supported tool, or pasting card names one per line.',
+        });
+      }
+
+      const expanded = expandByQuantity(parseResult.rows);
+      const { resolved, unresolvedNames } = await resolveCards(expanded, cache);
+
+      let hits = 0;
+      let misses = 0;
+      const cards: EnrichedCard[] = expanded.map((row, i) => {
+        const sCard = resolved[i];
+        if (sCard) hits++;
+        else misses++;
+        return mergeCard(row, sCard);
+      });
+
+      const response: UploadResponse = {
+        cards,
+        totalRows: expanded.length,
+        scryfallHits: hits,
+        scryfallMisses: misses,
+        unresolvedNames: dedupePreservingOrder(unresolvedNames),
+        detectedFormat: parseResult.format,
+      };
+
+      res.json(response);
+    } catch (err) {
+      console.error('[import] error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({
+        error: `Import failed: ${message}. Please check your file format and try again.`,
       });
     }
-
-    const expanded = expandByQuantity(parseResult.rows);
-    const { resolved, unresolvedNames } = await resolveCards(expanded, cache);
-
-    let hits = 0;
-    let misses = 0;
-    const cards: EnrichedCard[] = expanded.map((row, i) => {
-      const sCard = resolved[i];
-      if (sCard) hits++;
-      else misses++;
-      return mergeCard(row, sCard);
-    });
-
-    const response: UploadResponse = {
-      cards,
-      totalRows: expanded.length,
-      scryfallHits: hits,
-      scryfallMisses: misses,
-      unresolvedNames: dedupePreservingOrder(unresolvedNames),
-      detectedFormat: parseResult.format,
-    };
-
-    res.json(response);
-  } catch (err) {
-    console.error('[import] error:', err);
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(500).json({
-      error: `Import failed: ${message}. Please check your file format and try again.`,
-    });
   }
-});
+);
 
 /**
  * Refreshes Scryfall market prices for a set of cards without re-importing.
@@ -105,7 +114,7 @@ app.post('/api/import', upload.single('file'), async (req: Request, res: Respons
  * is intentionally skipped — the response gives a single usd per id, and the
  * frontend stamps it on every copy of that printing.
  */
-app.post('/api/refresh-prices', async (req: Request, res: Response) => {
+app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response) => {
   try {
     const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
     if (!Array.isArray(raw)) {
