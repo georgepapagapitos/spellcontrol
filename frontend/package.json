@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "refresh-tags": "node scripts/refresh-tagger.mjs --force",
+    "predev": "node scripts/refresh-tagger.mjs",
+    "prebuild": "node scripts/refresh-tagger.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
