@@ -17,7 +17,6 @@
   color: var(--text2);
   font-size: var(--text-sm);
   margin-top: 0.25rem;
-  max-width: 60ch;
 }
 
 .deck-builder-section {
@@ -3251,3 +3250,103 @@ input.deck-row-qty-input.deck-row-qty-missing {
 
 /* @media (max-width: 380px) {} — no longer hides the card image; the
    stacked layout from the 600px breakpoint already shrinks gracefully. */
+
+/* ── Import deck dialog ────────────────────────────────────────────── */
+
+.import-deck-modal {
+  max-width: 640px;
+}
+
+.import-deck-modal .modal-body {
+  min-height: 260px;
+}
+
+.import-deck-hint {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.import-deck-modal .paste-textarea {
+  min-height: 200px;
+}
+
+.import-deck-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text2);
+  font-size: var(--text-sm);
+}
+
+.import-deck-modal .commander-search {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.import-deck-commander-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.import-deck-commander-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  background: var(--surface1);
+  cursor: pointer;
+  text-align: left;
+}
+
+.import-deck-commander-option:hover {
+  border-color: var(--accent);
+  background: var(--surface2);
+}
+
+.import-deck-commander-art {
+  width: 48px;
+  height: 67px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.import-deck-commander-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.import-deck-commander-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.import-deck-commander-type {
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.import-deck-search-link {
+  margin-top: 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.decks-index-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}

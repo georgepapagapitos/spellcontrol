@@ -8,7 +8,7 @@ import { resolveCards, fetchCardsByIds } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow } from './parsers/types';
-import type { EnrichedCard, ScryfallCard, UploadResponse } from './types';
+import type { DeckImportResponse, EnrichedCard, ScryfallCard, UploadResponse } from './types';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3737;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryfall-cache.db');
@@ -99,6 +99,100 @@ app.post(
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({
         error: `Import failed: ${message}. Please check your file format and try again.`,
+      });
+    }
+  }
+);
+
+/**
+ * Deck-oriented import endpoint. Parses the same formats as /api/import but
+ * returns ScryfallCard objects grouped by section (commander / companion / deck).
+ * Text-format section headers ("Commander", "Companion", "Sideboard", "Deck")
+ * are used to auto-detect the commander when present.
+ */
+app.post(
+  '/api/import-deck',
+  importLimiter,
+  upload.single('file'),
+  async (req: Request, res: Response) => {
+    try {
+      const text = await readImportText(req);
+      if (!text) {
+        return res
+          .status(400)
+          .json({ error: 'Provide either a file (multipart) or JSON body { text: string }' });
+      }
+
+      const parseResult = parseImport(text);
+      if (parseResult.rows.length === 0) {
+        return res.status(400).json({
+          error:
+            'No cards found in the input. Paste a deck list with one card per line, or upload an export file.',
+        });
+      }
+
+      const commanderRows = parseResult.rows.filter((r) => r.section === 'commander');
+      const companionRows = parseResult.rows.filter((r) => r.section === 'companion');
+      const deckRows = parseResult.rows.filter(
+        (r) =>
+          r.section !== 'commander' &&
+          r.section !== 'companion' &&
+          r.section !== 'sideboard' &&
+          r.section !== 'maybeboard'
+      );
+
+      const allRows = [...commanderRows, ...companionRows, ...deckRows];
+      // Strip collector numbers so resolution falls back to name+set. Deck exports
+      // from various tools use collector numbers that may not match Scryfall's
+      // numbering for the same printing, causing false negatives. For deck import
+      // we only need the card data, not an exact printing match.
+      const relaxedRows = allRows.map((r) => ({ ...r, collectorNumber: undefined }));
+      const expanded = expandByQuantity(relaxedRows);
+      const { resolved, unresolvedNames } = await resolveCards(expanded, cache);
+
+      const cardsByName = new Map<string, ScryfallCard>();
+      for (let i = 0; i < expanded.length; i++) {
+        const card = resolved[i];
+        if (card && !cardsByName.has(expanded[i].name)) {
+          cardsByName.set(expanded[i].name, card);
+        }
+      }
+
+      let commander: ScryfallCard | null = null;
+      if (commanderRows.length > 0) {
+        commander = cardsByName.get(commanderRows[0].name) ?? null;
+      }
+
+      let companion: ScryfallCard | null = null;
+      if (companionRows.length > 0) {
+        companion = cardsByName.get(companionRows[0].name) ?? null;
+      }
+
+      const cards: ScryfallCard[] = [];
+      for (const row of deckRows) {
+        const card = cardsByName.get(row.name);
+        if (card) {
+          for (let i = 0; i < Math.max(1, row.quantity); i++) {
+            cards.push(card);
+          }
+        }
+      }
+
+      const response: DeckImportResponse = {
+        commander,
+        companion,
+        cards,
+        unresolvedNames: dedupePreservingOrder(unresolvedNames),
+        detectedFormat: parseResult.format,
+        cardCount: cards.length + (commander ? 1 : 0) + (companion ? 1 : 0),
+      };
+
+      res.json(response);
+    } catch (err) {
+      console.error('[import-deck] error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({
+        error: `Deck import failed: ${message}. Please check the format and try again.`,
       });
     }
   }
