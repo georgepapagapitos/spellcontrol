@@ -292,7 +292,7 @@ export function CardPreview({
         </div>
 
         {(() => {
-          const allocation = allocations.get(current.scryfallId);
+          const allocation = allocations.get(current.copyId);
           if (!allocation || allocation.deckId === currentDeckId) return null;
           return (
             <Link
