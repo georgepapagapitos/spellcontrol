@@ -1,4 +1,5 @@
-const TAG_REPO_URL = import.meta.env.VITE_TAG_REPO_URL as string | undefined;
+const TAG_REPO_URL =
+  (import.meta.env.VITE_TAG_REPO_URL as string | undefined) ?? '/tagger-tags.json';
 
 export interface TaggerData {
   generatedAt: string;
