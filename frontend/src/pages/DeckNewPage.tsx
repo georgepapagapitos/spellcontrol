@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { ThemePicker } from '../components/deck/ThemePicker';
+import { DeckCustomizer } from '../components/deck/DeckCustomizer';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
@@ -249,6 +250,8 @@ export function DeckNewPage() {
           </div>
         </section>
       )}
+
+      {commander && <DeckCustomizer customization={customization} update={updateCustomization} />}
 
       {commander && (
         <section className="deck-builder-section deck-builder-actions">
