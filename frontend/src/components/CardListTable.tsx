@@ -65,7 +65,7 @@ export function CardListTable({ cards, binders }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sort, setSort] = useState<`${SortKey}:${'asc' | 'desc'}`>('name:asc');
-  const [view, setView] = useState<ViewMode>('grid');
+  const [view, setView] = useState<ViewMode>('list');
   const [binderFilter, setBinderFilter] = useState<string>('all');
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>('all');
