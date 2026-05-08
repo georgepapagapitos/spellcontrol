@@ -212,6 +212,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.deck-toolbar-missing {
+  color: var(--err-text, #d8442a);
+}
+
 .deck-toolbar-controls {
   display: flex;
   align-items: center;
@@ -321,6 +325,9 @@
 .deck-row-qty {
   width: 1.4rem;
   flex: 0 0 auto;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .deck-row-role-badge {
@@ -341,6 +348,13 @@
   flex: 0 0 auto;
 }
 
+/* "Not in collection" cue — tint the qty cell so the signal lives
+   inside an existing column, no layout shift, no extra glyph. Owned
+   rows keep the muted default colour; missing rows light up red. */
+.deck-row-qty-missing {
+  color: var(--err-text, #d8442a);
+}
+
 .deck-row-price {
   width: 2.5rem;
   flex: 0 0 auto;
@@ -355,12 +369,6 @@
 
 .deck-row:focus-visible {
   box-shadow: 0 0 0 2px var(--accent);
-}
-
-.deck-row-qty {
-  color: var(--text3);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
 .deck-row-name {
@@ -1274,118 +1282,6 @@
 .deck-customizer-pill-remove:hover {
   background: var(--err-bg, var(--surface2));
   color: var(--err, var(--text));
-}
-
-/* ── Shopping list ────────────────────────────────────────────────────── */
-.shopping-list {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 0.85rem 1rem;
-  margin-bottom: 0.85rem;
-}
-
-.shopping-list-empty {
-  padding: 0.6rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.shopping-list-good {
-  color: var(--text2);
-  font-size: var(--text-sm);
-}
-
-.shopping-list-dismiss {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: var(--text3);
-  font-size: var(--text-lg);
-  line-height: 1;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.shopping-list-dismiss:hover {
-  color: var(--text);
-  background: var(--surface2);
-}
-
-.shopping-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.shopping-list-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.shopping-list-title {
-  font-family: var(--font-serif);
-  font-size: var(--text-md);
-  color: var(--text);
-}
-
-.shopping-list-meta {
-  font-size: var(--text-sm);
-  color: var(--text2);
-}
-
-.shopping-list-rows {
-  list-style: none;
-  margin: 0.75rem 0 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.shopping-list-row {
-  display: grid;
-  grid-template-columns: 2.25rem minmax(0, 1fr) auto auto;
-  gap: 0.6rem;
-  align-items: center;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-}
-
-.shopping-list-row:hover {
-  background: var(--surface2);
-}
-
-.shopping-list-qty {
-  color: var(--text3);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.shopping-list-name {
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.shopping-list-price {
-  color: var(--text2);
-  font-variant-numeric: tabular-nums;
-}
-
-.shopping-list-buy {
-  font-size: var(--text-xs);
 }
 
 /* ── Export format toggle ─────────────────────────────────────────────── */

@@ -423,6 +423,20 @@ export function DeckDisplay({
     () => allCards.reduce((sum, c) => sum + priceOf(c, currency), 0),
     [allCards, currency]
   );
+  // Missing summary — cards in the deck that aren't allocated to a collection
+  // copy (i.e. status !== 'allocated'). Surfaces buy-list info inline so we
+  // don't need a separate banner above the deck.
+  const missing = useMemo(() => {
+    let count = 0;
+    let price = 0;
+    for (const dc of cards) {
+      const status = classifyAllocation(dc.allocatedScryfallId ?? null, collectionByScryfallId);
+      if (status === 'allocated') continue;
+      count += 1;
+      price += priceOf(dc.card, currency);
+    }
+    return { count, price };
+  }, [cards, collectionByScryfallId, currency]);
   const averageCmc = useMemo(() => {
     const nonLand = allCards.filter((c) => !(c.type_line || '').toLowerCase().includes('land'));
     if (nonLand.length === 0) return 0;
@@ -502,6 +516,8 @@ export function DeckDisplay({
           totalCards={totalCards}
           averageCmc={averageCmc}
           totalPrice={totalPrice}
+          missingCount={missing.count}
+          missingPrice={missing.price}
           deckGrade={deckGrade}
           currency={currency}
           sort={sort}
@@ -611,6 +627,8 @@ interface ToolbarProps {
   totalCards: number;
   averageCmc: number;
   totalPrice: number;
+  missingCount: number;
+  missingPrice: number;
   deckGrade?: { letter: string; headline: string };
   currency: CurrencyCode;
   sort: SortMode;
@@ -627,6 +645,8 @@ function DeckToolbar({
   totalCards,
   averageCmc,
   totalPrice,
+  missingCount,
+  missingPrice,
   deckGrade,
   currency,
   sort,
@@ -644,6 +664,14 @@ function DeckToolbar({
         <span className="deck-toolbar-meta">
           {totalCards} cards · avg CMC {averageCmc.toFixed(2)} · {fmtMoney(totalPrice, currency)}
           {deckGrade ? ` · grade ${deckGrade.letter}` : ''}
+          {missingCount > 0 && (
+            <>
+              {' · '}
+              <span className="deck-toolbar-missing">
+                {missingCount} missing ({fmtMoney(missingPrice, currency)})
+              </span>
+            </>
+          )}
         </span>
       </div>
       <div className="deck-toolbar-controls">
@@ -782,7 +810,18 @@ function DeckCardRow({
         }
       }}
     >
-      <span className="deck-row-qty">{row.qty}</span>
+      <span
+        className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+        title={
+          row.status === 'orphan'
+            ? 'The collection copy this slot was assigned to is no longer present'
+            : row.status === 'unowned'
+              ? 'Not in your collection'
+              : undefined
+        }
+      >
+        {row.qty}
+      </span>
       {roleBadge ? (
         row.card.multiRole ? (
           <span
