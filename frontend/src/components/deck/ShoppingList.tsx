@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { classifyAllocation } from '../../lib/allocations';
@@ -6,9 +6,13 @@ import type { EnrichedCard } from '../../types';
 import type { DeckCard } from '../../store/decks';
 
 interface ShoppingListProps {
+  /** Deck id — used to persist the "fully built" banner dismissal per-deck. */
+  deckId: string;
   cards: DeckCard[];
   collectionByScryfallId: Map<string, EnrichedCard> | undefined;
 }
+
+const FULLY_BUILT_DISMISS_KEY = (deckId: string) => `mtg-shopping-list-dismissed:${deckId}`;
 
 interface MissingRow {
   name: string;
@@ -28,8 +32,28 @@ function fmtMoney(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-export function ShoppingList({ cards, collectionByScryfallId }: ShoppingListProps) {
+export function ShoppingList({ deckId, cards, collectionByScryfallId }: ShoppingListProps) {
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  // Hydrate the per-deck dismissed flag once the editor mounts. Reset when
+  // switching decks so each deck remembers its own state.
+  useEffect(() => {
+    try {
+      setDismissed(localStorage.getItem(FULLY_BUILT_DISMISS_KEY(deckId)) === '1');
+    } catch {
+      setDismissed(false);
+    }
+  }, [deckId]);
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(FULLY_BUILT_DISMISS_KEY(deckId), '1');
+    } catch {
+      /* ignore quota / private-mode failures */
+    }
+  };
 
   const rows = useMemo<MissingRow[]>(() => {
     const grouped = new Map<string, MissingRow>();
@@ -59,9 +83,19 @@ export function ShoppingList({ cards, collectionByScryfallId }: ShoppingListProp
   const grandTotal = rows.reduce((s, r) => s + r.totalPrice, 0);
 
   if (totalUnique === 0) {
+    if (dismissed) return null;
     return (
       <section className="shopping-list shopping-list-empty">
-        <span className="shopping-list-good">✓ Fully built from your collection</span>
+        <span className="shopping-list-good">Fully built from your collection</span>
+        <button
+          type="button"
+          className="shopping-list-dismiss"
+          aria-label="Dismiss"
+          title="Dismiss"
+          onClick={handleDismiss}
+        >
+          ×
+        </button>
       </section>
     );
   }

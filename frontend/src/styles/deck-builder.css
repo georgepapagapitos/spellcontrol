@@ -970,11 +970,32 @@
 
 .shopping-list-empty {
   padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .shopping-list-good {
   color: var(--text2);
   font-size: var(--text-sm);
+}
+
+.shopping-list-dismiss {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--text3);
+  font-size: var(--text-lg);
+  line-height: 1;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.shopping-list-dismiss:hover {
+  color: var(--text);
+  background: var(--surface2);
 }
 
 .shopping-list-header {
@@ -1411,6 +1432,13 @@
     gap: 1rem;
   }
 
+  /* Single-column card list at tablet sizes — multi-column makes the rows
+     awkwardly narrow once the stats sidebar drops below. */
+  .deck-card-list {
+    column-count: 1;
+    column-width: auto;
+  }
+
   .deck-display-sidebar {
     position: static;
     max-height: none;
@@ -1491,7 +1519,10 @@
   }
 
   /* Single-column card list, stats, decks index on mobile. */
-  .deck-card-list,
+  .deck-card-list {
+    column-count: 1;
+    column-width: auto;
+  }
   .deck-stats-grid,
   .decks-index-list {
     grid-template-columns: 1fr;
