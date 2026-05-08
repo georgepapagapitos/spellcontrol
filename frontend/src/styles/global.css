@@ -1529,6 +1529,9 @@ input[type='text'] {
   line-height: 1.2;
   cursor: default;
   position: relative;
+  /* Enables cqw units so overlays (e.g. the "in a deck" badge) scale with
+     slot width instead of being a fixed pixel size at every zoom level. */
+  container-type: inline-size;
 }
 
 .slot-name {
@@ -1736,6 +1739,18 @@ input[type='text'] {
   height: 17px;
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+.legend-deck-swatch {
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 hr {
@@ -2929,7 +2944,16 @@ hr {
   /* Center the first/last slide by padding the scroll area with the same
      gap that the peek occupies on either side. */
   padding-inline: calc((100% - var(--slide-size)) / 2);
+  /* Breathing room between the card art and whatever sits below it
+     (flip-row, deck chip, or the info panel). */
+  padding-bottom: 1.25rem;
   scrollbar-width: none;
+}
+
+/* Flip-row already supplies its own vertical padding, so collapse the
+   track's bottom buffer when it is present — otherwise the gap doubles. */
+.card-preview-sheet:has(.card-preview-flip-row) .card-preview-track {
+  padding-bottom: 0.25rem;
 }
 
 .card-preview-track::-webkit-scrollbar {
@@ -3010,7 +3034,11 @@ hr {
 .card-preview-flip-row {
   display: flex;
   justify-content: center;
-  padding: 0.5rem 1rem 0.75rem;
+  align-items: center;
+  /* Always reserved so single-faced and transform cards take the same
+     vertical space — flipping between them must not shift the panel. */
+  min-height: 2.85rem;
+  padding: 0.35rem 1rem;
   pointer-events: none;
 }
 

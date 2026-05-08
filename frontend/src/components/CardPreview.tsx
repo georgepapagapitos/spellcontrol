@@ -262,8 +262,11 @@ export function CardPreview({
           })}
         </div>
 
-        {current.imageNormalBack && (
-          <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
+        {/* Always rendered so single-faced and transform cards reserve the
+            same vertical space — otherwise navigating between them would
+            shift the panel up/down. */}
+        <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
+          {current.imageNormalBack && (
             <button
               type="button"
               className="card-preview-flip-btn"
@@ -279,8 +282,8 @@ export function CardPreview({
               <FlipIcon />
               <span>Flip</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {(() => {
           const allocation = allocations.get(current.scryfallId);
@@ -295,6 +298,18 @@ export function CardPreview({
               }}
               title={`Open deck ${allocation.deckName}`}
             >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
+                <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
+                <rect x="6" y="0" width="9" height="11" rx="1.5" />
+              </svg>
               <span className="card-preview-deck-chip-label">In deck</span>
               <span className="card-preview-deck-chip-name">{allocation.deckName}</span>
             </Link>

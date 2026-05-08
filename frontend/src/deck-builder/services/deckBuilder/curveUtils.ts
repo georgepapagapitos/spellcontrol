@@ -87,7 +87,7 @@ export function calculateCurveTargets(
         const phase = cmc <= 2 ? 'early' : cmc <= 4 ? 'mid' : 'late';
         fallback[cmc] = Math.round(fallback[cmc] * mult[phase]);
       }
-      let newTotal = Object.values(fallback).reduce((a, b) => a + b, 0);
+      const newTotal = Object.values(fallback).reduce((a, b) => a + b, 0);
       const normDiff = totalNonLandCards - newTotal;
       if (normDiff !== 0) {
         const largest = Object.keys(fallback)
@@ -129,7 +129,7 @@ export function calculateCurveTargets(
       targets[cmc] = Math.round(targets[cmc] * mult[phase]);
     }
     // Re-normalize to maintain exact total
-    let newTotal = Object.values(targets).reduce((a, b) => a + b, 0);
+    const newTotal = Object.values(targets).reduce((a, b) => a + b, 0);
     const normDiff = totalNonLandCards - newTotal;
     if (normDiff !== 0) {
       const largest = cmcKeys.reduce(
