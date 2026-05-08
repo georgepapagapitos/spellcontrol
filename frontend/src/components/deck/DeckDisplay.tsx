@@ -8,6 +8,7 @@ import { COLOR_INFO } from '../../lib/colors';
 import { classifyAllocation, type AllocationStatus } from '../../lib/allocations';
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { cardMatchesRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 const CLASSIFY_PRIORITY = [
@@ -66,22 +67,69 @@ function fmtMoney(value: number, currency: CurrencyCode): string {
   return `${symbol}${value.toFixed(2)}`;
 }
 
-function rarityShort(rarity: string): { letter: string; cls: string } {
-  switch (rarity) {
-    case 'mythic':
-      return { letter: 'M', cls: 'rarity-pill rarity-mythic' };
-    case 'rare':
-      return { letter: 'R', cls: 'rarity-pill rarity-rare' };
-    case 'uncommon':
-      return { letter: 'U', cls: 'rarity-pill rarity-uncommon' };
-    case 'common':
-      return { letter: 'C', cls: 'rarity-pill rarity-common' };
-    case 'special':
-      return { letter: 'S', cls: 'rarity-pill rarity-uncommon' };
-    case 'bonus':
-      return { letter: 'B', cls: 'rarity-pill rarity-rare' };
+// Two-letter role badge mirroring the reference repo. Distinguishes
+// functional subtypes (Mana Producer / Spot Removal / Wheel / etc.) so
+// the eye can scan a deck list and see role coverage without reading.
+const ROLE_TITLES: Record<RoleKey, string> = {
+  ramp: 'Ramp',
+  removal: 'Removal',
+  boardwipe: 'Board Wipe',
+  cardDraw: 'Card Advantage',
+};
+function multiRoleTitle(card: ScryfallCard): string {
+  const roles: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
+  const matched = roles.filter((r) => cardMatchesRole(card.name, r));
+  return matched.map((r) => ROLE_TITLES[r]).join(' + ') || 'Multi-role';
+}
+
+type RoleBadge = { label: string; title: string; tone: string };
+function getRoleBadge(card: ScryfallCard): RoleBadge | null {
+  if (!card.deckRole) return null;
+  switch (card.deckRole) {
+    case 'ramp':
+      switch (card.rampSubtype) {
+        case 'mana-producer':
+          return { label: 'MP', title: 'Mana Producer', tone: 'mana-producer' };
+        case 'mana-rock':
+          return { label: 'MR', title: 'Mana Rock', tone: 'mana-rock' };
+        case 'cost-reducer':
+          return { label: 'CR', title: 'Cost Reducer', tone: 'cost-reducer' };
+        default:
+          return { label: 'RA', title: 'Ramp', tone: 'ramp' };
+      }
+    case 'removal':
+      switch (card.removalSubtype) {
+        case 'counterspell':
+          return { label: 'CT', title: 'Counterspell', tone: 'counterspell' };
+        case 'bounce':
+          return { label: 'BN', title: 'Bounce', tone: 'bounce' };
+        case 'spot-removal':
+          return { label: 'SR', title: 'Spot Removal', tone: 'spot-removal' };
+        default:
+          return { label: 'RE', title: 'Removal', tone: 'removal' };
+      }
+    case 'boardwipe':
+      switch (card.boardwipeSubtype) {
+        case 'bounce-wipe':
+          return { label: 'BW', title: 'Bounce Wipe', tone: 'bounce-wipe' };
+        default:
+          return { label: 'WI', title: 'Board Wipe', tone: 'boardwipe' };
+      }
+    case 'cardDraw':
+      switch (card.cardDrawSubtype) {
+        case 'tutor':
+          return { label: 'TU', title: 'Tutor', tone: 'tutor' };
+        case 'wheel':
+          return { label: 'WH', title: 'Wheel', tone: 'wheel' };
+        case 'cantrip':
+          return { label: 'CN', title: 'Cantrip', tone: 'cantrip' };
+        case 'card-draw':
+          return { label: 'DR', title: 'Card Draw', tone: 'card-draw' };
+        default:
+          return { label: 'CA', title: 'Card Advantage', tone: 'card-advantage' };
+      }
     default:
-      return { letter: '·', cls: 'rarity-pill rarity-common' };
+      return null;
   }
 }
 
@@ -294,7 +342,7 @@ export function DeckDisplay({
   collectionByScryfallId,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
-  const [sort, setSort] = useState<SortMode>('cmc');
+  const [sort, setSort] = useState<SortMode>('name');
   const [search, setSearch] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredFormat());
   const handleExportFormatChange = (f: ExportFormat) => {
@@ -342,7 +390,7 @@ export function DeckDisplay({
     }
     const ordered: { title: string; icon: string; rows: Row[] }[] = [];
     if (commanderRows.length > 0) {
-      ordered.push({ title: 'Commander', icon: 'ms-planeswalker', rows: commanderRows });
+      ordered.push({ title: 'Commander', icon: 'ms-commander', rows: commanderRows });
     }
     for (const t of DISPLAY_ORDER) {
       const r = buckets.get(t);
@@ -386,6 +434,20 @@ export function DeckDisplay({
       if ((c.type_line || '').toLowerCase().includes('land')) continue;
       const cmc = Math.min(7, Math.round(c.cmc ?? 0));
       out[cmc] = (out[cmc] ?? 0) + 1;
+    }
+    return out;
+  }, [allCards]);
+  // Per-color split per CMC bucket — multicolor cards contribute one share
+  // to each of their colors, mirroring the Color Distribution donut.
+  const manaCurveByColor = useMemo(() => {
+    const out: Record<number, Record<string, number>> = {};
+    for (const c of allCards) {
+      if ((c.type_line || '').toLowerCase().includes('land')) continue;
+      const cmc = Math.min(7, Math.round(c.cmc ?? 0));
+      const ci = c.color_identity ?? [];
+      const keys = ci.length === 0 ? ['C'] : ci;
+      const bucket = (out[cmc] ??= {});
+      for (const k of keys) bucket[k] = (bucket[k] ?? 0) + 1;
     }
     return out;
   }, [allCards]);
@@ -470,6 +532,7 @@ export function DeckDisplay({
             <DeckStatistics
               allCards={allCards}
               manaCurve={manaCurve}
+              manaCurveByColor={manaCurveByColor}
               bracketEstimation={bracketEstimation}
               roleCounts={roleCounts}
               rampSubtypeCounts={rampSubtypeCounts}
@@ -667,8 +730,6 @@ function CategorySection({
   );
 }
 
-const HAS_HOVER = typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
-
 function DeckCardRow({
   row,
   currency,
@@ -680,80 +741,38 @@ function DeckCardRow({
   onClick: () => void;
   onRemoveCard?: (slotId: string) => void;
 }) {
-  const rarity = rarityShort(row.card.rarity);
+  const roleBadge = getRoleBadge(row.card);
   const mana = frontFaceMana(row.card);
-  const liRef = useRef<HTMLLIElement>(null);
-  const [hover, setHover] = useState(false);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const showTimer = useRef<number | null>(null);
-  const imgUrl = row.imageNormal;
-
-  const HOVER_DELAY_MS = 350;
-  const handleEnter = () => {
-    if (!HAS_HOVER) return;
-    if (showTimer.current) window.clearTimeout(showTimer.current);
-    showTimer.current = window.setTimeout(() => setHover(true), HOVER_DELAY_MS);
-  };
-  const handleLeave = () => {
-    if (!HAS_HOVER) return;
-    if (showTimer.current) {
-      window.clearTimeout(showTimer.current);
-      showTimer.current = null;
-    }
-    setHover(false);
-  };
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return () => {
-      if (showTimer.current) window.clearTimeout(showTimer.current);
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
-  }, []);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
-  useEffect(() => {
-    if (!hover || !liRef.current) return;
-    const rect = liRef.current.getBoundingClientRect();
-    const previewW = 200;
-    const previewH = 280;
-    const margin = 8;
-    const roomRight = window.innerWidth - rect.right - margin;
-    const roomLeft = rect.left - margin;
-    const placeRight = roomRight >= roomLeft;
-    let x = placeRight ? rect.right + 12 : rect.left - previewW - 12;
-    x = Math.max(margin, Math.min(x, window.innerWidth - previewW - margin));
-    let y = rect.top - previewH / 2 + rect.height / 2;
-    y = Math.max(margin, Math.min(y, window.innerHeight - previewH - margin));
-    setPos({ x, y });
-  }, [hover]);
-
+  const canRemove = !!onRemoveCard && row.slotIds.length > 0;
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onRemoveCard && row.slotIds.length > 0) {
-      // Remove the last-added slot for this name so undo by re-adding feels natural.
-      onRemoveCard(row.slotIds[row.slotIds.length - 1]);
-    }
+    setMenuOpen(false);
+    if (canRemove) onRemoveCard!(row.slotIds[row.slotIds.length - 1]);
   };
-
-  const statusBadge =
-    row.status === 'unowned' ? (
-      <span className="deck-row-status deck-row-status-unowned" title="Not in your collection">
-        not owned
-      </span>
-    ) : row.status === 'orphan' ? (
-      <span
-        className="deck-row-status deck-row-status-orphan"
-        title="The collection copy this slot was assigned to is no longer present"
-      >
-        orphan
-      </span>
-    ) : null;
 
   return (
     <li
-      ref={liRef}
-      className={`deck-row deck-row-status-${row.status}`}
+      className="deck-row"
       onClick={onClick}
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -764,34 +783,79 @@ function DeckCardRow({
       }}
     >
       <span className="deck-row-qty">{row.qty}</span>
-      <span className={rarity.cls} title={row.card.rarity}>
-        {rarity.letter}
-      </span>
+      {roleBadge ? (
+        row.card.multiRole ? (
+          <span
+            className="deck-row-role-badge deck-row-role-multi"
+            title={multiRoleTitle(row.card)}
+            aria-label={multiRoleTitle(row.card)}
+          >
+            <span className="deck-row-role-multi-dot" aria-hidden />
+          </span>
+        ) : (
+          <span
+            className={`deck-row-role-badge deck-row-role-${roleBadge.tone}`}
+            title={roleBadge.title}
+          >
+            {roleBadge.label}
+          </span>
+        )
+      ) : (
+        <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
+      )}
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
       </span>
-      {statusBadge}
-      {mana && <ManaCost cost={mana} className="deck-row-mana" />}
-      <span className="deck-row-price">{fmtMoney(row.price, currency)}</span>
-      {onRemoveCard && row.slotIds.length > 0 && (
+      {mana ? (
+        <ManaCost cost={mana} className="deck-row-mana" />
+      ) : (
+        <span className="deck-row-mana" aria-hidden />
+      )}
+      <div className="deck-row-menu" ref={menuRef}>
         <button
           type="button"
-          className="deck-row-remove"
-          aria-label={`Remove ${row.name}`}
-          onClick={handleRemove}
+          className="deck-row-menu-trigger"
+          aria-label="Card actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          data-open={menuOpen || undefined}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
         >
-          ×
+          <svg
+            className="deck-row-menu-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="12" cy="5" r="1" />
+            <circle cx="12" cy="19" r="1" />
+          </svg>
         </button>
-      )}
-      {hover && imgUrl && pos && (
-        <img
-          className="deck-row-hover-img"
-          src={imgUrl}
-          alt=""
-          aria-hidden="true"
-          style={{ left: pos.x, top: pos.y }}
-        />
-      )}
+        {menuOpen && (
+          <div role="menu" className="deck-row-menu-popover">
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-row-menu-item"
+              disabled={!canRemove}
+              onClick={handleRemove}
+            >
+              Remove from deck
+            </button>
+          </div>
+        )}
+      </div>
+      <span className="deck-row-price">{fmtMoney(row.price, currency)}</span>
     </li>
   );
 }
@@ -800,6 +864,7 @@ function DeckCardRow({
 function DeckStatistics({
   allCards,
   manaCurve,
+  manaCurveByColor,
   bracketEstimation,
   roleCounts,
   rampSubtypeCounts,
@@ -812,6 +877,7 @@ function DeckStatistics({
 }: {
   allCards: ScryfallCard[];
   manaCurve: Record<number, number>;
+  manaCurveByColor: Record<number, Record<string, number>>;
   bracketEstimation?: BracketEstimation;
   roleCounts?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
@@ -895,13 +961,29 @@ function DeckStatistics({
           <div className="deck-curve">
             {cmcKeys.map((cmc) => {
               const count = manaCurve[cmc] ?? 0;
+              const byColor = manaCurveByColor[cmc] ?? {};
+              const totalShares = Object.values(byColor).reduce((s, n) => s + n, 0);
+              const segments = ['W', 'U', 'B', 'R', 'G', 'C']
+                .map((k) => ({ k, n: byColor[k] ?? 0 }))
+                .filter((s) => s.n > 0);
               return (
                 <div key={cmc} className="deck-curve-col">
                   <div
                     className="deck-curve-bar"
                     style={{ height: `${(count / maxBucket) * 100}%` }}
                     title={`${count} card${count === 1 ? '' : 's'} at CMC ${cmc}`}
-                  />
+                  >
+                    {segments.map((s) => (
+                      <div
+                        key={s.k}
+                        className="deck-curve-bar-seg"
+                        style={{
+                          height: `${(s.n / totalShares) * 100}%`,
+                          background: COLOR_INFO[s.k]?.pip ?? 'var(--accent)',
+                        }}
+                      />
+                    ))}
+                  </div>
                   <div className="deck-curve-label">{cmc === 7 ? '7+' : cmc}</div>
                   <div className="deck-curve-count">{count}</div>
                 </div>
