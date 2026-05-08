@@ -127,6 +127,11 @@ function expandByQuantity(rows: ImportRow[]): ImportRow[] {
  * Falls back to the row price (e.g. a ManaBox purchase price) when Scryfall
  * has no price, then to 0.
  */
+// Always prefer Scryfall's market price over whatever the import file claimed.
+// CSV "purchase price" columns vary wildly (some are list price, some are
+// what the user paid years ago, some are blank) and we've decided to ignore
+// them entirely for display. Returns 0 when Scryfall has no price for any
+// finish — callers can treat that as "unpriced" rather than a real $0 value.
 function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): number {
   const p = scryfall?.prices;
   if (p) {
@@ -139,7 +144,7 @@ function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): numbe
       if (Number.isFinite(n) && n > 0) return n;
     }
   }
-  return row.purchasePrice ?? 0;
+  return 0;
 }
 
 function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
