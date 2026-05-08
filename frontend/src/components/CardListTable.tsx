@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardPreview } from './CardPreview';
 import { ManaCost } from './ManaCost';
@@ -49,22 +49,36 @@ const COLOR_FILTERS: Array<{ key: string; label: string }> = [
 
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
-const SORT_OPTIONS: Array<{ value: `${SortKey}:${'asc' | 'desc'}`; label: string }> = [
-  { value: 'name:asc', label: 'Name A → Z' },
-  { value: 'name:desc', label: 'Name Z → A' },
-  { value: 'cmc:asc', label: 'CMC low → high' },
-  { value: 'cmc:desc', label: 'CMC high → low' },
-  { value: 'price:desc', label: 'Price high → low' },
-  { value: 'price:asc', label: 'Price low → high' },
-  { value: 'qty:desc', label: 'Quantity high → low' },
-  { value: 'rarity:asc', label: 'Rarity (mythic first)' },
-  { value: 'set:asc', label: 'Set' },
+const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'desc' }> = [
+  { key: 'name', label: 'Name', defaultDir: 'asc' },
+  { key: 'cmc', label: 'CMC', defaultDir: 'asc' },
+  { key: 'price', label: 'Price', defaultDir: 'desc' },
+  { key: 'qty', label: 'Quantity', defaultDir: 'desc' },
+  { key: 'rarity', label: 'Rarity', defaultDir: 'asc' },
+  { key: 'set', label: 'Set', defaultDir: 'asc' },
 ];
+
+const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FIELDS.reduce(
+  (acc, f) => {
+    acc[f.key] = f;
+    return acc;
+  },
+  {} as Record<SortKey, (typeof SORT_FIELDS)[number]>
+);
 
 export function CardListTable({ cards, binders }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
-  const [sort, setSort] = useState<`${SortKey}:${'asc' | 'desc'}`>('name:asc');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(SORT_FIELD_BY_KEY[key].defaultDir);
+    }
+  };
   const [view, setView] = useState<ViewMode>('list');
   const [binderFilter, setBinderFilter] = useState<string>('all');
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
@@ -154,12 +168,11 @@ export function CardListTable({ cards, binders }: Props) {
   }, [rows, debouncedSearch, binderFilter, colorFilter, typeFilter, rarityFilter]);
 
   const sorted = useMemo(() => {
-    const [key, dirStr] = sort.split(':') as [SortKey, 'asc' | 'desc'];
-    const dir = dirStr === 'asc' ? 1 : -1;
+    const dir = sortDir === 'asc' ? 1 : -1;
     const out = [...filtered];
     out.sort((a, b) => {
       let cmp = 0;
-      switch (key) {
+      switch (sortKey) {
         case 'name':
           cmp = a.card.name.localeCompare(b.card.name);
           break;
@@ -183,7 +196,7 @@ export function CardListTable({ cards, binders }: Props) {
       return cmp * dir;
     });
     return out;
-  }, [filtered, sort]);
+  }, [filtered, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -193,7 +206,17 @@ export function CardListTable({ cards, binders }: Props) {
   // Reset to page 1 whenever filters / sort / view / page size change the result set boundaries.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, binderFilter, colorFilter, typeFilter, rarityFilter, sort, view, pageSize]);
+  }, [
+    debouncedSearch,
+    binderFilter,
+    colorFilter,
+    typeFilter,
+    rarityFilter,
+    sortKey,
+    sortDir,
+    view,
+    pageSize,
+  ]);
 
   const totalQty = sorted.reduce((s, r) => s + r.qty, 0);
   const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
@@ -330,21 +353,7 @@ export function CardListTable({ cards, binders }: Props) {
           {sorted.length.toLocaleString()} {sorted.length === 1 ? 'card' : 'cards'} ·{' '}
           {totalQty.toLocaleString()} total · ${totalValue.toFixed(0)}
         </span>
-        <label className="collection-sort-inline">
-          <span className="collection-sort-inline-label">Sort</span>
-          <select
-            className="collection-sort-inline-select"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
-            aria-label="Sort"
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SortMenu sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
       </div>
 
       {previewIndex !== null && sorted[previewIndex] && (
@@ -586,6 +595,119 @@ function ListIcon() {
       <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" />
       <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
       <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function SortMenu({
+  sortKey,
+  sortDir,
+  onToggleSort,
+}: {
+  sortKey: SortKey;
+  sortDir: 'asc' | 'desc';
+  onToggleSort: (k: SortKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const activeLabel = SORT_FIELD_BY_KEY[sortKey].label;
+
+  return (
+    <div className="toolbar-popover" ref={wrapperRef}>
+      <button
+        type="button"
+        className={`toolbar-pill${open ? ' open' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Sort"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <SortDirArrow dir={sortDir} />
+        <span className="toolbar-pill-label">{activeLabel}</span>
+        <svg
+          viewBox="0 0 24 24"
+          width="12"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className="toolbar-popover-panel">
+          <ul className="toolbar-popover-list" role="menu" aria-label="Sort by">
+            {SORT_FIELDS.map((f) => {
+              const active = f.key === sortKey;
+              return (
+                <li key={f.key}>
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    className={`toolbar-popover-item${active ? ' active' : ''}`}
+                    onClick={() => onToggleSort(f.key)}
+                  >
+                    <span className="toolbar-popover-check" aria-hidden>
+                      {active ? <SortDirArrow dir={sortDir} /> : ''}
+                    </span>
+                    {f.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SortDirArrow({ dir }: { dir: 'asc' | 'desc' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {dir === 'asc' ? (
+        <>
+          <path d="M12 4v16" />
+          <path d="m6 10 6-6 6 6" />
+        </>
+      ) : (
+        <>
+          <path d="M12 4v16" />
+          <path d="m6 14 6 6 6-6" />
+        </>
+      )}
     </svg>
   );
 }

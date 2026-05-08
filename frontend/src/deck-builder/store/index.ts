@@ -168,6 +168,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
   setEdhrecNumDecks: (count) => set({ edhrecNumDecks: count }),
   setEdhrecLandSuggestion: (suggestion) => set({ edhrecLandSuggestion: suggestion }),
   setEdhrecStats: (stats) => set({ edhrecStats: stats }),
+  setUserEditedLands: (edited) => set({ userEditedLands: edited }),
   setSelectedThemes: (themes: ThemeResult[]) => set({ selectedThemes: themes }),
   toggleThemeSelection: (themeName: string) =>
     set((state) => ({

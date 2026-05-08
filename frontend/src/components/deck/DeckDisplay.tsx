@@ -179,6 +179,49 @@ function readStoredFormat(): ExportFormat {
   return 'mtga';
 }
 
+// ── View mode + show prefs ───────────────────────────────────────────────
+// Mirrors the reference EDH builder's Sort | Show | Search | View toolbar:
+//  - View mode picks the deck rendering (list / grid of images / plaintext).
+//  - Show prefs hide row metadata the user does not want in their face
+//    (price, role badges, mana cost).
+// All persisted to localStorage so the deck the user opened yesterday looks
+// the way they left it.
+export type DeckViewMode = 'list' | 'grid' | 'text';
+
+interface ShowPrefs {
+  price: boolean;
+  roles: boolean;
+  mana: boolean;
+}
+
+const VIEW_MODE_STORAGE_KEY = 'mtg-decks-view-mode';
+const SHOW_PREFS_STORAGE_KEY = 'mtg-decks-show-prefs';
+
+const DEFAULT_SHOW_PREFS: ShowPrefs = { price: true, roles: true, mana: true };
+
+function readStoredViewMode(): DeckViewMode {
+  if (typeof window === 'undefined') return 'list';
+  try {
+    const v = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    if (v === 'list' || v === 'grid' || v === 'text') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'list';
+}
+
+function readStoredShowPrefs(): ShowPrefs {
+  if (typeof window === 'undefined') return DEFAULT_SHOW_PREFS;
+  try {
+    const raw = window.localStorage.getItem(SHOW_PREFS_STORAGE_KEY);
+    if (!raw) return DEFAULT_SHOW_PREFS;
+    const parsed = JSON.parse(raw) as Partial<ShowPrefs>;
+    return { ...DEFAULT_SHOW_PREFS, ...parsed };
+  } catch {
+    return DEFAULT_SHOW_PREFS;
+  }
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
   /** Persisted slot id; when present, used for remove. Generated decks pre-save can omit this. */
@@ -204,8 +247,15 @@ export interface DeckDisplayProps {
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
   cardDrawSubtypeCounts?: Record<string, number>;
-  /** Editing callback. When provided, each row gets a remove (×) affordance. */
+  /** Editing callback. When provided, each row gets a remove option in its menu. */
   onRemoveCard?: (slotId: string) => void;
+  /**
+   * Editing callback for click-to-edit qty. When provided, the qty cell
+   * becomes a clickable target that swaps to a numeric input on click;
+   * committing the value diffs against the current count and adds/removes
+   * slots in bulk. Host owns batching (e.g. one undo toast per edit).
+   */
+  onSetQty?: (card: ScryfallCard, qty: number) => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByScryfallId?: Map<string, EnrichedCard>;
 }
@@ -303,23 +353,33 @@ function statusSeverity(s: AllocationStatus): number {
   return s === 'orphan' ? 2 : s === 'unowned' ? 1 : 0;
 }
 
-function sortRows(rows: Row[], mode: SortMode): Row[] {
+const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
+  name: 'asc',
+  cmc: 'asc',
+  price: 'desc',
+  color: 'asc',
+};
+
+function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
   const sorted = [...rows];
+  const sign = dir === 'asc' ? 1 : -1;
   switch (mode) {
     case 'cmc':
-      sorted.sort((a, b) => a.cmc - b.cmc || a.name.localeCompare(b.name));
+      sorted.sort((a, b) => (a.cmc - b.cmc) * sign || a.name.localeCompare(b.name));
       break;
     case 'price':
-      sorted.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
+      sorted.sort((a, b) => (a.price - b.price) * sign || a.name.localeCompare(b.name));
       break;
     case 'color': {
       const order = (key: string) => COLOR_INFO[key]?.order ?? 99;
-      sorted.sort((a, b) => order(a.colorKey) - order(b.colorKey) || a.name.localeCompare(b.name));
+      sorted.sort(
+        (a, b) => (order(a.colorKey) - order(b.colorKey)) * sign || a.name.localeCompare(b.name)
+      );
       break;
     }
     case 'name':
     default:
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
+      sorted.sort((a, b) => a.name.localeCompare(b.name) * sign);
   }
   return sorted;
 }
@@ -339,16 +399,44 @@ export function DeckDisplay({
   boardwipeSubtypeCounts,
   cardDrawSubtypeCounts,
   onRemoveCard,
+  onSetQty,
   collectionByScryfallId,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const onToggleSort = (m: SortMode) => {
+    if (m === sort) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSort(m);
+      setSortDir(SORT_DEFAULT_DIR[m]);
+    }
+  };
   const [search, setSearch] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredFormat());
+  const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
+  const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
     try {
       window.localStorage.setItem(EXPORT_FORMAT_STORAGE_KEY, f);
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleViewModeChange = (m: DeckViewMode) => {
+    setViewMode(m);
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, m);
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleShowPrefsChange = (next: ShowPrefs) => {
+    setShowPrefs(next);
+    try {
+      window.localStorage.setItem(SHOW_PREFS_STORAGE_KEY, JSON.stringify(next));
     } catch {
       /* ignore */
     }
@@ -371,6 +459,8 @@ export function DeckDisplay({
         colorKey: colorKeyOf(c),
         slotIds: [],
         status: 'allocated', // commanders are usually owned; if not, we don't badge them
+        imageNormal: frontFaceImage(c),
+        imageNormalBack: backFaceImage(c),
       });
     };
     if (commander) push(commander);
@@ -403,9 +493,9 @@ export function DeckDisplay({
     const q = search.trim().toLowerCase();
     return groups.map((g) => {
       const filtered = q ? g.rows.filter((r) => r.name.toLowerCase().includes(q)) : g.rows;
-      return { ...g, rows: sortRows(filtered, sort) };
+      return { ...g, rows: sortRows(filtered, sort, sortDir) };
     });
-  }, [groups, sort, search]);
+  }, [groups, sort, sortDir, search]);
 
   // Flat list for stats panels (commanders included, since color identity
   // and curve are commander-relevant too).
@@ -532,25 +622,40 @@ export function DeckDisplay({
           deckGrade={deckGrade}
           currency={currency}
           sort={sort}
-          onSort={setSort}
+          sortDir={sortDir}
+          onToggleSort={onToggleSort}
           search={search}
           onSearch={setSearch}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          showPrefs={showPrefs}
+          onShowPrefsChange={handleShowPrefsChange}
           onExport={() => setExportOpen(true)}
         />
 
         <div className="deck-display-body">
-          <div className="deck-card-list">
-            {visibleGroups.map((g) => (
-              <CategorySection
-                key={g.title}
-                title={g.title}
-                iconClass={g.icon}
-                rows={g.rows}
-                currency={currency}
-                onRowClick={openPreview}
-                onRemoveCard={onRemoveCard}
-              />
-            ))}
+          <div className="deck-display-main">
+            {viewMode === 'list' && (
+              <div className="deck-card-list">
+                {visibleGroups.map((g) => (
+                  <CategorySection
+                    key={g.title}
+                    title={g.title}
+                    iconClass={g.icon}
+                    rows={g.rows}
+                    currency={currency}
+                    showPrefs={showPrefs}
+                    onRowClick={openPreview}
+                    onRemoveCard={onRemoveCard}
+                    onSetQty={onSetQty}
+                  />
+                ))}
+              </div>
+            )}
+            {viewMode === 'grid' && (
+              <DeckCardGrid groups={visibleGroups} onRowClick={openPreview} />
+            )}
+            {viewMode === 'text' && <DeckTextView text={exportText} />}
           </div>
 
           <aside className="deck-display-sidebar">
@@ -726,11 +831,30 @@ interface ToolbarProps {
   deckGrade?: { letter: string; headline: string };
   currency: CurrencyCode;
   sort: SortMode;
-  onSort: (s: SortMode) => void;
+  sortDir: 'asc' | 'desc';
+  onToggleSort: (s: SortMode) => void;
   search: string;
   onSearch: (s: string) => void;
+  viewMode: DeckViewMode;
+  onViewModeChange: (m: DeckViewMode) => void;
+  showPrefs: ShowPrefs;
+  onShowPrefsChange: (next: ShowPrefs) => void;
   onExport: () => void;
 }
+
+const SORT_LABEL: Record<SortMode, string> = {
+  name: 'Name',
+  cmc: 'CMC',
+  color: 'Color',
+  price: 'Price',
+};
+const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price'];
+
+const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
+  price: 'Price',
+  roles: 'Roles',
+  mana: 'Mana cost',
+};
 
 function DeckToolbar({
   title,
@@ -742,9 +866,14 @@ function DeckToolbar({
   deckGrade,
   currency,
   sort,
-  onSort,
+  sortDir,
+  onToggleSort,
   search,
   onSearch,
+  viewMode,
+  onViewModeChange,
+  showPrefs,
+  onShowPrefsChange,
   onExport,
 }: ToolbarProps) {
   return (
@@ -765,27 +894,396 @@ function DeckToolbar({
         </span>
       </div>
       <div className="deck-toolbar-controls">
-        <label className="deck-builder-field">
-          <span>Sort</span>
-          <select value={sort} onChange={(e) => onSort(e.target.value as SortMode)}>
-            <option value="cmc">CMC</option>
-            <option value="name">Name</option>
-            <option value="color">Color</option>
-            <option value="price">Price</option>
-          </select>
-        </label>
-        <input
-          type="search"
-          className="deck-toolbar-search"
-          placeholder="Search…"
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-        />
+        <ToolbarPopover
+          ariaLabel="Sort"
+          value={SORT_LABEL[sort]}
+          icon={<SortDirIcon dir={sortDir} />}
+        >
+          {() => (
+            <ul className="toolbar-popover-list" role="menu" aria-label="Sort by">
+              {SORT_ORDER.map((m) => (
+                <li key={m}>
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={sort === m}
+                    className={`toolbar-popover-item${sort === m ? ' active' : ''}`}
+                    onClick={() => {
+                      onToggleSort(m);
+                    }}
+                  >
+                    <span className="toolbar-popover-check" aria-hidden>
+                      {sort === m ? <SortDirIcon dir={sortDir} /> : ''}
+                    </span>
+                    {SORT_LABEL[m]}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ToolbarPopover>
+
+        <ToolbarPopover
+          label="Show"
+          icon={
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          }
+        >
+          {() => (
+            <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
+              {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
+                <li key={k}>
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={showPrefs[k]}
+                    className={`toolbar-popover-item${showPrefs[k] ? ' active' : ''}`}
+                    onClick={() => onShowPrefsChange({ ...showPrefs, [k]: !showPrefs[k] })}
+                  >
+                    <span className="toolbar-popover-check" aria-hidden>
+                      {showPrefs[k] ? '✓' : ''}
+                    </span>
+                    {SHOW_PREFS_LABEL[k]}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ToolbarPopover>
+
+        <div className="toolbar-search">
+          <svg
+            className="toolbar-search-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="search"
+            className="toolbar-search-input"
+            placeholder="Search…"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+            aria-label="Search this deck"
+          />
+        </div>
+
+        <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+
         <button type="button" className="btn btn-primary" onClick={onExport}>
           Export
         </button>
       </div>
     </header>
+  );
+}
+
+// ── Sort direction arrow ────────────────────────────────────────────────
+function SortDirIcon({ dir }: { dir: 'asc' | 'desc' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 4v16" />
+      {dir === 'asc' ? <path d="m6 10 6-6 6 6" /> : <path d="m6 14 6 6 6-6" />}
+    </svg>
+  );
+}
+
+// ── Toolbar popover (Sort + Show share this shell) ──────────────────────
+function ToolbarPopover({
+  label,
+  ariaLabel,
+  value,
+  icon,
+  children,
+}: {
+  label?: string;
+  /** Used for aria-label when no visible text label is rendered. */
+  ariaLabel?: string;
+  /** Optional current value displayed next to the label, e.g. "Name" for Sort. */
+  value?: string;
+  icon?: React.ReactNode;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="toolbar-popover" ref={wrapperRef}>
+      <button
+        type="button"
+        className={`toolbar-pill${open ? ' open' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={!label ? ariaLabel : undefined}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {icon}
+        {label && <span className="toolbar-pill-label">{label}</span>}
+        {value && <span className="toolbar-pill-value">{value}</span>}
+        <svg
+          viewBox="0 0 24 24"
+          width="12"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && <div className="toolbar-popover-panel">{children(() => setOpen(false))}</div>}
+    </div>
+  );
+}
+
+// ── View mode segmented control ──────────────────────────────────────────
+function ViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: DeckViewMode;
+  onChange: (m: DeckViewMode) => void;
+}) {
+  const items: { mode: DeckViewMode; label: string; icon: React.ReactNode }[] = [
+    {
+      mode: 'text',
+      label: 'Text view',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M8 13h8" />
+          <path d="M8 17h6" />
+        </svg>
+      ),
+    },
+    {
+      mode: 'grid',
+      label: 'Grid view',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      ),
+    },
+    {
+      mode: 'list',
+      label: 'List view',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M8 6h13" />
+          <path d="M8 12h13" />
+          <path d="M8 18h13" />
+          <circle cx="4" cy="6" r="0.5" />
+          <circle cx="4" cy="12" r="0.5" />
+          <circle cx="4" cy="18" r="0.5" />
+        </svg>
+      ),
+    },
+  ];
+  return (
+    <div className="toolbar-viewmode" role="group" aria-label="Deck view mode">
+      {items.map((it) => (
+        <button
+          key={it.mode}
+          type="button"
+          className={`toolbar-viewmode-btn${value === it.mode ? ' active' : ''}`}
+          aria-pressed={value === it.mode}
+          aria-label={it.label}
+          title={it.label}
+          onClick={() => onChange(it.mode)}
+        >
+          {it.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Grid view ────────────────────────────────────────────────────────────
+function DeckCardGrid({
+  groups,
+  onRowClick,
+}: {
+  groups: { title: string; icon: string; rows: Row[] }[];
+  onRowClick: (name: string) => void;
+}) {
+  return (
+    <div className="deck-card-grid-sections">
+      {groups.map((g) => {
+        if (g.rows.length === 0) return null;
+        const count = g.rows.reduce((s, r) => s + r.qty, 0);
+        return (
+          <section key={g.title} className="deck-grid-section">
+            <header className="deck-section-header">
+              <span className="deck-section-icon">
+                <i className={`ms ${g.icon}`} aria-hidden />
+              </span>
+              <h3 className="deck-section-title">
+                {g.title} <span className="deck-section-count">({count})</span>
+              </h3>
+            </header>
+            <ul className="deck-card-grid">
+              {g.rows.map((row) => (
+                <li key={row.name} className="deck-card-grid-cell">
+                  <button
+                    type="button"
+                    className="deck-card-grid-tile"
+                    onClick={() => onRowClick(row.name)}
+                    aria-label={`${row.name} (${row.qty} in deck)`}
+                  >
+                    {row.imageNormal ? (
+                      <img
+                        src={row.imageNormal}
+                        alt=""
+                        className="deck-card-grid-image"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="deck-card-grid-fallback">{row.name}</span>
+                    )}
+                    {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
+                    {row.status !== 'allocated' && (
+                      <span
+                        className="deck-card-grid-missing"
+                        title={
+                          row.status === 'orphan'
+                            ? 'The collection copy this slot was assigned to is no longer present'
+                            : 'Not in your collection'
+                        }
+                        aria-label="Missing from collection"
+                      />
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Text view ────────────────────────────────────────────────────────────
+function DeckTextView({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
+  return (
+    <div className="deck-text-view">
+      <div className="deck-text-view-header">
+        <span className="deck-text-view-hint">Deck list — copy to share or import elsewhere.</span>
+        <button type="button" className="btn" onClick={handleCopy}>
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <pre
+        className="deck-text-view-pre"
+        tabIndex={0}
+        onFocus={(e) => {
+          // Convenience: focusing the block selects all so Cmd/Ctrl+C just works.
+          const range = document.createRange();
+          range.selectNodeContents(e.currentTarget);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }}
+      >
+        {text}
+      </pre>
+    </div>
   );
 }
 
@@ -795,15 +1293,19 @@ function CategorySection({
   iconClass,
   rows,
   currency,
+  showPrefs,
   onRowClick,
   onRemoveCard,
+  onSetQty,
 }: {
   title: string;
   iconClass: string;
   rows: Row[];
   currency: CurrencyCode;
+  showPrefs: ShowPrefs;
   onRowClick: (name: string) => void;
   onRemoveCard?: (slotId: string) => void;
+  onSetQty?: (card: ScryfallCard, qty: number) => void;
 }) {
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
@@ -817,7 +1319,9 @@ function CategorySection({
         <h3 className="deck-section-title">
           {title} <span className="deck-section-count">({count})</span>
         </h3>
-        <span className="deck-section-subtotal">{fmtMoney(subtotal, currency)}</span>
+        {showPrefs.price && (
+          <span className="deck-section-subtotal">{fmtMoney(subtotal, currency)}</span>
+        )}
       </header>
       <ul className="deck-section-rows">
         {rows.map((row) => (
@@ -825,8 +1329,10 @@ function CategorySection({
             key={row.name}
             row={row}
             currency={currency}
+            showPrefs={showPrefs}
             onClick={() => onRowClick(row.name)}
             onRemoveCard={onRemoveCard}
+            onSetQty={onSetQty}
           />
         ))}
       </ul>
@@ -837,16 +1343,20 @@ function CategorySection({
 function DeckCardRow({
   row,
   currency,
+  showPrefs,
   onClick,
   onRemoveCard,
+  onSetQty,
 }: {
   row: Row;
   currency: CurrencyCode;
+  showPrefs: ShowPrefs;
   onClick: () => void;
   onRemoveCard?: (slotId: string) => void;
+  onSetQty?: (card: ScryfallCard, qty: number) => void;
 }) {
-  const roleBadge = getRoleBadge(row.card);
-  const mana = frontFaceMana(row.card);
+  const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
+  const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -867,10 +1377,35 @@ function DeckCardRow({
   }, [menuOpen]);
 
   const canRemove = !!onRemoveCard && row.slotIds.length > 0;
-  const handleRemove = (e: React.MouseEvent) => {
+  const canEditQty = !!onSetQty && row.slotIds.length > 0;
+  const [editingQty, setEditingQty] = useState(false);
+
+  const handleRemoveOne = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     setMenuOpen(false);
     if (canRemove) onRemoveCard!(row.slotIds[row.slotIds.length - 1]);
+  };
+  const handleRemoveAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    // Prefer the bulk path so the host can show one undo toast for the whole batch.
+    if (canEditQty) onSetQty!(row.card, 0);
+    else if (canRemove) {
+      for (const slotId of [...row.slotIds].reverse()) onRemoveCard!(slotId);
+    }
+  };
+  const startEditQty = (e: React.MouseEvent) => {
+    if (!canEditQty) return;
+    e.stopPropagation();
+    setEditingQty(true);
+  };
+  const commitQty = (raw: string) => {
+    setEditingQty(false);
+    if (!canEditQty) return;
+    const parsed = Math.floor(Number(raw));
+    if (!Number.isFinite(parsed)) return;
+    const clamped = Math.max(0, Math.min(99, parsed));
+    if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
   return (
@@ -886,46 +1421,84 @@ function DeckCardRow({
         }
       }}
     >
-      <span
-        className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-        title={
-          row.status === 'orphan'
-            ? 'The collection copy this slot was assigned to is no longer present'
-            : row.status === 'unowned'
-              ? 'Not in your collection'
-              : undefined
-        }
-      >
-        {row.qty}
-      </span>
-      {roleBadge ? (
-        row.card.multiRole ? (
-          <span
-            className="deck-row-role-badge deck-row-role-multi"
-            title={multiRoleTitle(row.card)}
-            aria-label={multiRoleTitle(row.card)}
-          >
-            <span className="deck-row-role-multi-dot" aria-hidden />
-          </span>
-        ) : (
-          <span
-            className={`deck-row-role-badge deck-row-role-${roleBadge.tone}`}
-            title={roleBadge.title}
-          >
-            {roleBadge.label}
-          </span>
-        )
+      {canEditQty && editingQty ? (
+        <input
+          type="number"
+          min={0}
+          max={99}
+          autoFocus
+          defaultValue={row.qty}
+          className={`deck-row-qty-input${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+          aria-label={`Quantity of ${row.name} in deck`}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.currentTarget.select()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') commitQty(e.currentTarget.value);
+            if (e.key === 'Escape') setEditingQty(false);
+          }}
+          onBlur={(e) => commitQty(e.target.value)}
+        />
+      ) : canEditQty ? (
+        <button
+          type="button"
+          className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+          aria-label={`${row.qty} in deck — click to change quantity`}
+          title={
+            row.status === 'orphan'
+              ? 'The collection copy this slot was assigned to is no longer present'
+              : row.status === 'unowned'
+                ? 'Not in your collection — click to change quantity'
+                : 'Click to change quantity'
+          }
+          onClick={startEditQty}
+        >
+          {row.qty}
+        </button>
       ) : (
-        <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
+        <span
+          className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+          title={
+            row.status === 'orphan'
+              ? 'The collection copy this slot was assigned to is no longer present'
+              : row.status === 'unowned'
+                ? 'Not in your collection'
+                : undefined
+          }
+        >
+          {row.qty}
+        </span>
       )}
+      {showPrefs.roles &&
+        (roleBadge ? (
+          row.card.multiRole ? (
+            <span
+              className="deck-row-role-badge deck-row-role-multi"
+              title={multiRoleTitle(row.card)}
+              aria-label={multiRoleTitle(row.card)}
+            >
+              <span className="deck-row-role-multi-dot" aria-hidden />
+            </span>
+          ) : (
+            <span
+              className={`deck-row-role-badge deck-row-role-${roleBadge.tone}`}
+              title={roleBadge.title}
+            >
+              {roleBadge.label}
+            </span>
+          )
+        ) : (
+          <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
+        ))}
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
       </span>
-      {mana ? (
-        <ManaCost cost={mana} className="deck-row-mana" />
-      ) : (
-        <span className="deck-row-mana" aria-hidden />
-      )}
+      {showPrefs.mana &&
+        (mana ? (
+          <ManaCost cost={mana} className="deck-row-mana" />
+        ) : (
+          <span className="deck-row-mana" aria-hidden />
+        ))}
       <div className="deck-row-menu" ref={menuRef}>
         <button
           type="button"
@@ -958,19 +1531,44 @@ function DeckCardRow({
         </button>
         {menuOpen && (
           <div role="menu" className="deck-row-menu-popover">
+            {canEditQty && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onSetQty!(row.card, row.qty + 1);
+                }}
+              >
+                Add another copy
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
               className="deck-row-menu-item"
               disabled={!canRemove}
-              onClick={handleRemove}
+              onClick={handleRemoveOne}
             >
-              Remove from deck
+              {row.qty > 1 ? 'Remove one copy' : 'Remove from deck'}
             </button>
+            {row.qty > 1 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                disabled={!canRemove && !canEditQty}
+                onClick={handleRemoveAll}
+              >
+                Remove all {row.qty} copies
+              </button>
+            )}
           </div>
         )}
       </div>
-      <span className="deck-row-price">{fmtMoney(row.price, currency)}</span>
+      {showPrefs.price && <span className="deck-row-price">{fmtMoney(row.price, currency)}</span>}
     </li>
   );
 }
