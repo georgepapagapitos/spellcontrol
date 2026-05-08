@@ -66,16 +66,16 @@ export function CardPreview({
 
   // Mount neighboring images; once mounted, stay mounted to avoid mid-swipe
   // DOM thrash when a new image first appears.
-  const mountedRef = useRef<Set<string>>(new Set());
-  if (mountedRef.current.size === 0) {
+  const [mounted, setMounted] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
     for (let i = 0; i < cards.length; i++) {
       if (Math.abs(i - index) <= PRELOAD_RADIUS) {
         const id = cards[i]?.scryfallId;
-        if (id) mountedRef.current.add(id);
+        if (id) initial.add(id);
       }
     }
-  }
-  const [, forceRender] = useState(0);
+    return initial;
+  });
 
   const onIndexChangeRef = useRef(onIndexChange);
   useEffect(() => {
@@ -102,15 +102,21 @@ export function CardPreview({
       setSelected(bestIdx);
       onIndexChangeRef.current(bestIdx);
 
-      let added = false;
-      for (let j = bestIdx - PRELOAD_RADIUS; j <= bestIdx + PRELOAD_RADIUS; j++) {
-        const id = cards[j]?.scryfallId;
-        if (id && !mountedRef.current.has(id)) {
-          mountedRef.current.add(id);
-          added = true;
+      setMounted((prev) => {
+        let changed = false;
+        let next = prev;
+        for (let j = bestIdx - PRELOAD_RADIUS; j <= bestIdx + PRELOAD_RADIUS; j++) {
+          const id = cards[j]?.scryfallId;
+          if (id && !prev.has(id)) {
+            if (!changed) {
+              next = new Set(prev);
+              changed = true;
+            }
+            next.add(id);
+          }
         }
-      }
-      if (added) forceRender((n) => n + 1);
+        return next;
+      });
     },
     [cards]
   );
@@ -197,7 +203,7 @@ export function CardPreview({
         <div className="card-preview-track" ref={trackRef}>
           {cards.map((c, i) => {
             const errored = imgErrors[c.scryfallId];
-            const shouldMount = mountedRef.current.has(c.scryfallId);
+            const shouldMount = mounted.has(c.scryfallId);
             const style = classifyFoil(c);
             const foilClass = style !== 'none' ? ` is-foil foil-${style}` : '';
             return (

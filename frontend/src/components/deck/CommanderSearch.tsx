@@ -138,66 +138,87 @@ export function CommanderSearch({ value, onSelect }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    setTopLoading(true);
-    fetchTopCommanders([...colorFilter])
-      .then((data) => {
+    async function run() {
+      if (!cancelled) setTopLoading(true);
+      try {
+        const data = await fetchTopCommanders([...colorFilter]);
         if (!cancelled) setTopCommanders(data);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setTopCommanders([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setTopLoading(false);
-      });
+      }
+    }
+    void run();
     return () => {
       cancelled = true;
     };
   }, [colorFilter]);
 
+  // Local search results (owned mode). Kept in state so the dropdown can read
+  // it without recomputing on every render. Declared before the search effect
+  // so setLocalResults is in scope when the effect uses it.
+  const [localResults, setLocalResults] = useState<EnrichedCard[]>([]);
+
+  // Reset local results when switching out of owned-only mode.
+  const [prevOwnedOnly, setPrevOwnedOnly] = useState(ownedOnly);
+  if (prevOwnedOnly !== ownedOnly) {
+    setPrevOwnedOnly(ownedOnly);
+    if (!ownedOnly) setLocalResults([]);
+  }
+
   // Search effect — switches source by ownedOnly. Scryfall when off, local
   // collection-legend filter when on.
   useEffect(() => {
-    setError(null);
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      return;
-    }
-    if (ownedOnly) {
-      const ql = q.toLowerCase();
-      const matched = collectionLegends.filter((c) => c.name.toLowerCase().includes(ql));
-      // Resolve full ScryfallCards lazily — we don't need them in the list,
-      // just for the final selection. Show owned legends as a name+type list.
-      // To keep typing snappy we don't pre-fetch; click handler hits Scryfall.
-      setResults([]); // not used for owned mode; we render `localResults` directly
-      // store local results into a separate memo via state to avoid rerender churn:
-      setLocalResults(matched.slice(0, 12));
-      return;
-    }
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(async () => {
+    let cancelled = false;
+    async function run() {
+      const q = query.trim();
+      if (q.length < 2) {
+        if (!cancelled) {
+          setError(null);
+          setResults([]);
+        }
+        return;
+      }
+      if (ownedOnly) {
+        const ql = q.toLowerCase();
+        const matched = collectionLegends.filter((c) => c.name.toLowerCase().includes(ql));
+        // Resolve full ScryfallCards lazily — we don't need them in the list,
+        // just for the final selection. Show owned legends as a name+type list.
+        // To keep typing snappy we don't pre-fetch; click handler hits Scryfall.
+        if (!cancelled) {
+          setError(null);
+          setResults([]); // not used for owned mode; we render `localResults` directly
+          // store local results into a separate memo via state to avoid rerender churn:
+          setLocalResults(matched.slice(0, 12));
+        }
+        return;
+      }
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      await new Promise<void>((resolve) => {
+        debounceRef.current = window.setTimeout(resolve, 220);
+      });
+      if (cancelled) return;
       setSearchLoading(true);
+      setError(null);
       try {
         const cards = await searchCommanders(q);
-        setResults(cards.slice(0, 12));
+        if (!cancelled) setResults(cards.slice(0, 12));
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Search failed');
-        setResults([]);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Search failed');
+          setResults([]);
+        }
       } finally {
-        setSearchLoading(false);
+        if (!cancelled) setSearchLoading(false);
       }
-    }, 220);
+    }
+    void run();
     return () => {
+      cancelled = true;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [query, ownedOnly, collectionLegends]);
-
-  // Local search results (owned mode). Kept in state so the dropdown can read
-  // it without recomputing on every render.
-  const [localResults, setLocalResults] = useState<EnrichedCard[]>([]);
-  useEffect(() => {
-    if (!ownedOnly) setLocalResults([]);
-  }, [ownedOnly]);
 
   // Filter top commanders: hide split-card "//" entries; in owned mode,
   // surface only those the user actually has so the chip row reads as

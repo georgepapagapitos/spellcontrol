@@ -98,25 +98,6 @@ function SectionList({
   const subSortLabels = activeSorts.slice(1).map((s) => SORT_LABEL[s] ?? s);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  // Reset collapsed state when switching binders/uncategorized so a collapse in
-  // one view doesn't carry over into another (different sections, different intent).
-  useEffect(() => {
-    setCollapsed(new Set());
-  }, [viewKey]);
-
-  const toggle = (key: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const allCollapsed = sections.length > 0 && sections.every((s) => collapsed.has(s.key));
-  const collapseAll = () => setCollapsed(new Set(sections.map((s) => s.key)));
-  const expandAll = () => setCollapsed(new Set());
-
   // Tap-to-preview state (touch devices). Tracks which section's card list to
   // walk and the active card index. Closes when index goes out of range.
   const [preview, setPreview] = useState<{
@@ -132,11 +113,28 @@ function SectionList({
   // global offset of that page.
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
 
-  // Reset previews when switching binders so they don't survive a tab change.
-  useEffect(() => {
+  // Reset collapsed state and previews when switching binders so state from
+  // one view doesn't carry over into another (different sections, different intent).
+  const [prevViewKey, setPrevViewKey] = useState(viewKey);
+  if (prevViewKey !== viewKey) {
+    setPrevViewKey(viewKey);
+    setCollapsed(new Set());
     setPreview(null);
     setPagesStartIndex(null);
-  }, [viewKey]);
+  }
+
+  const toggle = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const allCollapsed = sections.length > 0 && sections.every((s) => collapsed.has(s.key));
+  const collapseAll = () => setCollapsed(new Set(sections.map((s) => s.key)));
+  const expandAll = () => setCollapsed(new Set());
 
   // Binder-wide page list + per-page section labels (parallel arrays).
   const flatPages = useMemo(() => sections.flatMap((s) => s.pages), [sections]);
@@ -148,12 +146,13 @@ function SectionList({
   // Cumulative page-offset per section, for translating section-local page
   // indices (from p{N} clicks) into the global flat-pages index.
   const sectionPageOffsets = useMemo(() => {
-    let offset = 0;
-    return sections.map((s) => {
-      const o = offset;
-      offset += s.pages.length;
-      return o;
-    });
+    return sections.reduce<{ offsets: number[]; total: number }>(
+      (acc, s) => {
+        acc.offsets.push(acc.total);
+        return { offsets: acc.offsets, total: acc.total + s.pages.length };
+      },
+      { offsets: [], total: 0 }
+    ).offsets;
   }, [sections]);
 
   // Flat binder-wide arrays so CardPreview can navigate past section boundaries.

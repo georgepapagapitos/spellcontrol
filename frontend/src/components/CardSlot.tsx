@@ -43,18 +43,22 @@ export function CardSlot({ card }: Props) {
   // backdrop doesn't capture pointer events from React's synthetic system),
   // so a stale tooltip would float over the carousel. Force-hide whenever
   // a preview is open.
-  useEffect(() => {
+  const [prevPreviewOpen, setPrevPreviewOpen] = useState(previewOpen);
+  if (prevPreviewOpen !== previewOpen) {
+    setPrevPreviewOpen(previewOpen);
     if (previewOpen) setHovered(false);
-  }, [previewOpen]);
+  }
   const [pos, setPos] = useState<TooltipPos | null>(null);
   const [imgError, setImgError] = useState(false);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const [prevImageNormal, setPrevImageNormal] = useState(card?.imageNormal);
+  if (prevImageNormal !== card?.imageNormal) {
+    setPrevImageNormal(card?.imageNormal);
     setImgError(false);
-  }, [card?.imageNormal]);
+  }
 
   // Lazy-load the set map the first time a tooltip actually opens, so binder
   // pages that never get hovered don't trigger the fetch.

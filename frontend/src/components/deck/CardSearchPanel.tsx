@@ -41,6 +41,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [query, setQuery] = useState('');
   const [announce, setAnnounce] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   // The two result lists publish their currently-visible cards here so the
   // panel-level "Enter to add the first result" handler is independent of
@@ -59,9 +60,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
 
   // Resetting the active row when query/tab changes keeps "Enter adds the
   // top result" predictable.
-  useEffect(() => {
+  const [prevQueryMode, setPrevQueryMode] = useState({ query, mode });
+  if (prevQueryMode.query !== query || prevQueryMode.mode !== mode) {
+    setPrevQueryMode({ query, mode });
     setActiveIndex(0);
-  }, [query, mode]);
+  }
 
   const handleAnnounce = (msg: string) => {
     // Cycle the live region by emptying first; some screen readers ignore
@@ -133,9 +136,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         onKeyDown={handleKeyDown}
         aria-label={mode === 'collection' ? 'Search your collection' : 'Search Scryfall'}
         aria-controls="card-search-results"
-        aria-activedescendant={
-          visibleResultsRef.current.length > 0 ? `card-search-result-${activeIndex}` : undefined
-        }
+        aria-activedescendant={visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined}
       />
       <p className="card-search-hint" aria-hidden>
         ↑ ↓ to navigate · Enter to add · Esc to close
@@ -154,6 +155,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           publishVisible={(cards, addAt) => {
             visibleResultsRef.current = cards;
             addCurrentRef.current = addAt;
+            setVisibleCount(cards.length);
           }}
         />
       ) : (
@@ -169,6 +171,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           publishVisible={(cards, addAt) => {
             visibleResultsRef.current = cards;
             addCurrentRef.current = addAt;
+            setVisibleCount(cards.length);
           }}
         />
       )}
@@ -326,26 +329,38 @@ function ScryfallResults({
   const ownedNames = useMemo(() => new Set(collection.map((c) => c.name)), [collection]);
 
   useEffect(() => {
-    setError(null);
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      return;
-    }
-    if (debounce.current) window.clearTimeout(debounce.current);
-    debounce.current = window.setTimeout(async () => {
+    let cancelled = false;
+    async function run() {
+      const q = query.trim();
+      if (q.length < 2) {
+        if (!cancelled) {
+          setError(null);
+          setResults([]);
+        }
+        return;
+      }
+      if (debounce.current) window.clearTimeout(debounce.current);
+      await new Promise<void>((resolve) => {
+        debounce.current = window.setTimeout(resolve, 300);
+      });
+      if (cancelled) return;
       setLoading(true);
+      setError(null);
       try {
         const resp = await searchCards(q, colorIdentity);
-        setResults(resp.data.slice(0, 60));
+        if (!cancelled) setResults(resp.data.slice(0, 60));
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Search failed');
-        setResults([]);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Search failed');
+          setResults([]);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    }, 300);
+    }
+    void run();
     return () => {
+      cancelled = true;
       if (debounce.current) window.clearTimeout(debounce.current);
     };
   }, [query, colorIdentity]);
