@@ -4504,3 +4504,78 @@ hr {
   padding: 0 0.25rem;
   color: var(--text3);
 }
+
+/* Price freshness banner — informational, theme-tinted with --accent. */
+.price-freshness-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  margin-bottom: 1rem;
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.price-freshness-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .price-freshness-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Per-row inline refresh button — only visible on row hover/focus. */
+.row-refresh {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.collection-list-row:hover .row-refresh,
+.collection-list-row:focus-within .row-refresh,
+.row-refresh:focus-visible,
+.row-refresh.is-busy {
+  opacity: 1;
+}
+
+.row-refresh:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.row-refresh:disabled {
+  cursor: progress;
+  color: var(--text3);
+}
+
+.row-refresh.is-busy svg {
+  animation: row-refresh-spin 800ms linear infinite;
+}
+
+@keyframes row-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

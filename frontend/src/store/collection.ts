@@ -42,6 +42,8 @@ interface CollectionState {
 
   hydrating: boolean;
   isLoading: boolean;
+  /** True while a /api/refresh-prices request is in flight. */
+  isRefreshingPrices: boolean;
   error: string | null;
 
   binders: BinderDef[];
@@ -64,6 +66,12 @@ interface CollectionState {
    * importId field are never matched, so legacy data is left alone.
    */
   deleteImports: (ids: string[]) => Promise<void>;
+  /**
+   * Refreshes Scryfall market prices for the given scryfallIds (or every unique id
+   * in the collection when called with no args). Updates purchasePrice and pricedAt
+   * in place, persists, and toggles isRefreshingPrices around the request.
+   */
+  refreshPrices: (scryfallIds?: string[]) => Promise<void>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
@@ -124,6 +132,7 @@ export const useCollectionStore = create<CollectionState>()(
       importHistory: [],
       hydrating: true,
       isLoading: false,
+      isRefreshingPrices: false,
       error: null,
       activeTab: 'uncategorized',
       editingBinder: null,
@@ -252,6 +261,60 @@ export const useCollectionStore = create<CollectionState>()(
           }
         } catch (err) {
           console.warn('[store] Failed to persist after deleteImports:', err);
+        }
+      },
+
+      refreshPrices: async (scryfallIds) => {
+        const s = get();
+        if (s.cards.length === 0) return;
+
+        const ids =
+          scryfallIds && scryfallIds.length > 0
+            ? Array.from(new Set(scryfallIds.filter(Boolean)))
+            : Array.from(new Set(s.cards.map((c) => c.scryfallId).filter(Boolean)));
+        if (ids.length === 0) return;
+
+        set({ isRefreshingPrices: true });
+        try {
+          const res = await fetch('/api/refresh-prices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scryfallIds: ids }),
+          });
+          if (!res.ok) {
+            const body = (await res.json().catch(() => ({}))) as { error?: string };
+            throw new Error(body.error || `HTTP ${res.status}`);
+          }
+          const { prices } = (await res.json()) as {
+            prices: Record<string, { usd: number; pricedAt: number }>;
+          };
+
+          const updated = get().cards.map((c) => {
+            const hit = prices[c.scryfallId];
+            if (!hit) return c;
+            return { ...c, purchasePrice: hit.usd, pricedAt: hit.pricedAt };
+          });
+
+          set({ cards: updated });
+
+          try {
+            await saveCollection({
+              cards: updated,
+              fileName: get().fileName,
+              scryfallHits: get().scryfallHits,
+              scryfallMisses: get().scryfallMisses,
+              uploadedAt: get().uploadedAt ?? Date.now(),
+              importHistory: get().importHistory,
+            });
+          } catch (err) {
+            console.warn('[store] Failed to persist refreshed prices:', err);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Failed to refresh prices';
+          console.warn('[store] refreshPrices failed:', err);
+          set({ error: msg });
+        } finally {
+          set({ isRefreshingPrices: false });
         }
       },
 

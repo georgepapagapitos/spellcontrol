@@ -6,6 +6,7 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
+import { useCollectionStore } from '../store/collection';
 
 interface Props {
   cards: EnrichedCard[];
@@ -62,6 +63,18 @@ const SORT_OPTIONS: Array<{ value: `${SortKey}:${'asc' | 'desc'}`; label: string
 ];
 
 export function CardListTable({ cards, binders }: Props) {
+  const refreshPrices = useCollectionStore((s) => s.refreshPrices);
+  const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const handleRowRefresh = async (scryfallId: string) => {
+    if (!scryfallId || isRefreshingPrices) return;
+    setRefreshingId(scryfallId);
+    try {
+      await refreshPrices([scryfallId]);
+    } finally {
+      setRefreshingId(null);
+    }
+  };
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sort, setSort] = useState<`${SortKey}:${'asc' | 'desc'}`>('name:asc');
@@ -436,6 +449,19 @@ export function CardListTable({ cards, binders }: Props) {
                     ${(r.card.purchasePrice * r.qty).toFixed(2)}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  className={`row-refresh${refreshingId === r.card.scryfallId ? ' is-busy' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRowRefresh(r.card.scryfallId);
+                  }}
+                  disabled={isRefreshingPrices || !r.card.scryfallId}
+                  aria-label={`Refresh price for ${r.card.name}`}
+                  title="Refresh price"
+                >
+                  <RefreshIcon />
+                </button>
               </div>
             );
           })}
@@ -576,6 +602,26 @@ function GridIcon() {
       <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M13.5 8a5.5 5.5 0 1 1-1.61-3.89"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M13.5 2.5v3h-3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
