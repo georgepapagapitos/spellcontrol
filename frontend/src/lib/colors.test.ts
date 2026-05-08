@@ -4,6 +4,7 @@ import type { EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
+    copyId: crypto.randomUUID(),
     name: 'Test Card',
     setCode: 'TST',
     setName: 'Test Set',

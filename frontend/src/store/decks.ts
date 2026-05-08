@@ -7,8 +7,8 @@ import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/brac
  * Persisted deck shape. Stores full ScryfallCard payloads so a saved deck
  * survives offline/backend-down without a Scryfall round-trip on load.
  *
- * Each `DeckCard` carries an `allocatedScryfallId`: the specific physical
- * copy claimed from the user's collection (by Scryfall printing). null
+ * Each `DeckCard` carries an `allocatedCopyId`: the specific physical
+ * copy claimed from the user's collection (by unique copy identifier). null
  * means the card is not allocated to any owned copy — either because the
  * user does not own it (status: 'unowned') or because the originally
  * allocated copy was removed from the collection (status: 'orphan').
@@ -24,7 +24,7 @@ export interface DeckCard {
   /** Stable per-row id so removals do not depend on array index. */
   slotId: string;
   card: ScryfallCard;
-  allocatedScryfallId: string | null;
+  allocatedCopyId: string | null;
 }
 
 export interface Deck {
@@ -34,8 +34,8 @@ export interface Deck {
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null;
   /** Allocations for the commander(s), parallel to the commander fields. */
-  commanderAllocatedScryfallId: string | null;
-  partnerCommanderAllocatedScryfallId: string | null;
+  commanderAllocatedCopyId: string | null;
+  partnerCommanderAllocatedCopyId: string | null;
   cards: DeckCard[];
   /** For generated decks: snapshot enough context to regenerate. Null otherwise. */
   generationContext: {
@@ -72,8 +72,8 @@ interface DecksState {
     commander: ScryfallCard | null;
     partnerCommander?: ScryfallCard | null;
     cards?: DeckCard[];
-    commanderAllocatedScryfallId?: string | null;
-    partnerCommanderAllocatedScryfallId?: string | null;
+    commanderAllocatedCopyId?: string | null;
+    partnerCommanderAllocatedCopyId?: string | null;
     generationContext?: Deck['generationContext'];
     roleCounts?: Record<string, number>;
     rampSubtypeCounts?: Record<string, number>;
@@ -90,9 +90,9 @@ interface DecksState {
   /** Deep-clone a deck. Allocations reset — the original still claims those copies. */
   duplicateDeck(id: string): string | null;
 
-  addCard(deckId: string, card: ScryfallCard, allocatedScryfallId?: string | null): string;
+  addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
-  setCardAllocation(deckId: string, slotId: string, allocatedScryfallId: string | null): void;
+  setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
 
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
@@ -127,8 +127,8 @@ export const useDecksStore = create<DecksState>()(
           source: input.source,
           commander: input.commander,
           partnerCommander: input.partnerCommander ?? null,
-          commanderAllocatedScryfallId: input.commanderAllocatedScryfallId ?? null,
-          partnerCommanderAllocatedScryfallId: input.partnerCommanderAllocatedScryfallId ?? null,
+          commanderAllocatedCopyId: input.commanderAllocatedCopyId ?? null,
+          partnerCommanderAllocatedCopyId: input.partnerCommanderAllocatedCopyId ?? null,
           cards: input.cards ?? [],
           generationContext: input.generationContext ?? null,
           roleCounts: input.roleCounts,
@@ -169,12 +169,12 @@ export const useDecksStore = create<DecksState>()(
           name: `${original.name} (copy)`,
           // Reset commander allocations — duplicated deck does not claim
           // the same physical copies the original is using.
-          commanderAllocatedScryfallId: null,
-          partnerCommanderAllocatedScryfallId: null,
+          commanderAllocatedCopyId: null,
+          partnerCommanderAllocatedCopyId: null,
           cards: original.cards.map((c) => ({
             slotId: newId('slot'),
             card: c.card,
-            allocatedScryfallId: null,
+            allocatedCopyId: null,
           })),
           createdAt: now,
           updatedAt: now,
@@ -183,14 +183,14 @@ export const useDecksStore = create<DecksState>()(
         return newDeckId;
       },
 
-      addCard: (deckId, card, allocatedScryfallId = null) => {
+      addCard: (deckId, card, allocatedCopyId = null) => {
         const slotId = newId('slot');
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
               ? touch({
                   ...d,
-                  cards: [...d.cards, { slotId, card, allocatedScryfallId }],
+                  cards: [...d.cards, { slotId, card, allocatedCopyId }],
                 })
               : d
           ),
@@ -205,15 +205,13 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
-      setCardAllocation: (deckId, slotId, allocatedScryfallId) =>
+      setCardAllocation: (deckId, slotId, allocatedCopyId) =>
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
               ? touch({
                   ...d,
-                  cards: d.cards.map((c) =>
-                    c.slotId === slotId ? { ...c, allocatedScryfallId } : c
-                  ),
+                  cards: d.cards.map((c) => (c.slotId === slotId ? { ...c, allocatedCopyId } : c)),
                 })
               : d
           ),
@@ -223,7 +221,7 @@ export const useDecksStore = create<DecksState>()(
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
-              ? touch({ ...d, commander: card, commanderAllocatedScryfallId: allocated })
+              ? touch({ ...d, commander: card, commanderAllocatedCopyId: allocated })
               : d
           ),
         })),
@@ -235,7 +233,7 @@ export const useDecksStore = create<DecksState>()(
               ? touch({
                   ...d,
                   partnerCommander: card,
-                  partnerCommanderAllocatedScryfallId: allocated,
+                  partnerCommanderAllocatedCopyId: allocated,
                 })
               : d
           ),
@@ -248,21 +246,58 @@ export const useDecksStore = create<DecksState>()(
     }),
     {
       name: 'mtg-decks',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
       },
       partialize: (s) => ({ decks: s.decks }),
+      /**
+       * v1→v2: allocation tracking moved from `scryfallId` (which identifies a
+       * printing) to `copyId` (which identifies a single physical card). Old
+       * allocations point at scryfallIds that have no equivalent copyId in the
+       * collection, so we clear them and let the user re-pick. Deck contents
+       * are preserved.
+       */
+      migrate: (persistedState, fromVersion) => {
+        const state = persistedState as Record<string, unknown> | undefined;
+        if (!state) return state as never;
+        if (fromVersion < 2 && Array.isArray(state.decks)) {
+          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => {
+            const {
+              commanderAllocatedScryfallId: _c,
+              partnerCommanderAllocatedScryfallId: _p,
+              ...deckRest
+            } = d as Record<string, unknown> & {
+              commanderAllocatedScryfallId?: unknown;
+              partnerCommanderAllocatedScryfallId?: unknown;
+            };
+            void _c;
+            void _p;
+            return {
+              ...deckRest,
+              commanderAllocatedCopyId: null,
+              partnerCommanderAllocatedCopyId: null,
+              cards: Array.isArray(d.cards)
+                ? (d.cards as Array<Record<string, unknown>>).map((c) => {
+                    const { allocatedScryfallId: _a, ...rest } = c as Record<string, unknown> & {
+                      allocatedScryfallId?: unknown;
+                    };
+                    void _a;
+                    return { ...rest, allocatedCopyId: null };
+                  })
+                : [],
+            };
+          });
+        }
+        return state as never;
+      },
     }
   )
 );
 
-export function newDeckCard(
-  card: ScryfallCard,
-  allocatedScryfallId: string | null = null
-): DeckCard {
-  return { slotId: newId('slot'), card, allocatedScryfallId };
+export function newDeckCard(card: ScryfallCard, allocatedCopyId: string | null = null): DeckCard {
+  return { slotId: newId('slot'), card, allocatedCopyId };
 }
 
 function defaultDeckName(commander: ScryfallCard | null): string {

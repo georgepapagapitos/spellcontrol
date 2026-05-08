@@ -67,12 +67,12 @@ export function ImportDeckDialog({ onClose }: Props) {
       const allocateFor = (cardName: string): string | null => {
         const pick = pickCollectionCopy(cardName, collectionCards, claimed);
         if (!pick) return null;
-        claimed.set(pick.scryfallId, {
+        claimed.set(pick.copyId, {
           deckId: '__pending__',
           deckName: '__pending__',
           cardName,
         });
-        return pick.scryfallId;
+        return pick.copyId;
       };
 
       const commanderAlloc = allocateFor(commander.name);
@@ -84,7 +84,7 @@ export function ImportDeckDialog({ onClose }: Props) {
       const id = createDeck({
         source: 'manual',
         commander,
-        commanderAllocatedScryfallId: commanderAlloc,
+        commanderAllocatedCopyId: commanderAlloc,
         cards,
       });
 

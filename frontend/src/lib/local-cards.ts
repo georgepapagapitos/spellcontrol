@@ -89,6 +89,9 @@ export async function loadCollection(): Promise<StoredCollection | null> {
       if (!('sourceFormat' in anyCard)) {
         anyCard.sourceFormat = 'manabox'; // older imports were always ManaBox
       }
+      if (!c.copyId) {
+        c.copyId = crypto.randomUUID();
+      }
       return c;
     });
 
