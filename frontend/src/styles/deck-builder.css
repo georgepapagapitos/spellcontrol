@@ -148,14 +148,16 @@
 
 /* ── Generation progress ──────────────────────────────────────────────── */
 .deck-builder-progress {
+  flex: 1 1 100%;
   margin-top: 0.75rem;
 }
 
 .deck-builder-progress-bar {
   width: 100%;
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
+  height: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
   overflow: hidden;
 }
 
@@ -957,6 +959,199 @@
 .theme-chip.is-active .theme-chip-count {
   color: var(--accent-text, #fff);
   opacity: 0.85;
+}
+
+.theme-chip-more {
+  font-style: italic;
+  color: var(--text2);
+}
+
+.theme-chip-more:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* ── Deck customizer (advanced settings) ──────────────────────────────── */
+.deck-customizer {
+  padding: 0;
+  overflow: hidden;
+}
+
+.deck-customizer-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text);
+}
+
+.deck-customizer-header:hover {
+  background: var(--surface2);
+}
+
+.deck-customizer-header .deck-builder-section-title {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.deck-customizer-summary {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-customizer-caret {
+  color: var(--text3);
+  font-size: var(--text-md);
+}
+
+.deck-customizer-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  padding: 0 1.25rem 1.25rem 1.25rem;
+  border-top: 0.5px solid var(--border);
+  padding-top: 1rem;
+}
+
+.deck-customizer-group {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  margin: 0;
+  padding: 0.75rem 1rem 1rem 1rem;
+  background: var(--surface2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck-customizer-group legend {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--text);
+  padding: 0 0.4rem;
+}
+
+.deck-customizer-group .deck-builder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.deck-customizer-group .deck-builder-field small {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.deck-customizer-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+/* ── Card-name autocomplete ───────────────────────────────────────────── */
+.deck-customizer-autocomplete {
+  position: relative;
+}
+
+.deck-customizer-autocomplete-input {
+  width: 100%;
+}
+
+.deck-customizer-autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-modal);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.deck-customizer-autocomplete-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.deck-customizer-autocomplete-item:hover,
+.deck-customizer-autocomplete-item:focus-visible {
+  background: var(--accent-light);
+  outline: none;
+}
+
+.deck-customizer-autocomplete-empty {
+  padding: 0.4rem 0.6rem;
+  color: var(--text3);
+  font-size: var(--text-sm);
+}
+
+/* ── Pills (must-include / excluded card lists) ───────────────────────── */
+.deck-customizer-pills {
+  list-style: none;
+  margin: 0.25rem 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.deck-customizer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.65rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  color: var(--text);
+}
+
+.deck-customizer-pill-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: var(--text-md);
+  line-height: 1;
+}
+
+.deck-customizer-pill-remove:hover {
+  background: var(--err-bg, var(--surface2));
+  color: var(--err, var(--text));
 }
 
 /* ── Shopping list ────────────────────────────────────────────────────── */
