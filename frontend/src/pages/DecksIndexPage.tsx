@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
+import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import type { Deck } from '../store/decks';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
@@ -11,6 +12,7 @@ export function DecksIndexPage() {
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
   const navigate = useNavigate();
   const sorted = useMemo(() => [...decks].sort((a, b) => b.updatedAt - a.updatedAt), [decks]);
+  const [showImport, setShowImport] = useState(false);
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
@@ -49,10 +51,17 @@ export function DecksIndexPage() {
             blank and add cards from your collection.
           </p>
         </div>
-        <Link to="/decks/new" className="btn btn-primary">
-          New deck
-        </Link>
+        <div className="decks-index-actions">
+          <button type="button" className="btn" onClick={() => setShowImport(true)}>
+            Import deck
+          </button>
+          <Link to="/decks/new" className="btn btn-primary">
+            New deck
+          </Link>
+        </div>
       </header>
+
+      {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
 
       {sorted.length === 0 ? (
         <div className="decks-index-empty">

@@ -26,12 +26,16 @@ export function parseTextList(text: string): ParseResult {
   const rows: ImportRow[] = [];
   const unparsedLines: string[] = [];
   let usedMtga = false;
+  let currentSection: string | undefined;
 
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
     if (line.startsWith('//') || line.startsWith('#')) continue;
-    if (SECTION_HEADERS.has(line.toLowerCase())) continue;
+    if (SECTION_HEADERS.has(line.toLowerCase())) {
+      currentSection = line.toLowerCase();
+      continue;
+    }
 
     let match = line.match(MTGA_FULL);
     if (match) {
@@ -42,6 +46,7 @@ export function parseTextList(text: string): ParseResult {
         setCode: match[3].toUpperCase(),
         collectorNumber: match[4],
         sourceFormat: 'mtga',
+        section: currentSection,
       });
       continue;
     }
@@ -54,6 +59,7 @@ export function parseTextList(text: string): ParseResult {
         quantity: parseInt(match[1]) || 1,
         setCode: match[3].toUpperCase(),
         sourceFormat: 'mtga',
+        section: currentSection,
       });
       continue;
     }
@@ -64,6 +70,7 @@ export function parseTextList(text: string): ParseResult {
         name: cleanName(match[2]),
         quantity: parseInt(match[1]) || 1,
         sourceFormat: 'plain',
+        section: currentSection,
       });
       continue;
     }
@@ -74,6 +81,7 @@ export function parseTextList(text: string): ParseResult {
         name: cleanName(line),
         quantity: 1,
         sourceFormat: 'plain',
+        section: currentSection,
       });
       continue;
     }
