@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Drives a holographic foil effect by tracking the cursor over a target element
@@ -23,7 +23,9 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
   // Stash in a ref so the effect doesn't have to re-bind listeners every render
   // when the caller passes a fresh function.
   const suppressRef = useRef(options.shouldSuppressTilt);
-  suppressRef.current = options.shouldSuppressTilt;
+  useLayoutEffect(() => {
+    suppressRef.current = options.shouldSuppressTilt;
+  });
 
   const [el, setEl] = useState<HTMLElement | null>(null);
   const ref = useCallback((node: HTMLElement | null) => setEl(node), []);

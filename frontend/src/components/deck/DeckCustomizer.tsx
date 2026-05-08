@@ -599,21 +599,37 @@ function CardNameAutocomplete({ onPick }: { onPick: (name: string) => void }) {
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const q = input.trim();
     if (q.length < 2) {
-      setSuggestions([]);
-      setLoading(false);
-      return;
+      Promise.resolve().then(() => {
+        if (!cancelled) {
+          setSuggestions([]);
+          setLoading(false);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    setLoading(true);
+    Promise.resolve().then(() => {
+      if (!cancelled) setLoading(true);
+    });
     debounceRef.current = window.setTimeout(() => {
       autocompleteCardName(q)
-        .then((list) => setSuggestions(list.slice(0, 8)))
-        .catch(() => setSuggestions([]))
-        .finally(() => setLoading(false));
+        .then((list) => {
+          if (!cancelled) setSuggestions(list.slice(0, 8));
+        })
+        .catch(() => {
+          if (!cancelled) setSuggestions([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
     }, 200);
     return () => {
+      cancelled = true;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [input]);
