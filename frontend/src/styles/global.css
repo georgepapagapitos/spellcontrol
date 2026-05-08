@@ -4505,28 +4505,44 @@ hr {
   color: var(--text3);
 }
 
-/* Price freshness banner — informational, theme-tinted with --accent. */
-.price-freshness-banner {
+/* Quiet price-freshness line below the collection table. */
+.price-freshness-line {
+  margin: 1rem 0 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text3);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0.875rem;
-  margin-bottom: 1rem;
-  background: var(--accent-light);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  color: var(--text);
+  gap: 0.4rem;
+  justify-content: flex-end;
 }
 
-.price-freshness-banner-text {
-  flex: 1;
-  min-width: 0;
+.price-refresh-icon {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
 }
 
-@media (max-width: 600px) {
-  .price-freshness-banner {
-    flex-direction: column;
-    align-items: stretch;
+.price-refresh-icon:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.price-refresh-icon:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.price-refresh-icon.is-busy svg {
+  animation: price-refresh-spin 800ms linear infinite;
+}
+
+@keyframes price-refresh-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
