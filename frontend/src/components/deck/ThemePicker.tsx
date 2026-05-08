@@ -19,23 +19,25 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setErrored(false);
-    setThemes(null);
-    setVisibleCount(COLLAPSED_COUNT);
-    fetchCommanderThemes(commanderName)
-      .then((list) => {
+    async function run() {
+      if (!cancelled) {
+        setLoading(true);
+        setErrored(false);
+        setThemes(null);
+        setVisibleCount(COLLAPSED_COUNT);
+      }
+      try {
+        const list = await fetchCommanderThemes(commanderName);
         if (cancelled) return;
         const sorted = [...list].sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
         setThemes(sorted);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setErrored(true);
-      })
-      .finally(() => {
+      } catch {
+        if (!cancelled) setErrored(true);
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+    void run();
     return () => {
       cancelled = true;
     };
