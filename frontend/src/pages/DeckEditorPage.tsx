@@ -126,7 +126,11 @@ export function DeckEditorPage() {
 
       <div className={`deck-editor-layout${showAddPanel ? ' with-panel' : ''}`}>
         <main className="deck-editor-main">
-          <ShoppingList cards={deck.cards} collectionByScryfallId={collectionById} />
+          <ShoppingList
+            deckId={deck.id}
+            cards={deck.cards}
+            collectionByScryfallId={collectionById}
+          />
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}
