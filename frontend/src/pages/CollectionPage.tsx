@@ -4,6 +4,7 @@ import { materializeBinders } from '../lib/materialize';
 import { UploadPanel } from '../components/UploadPanel';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
+import { PriceFreshnessLine } from '../components/PriceFreshnessLine';
 
 export function CollectionPage() {
   const cards = useCollectionStore((s) => s.cards);
@@ -47,6 +48,7 @@ export function CollectionPage() {
           <StatsBar />
           <hr />
           <CardListTable cards={cards} binders={materialized} />
+          <PriceFreshnessLine />
         </>
       )}
     </>
