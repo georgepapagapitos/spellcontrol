@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel } from '../components/deck/CardSearchPanel';
+import { ShoppingList } from '../components/deck/ShoppingList';
 import { useCollectionByScryfallId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
@@ -15,6 +16,7 @@ export function DeckEditorPage() {
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
   const addCard = useDecksStore((s) => s.addCard);
   const removeCard = useDecksStore((s) => s.removeCard);
+  const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
 
   const collectionById = useCollectionByScryfallId();
   const [renaming, setRenaming] = useState(false);
@@ -61,6 +63,10 @@ export function DeckEditorPage() {
   const handleConfirmDelete = () => {
     deleteDeck(deck.id);
     navigate('/decks');
+  };
+  const handleDuplicate = () => {
+    const newId = duplicateDeck(deck.id);
+    if (newId) navigate(`/decks/${newId}`);
   };
 
   const displayCards: DeckDisplayCard[] = deck.cards.map((c) => ({
@@ -109,6 +115,9 @@ export function DeckEditorPage() {
           >
             {showAddPanel ? 'Hide cards panel' : 'Add cards'}
           </button>
+          <button type="button" className="btn" onClick={handleDuplicate}>
+            Duplicate
+          </button>
           <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
             Delete
           </button>
@@ -117,6 +126,7 @@ export function DeckEditorPage() {
 
       <div className={`deck-editor-layout${showAddPanel ? ' with-panel' : ''}`}>
         <main className="deck-editor-main">
+          <ShoppingList cards={deck.cards} collectionByScryfallId={collectionById} />
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}

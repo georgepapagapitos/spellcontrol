@@ -1,13 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
+import { ThemePicker } from '../components/deck/ThemePicker';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore, newDeckCard } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
-import type { ScryfallCard, GeneratedDeck, DeckCategory } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  GeneratedDeck,
+  DeckCategory,
+  EDHRECTheme,
+  ThemeResult,
+} from '@/deck-builder/types';
 
 export function DeckNewPage() {
   const navigate = useNavigate();
@@ -26,6 +33,18 @@ export function DeckNewPage() {
   const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>([]);
+  const selectedThemeSlugs = useMemo(
+    () => new Set(selectedThemes.map((t) => t.slug)),
+    [selectedThemes]
+  );
+
+  const handleToggleTheme = useCallback((theme: EDHRECTheme) => {
+    setSelectedThemes((prev) => {
+      const exists = prev.some((t) => t.slug === theme.slug);
+      return exists ? prev.filter((t) => t.slug !== theme.slug) : [...prev, theme];
+    });
+  }, []);
 
   // ── Start-blank ───────────────────────────────────────────────────────
   const handleStartBlank = useCallback(() => {
@@ -72,12 +91,21 @@ export function DeckNewPage() {
         }
       }
 
+      const themesForGenerator: ThemeResult[] = selectedThemes.map((t) => ({
+        name: t.name,
+        source: 'edhrec',
+        slug: t.slug,
+        deckCount: t.count,
+        popularityPercent: t.popularityPercent,
+        isSelected: true,
+      }));
+
       const deck = await generateDeck({
         commander,
         partnerCommander: null,
         colorIdentity,
         customization,
-        selectedThemes: [],
+        selectedThemes: themesForGenerator,
         collectionNames,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });
@@ -85,7 +113,14 @@ export function DeckNewPage() {
       updateCustomization({ tempBannedCards: [], tempMustIncludeCards: [] });
 
       // Persist the generated deck and navigate to its editor.
-      const id = saveGeneratedDeck(deck, customization, decks, collectionCards, createDeck);
+      const id = saveGeneratedDeck(
+        deck,
+        customization,
+        themesForGenerator,
+        decks,
+        collectionCards,
+        createDeck
+      );
       navigate(`/decks/${id}`);
     } catch (e) {
       console.error('[DeckBuilder] generation failed:', e);
@@ -98,6 +133,7 @@ export function DeckNewPage() {
     commander,
     customization,
     colorIdentity,
+    selectedThemes,
     collectionCards,
     decks,
     createDeck,
@@ -106,6 +142,14 @@ export function DeckNewPage() {
     updateCustomization,
     navigate,
   ]);
+
+  const handleSelectCommander = useCallback(
+    (card: ScryfallCard | null) => {
+      setCommander(card);
+      setSelectedThemes([]);
+    },
+    [setCommander]
+  );
 
   return (
     <div className="deck-builder-page">
@@ -122,8 +166,16 @@ export function DeckNewPage() {
 
       <section className="deck-builder-section">
         <h2 className="deck-builder-section-title">Commander</h2>
-        <CommanderSearch value={commander} onSelect={setCommander} />
+        <CommanderSearch value={commander} onSelect={handleSelectCommander} />
       </section>
+
+      {commander && (
+        <ThemePicker
+          commanderName={commander.name}
+          selectedSlugs={selectedThemeSlugs}
+          onToggle={handleToggleTheme}
+        />
+      )}
 
       {commander && (
         <section className="deck-builder-section">
@@ -237,6 +289,7 @@ export function DeckNewPage() {
 function saveGeneratedDeck(
   generated: GeneratedDeck,
   customization: ReturnType<typeof useDeckBuilderStore.getState>['customization'],
+  selectedThemes: ThemeResult[],
   existingDecks: ReturnType<typeof useDecksStore.getState>['decks'],
   collection: ReturnType<typeof useCollectionStore.getState>['cards'],
   createDeck: ReturnType<typeof useDecksStore.getState>['createDeck']
@@ -277,7 +330,7 @@ function saveGeneratedDeck(
     partnerCommanderAllocatedScryfallId: partnerAlloc,
     cards,
     generationContext: {
-      selectedThemes: [],
+      selectedThemes,
       bracketLevel: customization.bracketLevel,
       landCount: customization.landCount,
       collectionMode: customization.collectionMode,
