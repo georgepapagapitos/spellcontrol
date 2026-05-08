@@ -29,6 +29,8 @@ export interface ImportRow {
   sourceCategory?: string;
   /** Which parser produced this row — useful for debugging and for surfaced telemetry. */
   sourceFormat: ImportFormat;
+  /** Section header the row appeared under (e.g. 'commander', 'sideboard'). */
+  section?: string;
 }
 
 export type ImportFormat =

@@ -124,6 +124,15 @@ export interface EnrichedCard {
   promoTypes?: string[];
 }
 
+export interface DeckImportResponse {
+  commander: ScryfallCard | null;
+  companion: ScryfallCard | null;
+  cards: ScryfallCard[];
+  unresolvedNames: string[];
+  detectedFormat: string;
+  cardCount: number;
+}
+
 export interface UploadResponse {
   cards: EnrichedCard[];
   totalRows: number;

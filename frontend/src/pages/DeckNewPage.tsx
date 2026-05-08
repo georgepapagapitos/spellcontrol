@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { ThemePicker } from '../components/deck/ThemePicker';
@@ -46,6 +47,7 @@ export function DeckNewPage() {
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>(() => prefill?.themes ?? []);
+  const [showImport, setShowImport] = useState(false);
 
   // Reset the deck-builder store on mount so opening "New deck" after
   // creating a deck always starts at a blank commander search — the
@@ -214,10 +216,15 @@ export function DeckNewPage() {
         </Link>
         <h1>New deck</h1>
         <p className="deck-builder-subtitle">
-          Pick a commander, then either generate a 100-card deck from EDHREC data or start blank and
-          add cards by hand from your collection.
+          Pick a commander, then generate a 100-card deck from EDHREC data, start blank and add
+          cards by hand, or
+          <button type="button" className="btn-link" onClick={() => setShowImport(true)}>
+            import an existing deck list.
+          </button>
         </p>
       </header>
+
+      {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
 
       <section className="deck-builder-section">
         <h2 className="deck-builder-section-title">Commander</h2>

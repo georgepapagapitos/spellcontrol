@@ -1,4 +1,4 @@
-import type { UploadResponse } from '../types';
+import type { DeckImportResponse, UploadResponse } from '../types';
 
 const TIMEOUT_MS = 120_000;
 
@@ -75,4 +75,22 @@ export async function importText(text: string): Promise<UploadResponse> {
     body: JSON.stringify({ text }),
   });
   return handle<UploadResponse>(response);
+}
+
+/** Import a deck from pasted text. Returns ScryfallCard objects grouped by section. */
+export async function importDeckText(text: string): Promise<DeckImportResponse> {
+  const response = await fetchWithTimeout('/api/import-deck', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  return handle<DeckImportResponse>(response);
+}
+
+/** Import a deck from a file upload. Returns ScryfallCard objects grouped by section. */
+export async function importDeckFile(file: File): Promise<DeckImportResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetchWithTimeout('/api/import-deck', { method: 'POST', body: formData });
+  return handle<DeckImportResponse>(response);
 }
