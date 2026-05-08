@@ -114,7 +114,7 @@ export function DeckNewPage() {
     const id = createDeck({
       source: 'manual',
       commander,
-      commanderAllocatedScryfallId: allocated?.scryfallId ?? null,
+      commanderAllocatedCopyId: allocated?.copyId ?? null,
     });
     navigate(`/decks/${id}`);
   }, [commander, collectionCards, decks, createDeck, navigate]);
@@ -293,12 +293,12 @@ function saveGeneratedDeck(
   const allocateFor = (cardName: string): string | null => {
     const pick = pickCollectionCopy(cardName, collection, claimed);
     if (!pick) return null;
-    claimed.set(pick.scryfallId, {
+    claimed.set(pick.copyId, {
       deckId: '__pending__',
       deckName: '__pending__',
       cardName,
     });
-    return pick.scryfallId;
+    return pick.copyId;
   };
 
   const commander = generated.commander;
@@ -317,8 +317,8 @@ function saveGeneratedDeck(
     source: 'generated',
     commander,
     partnerCommander: partner,
-    commanderAllocatedScryfallId: commanderAlloc,
-    partnerCommanderAllocatedScryfallId: partnerAlloc,
+    commanderAllocatedCopyId: commanderAlloc,
+    partnerCommanderAllocatedCopyId: partnerAlloc,
     cards,
     generationContext: {
       selectedThemes,

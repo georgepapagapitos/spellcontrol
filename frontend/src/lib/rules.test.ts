@@ -17,6 +17,7 @@ function chips(...values: string[]): NegatableChip[] {
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
+    copyId: crypto.randomUUID(),
     name: 'Test Card',
     setCode: 'TST',
     setName: 'Test Set',

@@ -4,11 +4,7 @@ import { useDecksStore } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
-import {
-  buildAllocationMap,
-  pickCollectionCopy,
-  useCollectionByScryfallId,
-} from '../lib/allocations';
+import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -26,7 +22,7 @@ export function DeckEditorPage() {
   const collectionCards = useCollectionStore((s) => s.cards);
   const pushToast = useToastsStore((s) => s.push);
 
-  const collectionById = useCollectionByScryfallId();
+  const collectionById = useCollectionByCopyId();
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
@@ -110,7 +106,7 @@ export function DeckEditorPage() {
       message: `Removed ${slot.card.name}`,
       tone: 'info',
       actionLabel: 'Undo',
-      onAction: () => addCard(deck.id, slot.card, slot.allocatedScryfallId),
+      onAction: () => addCard(deck.id, slot.card, slot.allocatedCopyId),
     });
   };
 
@@ -129,7 +125,7 @@ export function DeckEditorPage() {
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       for (let i = 0; i < delta; i++) {
         const claim = pickCollectionCopy(card.name, collectionCards, allocations);
-        const allocatedId = claim?.scryfallId ?? null;
+        const allocatedId = claim?.copyId ?? null;
         if (allocatedId) {
           allocations.set(allocatedId, {
             deckId: deck.id,
@@ -153,7 +149,7 @@ export function DeckEditorPage() {
       tone: 'info',
       actionLabel: 'Undo',
       onAction: () => {
-        for (const slot of dropping) addCard(deck.id, slot.card, slot.allocatedScryfallId);
+        for (const slot of dropping) addCard(deck.id, slot.card, slot.allocatedCopyId);
       },
     });
   };
@@ -161,7 +157,7 @@ export function DeckEditorPage() {
   const displayCards: DeckDisplayCard[] = deck.cards.map((c) => ({
     slotId: c.slotId,
     card: c.card,
-    allocatedScryfallId: c.allocatedScryfallId,
+    allocatedCopyId: c.allocatedCopyId,
   }));
 
   return (
@@ -230,7 +226,7 @@ export function DeckEditorPage() {
             cards={displayCards}
             onRemoveCard={handleRemoveCard}
             onSetQty={handleSetQty}
-            collectionByScryfallId={collectionById}
+            collectionByCopyId={collectionById}
             roleCounts={deck.roleCounts}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -248,8 +244,8 @@ export function DeckEditorPage() {
               deckId={deck.id}
               commanderColorIdentity={commanderColorIdentity}
               existingCardCounts={existingCardCounts}
-              onAdd={({ card, allocatedScryfallId }) => {
-                addCard(deck.id, card, allocatedScryfallId);
+              onAdd={({ card, allocatedCopyId }) => {
+                addCard(deck.id, card, allocatedCopyId);
               }}
               onClose={() => setShowAddPanel(false)}
             />
