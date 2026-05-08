@@ -3377,6 +3377,8 @@ hr {
   padding: 0.9rem 1.1rem;
   padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
   color: #fff;
+  height: 9rem;
+  overflow: hidden;
 }
 
 .card-preview-panel-inner {
@@ -3385,12 +3387,23 @@ hr {
   gap: 0.3rem;
 }
 
+.card-preview-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+
 .card-preview-name {
   font-family: var(--font-serif);
   font-size: var(--text-lg);
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .card-preview-context {
@@ -3398,6 +3411,9 @@ hr {
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-preview-meta {
@@ -3432,6 +3448,10 @@ hr {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-height: 1rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .card-preview-set-icon {

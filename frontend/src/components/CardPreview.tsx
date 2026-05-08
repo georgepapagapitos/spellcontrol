@@ -291,40 +291,22 @@ export function CardPreview({
           )}
         </div>
 
-        {(() => {
-          const allocation = allocations.get(current.copyId);
-          if (!allocation || allocation.deckId === currentDeckId) return null;
-          return (
-            <Link
-              to={`/decks/${allocation.deckId}`}
-              className="card-preview-deck-chip"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              title={`Open deck ${allocation.deckName}`}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
-                <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
-                <rect x="6" y="0" width="9" height="11" rx="1.5" />
-              </svg>
-              <span className="card-preview-deck-chip-label">In deck</span>
-              <span className="card-preview-deck-chip-name">{allocation.deckName}</span>
-            </Link>
-          );
-        })()}
-
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
           <div className="card-preview-panel-inner">
-            <div className="card-preview-name">{current.name}</div>
+            <div className="card-preview-name-row">
+              <div className="card-preview-name">{current.name}</div>
+              {(() => {
+                const allocation = allocations.get(current.copyId);
+                if (!allocation || allocation.deckId === currentDeckId) return null;
+                return (
+                  <DeckChip
+                    deckId={allocation.deckId}
+                    deckName={allocation.deckName}
+                    onNavigate={onClose}
+                  />
+                );
+              })()}
+            </div>
             <div className="card-preview-context">
               {binderName}
               {sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : ''}
@@ -338,16 +320,16 @@ export function CardPreview({
               {current.foil && <span className="card-preview-foil">foil</span>}
               {' · '}${current.purchasePrice.toFixed(2)}
             </div>
-            {(current.setName || current.setCode) && (
-              <div className="card-preview-set">
-                {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
-                  <img
-                    src={setMap[current.setCode.toUpperCase()].iconSvgUri}
-                    alt=""
-                    aria-hidden="true"
-                    className="card-preview-set-icon"
-                  />
-                ) : null}
+            <div className="card-preview-set">
+              {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
+                <img
+                  src={setMap[current.setCode.toUpperCase()].iconSvgUri}
+                  alt=""
+                  aria-hidden="true"
+                  className="card-preview-set-icon"
+                />
+              ) : null}
+              {(current.setName || current.setCode) && (
                 <span>
                   {current.setName || current.setCode}
                   {current.setName && current.setCode ? (
@@ -357,8 +339,8 @@ export function CardPreview({
                     </span>
                   ) : null}
                 </span>
-              </div>
-            )}
+              )}
+            </div>
             <div className="card-preview-counter">
               Card {selected + 1} of {cards.length}
               {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
@@ -367,6 +349,59 @@ export function CardPreview({
         </div>
       </div>
     </div>
+  );
+}
+
+function DeckChip({
+  deckId,
+  deckName,
+  onNavigate,
+}: {
+  deckId: string;
+  deckName: string;
+  onNavigate: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <span className={`card-preview-deck-chip${expanded ? ' is-expanded' : ''}`}>
+      <button
+        type="button"
+        className="card-preview-deck-chip-toggle"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded((v) => !v);
+        }}
+        aria-label={expanded ? 'Hide deck name' : 'Show deck name'}
+        aria-expanded={expanded}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          aria-hidden="true"
+          focusable="false"
+          className="card-preview-deck-chip-icon"
+        >
+          <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
+          <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
+          <rect x="6" y="0" width="9" height="11" rx="1.5" />
+        </svg>
+      </button>
+      <Link
+        to={`/decks/${deckId}`}
+        className="card-preview-deck-chip-link"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavigate();
+        }}
+        title={`Open deck ${deckName}`}
+      >
+        <span className="card-preview-deck-chip-label">In deck</span>
+        <span className="card-preview-deck-chip-name">{deckName}</span>
+      </Link>
+    </span>
   );
 }
 
