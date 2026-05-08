@@ -419,7 +419,9 @@ select {
 }
 
 .import-history-check input[type='checkbox'],
-.field-checkbox input[type='checkbox'] {
+.field-checkbox input[type='checkbox'],
+.commander-owned-toggle input[type='checkbox'],
+.collection-group-checkbox {
   appearance: none;
   -webkit-appearance: none;
   width: 14px;
@@ -437,18 +439,24 @@ select {
 }
 
 .import-history-check input[type='checkbox']:hover:not(:disabled),
-.field-checkbox input[type='checkbox']:hover:not(:disabled) {
+.field-checkbox input[type='checkbox']:hover:not(:disabled),
+.commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
+.collection-group-checkbox:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
 .import-history-check input[type='checkbox']:checked,
-.field-checkbox input[type='checkbox']:checked {
+.field-checkbox input[type='checkbox']:checked,
+.commander-owned-toggle input[type='checkbox']:checked,
+.collection-group-checkbox:checked {
   background: var(--accent);
   border-color: var(--accent);
 }
 
 .import-history-check input[type='checkbox']:checked::after,
-.field-checkbox input[type='checkbox']:checked::after {
+.field-checkbox input[type='checkbox']:checked::after,
+.commander-owned-toggle input[type='checkbox']:checked::after,
+.collection-group-checkbox:checked::after {
   content: '';
   width: 8px;
   height: 8px;
@@ -457,13 +465,17 @@ select {
 }
 
 .import-history-check input[type='checkbox']:focus-visible,
-.field-checkbox input[type='checkbox']:focus-visible {
+.field-checkbox input[type='checkbox']:focus-visible,
+.commander-owned-toggle input[type='checkbox']:focus-visible,
+.collection-group-checkbox:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .import-history-check input[type='checkbox']:disabled,
-.field-checkbox input[type='checkbox']:disabled {
+.field-checkbox input[type='checkbox']:disabled,
+.commander-owned-toggle input[type='checkbox']:disabled,
+.collection-group-checkbox:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }

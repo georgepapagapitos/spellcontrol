@@ -283,16 +283,6 @@
   color: var(--text);
 }
 
-.commander-owned-toggle input[type='checkbox'] {
-  margin: 0;
-  width: 1rem;
-  height: 1rem;
-  cursor: pointer;
-  /* Native checkbox check uses the active theme's accent. Modern browsers
-     honor `accent-color` directly. */
-  accent-color: var(--accent);
-}
-
 .commander-owned-count {
   color: var(--text3);
 }
@@ -1995,13 +1985,6 @@ input.toolbar-search-input {
   gap: 0.85rem;
   cursor: pointer;
   user-select: none;
-}
-
-.collection-group-checkbox {
-  width: 1.1rem;
-  height: 1.1rem;
-  margin: 0;
-  accent-color: var(--accent);
 }
 
 .collection-group-icon {
