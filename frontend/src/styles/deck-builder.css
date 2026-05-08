@@ -1103,6 +1103,28 @@
   grid-template-columns: 1.4rem 1.4rem minmax(0, 1fr) auto auto 3.4rem auto;
 }
 
+/* Collapse the "not owned"/"orphan" badge to a coloured dot — the
+   row's narrow grid column otherwise eats the card name. The full
+   status text is still exposed via the existing title attribute. */
+.deck-row-status {
+  font-size: 0;
+  width: 0.55rem;
+  height: 0.55rem;
+  padding: 0;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+/* Below ~600px the price column eats the rest of the name; drop it. */
+@media (max-width: 600px) {
+  .deck-row {
+    grid-template-columns: 1.4rem 1.4rem minmax(0, 1fr) auto auto auto;
+  }
+  .deck-row-price {
+    display: none;
+  }
+}
+
 /* ── Allocated binder slot ─────────────────────────────────────────────── */
 .slot.is-allocated {
   opacity: 0.55;

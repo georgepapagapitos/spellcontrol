@@ -169,7 +169,7 @@ function buildRows(
   for (const dc of cards) {
     const card = dc.card;
     const existing = map.get(card.name);
-    const status = classifyAllocation(dc.allocatedScryfallId ?? null, collectionById ?? new Map());
+    const status = classifyAllocation(dc.allocatedScryfallId ?? null, collectionById);
     if (existing) {
       existing.qty += 1;
       existing.price += priceOf(card, currency);
@@ -432,12 +432,17 @@ export function DeckDisplay({
 }
 
 // ── ScryfallCard → EnrichedCard adapter for the preview carousel ─────────
+// Deck-builder cards never went through our import flow, so they have no
+// "purchase price" from a CSV. We fall back to Scryfall's listed USD price
+// so the carousel still shows a meaningful number instead of $0.00.
 function scryfallToEnriched(card: ScryfallCard): EnrichedCard {
   const front = card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
   const back =
     card.card_faces && card.card_faces.length > 1
       ? card.card_faces[1].image_uris?.normal
       : undefined;
+  const usd = card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched;
+  const price = usd ? Number(usd) : NaN;
   return {
     name: card.name,
     setCode: card.set,
@@ -445,7 +450,7 @@ function scryfallToEnriched(card: ScryfallCard): EnrichedCard {
     collectorNumber: '',
     rarity: card.rarity,
     scryfallId: card.id,
-    purchasePrice: 0,
+    purchasePrice: Number.isFinite(price) ? price : 0,
     sourceCategory: '',
     sourceFormat: 'deck-builder',
     foil: false,

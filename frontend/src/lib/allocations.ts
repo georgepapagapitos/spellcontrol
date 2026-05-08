@@ -81,14 +81,20 @@ export function pickCollectionCopy(
 /**
  * Lookup of `EnrichedCard` by `scryfallId` for the current collection.
  * Used by the editor to render allocation badges with set/finish info.
+ *
+ * Returns `undefined` while the collection store is still rehydrating
+ * from localStorage so callers can avoid mis-classifying allocated slots
+ * as orphans (which paints them red) on first render.
  */
-export function useCollectionByScryfallId(): Map<string, EnrichedCard> {
+export function useCollectionByScryfallId(): Map<string, EnrichedCard> | undefined {
   const cards = useCollectionStore((s) => s.cards);
+  const hydrating = useCollectionStore((s) => s.hydrating);
   return useMemo(() => {
+    if (hydrating) return undefined;
     const m = new Map<string, EnrichedCard>();
     for (const c of cards) m.set(c.scryfallId, c);
     return m;
-  }, [cards]);
+  }, [cards, hydrating]);
 }
 
 /**
@@ -99,8 +105,11 @@ export type AllocationStatus = 'allocated' | 'unowned' | 'orphan';
 
 export function classifyAllocation(
   allocatedScryfallId: string | null,
-  collectionById: Map<string, EnrichedCard>
+  collectionById: Map<string, EnrichedCard> | undefined
 ): AllocationStatus {
   if (!allocatedScryfallId) return 'unowned';
+  // Collection store hasn't rehydrated yet — defer the orphan check so we
+  // don't paint every allocated row red for one frame on load.
+  if (!collectionById) return 'allocated';
   return collectionById.has(allocatedScryfallId) ? 'allocated' : 'orphan';
 }
