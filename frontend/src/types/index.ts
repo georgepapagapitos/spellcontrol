@@ -66,6 +66,15 @@ export interface UploadResponse {
   detectedFormat: string;
 }
 
+export interface DeckImportResponse {
+  commander: import('@/deck-builder/types').ScryfallCard | null;
+  companion: import('@/deck-builder/types').ScryfallCard | null;
+  cards: import('@/deck-builder/types').ScryfallCard[];
+  unresolvedNames: string[];
+  detectedFormat: string;
+  cardCount: number;
+}
+
 export type SortField =
   | 'none'
   | 'color'
