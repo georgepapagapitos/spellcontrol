@@ -418,7 +418,8 @@ select {
   cursor: pointer;
 }
 
-.import-history-check input[type='checkbox'] {
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox'] {
   appearance: none;
   -webkit-appearance: none;
   width: 14px;
@@ -435,16 +436,19 @@ select {
     border-color 120ms ease;
 }
 
-.import-history-check input[type='checkbox']:hover:not(:disabled) {
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox']:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
-.import-history-check input[type='checkbox']:checked {
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox']:checked {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.import-history-check input[type='checkbox']:checked::after {
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox']:checked::after {
   content: '';
   width: 8px;
   height: 8px;
@@ -452,12 +456,14 @@ select {
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
 }
 
-.import-history-check input[type='checkbox']:focus-visible {
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox']:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.import-history-check input[type='checkbox']:disabled {
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox']:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }
@@ -852,6 +858,80 @@ select {
 
 .field-checkbox input {
   cursor: pointer;
+}
+
+/* ── Themed number stepper ─────────────────────────────────────────────
+   Use as: <span class="number-stepper">[−][input][+]</span>
+   Hides the native browser spinner so the custom buttons are the only
+   step affordance. The input itself keeps the standard themed border
+   from input[type='number'] above. */
+.number-stepper {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.number-stepper input[type='number'] {
+  width: 3.5rem;
+  text-align: center;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.number-stepper input[type='number']::-webkit-inner-spin-button,
+.number-stepper input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.number-stepper-btn {
+  font-family: inherit;
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 0.6rem;
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  color: var(--text2);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.number-stepper-btn:first-child {
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+
+.number-stepper-btn:last-child {
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+
+/* Fill-on-hover so the border stays put — no jitter against the input. */
+.number-stepper-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.number-stepper-btn:active:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.number-stepper-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.number-stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 select,
@@ -1449,6 +1529,9 @@ input[type='text'] {
   line-height: 1.2;
   cursor: default;
   position: relative;
+  /* Enables cqw units so overlays (e.g. the "in a deck" badge) scale with
+     slot width instead of being a fixed pixel size at every zoom level. */
+  container-type: inline-size;
 }
 
 .slot-name {
@@ -1656,6 +1739,18 @@ input[type='text'] {
   height: 17px;
   border-radius: 2px;
   flex-shrink: 0;
+}
+
+.legend-deck-swatch {
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 hr {
@@ -2849,7 +2944,16 @@ hr {
   /* Center the first/last slide by padding the scroll area with the same
      gap that the peek occupies on either side. */
   padding-inline: calc((100% - var(--slide-size)) / 2);
+  /* Breathing room between the card art and whatever sits below it
+     (flip-row, deck chip, or the info panel). */
+  padding-bottom: 1.25rem;
   scrollbar-width: none;
+}
+
+/* Flip-row already supplies its own vertical padding, so collapse the
+   track's bottom buffer when it is present — otherwise the gap doubles. */
+.card-preview-sheet:has(.card-preview-flip-row) .card-preview-track {
+  padding-bottom: 0.25rem;
 }
 
 .card-preview-track::-webkit-scrollbar {
@@ -2930,7 +3034,11 @@ hr {
 .card-preview-flip-row {
   display: flex;
   justify-content: center;
-  padding: 0.5rem 1rem 0.75rem;
+  align-items: center;
+  /* Always reserved so single-faced and transform cards take the same
+     vertical space — flipping between them must not shift the panel. */
+  min-height: 2.85rem;
+  padding: 0.35rem 1rem;
   pointer-events: none;
 }
 
