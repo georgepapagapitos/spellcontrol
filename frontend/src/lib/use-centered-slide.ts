@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 
 /**
  * Tracks which slide inside `trackRef` is centered horizontally and reports
@@ -18,7 +18,9 @@ export function useCenteredSlide(
   deps: ReadonlyArray<unknown>
 ): void {
   const onCenterRef = useRef(onCenter);
-  onCenterRef.current = onCenter;
+  useLayoutEffect(() => {
+    onCenterRef.current = onCenter;
+  });
 
   useEffect(() => {
     const track = trackRef.current;

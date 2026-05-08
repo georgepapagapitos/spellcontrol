@@ -204,9 +204,7 @@ export function CardListTable({ cards, binders }: Props) {
   const pageItems = sorted.slice(pageStart, pageStart + pageSize);
 
   // Reset to page 1 whenever filters / sort / view / page size change the result set boundaries.
-  useEffect(() => {
-    setPage(1);
-  }, [
+  const [prevFilters, setPrevFilters] = useState({
     debouncedSearch,
     binderFilter,
     colorFilter,
@@ -216,7 +214,31 @@ export function CardListTable({ cards, binders }: Props) {
     sortDir,
     view,
     pageSize,
-  ]);
+  });
+  if (
+    prevFilters.debouncedSearch !== debouncedSearch ||
+    prevFilters.binderFilter !== binderFilter ||
+    prevFilters.colorFilter !== colorFilter ||
+    prevFilters.typeFilter !== typeFilter ||
+    prevFilters.rarityFilter !== rarityFilter ||
+    prevFilters.sortKey !== sortKey ||
+    prevFilters.sortDir !== sortDir ||
+    prevFilters.view !== view ||
+    prevFilters.pageSize !== pageSize
+  ) {
+    setPrevFilters({
+      debouncedSearch,
+      binderFilter,
+      colorFilter,
+      typeFilter,
+      rarityFilter,
+      sortKey,
+      sortDir,
+      view,
+      pageSize,
+    });
+    setPage(1);
+  }
 
   const totalQty = sorted.reduce((s, r) => s + r.qty, 0);
   const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
