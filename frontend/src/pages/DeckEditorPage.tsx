@@ -119,6 +119,7 @@ export function DeckEditorPage() {
         <main className="deck-editor-main">
           <DeckDisplay
             title={deck.name}
+            deckId={deck.id}
             commander={deck.commander}
             partnerCommander={deck.partnerCommander}
             cards={displayCards}

@@ -121,6 +121,8 @@ export interface DeckDisplayCard {
 
 export interface DeckDisplayProps {
   title: string;
+  /** When set, the card-preview's "In deck" chip is suppressed for this deck. */
+  deckId?: string;
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
   cards: DeckDisplayCard[];
@@ -222,6 +224,7 @@ function sortRows(rows: Row[], mode: SortMode): Row[] {
 // ── Main component ────────────────────────────────────────────────────────
 export function DeckDisplay({
   title,
+  deckId,
   commander,
   partnerCommander,
   cards,
@@ -421,6 +424,7 @@ export function DeckDisplay({
             pageNumbers={flat.cards.map(() => 0)}
             totalPages={1}
             binderName={title}
+            currentDeckId={deckId}
             index={previewIndex}
             onIndexChange={setPreviewIndex}
             onClose={() => setPreviewIndex(null)}
