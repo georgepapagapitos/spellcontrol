@@ -4504,3 +4504,45 @@ hr {
   padding: 0 0.25rem;
   color: var(--text3);
 }
+
+/* Quiet price-freshness line below the collection table. */
+.price-freshness-line {
+  margin: 1rem 0 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.price-refresh-icon {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.price-refresh-icon:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.price-refresh-icon:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.price-refresh-icon.is-busy svg {
+  animation: price-refresh-spin 800ms linear infinite;
+}
+
+@keyframes price-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
