@@ -294,19 +294,6 @@ export function CardListTable({ cards, binders }: Props) {
         </div>
         <select
           className="collection-select"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          aria-label="Filter by type"
-        >
-          <option value="all">All Types</option>
-          {orderedTypes.map((t) => (
-            <option key={t} value={t}>
-              {TYPE_LABELS[t] ?? t}
-            </option>
-          ))}
-        </select>
-        <select
-          className="collection-select"
           value={rarityFilter}
           onChange={(e) => setRarityFilter(e.target.value)}
           aria-label="Filter by rarity"
