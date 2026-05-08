@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { ThemePicker } from '../components/deck/ThemePicker';
@@ -17,8 +17,18 @@ import type {
   ThemeResult,
 } from '@/deck-builder/types';
 
+interface PrefillState {
+  commander: ScryfallCard;
+  themes: EDHRECTheme[];
+  bracketLevel: number | 'all';
+  landCount: number;
+  collectionMode: boolean;
+}
+
 export function DeckNewPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefill = (location.state as { prefill?: PrefillState } | null)?.prefill;
   const commander = useDeckBuilderStore((s) => s.commander);
   const setCommander = useDeckBuilderStore((s) => s.setCommander);
   const colorIdentity = useDeckBuilderStore((s) => s.colorIdentity);
@@ -26,6 +36,26 @@ export function DeckNewPage() {
   const setEdhrecStats = useDeckBuilderStore((s) => s.setEdhrecStats);
   const setEdhrecLandSuggestion = useDeckBuilderStore((s) => s.setEdhrecLandSuggestion);
   const updateCustomization = useDeckBuilderStore((s) => s.updateCustomization);
+  const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
+
+  // Reset the deck-builder store on mount so opening "New deck" after
+  // creating a deck always starts at a blank commander search — the
+  // store is in-memory and would otherwise retain the previous run's
+  // commander, themes, and EDHREC data.
+  useEffect(() => {
+    resetDeckBuilder();
+    setSelectedThemes([]);
+    if (prefill) {
+      setCommander(prefill.commander);
+      setSelectedThemes(prefill.themes);
+      updateCustomization({
+        bracketLevel: prefill.bracketLevel as 'all' | 1 | 2 | 3 | 4 | 5,
+        landCount: prefill.landCount,
+        collectionMode: prefill.collectionMode,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
@@ -46,6 +76,29 @@ export function DeckNewPage() {
       return exists ? prev.filter((t) => t.slug !== theme.slug) : [...prev, theme];
     });
   }, []);
+
+  // Pre-fetch EDHREC land suggestion when commander is picked so the
+  // customizer can show the "✓ suggested" badge before generation.
+  useEffect(() => {
+    if (!commander) return;
+    let cancelled = false;
+    fetchCommanderData(commander.name)
+      .then((data) => {
+        if (cancelled || !data) return;
+        const total = data.stats.landDistribution?.total ?? 37;
+        const nonbasic = data.stats.landDistribution?.nonbasic ?? 15;
+        setEdhrecLandSuggestion({ landCount: total, nonBasicLandCount: nonbasic });
+        setEdhrecStats(data.stats);
+        // Auto-apply suggestion if user hasn't manually changed lands yet.
+        if (!useDeckBuilderStore.getState().userEditedLands) {
+          updateCustomization({ landCount: total, nonBasicLandCount: nonbasic });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [commander, setEdhrecLandSuggestion, setEdhrecStats, updateCustomization]);
 
   // ── Start-blank ───────────────────────────────────────────────────────
   const handleStartBlank = useCallback(() => {
@@ -176,79 +229,6 @@ export function DeckNewPage() {
           selectedSlugs={selectedThemeSlugs}
           onToggle={handleToggleTheme}
         />
-      )}
-
-      {commander && (
-        <section className="deck-builder-section">
-          <h2 className="deck-builder-section-title">Build settings</h2>
-          <div className="deck-builder-options">
-            <label className="field-checkbox">
-              <input
-                type="checkbox"
-                checked={customization.collectionMode}
-                onChange={(e) => updateCustomization({ collectionMode: e.target.checked })}
-              />
-              <span>Limit to cards in my collection</span>
-            </label>
-            <label className="deck-builder-field">
-              <span>Bracket</span>
-              <select
-                value={String(customization.bracketLevel)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  updateCustomization({
-                    bracketLevel: v === 'all' ? 'all' : (Number(v) as 1 | 2 | 3 | 4 | 5),
-                  });
-                }}
-              >
-                <option value="all">Any</option>
-                <option value="1">1 — Exhibition</option>
-                <option value="2">2 — Core</option>
-                <option value="3">3 — Upgraded</option>
-                <option value="4">4 — Optimized</option>
-                <option value="5">5 — cEDH</option>
-              </select>
-            </label>
-            <label className="deck-builder-field">
-              <span>Lands</span>
-              <span className="number-stepper">
-                <button
-                  type="button"
-                  className="number-stepper-btn"
-                  aria-label="Decrease lands"
-                  onClick={() =>
-                    updateCustomization({ landCount: Math.max(20, customization.landCount - 1) })
-                  }
-                  disabled={customization.landCount <= 20}
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={20}
-                  max={45}
-                  value={customization.landCount}
-                  onChange={(e) =>
-                    updateCustomization({
-                      landCount: Math.max(20, Math.min(45, Number(e.target.value) || 0)),
-                    })
-                  }
-                />
-                <button
-                  type="button"
-                  className="number-stepper-btn"
-                  aria-label="Increase lands"
-                  onClick={() =>
-                    updateCustomization({ landCount: Math.min(45, customization.landCount + 1) })
-                  }
-                  disabled={customization.landCount >= 45}
-                >
-                  +
-                </button>
-              </span>
-            </label>
-          </div>
-        </section>
       )}
 
       {commander && <DeckCustomizer customization={customization} update={updateCustomization} />}
