@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { searchCards, getCardByName } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -13,28 +13,96 @@ export interface AddCardChoice {
   allocatedScryfallId: string | null;
 }
 
+export interface CardSearchPanelHandle {
+  focusInput(): void;
+}
+
 interface Props {
   deckId: string;
   commanderColorIdentity: string[];
-  /** Names already in this deck — surfaced as "in deck" badges and used to pre-claim collection copies. */
-  existingCardNames: Set<string>;
+  /**
+   * Quantity of each card name already in this deck. Drives the "in deck × N"
+   * hint and lets the panel hint that a duplicate add is intentional (e.g. for
+   * basic lands).
+   */
+  existingCardCounts: Map<string, number>;
   onAdd: (choice: AddCardChoice) => void;
+  /** Called when the user dismisses the panel via Escape. */
+  onClose?: () => void;
 }
 
 type Mode = 'collection' | 'scryfall';
 
-export function CardSearchPanel({
-  deckId,
-  commanderColorIdentity,
-  existingCardNames,
-  onAdd,
-}: Props) {
+export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function CardSearchPanel(
+  { deckId, commanderColorIdentity, existingCardCounts, onAdd, onClose },
+  ref
+) {
   const [mode, setMode] = useState<Mode>('collection');
   const [query, setQuery] = useState('');
+  const [announce, setAnnounce] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // The two result lists publish their currently-visible cards here so the
+  // panel-level "Enter to add the first result" handler is independent of
+  // which tab is active.
+  const visibleResultsRef = useRef<ScryfallCard[]>([]);
+  const addCurrentRef = useRef<((index: number) => Promise<void> | void) | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => inputRef.current?.focus(),
+  }));
+
+  // Auto-focus on mount.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Resetting the active row when query/tab changes keeps "Enter adds the
+  // top result" predictable.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query, mode]);
+
+  const handleAnnounce = (msg: string) => {
+    // Cycle the live region by emptying first; some screen readers ignore
+    // re-announcements of the same string.
+    setAnnounce('');
+    window.setTimeout(() => setAnnounce(msg), 30);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const max = visibleResultsRef.current.length;
+    if (e.key === 'Escape') {
+      if (query) {
+        setQuery('');
+      } else {
+        onClose?.();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      if (max === 0) return;
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(max - 1, i + 1));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      if (max === 0) return;
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(0, i - 1));
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (max === 0) return;
+      e.preventDefault();
+      const idx = Math.min(activeIndex, max - 1);
+      addCurrentRef.current?.(idx);
+    }
+  };
 
   return (
     <div className="card-search-panel">
-      <div className="card-search-tabs" role="tablist">
+      <div className="card-search-tabs" role="tablist" aria-label="Card source">
         <button
           type="button"
           role="tab"
@@ -56,48 +124,86 @@ export function CardSearchPanel({
       </div>
 
       <input
+        ref={inputRef}
         type="search"
         className="card-search-input"
         placeholder={mode === 'collection' ? 'Search your collection…' : 'Search all of Scryfall…'}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
+        aria-label={mode === 'collection' ? 'Search your collection' : 'Search Scryfall'}
+        aria-controls="card-search-results"
+        aria-activedescendant={
+          visibleResultsRef.current.length > 0 ? `card-search-result-${activeIndex}` : undefined
+        }
       />
+      <p className="card-search-hint" aria-hidden>
+        ↑ ↓ to navigate · Enter to add · Esc to close
+      </p>
 
       {mode === 'collection' ? (
         <CollectionResults
           deckId={deckId}
           colorIdentity={commanderColorIdentity}
-          existingCardNames={existingCardNames}
+          existingCardCounts={existingCardCounts}
           query={query}
+          activeIndex={activeIndex}
+          onActiveChange={setActiveIndex}
           onAdd={onAdd}
+          onAnnounce={handleAnnounce}
+          publishVisible={(cards, addAt) => {
+            visibleResultsRef.current = cards;
+            addCurrentRef.current = addAt;
+          }}
         />
       ) : (
         <ScryfallResults
           deckId={deckId}
           colorIdentity={commanderColorIdentity}
-          existingCardNames={existingCardNames}
+          existingCardCounts={existingCardCounts}
           query={query}
+          activeIndex={activeIndex}
+          onActiveChange={setActiveIndex}
           onAdd={onAdd}
+          onAnnounce={handleAnnounce}
+          publishVisible={(cards, addAt) => {
+            visibleResultsRef.current = cards;
+            addCurrentRef.current = addAt;
+          }}
         />
       )}
+
+      <div className="sr-only" role="status" aria-live="polite">
+        {announce}
+      </div>
     </div>
   );
+});
+
+interface ResultsProps {
+  deckId: string;
+  colorIdentity: string[];
+  existingCardCounts: Map<string, number>;
+  query: string;
+  activeIndex: number;
+  onActiveChange: (i: number) => void;
+  onAdd: (choice: AddCardChoice) => void;
+  onAnnounce: (msg: string) => void;
+  publishVisible: (cards: ScryfallCard[], addAt: (index: number) => Promise<void> | void) => void;
 }
 
 // ── Collection results ───────────────────────────────────────────────────
 function CollectionResults({
   deckId,
   colorIdentity,
-  existingCardNames,
+  existingCardCounts,
   query,
+  activeIndex,
+  onActiveChange,
   onAdd,
-}: {
-  deckId: string;
-  colorIdentity: string[];
-  existingCardNames: Set<string>;
-  query: string;
-  onAdd: (choice: AddCardChoice) => void;
-}) {
+  onAnnounce,
+  publishVisible,
+}: ResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
@@ -107,16 +213,11 @@ function CollectionResults({
     const seenNames = new Set<string>();
     const out: EnrichedCard[] = [];
     for (const c of collection) {
-      // Color identity must be a subset of the commander's identity.
       const ci = c.colorIdentity ?? [];
       if (!ci.every((k) => colorIdentity.includes(k))) continue;
-      // Commander legality (when known).
       const legality = c.legalities?.commander;
       if (legality && legality !== 'legal' && legality !== 'restricted') continue;
-      // Name match.
       if (q && !c.name.toLowerCase().includes(q)) continue;
-      // Group by name — only the first occurrence is shown; we record the
-      // count so the row can show "owned: 3".
       if (seenNames.has(c.name)) continue;
       seenNames.add(c.name);
       out.push(c);
@@ -124,6 +225,29 @@ function CollectionResults({
     out.sort((a, b) => a.name.localeCompare(b.name));
     return out.slice(0, 200);
   }, [collection, colorIdentity, query]);
+
+  const addAtIndex = async (index: number) => {
+    const c = filtered[index];
+    if (!c) return;
+    const full = await getCardByName(c.name).catch(() => null);
+    if (!full) return;
+    const claim = pickCollectionCopy(c.name, collection, allocations);
+    onAdd({ card: full, allocatedScryfallId: claim?.scryfallId ?? null });
+    onAnnounce(`Added ${c.name}`);
+  };
+
+  // Publish visible results so the parent's Enter handler can add the
+  // currently-active row. We can't drive the parent input from here directly,
+  // so we hand it a closure.
+  useEffect(() => {
+    // Convert EnrichedCards to a thin ScryfallCard-ish list; we only need the
+    // length / order on the parent side.
+    publishVisible(
+      filtered.map((c) => ({ name: c.name }) as unknown as ScryfallCard),
+      addAtIndex
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]);
 
   if (collection.length === 0) {
     return (
@@ -137,30 +261,38 @@ function CollectionResults({
   }
 
   return (
-    <ul className="card-search-results">
-      {filtered.map((c) => {
+    <ul className="card-search-results" id="card-search-results" role="listbox">
+      {filtered.map((c, i) => {
         const ownedCount = collection.filter((x) => x.name === c.name).length;
-        const inDeck = existingCardNames.has(c.name);
+        const inDeck = existingCardCounts.get(c.name) ?? 0;
+        const active = i === activeIndex;
         return (
-          <li key={c.scryfallId} className="card-search-row">
+          <li
+            key={c.scryfallId}
+            id={`card-search-result-${i}`}
+            role="option"
+            aria-selected={active}
+            className={`card-search-row${active ? ' active' : ''}`}
+            onMouseEnter={() => onActiveChange(i)}
+          >
             <button
               type="button"
               className="card-search-add"
-              aria-label={`Add ${c.name}`}
-              onClick={async () => {
-                const full = await getCardByName(c.name).catch(() => null);
-                if (!full) return;
-                const claim = pickCollectionCopy(c.name, collection, allocations);
-                onAdd({ card: full, allocatedScryfallId: claim?.scryfallId ?? null });
-              }}
+              aria-label={inDeck > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+              onClick={() => addAtIndex(i)}
             >
               +
             </button>
             <span className="card-search-name">{c.name}</span>
             {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
             <span className="card-search-meta">
-              owned: {ownedCount}
-              {inDeck ? ' · in deck' : ''}
+              owned {ownedCount}
+              {inDeck > 0 && (
+                <>
+                  {' · '}
+                  <span className="card-search-indeck">in deck × {inDeck}</span>
+                </>
+              )}
             </span>
           </li>
         );
@@ -168,9 +300,6 @@ function CollectionResults({
     </ul>
   );
 
-  // Suppress unused-import lint for deckId — we keep it in the API for symmetry
-  // with ScryfallResults and to support future per-deck behavior (e.g. recent
-  // adds). React-style noop.
   void deckId;
 }
 
@@ -178,16 +307,14 @@ function CollectionResults({
 function ScryfallResults({
   deckId,
   colorIdentity,
-  existingCardNames,
+  existingCardCounts,
   query,
+  activeIndex,
+  onActiveChange,
   onAdd,
-}: {
-  deckId: string;
-  colorIdentity: string[];
-  existingCardNames: Set<string>;
-  query: string;
-  onAdd: (choice: AddCardChoice) => void;
-}) {
+  onAnnounce,
+  publishVisible,
+}: ResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const [results, setResults] = useState<ScryfallCard[]>([]);
@@ -209,8 +336,6 @@ function ScryfallResults({
     debounce.current = window.setTimeout(async () => {
       setLoading(true);
       try {
-        // searchCards adds the color-identity + commander-legality filters
-        // for us — we just pass the user-typed text.
         const resp = await searchCards(q, colorIdentity);
         setResults(resp.data.slice(0, 60));
       } catch (e) {
@@ -224,6 +349,20 @@ function ScryfallResults({
       if (debounce.current) window.clearTimeout(debounce.current);
     };
   }, [query, colorIdentity]);
+
+  const addAtIndex = (index: number) => {
+    const c = results[index];
+    if (!c) return;
+    const owned = ownedNames.has(c.name);
+    const claim = owned ? pickCollectionCopy(c.name, collection, allocations) : null;
+    onAdd({ card: c, allocatedScryfallId: claim?.scryfallId ?? null });
+    onAnnounce(`Added ${c.name}`);
+  };
+
+  useEffect(() => {
+    publishVisible(results, addAtIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results]);
 
   if (query.trim().length < 2) {
     return <p className="card-search-empty">Type at least two characters to search Scryfall.</p>;
@@ -239,20 +378,25 @@ function ScryfallResults({
   }
 
   return (
-    <ul className="card-search-results">
-      {results.map((c) => {
-        const inDeck = existingCardNames.has(c.name);
+    <ul className="card-search-results" id="card-search-results" role="listbox">
+      {results.map((c, i) => {
+        const inDeck = existingCardCounts.get(c.name) ?? 0;
         const owned = ownedNames.has(c.name);
+        const active = i === activeIndex;
         return (
-          <li key={c.id} className="card-search-row">
+          <li
+            key={c.id}
+            id={`card-search-result-${i}`}
+            role="option"
+            aria-selected={active}
+            className={`card-search-row${active ? ' active' : ''}`}
+            onMouseEnter={() => onActiveChange(i)}
+          >
             <button
               type="button"
               className="card-search-add"
-              aria-label={`Add ${c.name}`}
-              onClick={() => {
-                const claim = owned ? pickCollectionCopy(c.name, collection, allocations) : null;
-                onAdd({ card: c, allocatedScryfallId: claim?.scryfallId ?? null });
-              }}
+              aria-label={inDeck > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+              onClick={() => addAtIndex(i)}
             >
               +
             </button>
@@ -260,7 +404,12 @@ function ScryfallResults({
             {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
             <span className="card-search-meta">
               {owned ? 'owned' : 'not owned'}
-              {inDeck ? ' · in deck' : ''}
+              {inDeck > 0 && (
+                <>
+                  {' · '}
+                  <span className="card-search-indeck">in deck × {inDeck}</span>
+                </>
+              )}
             </span>
           </li>
         );
