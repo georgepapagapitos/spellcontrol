@@ -487,6 +487,7 @@ export interface AppState {
     suggestion: { landCount: number; nonBasicLandCount: number } | null
   ) => void;
   setEdhrecStats: (stats: EDHRECCommanderStats | null) => void;
+  setUserEditedLands: (edited: boolean) => void;
   updateCustomization: (updates: Partial<Customization>) => void;
   setGeneratedDeck: (deck: GeneratedDeck | null) => void;
   swapDeckCard: (oldCard: ScryfallCard, newCard: ScryfallCard) => void;
