@@ -23,10 +23,7 @@ export function PriceFreshnessBanner() {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (c.purchasePrice === 0) {
-        unpricedCount += 1;
-        continue;
-      }
+      if (c.purchasePrice === 0) unpricedCount += 1;
 
       const t = c.pricedAt;
       if (typeof t !== 'number') {
@@ -38,7 +35,9 @@ export function PriceFreshnessBanner() {
       if (t < oldestPriced) oldestPriced = t;
     }
 
-    const needsRefresh = staleCount > 0 || unpricedCount > 0;
+    // Banner shows only on staleness. Unpriced cards alone do not re-trigger
+    // it — once we have asked Scryfall recently, "they had nothing" is fresh.
+    const needsRefresh = staleCount > 0;
     return { staleCount, unpricedCount, mostRecent, oldestPriced, needsRefresh };
   }, [cards]);
 

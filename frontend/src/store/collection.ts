@@ -289,10 +289,16 @@ export const useCollectionStore = create<CollectionState>()(
             prices: Record<string, { usd: number; pricedAt: number }>;
           };
 
+          // Stamp pricedAt on every requested card — even those Scryfall had no
+          // price for. "We asked today, they had nothing" is a fresh result, so
+          // those cards stop counting as stale and the banner can hide.
+          const requested = new Set(ids);
+          const stampedAt = Date.now();
           const updated = get().cards.map((c) => {
             const hit = prices[c.scryfallId];
-            if (!hit) return c;
-            return { ...c, purchasePrice: hit.usd, pricedAt: hit.pricedAt };
+            if (hit) return { ...c, purchasePrice: hit.usd, pricedAt: hit.pricedAt };
+            if (requested.has(c.scryfallId)) return { ...c, pricedAt: stampedAt };
+            return c;
           });
 
           set({ cards: updated });
