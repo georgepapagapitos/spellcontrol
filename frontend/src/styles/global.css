@@ -95,6 +95,12 @@ body {
   color: var(--text);
   min-height: 100vh;
   padding: 0 1rem 2rem;
+  /* Belt-and-suspenders against the occasional rogue popover or
+     long string that briefly overflows the viewport before its own
+     container catches it. `overflow-x: clip` is preferred over
+     `hidden` because it doesn't establish a new containing block,
+     so position: fixed / sticky behave the way you'd expect. */
+  overflow-x: clip;
 }
 
 button {
@@ -3918,8 +3924,8 @@ hr {
   top: calc(100% + 4px);
   left: 0;
   z-index: 200;
-  min-width: 200px;
-  max-width: 280px;
+  min-width: min(200px, calc(100vw - 2rem));
+  max-width: min(280px, calc(100vw - 2rem));
   background: var(--surface-raised, var(--surface));
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -3961,7 +3967,7 @@ hr {
   border-radius: var(--radius);
   z-index: 50;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  min-width: 240px;
+  min-width: min(240px, calc(100vw - 2rem));
 }
 
 .set-dropdown-item {
