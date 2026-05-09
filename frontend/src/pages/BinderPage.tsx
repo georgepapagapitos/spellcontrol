@@ -240,6 +240,33 @@ export function BinderPage() {
 
   const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
 
+  // Rendered next to "Collapse all" inside each view's summary line so the
+  // mode toggle sits adjacent to the content it switches between.
+  const viewToggle = (
+    <div className="toolbar-viewmode" role="group" aria-label="Binder view mode">
+      <button
+        type="button"
+        className={`toolbar-viewmode-btn${view === 'pages' ? ' active' : ''}`}
+        aria-pressed={view === 'pages'}
+        aria-label="Pages view"
+        title="Pages view"
+        onClick={() => setView('pages')}
+      >
+        <PagesViewIcon />
+      </button>
+      <button
+        type="button"
+        className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
+        aria-pressed={view === 'list'}
+        aria-label="List view"
+        title="List view"
+        onClick={() => setView('list')}
+      >
+        <ListViewIcon />
+      </button>
+    </div>
+  );
+
   return (
     <>
       <BinderTabs binders={materialized} />
@@ -319,52 +346,28 @@ export function BinderPage() {
         </header>
       )}
       <div className="binder-toolbar">
-        <div className="toolbar-viewmode" role="group" aria-label="Binder view mode">
-          <button
-            type="button"
-            className={`toolbar-viewmode-btn${view === 'pages' ? ' active' : ''}`}
-            aria-pressed={view === 'pages'}
-            aria-label="Pages view"
-            title="Pages view"
-            onClick={() => setView('pages')}
-          >
-            <PagesViewIcon />
-          </button>
-          <button
-            type="button"
-            className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
-            aria-pressed={view === 'list'}
-            aria-label="List view"
-            title="List view"
-            onClick={() => setView('list')}
-          >
-            <ListViewIcon />
-          </button>
+        <div className="binder-toolbar-search">
+          <input
+            type="search"
+            placeholder="Filter cards by name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Filter cards by name"
+          />
+          {search && (
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+            >
+              Clear
+            </button>
+          )}
         </div>
-        {view === 'pages' && (
-          <div className="binder-toolbar-search">
-            <input
-              type="search"
-              placeholder="Filter cards by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Filter cards by name"
-            />
-            {search && (
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => setSearch('')}
-                aria-label="Clear search"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        )}
       </div>
       {view === 'pages' ? (
-        <BinderView binders={materialized} />
+        <BinderView binders={materialized} viewToggle={viewToggle} />
       ) : (
         (() => {
           const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
@@ -372,7 +375,7 @@ export function BinderPage() {
           // BinderListView preserves the binder's section grouping (the same
           // White / Blue / Multicolor / etc. headers as the page grid view)
           // and rolls duplicate copies into qty pills.
-          return <BinderListView binder={active} />;
+          return <BinderListView binder={active} viewToggle={viewToggle} />;
         })()
       )}
     </>

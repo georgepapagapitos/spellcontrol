@@ -9,6 +9,8 @@ import { getColorKey, COLOR_INFO } from '../lib/colors';
 
 interface Props {
   binder: MaterializedBinder;
+  /** Optional slot rendered in the summary line next to "Collapse all". */
+  viewToggle?: React.ReactNode;
 }
 
 interface Row {
@@ -35,7 +37,7 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({ binder }: Props) {
+export function BinderListView({ binder, viewToggle }: Props) {
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -166,15 +168,18 @@ export function BinderListView({ binder }: Props) {
 
   return (
     <>
-      {flat.sectionRows.length > 1 && (
+      {(flat.sectionRows.length > 1 || viewToggle) && (
         <div className="binder-summary" aria-live="polite">
-          <button
-            type="button"
-            className="btn-link binder-summary-collapse"
-            onClick={allCollapsed ? expandAll : collapseAll}
-          >
-            {allCollapsed ? 'Expand all' : 'Collapse all'}
-          </button>
+          {flat.sectionRows.length > 1 && (
+            <button
+              type="button"
+              className="btn-link binder-summary-collapse"
+              onClick={allCollapsed ? expandAll : collapseAll}
+            >
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+          )}
+          {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
         </div>
       )}
       {flat.sectionRows.map(({ sectionKey, rows }) => {

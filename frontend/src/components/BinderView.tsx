@@ -21,9 +21,11 @@ const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
 
 interface Props {
   binders: MaterializedBinder[];
+  /** Optional slot rendered in the summary line next to "Collapse all". */
+  viewToggle?: React.ReactNode;
 }
 
-export function BinderView({ binders }: Props) {
+export function BinderView({ binders, viewToggle }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -69,6 +71,7 @@ export function BinderView({ binders }: Props) {
       sections={active.sections}
       pocketSize={active.effectivePocketSize}
       sorts={active.effectiveSorts}
+      viewToggle={viewToggle}
     />
   );
 }
@@ -80,6 +83,7 @@ function SectionList({
   sections,
   pocketSize,
   sorts,
+  viewToggle,
 }: {
   viewKey: string;
   binderName: string;
@@ -87,6 +91,7 @@ function SectionList({
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortField[];
+  viewToggle?: React.ReactNode;
 }) {
   const activeSorts = sorts.filter((s) => s && s !== 'none');
   // Full sort breadcrumb (e.g. "color › name › cmc") — communicates the
@@ -215,6 +220,7 @@ function SectionList({
             {allCollapsed ? 'Expand all' : 'Collapse all'}
           </button>
         )}
+        {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
       </div>
       {sections.map((section, sectionIdx) => {
         const isCollapsed = collapsed.has(section.key);
