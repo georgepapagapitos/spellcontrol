@@ -281,7 +281,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     setPage(1);
   }
 
-  const totalQty = sorted.reduce((s, r) => s + r.qty, 0);
+  const totalRowCount = rows.length;
   const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
@@ -486,11 +486,15 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       </div>
 
       <div className="card-list-summary-line">
-        {/* Announce filter result counts to screen readers when the result
-            set changes — keeps assistive tech in step with visual filtering. */}
+        {/* Counts here describe what's currently visible (after filters /
+            search), not the whole collection — the OVERVIEW row above
+            owns the canonical totals. Announced to AT so screen readers
+            stay in sync with visual filtering. */}
         <span aria-live="polite" aria-atomic="true">
-          {sorted.length.toLocaleString()} {sorted.length === 1 ? 'card' : 'cards'} ·{' '}
-          {totalQty.toLocaleString()} total · ${totalValue.toFixed(0)}
+          {sorted.length === totalRowCount
+            ? `${sorted.length.toLocaleString()} ${sorted.length === 1 ? 'printing' : 'printings'}`
+            : `${sorted.length.toLocaleString()} of ${totalRowCount.toLocaleString()} printings`}
+          {' · '}${totalValue.toFixed(0)}
         </span>
         <SortMenu sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
       </div>
