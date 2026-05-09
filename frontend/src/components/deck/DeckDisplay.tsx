@@ -186,7 +186,7 @@ function readStoredFormat(): ExportFormat {
 //    (price, role badges, mana cost).
 // All persisted to localStorage so the deck the user opened yesterday looks
 // the way they left it.
-export type DeckViewMode = 'list' | 'grid' | 'text';
+export type DeckViewMode = 'list' | 'compact' | 'grid' | 'text';
 
 interface ShowPrefs {
   price: boolean;
@@ -203,7 +203,7 @@ function readStoredViewMode(): DeckViewMode {
   if (typeof window === 'undefined') return 'list';
   try {
     const v = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-    if (v === 'list' || v === 'grid' || v === 'text') return v;
+    if (v === 'list' || v === 'compact' || v === 'grid' || v === 'text') return v;
   } catch {
     /* ignore */
   }
@@ -657,8 +657,8 @@ export function DeckDisplay({
 
         <div className="deck-display-body">
           <div className="deck-display-main">
-            {viewMode === 'list' && (
-              <div className="deck-card-list">
+            {(viewMode === 'list' || viewMode === 'compact') && (
+              <div className={`deck-card-list${viewMode === 'compact' ? ' is-compact' : ''}`}>
                 {visibleGroups.map((g) => (
                   <CategorySection
                     key={g.title}
@@ -1185,6 +1185,28 @@ function ViewModeToggle({
           <circle cx="4" cy="6" r="0.5" />
           <circle cx="4" cy="12" r="0.5" />
           <circle cx="4" cy="18" r="0.5" />
+        </svg>
+      ),
+    },
+    {
+      mode: 'compact',
+      label: 'Compact list',
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M3 6h18" />
+          <path d="M3 10h18" />
+          <path d="M3 14h18" />
+          <path d="M3 18h18" />
         </svg>
       ),
     },

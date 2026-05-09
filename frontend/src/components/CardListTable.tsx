@@ -30,7 +30,7 @@ interface Row {
   binderColor: string | null;
 }
 
-type ViewMode = 'grid' | 'list';
+type ViewMode = 'grid' | 'list' | 'compact';
 type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -388,24 +388,36 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
             </button>
           )}
         </div>
-        <div className="view-toggle" role="group" aria-label="View mode">
+        <div className="toolbar-viewmode" role="group" aria-label="View mode">
           <button
             type="button"
-            className={`view-toggle-btn${view === 'grid' ? ' is-active' : ''}`}
+            className={`toolbar-viewmode-btn${view === 'grid' ? ' active' : ''}`}
             onClick={() => setView('grid')}
             aria-label="Grid view"
+            title="Grid view"
             aria-pressed={view === 'grid'}
           >
             <GridIcon />
           </button>
           <button
             type="button"
-            className={`view-toggle-btn${view === 'list' ? ' is-active' : ''}`}
+            className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
             onClick={() => setView('list')}
             aria-label="List view"
+            title="List view (with thumbnails)"
             aria-pressed={view === 'list'}
           >
             <ListIcon />
+          </button>
+          <button
+            type="button"
+            className={`toolbar-viewmode-btn${view === 'compact' ? ' active' : ''}`}
+            onClick={() => setView('compact')}
+            aria-label="Compact list view"
+            title="Compact list (text only)"
+            aria-pressed={view === 'compact'}
+          >
+            <CompactListIcon />
           </button>
         </div>
       </div>
@@ -540,7 +552,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
           ))}
         </div>
       ) : (
-        <div className="collection-list">
+        <div className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}>
           {pageItems.map((r, i) => {
             const colorKey = getColorKey(r.card);
             return (
@@ -747,21 +759,67 @@ function typeIcon(t: string): string {
 
 function GridIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }
 
 function ListIcon() {
+  // Bullets + lines: communicates "rows with thumbnails / per-row marker".
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.5" />
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="4" cy="6" r="0.5" />
+      <circle cx="4" cy="12" r="0.5" />
+      <circle cx="4" cy="18" r="0.5" />
+    </svg>
+  );
+}
+
+function CompactListIcon() {
+  // Plain horizontal lines — denser than the bulleted list to read as "more compact".
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M3 10h18" />
+      <path d="M3 14h18" />
+      <path d="M3 18h18" />
     </svg>
   );
 }
