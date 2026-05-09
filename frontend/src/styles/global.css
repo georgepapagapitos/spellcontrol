@@ -4603,8 +4603,15 @@ hr {
 
 /* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
 .binder-pages-backdrop {
-  --slide-spacing: 1rem;
-  --slide-size: 88%;
+  /* Match the card-preview sizing strategy: bound the slide by viewport
+     width, an absolute reading ceiling, AND viewport height (so the page
+     never overflows behind the bottom panel). 14rem reserves panel + slide
+     label + safe area; the 0.72 ratio matches a 5:7 card face — most
+     binders are 9-pocket so the page aspect is also 5:7 and the formula
+     applies cleanly. Wider 12-pocket pages just render shorter under the
+     same width cap, which is fine. */
+  --slide-size: min(94vw, 520px, calc((100dvh - 14rem) * 0.72));
+  --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.72);
@@ -4626,7 +4633,7 @@ hr {
 
 .binder-pages-track {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--slide-spacing);
   width: 100%;
   min-height: 0;
@@ -4637,6 +4644,7 @@ hr {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
   padding-inline: calc((100% - var(--slide-size)) / 2);
+  padding-bottom: 1.25rem;
   scrollbar-width: none;
 }
 
@@ -4770,30 +4778,6 @@ hr {
   font-family: var(--font-mono);
   letter-spacing: 0.05em;
   margin-top: 0.15rem;
-}
-
-@media (min-width: 600px) {
-  .binder-pages-backdrop {
-    /* Width is also bounded by viewport height: 9-pocket slides are ~1.4× as
-       tall as they are wide, and the bottom panel + label eat ~140px, so cap
-       width by vh so the slide fits vertically without being clipped behind
-       the panel. */
-    --slide-size: min(72vw, 52vh);
-    --slide-spacing: clamp(2rem, 10vw, 8rem);
-  }
-}
-
-@media (min-width: 1024px) {
-  .binder-pages-backdrop {
-    --slide-size: min(60vw, 54vh);
-    --slide-spacing: clamp(3rem, 12vw, 10rem);
-  }
-}
-
-@media (min-width: 1440px) {
-  .binder-pages-backdrop {
-    --slide-size: min(48vw, 54vh);
-  }
 }
 
 /* ── Responsive enhancements ────────────────────────────────────────────── */
