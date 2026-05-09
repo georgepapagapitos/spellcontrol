@@ -1248,22 +1248,18 @@ input[type='search'] {
   font-size: var(--text-sm);
 }
 
-/* When the view-mode toggle is rendered in the summary, sit it right
-   after Collapse all without claiming its own row. The auto margin on
-   .binder-summary-collapse already pushes the pair to the right edge. */
+/* The view-mode toggle anchors itself to the right of the summary
+   line. When Collapse all sits beside it, only Collapse all gets the
+   auto margin (otherwise both items split the slack and the buttons
+   end up centered). */
 .binder-summary-viewmode {
   display: inline-flex;
   align-items: center;
+  margin-left: auto;
 }
 
 .binder-summary-collapse + .binder-summary-viewmode {
   margin-left: 0.6rem;
-}
-
-/* When Collapse all isn't rendered (single-section binder), keep the
-   toggle pinned to the right edge of the summary line. */
-.binder-summary > .binder-summary-viewmode:last-child {
-  margin-left: auto;
 }
 
 .binder-summary-open {
