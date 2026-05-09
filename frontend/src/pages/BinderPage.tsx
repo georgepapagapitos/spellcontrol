@@ -270,7 +270,7 @@ export function BinderPage() {
         <div className="binder-toolbar-actions">
           <button
             type="button"
-            className="btn binder-toolbar-edit"
+            className="pill-btn"
             aria-haspopup="dialog"
             onClick={() => setEditingBinder(activeTab)}
             disabled={!activeTab}
@@ -280,7 +280,7 @@ export function BinderPage() {
           </button>
           <button
             type="button"
-            className="btn binder-toolbar-switch"
+            className="pill-btn"
             aria-haspopup="dialog"
             onClick={() => setBinderPickerOpen(true)}
           >
