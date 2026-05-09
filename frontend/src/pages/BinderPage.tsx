@@ -6,6 +6,10 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderPickerSheet } from '../components/BinderPickerSheet';
 import { BinderView } from '../components/BinderView';
+import { BinderListView } from '../components/BinderListView';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { SearchPill } from '../components/SearchPill';
+import { FilterPopover } from '../components/FilterPopover';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
@@ -29,6 +33,13 @@ export function BinderPage() {
 
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
+  // Three-way view: 'pages' (the section/page grid) → 'list' (rows
+  // with thumbnails + meta) → 'compact' (text-only rows). Local state.
+  const [view, setView] = useState<'pages' | 'list' | 'compact'>('pages');
+  // List-view only: roll multiple copies of the same printing into one
+  // row. Lifted to the page so the options menu in the toolbar can
+  // toggle it without poking into the list component.
+  const [groupPrintings, setGroupPrintings] = useState(false);
 
   const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
   // When the user already has a real collection, "Try it out" should only add
@@ -55,10 +66,31 @@ export function BinderPage() {
   // still reflects live keystrokes via the un-debounced `search`.
   const debouncedSearch = useDebouncedValue(search, 180);
 
+  // When "group printings" is on we collapse multiple copies of the same
+  // (scryfallId, foil) into a single representative copy and remember the
+  // total via qtyByCopyId. The materializer then lays out unique
+  // printings; CardSlot paints a ×N badge on slots with qty > 1.
+  const { effectiveCards, qtyByCopyId } = useMemo(() => {
+    if (!groupPrintings) return { effectiveCards: cards, qtyByCopyId: undefined };
+    const seen = new Map<string, { card: (typeof cards)[number]; qty: number }>();
+    for (const c of cards) {
+      const key = `${c.scryfallId}:${c.foil ? 1 : 0}`;
+      const existing = seen.get(key);
+      if (existing) existing.qty += 1;
+      else seen.set(key, { card: c, qty: 1 });
+    }
+    const qtyMap = new Map<string, number>();
+    const deduped = [...seen.values()].map(({ card, qty }) => {
+      qtyMap.set(card.copyId, qty);
+      return card;
+    });
+    return { effectiveCards: deduped, qtyByCopyId: qtyMap };
+  }, [cards, groupPrintings]);
+
   const materialized = useMemo(() => {
-    if (cards.length === 0) return [];
-    return materializeBinders(cards, binders, { search: debouncedSearch }).binders;
-  }, [cards, binders, debouncedSearch]);
+    if (effectiveCards.length === 0) return [];
+    return materializeBinders(effectiveCards, binders, { search: debouncedSearch }).binders;
+  }, [effectiveCards, binders, debouncedSearch]);
 
   if (hydrating) {
     return (
@@ -235,6 +267,21 @@ export function BinderPage() {
 
   const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
 
+  // Rendered next to "Collapse all" inside each view's summary line so the
+  // mode toggle sits adjacent to the content it switches between.
+  const viewToggle = (
+    <ViewModeToggle<'pages' | 'list' | 'compact'>
+      ariaLabel="Binder view mode"
+      value={view}
+      onChange={setView}
+      options={[
+        { value: 'pages', label: 'Pages view', icon: <PagesViewIcon /> },
+        { value: 'list', label: 'List view (with thumbnails)', icon: <ListViewIcon /> },
+        { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+      ]}
+    />
+  );
+
   return (
     <>
       <BinderTabs binders={materialized} />
@@ -314,27 +361,49 @@ export function BinderPage() {
         </header>
       )}
       <div className="binder-toolbar">
-        <div className="binder-toolbar-search">
-          <input
-            type="search"
-            placeholder="Filter cards by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Filter cards by name"
-          />
-          {search && (
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => setSearch('')}
-              aria-label="Clear search"
-            >
-              Clear
-            </button>
-          )}
-        </div>
+        <SearchPill
+          value={search}
+          onChange={setSearch}
+          placeholder="Search cards by name..."
+          ariaLabel="Search cards by name"
+          trailing={
+            <FilterPopover
+              ariaLabel="Binder options"
+              toggles={[
+                {
+                  key: 'group-printings',
+                  label: 'Group printings',
+                  hint:
+                    view === 'pages'
+                      ? 'Collapse duplicate copies into one slot with a ×N badge'
+                      : 'Roll multiple copies of the same printing into one row',
+                  value: groupPrintings,
+                  onChange: setGroupPrintings,
+                },
+              ]}
+            />
+          }
+        />
       </div>
-      <BinderView binders={materialized} />
+      {view === 'pages' ? (
+        <BinderView binders={materialized} viewToggle={viewToggle} qtyByCopyId={qtyByCopyId} />
+      ) : (
+        (() => {
+          const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
+          if (!active) return null;
+          // BinderListView preserves the binder's section grouping (the same
+          // White / Blue / Multicolor / etc. headers as the page grid view)
+          // and rolls duplicate copies into qty pills.
+          return (
+            <BinderListView
+              binder={active}
+              viewToggle={viewToggle}
+              qtyByCopyId={qtyByCopyId}
+              density={view === 'compact' ? 'compact' : 'detail'}
+            />
+          );
+        })()
+      )}
     </>
   );
 }
@@ -353,6 +422,71 @@ function PencilIcon() {
       aria-hidden
     >
       <path d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z" />
+    </svg>
+  );
+}
+
+function PagesViewIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function ListViewIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="4" cy="6" r="0.5" />
+      <circle cx="4" cy="12" r="0.5" />
+      <circle cx="4" cy="18" r="0.5" />
+    </svg>
+  );
+}
+
+function CompactListIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M3 10h18" />
+      <path d="M3 14h18" />
+      <path d="M3 18h18" />
     </svg>
   );
 }

@@ -22,13 +22,6 @@ export function CollectionPage() {
     return { materialized: result.binders };
   }, [cards, binders]);
 
-  const totalValue = useMemo(() => cards.reduce((sum, c) => sum + c.purchasePrice, 0), [cards]);
-  const uniquePrintings = useMemo(() => {
-    const seen = new Set<string>();
-    for (const c of cards) seen.add(c.scryfallId);
-    return seen.size;
-  }, [cards]);
-
   return (
     <>
       {hydrating ? (
@@ -55,10 +48,6 @@ export function CollectionPage() {
           <header className="binder-hero collection-hero">
             <div className="collection-hero-text">
               <h1 className="binder-hero-name">Collection</h1>
-              <p className="binder-hero-meta">
-                {cards.length.toLocaleString()} {cards.length === 1 ? 'card' : 'cards'} ·{' '}
-                {uniquePrintings.toLocaleString()} unique · ${totalValue.toFixed(0)}
-              </p>
             </div>
             <button
               type="button"
