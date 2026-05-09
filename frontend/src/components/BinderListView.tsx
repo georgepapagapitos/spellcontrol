@@ -1,11 +1,19 @@
-import { useMemo, useState } from 'react';
-import type { EnrichedCard, MaterializedBinder } from '../types';
+import { useCallback, useMemo, useState } from 'react';
+import type { EnrichedCard, MaterializedBinder, SortField } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { useCollectionStore } from '../store/collection';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
+import { SORT_FIELDS } from '../lib/sorting';
+import { Legend } from './Legend';
+import { BinderPagePreview } from './BinderPagePreview';
+
+const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
+  (acc, f) => ({ ...acc, [f.value]: f.label }),
+  {} as Record<SortField, string>
+);
 
 interface Props {
   binder: MaterializedBinder;
@@ -43,6 +51,29 @@ export function BinderListView({ binder, viewToggle }: Props) {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
+
+  // Sort breadcrumb (e.g. "color › cmc › name") shown on each section
+  // header so the binder's grouping/ordering hierarchy is visible at a
+  // glance — same affordance the page-grid view exposes.
+  const sortBreadcrumb = useMemo(() => {
+    const active = binder.effectiveSorts.filter((s) => s && s !== 'none');
+    return active.map((s) => SORT_LABEL[s] ?? s);
+  }, [binder.effectiveSorts]);
+
+  // Flat page list for "Browse pages" — opens the BinderPagePreview at
+  // the first page; same carousel the grid view uses.
+  const flatPages = useMemo(
+    () =>
+      binder.sections.flatMap((s) =>
+        s.pages.map((page) => ({ pageNum: page.pageNum, slots: page.slots }))
+      ),
+    [binder.sections]
+  );
+  const flatPageLabels = useMemo(
+    () => binder.sections.flatMap((s) => s.pages.map(() => s.label)),
+    [binder.sections]
+  );
 
   // Build a flat view of unique printings per section so the preview can
   // navigate across the whole binder. Same shape CardPreview expects.
@@ -160,6 +191,26 @@ export function BinderListView({ binder, viewToggle }: Props) {
     return map;
   }, [flat]);
 
+  // Tap a card inside the page-grid preview → walk the binder's flat
+  // card list from the matching index. Same shape BinderView's
+  // resolveCard returns.
+  const resolveCard = useCallback(
+    (card: EnrichedCard) => {
+      const idx = flat.cards.findIndex(
+        (c) => c.scryfallId === card.scryfallId && c.foil === card.foil
+      );
+      if (idx === -1) return null;
+      return {
+        cards: flat.cards,
+        index: idx,
+        sectionLabels: flat.sectionLabels,
+        pageNumbers: flat.pageNumbers,
+        totalPages: binder.totalPages,
+      };
+    },
+    [flat, binder.totalPages]
+  );
+
   const allCollapsed =
     flat.sectionRows.length > 0 &&
     flat.sectionRows.every(({ sectionKey }) => collapsed.has(sectionKey));
@@ -168,20 +219,34 @@ export function BinderListView({ binder, viewToggle }: Props) {
 
   return (
     <>
-      {(flat.sectionRows.length > 1 || viewToggle) && (
-        <div className="binder-summary" aria-live="polite">
-          {flat.sectionRows.length > 1 && (
-            <button
-              type="button"
-              className="btn-link binder-summary-collapse"
-              onClick={allCollapsed ? expandAll : collapseAll}
-            >
-              {allCollapsed ? 'Expand all' : 'Collapse all'}
-            </button>
+      <div className="binder-summary" aria-live="polite">
+        <span className="binder-summary-meta">
+          {flatPages.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="binder-summary-open"
+                onClick={() => setPagesStartIndex(0)}
+                aria-label={`Browse pages of ${binder.def.name}`}
+              >
+                Browse pages
+              </button>
+              {' · '}
+            </>
           )}
-          {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
-        </div>
-      )}
+          <Legend />
+        </span>
+        {flat.sectionRows.length > 1 && (
+          <button
+            type="button"
+            className="btn-link binder-summary-collapse"
+            onClick={allCollapsed ? expandAll : collapseAll}
+          >
+            {allCollapsed ? 'Expand all' : 'Collapse all'}
+          </button>
+        )}
+        {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
+      </div>
       {flat.sectionRows.map(({ sectionKey, rows }) => {
         const section = binder.sections.find((s) => s.key === sectionKey);
         if (!section) return null;
@@ -209,6 +274,11 @@ export function BinderListView({ binder, viewToggle }: Props) {
                 />
               )}
               <span className="section-title">{section.label}</span>
+              {sortBreadcrumb.length > 0 && (
+                <span className="section-breadcrumb" aria-label="Sort order">
+                  {sortBreadcrumb.join(' › ')}
+                </span>
+              )}
               <span className="section-meta">
                 {totalQty} {totalQty === 1 ? 'card' : 'cards'} · {rows.length} unique
               </span>
@@ -313,6 +383,18 @@ export function BinderListView({ binder, viewToggle }: Props) {
           quantity={editingQty}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
+        />
+      )}
+
+      {pagesStartIndex !== null && (
+        <BinderPagePreview
+          pages={flatPages}
+          pageLabels={flatPageLabels}
+          startPageIndex={pagesStartIndex}
+          pocketSize={binder.effectivePocketSize}
+          binderName={binder.def.name}
+          resolveCard={resolveCard}
+          onClose={() => setPagesStartIndex(null)}
         />
       )}
     </>
