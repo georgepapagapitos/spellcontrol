@@ -1137,9 +1137,17 @@ input[type='search'] {
 
 .binder-toolbar {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
   margin-bottom: 1rem;
+}
+
+.binder-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .binder-toolbar-switch,
@@ -2447,10 +2455,11 @@ hr {
 
   .binder-picker-title {
     font-family: var(--font-serif);
-    font-size: var(--text-lg);
-    font-weight: 600;
+    font-size: var(--text-2xl);
+    font-weight: 700;
     color: var(--text);
-    padding: 0.25rem 0.5rem 0.5rem;
+    padding: 0.25rem 0.5rem 0.6rem;
+    letter-spacing: -0.01em;
   }
 
   .binder-picker-list {

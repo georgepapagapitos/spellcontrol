@@ -240,6 +240,27 @@ export function BinderPage() {
       <BinderTabs binders={materialized} />
       <BinderPickerSheet binders={materialized} />
       <div className="binder-toolbar">
+        <div className="binder-toolbar-actions">
+          <button
+            type="button"
+            className="btn binder-toolbar-edit"
+            aria-haspopup="dialog"
+            onClick={() => setEditingBinder(activeTab)}
+            disabled={!activeTab}
+          >
+            <PencilIcon />
+            <span>Edit binder</span>
+          </button>
+          <button
+            type="button"
+            className="btn binder-toolbar-switch"
+            aria-haspopup="dialog"
+            onClick={() => setBinderPickerOpen(true)}
+          >
+            <SwitchBinderIcon />
+            <span>Switch binder</span>
+          </button>
+        </div>
         <div className="binder-toolbar-search">
           <input
             type="search"
@@ -259,25 +280,6 @@ export function BinderPage() {
             </button>
           )}
         </div>
-        <button
-          type="button"
-          className="btn binder-toolbar-edit"
-          aria-haspopup="dialog"
-          onClick={() => setEditingBinder(activeTab)}
-          disabled={!activeTab}
-        >
-          <PencilIcon />
-          <span>Edit binder</span>
-        </button>
-        <button
-          type="button"
-          className="btn binder-toolbar-switch"
-          aria-haspopup="dialog"
-          onClick={() => setBinderPickerOpen(true)}
-        >
-          <SwitchBinderIcon />
-          <span>Switch binder</span>
-        </button>
       </div>
       <BinderView binders={materialized} />
     </>
