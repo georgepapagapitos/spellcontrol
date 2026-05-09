@@ -9,6 +9,7 @@ import { classifyAllocation, type AllocationStatus } from '../../lib/allocations
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { cardMatchesRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 const CLASSIFY_PRIORITY = [
@@ -186,6 +187,9 @@ function readStoredFormat(): ExportFormat {
 //    (price, role badges, mana cost).
 // All persisted to localStorage so the deck the user opened yesterday looks
 // the way they left it.
+// Decks intentionally don't expose a "compact" list mode — the deck row
+// is already text-only and tight, so a denser variant would be visually
+// indistinguishable from the regular list.
 export type DeckViewMode = 'list' | 'grid' | 'text';
 
 interface ShowPrefs {
@@ -204,6 +208,8 @@ function readStoredViewMode(): DeckViewMode {
   try {
     const v = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
     if (v === 'list' || v === 'grid' || v === 'text') return v;
+    // Migrate the dropped 'compact' mode → 'list' for any persisted value.
+    if (v === 'compact') return 'list';
   } catch {
     /* ignore */
   }
@@ -1014,7 +1020,7 @@ function DeckToolbar({
           />
         </div>
 
-        <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+        <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
         <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
           Export
@@ -1112,99 +1118,91 @@ function ToolbarPopover({
 }
 
 // ── View mode segmented control ──────────────────────────────────────────
-function ViewModeToggle({
+// Thin wrapper around the shared <SharedViewModeToggle /> with deck-specific
+// options (grid / list / text). No 'compact' — see the type declaration.
+function DeckViewModeToggle({
   value,
   onChange,
 }: {
   value: DeckViewMode;
   onChange: (m: DeckViewMode) => void;
 }) {
-  const items: { mode: DeckViewMode; label: string; icon: React.ReactNode }[] = [
-    {
-      mode: 'text',
-      label: 'Text view',
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <path d="M14 2v6h6" />
-          <path d="M8 13h8" />
-          <path d="M8 17h6" />
-        </svg>
-      ),
-    },
-    {
-      mode: 'grid',
-      label: 'Grid view',
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
-        </svg>
-      ),
-    },
-    {
-      mode: 'list',
-      label: 'List view',
-      icon: (
-        <svg
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M8 6h13" />
-          <path d="M8 12h13" />
-          <path d="M8 18h13" />
-          <circle cx="4" cy="6" r="0.5" />
-          <circle cx="4" cy="12" r="0.5" />
-          <circle cx="4" cy="18" r="0.5" />
-        </svg>
-      ),
-    },
-  ];
   return (
-    <div className="toolbar-viewmode" role="group" aria-label="Deck view mode">
-      {items.map((it) => (
-        <button
-          key={it.mode}
-          type="button"
-          className={`toolbar-viewmode-btn${value === it.mode ? ' active' : ''}`}
-          aria-pressed={value === it.mode}
-          aria-label={it.label}
-          title={it.label}
-          onClick={() => onChange(it.mode)}
-        >
-          {it.icon}
-        </button>
-      ))}
-    </div>
+    <SharedViewModeToggle<DeckViewMode>
+      ariaLabel="Deck view mode"
+      value={value}
+      onChange={onChange}
+      options={[
+        { value: 'grid', label: 'Grid view', icon: <DeckGridIcon /> },
+        { value: 'list', label: 'List view', icon: <DeckListIcon /> },
+        { value: 'text', label: 'Text view', icon: <DeckTextIcon /> },
+      ]}
+    />
+  );
+}
+
+function DeckGridIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function DeckListIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="4" cy="6" r="0.5" />
+      <circle cx="4" cy="12" r="0.5" />
+      <circle cx="4" cy="18" r="0.5" />
+    </svg>
+  );
+}
+
+function DeckTextIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M8 13h8" />
+      <path d="M8 17h6" />
+    </svg>
   );
 }
 

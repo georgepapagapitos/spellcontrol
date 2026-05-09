@@ -3,6 +3,11 @@ import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
+import { DeckBadge } from './DeckBadge';
+import { useAllocations, type AllocationInfo } from '../lib/allocations';
+import { ViewModeToggle } from './ViewModeToggle';
+import { SearchPill } from './SearchPill';
+import { FilterPopover } from './FilterPopover';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -12,6 +17,12 @@ import { useCollectionStore } from '../store/collection';
 interface Props {
   cards: EnrichedCard[];
   binders: MaterializedBinder[];
+  /**
+   * When true, the binder filter dropdown is hidden — used when the
+   * caller has already scoped `cards` to a single binder, where letting
+   * the user "filter by binder" inside that view would just be confusing.
+   */
+  hideBinderFilter?: boolean;
 }
 
 interface Row {
@@ -22,7 +33,7 @@ interface Row {
   binderColor: string | null;
 }
 
-type ViewMode = 'grid' | 'list';
+type ViewMode = 'grid' | 'list' | 'compact';
 type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -99,7 +110,7 @@ function PencilIcon() {
   );
 }
 
-export function CardListTable({ cards, binders }: Props) {
+export function CardListTable({ cards, binders, hideBinderFilter = false }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -114,6 +125,10 @@ export function CardListTable({ cards, binders }: Props) {
   };
   const [view, setView] = useState<ViewMode>('list');
   const [binderFilter, setBinderFilter] = useState<string>('all');
+  // Default ON: a collection reads as "what printings do I own and how
+  // many?" — the rolled-up qty pill matches that mental model. Power
+  // users who want to see every physical copy individually can toggle.
+  const [groupPrintings, setGroupPrintings] = useState(true);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
@@ -135,6 +150,23 @@ export function CardListTable({ cards, binders }: Props) {
   }, [binders]);
 
   const rows = useMemo<Row[]>(() => {
+    if (!groupPrintings) {
+      // One row per physical copy.
+      return cards.map((card) => {
+        const key = `${card.scryfallId}:${card.foil ? 'f' : 'n'}`;
+        const assignment = cardToBinder.get(key) ?? null;
+        return {
+          // copyId is unique per physical copy — gives every row a
+          // stable key even when two share the same printing+foil.
+          key: card.copyId,
+          card,
+          qty: 1,
+          binderName: assignment?.name ?? null,
+          binderColor: assignment?.color ?? null,
+        };
+      });
+    }
+    // Default: roll duplicate copies of the same printing into one row.
     const grouped = new Map<string, Row>();
     for (const card of cards) {
       const key = `${card.scryfallId}:${card.foil ? 'f' : 'n'}`;
@@ -153,7 +185,7 @@ export function CardListTable({ cards, binders }: Props) {
       }
     }
     return [...grouped.values()];
-  }, [cards, cardToBinder]);
+  }, [cards, cardToBinder, groupPrintings]);
 
   // Type counts (over the current rows, ignoring filters) for the chip row.
   const typeCounts = useMemo(() => {
@@ -273,7 +305,7 @@ export function CardListTable({ cards, binders }: Props) {
     setPage(1);
   }
 
-  const totalQty = sorted.reduce((s, r) => s + r.qty, 0);
+  const totalRowCount = rows.length;
   const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
@@ -285,6 +317,16 @@ export function CardListTable({ cards, binders }: Props) {
   }, [editingCard, cards]);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allCards = useCollectionStore((s) => s.cards);
+  const allocations = useAllocations();
+  const allocationsFor = (c: EnrichedCard): AllocationInfo[] => {
+    const out: AllocationInfo[] = [];
+    for (const x of allCards) {
+      if (x.scryfallId !== c.scryfallId || x.foil !== c.foil) continue;
+      const a = allocations.get(x.copyId);
+      if (a) out.push(a);
+    }
+    return out;
+  };
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
@@ -356,40 +398,37 @@ export function CardListTable({ cards, binders }: Props) {
       {/* Search + view toggle — primary row. Search is the highest-frequency
           control across the table, so it leads. */}
       <div className="collection-toolbar-row">
-        <div className="card-list-search">
-          <input
-            type="search"
-            placeholder="Search by name or type..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search cards"
-          />
-          {search && (
-            <button type="button" className="btn-link" onClick={() => setSearch('')}>
-              Clear
-            </button>
-          )}
-        </div>
-        <div className="view-toggle" role="group" aria-label="View mode">
-          <button
-            type="button"
-            className={`view-toggle-btn${view === 'grid' ? ' is-active' : ''}`}
-            onClick={() => setView('grid')}
-            aria-label="Grid view"
-            aria-pressed={view === 'grid'}
-          >
-            <GridIcon />
-          </button>
-          <button
-            type="button"
-            className={`view-toggle-btn${view === 'list' ? ' is-active' : ''}`}
-            onClick={() => setView('list')}
-            aria-label="List view"
-            aria-pressed={view === 'list'}
-          >
-            <ListIcon />
-          </button>
-        </div>
+        <SearchPill
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by name or type..."
+          ariaLabel="Search cards"
+          trailing={
+            <FilterPopover
+              ariaLabel="Collection options"
+              toggles={[
+                {
+                  key: 'group-printings',
+                  label: 'Group printings',
+                  hint: 'Roll duplicate copies of the same printing into a single row with a qty pill',
+                  value: groupPrintings,
+                  onChange: setGroupPrintings,
+                  defaultValue: true,
+                },
+              ]}
+            />
+          }
+        />
+        <ViewModeToggle<ViewMode>
+          ariaLabel="Collection view mode"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'grid', label: 'Grid view', icon: <GridIcon /> },
+            { value: 'list', label: 'List view (with thumbnails)', icon: <ListIcon /> },
+            { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+          ]}
+        />
       </div>
 
       {/* Type chips — most diagnostic filter, sit just below search. */}
@@ -449,28 +488,34 @@ export function CardListTable({ cards, binders }: Props) {
             </option>
           ))}
         </select>
-        <select
-          className="collection-select"
-          value={binderFilter}
-          onChange={(e) => setBinderFilter(e.target.value)}
-          aria-label="Filter by binder"
-        >
-          <option value="all">All binders</option>
-          {binders.map((b) => (
-            <option key={b.def.id} value={b.def.name}>
-              {b.def.name}
-            </option>
-          ))}
-          <option value="__uncategorized">Uncategorized</option>
-        </select>
+        {!hideBinderFilter && (
+          <select
+            className="collection-select"
+            value={binderFilter}
+            onChange={(e) => setBinderFilter(e.target.value)}
+            aria-label="Filter by binder"
+          >
+            <option value="all">All binders</option>
+            {binders.map((b) => (
+              <option key={b.def.id} value={b.def.name}>
+                {b.def.name}
+              </option>
+            ))}
+            <option value="__uncategorized">Uncategorized</option>
+          </select>
+        )}
       </div>
 
       <div className="card-list-summary-line">
-        {/* Announce filter result counts to screen readers when the result
-            set changes — keeps assistive tech in step with visual filtering. */}
+        {/* Counts here describe what's currently visible (after filters /
+            search), not the whole collection — the OVERVIEW row above
+            owns the canonical totals. Announced to AT so screen readers
+            stay in sync with visual filtering. */}
         <span aria-live="polite" aria-atomic="true">
-          {sorted.length.toLocaleString()} {sorted.length === 1 ? 'card' : 'cards'} ·{' '}
-          {totalQty.toLocaleString()} total · ${totalValue.toFixed(0)}
+          {sorted.length === totalRowCount
+            ? `${sorted.length.toLocaleString()} ${sorted.length === 1 ? 'printing' : 'printings'}`
+            : `${sorted.length.toLocaleString()} of ${totalRowCount.toLocaleString()} printings`}
+          {' · '}${totalValue.toFixed(0)}
         </span>
         <SortMenu sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
       </div>
@@ -516,7 +561,7 @@ export function CardListTable({ cards, binders }: Props) {
           ))}
         </div>
       ) : (
-        <div className="collection-list">
+        <div className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}>
           {pageItems.map((r, i) => {
             const colorKey = getColorKey(r.card);
             return (
@@ -551,6 +596,7 @@ export function CardListTable({ cards, binders }: Props) {
                   <div className="collection-list-name">
                     {r.card.name}
                     {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                    <DeckBadge allocations={allocationsFor(r.card)} />
                   </div>
                   <div className="collection-list-meta">
                     <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
@@ -722,21 +768,67 @@ function typeIcon(t: string): string {
 
 function GridIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }
 
 function ListIcon() {
+  // Bullets + lines: communicates "rows with thumbnails / per-row marker".
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" strokeWidth="1.5" />
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="4" cy="6" r="0.5" />
+      <circle cx="4" cy="12" r="0.5" />
+      <circle cx="4" cy="18" r="0.5" />
+    </svg>
+  );
+}
+
+function CompactListIcon() {
+  // Plain horizontal lines — denser than the bulleted list to read as "more compact".
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M3 10h18" />
+      <path d="M3 14h18" />
+      <path d="M3 18h18" />
     </svg>
   );
 }
