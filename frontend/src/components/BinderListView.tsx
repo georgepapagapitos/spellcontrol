@@ -1,0 +1,335 @@
+import { useMemo, useState } from 'react';
+import type { EnrichedCard, MaterializedBinder } from '../types';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { CardPreview } from './CardPreview';
+import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { ManaCost } from './ManaCost';
+import { useCollectionStore } from '../store/collection';
+import { getColorKey, COLOR_INFO } from '../lib/colors';
+
+interface Props {
+  binder: MaterializedBinder;
+}
+
+interface Row {
+  key: string;
+  card: EnrichedCard;
+  qty: number;
+}
+
+function pickPrice(card: ScryfallCard, foil: boolean): number {
+  const p = card.prices;
+  if (!p) return 0;
+  const candidates = foil ? [p.usd_foil, p.usd_etched, p.usd] : [p.usd, p.usd_etched, p.usd_foil];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
+/**
+ * List view for a single binder that PRESERVES the section grouping the
+ * binder's sort produces — same color / type / cmc headers as the page
+ * grid view. Sister to CardListTable, but binder-scoped: rows live under
+ * their section header instead of being globally sorted into a flat list.
+ */
+export function BinderListView({ binder }: Props) {
+  const allCards = useCollectionStore((s) => s.cards);
+  const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Build a flat view of unique printings per section so the preview can
+  // navigate across the whole binder. Same shape CardPreview expects.
+  const flat = useMemo(() => {
+    const cards: EnrichedCard[] = [];
+    const sectionLabels: string[] = [];
+    const pageNumbers: number[] = [];
+    const sectionRows: { sectionKey: string; rows: Row[] }[] = [];
+    for (const section of binder.sections) {
+      // Group identical printings (scryfallId + foil) for qty roll-up so the
+      // list reads like a deck-list rather than dumping a row per copy.
+      const grouped = new Map<string, Row>();
+      const sectionPageOf = new Map<string, number>();
+      for (const page of section.pages) {
+        for (const slot of page.slots) {
+          if (slot && !sectionPageOf.has(`${slot.scryfallId}:${slot.foil ? 1 : 0}`)) {
+            sectionPageOf.set(`${slot.scryfallId}:${slot.foil ? 1 : 0}`, page.pageNum);
+          }
+        }
+      }
+      for (const card of section.cards) {
+        const key = `${card.scryfallId}:${card.foil ? 1 : 0}`;
+        const existing = grouped.get(key);
+        if (existing) existing.qty += 1;
+        else grouped.set(key, { key, card, qty: 1 });
+      }
+      const rows = [...grouped.values()];
+      sectionRows.push({ sectionKey: section.key, rows });
+      // Parallel arrays for the preview carousel — one entry per UNIQUE
+      // printing (matching the visible rows).
+      for (const r of rows) {
+        cards.push(r.card);
+        sectionLabels.push(section.label);
+        pageNumbers.push(sectionPageOf.get(r.key) ?? 0);
+      }
+    }
+    return { cards, sectionLabels, pageNumbers, sectionRows };
+  }, [binder]);
+
+  const toggle = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleEditConfirm = (selection: PrintingSelection) => {
+    if (!editingCard) return;
+    const sc = selection.card;
+    const firstFace = sc.card_faces?.[0];
+    const cardFields: Partial<EnrichedCard> = {
+      scryfallId: sc.id,
+      name: sc.name,
+      setCode: sc.set.toUpperCase(),
+      setName: sc.set_name,
+      collectorNumber: sc.collector_number,
+      rarity: sc.rarity,
+      foil: selection.foil,
+      imageSmall: sc.image_uris?.small ?? firstFace?.image_uris?.small,
+      imageNormal: sc.image_uris?.normal ?? firstFace?.image_uris?.normal,
+      imageNormalBack: sc.card_faces?.[1]?.image_uris?.normal,
+      frameEffects: sc.frame_effects,
+      fullArt: sc.full_art === true || sc.frame_effects?.includes('fullart'),
+      borderColor: sc.border_color,
+      layout: sc.layout,
+      finishes: sc.finishes,
+      promoTypes: sc.promo_types,
+      purchasePrice: pickPrice(sc, selection.foil),
+      pricedAt: Date.now(),
+    };
+    const existing = allCards.filter(
+      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+    );
+    const targetQty = selection.quantity ?? existing.length;
+    const others = allCards.filter(
+      (c) => !(c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil)
+    );
+    const updated = existing
+      .slice(0, targetQty)
+      .map((c) => ({ ...c, ...cardFields, copyId: c.copyId }));
+    const added: EnrichedCard[] = [];
+    for (let i = updated.length; i < targetQty; i++) {
+      added.push({
+        ...editingCard,
+        ...cardFields,
+        copyId: crypto.randomUUID(),
+        sourceCategory: editingCard.sourceCategory,
+        sourceFormat: editingCard.sourceFormat,
+        importId: editingCard.importId,
+      } as EnrichedCard);
+    }
+    replaceAllCards([...others, ...updated, ...added]);
+    setEditingCard(null);
+  };
+
+  const editingQty = useMemo(() => {
+    if (!editingCard) return 0;
+    return allCards.filter(
+      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+    ).length;
+  }, [editingCard, allCards]);
+
+  // Map each visible row to its index in the flat preview array.
+  const previewIndexFor = useMemo(() => {
+    const map = new Map<string, number>();
+    let i = 0;
+    for (const sec of flat.sectionRows) {
+      for (const r of sec.rows) {
+        map.set(`${sec.sectionKey}:${r.key}`, i);
+        i++;
+      }
+    }
+    return map;
+  }, [flat]);
+
+  return (
+    <>
+      {flat.sectionRows.map(({ sectionKey, rows }) => {
+        const section = binder.sections.find((s) => s.key === sectionKey);
+        if (!section) return null;
+        const isCollapsed = collapsed.has(sectionKey);
+        const headerId = `binder-list-section-${sectionKey}`;
+        const panelId = `binder-list-panel-${sectionKey}`;
+        const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+        return (
+          <div key={sectionKey} className="binder-section">
+            <button
+              type="button"
+              id={headerId}
+              className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
+              onClick={() => toggle(sectionKey)}
+              aria-expanded={!isCollapsed}
+              aria-controls={panelId}
+            >
+              <span className="section-chevron" aria-hidden="true">
+                ▾
+              </span>
+              {section.pip && (
+                <i
+                  className={`ms ${colorKeyToMs(section.key)} ms-cost color-pip-mana color-pip-mana--lg`}
+                  aria-hidden
+                />
+              )}
+              <span className="section-title">{section.label}</span>
+              <span className="section-meta">
+                {totalQty} {totalQty === 1 ? 'card' : 'cards'} · {rows.length} unique
+              </span>
+            </button>
+            {!isCollapsed && (
+              <div
+                id={panelId}
+                role="region"
+                aria-labelledby={headerId}
+                className="collection-list"
+              >
+                {rows.map((r) => {
+                  const colorKey = getColorKey(r.card);
+                  return (
+                    <div
+                      key={r.key}
+                      className="collection-list-row"
+                      role="row"
+                      tabIndex={0}
+                      onClick={() => {
+                        const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
+                        if (idx !== undefined) setPreviewIndex(idx);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
+                          if (idx !== undefined) setPreviewIndex(idx);
+                        }
+                      }}
+                    >
+                      {r.card.imageSmall ? (
+                        <img
+                          src={r.card.imageSmall}
+                          alt=""
+                          loading="lazy"
+                          className="collection-list-thumb"
+                        />
+                      ) : (
+                        <div
+                          className="collection-list-thumb collection-list-thumb-placeholder"
+                          style={{ background: COLOR_INFO[colorKey]?.pip }}
+                          aria-hidden
+                        />
+                      )}
+                      <div className="collection-list-main">
+                        <div className="collection-list-name">
+                          {r.card.name}
+                          {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                        </div>
+                        <div className="collection-list-meta">
+                          <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
+                          <span className="card-list-cn">#{r.card.collectorNumber}</span>
+                          <ManaCost cost={r.card.manaCost} />
+                        </div>
+                      </div>
+                      <div className="collection-list-right">
+                        <button
+                          type="button"
+                          className="card-edit-btn"
+                          title="Edit printing"
+                          aria-label={`Edit printing for ${r.card.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCard(r.card);
+                          }}
+                        >
+                          <PencilIcon />
+                        </button>
+                        <div className="collection-list-qty">×{r.qty}</div>
+                        <div className="collection-list-price">
+                          ${(r.card.purchasePrice * r.qty).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {previewIndex !== null && (
+        <CardPreview
+          cards={flat.cards}
+          index={previewIndex}
+          binderName={binder.def.name}
+          sectionLabels={flat.sectionLabels}
+          pageNumbers={flat.pageNumbers}
+          totalPages={binder.totalPages}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
+
+      {editingCard && (
+        <CardEditDialog
+          cardName={editingCard.name}
+          currentScryfallId={editingCard.scryfallId}
+          currentFoil={editingCard.foil}
+          quantity={editingQty}
+          onConfirm={handleEditConfirm}
+          onCancel={() => setEditingCard(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function colorKeyToMs(key: string): string {
+  switch (key) {
+    case 'W':
+    case 'U':
+    case 'B':
+    case 'R':
+    case 'G':
+      return `ms-${key.toLowerCase()}`;
+    case 'M':
+      return 'ms-multicolor';
+    case 'C':
+    case 'L':
+      return 'ms-c';
+    default:
+      return 'ms-c';
+  }
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}

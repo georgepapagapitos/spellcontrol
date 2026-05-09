@@ -6,7 +6,7 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderPickerSheet } from '../components/BinderPickerSheet';
 import { BinderView } from '../components/BinderView';
-import { CardListTable } from '../components/CardListTable';
+import { BinderListView } from '../components/BinderListView';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
@@ -369,10 +369,10 @@ export function BinderPage() {
         (() => {
           const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
           if (!active) return null;
-          // Flatten the active binder's filtered cards from the section grouping
-          // — CardListTable does its own search / sort / filter / pagination.
-          const flatCards = active.sections.flatMap((s) => s.cards);
-          return <CardListTable cards={flatCards} binders={[active]} hideBinderFilter />;
+          // BinderListView preserves the binder's section grouping (the same
+          // White / Blue / Multicolor / etc. headers as the page grid view)
+          // and rolls duplicate copies into qty pills.
+          return <BinderListView binder={active} />;
         })()
       )}
     </>
