@@ -200,6 +200,30 @@ export function CardPreview({
           ×
         </button>
         <div className="card-preview-grabber" aria-hidden="true" />
+        {cards.length > 1 && (
+          <CarouselNav
+            onPrev={() => {
+              const next = Math.max(0, selected - 1);
+              if (next !== selected)
+                slideRefs.current[next]?.scrollIntoView({
+                  inline: 'center',
+                  block: 'nearest',
+                  behavior: 'smooth',
+                });
+            }}
+            onNext={() => {
+              const next = Math.min(cards.length - 1, selected + 1);
+              if (next !== selected)
+                slideRefs.current[next]?.scrollIntoView({
+                  inline: 'center',
+                  block: 'nearest',
+                  behavior: 'smooth',
+                });
+            }}
+            atStart={selected === 0}
+            atEnd={selected === cards.length - 1}
+          />
+        )}
         <div className="card-preview-track" ref={trackRef}>
           {cards.map((c, i) => {
             const errored = imgErrors[c.scryfallId];
@@ -213,11 +237,23 @@ export function CardPreview({
                   slideRefs.current[i] = el;
                 }}
                 key={`${c.scryfallId}-${i}`}
+                onClick={(e) => {
+                  // Tap a peeking neighbor to advance to it. Active slide
+                  // clicks are absorbed so the backdrop close handler
+                  // doesn't fire when the user simply clicks the card.
+                  e.stopPropagation();
+                  if (i !== selected) {
+                    slideRefs.current[i]?.scrollIntoView({
+                      inline: 'center',
+                      block: 'nearest',
+                      behavior: 'smooth',
+                    });
+                  }
+                }}
               >
                 <div
                   className={`card-preview-image-frame${foilClass}`}
                   ref={i === selected ? holoRef : undefined}
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <div
                     className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
@@ -402,6 +438,65 @@ function DeckChip({
         <span className="card-preview-deck-chip-name">{deckName}</span>
       </Link>
     </span>
+  );
+}
+
+function CarouselNav({
+  onPrev,
+  onNext,
+  atStart,
+  atEnd,
+}: {
+  onPrev: () => void;
+  onNext: () => void;
+  atStart: boolean;
+  atEnd: boolean;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className="carousel-nav carousel-nav-prev"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPrev();
+        }}
+        disabled={atStart}
+        aria-label="Previous"
+      >
+        <ChevronIcon direction="left" />
+      </button>
+      <button
+        type="button"
+        className="carousel-nav carousel-nav-next"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNext();
+        }}
+        disabled={atEnd}
+        aria-label="Next"
+      >
+        <ChevronIcon direction="right" />
+      </button>
+    </>
+  );
+}
+
+function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {direction === 'left' ? <path d="M15 6l-6 6 6 6" /> : <path d="M9 6l6 6-6 6" />}
+    </svg>
   );
 }
 

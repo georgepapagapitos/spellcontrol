@@ -187,10 +187,18 @@ export function DeckEditorPage() {
   return (
     <div className="deck-editor-page">
       <header className="deck-editor-header">
-        <div className="deck-editor-titlebar">
-          <Link to="/decks" className="btn-link">
-            ← All decks
-          </Link>
+        <div className="deck-editor-hero">
+          <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
+            <Link to="/decks" className="binder-hero-crumb-link">
+              All decks
+            </Link>
+            <span className="binder-hero-crumb-sep" aria-hidden>
+              ›
+            </span>
+            <span className="binder-hero-crumb-current" aria-current="page">
+              {deck.name}
+            </span>
+          </nav>
           {renaming ? (
             <input
               autoFocus
@@ -207,13 +215,17 @@ export function DeckEditorPage() {
           ) : (
             <button
               type="button"
-              className="deck-editor-name"
+              className="deck-editor-name binder-hero-name"
               onClick={handleStartRename}
               title="Rename deck"
             >
               {deck.name}
             </button>
           )}
+          <p className="binder-hero-meta">
+            {deck.cards.length.toLocaleString()} {deck.cards.length === 1 ? 'card' : 'cards'}
+            {deck.commander && <> · {deck.commander.name}</>}
+          </p>
         </div>
         <div className="deck-editor-actions">
           <button

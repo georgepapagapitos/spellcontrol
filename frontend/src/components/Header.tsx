@@ -1,19 +1,19 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
+import { useDecksStore } from '../store/decks';
 import { ThemePicker } from './ThemePicker';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
+  const deckCount = useDecksStore((s) => s.decks.length);
   const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
-  const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
   const location = useLocation();
-  const onBinderRoute = location.pathname.startsWith('/binder');
-  const onCollectionRoute = location.pathname.startsWith('/collection');
-  // Only repurpose the Collection nav icon as a sheet trigger when the
-  // user actually has a collection — first-timers tap it to land on the
-  // empty-state page and start the import flow there instead.
-  const collectionTapOpensSheet = onCollectionRoute && cardCount > 0;
+  // Power-user gesture: tapping the Binders tab while already on /binder
+  // (and there's something to pick) opens the picker sheet. The visible
+  // "Switch binder" pill in the page hero is still the primary affordance —
+  // this is an additive shortcut, not the only path.
+  const binderTapOpensPicker = location.pathname.startsWith('/binder') && binderCount > 0;
   return (
     <>
       <header className="site-header">
@@ -52,6 +52,11 @@ export function Header() {
               className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
             >
               <span>Decks</span>
+              {deckCount > 0 && (
+                <span className="site-nav-count" aria-label={`${deckCount} decks`}>
+                  {deckCount}
+                </span>
+              )}
             </NavLink>
           </nav>
           <nav className="site-nav">
@@ -65,15 +70,6 @@ export function Header() {
           className={({ isActive }) =>
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
-          onClick={(e) => {
-            // While already on /collection (and you have a collection),
-            // tapping the icon opens the Import sheet — same gesture
-            // pattern as the Binders icon opening the binder picker.
-            if (collectionTapOpensSheet) {
-              e.preventDefault();
-              setImportSheetOpen(true);
-            }
-          }}
         >
           <CollectionIcon />
           <span className="mobile-tab-bar-label">Collection</span>
@@ -89,14 +85,12 @@ export function Header() {
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
           onClick={(e) => {
-            // When the user is already on /binder, treat the icon as a
-            // binder picker — open the bottom sheet instead of a no-op
-            // navigation. Elsewhere it still routes normally.
-            if (onBinderRoute) {
+            if (binderTapOpensPicker) {
               e.preventDefault();
               setBinderPickerOpen(true);
             }
           }}
+          aria-haspopup={binderTapOpensPicker ? 'dialog' : undefined}
         >
           <BinderIcon />
           <span className="mobile-tab-bar-label">Binders</span>
@@ -114,6 +108,11 @@ export function Header() {
         >
           <DeckIcon />
           <span className="mobile-tab-bar-label">Decks</span>
+          {deckCount > 0 && (
+            <span className="mobile-tab-bar-count" aria-label={`${deckCount} decks`}>
+              {deckCount}
+            </span>
+          )}
         </NavLink>
         <ThemePicker variant="tab" />
       </nav>
