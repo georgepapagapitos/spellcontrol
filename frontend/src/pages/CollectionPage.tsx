@@ -13,6 +13,7 @@ export function CollectionPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
+  const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
 
   // Materialize without search — the collection table has its own local search.
   const { materialized } = useMemo(() => {
@@ -40,15 +41,23 @@ export function CollectionPage() {
               </button>
             </div>
           )}
-          {/* Empty state only — once a collection exists, the import UI
-              moves into the bottom sheet triggered by the "+" in the
-              OVERVIEW row, not the page content. */}
           {cards.length === 0 && <UploadPanel />}
         </>
       )}
 
       {!hydrating && cards.length > 0 && (
         <>
+          <div className="page-actions">
+            <button
+              type="button"
+              className="btn"
+              aria-haspopup="dialog"
+              onClick={() => setImportSheetOpen(true)}
+            >
+              <PlusIcon />
+              <span>Import cards</span>
+            </button>
+          </div>
           <StatsBar />
           <CardListTable cards={cards} binders={materialized} />
           <PriceFreshnessLine />
@@ -56,5 +65,22 @@ export function CollectionPage() {
         </>
       )}
     </>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M8 3v10M3 8h10" />
+    </svg>
   );
 }

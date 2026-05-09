@@ -20,6 +20,7 @@ export function BinderPage() {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const setError = useCollectionStore((s) => s.setError);
   const setSearch = useCollectionStore((s) => s.setSearch);
+  const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
   const loadSampleBinders = useCollectionStore((s) => s.loadSampleBinders);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
@@ -257,9 +258,37 @@ export function BinderPage() {
             </button>
           )}
         </div>
+        <button
+          type="button"
+          className="btn binder-toolbar-switch"
+          aria-haspopup="dialog"
+          onClick={() => setBinderPickerOpen(true)}
+        >
+          <SwitchBinderIcon />
+          <span>Switch binder</span>
+        </button>
       </div>
       <BinderView binders={materialized} />
     </>
+  );
+}
+
+function SwitchBinderIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 5h8M9 3l2 2-2 2" />
+      <path d="M13 11H5M7 9l-2 2 2 2" />
+    </svg>
   );
 }
 

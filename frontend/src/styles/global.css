@@ -1142,6 +1142,26 @@ input[type='search'] {
   margin-bottom: 1rem;
 }
 
+.binder-toolbar-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.page-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .binder-toolbar-search {
   flex: 1;
   display: flex;
@@ -2465,9 +2485,10 @@ hr {
   }
 
   .binder-picker-row.active {
-    background: var(--accent-light);
-    color: var(--accent);
+    background: color-mix(in srgb, var(--binder-color, var(--accent)) 14%, transparent);
+    color: var(--text);
     font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--binder-color, var(--accent));
   }
 
   .binder-picker-row-dot {
@@ -2492,12 +2513,7 @@ hr {
   }
 
   .binder-picker-row.active .binder-picker-row-count {
-    color: var(--accent);
-  }
-
-  .binder-picker-row-check {
-    color: var(--accent);
-    flex: 0 0 auto;
+    color: var(--text2);
   }
 
   .binder-picker-footer {

@@ -1,19 +1,10 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { ThemePicker } from './ThemePicker';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
-  const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
-  const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
-  const location = useLocation();
-  const onBinderRoute = location.pathname.startsWith('/binder');
-  const onCollectionRoute = location.pathname.startsWith('/collection');
-  // Only repurpose the Collection nav icon as a sheet trigger when the
-  // user actually has a collection — first-timers tap it to land on the
-  // empty-state page and start the import flow there instead.
-  const collectionTapOpensSheet = onCollectionRoute && cardCount > 0;
   return (
     <>
       <header className="site-header">
@@ -65,15 +56,6 @@ export function Header() {
           className={({ isActive }) =>
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
-          onClick={(e) => {
-            // While already on /collection (and you have a collection),
-            // tapping the icon opens the Import sheet — same gesture
-            // pattern as the Binders icon opening the binder picker.
-            if (collectionTapOpensSheet) {
-              e.preventDefault();
-              setImportSheetOpen(true);
-            }
-          }}
         >
           <CollectionIcon />
           <span className="mobile-tab-bar-label">Collection</span>
@@ -88,15 +70,6 @@ export function Header() {
           className={({ isActive }) =>
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
-          onClick={(e) => {
-            // When the user is already on /binder, treat the icon as a
-            // binder picker — open the bottom sheet instead of a no-op
-            // navigation. Elsewhere it still routes normally.
-            if (onBinderRoute) {
-              e.preventDefault();
-              setBinderPickerOpen(true);
-            }
-          }}
         >
           <BinderIcon />
           <span className="mobile-tab-bar-label">Binders</span>
