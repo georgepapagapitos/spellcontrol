@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type { EnrichedCard } from '../types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
@@ -48,6 +48,10 @@ export function StatsBar() {
   const cards = useCollectionStore((s) => s.cards);
   const scryfallMisses = useCollectionStore((s) => s.scryfallMisses);
   const binderDefs = useCollectionStore((s) => s.binders);
+  // Collapsed by default — the actual collection (search + cards) is
+  // why the user opened this page. Stats are interesting context but
+  // shouldn't push the cards below the fold on first load.
+  const [statsExpanded, setStatsExpanded] = useState(false);
 
   const totalValue = cards.reduce((sum, c) => sum + c.purchasePrice, 0);
 
@@ -119,18 +123,44 @@ export function StatsBar() {
 
   return (
     <>
-      <div className="breakdown-overview">
-        <span className="breakdown-overview-label">Overview</span>
-        <span className="breakdown-overview-stats">
-          <span className="breakdown-overview-num">{cards.length.toLocaleString()}</span>
-          <span className="breakdown-overview-unit">cards</span>
-          <span className="breakdown-overview-sep">·</span>
-          <span className="breakdown-overview-num">${totalValue.toFixed(0)}</span>
-          <span className="breakdown-overview-unit">value</span>
+      <button
+        type="button"
+        className={`breakdown-overview is-toggle${statsExpanded ? ' is-open' : ''}`}
+        onClick={() => setStatsExpanded((v) => !v)}
+        aria-expanded={statsExpanded}
+        aria-controls="breakdown-grid"
+      >
+        <span className="breakdown-overview-text">
+          <span className="breakdown-overview-label">Overview</span>
+          <span className="breakdown-overview-stats">
+            <span className="breakdown-overview-num">{cards.length.toLocaleString()}</span>
+            <span className="breakdown-overview-unit">cards</span>
+            <span className="breakdown-overview-sep">·</span>
+            <span className="breakdown-overview-num">${totalValue.toFixed(0)}</span>
+            <span className="breakdown-overview-unit">value</span>
+          </span>
         </span>
-      </div>
+        <svg
+          className="breakdown-overview-chevron"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </button>
 
-      <div className="breakdown-grid">
+      <div
+        id="breakdown-grid"
+        className={`breakdown-grid${statsExpanded ? '' : ' is-collapsed'}`}
+        aria-hidden={!statsExpanded}
+      >
         {/* Colors */}
         <section className="breakdown-card" aria-label="Cards by color">
           <h3 className="breakdown-title">Colors</h3>

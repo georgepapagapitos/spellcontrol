@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
 import { useConfirm } from '../lib/use-confirm';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 
 interface Props {
   binders: MaterializedBinder[];
@@ -52,47 +53,34 @@ export function BinderTabs({ binders }: Props) {
               onClick={() => setActiveTab(b.def.id)}
               style={
                 isActive
-                  ? { background: b.def.color, borderColor: b.def.color }
-                  : { borderLeftColor: b.def.color, borderLeftWidth: 3 }
+                  ? {
+                      background: b.def.color,
+                      borderColor: b.def.color,
+                      // Mobile underline-tab style picks this up via CSS var.
+                      ['--binder-color' as string]: b.def.color,
+                    }
+                  : {
+                      borderLeftColor: b.def.color,
+                      borderLeftWidth: 3,
+                      ['--binder-color' as string]: b.def.color,
+                    }
               }
             >
-              {b.def.name}
+              <span className="tab-color-dot" aria-hidden style={{ background: b.def.color }} />
+              <span className="tab-label">{b.def.name}</span>
               <span className="tab-count">{b.totalCards.toLocaleString()}</span>
             </button>
 
             {isActive && (
-              <div className="tab-actions" style={{ borderColor: b.def.color }}>
-                <button
-                  className="tab-action"
-                  onClick={() => moveBinder(b.def.id, 'up')}
-                  disabled={idx === 0}
-                  title="Move up (higher priority)"
-                >
-                  ▲
-                </button>
-                <button
-                  className="tab-action"
-                  onClick={() => moveBinder(b.def.id, 'down')}
-                  disabled={idx === sorted.length - 1}
-                  title="Move down (lower priority)"
-                >
-                  ▼
-                </button>
-                <button
-                  className="tab-action"
-                  onClick={() => setEditingBinder(b.def.id)}
-                  title="Edit binder"
-                >
-                  ✎
-                </button>
-                <button
-                  className="tab-action danger"
-                  onClick={() => handleDelete(b.def.id, b.def.name)}
-                  title="Delete binder"
-                >
-                  ✕
-                </button>
-              </div>
+              <BinderOverflowMenu
+                color={b.def.color}
+                canMoveUp={idx > 0}
+                canMoveDown={idx < sorted.length - 1}
+                onMoveUp={() => moveBinder(b.def.id, 'up')}
+                onMoveDown={() => moveBinder(b.def.id, 'down')}
+                onEdit={() => setEditingBinder(b.def.id)}
+                onDelete={() => handleDelete(b.def.id, b.def.name)}
+              />
             )}
           </div>
         );
@@ -139,6 +127,177 @@ export function BinderTabs({ binders }: Props) {
 
       {confirmDialog}
     </div>
+  );
+}
+
+function BinderOverflowMenu({
+  color,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
+}: {
+  color: string;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  // When the sheet is open on mobile it should claim the screen — locking
+  // body scroll prevents the page underneath from scrolling on a swipe.
+  useLockBodyScroll(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="binder-overflow" ref={ref}>
+      <button
+        type="button"
+        className="binder-overflow-btn"
+        style={{ borderColor: color }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Binder actions"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
+          <circle cx="5" cy="12" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="19" cy="12" r="1.6" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          {/* On mobile this backdrop converts the panel into a bottom
+              sheet. On desktop it's invisible and the panel renders as
+              a normal dropdown attached to the trigger. */}
+          <div className="binder-overflow-backdrop" onClick={() => setOpen(false)} aria-hidden />
+          <div className="binder-overflow-panel" role="menu">
+            <div className="binder-overflow-handle" aria-hidden />
+            <button
+              type="button"
+              role="menuitem"
+              className="binder-overflow-item"
+              disabled={!canMoveUp}
+              onClick={() => {
+                setOpen(false);
+                onMoveUp();
+              }}
+            >
+              <ChevronUpIcon />
+              <span>Move up</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="binder-overflow-item"
+              disabled={!canMoveDown}
+              onClick={() => {
+                setOpen(false);
+                onMoveDown();
+              }}
+            >
+              <ChevronDownIcon />
+              <span>Move down</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="binder-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onEdit();
+              }}
+            >
+              <PencilIcon />
+              <span>Edit binder</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="binder-overflow-item binder-overflow-item--danger"
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
+            >
+              <CloseIcon />
+              <span>Delete binder</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ChevronUpIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3.5 10l4.5-4.5L12.5 10"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M3.5 6l4.5 4.5L12.5 6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   );
 }
 

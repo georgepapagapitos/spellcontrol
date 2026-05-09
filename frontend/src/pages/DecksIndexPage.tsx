@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { Deck } from '../store/decks';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
@@ -150,6 +151,9 @@ function DeckCardMenu({
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Locks page scroll while the sheet is open on mobile (no-op on desktop
+  // where the menu is a normal dropdown).
+  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -188,36 +192,50 @@ function DeckCardMenu({
         </svg>
       </button>
       {open && (
-        <div className="decks-index-card-menu-panel" role="menu">
-          {canRegenerate && (
-            <button
-              type="button"
-              role="menuitem"
-              className="decks-index-card-menu-item"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                onRegenerate();
-              }}
-            >
-              Re-generate
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            className="decks-index-card-menu-item decks-index-card-menu-item--danger"
+        <>
+          {/* Mobile-only scrim. On desktop the dropdown reads as a normal
+              popover; on phone it becomes a full-width bottom sheet. */}
+          <div
+            className="decks-index-card-menu-backdrop"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setOpen(false);
-              onDelete();
             }}
-          >
-            Delete
-          </button>
-        </div>
+            aria-hidden
+          />
+          <div className="decks-index-card-menu-panel" role="menu">
+            <div className="decks-index-card-menu-handle" aria-hidden />
+            {canRegenerate && (
+              <button
+                type="button"
+                role="menuitem"
+                className="decks-index-card-menu-item"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(false);
+                  onRegenerate();
+                }}
+              >
+                Re-generate
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className="decks-index-card-menu-item decks-index-card-menu-item--danger"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+                onDelete();
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
