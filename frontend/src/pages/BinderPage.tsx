@@ -21,6 +21,7 @@ export function BinderPage() {
   const setError = useCollectionStore((s) => s.setError);
   const setSearch = useCollectionStore((s) => s.setSearch);
   const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
+  const activeTab = useCollectionStore((s) => s.activeTab);
   const loadSampleBinders = useCollectionStore((s) => s.loadSampleBinders);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
@@ -260,6 +261,16 @@ export function BinderPage() {
         </div>
         <button
           type="button"
+          className="btn binder-toolbar-edit"
+          aria-haspopup="dialog"
+          onClick={() => setEditingBinder(activeTab)}
+          disabled={!activeTab}
+        >
+          <PencilIcon />
+          <span>Edit binder</span>
+        </button>
+        <button
+          type="button"
           className="btn binder-toolbar-switch"
           aria-haspopup="dialog"
           onClick={() => setBinderPickerOpen(true)}
@@ -270,6 +281,24 @@ export function BinderPage() {
       </div>
       <BinderView binders={materialized} />
     </>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z" />
+    </svg>
   );
 }
 
