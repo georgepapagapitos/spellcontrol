@@ -1507,7 +1507,8 @@ input[type='search'] {
 .binder-toolbar-search input[type='search'] {
   flex: 1;
   min-width: 0;
-  max-width: 360px;
+  /* No max-width: the input fills the search pill so the filter button
+     stays anchored to the right edge of the bar. */
 }
 
 select:focus,
