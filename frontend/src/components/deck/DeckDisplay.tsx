@@ -256,6 +256,8 @@ export interface DeckDisplayProps {
    * slots in bulk. Host owns batching (e.g. one undo toast per edit).
    */
   onSetQty?: (card: ScryfallCard, qty: number) => void;
+  /** When provided, each row gets an "Edit printing" option in its menu. */
+  onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
 }
@@ -400,6 +402,7 @@ export function DeckDisplay({
   cardDrawSubtypeCounts,
   onRemoveCard,
   onSetQty,
+  onEditCard,
   collectionByCopyId,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
@@ -648,6 +651,7 @@ export function DeckDisplay({
                     onRowClick={openPreview}
                     onRemoveCard={onRemoveCard}
                     onSetQty={onSetQty}
+                    onEditCard={onEditCard}
                   />
                 ))}
               </div>
@@ -1298,6 +1302,7 @@ function CategorySection({
   onRowClick,
   onRemoveCard,
   onSetQty,
+  onEditCard,
 }: {
   title: string;
   iconClass: string;
@@ -1307,6 +1312,7 @@ function CategorySection({
   onRowClick: (name: string) => void;
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
+  onEditCard?: (slotId: string, card: ScryfallCard) => void;
 }) {
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
@@ -1334,6 +1340,7 @@ function CategorySection({
             onClick={() => onRowClick(row.name)}
             onRemoveCard={onRemoveCard}
             onSetQty={onSetQty}
+            onEditCard={onEditCard}
           />
         ))}
       </ul>
@@ -1348,6 +1355,7 @@ function DeckCardRow({
   onClick,
   onRemoveCard,
   onSetQty,
+  onEditCard,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -1355,6 +1363,7 @@ function DeckCardRow({
   onClick: () => void;
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
+  onEditCard?: (slotId: string, card: ScryfallCard) => void;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -1532,6 +1541,20 @@ function DeckCardRow({
         </button>
         {menuOpen && (
           <div role="menu" className="deck-row-menu-popover">
+            {onEditCard && row.slotIds.length > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onEditCard(row.slotIds[0], row.card);
+                }}
+              >
+                Edit printing
+              </button>
+            )}
             {canEditQty && (
               <button
                 type="button"

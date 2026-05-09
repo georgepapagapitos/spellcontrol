@@ -1,4 +1,5 @@
 import type { DeckImportResponse, UploadResponse } from '../types';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 const TIMEOUT_MS = 120_000;
 
@@ -93,4 +94,12 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
   formData.append('file', file);
   const response = await fetchWithTimeout('/api/import-deck', { method: 'POST', body: formData });
   return handle<DeckImportResponse>(response);
+}
+
+/** Fetch all printings of a card by name. */
+export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
+  const encoded = encodeURIComponent(cardName);
+  const response = await fetchWithTimeout(`/api/cards/${encoded}/printings`, { method: 'GET' });
+  const data = await handle<{ printings: ScryfallCard[] }>(response);
+  return data.printings;
 }
