@@ -97,6 +97,9 @@ interface DecksState {
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
 
+  /** Swap the printing on a deck slot. Clears allocation since the new printing may not be owned. */
+  updateCardPrinting(deckId: string, slotId: string, card: ScryfallCard): void;
+
   /** Replace the whole card list — used when committing a generated deck. */
   replaceCards(deckId: string, cards: DeckCard[]): void;
 }
@@ -234,6 +237,20 @@ export const useDecksStore = create<DecksState>()(
                   ...d,
                   partnerCommander: card,
                   partnerCommanderAllocatedCopyId: allocated,
+                })
+              : d
+          ),
+        })),
+
+      updateCardPrinting: (deckId, slotId, card) =>
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: d.cards.map((c) =>
+                    c.slotId === slotId ? { ...c, card, allocatedCopyId: null } : c
+                  ),
                 })
               : d
           ),
