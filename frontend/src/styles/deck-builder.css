@@ -1061,23 +1061,6 @@ input.toolbar-search-input {
   border-radius: var(--radius);
 }
 
-/* Compact density for the deck list: tighter padding + smaller font.
-   Role badge (the colored dot) and price collapse into nothing so the
-   row is just qty + name + mana — maximum info density per row. */
-.deck-card-list.is-compact .deck-row {
-  font-size: var(--text-xs);
-  padding: 0.1rem 0.25rem;
-  gap: 0.4rem;
-}
-
-.deck-card-list.is-compact .deck-row-role-badge {
-  display: none;
-}
-
-.deck-card-list.is-compact .deck-row-price {
-  display: none;
-}
-
 .deck-row-qty {
   width: 1.4rem;
   flex: 0 0 auto;

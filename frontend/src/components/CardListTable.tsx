@@ -5,6 +5,7 @@ import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
+import { ViewModeToggle } from './ViewModeToggle';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -388,38 +389,16 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
             </button>
           )}
         </div>
-        <div className="toolbar-viewmode" role="group" aria-label="View mode">
-          <button
-            type="button"
-            className={`toolbar-viewmode-btn${view === 'grid' ? ' active' : ''}`}
-            onClick={() => setView('grid')}
-            aria-label="Grid view"
-            title="Grid view"
-            aria-pressed={view === 'grid'}
-          >
-            <GridIcon />
-          </button>
-          <button
-            type="button"
-            className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
-            onClick={() => setView('list')}
-            aria-label="List view"
-            title="List view (with thumbnails)"
-            aria-pressed={view === 'list'}
-          >
-            <ListIcon />
-          </button>
-          <button
-            type="button"
-            className={`toolbar-viewmode-btn${view === 'compact' ? ' active' : ''}`}
-            onClick={() => setView('compact')}
-            aria-label="Compact list view"
-            title="Compact list (text only)"
-            aria-pressed={view === 'compact'}
-          >
-            <CompactListIcon />
-          </button>
-        </div>
+        <ViewModeToggle<ViewMode>
+          ariaLabel="Collection view mode"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'grid', label: 'Grid view', icon: <GridIcon /> },
+            { value: 'list', label: 'List view (with thumbnails)', icon: <ListIcon /> },
+            { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+          ]}
+        />
       </div>
 
       {/* Type chips — most diagnostic filter, sit just below search. */}

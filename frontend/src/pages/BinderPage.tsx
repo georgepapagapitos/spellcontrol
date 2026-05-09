@@ -7,6 +7,7 @@ import { BinderTabs } from '../components/BinderTabs';
 import { BinderPickerSheet } from '../components/BinderPickerSheet';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
@@ -247,38 +248,16 @@ export function BinderPage() {
   // Rendered next to "Collapse all" inside each view's summary line so the
   // mode toggle sits adjacent to the content it switches between.
   const viewToggle = (
-    <div className="toolbar-viewmode" role="group" aria-label="Binder view mode">
-      <button
-        type="button"
-        className={`toolbar-viewmode-btn${view === 'pages' ? ' active' : ''}`}
-        aria-pressed={view === 'pages'}
-        aria-label="Pages view"
-        title="Pages view"
-        onClick={() => setView('pages')}
-      >
-        <PagesViewIcon />
-      </button>
-      <button
-        type="button"
-        className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
-        aria-pressed={view === 'list'}
-        aria-label="List view"
-        title="List view (with thumbnails)"
-        onClick={() => setView('list')}
-      >
-        <ListViewIcon />
-      </button>
-      <button
-        type="button"
-        className={`toolbar-viewmode-btn${view === 'compact' ? ' active' : ''}`}
-        aria-pressed={view === 'compact'}
-        aria-label="Compact list view"
-        title="Compact list (text only)"
-        onClick={() => setView('compact')}
-      >
-        <CompactListIcon />
-      </button>
-    </div>
+    <ViewModeToggle<'pages' | 'list' | 'compact'>
+      ariaLabel="Binder view mode"
+      value={view}
+      onChange={setView}
+      options={[
+        { value: 'pages', label: 'Pages view', icon: <PagesViewIcon /> },
+        { value: 'list', label: 'List view (with thumbnails)', icon: <ListViewIcon /> },
+        { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+      ]}
+    />
   );
 
   return (
