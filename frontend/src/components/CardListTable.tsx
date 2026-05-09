@@ -3,6 +3,8 @@ import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
+import { DeckBadge } from './DeckBadge';
+import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -291,6 +293,16 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
   }, [editingCard, cards]);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allCards = useCollectionStore((s) => s.cards);
+  const allocations = useAllocations();
+  const allocationsFor = (c: EnrichedCard): AllocationInfo[] => {
+    const out: AllocationInfo[] = [];
+    for (const x of allCards) {
+      if (x.scryfallId !== c.scryfallId || x.foil !== c.foil) continue;
+      const a = allocations.get(x.copyId);
+      if (a) out.push(a);
+    }
+    return out;
+  };
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
@@ -559,6 +571,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
                   <div className="collection-list-name">
                     {r.card.name}
                     {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                    <DeckBadge allocations={allocationsFor(r.card)} />
                   </div>
                   <div className="collection-list-meta">
                     <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>

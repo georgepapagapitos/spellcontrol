@@ -9,6 +9,8 @@ import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { SORT_FIELDS } from '../lib/sorting';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
+import { DeckBadge } from './DeckBadge';
+import { useAllocations, type AllocationInfo } from '../lib/allocations';
 
 const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
@@ -25,6 +27,8 @@ interface Row {
   key: string;
   card: EnrichedCard;
   qty: number;
+  /** First page number this card lands on inside its section. */
+  pageNum: number;
 }
 
 function pickPrice(card: ScryfallCard, foil: boolean): number {
@@ -48,10 +52,22 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
 export function BinderListView({ binder, viewToggle }: Props) {
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
+  const allocations = useAllocations();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
+
+  /** All deck allocations covering the copies that match (scryfallId, foil). */
+  const allocationsFor = (card: EnrichedCard): AllocationInfo[] => {
+    const out: AllocationInfo[] = [];
+    for (const c of allCards) {
+      if (c.scryfallId !== card.scryfallId || c.foil !== card.foil) continue;
+      const a = allocations.get(c.copyId);
+      if (a) out.push(a);
+    }
+    return out;
+  };
 
   // Sort breadcrumb (e.g. "color › cmc › name") shown on each section
   // header so the binder's grouping/ordering hierarchy is visible at a
@@ -98,7 +114,7 @@ export function BinderListView({ binder, viewToggle }: Props) {
         const key = `${card.scryfallId}:${card.foil ? 1 : 0}`;
         const existing = grouped.get(key);
         if (existing) existing.qty += 1;
-        else grouped.set(key, { key, card, qty: 1 });
+        else grouped.set(key, { key, card, qty: 1, pageNum: sectionPageOf.get(key) ?? 0 });
       }
       const rows = [...grouped.values()];
       sectionRows.push({ sectionKey: section.key, rows });
@@ -328,10 +344,16 @@ export function BinderListView({ binder, viewToggle }: Props) {
                         <div className="collection-list-name">
                           {r.card.name}
                           {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                          <DeckBadge allocations={allocationsFor(r.card)} />
                         </div>
                         <div className="collection-list-meta">
                           <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
                           <span className="card-list-cn">#{r.card.collectorNumber}</span>
+                          {r.pageNum > 0 && (
+                            <span className="card-list-page" title={`Page ${r.pageNum}`}>
+                              p.{r.pageNum}
+                            </span>
+                          )}
                           <ManaCost cost={r.card.manaCost} />
                         </div>
                       </div>
