@@ -57,6 +57,11 @@ export function BinderListView({ binder, viewToggle }: Props) {
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
+  // Default OFF: a binder's mental model is one slot per physical copy,
+  // so showing four copies of Sol Ring as four rows mirrors what's
+  // actually on the page. Power users who want a deck-list-style roll-up
+  // can flip the toggle.
+  const [groupPrintings, setGroupPrintings] = useState(false);
 
   /** All deck allocations covering the copies that match (scryfallId, foil). */
   const allocationsFor = (card: EnrichedCard): AllocationInfo[] => {
@@ -91,43 +96,67 @@ export function BinderListView({ binder, viewToggle }: Props) {
     [binder.sections]
   );
 
-  // Build a flat view of unique printings per section so the preview can
-  // navigate across the whole binder. Same shape CardPreview expects.
+  // Build a flat view of rows per section. Default mode is one row per
+  // physical copy — matches what's in a real binder slot — and each row
+  // shows its own page number. The grouped variant rolls duplicates of
+  // the same printing into a single row with a qty pill.
   const flat = useMemo(() => {
     const cards: EnrichedCard[] = [];
     const sectionLabels: string[] = [];
     const pageNumbers: number[] = [];
     const sectionRows: { sectionKey: string; rows: Row[] }[] = [];
     for (const section of binder.sections) {
-      // Group identical printings (scryfallId + foil) for qty roll-up so the
-      // list reads like a deck-list rather than dumping a row per copy.
-      const grouped = new Map<string, Row>();
-      const sectionPageOf = new Map<string, number>();
+      // Map every concrete card reference to the page it lives on. Keying
+      // by reference (not scryfallId) is correct for non-grouped mode
+      // because two copies of the same printing land on different pages.
+      const cardToPage = new Map<EnrichedCard, number>();
       for (const page of section.pages) {
         for (const slot of page.slots) {
-          if (slot && !sectionPageOf.has(`${slot.scryfallId}:${slot.foil ? 1 : 0}`)) {
-            sectionPageOf.set(`${slot.scryfallId}:${slot.foil ? 1 : 0}`, page.pageNum);
-          }
+          if (slot && !cardToPage.has(slot)) cardToPage.set(slot, page.pageNum);
         }
       }
-      for (const card of section.cards) {
-        const key = `${card.scryfallId}:${card.foil ? 1 : 0}`;
-        const existing = grouped.get(key);
-        if (existing) existing.qty += 1;
-        else grouped.set(key, { key, card, qty: 1, pageNum: sectionPageOf.get(key) ?? 0 });
+      const rows: Row[] = [];
+      if (groupPrintings) {
+        const folded = new Map<string, Row>();
+        for (const card of section.cards) {
+          const key = `${card.scryfallId}:${card.foil ? 1 : 0}`;
+          const pageNum = cardToPage.get(card) ?? 0;
+          const existing = folded.get(key);
+          if (existing) {
+            existing.qty += 1;
+            // Keep the earliest non-zero page so users find the start of
+            // a multi-copy run.
+            if (pageNum > 0 && (existing.pageNum === 0 || pageNum < existing.pageNum)) {
+              existing.pageNum = pageNum;
+            }
+          } else {
+            folded.set(key, { key, card, qty: 1, pageNum });
+          }
+        }
+        rows.push(...folded.values());
+      } else {
+        section.cards.forEach((card, idx) => {
+          rows.push({
+            // copyId is unique per physical copy; falling back to idx for
+            // any malformed card without one keeps keys stable per render.
+            key: card.copyId ?? `${section.key}-${idx}`,
+            card,
+            qty: 1,
+            pageNum: cardToPage.get(card) ?? 0,
+          });
+        });
       }
-      const rows = [...grouped.values()];
       sectionRows.push({ sectionKey: section.key, rows });
       // Parallel arrays for the preview carousel — one entry per UNIQUE
       // printing (matching the visible rows).
       for (const r of rows) {
         cards.push(r.card);
         sectionLabels.push(section.label);
-        pageNumbers.push(sectionPageOf.get(r.key) ?? 0);
+        pageNumbers.push(r.pageNum);
       }
     }
     return { cards, sectionLabels, pageNumbers, sectionRows };
-  }, [binder]);
+  }, [binder, groupPrintings]);
 
   const toggle = (key: string) => {
     setCollapsed((prev) => {
@@ -251,6 +280,20 @@ export function BinderListView({ binder, viewToggle }: Props) {
             </>
           )}
           <Legend />
+          {' · '}
+          <button
+            type="button"
+            className="binder-summary-open"
+            onClick={() => setGroupPrintings((v) => !v)}
+            aria-pressed={groupPrintings}
+            title={
+              groupPrintings
+                ? 'Showing one row per printing — flip to see every physical copy'
+                : 'Showing one row per copy — flip to roll up duplicates'
+            }
+          >
+            {groupPrintings ? 'Group printings' : 'Show every copy'}
+          </button>
         </span>
         {flat.sectionRows.length > 1 && (
           <button
@@ -296,7 +339,8 @@ export function BinderListView({ binder, viewToggle }: Props) {
                 </span>
               )}
               <span className="section-meta">
-                {totalQty} {totalQty === 1 ? 'card' : 'cards'} · {rows.length} unique
+                {totalQty} {totalQty === 1 ? 'card' : 'cards'}
+                {groupPrintings && totalQty !== rows.length && ` · ${rows.length} unique`}
               </span>
             </button>
             {!isCollapsed && (
@@ -370,7 +414,7 @@ export function BinderListView({ binder, viewToggle }: Props) {
                         >
                           <PencilIcon />
                         </button>
-                        <div className="collection-list-qty">×{r.qty}</div>
+                        {r.qty > 1 && <div className="collection-list-qty">×{r.qty}</div>}
                         <div className="collection-list-price">
                           ${(r.card.purchasePrice * r.qty).toFixed(2)}
                         </div>
