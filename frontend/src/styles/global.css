@@ -1382,16 +1382,21 @@ input[type='search'] {
    popover) all sit inside the same rail. Used by <SearchPill> across
    the binder, collection, and deck toolbars. */
 .search-pill {
-  flex: 1;
+  /* min-width is the load-bearing rule here: without it, the input's
+     intrinsic size keeps the pill from shrinking and it pushes the
+     neighboring view toggle to a new line on narrow viewports. */
+  flex: 1 1 12rem;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  min-width: 0;
   position: relative;
   background: var(--surface);
   border: 0.5px solid var(--border2);
   border-radius: 999px;
-  padding: 0.2rem 0.4rem 0.2rem 0.7rem;
+  /* Tight padding so the pill lands at button-height. Anything taller
+     dominates the toolbar visually and crowds neighboring controls. */
+  padding: 0.1rem 0.35rem 0.1rem 0.7rem;
   transition: border-color 0.12s;
 }
 
@@ -1407,10 +1412,11 @@ input[type='search'] {
 .search-pill > input[type='search'] {
   background: transparent;
   border: 0;
-  padding: 0.4rem 0;
+  padding: 0.3rem 0;
   outline: none;
   flex: 1;
   min-width: 0;
+  /* Stay at 16px+ to avoid iOS Safari auto-zooming on focus. */
   font-size: var(--text-base);
   color: var(--text);
 }
@@ -6029,8 +6035,11 @@ hr {
     gap: 0.5rem;
   }
 
+  /* No flex-wrap on mobile: the search pill is flex-shrinkable, so
+     letting the toggle pin to the right side of the same row reads
+     better than dropping it onto a new line. */
   .collection-toolbar-row {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .collection-filter-row .collection-select-sort {
