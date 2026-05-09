@@ -243,6 +243,22 @@ export function BinderPage() {
       <BinderPickerSheet binders={materialized} />
       {active && (
         <header className="binder-hero" style={{ ['--binder-color' as string]: active.def.color }}>
+          <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
+            <button
+              type="button"
+              className="binder-hero-crumb-link"
+              aria-haspopup="dialog"
+              onClick={() => setBinderPickerOpen(true)}
+            >
+              All binders
+            </button>
+            <span className="binder-hero-crumb-sep" aria-hidden>
+              ›
+            </span>
+            <span className="binder-hero-crumb-current" aria-current="page">
+              {active.def.name}
+            </span>
+          </nav>
           <h1 className="binder-hero-name">{active.def.name}</h1>
           <p className="binder-hero-meta">
             {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'} ·{' '}
