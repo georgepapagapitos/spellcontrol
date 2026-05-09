@@ -556,6 +556,7 @@ select {
 .import-history-check input[type='checkbox'],
 .field-checkbox input[type='checkbox'],
 .commander-owned-toggle input[type='checkbox'],
+.binder-list-options-row input[type='checkbox'],
 .collection-group-checkbox {
   appearance: none;
   -webkit-appearance: none;
@@ -576,6 +577,7 @@ select {
 .import-history-check input[type='checkbox']:hover:not(:disabled),
 .field-checkbox input[type='checkbox']:hover:not(:disabled),
 .commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
+.binder-list-options-row input[type='checkbox']:hover:not(:disabled),
 .collection-group-checkbox:hover:not(:disabled) {
   border-color: var(--accent);
 }
@@ -583,6 +585,7 @@ select {
 .import-history-check input[type='checkbox']:checked,
 .field-checkbox input[type='checkbox']:checked,
 .commander-owned-toggle input[type='checkbox']:checked,
+.binder-list-options-row input[type='checkbox']:checked,
 .collection-group-checkbox:checked {
   background: var(--accent);
   border-color: var(--accent);
@@ -591,6 +594,7 @@ select {
 .import-history-check input[type='checkbox']:checked::after,
 .field-checkbox input[type='checkbox']:checked::after,
 .commander-owned-toggle input[type='checkbox']:checked::after,
+.binder-list-options-row input[type='checkbox']:checked::after,
 .collection-group-checkbox:checked::after {
   content: '';
   width: 8px;
@@ -602,6 +606,7 @@ select {
 .import-history-check input[type='checkbox']:focus-visible,
 .field-checkbox input[type='checkbox']:focus-visible,
 .commander-owned-toggle input[type='checkbox']:focus-visible,
+.binder-list-options-row input[type='checkbox']:focus-visible,
 .collection-group-checkbox:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -1371,18 +1376,43 @@ input[type='search'] {
   gap: 0.4rem;
 }
 
+/* Search row becomes the visual "pill" — the input itself loses its
+   own border / bg so the filter button can sit inline next to it
+   inside one rounded container, Manabox-style. */
 .binder-toolbar-search {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   min-width: 0;
   position: relative;
+  background: var(--bg);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  padding: 0.15rem 0.4rem 0.15rem 0.85rem;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
 }
 
-/* Filter / options popover wired to the right edge of the search bar.
-   Single icon button → click opens a small panel of toggles. The dot
-   on `.has-active-option` makes it obvious when a filter is on. */
+.binder-toolbar-search:focus-within {
+  border-color: var(--accent);
+}
+
+.binder-toolbar-search > input[type='search'] {
+  background: transparent;
+  border: 0;
+  padding: 0.4rem 0;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-base);
+  color: var(--text);
+}
+
+/* Filter / options popover that lives INSIDE the search bar. Single
+   icon button → click opens a small panel of toggles. Active dot
+   shows up on `.has-active-option` so an enabled filter is glanceable. */
 .binder-list-options {
   position: relative;
   flex-shrink: 0;
@@ -1392,16 +1422,15 @@ input[type='search'] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 1.8rem;
+  height: 1.8rem;
   border-radius: 999px;
-  border: 0.5px solid var(--border2);
-  background: var(--surface);
+  border: 0;
+  background: transparent;
   color: var(--text2);
   cursor: pointer;
   transition:
     background 0.12s,
-    border-color 0.12s,
     color 0.12s;
 }
 
@@ -1409,25 +1438,25 @@ input[type='search'] {
 .binder-list-options-btn:focus-visible,
 .binder-list-options-btn[aria-expanded='true'] {
   background: var(--accent-light);
-  border-color: var(--accent);
   color: var(--accent);
   outline: none;
 }
 
 .binder-list-options-btn.has-active-option {
   position: relative;
+  color: var(--accent);
 }
 
 .binder-list-options-btn.has-active-option::after {
   content: '';
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 2px;
+  right: 2px;
   width: 6px;
   height: 6px;
   border-radius: 999px;
   background: var(--accent);
-  border: 1px solid var(--surface);
+  border: 1px solid var(--bg);
 }
 
 .binder-list-options-panel {
