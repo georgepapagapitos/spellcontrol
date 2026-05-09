@@ -158,8 +158,25 @@ export function BinderListView({ binder }: Props) {
     return map;
   }, [flat]);
 
+  const allCollapsed =
+    flat.sectionRows.length > 0 &&
+    flat.sectionRows.every(({ sectionKey }) => collapsed.has(sectionKey));
+  const expandAll = () => setCollapsed(new Set());
+  const collapseAll = () => setCollapsed(new Set(flat.sectionRows.map((s) => s.sectionKey)));
+
   return (
     <>
+      {flat.sectionRows.length > 1 && (
+        <div className="binder-summary" aria-live="polite">
+          <button
+            type="button"
+            className="btn-link binder-summary-collapse"
+            onClick={allCollapsed ? expandAll : collapseAll}
+          >
+            {allCollapsed ? 'Expand all' : 'Collapse all'}
+          </button>
+        </div>
+      )}
       {flat.sectionRows.map(({ sectionKey, rows }) => {
         const section = binder.sections.find((s) => s.key === sectionKey);
         if (!section) return null;
