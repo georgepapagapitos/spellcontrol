@@ -1,10 +1,17 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { ThemePicker } from './ThemePicker';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
+  const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
+  const location = useLocation();
+  // Power-user gesture: tapping the Binders tab while already on /binder
+  // (and there's something to pick) opens the picker sheet. The visible
+  // "Switch binder" pill in the page hero is still the primary affordance —
+  // this is an additive shortcut, not the only path.
+  const binderTapOpensPicker = location.pathname.startsWith('/binder') && binderCount > 0;
   return (
     <>
       <header className="site-header">
@@ -70,6 +77,13 @@ export function Header() {
           className={({ isActive }) =>
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
+          onClick={(e) => {
+            if (binderTapOpensPicker) {
+              e.preventDefault();
+              setBinderPickerOpen(true);
+            }
+          }}
+          aria-haspopup={binderTapOpensPicker ? 'dialog' : undefined}
         >
           <BinderIcon />
           <span className="mobile-tab-bar-label">Binders</span>
