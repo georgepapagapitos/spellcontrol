@@ -18,6 +18,13 @@ export interface CardPreviewCtx {
    * over the carousel.
    */
   isPreviewOpen: boolean;
+  /**
+   * When the binder is in "group printings" mode the materializer feeds
+   * one card per unique (scryfallId × foil); the qty for each surviving
+   * copy lives here keyed by copyId. Slots with qty > 1 paint a small
+   * ×N badge in the corner — same affordance the collection grid uses.
+   */
+  qtyByCopyId?: Map<string, number>;
 }
 
 export const CardPreviewContext = createContext<CardPreviewCtx | null>(null);

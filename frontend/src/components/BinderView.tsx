@@ -21,9 +21,13 @@ const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
 
 interface Props {
   binders: MaterializedBinder[];
+  /** Optional slot rendered in the summary line next to "Collapse all". */
+  viewToggle?: React.ReactNode;
+  /** Per-copyId qty when binder is in group-printings mode (otherwise undefined). */
+  qtyByCopyId?: Map<string, number>;
 }
 
-export function BinderView({ binders }: Props) {
+export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -69,6 +73,8 @@ export function BinderView({ binders }: Props) {
       sections={active.sections}
       pocketSize={active.effectivePocketSize}
       sorts={active.effectiveSorts}
+      viewToggle={viewToggle}
+      qtyByCopyId={qtyByCopyId}
     />
   );
 }
@@ -80,6 +86,8 @@ function SectionList({
   sections,
   pocketSize,
   sorts,
+  viewToggle,
+  qtyByCopyId,
 }: {
   viewKey: string;
   binderName: string;
@@ -87,6 +95,8 @@ function SectionList({
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortField[];
+  viewToggle?: React.ReactNode;
+  qtyByCopyId?: Map<string, number>;
 }) {
   const activeSorts = sorts.filter((s) => s && s !== 'none');
   // Full sort breadcrumb (e.g. "color › name › cmc") — communicates the
@@ -215,6 +225,7 @@ function SectionList({
             {allCollapsed ? 'Expand all' : 'Collapse all'}
           </button>
         )}
+        {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
       </div>
       {sections.map((section, sectionIdx) => {
         const isCollapsed = collapsed.has(section.key);
@@ -230,6 +241,7 @@ function SectionList({
             sortBreadcrumb={sortBreadcrumb}
             pocketSize={pocketSize}
             isPreviewOpen={preview !== null || pagesStartIndex !== null}
+            qtyByCopyId={qtyByCopyId}
             onToggle={() => toggle(section.key)}
             onOpenCard={(card) => {
               const i = flatCards.cardIndex.get(card);
@@ -314,6 +326,7 @@ function SectionBlock({
   sortBreadcrumb,
   pocketSize,
   isPreviewOpen,
+  qtyByCopyId,
   onToggle,
   onOpenCard,
   onOpenPages,
@@ -325,6 +338,7 @@ function SectionBlock({
   sortBreadcrumb: string[];
   pocketSize: PocketSize;
   isPreviewOpen: boolean;
+  qtyByCopyId?: Map<string, number>;
   onToggle: () => void;
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPages: (startPageIndex: number) => void;
@@ -332,8 +346,8 @@ function SectionBlock({
   // Stable per-section context — CardSlot calls openCard on tap (touch only),
   // PageGrid calls openPages when the page number label is tapped.
   const ctxValue = useMemo(
-    () => ({ openCard: onOpenCard, openPages: onOpenPages, isPreviewOpen }),
-    [onOpenCard, onOpenPages, isPreviewOpen]
+    () => ({ openCard: onOpenCard, openPages: onOpenPages, isPreviewOpen, qtyByCopyId }),
+    [onOpenCard, onOpenPages, isPreviewOpen, qtyByCopyId]
   );
 
   return (
