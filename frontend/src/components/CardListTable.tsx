@@ -7,6 +7,7 @@ import { DeckBadge } from './DeckBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
+import { FilterPopover } from './FilterPopover';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -124,6 +125,10 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
   };
   const [view, setView] = useState<ViewMode>('list');
   const [binderFilter, setBinderFilter] = useState<string>('all');
+  // Default ON: a collection reads as "what printings do I own and how
+  // many?" — the rolled-up qty pill matches that mental model. Power
+  // users who want to see every physical copy individually can toggle.
+  const [groupPrintings, setGroupPrintings] = useState(true);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
@@ -145,6 +150,23 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
   }, [binders]);
 
   const rows = useMemo<Row[]>(() => {
+    if (!groupPrintings) {
+      // One row per physical copy.
+      return cards.map((card) => {
+        const key = `${card.scryfallId}:${card.foil ? 'f' : 'n'}`;
+        const assignment = cardToBinder.get(key) ?? null;
+        return {
+          // copyId is unique per physical copy — gives every row a
+          // stable key even when two share the same printing+foil.
+          key: card.copyId,
+          card,
+          qty: 1,
+          binderName: assignment?.name ?? null,
+          binderColor: assignment?.color ?? null,
+        };
+      });
+    }
+    // Default: roll duplicate copies of the same printing into one row.
     const grouped = new Map<string, Row>();
     for (const card of cards) {
       const key = `${card.scryfallId}:${card.foil ? 'f' : 'n'}`;
@@ -163,7 +185,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       }
     }
     return [...grouped.values()];
-  }, [cards, cardToBinder]);
+  }, [cards, cardToBinder, groupPrintings]);
 
   // Type counts (over the current rows, ignoring filters) for the chip row.
   const typeCounts = useMemo(() => {
@@ -381,6 +403,21 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
           onChange={setSearch}
           placeholder="Search by name or type..."
           ariaLabel="Search cards"
+          trailing={
+            <FilterPopover
+              ariaLabel="Collection options"
+              toggles={[
+                {
+                  key: 'group-printings',
+                  label: 'Group printings',
+                  hint: 'Roll duplicate copies of the same printing into a single row with a qty pill',
+                  value: groupPrintings,
+                  onChange: setGroupPrintings,
+                  defaultValue: true,
+                },
+              ]}
+            />
+          }
         />
         <ViewModeToggle<ViewMode>
           ariaLabel="Collection view mode"

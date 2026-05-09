@@ -21,8 +21,13 @@ interface Props {
   binder: MaterializedBinder;
   /** Optional slot rendered in the summary line next to "Collapse all". */
   viewToggle?: React.ReactNode;
-  /** Roll duplicate copies of the same printing into one row. */
-  groupPrintings?: boolean;
+  /**
+   * When the page-level groupPrintings flag is on, the materializer feeds
+   * one card per unique (scryfallId × foil); the qty for each surviving
+   * copy lives here keyed by copyId. If undefined, every row is a single
+   * physical copy (qty 1).
+   */
+  qtyByCopyId?: Map<string, number>;
   /** 'detail' = thumbnail + multi-line meta. 'compact' = text-only single line. */
   density?: 'detail' | 'compact';
 }
@@ -53,13 +58,9 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({
-  binder,
-  viewToggle,
-  groupPrintings = false,
-  density = 'detail',
-}: Props) {
+export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'detail' }: Props) {
   const isCompact = density === 'compact';
+  const isGrouped = !!qtyByCopyId;
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allocations = useAllocations();
@@ -101,59 +102,31 @@ export function BinderListView({
     [binder.sections]
   );
 
-  // Build a flat view of rows per section. Default mode is one row per
-  // physical copy — matches what's in a real binder slot — and each row
-  // shows its own page number. The grouped variant rolls duplicates of
-  // the same printing into a single row with a qty pill.
+  // Build rows per section. Each materialized card is one row — when the
+  // binder is in group-printings mode the materializer has already fed
+  // one card per unique (scryfallId × foil) and `qtyByCopyId` carries the
+  // per-row total. Off-mode = one row per physical copy with qty 1.
   const flat = useMemo(() => {
     const cards: EnrichedCard[] = [];
     const sectionLabels: string[] = [];
     const pageNumbers: number[] = [];
     const sectionRows: { sectionKey: string; rows: Row[] }[] = [];
     for (const section of binder.sections) {
-      // Map every concrete card reference to the page it lives on. Keying
-      // by reference (not scryfallId) is correct for non-grouped mode
-      // because two copies of the same printing land on different pages.
       const cardToPage = new Map<EnrichedCard, number>();
       for (const page of section.pages) {
         for (const slot of page.slots) {
           if (slot && !cardToPage.has(slot)) cardToPage.set(slot, page.pageNum);
         }
       }
-      const rows: Row[] = [];
-      if (groupPrintings) {
-        const folded = new Map<string, Row>();
-        for (const card of section.cards) {
-          const key = `${card.scryfallId}:${card.foil ? 1 : 0}`;
-          const pageNum = cardToPage.get(card) ?? 0;
-          const existing = folded.get(key);
-          if (existing) {
-            existing.qty += 1;
-            // Keep the earliest non-zero page so users find the start of
-            // a multi-copy run.
-            if (pageNum > 0 && (existing.pageNum === 0 || pageNum < existing.pageNum)) {
-              existing.pageNum = pageNum;
-            }
-          } else {
-            folded.set(key, { key, card, qty: 1, pageNum });
-          }
-        }
-        rows.push(...folded.values());
-      } else {
-        section.cards.forEach((card, idx) => {
-          rows.push({
-            // copyId is unique per physical copy; falling back to idx for
-            // any malformed card without one keeps keys stable per render.
-            key: card.copyId ?? `${section.key}-${idx}`,
-            card,
-            qty: 1,
-            pageNum: cardToPage.get(card) ?? 0,
-          });
-        });
-      }
+      const rows: Row[] = section.cards.map((card, idx) => ({
+        // copyId is unique per physical copy; in grouped mode it's the
+        // surviving representative, also unique. Fallback for safety.
+        key: card.copyId ?? `${section.key}-${idx}`,
+        card,
+        qty: qtyByCopyId?.get(card.copyId) ?? 1,
+        pageNum: cardToPage.get(card) ?? 0,
+      }));
       sectionRows.push({ sectionKey: section.key, rows });
-      // Parallel arrays for the preview carousel — one entry per UNIQUE
-      // printing (matching the visible rows).
       for (const r of rows) {
         cards.push(r.card);
         sectionLabels.push(section.label);
@@ -161,7 +134,7 @@ export function BinderListView({
       }
     }
     return { cards, sectionLabels, pageNumbers, sectionRows };
-  }, [binder, groupPrintings]);
+  }, [binder, qtyByCopyId]);
 
   const toggle = (key: string) => {
     setCollapsed((prev) => {
@@ -331,7 +304,7 @@ export function BinderListView({
               )}
               <span className="section-meta">
                 {totalQty} {totalQty === 1 ? 'card' : 'cards'}
-                {groupPrintings && totalQty !== rows.length && ` · ${rows.length} unique`}
+                {isGrouped && totalQty !== rows.length && ` · ${rows.length} unique`}
               </span>
             </button>
             {!isCollapsed && (

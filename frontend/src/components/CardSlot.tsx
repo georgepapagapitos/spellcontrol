@@ -155,6 +155,10 @@ export function CardSlot({ card }: Props) {
   const cls = getSlotClass(card);
   const displayName = truncateLongWords(card.name);
   const allocation = allocations.get(card.copyId);
+  // Group-printings mode: paint a small ×N badge in the corner when the
+  // slot is standing in for multiple copies of the same printing. Mirrors
+  // the collection grid's qty pill so the affordance is consistent.
+  const groupedQty = preview?.qtyByCopyId?.get(card.copyId) ?? 1;
 
   return (
     <>
@@ -184,6 +188,11 @@ export function CardSlot({ card }: Props) {
           >
             <DeckIcon />
           </Link>
+        )}
+        {groupedQty > 1 && (
+          <span className="slot-qty-badge" aria-label={`${groupedQty} copies`}>
+            ×{groupedQty}
+          </span>
         )}
       </div>
       {hovered && (

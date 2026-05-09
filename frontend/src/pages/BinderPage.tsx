@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
@@ -9,6 +9,7 @@ import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
+import { FilterPopover } from '../components/FilterPopover';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
@@ -39,7 +40,6 @@ export function BinderPage() {
   // row. Lifted to the page so the options menu in the toolbar can
   // toggle it without poking into the list component.
   const [groupPrintings, setGroupPrintings] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(false);
 
   const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
   // When the user already has a real collection, "Try it out" should only add
@@ -66,10 +66,31 @@ export function BinderPage() {
   // still reflects live keystrokes via the un-debounced `search`.
   const debouncedSearch = useDebouncedValue(search, 180);
 
+  // When "group printings" is on we collapse multiple copies of the same
+  // (scryfallId, foil) into a single representative copy and remember the
+  // total via qtyByCopyId. The materializer then lays out unique
+  // printings; CardSlot paints a ×N badge on slots with qty > 1.
+  const { effectiveCards, qtyByCopyId } = useMemo(() => {
+    if (!groupPrintings) return { effectiveCards: cards, qtyByCopyId: undefined };
+    const seen = new Map<string, { card: (typeof cards)[number]; qty: number }>();
+    for (const c of cards) {
+      const key = `${c.scryfallId}:${c.foil ? 1 : 0}`;
+      const existing = seen.get(key);
+      if (existing) existing.qty += 1;
+      else seen.set(key, { card: c, qty: 1 });
+    }
+    const qtyMap = new Map<string, number>();
+    const deduped = [...seen.values()].map(({ card, qty }) => {
+      qtyMap.set(card.copyId, qty);
+      return card;
+    });
+    return { effectiveCards: deduped, qtyByCopyId: qtyMap };
+  }, [cards, groupPrintings]);
+
   const materialized = useMemo(() => {
-    if (cards.length === 0) return [];
-    return materializeBinders(cards, binders, { search: debouncedSearch }).binders;
-  }, [cards, binders, debouncedSearch]);
+    if (effectiveCards.length === 0) return [];
+    return materializeBinders(effectiveCards, binders, { search: debouncedSearch }).binders;
+  }, [effectiveCards, binders, debouncedSearch]);
 
   if (hydrating) {
     return (
@@ -346,19 +367,26 @@ export function BinderPage() {
           placeholder="Search cards by name..."
           ariaLabel="Search cards by name"
           trailing={
-            view !== 'pages' && (
-              <BinderListOptions
-                open={optionsOpen}
-                onOpenChange={setOptionsOpen}
-                groupPrintings={groupPrintings}
-                onGroupPrintingsChange={setGroupPrintings}
-              />
-            )
+            <FilterPopover
+              ariaLabel="Binder options"
+              toggles={[
+                {
+                  key: 'group-printings',
+                  label: 'Group printings',
+                  hint:
+                    view === 'pages'
+                      ? 'Collapse duplicate copies into one slot with a ×N badge'
+                      : 'Roll multiple copies of the same printing into one row',
+                  value: groupPrintings,
+                  onChange: setGroupPrintings,
+                },
+              ]}
+            />
           }
         />
       </div>
       {view === 'pages' ? (
-        <BinderView binders={materialized} viewToggle={viewToggle} />
+        <BinderView binders={materialized} viewToggle={viewToggle} qtyByCopyId={qtyByCopyId} />
       ) : (
         (() => {
           const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
@@ -370,104 +398,13 @@ export function BinderPage() {
             <BinderListView
               binder={active}
               viewToggle={viewToggle}
-              groupPrintings={groupPrintings}
+              qtyByCopyId={qtyByCopyId}
               density={view === 'compact' ? 'compact' : 'detail'}
             />
           );
         })()
       )}
     </>
-  );
-}
-
-/**
- * Inline options popover that lives next to the binder search input.
- * Currently hosts a single "Group printings" toggle (rolls duplicate
- * copies of the same printing into one row). Designed as a popover so
- * future list-view options (Hide empty groups, Show prices, etc.) can
- * land here without bloating the toolbar.
- */
-function BinderListOptions({
-  open,
-  onOpenChange,
-  groupPrintings,
-  onGroupPrintingsChange,
-}: {
-  open: boolean;
-  onOpenChange: (next: boolean) => void;
-  groupPrintings: boolean;
-  onGroupPrintingsChange: (next: boolean) => void;
-}) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        onOpenChange(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onOpenChange(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, onOpenChange]);
-
-  return (
-    <div className="binder-list-options" ref={wrapperRef}>
-      <button
-        type="button"
-        className={`binder-list-options-btn${groupPrintings ? ' has-active-option' : ''}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="List options"
-        title="List options"
-        onClick={() => onOpenChange(!open)}
-      >
-        <FilterIcon />
-      </button>
-      {open && (
-        <div className="binder-list-options-panel" role="menu">
-          <label className="binder-list-options-row">
-            <input
-              type="checkbox"
-              checked={groupPrintings}
-              onChange={(e) => onGroupPrintingsChange(e.target.checked)}
-            />
-            <span className="binder-list-options-label">
-              Group printings
-              <span className="binder-list-options-hint">
-                Roll multiple copies of the same printing into one row
-              </span>
-            </span>
-          </label>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 5h18" />
-      <path d="M6 12h12" />
-      <path d="M10 19h4" />
-    </svg>
   );
 }
 
