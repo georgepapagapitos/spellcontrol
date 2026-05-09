@@ -2440,6 +2440,34 @@ hr {
   }
 }
 
+/* Centered spinner for full-page hydration. Sized up from the inline
+   .spinner so it reads as a page-level loader, not a button micro-state. */
+.page-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+}
+
+.page-loader .spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Stat sublabel ──────────────────────────────────────────────────────── */
 .stat-sub {
   font-size: var(--text-xs);

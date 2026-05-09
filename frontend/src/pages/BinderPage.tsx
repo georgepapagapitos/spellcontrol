@@ -62,11 +62,9 @@ export function BinderPage() {
 
   if (hydrating) {
     return (
-      <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
-        <div className="upload-icon">
-          <span className="spinner" />
-        </div>
-        <div className="upload-text">Loading...</div>
+      <div className="page-loader" role="status" aria-live="polite">
+        <span className="spinner" aria-hidden="true" />
+        <span className="visually-hidden">Loading</span>
       </div>
     );
   }
