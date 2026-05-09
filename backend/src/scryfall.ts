@@ -3,6 +3,7 @@ import type { ScryfallCache } from './cache';
 import type { ImportRow } from './parsers/types';
 
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
+const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 const BATCH_SIZE = 75;
 /** Scryfall asks for 50–100ms between requests, but tightens this under sustained load. */
 const REQUEST_DELAY_MS = 250;
@@ -283,6 +284,81 @@ function buildIdentifier(row: ImportRow): Identifier | null {
  * Scryfall is forgiving on input but its response carries the canonical fields, so we
  * sanity-check before claiming a match.
  */
+/**
+ * Fetches all paper printings of a card by name via Scryfall's search endpoint.
+ * Returns an array of ScryfallCards sorted by release date (newest first).
+ * Handles pagination — Scryfall caps search results at 175 per page.
+ */
+export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
+  const frontFace = cardName.split(' // ')[0].trim();
+  const query = `!"${frontFace}" game:paper unique:prints`;
+  const all: ScryfallCard[] = [];
+  let url: string | null =
+    `${SCRYFALL_SEARCH_URL}?${new URLSearchParams({ q: query, order: 'released', dir: 'desc' })}`;
+
+  while (url) {
+    const result = await fetchSearchPageWithRetry(url);
+    if (!result) break;
+    all.push(...result.data);
+    url = result.has_more && result.next_page ? result.next_page : null;
+    if (url) await sleep(REQUEST_DELAY_MS);
+  }
+
+  return all;
+}
+
+interface SearchResponse {
+  object: 'list';
+  data: ScryfallCard[];
+  has_more: boolean;
+  next_page?: string;
+}
+
+async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | null> {
+  let backoff = MIN_BACKOFF_MS;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'mtg-binder-planner/1.0',
+        },
+      });
+
+      if (response.ok) {
+        return (await response.json()) as SearchResponse;
+      }
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const wait = retryAfter
+          ? Math.min(MAX_BACKOFF_MS, parseRetryAfter(retryAfter))
+          : Math.min(MAX_BACKOFF_MS, backoff);
+        if (attempt === MAX_RETRIES) return null;
+        console.warn(`[scryfall] search hit 429, waiting ${wait}ms`);
+        await sleep(wait);
+        backoff *= 2;
+        continue;
+      }
+
+      console.error(`[scryfall] search failed: HTTP ${response.status}`);
+      return null;
+    } catch (err) {
+      console.error('[scryfall] search network error:', err);
+      if (attempt === MAX_RETRIES) return null;
+      await sleep(backoff);
+      backoff *= 2;
+    }
+  }
+
+  return null;
+}
+
 function identifierMatchesCard(identifier: Identifier, card: ScryfallCard): boolean {
   if ('id' in identifier) {
     return card.id === identifier.id;

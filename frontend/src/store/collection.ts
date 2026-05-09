@@ -72,6 +72,18 @@ interface CollectionState {
    * in place, persists, and toggles isRefreshingPrices around the request.
    */
   refreshPrices: (scryfallIds?: string[]) => Promise<void>;
+  /**
+   * Updates a single card in the collection by copyId. Replaces any provided
+   * fields on the matching EnrichedCard, persists to IndexedDB, and preserves
+   * the original copyId so deck allocations remain intact.
+   */
+  updateCard: (copyId: string, updates: Partial<Omit<EnrichedCard, 'copyId'>>) => Promise<void>;
+  /**
+   * Replaces the cards array wholesale. Used by the edit-card flow when
+   * changing quantity (which adds new copies or removes existing ones) so
+   * the caller can compute the new array and persist in one round-trip.
+   */
+  replaceAllCards: (cards: EnrichedCard[]) => Promise<void>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
@@ -261,6 +273,43 @@ export const useCollectionStore = create<CollectionState>()(
           }
         } catch (err) {
           console.warn('[store] Failed to persist after deleteImports:', err);
+        }
+      },
+
+      updateCard: async (copyId, updates) => {
+        const s = get();
+        const updated = s.cards.map((c) =>
+          c.copyId === copyId ? { ...c, ...updates, copyId } : c
+        );
+        set({ cards: updated });
+        try {
+          await saveCollection({
+            cards: updated,
+            fileName: s.fileName,
+            scryfallHits: s.scryfallHits,
+            scryfallMisses: s.scryfallMisses,
+            uploadedAt: s.uploadedAt ?? Date.now(),
+            importHistory: s.importHistory,
+          });
+        } catch (err) {
+          console.warn('[store] Failed to persist card update:', err);
+        }
+      },
+
+      replaceAllCards: async (cards) => {
+        const s = get();
+        set({ cards });
+        try {
+          await saveCollection({
+            cards,
+            fileName: s.fileName,
+            scryfallHits: s.scryfallHits,
+            scryfallMisses: s.scryfallMisses,
+            uploadedAt: s.uploadedAt ?? Date.now(),
+            importHistory: s.importHistory,
+          });
+        } catch (err) {
+          console.warn('[store] Failed to persist after replaceAllCards:', err);
         }
       },
 

@@ -2269,6 +2269,374 @@ hr {
   justify-content: flex-end;
 }
 
+/* ── Card edit dialog ──────────────────────────────────────────────────── */
+.card-edit-dialog {
+  max-width: 780px;
+}
+
+.card-edit-body {
+  min-height: 300px;
+}
+
+.card-edit-loading,
+.card-edit-error {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text3);
+  font-size: var(--text-sm);
+}
+
+.card-edit-error {
+  color: var(--err-text, var(--danger, #b94545));
+}
+
+.card-edit-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 1.5rem;
+}
+
+.card-edit-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.card-edit-preview-img {
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+.card-edit-preview-placeholder {
+  width: 100%;
+  aspect-ratio: 488/680;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: 1rem;
+}
+
+.card-edit-preview-info {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.card-edit-preview-price {
+  font-family: var(--font-mono);
+}
+
+.card-edit-finishes {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.card-edit-finish-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: capitalize;
+}
+
+.card-edit-finish-btn:hover {
+  border-color: var(--accent);
+}
+
+.card-edit-finish-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--text);
+}
+
+.card-edit-qty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding-top: 0.5rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.card-edit-qty-label {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-edit-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-edit-qty-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-base);
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.card-edit-qty-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.card-edit-qty-input {
+  flex: 1;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  padding: 0 4px;
+  min-width: 0;
+}
+
+.card-edit-qty-warn {
+  font-size: var(--text-xs);
+  color: var(--err-text, var(--danger, #b94545));
+}
+
+.card-edit-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.card-edit-sets-header {
+  font-size: var(--text-sm);
+  color: var(--text3);
+  padding-bottom: 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-edit-set-search {
+  flex-shrink: 0;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 8px;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  width: 140px;
+  min-width: 0;
+}
+
+.card-edit-set-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.card-edit-sets-empty {
+  text-align: center;
+  padding: 1rem;
+  color: var(--text3);
+  font-size: var(--text-sm);
+}
+
+.card-edit-sets-list {
+  overflow-y: auto;
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card-edit-set-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-edit-set-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  padding: 4px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-edit-set-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: invert(var(--svg-invert, 0));
+  opacity: 0.85;
+}
+
+.card-edit-preview-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-edit-set-code {
+  font-weight: normal;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.card-edit-printing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.card-edit-printing-row:hover {
+  background: var(--surface2);
+}
+
+.card-edit-printing-row.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--text);
+}
+
+.card-edit-printing-row.is-current .card-edit-printing-num {
+  font-weight: 600;
+}
+
+.card-edit-printing-num {
+  min-width: 48px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.card-edit-printing-finishes {
+  display: flex;
+  gap: 3px;
+}
+
+.card-edit-finish-tag {
+  font-size: var(--text-xs);
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--text3);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.card-edit-finish-tag--foil {
+  background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
+  color: #1a2438;
+}
+
+.card-edit-finish-tag--etched {
+  background: linear-gradient(90deg, #f3d77c, #e0a85c, #c98742);
+  color: #2a1f0e;
+}
+
+.card-edit-printing-rarity {
+  flex: 1;
+  text-transform: capitalize;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.card-edit-printing-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  min-width: 48px;
+  text-align: right;
+}
+
+.card-edit-current-badge {
+  font-size: var(--text-xs);
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-light);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ── Card edit button (shared across collection + deck rows) ───────────── */
+.card-edit-btn {
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--text3);
+  cursor: pointer;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-edit-btn:hover {
+  color: var(--accent);
+  background: var(--surface2);
+}
+
+@media (max-width: 640px) {
+  .card-edit-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .card-edit-preview-img {
+    max-width: 200px;
+  }
+
+  .card-edit-sets-list {
+    max-height: 260px;
+  }
+}
+
 /* ── Editor sections ────────────────────────────────────────────────────── */
 .editor-section {
   margin-bottom: 1.5rem;

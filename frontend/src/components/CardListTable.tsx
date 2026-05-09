@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardPreview } from './CardPreview';
+import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
+import { useCollectionStore } from '../store/collection';
 
 interface Props {
   cards: EnrichedCard[];
@@ -65,6 +67,37 @@ const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FI
   },
   {} as Record<SortKey, (typeof SORT_FIELDS)[number]>
 );
+
+function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: boolean): number {
+  const p = card.prices;
+  if (!p) return 0;
+  const candidates = foil ? [p.usd_foil, p.usd_etched, p.usd] : [p.usd, p.usd_etched, p.usd_foil];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 0;
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
 
 export function CardListTable({ cards, binders }: Props) {
   const [search, setSearch] = useState('');
@@ -242,6 +275,70 @@ export function CardListTable({ cards, binders }: Props) {
 
   const totalQty = sorted.reduce((s, r) => s + r.qty, 0);
   const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
+
+  const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  const editingQty = useMemo(() => {
+    if (!editingCard) return 0;
+    return cards.filter(
+      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+    ).length;
+  }, [editingCard, cards]);
+  const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
+  const allCards = useCollectionStore((s) => s.cards);
+
+  const handleEditConfirm = (selection: PrintingSelection) => {
+    if (!editingCard) return;
+    const sc = selection.card;
+    const firstFace = sc.card_faces?.[0];
+    const cardFields: Partial<EnrichedCard> = {
+      scryfallId: sc.id,
+      name: sc.name,
+      setCode: sc.set.toUpperCase(),
+      setName: sc.set_name,
+      collectorNumber: sc.collector_number,
+      rarity: sc.rarity,
+      foil: selection.foil,
+      imageSmall: sc.image_uris?.small ?? firstFace?.image_uris?.small,
+      imageNormal: sc.image_uris?.normal ?? firstFace?.image_uris?.normal,
+      imageNormalBack: sc.card_faces?.[1]?.image_uris?.normal,
+      frameEffects: sc.frame_effects,
+      fullArt: sc.full_art === true || sc.frame_effects?.includes('fullart'),
+      borderColor: sc.border_color,
+      layout: sc.layout,
+      finishes: sc.finishes,
+      promoTypes: sc.promo_types,
+      purchasePrice: pickPrice(sc, selection.foil),
+      pricedAt: Date.now(),
+    };
+
+    // Existing copies of this printing/finish — these get updated in place,
+    // preserving their copyId so any deck allocations stay intact.
+    const existingCopies = allCards.filter(
+      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+    );
+    const targetQty = selection.quantity ?? existingCopies.length;
+    const otherCards = allCards.filter(
+      (c) => !(c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil)
+    );
+
+    const updatedExisting = existingCopies
+      .slice(0, targetQty)
+      .map((c) => ({ ...c, ...cardFields, copyId: c.copyId }));
+    const newCopies: EnrichedCard[] = [];
+    for (let i = updatedExisting.length; i < targetQty; i++) {
+      newCopies.push({
+        ...editingCard,
+        ...cardFields,
+        copyId: crypto.randomUUID(),
+        sourceCategory: editingCard.sourceCategory,
+        sourceFormat: editingCard.sourceFormat,
+        importId: editingCard.importId,
+      } as EnrichedCard);
+    }
+
+    replaceAllCards([...otherCards, ...updatedExisting, ...newCopies]);
+    setEditingCard(null);
+  };
 
   const toggleColor = (c: string) => {
     setColorFilter((prev) => {
@@ -462,6 +559,18 @@ export function CardListTable({ cards, binders }: Props) {
                   </div>
                 </div>
                 <div className="collection-list-right">
+                  <button
+                    type="button"
+                    className="card-edit-btn"
+                    title="Edit printing"
+                    aria-label={`Edit printing for ${r.card.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingCard(r.card);
+                    }}
+                  >
+                    <PencilIcon />
+                  </button>
                   <div className="collection-list-qty">×{r.qty}</div>
                   <div className="collection-list-price">
                     ${(r.card.purchasePrice * r.qty).toFixed(2)}
@@ -480,6 +589,17 @@ export function CardListTable({ cards, binders }: Props) {
           pageSize={pageSize}
           onChange={setPage}
           onPageSizeChange={setPageSize}
+        />
+      )}
+
+      {editingCard && (
+        <CardEditDialog
+          cardName={editingCard.name}
+          currentScryfallId={editingCard.scryfallId}
+          currentFoil={editingCard.foil}
+          quantity={editingQty}
+          onConfirm={handleEditConfirm}
+          onCancel={() => setEditingCard(null)}
         />
       )}
     </div>

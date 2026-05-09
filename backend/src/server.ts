@@ -5,7 +5,7 @@ import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
-import { resolveCards, fetchCardsByIds } from './scryfall';
+import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow } from './parsers/types';
@@ -209,6 +209,38 @@ app.post(
  * is intentionally skipped — the response gives a single usd per id, and the
  * frontend stamps it on every copy of that printing.
  */
+/**
+ * Fetches all printings of a card by name from Scryfall. Returns full
+ * ScryfallCard objects so the frontend can show set, images, prices, and
+ * finishes for each printing. Caches results in the existing SQLite layer.
+ */
+app.get(
+  '/api/cards/:name/printings',
+  rateLimit({ windowMs: 60_000, max: 60 }),
+  async (req: Request, res: Response) => {
+    try {
+      const rawName = req.params.name;
+      const cardName = decodeURIComponent(
+        typeof rawName === 'string' ? rawName : rawName[0]
+      ).trim();
+      if (!cardName) {
+        return res.status(400).json({ error: 'Card name is required.' });
+      }
+
+      const cards = await fetchPrintings(cardName);
+      if (cards.length > 0) {
+        cache.setMany(cards);
+      }
+
+      res.json({ printings: cards });
+    } catch (err) {
+      console.error('[printings] error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({ error: `Failed to fetch printings: ${message}` });
+    }
+  }
+);
+
 app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response) => {
   try {
     const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
