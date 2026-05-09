@@ -46,10 +46,14 @@ export function BinderPagePreview({
   // pages[] list.)
   const cols = pocketSize === 4 ? 2 : pocketSize === 12 ? 4 : 3;
   const rows = pocketSize === 4 ? 2 : 3;
-  // Card faces are 5:7. Slide aspect = (cols × 5) : (rows × 7) keeps each
-  // slot square-ish — otherwise 4-wide grids get squished into a 5:7 frame
-  // and waste horizontal space.
+  // Page rectangle aspect = (cols × card-w) : (rows × card-h). Lets each
+  // pocket land at the natural 5:7 card aspect regardless of pocket count
+  // (4-pocket → 5:7, 9-pocket → 5:7, 12-pocket → 20:21 wide).
   const slideAspect = `${cols * 5} / ${rows * 7}`;
+  // Same ratio expressed as width÷height — used by --slide-size to bound
+  // the slide width by viewport height, so 12-pocket (wider) pages can
+  // grow more on short viewports than tall 9-pocket pages.
+  const pageAspectRatio = (cols * 5) / (rows * 7);
 
   const [selected, setSelected] = useState(startPageIndex);
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
@@ -138,6 +142,7 @@ export function BinderPagePreview({
   const sheetStyle = { transform: `translateY(${dragY}px)` } as React.CSSProperties;
   const backdropStyle = {
     backgroundColor: `rgba(0, 0, 0, ${0.72 * dim})`,
+    ['--page-w-ratio' as string]: pageAspectRatio,
   } as React.CSSProperties;
 
   const currentPage = pages[selected];
@@ -169,6 +174,70 @@ export function BinderPagePreview({
             ×
           </button>
           <div className="card-preview-grabber" aria-hidden="true" />
+          {pages.length > 1 && (
+            <>
+              <button
+                type="button"
+                className="carousel-nav carousel-nav-prev"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = Math.max(0, selected - 1);
+                  if (next !== selected)
+                    slideRefs.current[next]?.scrollIntoView({
+                      inline: 'center',
+                      block: 'nearest',
+                      behavior: 'smooth',
+                    });
+                }}
+                disabled={selected === 0}
+                aria-label="Previous page"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="carousel-nav carousel-nav-next"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = Math.min(pages.length - 1, selected + 1);
+                  if (next !== selected)
+                    slideRefs.current[next]?.scrollIntoView({
+                      inline: 'center',
+                      block: 'nearest',
+                      behavior: 'smooth',
+                    });
+                }}
+                disabled={selected === pages.length - 1}
+                aria-label="Next page"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+            </>
+          )}
           <div className="binder-pages-track" ref={trackRef}>
             {pages.map((page, i) => (
               <div
@@ -183,6 +252,7 @@ export function BinderPagePreview({
                 <SlideGrid
                   slots={page.slots}
                   cols={cols}
+                  rows={rows}
                   aspect={slideAspect}
                   onTapCard={handleCardTap}
                 />
@@ -221,18 +291,24 @@ export function BinderPagePreview({
 function SlideGrid({
   slots,
   cols,
+  rows,
   aspect,
   onTapCard,
 }: {
   slots: (EnrichedCard | null)[];
   cols: number;
+  rows: number;
   aspect: string;
   onTapCard: (card: EnrichedCard) => void;
 }) {
   return (
     <div
       className="binder-pages-page"
-      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, aspectRatio: aspect }}
+      style={{
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gridTemplateRows: `repeat(${rows}, 1fr)`,
+        aspectRatio: aspect,
+      }}
     >
       {slots.map((card, i) => (
         <Cell key={i} card={card} onTap={onTapCard} />
