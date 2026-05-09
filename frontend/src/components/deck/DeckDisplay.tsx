@@ -261,11 +261,13 @@ export interface DeckDisplayProps {
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /**
-   * Counter that, when incremented, opens the Export dialog. Lets a
-   * parent (e.g. the page-level mobile action sheet) trigger Export
-   * without rendering its own duplicate Export UI.
+   * Optional parent-controlled state for the Export dialog. When both
+   * are provided, the parent owns the open state — useful for opening
+   * Export from outside the toolbar (e.g. a page-level action sheet).
+   * When omitted, DeckDisplay manages the dialog internally.
    */
-  externalExportTrigger?: number;
+  exportOpen?: boolean;
+  onExportOpenChange?: (open: boolean) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -410,7 +412,8 @@ export function DeckDisplay({
   onSetQty,
   onEditCard,
   collectionByCopyId,
-  externalExportTrigger,
+  exportOpen: exportOpenProp,
+  onExportOpenChange,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('name');
@@ -570,13 +573,16 @@ export function DeckDisplay({
     () => buildExport(commander, partnerCommander, cards, exportFormat),
     [commander, partnerCommander, cards, exportFormat]
   );
-  const [exportOpen, setExportOpen] = useState(false);
-  // Parent-driven export open: when the page-level mobile action sheet
-  // bumps the trigger counter, open the dialog. The 0 default means we
-  // skip the very first effect run.
-  useEffect(() => {
-    if (externalExportTrigger && externalExportTrigger > 0) setExportOpen(true);
-  }, [externalExportTrigger]);
+  // If the parent passes both props, treat it as a controlled component
+  // (their boolean wins). Otherwise fall back to internal state — keeps
+  // simple callers ergonomic and avoids any setState-in-effect dance.
+  const [internalExportOpen, setInternalExportOpen] = useState(false);
+  const isControlled = exportOpenProp !== undefined && onExportOpenChange !== undefined;
+  const exportOpen = isControlled ? exportOpenProp : internalExportOpen;
+  const setExportOpen = (next: boolean) => {
+    if (isControlled) onExportOpenChange(next);
+    else setInternalExportOpen(next);
+  };
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(exportText);

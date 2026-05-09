@@ -12,10 +12,6 @@ import { UploadPanel } from './UploadPanel';
 export function ImportSheet() {
   const open = useCollectionStore((s) => s.importSheetOpen);
   const setOpen = useCollectionStore((s) => s.setImportSheetOpen);
-  // Auto-close when the user finishes an import (cards count change is a
-  // strong "they did the thing" signal). useEffect below.
-  const cardsCount = useCollectionStore((s) => s.cards.length);
-
   useLockBodyScroll(open);
 
   useEffect(() => {
@@ -26,14 +22,6 @@ export function ImportSheet() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, setOpen]);
-
-  // Close the sheet when the collection grows (a successful import).
-  // The dependency is the count, not `open`, so we don't close on every
-  // re-render of an open sheet.
-  useEffect(() => {
-    return () => {};
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardsCount]);
 
   if (!open) return null;
 

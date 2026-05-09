@@ -33,9 +33,9 @@ export function DeckEditorPage() {
   const [draftName, setDraftName] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // Bumped by the mobile action sheet to ask DeckDisplay to open its
-  // Export dialog without rendering a duplicate button up here.
-  const [exportTrigger, setExportTrigger] = useState(0);
+  // Hoisted so the mobile action sheet can open Export without rendering
+  // a duplicate button. Passed to DeckDisplay as a controlled prop pair.
+  const [exportOpen, setExportOpen] = useState(false);
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
 
   // Counts already in this deck — fed to the search panel so it can mark
@@ -249,7 +249,7 @@ export function DeckEditorPage() {
           }}
           onDuplicate={handleDuplicate}
           onDelete={() => setConfirmDelete(true)}
-          onExport={() => setExportTrigger((n) => n + 1)}
+          onExport={() => setExportOpen(true)}
         />
       </header>
 
@@ -272,7 +272,8 @@ export function DeckEditorPage() {
             cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
             bracketEstimation={deck.bracketEstimation}
             deckGrade={deck.deckGrade}
-            externalExportTrigger={exportTrigger}
+            exportOpen={exportOpen}
+            onExportOpenChange={setExportOpen}
           />
         </main>
 
