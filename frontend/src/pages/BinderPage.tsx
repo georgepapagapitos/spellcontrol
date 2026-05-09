@@ -235,10 +235,21 @@ export function BinderPage() {
     );
   }
 
+  const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
+
   return (
     <>
       <BinderTabs binders={materialized} />
       <BinderPickerSheet binders={materialized} />
+      {active && (
+        <header className="binder-hero" style={{ ['--binder-color' as string]: active.def.color }}>
+          <h1 className="binder-hero-name">{active.def.name}</h1>
+          <p className="binder-hero-meta">
+            {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'} ·{' '}
+            {active.totalPages.toLocaleString()} {active.totalPages === 1 ? 'page' : 'pages'}
+          </p>
+        </header>
+      )}
       <div className="binder-toolbar">
         <div className="binder-toolbar-actions">
           <button

@@ -196,7 +196,6 @@ function SectionList({
   return (
     <>
       <div className="binder-summary" aria-live="polite">
-        <span className="binder-summary-name">{binderName}</span>
         <span className="binder-summary-meta">
           {fixedCapacity !== null ? (
             <>
