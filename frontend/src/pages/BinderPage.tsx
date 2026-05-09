@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
@@ -34,6 +34,11 @@ export function BinderPage() {
   // searchable/sortable CardListTable. Local state — the user's choice
   // doesn't need to survive a reload.
   const [view, setView] = useState<'pages' | 'list'>('pages');
+  // List-view only: roll multiple copies of the same printing into one
+  // row. Lifted to the page so the options menu in the toolbar can
+  // toggle it without poking into the list component.
+  const [groupPrintings, setGroupPrintings] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
   // When the user already has a real collection, "Try it out" should only add
@@ -364,6 +369,14 @@ export function BinderPage() {
               Clear
             </button>
           )}
+          {view === 'list' && (
+            <BinderListOptions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              groupPrintings={groupPrintings}
+              onGroupPrintingsChange={setGroupPrintings}
+            />
+          )}
         </div>
       </div>
       {view === 'pages' ? (
@@ -375,10 +388,107 @@ export function BinderPage() {
           // BinderListView preserves the binder's section grouping (the same
           // White / Blue / Multicolor / etc. headers as the page grid view)
           // and rolls duplicate copies into qty pills.
-          return <BinderListView binder={active} viewToggle={viewToggle} />;
+          return (
+            <BinderListView
+              binder={active}
+              viewToggle={viewToggle}
+              groupPrintings={groupPrintings}
+            />
+          );
         })()
       )}
     </>
+  );
+}
+
+/**
+ * Inline options popover that lives next to the binder search input.
+ * Currently hosts a single "Group printings" toggle (rolls duplicate
+ * copies of the same printing into one row). Designed as a popover so
+ * future list-view options (Hide empty groups, Show prices, etc.) can
+ * land here without bloating the toolbar.
+ */
+function BinderListOptions({
+  open,
+  onOpenChange,
+  groupPrintings,
+  onGroupPrintingsChange,
+}: {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  groupPrintings: boolean;
+  onGroupPrintingsChange: (next: boolean) => void;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        onOpenChange(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, onOpenChange]);
+
+  return (
+    <div className="binder-list-options" ref={wrapperRef}>
+      <button
+        type="button"
+        className={`binder-list-options-btn${groupPrintings ? ' has-active-option' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="List options"
+        title="List options"
+        onClick={() => onOpenChange(!open)}
+      >
+        <FilterIcon />
+      </button>
+      {open && (
+        <div className="binder-list-options-panel" role="menu">
+          <label className="binder-list-options-row">
+            <input
+              type="checkbox"
+              checked={groupPrintings}
+              onChange={(e) => onGroupPrintingsChange(e.target.checked)}
+            />
+            <span className="binder-list-options-label">
+              Group printings
+              <span className="binder-list-options-hint">
+                Roll multiple copies of the same printing into one row
+              </span>
+            </span>
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 5h18" />
+      <path d="M6 12h12" />
+      <path d="M10 19h4" />
+    </svg>
   );
 }
 

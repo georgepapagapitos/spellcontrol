@@ -21,6 +21,8 @@ interface Props {
   binder: MaterializedBinder;
   /** Optional slot rendered in the summary line next to "Collapse all". */
   viewToggle?: React.ReactNode;
+  /** Roll duplicate copies of the same printing into one row. */
+  groupPrintings?: boolean;
 }
 
 interface Row {
@@ -49,7 +51,7 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({ binder, viewToggle }: Props) {
+export function BinderListView({ binder, viewToggle, groupPrintings = false }: Props) {
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allocations = useAllocations();
@@ -57,11 +59,6 @@ export function BinderListView({ binder, viewToggle }: Props) {
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
-  // Default OFF: a binder's mental model is one slot per physical copy,
-  // so showing four copies of Sol Ring as four rows mirrors what's
-  // actually on the page. Power users who want a deck-list-style roll-up
-  // can flip the toggle.
-  const [groupPrintings, setGroupPrintings] = useState(false);
 
   /** All deck allocations covering the copies that match (scryfallId, foil). */
   const allocationsFor = (card: EnrichedCard): AllocationInfo[] => {
@@ -280,20 +277,6 @@ export function BinderListView({ binder, viewToggle }: Props) {
             </>
           )}
           <Legend />
-          {' · '}
-          <button
-            type="button"
-            className="binder-summary-open"
-            onClick={() => setGroupPrintings((v) => !v)}
-            aria-pressed={groupPrintings}
-            title={
-              groupPrintings
-                ? 'Showing one row per printing — flip to see every physical copy'
-                : 'Showing one row per copy — flip to roll up duplicates'
-            }
-          >
-            {groupPrintings ? 'Group printings' : 'Show every copy'}
-          </button>
         </span>
         {flat.sectionRows.length > 1 && (
           <button
