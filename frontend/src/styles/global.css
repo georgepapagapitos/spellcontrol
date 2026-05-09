@@ -4066,6 +4066,74 @@ hr {
   transform: scale(0.92);
 }
 
+/* Floating prev/next buttons that overlay the carousel sheet on the left
+   and right edges. Non-essential — swipe and keyboard arrows still work —
+   but they make the carousel discoverable for mouse users and reachable
+   for switch / pointer-only AT. Hidden until hover/focus on coarse-pointer
+   devices so they don't clutter touch UX. */
+.carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.12s;
+}
+
+.carousel-nav:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.carousel-nav:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.carousel-nav:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.carousel-nav:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.carousel-nav-prev {
+  left: max(1rem, env(safe-area-inset-left));
+}
+
+.carousel-nav-next {
+  right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Touch-only: hide until the user explicitly focuses one (keyboard
+   navigation). Touch users have swipe + tap-peeking-neighbor and don't
+   need persistent thumb-blocking buttons. */
+@media (hover: none) and (pointer: coarse) {
+  .carousel-nav {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .carousel-nav:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .card-preview-grabber {
   position: absolute;
   top: max(0.5rem, env(safe-area-inset-top));

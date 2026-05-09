@@ -174,6 +174,70 @@ export function BinderPagePreview({
             ×
           </button>
           <div className="card-preview-grabber" aria-hidden="true" />
+          {pages.length > 1 && (
+            <>
+              <button
+                type="button"
+                className="carousel-nav carousel-nav-prev"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = Math.max(0, selected - 1);
+                  if (next !== selected)
+                    slideRefs.current[next]?.scrollIntoView({
+                      inline: 'center',
+                      block: 'nearest',
+                      behavior: 'smooth',
+                    });
+                }}
+                disabled={selected === 0}
+                aria-label="Previous page"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="carousel-nav carousel-nav-next"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = Math.min(pages.length - 1, selected + 1);
+                  if (next !== selected)
+                    slideRefs.current[next]?.scrollIntoView({
+                      inline: 'center',
+                      block: 'nearest',
+                      behavior: 'smooth',
+                    });
+                }}
+                disabled={selected === pages.length - 1}
+                aria-label="Next page"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+            </>
+          )}
           <div className="binder-pages-track" ref={trackRef}>
             {pages.map((page, i) => (
               <div
