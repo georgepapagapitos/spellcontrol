@@ -319,24 +319,26 @@ export function BinderPage() {
         </header>
       )}
       <div className="binder-toolbar">
-        <div className="view-toggle" role="tablist" aria-label="Binder view">
+        <div className="toolbar-viewmode" role="group" aria-label="Binder view mode">
           <button
             type="button"
-            role="tab"
-            className={`view-toggle-btn${view === 'pages' ? ' is-active' : ''}`}
-            aria-selected={view === 'pages'}
+            className={`toolbar-viewmode-btn${view === 'pages' ? ' active' : ''}`}
+            aria-pressed={view === 'pages'}
+            aria-label="Pages view"
+            title="Pages view"
             onClick={() => setView('pages')}
           >
-            Pages
+            <PagesViewIcon />
           </button>
           <button
             type="button"
-            role="tab"
-            className={`view-toggle-btn${view === 'list' ? ' is-active' : ''}`}
-            aria-selected={view === 'list'}
+            className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
+            aria-pressed={view === 'list'}
+            aria-label="List view"
+            title="List view"
             onClick={() => setView('list')}
           >
-            List
+            <ListViewIcon />
           </button>
         </div>
         {view === 'pages' && (
@@ -391,6 +393,50 @@ function PencilIcon() {
       aria-hidden
     >
       <path d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z" />
+    </svg>
+  );
+}
+
+function PagesViewIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function ListViewIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="4" cy="6" r="0.5" />
+      <circle cx="4" cy="12" r="0.5" />
+      <circle cx="4" cy="18" r="0.5" />
     </svg>
   );
 }
