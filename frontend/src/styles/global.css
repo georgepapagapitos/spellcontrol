@@ -4603,14 +4603,12 @@ hr {
 
 /* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
 .binder-pages-backdrop {
-  /* Match the card-preview sizing strategy: bound the slide by viewport
-     width, an absolute reading ceiling, AND viewport height (so the page
-     never overflows behind the bottom panel). 14rem reserves panel + slide
-     label + safe area; the 0.72 ratio matches a 5:7 card face — most
-     binders are 9-pocket so the page aspect is also 5:7 and the formula
-     applies cleanly. Wider 12-pocket pages just render shorter under the
-     same width cap, which is fine. */
-  --slide-size: min(94vw, 520px, calc((100dvh - 14rem) * 0.72));
+  /* A 9-pocket page is the same 5:7 portrait rectangle as a card, so the
+     binder page slide mirrors .card-preview-backdrop's sizing strategy.
+     The reservation is bumped from 13rem to 15rem because a binder slide
+     is label + page (taller than a single-card slide), and the height
+     bound has to fit both. */
+  --slide-size: min(94vw, 460px, calc((100dvh - 15rem) * 0.72));
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
@@ -4633,7 +4631,11 @@ hr {
 
 .binder-pages-track {
   display: flex;
-  align-items: flex-end;
+  /* Center vertically — unlike a single card, a binder slide is label +
+     page so its total height is taller than the page rectangle. flex-end
+     would pin the bottom of the page to the panel and clip the label /
+     top of the grid on shorter viewports. */
+  align-items: center;
   gap: var(--slide-spacing);
   width: 100%;
   min-height: 0;
@@ -4644,7 +4646,7 @@ hr {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
   padding-inline: calc((100% - var(--slide-size)) / 2);
-  padding-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
   scrollbar-width: none;
 }
 
@@ -4672,8 +4674,14 @@ hr {
 
 .binder-pages-page {
   display: grid;
-  /* aspect-ratio is set inline per slide so wide grids (12/24-pocket) aren't squished. */
+  /* The page IS the same 5:7 portrait rectangle as a card; cells are
+     forced into equal rows/columns inside it via 1fr/1fr. For 9- and
+     4-pocket binders each cell lands at the natural card aspect; for
+     12-pocket binders cells render slightly narrower, which is fine —
+     consistency with the card preview's silhouette is the priority. */
+  grid-template-rows: repeat(var(--page-rows, 3), 1fr);
   width: 100%;
+  aspect-ratio: 5 / 7;
   gap: 6px;
   padding: 8px;
   background: rgba(20, 20, 22, 0.6);

@@ -46,10 +46,6 @@ export function BinderPagePreview({
   // pages[] list.)
   const cols = pocketSize === 4 ? 2 : pocketSize === 12 ? 4 : 3;
   const rows = pocketSize === 4 ? 2 : 3;
-  // Card faces are 5:7. Slide aspect = (cols × 5) : (rows × 7) keeps each
-  // slot square-ish — otherwise 4-wide grids get squished into a 5:7 frame
-  // and waste horizontal space.
-  const slideAspect = `${cols * 5} / ${rows * 7}`;
 
   const [selected, setSelected] = useState(startPageIndex);
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
@@ -180,12 +176,7 @@ export function BinderPagePreview({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="binder-pages-slide-label">page {page.pageNum}</div>
-                <SlideGrid
-                  slots={page.slots}
-                  cols={cols}
-                  aspect={slideAspect}
-                  onTapCard={handleCardTap}
-                />
+                <SlideGrid slots={page.slots} cols={cols} onTapCard={handleCardTap} />
               </div>
             ))}
           </div>
@@ -221,19 +212,14 @@ export function BinderPagePreview({
 function SlideGrid({
   slots,
   cols,
-  aspect,
   onTapCard,
 }: {
   slots: (EnrichedCard | null)[];
   cols: number;
-  aspect: string;
   onTapCard: (card: EnrichedCard) => void;
 }) {
   return (
-    <div
-      className="binder-pages-page"
-      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, aspectRatio: aspect }}
-    >
+    <div className="binder-pages-page" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
       {slots.map((card, i) => (
         <Cell key={i} card={card} onTap={onTapCard} />
       ))}
