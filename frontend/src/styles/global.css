@@ -4076,6 +4076,12 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
+     horizontal pans are owned by the nested .card-preview-track
+     (which sets its own touch-action: pan-x). Telling the browser
+     "no native vertical pan here" prevents the touch from leaking
+     to underlying scrollers on iOS Safari during an up-swipe. */
+  touch-action: pan-x;
 }
 
 .card-preview-sheet:not(.is-dragging) {
@@ -4776,6 +4782,9 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* Same touch contract as .card-preview-sheet — vertical = JS, horizontal
+     = native pan-x on the nested track. */
+  touch-action: pan-x;
 }
 
 .binder-pages-sheet:not(.is-dragging) {
