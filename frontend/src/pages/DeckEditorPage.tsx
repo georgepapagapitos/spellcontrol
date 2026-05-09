@@ -8,6 +8,7 @@ import { CardEditDialog, type PrintingSelection } from '../components/CardEditDi
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useToastsStore } from '../store/toasts';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 export function DeckEditorPage() {
@@ -32,6 +33,9 @@ export function DeckEditorPage() {
   const [draftName, setDraftName] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Bumped by the mobile action sheet to ask DeckDisplay to open its
+  // Export dialog without rendering a duplicate button up here.
+  const [exportTrigger, setExportTrigger] = useState(0);
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
 
   // Counts already in this deck — fed to the search panel so it can mark
@@ -234,6 +238,19 @@ export function DeckEditorPage() {
             Delete
           </button>
         </div>
+        <DeckEditorOverflowMenu
+          isAddPanelOpen={showAddPanel}
+          onToggleAddPanel={() => {
+            const next = !showAddPanel;
+            setShowAddPanel(next);
+            if (next) {
+              window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
+            }
+          }}
+          onDuplicate={handleDuplicate}
+          onDelete={() => setConfirmDelete(true)}
+          onExport={() => setExportTrigger((n) => n + 1)}
+        />
       </header>
 
       <div className={`deck-editor-layout${showAddPanel ? ' with-panel' : ''}`}>
@@ -255,6 +272,7 @@ export function DeckEditorPage() {
             cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
             bracketEstimation={deck.bracketEstimation}
             deckGrade={deck.deckGrade}
+            externalExportTrigger={exportTrigger}
           />
         </main>
 
@@ -297,6 +315,115 @@ export function DeckEditorPage() {
 
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
+    </div>
+  );
+}
+
+function DeckEditorOverflowMenu({
+  isAddPanelOpen,
+  onToggleAddPanel,
+  onDuplicate,
+  onDelete,
+  onExport,
+}: {
+  isAddPanelOpen: boolean;
+  onToggleAddPanel: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onExport: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useLockBodyScroll(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="deck-editor-overflow" ref={wrapperRef}>
+      <button
+        type="button"
+        className="deck-editor-overflow-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Deck actions"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden>
+          <circle cx="12" cy="5" r="1.7" />
+          <circle cx="12" cy="12" r="1.7" />
+          <circle cx="12" cy="19" r="1.7" />
+        </svg>
+      </button>
+      {open && (
+        <>
+          <div
+            className="deck-editor-overflow-backdrop"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <div className="deck-editor-overflow-panel" role="menu">
+            <div className="deck-editor-overflow-handle" aria-hidden />
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onToggleAddPanel();
+              }}
+            >
+              {isAddPanelOpen ? 'Hide cards panel' : 'Add cards'}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onDuplicate();
+              }}
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onExport();
+              }}
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item deck-editor-overflow-item--danger"
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

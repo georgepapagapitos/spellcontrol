@@ -260,6 +260,12 @@ export interface DeckDisplayProps {
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
+  /**
+   * Counter that, when incremented, opens the Export dialog. Lets a
+   * parent (e.g. the page-level mobile action sheet) trigger Export
+   * without rendering its own duplicate Export UI.
+   */
+  externalExportTrigger?: number;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -404,6 +410,7 @@ export function DeckDisplay({
   onSetQty,
   onEditCard,
   collectionByCopyId,
+  externalExportTrigger,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('name');
@@ -564,6 +571,12 @@ export function DeckDisplay({
     [commander, partnerCommander, cards, exportFormat]
   );
   const [exportOpen, setExportOpen] = useState(false);
+  // Parent-driven export open: when the page-level mobile action sheet
+  // bumps the trigger counter, open the dialog. The 0 default means we
+  // skip the very first effect run.
+  useEffect(() => {
+    if (externalExportTrigger && externalExportTrigger > 0) setExportOpen(true);
+  }, [externalExportTrigger]);
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(exportText);
@@ -997,7 +1010,7 @@ function DeckToolbar({
 
         <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
-        <button type="button" className="btn btn-primary" onClick={onExport}>
+        <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
           Export
         </button>
       </div>

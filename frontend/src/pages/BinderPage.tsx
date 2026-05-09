@@ -4,6 +4,7 @@ import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
+import { BinderPickerSheet } from '../components/BinderPickerSheet';
 import { BinderView } from '../components/BinderView';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
@@ -235,6 +236,7 @@ export function BinderPage() {
   return (
     <>
       <BinderTabs binders={materialized} />
+      <BinderPickerSheet binders={materialized} />
       <div className="binder-toolbar">
         <div className="binder-toolbar-search">
           <input
