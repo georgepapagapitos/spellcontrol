@@ -13,6 +13,7 @@ export function CollectionPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
+  const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
 
   // Materialize without search — the collection table has its own local search.
   const { materialized } = useMemo(() => {
@@ -21,14 +22,19 @@ export function CollectionPage() {
     return { materialized: result.binders };
   }, [cards, binders]);
 
+  const totalValue = useMemo(() => cards.reduce((sum, c) => sum + c.purchasePrice, 0), [cards]);
+  const uniquePrintings = useMemo(() => {
+    const seen = new Set<string>();
+    for (const c of cards) seen.add(c.scryfallId);
+    return seen.size;
+  }, [cards]);
+
   return (
     <>
       {hydrating ? (
-        <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
-          <div className="upload-icon">
-            <span className="spinner" />
-          </div>
-          <div className="upload-text">Loading...</div>
+        <div className="page-loader" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="visually-hidden">Loading</span>
         </div>
       ) : (
         <>
@@ -40,15 +46,30 @@ export function CollectionPage() {
               </button>
             </div>
           )}
-          {/* Empty state only — once a collection exists, the import UI
-              moves into the bottom sheet triggered by the "+" in the
-              OVERVIEW row, not the page content. */}
           {cards.length === 0 && <UploadPanel />}
         </>
       )}
 
       {!hydrating && cards.length > 0 && (
         <>
+          <header className="binder-hero collection-hero">
+            <div className="collection-hero-text">
+              <h1 className="binder-hero-name">Collection</h1>
+              <p className="binder-hero-meta">
+                {cards.length.toLocaleString()} {cards.length === 1 ? 'card' : 'cards'} ·{' '}
+                {uniquePrintings.toLocaleString()} unique · ${totalValue.toFixed(0)}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="pill-btn collection-hero-action"
+              aria-haspopup="dialog"
+              onClick={() => setImportSheetOpen(true)}
+            >
+              <PlusIcon />
+              <span>Import cards</span>
+            </button>
+          </header>
           <StatsBar />
           <CardListTable cards={cards} binders={materialized} />
           <PriceFreshnessLine />
@@ -56,5 +77,22 @@ export function CollectionPage() {
         </>
       )}
     </>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M8 3v10M3 8h10" />
+    </svg>
   );
 }

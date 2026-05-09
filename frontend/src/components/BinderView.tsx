@@ -65,12 +65,10 @@ export function BinderView({ binders }: Props) {
     <SectionList
       viewKey={active.def.id}
       binderName={active.def.name}
-      totalCards={active.totalCards}
       totalPages={active.totalPages}
       sections={active.sections}
       pocketSize={active.effectivePocketSize}
       sorts={active.effectiveSorts}
-      fixedCapacity={active.def.fixedCapacity ?? null}
     />
   );
 }
@@ -78,21 +76,17 @@ export function BinderView({ binders }: Props) {
 function SectionList({
   viewKey,
   binderName,
-  totalCards,
   totalPages,
   sections,
   pocketSize,
   sorts,
-  fixedCapacity,
 }: {
   viewKey: string;
   binderName: string;
-  totalCards: number;
   totalPages: number;
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortField[];
-  fixedCapacity: number | null;
 }) {
   const activeSorts = sorts.filter((s) => s && s !== 'none');
   // Full sort breadcrumb (e.g. "color › name › cmc") — communicates the
@@ -196,32 +190,9 @@ function SectionList({
   return (
     <>
       <div className="binder-summary" aria-live="polite">
-        <span className="binder-summary-name">{binderName}</span>
         <span className="binder-summary-meta">
-          {fixedCapacity !== null ? (
-            <>
-              {totalCards.toLocaleString()} / {fixedCapacity.toLocaleString()} cards
-              {totalCards > fixedCapacity && (
-                <span
-                  className="binder-summary-overcap"
-                  title={`Over capacity by ${(totalCards - fixedCapacity).toLocaleString()} cards`}
-                >
-                  {' '}
-                  ⚠ over capacity
-                </span>
-              )}{' '}
-              · {totalPages.toLocaleString()} /{' '}
-              {Math.ceil(fixedCapacity / pocketSize).toLocaleString()} pages
-            </>
-          ) : (
-            <>
-              {totalCards.toLocaleString()} cards · {totalPages.toLocaleString()} page
-              {totalPages !== 1 ? 's' : ''}
-            </>
-          )}
           {flatPages.length > 0 && (
             <>
-              {' · '}
               <button
                 type="button"
                 className="binder-summary-open"
@@ -230,9 +201,9 @@ function SectionList({
               >
                 Browse pages
               </button>
+              {' · '}
             </>
           )}
-          {' · '}
           <Legend />
         </span>
         {sections.length > 1 && (
