@@ -95,6 +95,12 @@ body {
   color: var(--text);
   min-height: 100vh;
   padding: 0 1rem 2rem;
+  /* Belt-and-suspenders against the occasional rogue popover or
+     long string that briefly overflows the viewport before its own
+     container catches it. `overflow-x: clip` is preferred over
+     `hidden` because it doesn't establish a new containing block,
+     so position: fixed / sticky behave the way you'd expect. */
+  overflow-x: clip;
 }
 
 button {
@@ -550,6 +556,7 @@ select {
 .import-history-check input[type='checkbox'],
 .field-checkbox input[type='checkbox'],
 .commander-owned-toggle input[type='checkbox'],
+.filter-popover-row input[type='checkbox'],
 .collection-group-checkbox {
   appearance: none;
   -webkit-appearance: none;
@@ -570,6 +577,7 @@ select {
 .import-history-check input[type='checkbox']:hover:not(:disabled),
 .field-checkbox input[type='checkbox']:hover:not(:disabled),
 .commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
+.filter-popover-row input[type='checkbox']:hover:not(:disabled),
 .collection-group-checkbox:hover:not(:disabled) {
   border-color: var(--accent);
 }
@@ -577,6 +585,7 @@ select {
 .import-history-check input[type='checkbox']:checked,
 .field-checkbox input[type='checkbox']:checked,
 .commander-owned-toggle input[type='checkbox']:checked,
+.filter-popover-row input[type='checkbox']:checked,
 .collection-group-checkbox:checked {
   background: var(--accent);
   border-color: var(--accent);
@@ -585,6 +594,7 @@ select {
 .import-history-check input[type='checkbox']:checked::after,
 .field-checkbox input[type='checkbox']:checked::after,
 .commander-owned-toggle input[type='checkbox']:checked::after,
+.filter-popover-row input[type='checkbox']:checked::after,
 .collection-group-checkbox:checked::after {
   content: '';
   width: 8px;
@@ -596,6 +606,7 @@ select {
 .import-history-check input[type='checkbox']:focus-visible,
 .field-checkbox input[type='checkbox']:focus-visible,
 .commander-owned-toggle input[type='checkbox']:focus-visible,
+.filter-popover-row input[type='checkbox']:focus-visible,
 .collection-group-checkbox:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -1242,6 +1253,20 @@ input[type='search'] {
   font-size: var(--text-sm);
 }
 
+/* The view-mode toggle anchors itself to the right of the summary
+   line. When Collapse all sits beside it, only Collapse all gets the
+   auto margin (otherwise both items split the slack and the buttons
+   end up centered). */
+.binder-summary-viewmode {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.binder-summary-collapse + .binder-summary-viewmode {
+  margin-left: 0.6rem;
+}
+
 .binder-summary-open {
   background: none;
   border: none;
@@ -1260,10 +1285,15 @@ input[type='search'] {
 }
 
 .binder-toolbar {
+  /* Mirrors .deck-toolbar — a single horizontal row with controls on the
+     left (view mode) and a flex-grow search on the right. The previous
+     column layout with align-items: stretch was making the inline-flex
+     .toolbar-viewmode pill stretch to full width, which looked like a
+     bug. Wraps onto two rows on narrow viewports. */
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 0.6rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
@@ -1346,18 +1376,185 @@ input[type='search'] {
   gap: 0.4rem;
 }
 
-.binder-toolbar-search {
-  flex: 1;
+/* Shared rounded search "pill". The wrapper carries the surface fill /
+   border / radius; the nested input strips its own framing so the
+   leading magnifier icon, clear button, and any trailing slot (filter
+   popover) all sit inside the same rail. Used by <SearchPill> across
+   the binder, collection, and deck toolbars. */
+.search-pill {
+  /* min-width is the load-bearing rule here: without it, the input's
+     intrinsic size keeps the pill from shrinking and it pushes the
+     neighboring view toggle to a new line on narrow viewports. */
+  flex: 1 1 12rem;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
+  gap: 0.4rem;
+  position: relative;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  /* Tight padding so the pill lands at button-height. Anything taller
+     dominates the toolbar visually and crowds neighboring controls. */
+  padding: 0.1rem 0.35rem 0.1rem 0.7rem;
+  transition: border-color 0.12s;
 }
 
-.binder-toolbar-search input[type='search'] {
+.search-pill:focus-within {
+  border-color: var(--accent);
+}
+
+.search-pill-icon {
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+.search-pill > input[type='search'] {
+  background: transparent;
+  border: 0;
+  padding: 0.3rem 0;
+  outline: none;
   flex: 1;
   min-width: 0;
-  max-width: 360px;
+  /* Stay at 16px+ to avoid iOS Safari auto-zooming on focus. */
+  font-size: var(--text-base);
+  color: var(--text);
+}
+
+.search-pill > input[type='search']::placeholder {
+  color: var(--text3);
+}
+
+/* Native search-input UI chrome (the cancel ×, decoration) collides with
+   the custom clear button visually — mute it across browsers. */
+.search-pill > input[type='search']::-webkit-search-decoration,
+.search-pill > input[type='search']::-webkit-search-cancel-button,
+.search-pill > input[type='search']::-webkit-search-results-button,
+.search-pill > input[type='search']::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-pill-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text3);
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.search-pill-clear:hover,
+.search-pill-clear:focus-visible {
+  background: var(--accent-light);
+  color: var(--accent);
+  outline: none;
+}
+
+/* Filter / options popover that lives INSIDE the search bar. Single
+   icon button → click opens a small panel of toggles. Active dot
+   shows up on `.has-active-option` so an enabled filter is glanceable. */
+.filter-popover {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.filter-popover-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.filter-popover-btn:hover,
+.filter-popover-btn:focus-visible,
+.filter-popover-btn[aria-expanded='true'] {
+  background: var(--accent-light);
+  color: var(--accent);
+  outline: none;
+}
+
+.filter-popover-btn.has-active-option {
+  position: relative;
+  color: var(--accent);
+}
+
+.filter-popover-btn.has-active-option::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 1px solid var(--bg);
+}
+
+.filter-popover-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 16rem;
+  max-width: min(20rem, calc(100vw - 2rem));
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  padding: 0.6rem;
+}
+
+.filter-popover-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.filter-popover-row:hover {
+  background: var(--surface2);
+}
+
+.filter-popover-row input[type='checkbox'] {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.filter-popover-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.filter-popover-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  line-height: 1.35;
 }
 
 select:focus,
@@ -1990,6 +2187,24 @@ input[type='text'] {
      This keeps multi-word names wrapping cleanly at spaces. */
   overflow-wrap: normal;
   word-break: normal;
+}
+
+/* Qty badge for binder slots when the binder is in group-printings
+   mode. Sister to .collection-grid-qty (collection grid view) so the
+   affordance reads identically across surfaces. */
+.slot-qty-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  pointer-events: none;
 }
 
 .slot.empty {
@@ -3876,8 +4091,8 @@ hr {
   top: calc(100% + 4px);
   left: 0;
   z-index: 200;
-  min-width: 200px;
-  max-width: 280px;
+  min-width: min(200px, calc(100vw - 2rem));
+  max-width: min(280px, calc(100vw - 2rem));
   background: var(--surface-raised, var(--surface));
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -3919,7 +4134,7 @@ hr {
   border-radius: var(--radius);
   z-index: 50;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  min-width: 240px;
+  min-width: min(240px, calc(100vw - 2rem));
 }
 
 .set-dropdown-item {
@@ -4028,6 +4243,12 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
+     horizontal pans are owned by the nested .card-preview-track
+     (which sets its own touch-action: pan-x). Telling the browser
+     "no native vertical pan here" prevents the touch from leaking
+     to underlying scrollers on iOS Safari during an up-swipe. */
+  touch-action: pan-x;
 }
 
 .card-preview-sheet:not(.is-dragging) {
@@ -4728,6 +4949,9 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* Same touch contract as .card-preview-sheet — vertical = JS, horizontal
+     = native pan-x on the nested track. */
+  touch-action: pan-x;
 }
 
 .binder-pages-sheet:not(.is-dragging) {
@@ -4986,12 +5210,8 @@ hr {
     gap: 0.6rem;
   }
 
-  .binder-toolbar-search {
+  .search-pill {
     flex: 1 1 100%;
-  }
-
-  .binder-toolbar-search input[type='search'] {
-    max-width: none;
   }
 
   .binder-toolbar .field-checkbox {
@@ -5355,41 +5575,6 @@ hr {
   margin-top: 1rem;
 }
 
-.card-list-search {
-  flex: 1 1 240px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.card-list-search input {
-  flex: 1;
-  min-width: 0;
-  height: 2.1rem;
-  padding: 0.3rem 0.85rem;
-  border-radius: 999px;
-  border: 0.5px solid var(--border2);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-sm);
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.card-list-search input::-webkit-search-decoration,
-.card-list-search input::-webkit-search-cancel-button,
-.card-list-search input::-webkit-search-results-button,
-.card-list-search input::-webkit-search-results-decoration {
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.card-list-search input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
 /* Type chip row above the toolbar */
 .collection-type-chips {
   display: flex;
@@ -5595,6 +5780,54 @@ hr {
   color: var(--text3);
 }
 
+/* Page-number chip — shown on binder list rows so the user can find a
+   card in physical storage without leaving the list. */
+.card-list-page {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* "In a deck" indicator next to the card name. Subtle and color-tied
+   to the warn token because allocations are essentially "this copy is
+   checked out", same semantic as the binder slot's grey-out state. */
+.card-list-deck-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--warn-bg, color-mix(in srgb, var(--warn, #c98a3a) 18%, transparent));
+  color: var(--warn-text, var(--warn, #c98a3a));
+  border: 0.5px solid color-mix(in srgb, var(--warn, #c98a3a) 35%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+  vertical-align: 1px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+
+.card-list-deck-badge:hover,
+.card-list-deck-badge:focus-visible {
+  background: color-mix(in srgb, var(--warn, #c98a3a) 28%, transparent);
+  border-color: var(--warn, #c98a3a);
+  outline: none;
+}
+
+.card-list-deck-badge--multi {
+  cursor: default;
+}
+
+.card-list-deck-badge-count {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
 /* Mana cost glyphs (rendered via mana-font) */
 .mana-cost {
   display: inline-flex;
@@ -5775,14 +6008,56 @@ hr {
   color: var(--text3);
 }
 
+/* Compact density: text-only rows, no thumbnail, name + meta on a single
+   line, tight vertical padding. Used by the binder's compact list mode. */
+.collection-list.is-compact .collection-list-row {
+  gap: 0.5rem;
+  padding: 0.3rem 0.7rem;
+}
+
+.collection-list.is-compact .collection-list-thumb {
+  display: none;
+}
+
+.collection-list.is-compact .collection-list-main {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.collection-list.is-compact .collection-list-name {
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.collection-list.is-compact .collection-list-meta {
+  font-size: var(--text-xs);
+  gap: 0.35rem;
+}
+
+.collection-list.is-compact .collection-list-right {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.collection-list.is-compact .collection-list-qty,
+.collection-list.is-compact .collection-list-price {
+  font-size: var(--text-xs);
+}
+
 @media (max-width: 1024px) {
   .collection-grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
     gap: 0.5rem;
   }
 
+  /* No flex-wrap on mobile: the search pill is flex-shrinkable, so
+     letting the toggle pin to the right side of the same row reads
+     better than dropping it onto a new line. */
   .collection-toolbar-row {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .collection-filter-row .collection-select-sort {

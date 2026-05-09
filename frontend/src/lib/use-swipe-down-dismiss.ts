@@ -76,8 +76,15 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     if (axisLockRef.current === null) {
-      if (Math.abs(dx) > AXIS_LOCK_THRESHOLD_PX || Math.abs(dy) > AXIS_LOCK_THRESHOLD_PX) {
-        axisLockRef.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h';
+      // Upward drags are ignored entirely — only commit a vertical lock
+      // when the user is actually dragging DOWN. Otherwise an up-flick
+      // would pin the carousel's horizontal scroll for the rest of the
+      // gesture (and could leave the sheet in a "dragging" state with
+      // no visual movement, since dragY is clamped to ≥ 0).
+      const hCommit = Math.abs(dx) > AXIS_LOCK_THRESHOLD_PX;
+      const vCommit = dy > AXIS_LOCK_THRESHOLD_PX;
+      if (hCommit || vCommit) {
+        axisLockRef.current = vCommit && dy > Math.abs(dx) ? 'v' : 'h';
         if (axisLockRef.current === 'v') setIsDragging(true);
       }
     }
