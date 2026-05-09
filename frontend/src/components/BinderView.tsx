@@ -95,7 +95,11 @@ function SectionList({
   fixedCapacity: number | null;
 }) {
   const activeSorts = sorts.filter((s) => s && s !== 'none');
-  const subSortLabels = activeSorts.slice(1).map((s) => SORT_LABEL[s] ?? s);
+  // Full sort breadcrumb (e.g. "color › name › cmc") — communicates the
+  // section's grouping and the within-section ordering at the same time.
+  // Shown on each section header so the user always knows what the
+  // hierarchy is at a glance.
+  const sortBreadcrumb = activeSorts.map((s) => SORT_LABEL[s] ?? s);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Tap-to-preview state (touch devices). Tracks which section's card list to
@@ -231,18 +235,16 @@ function SectionList({
           {' · '}
           <Legend />
         </span>
-      </div>
-      {sections.length > 1 && (
-        <div className="section-controls">
+        {sections.length > 1 && (
           <button
             type="button"
-            className="btn-link"
+            className="btn-link binder-summary-collapse"
             onClick={allCollapsed ? expandAll : collapseAll}
           >
             {allCollapsed ? 'Expand all' : 'Collapse all'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
       {sections.map((section, sectionIdx) => {
         const isCollapsed = collapsed.has(section.key);
         const headerId = `section-header-${viewKey}-${section.key}`;
@@ -254,7 +256,7 @@ function SectionList({
             isCollapsed={isCollapsed}
             headerId={headerId}
             panelId={panelId}
-            subSortLabels={subSortLabels}
+            sortBreadcrumb={sortBreadcrumb}
             pocketSize={pocketSize}
             isPreviewOpen={preview !== null || pagesStartIndex !== null}
             onToggle={() => toggle(section.key)}
@@ -338,7 +340,7 @@ function SectionBlock({
   isCollapsed,
   headerId,
   panelId,
-  subSortLabels,
+  sortBreadcrumb,
   pocketSize,
   isPreviewOpen,
   onToggle,
@@ -349,7 +351,7 @@ function SectionBlock({
   isCollapsed: boolean;
   headerId: string;
   panelId: string;
-  subSortLabels: string[];
+  sortBreadcrumb: string[];
   pocketSize: PocketSize;
   isPreviewOpen: boolean;
   onToggle: () => void;
@@ -383,9 +385,9 @@ function SectionBlock({
           />
         )}
         <span className="section-title">{section.label}</span>
-        {subSortLabels.length > 0 && (
-          <span className="section-breadcrumb" aria-label="Sort order within this section">
-            {subSortLabels.join(' › ')}
+        {sortBreadcrumb.length > 0 && (
+          <span className="section-breadcrumb" aria-label="Sort order">
+            {sortBreadcrumb.join(' › ')}
           </span>
         )}
         <span className="section-meta">

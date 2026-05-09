@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { THEMES } from '../lib/themes';
 import { useThemeStore } from '../store/theme';
 
-export function ThemePicker() {
+export function ThemePicker({ variant = 'default' }: { variant?: 'default' | 'tab' } = {}) {
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const [open, setOpen] = useState(false);
@@ -26,18 +26,24 @@ export function ThemePicker() {
 
   const active = THEMES.find((t) => t.id === theme) ?? THEMES[0];
 
+  const isTab = variant === 'tab';
+
   return (
-    <div className="theme-picker" ref={rootRef}>
+    <div className={`theme-picker${isTab ? ' theme-picker--tab' : ''}`} ref={rootRef}>
       <button
         type="button"
-        className="theme-picker-trigger"
+        className={isTab ? 'mobile-tab-bar-link theme-picker-tab-trigger' : 'theme-picker-trigger'}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Theme: ${active.name}`}
         onClick={() => setOpen((v) => !v)}
       >
         <Swatch colors={active.swatch} />
-        <span className="theme-picker-trigger-label">{active.name}</span>
+        {isTab ? (
+          <span className="mobile-tab-bar-label">Theme</span>
+        ) : (
+          <span className="theme-picker-trigger-label">{active.name}</span>
+        )}
       </button>
       {open && (
         <ul className="theme-picker-menu" role="listbox" aria-label="Choose theme">

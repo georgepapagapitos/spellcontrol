@@ -1,0 +1,118 @@
+import { useEffect } from 'react';
+import { useCollectionStore } from '../store/collection';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import type { MaterializedBinder } from '../types';
+
+interface Props {
+  binders: MaterializedBinder[];
+}
+
+/**
+ * Mobile-only bottom action sheet for switching between binders. Opened
+ * by tapping the Binders icon in the bottom nav while already on the
+ * /binder route. Listing rows replicate the data on the desktop chip
+ * strip but with native mobile ergonomics — full-width touch targets,
+ * checkmark on the active row, scrim, body-scroll lock.
+ */
+export function BinderPickerSheet({ binders }: Props) {
+  const open = useCollectionStore((s) => s.binderPickerOpen);
+  const setOpen = useCollectionStore((s) => s.setBinderPickerOpen);
+  const activeTab = useCollectionStore((s) => s.activeTab);
+  const setActiveTab = useCollectionStore((s) => s.setActiveTab);
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+
+  useLockBodyScroll(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
+
+  if (!open) return null;
+
+  const sorted = [...binders].sort((a, b) => a.def.position - b.def.position);
+
+  return (
+    <div className="binder-picker-root">
+      <div className="binder-picker-backdrop" onClick={() => setOpen(false)} aria-hidden />
+      <div
+        className="binder-picker-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Switch binder"
+      >
+        <div className="binder-picker-handle" aria-hidden />
+        <div className="binder-picker-title">Binders</div>
+        <ul className="binder-picker-list">
+          {sorted.map((b) => {
+            const isActive = b.def.id === activeTab;
+            return (
+              <li key={b.def.id}>
+                <button
+                  type="button"
+                  className={`binder-picker-row ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveTab(b.def.id);
+                    setOpen(false);
+                  }}
+                  aria-current={isActive ? 'true' : undefined}
+                >
+                  <span
+                    className="binder-picker-row-dot"
+                    aria-hidden
+                    style={{ background: b.def.color }}
+                  />
+                  <span className="binder-picker-row-name">{b.def.name}</span>
+                  <span className="binder-picker-row-count">{b.totalCards.toLocaleString()}</span>
+                  {isActive && (
+                    <svg
+                      className="binder-picker-row-check"
+                      viewBox="0 0 16 16"
+                      width="18"
+                      height="18"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-label="Active"
+                    >
+                      <path d="M3.5 8.5l3 3 6-6.5" />
+                    </svg>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="binder-picker-footer">
+          <button
+            type="button"
+            className="btn binder-picker-edit"
+            onClick={() => {
+              setEditingBinder(activeTab);
+              setOpen(false);
+            }}
+            disabled={!activeTab}
+          >
+            Edit current
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary binder-picker-new"
+            onClick={() => {
+              setEditingBinder('new');
+              setOpen(false);
+            }}
+          >
+            + New binder
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
