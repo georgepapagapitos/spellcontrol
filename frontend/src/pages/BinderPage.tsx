@@ -30,10 +30,9 @@ export function BinderPage() {
 
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
-  // Toggles between the section/page grid (BinderView) and the
-  // searchable/sortable CardListTable. Local state — the user's choice
-  // doesn't need to survive a reload.
-  const [view, setView] = useState<'pages' | 'list'>('pages');
+  // Three-way view: 'pages' (the section/page grid) → 'list' (rows
+  // with thumbnails + meta) → 'compact' (text-only rows). Local state.
+  const [view, setView] = useState<'pages' | 'list' | 'compact'>('pages');
   // List-view only: roll multiple copies of the same printing into one
   // row. Lifted to the page so the options menu in the toolbar can
   // toggle it without poking into the list component.
@@ -264,10 +263,20 @@ export function BinderPage() {
         className={`toolbar-viewmode-btn${view === 'list' ? ' active' : ''}`}
         aria-pressed={view === 'list'}
         aria-label="List view"
-        title="List view"
+        title="List view (with thumbnails)"
         onClick={() => setView('list')}
       >
         <ListViewIcon />
+      </button>
+      <button
+        type="button"
+        className={`toolbar-viewmode-btn${view === 'compact' ? ' active' : ''}`}
+        aria-pressed={view === 'compact'}
+        aria-label="Compact list view"
+        title="Compact list (text only)"
+        onClick={() => setView('compact')}
+      >
+        <CompactListIcon />
       </button>
     </div>
   );
@@ -369,7 +378,7 @@ export function BinderPage() {
               Clear
             </button>
           )}
-          {view === 'list' && (
+          {view !== 'pages' && (
             <BinderListOptions
               open={optionsOpen}
               onOpenChange={setOptionsOpen}
@@ -393,6 +402,7 @@ export function BinderPage() {
               binder={active}
               viewToggle={viewToggle}
               groupPrintings={groupPrintings}
+              density={view === 'compact' ? 'compact' : 'detail'}
             />
           );
         })()
@@ -550,6 +560,27 @@ function ListViewIcon() {
       <circle cx="4" cy="6" r="0.5" />
       <circle cx="4" cy="12" r="0.5" />
       <circle cx="4" cy="18" r="0.5" />
+    </svg>
+  );
+}
+
+function CompactListIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M3 10h18" />
+      <path d="M3 14h18" />
+      <path d="M3 18h18" />
     </svg>
   );
 }

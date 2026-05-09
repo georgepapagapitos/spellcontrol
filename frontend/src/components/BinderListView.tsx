@@ -23,6 +23,8 @@ interface Props {
   viewToggle?: React.ReactNode;
   /** Roll duplicate copies of the same printing into one row. */
   groupPrintings?: boolean;
+  /** 'detail' = thumbnail + multi-line meta. 'compact' = text-only single line. */
+  density?: 'detail' | 'compact';
 }
 
 interface Row {
@@ -51,7 +53,13 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({ binder, viewToggle, groupPrintings = false }: Props) {
+export function BinderListView({
+  binder,
+  viewToggle,
+  groupPrintings = false,
+  density = 'detail',
+}: Props) {
+  const isCompact = density === 'compact';
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allocations = useAllocations();
@@ -331,7 +339,7 @@ export function BinderListView({ binder, viewToggle, groupPrintings = false }: P
                 id={panelId}
                 role="region"
                 aria-labelledby={headerId}
-                className="collection-list"
+                className={`collection-list${isCompact ? ' is-compact' : ''}`}
               >
                 {rows.map((r) => {
                   const colorKey = getColorKey(r.card);

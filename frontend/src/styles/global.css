@@ -5983,6 +5983,45 @@ hr {
   color: var(--text3);
 }
 
+/* Compact density: text-only rows, no thumbnail, name + meta on a single
+   line, tight vertical padding. Used by the binder's compact list mode. */
+.collection-list.is-compact .collection-list-row {
+  gap: 0.5rem;
+  padding: 0.3rem 0.7rem;
+}
+
+.collection-list.is-compact .collection-list-thumb {
+  display: none;
+}
+
+.collection-list.is-compact .collection-list-main {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.collection-list.is-compact .collection-list-name {
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.collection-list.is-compact .collection-list-meta {
+  font-size: var(--text-xs);
+  gap: 0.35rem;
+}
+
+.collection-list.is-compact .collection-list-right {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.collection-list.is-compact .collection-list-qty,
+.collection-list.is-compact .collection-list-price {
+  font-size: var(--text-xs);
+}
+
 @media (max-width: 1024px) {
   .collection-grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
