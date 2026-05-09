@@ -2062,7 +2062,11 @@ input[type='text'] {
   font-size: var(--text-sm);
   pointer-events: none;
   z-index: 9999;
-  max-width: 260px;
+  /* Clamp to image width + padding so the popup is anchored to the
+     card art. Long titles wrap onto multiple lines instead of stretching
+     the popup wider than its hero image. */
+  width: max-content;
+  max-width: 232px;
   box-shadow: var(--shadow-tooltip);
 }
 
@@ -2070,6 +2074,11 @@ input[type='text'] {
   font-weight: bold;
   margin-bottom: 3px;
   color: var(--text);
+  /* Wrap on word boundaries; allow break-word as a fallback for the
+     occasional super-long single token (set codes, weird joiners). */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .tooltip-meta {
