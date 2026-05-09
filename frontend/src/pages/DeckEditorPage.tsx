@@ -4,6 +4,7 @@ import { useDecksStore } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
+import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useToastsStore } from '../store/toasts';
@@ -20,9 +21,13 @@ export function DeckEditorPage() {
   const removeCard = useDecksStore((s) => s.removeCard);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const collectionCards = useCollectionStore((s) => s.cards);
+  const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const pushToast = useToastsStore((s) => s.push);
 
   const collectionById = useCollectionByCopyId();
+  const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(
+    null
+  );
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
@@ -154,6 +159,21 @@ export function DeckEditorPage() {
     });
   };
 
+  const handleEditCard = (slotId: string, card: ScryfallCard) => {
+    setEditingSlot({ slotId, card });
+  };
+
+  const handleEditConfirm = (selection: PrintingSelection) => {
+    if (!editingSlot || !deck) return;
+    const newCard = selection.card;
+    const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
+    for (const slot of slotsForName) {
+      updateCardPrinting(deck.id, slot.slotId, newCard);
+    }
+    setEditingSlot(null);
+    pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'info' });
+  };
+
   const displayCards: DeckDisplayCard[] = deck.cards.map((c) => ({
     slotId: c.slotId,
     card: c.card,
@@ -226,6 +246,7 @@ export function DeckEditorPage() {
             cards={displayCards}
             onRemoveCard={handleRemoveCard}
             onSetQty={handleSetQty}
+            onEditCard={handleEditCard}
             collectionByCopyId={collectionById}
             roleCounts={deck.roleCounts}
             rampSubtypeCounts={deck.rampSubtypeCounts}
@@ -261,6 +282,16 @@ export function DeckEditorPage() {
           danger
           onConfirm={handleConfirmDelete}
           onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {editingSlot && (
+        <CardEditDialog
+          cardName={editingSlot.card.name}
+          currentScryfallId={editingSlot.card.id}
+          currentFoil={false}
+          onConfirm={handleEditConfirm}
+          onCancel={() => setEditingSlot(null)}
         />
       )}
 

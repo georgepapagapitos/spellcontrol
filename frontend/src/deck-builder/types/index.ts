@@ -55,6 +55,11 @@ export interface ScryfallCard {
     commander: string;
     [format: string]: string;
   };
+  finishes?: string[];
+  frame_effects?: string[];
+  full_art?: boolean;
+  border_color?: string;
+  promo_types?: string[];
   games?: string[]; // Platforms: "paper", "arena", "mtgo"
   // Added during deck generation
   isGameChanger?: boolean;
