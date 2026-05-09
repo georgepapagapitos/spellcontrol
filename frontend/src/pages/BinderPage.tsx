@@ -8,6 +8,7 @@ import { BinderPickerSheet } from '../components/BinderPickerSheet';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { SearchPill } from '../components/SearchPill';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
@@ -339,33 +340,22 @@ export function BinderPage() {
         </header>
       )}
       <div className="binder-toolbar">
-        <div className="binder-toolbar-search">
-          <input
-            type="search"
-            placeholder="Filter cards by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Filter cards by name"
-          />
-          {search && (
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => setSearch('')}
-              aria-label="Clear search"
-            >
-              Clear
-            </button>
-          )}
-          {view !== 'pages' && (
-            <BinderListOptions
-              open={optionsOpen}
-              onOpenChange={setOptionsOpen}
-              groupPrintings={groupPrintings}
-              onGroupPrintingsChange={setGroupPrintings}
-            />
-          )}
-        </div>
+        <SearchPill
+          value={search}
+          onChange={setSearch}
+          placeholder="Search cards by name..."
+          ariaLabel="Search cards by name"
+          trailing={
+            view !== 'pages' && (
+              <BinderListOptions
+                open={optionsOpen}
+                onOpenChange={setOptionsOpen}
+                groupPrintings={groupPrintings}
+                onGroupPrintingsChange={setGroupPrintings}
+              />
+            )
+          }
+        />
       </div>
       {view === 'pages' ? (
         <BinderView binders={materialized} viewToggle={viewToggle} />

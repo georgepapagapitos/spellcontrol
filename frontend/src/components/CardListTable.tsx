@@ -6,6 +6,7 @@ import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
+import { SearchPill } from './SearchPill';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -375,20 +376,12 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       {/* Search + view toggle — primary row. Search is the highest-frequency
           control across the table, so it leads. */}
       <div className="collection-toolbar-row">
-        <div className="card-list-search">
-          <input
-            type="search"
-            placeholder="Search by name or type..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search cards"
-          />
-          {search && (
-            <button type="button" className="btn-link" onClick={() => setSearch('')}>
-              Clear
-            </button>
-          )}
-        </div>
+        <SearchPill
+          value={search}
+          onChange={setSearch}
+          placeholder="Search by name or type..."
+          ariaLabel="Search cards"
+        />
         <ViewModeToggle<ViewMode>
           ariaLabel="Collection view mode"
           value={view}

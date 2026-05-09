@@ -1376,36 +1376,83 @@ input[type='search'] {
   gap: 0.4rem;
 }
 
-/* Search row becomes the visual "pill" — the input itself loses its
-   own border / bg so the filter button can sit inline next to it
-   inside one rounded container, Manabox-style. */
-.binder-toolbar-search {
+/* Shared rounded search "pill". The wrapper carries the surface fill /
+   border / radius; the nested input strips its own framing so the
+   leading magnifier icon, clear button, and any trailing slot (filter
+   popover) all sit inside the same rail. Used by <SearchPill> across
+   the binder, collection, and deck toolbars. */
+.search-pill {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-width: 0;
   position: relative;
-  background: var(--bg);
+  background: var(--surface);
   border: 0.5px solid var(--border2);
   border-radius: 999px;
-  padding: 0.15rem 0.4rem 0.15rem 0.95rem;
+  padding: 0.2rem 0.4rem 0.2rem 0.7rem;
   transition: border-color 0.12s;
 }
 
-.binder-toolbar-search:focus-within {
+.search-pill:focus-within {
   border-color: var(--accent);
 }
 
-.binder-toolbar-search > input[type='search'] {
+.search-pill-icon {
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+.search-pill > input[type='search'] {
   background: transparent;
   border: 0;
-  padding: 0.35rem 0;
+  padding: 0.4rem 0;
   outline: none;
   flex: 1;
   min-width: 0;
   font-size: var(--text-base);
   color: var(--text);
+}
+
+.search-pill > input[type='search']::placeholder {
+  color: var(--text3);
+}
+
+/* Native search-input UI chrome (the cancel ×, decoration) collides with
+   the custom clear button visually — mute it across browsers. */
+.search-pill > input[type='search']::-webkit-search-decoration,
+.search-pill > input[type='search']::-webkit-search-cancel-button,
+.search-pill > input[type='search']::-webkit-search-results-button,
+.search-pill > input[type='search']::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-pill-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--text3);
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.search-pill-clear:hover,
+.search-pill-clear:focus-visible {
+  background: var(--accent-light);
+  color: var(--accent);
+  outline: none;
 }
 
 /* Filter / options popover that lives INSIDE the search bar. Single
@@ -1502,13 +1549,6 @@ input[type='search'] {
   font-size: var(--text-xs);
   color: var(--text3);
   line-height: 1.35;
-}
-
-.binder-toolbar-search input[type='search'] {
-  flex: 1;
-  min-width: 0;
-  /* No max-width: the input fills the search pill so the filter button
-     stays anchored to the right edge of the bar. */
 }
 
 select:focus,
@@ -5146,12 +5186,8 @@ hr {
     gap: 0.6rem;
   }
 
-  .binder-toolbar-search {
+  .search-pill {
     flex: 1 1 100%;
-  }
-
-  .binder-toolbar-search input[type='search'] {
-    max-width: none;
   }
 
   .binder-toolbar .field-checkbox {
@@ -5513,41 +5549,6 @@ hr {
 /* ── Collection card list (Collection page) ─────────────────────────────── */
 .card-list {
   margin-top: 1rem;
-}
-
-.card-list-search {
-  flex: 1 1 240px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.card-list-search input {
-  flex: 1;
-  min-width: 0;
-  height: 2.1rem;
-  padding: 0.3rem 0.85rem;
-  border-radius: 999px;
-  border: 0.5px solid var(--border2);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-sm);
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.card-list-search input::-webkit-search-decoration,
-.card-list-search input::-webkit-search-cancel-button,
-.card-list-search input::-webkit-search-results-button,
-.card-list-search input::-webkit-search-results-decoration {
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.card-list-search input:focus {
-  outline: none;
-  border-color: var(--accent);
 }
 
 /* Type chip row above the toolbar */
