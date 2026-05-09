@@ -1266,10 +1266,15 @@ input[type='search'] {
 }
 
 .binder-toolbar {
+  /* Mirrors .deck-toolbar — a single horizontal row with controls on the
+     left (view mode) and a flex-grow search on the right. The previous
+     column layout with align-items: stretch was making the inline-flex
+     .toolbar-viewmode pill stretch to full width, which looked like a
+     bug. Wraps onto two rows on narrow viewports. */
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 0.6rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
