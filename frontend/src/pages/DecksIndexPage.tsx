@@ -44,20 +44,28 @@ export function DecksIndexPage() {
 
   return (
     <div className="decks-index-page">
-      <header className="decks-index-header">
-        <div>
-          <h1>Decks</h1>
+      <header className="binder-hero decks-index-hero">
+        <div className="decks-index-hero-text">
+          <h1 className="binder-hero-name">Decks</h1>
+          <p className="binder-hero-meta">
+            {sorted.length.toLocaleString()} {sorted.length === 1 ? 'deck' : 'decks'}
+          </p>
           <p className="decks-index-subtitle">
             Saved Commander decks. Build a new one from a commander, generate from EDHREC, or start
             blank and add cards from your collection.
           </p>
         </div>
         <div className="decks-index-actions">
-          <button type="button" className="btn" onClick={() => setShowImport(true)}>
+          <button
+            type="button"
+            className="pill-btn"
+            aria-haspopup="dialog"
+            onClick={() => setShowImport(true)}
+          >
             Import deck
           </button>
-          <Link to="/decks/new" className="btn btn-primary">
-            New deck
+          <Link to="/decks/new" className="pill-btn pill-btn-primary">
+            + New deck
           </Link>
         </div>
       </header>

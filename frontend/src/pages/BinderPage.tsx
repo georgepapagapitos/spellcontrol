@@ -20,6 +20,8 @@ export function BinderPage() {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const setError = useCollectionStore((s) => s.setError);
   const setSearch = useCollectionStore((s) => s.setSearch);
+  const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
+  const activeTab = useCollectionStore((s) => s.activeTab);
   const loadSampleBinders = useCollectionStore((s) => s.loadSampleBinders);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
@@ -60,11 +62,9 @@ export function BinderPage() {
 
   if (hydrating) {
     return (
-      <div className="upload-card loading" style={{ marginBottom: '1.5rem' }}>
-        <div className="upload-icon">
-          <span className="spinner" />
-        </div>
-        <div className="upload-text">Loading...</div>
+      <div className="page-loader" role="status" aria-live="polite">
+        <span className="spinner" aria-hidden="true" />
+        <span className="visually-hidden">Loading</span>
       </div>
     );
   }
@@ -233,10 +233,86 @@ export function BinderPage() {
     );
   }
 
+  const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
+
   return (
     <>
       <BinderTabs binders={materialized} />
       <BinderPickerSheet binders={materialized} />
+      {active && (
+        <header
+          className="binder-hero binder-hero--with-actions"
+          style={{ ['--binder-color' as string]: active.def.color }}
+        >
+          <div className="binder-hero-text">
+            <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                className="binder-hero-crumb-link"
+                aria-haspopup="dialog"
+                onClick={() => setBinderPickerOpen(true)}
+              >
+                All binders
+              </button>
+              <span className="binder-hero-crumb-sep" aria-hidden>
+                ›
+              </span>
+              <span className="binder-hero-crumb-current" aria-current="page">
+                {active.def.name}
+              </span>
+            </nav>
+            <h1 className="binder-hero-name">{active.def.name}</h1>
+            <p className="binder-hero-meta">
+              {active.def.fixedCapacity != null ? (
+                <>
+                  {active.totalCards.toLocaleString()} / {active.def.fixedCapacity.toLocaleString()}{' '}
+                  cards · {active.totalPages.toLocaleString()} /{' '}
+                  {Math.ceil(
+                    active.def.fixedCapacity / active.effectivePocketSize
+                  ).toLocaleString()}{' '}
+                  pages
+                  {active.totalCards > active.def.fixedCapacity && (
+                    <span
+                      className="binder-summary-overcap"
+                      title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
+                    >
+                      {' '}
+                      ⚠ over capacity
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'}{' '}
+                  · {active.totalPages.toLocaleString()}{' '}
+                  {active.totalPages === 1 ? 'page' : 'pages'}
+                </>
+              )}
+            </p>
+          </div>
+          <div className="binder-hero-actions">
+            <button
+              type="button"
+              className="pill-btn"
+              aria-haspopup="dialog"
+              onClick={() => setEditingBinder(activeTab)}
+              disabled={!activeTab}
+            >
+              <PencilIcon />
+              <span>Edit binder</span>
+            </button>
+            <button
+              type="button"
+              className="pill-btn"
+              aria-haspopup="dialog"
+              onClick={() => setBinderPickerOpen(true)}
+            >
+              <SwitchBinderIcon />
+              <span>Switch binder</span>
+            </button>
+          </div>
+        </header>
+      )}
       <div className="binder-toolbar">
         <div className="binder-toolbar-search">
           <input
@@ -260,6 +336,43 @@ export function BinderPage() {
       </div>
       <BinderView binders={materialized} />
     </>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z" />
+    </svg>
+  );
+}
+
+function SwitchBinderIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 5h8M9 3l2 2-2 2" />
+      <path d="M13 11H5M7 9l-2 2 2 2" />
+    </svg>
   );
 }
 
