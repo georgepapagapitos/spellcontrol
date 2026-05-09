@@ -4993,7 +4993,7 @@ hr {
     border-radius: var(--radius);
     color: var(--text3);
     text-decoration: none;
-    font-family: var(--font-sans, var(--font-serif));
+    font-family: var(--font-serif);
     font-size: var(--text-xs);
     font-weight: 500;
     line-height: 1.1;
