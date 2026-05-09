@@ -4603,12 +4603,12 @@ hr {
 
 /* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
 .binder-pages-backdrop {
-  /* A 9-pocket page is the same 5:7 portrait rectangle as a card, so the
-     binder page slide mirrors .card-preview-backdrop's sizing strategy.
-     The reservation is bumped from 13rem to 15rem because a binder slide
-     is label + page (taller than a single-card slide), and the height
-     bound has to fit both. */
-  --slide-size: min(94vw, 460px, calc((100dvh - 15rem) * 0.72));
+  /* Same sizing strategy as .card-preview-backdrop, but the height bound
+     scales by the actual page aspect (--page-w-ratio = cols×5 / rows×7).
+     A 9-pocket / 4-pocket page is 5:7 like a card (ratio ≈ 0.714); a
+     12-pocket page is 20:21 (ratio ≈ 0.952), so the same vertical room
+     allows a wider slide. The 15rem reservation covers panel + page label. */
+  --slide-size: min(94vw, 460px, calc((100dvh - 15rem) * var(--page-w-ratio, 0.72)));
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
@@ -4674,19 +4674,16 @@ hr {
 
 .binder-pages-page {
   display: grid;
-  /* The page IS the same 5:7 portrait rectangle as a card; cells are
-     forced into equal rows/columns inside it via 1fr/1fr. For 9- and
-     4-pocket binders each cell lands at the natural card aspect; for
-     12-pocket binders cells render slightly narrower, which is fine —
-     consistency with the card preview's silhouette is the priority. */
-  grid-template-rows: repeat(var(--page-rows, 3), 1fr);
+  /* Page aspect, columns, and rows come from inline style — varies by
+     pocket count. With grid-template-{columns,rows}: 1fr each, every
+     cell lands at the natural card aspect. Tight gap + padding so the
+     pockets sit close together the way they do in a real binder page. */
   width: 100%;
-  aspect-ratio: 5 / 7;
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 6px;
   background: rgba(20, 20, 22, 0.6);
   border: 0.5px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -4694,11 +4691,12 @@ hr {
   position: relative;
   background: rgba(255, 255, 255, 0.04);
   border: 0.5px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
+  border-radius: 5px;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
-  aspect-ratio: 5 / 7;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
