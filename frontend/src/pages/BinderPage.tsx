@@ -242,52 +242,80 @@ export function BinderPage() {
       <BinderTabs binders={materialized} />
       <BinderPickerSheet binders={materialized} />
       {active && (
-        <header className="binder-hero" style={{ ['--binder-color' as string]: active.def.color }}>
-          <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
+        <header
+          className="binder-hero binder-hero--with-actions"
+          style={{ ['--binder-color' as string]: active.def.color }}
+        >
+          <div className="binder-hero-text">
+            <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
+              <button
+                type="button"
+                className="binder-hero-crumb-link"
+                aria-haspopup="dialog"
+                onClick={() => setBinderPickerOpen(true)}
+              >
+                All binders
+              </button>
+              <span className="binder-hero-crumb-sep" aria-hidden>
+                ›
+              </span>
+              <span className="binder-hero-crumb-current" aria-current="page">
+                {active.def.name}
+              </span>
+            </nav>
+            <h1 className="binder-hero-name">{active.def.name}</h1>
+            <p className="binder-hero-meta">
+              {active.def.fixedCapacity != null ? (
+                <>
+                  {active.totalCards.toLocaleString()} / {active.def.fixedCapacity.toLocaleString()}{' '}
+                  cards · {active.totalPages.toLocaleString()} /{' '}
+                  {Math.ceil(
+                    active.def.fixedCapacity / active.effectivePocketSize
+                  ).toLocaleString()}{' '}
+                  pages
+                  {active.totalCards > active.def.fixedCapacity && (
+                    <span
+                      className="binder-summary-overcap"
+                      title={`Over capacity by ${(active.totalCards - active.def.fixedCapacity).toLocaleString()} cards`}
+                    >
+                      {' '}
+                      ⚠ over capacity
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'}{' '}
+                  · {active.totalPages.toLocaleString()}{' '}
+                  {active.totalPages === 1 ? 'page' : 'pages'}
+                </>
+              )}
+            </p>
+          </div>
+          <div className="binder-hero-actions">
             <button
               type="button"
-              className="binder-hero-crumb-link"
+              className="pill-btn"
+              aria-haspopup="dialog"
+              onClick={() => setEditingBinder(activeTab)}
+              disabled={!activeTab}
+            >
+              <PencilIcon />
+              <span>Edit binder</span>
+            </button>
+            <button
+              type="button"
+              className="pill-btn"
               aria-haspopup="dialog"
               onClick={() => setBinderPickerOpen(true)}
             >
-              All binders
+              <SwitchBinderIcon />
+              <span>Switch binder</span>
             </button>
-            <span className="binder-hero-crumb-sep" aria-hidden>
-              ›
-            </span>
-            <span className="binder-hero-crumb-current" aria-current="page">
-              {active.def.name}
-            </span>
-          </nav>
-          <h1 className="binder-hero-name">{active.def.name}</h1>
-          <p className="binder-hero-meta">
-            {active.totalCards.toLocaleString()} {active.totalCards === 1 ? 'card' : 'cards'} ·{' '}
-            {active.totalPages.toLocaleString()} {active.totalPages === 1 ? 'page' : 'pages'}
-          </p>
+          </div>
         </header>
       )}
       <div className="binder-toolbar">
-        <div className="binder-toolbar-actions">
-          <button
-            type="button"
-            className="pill-btn"
-            aria-haspopup="dialog"
-            onClick={() => setEditingBinder(activeTab)}
-            disabled={!activeTab}
-          >
-            <PencilIcon />
-            <span>Edit binder</span>
-          </button>
-          <button
-            type="button"
-            className="pill-btn"
-            aria-haspopup="dialog"
-            onClick={() => setBinderPickerOpen(true)}
-          >
-            <SwitchBinderIcon />
-            <span>Switch binder</span>
-          </button>
-        </div>
         <div className="binder-toolbar-search">
           <input
             type="search"

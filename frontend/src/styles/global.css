@@ -1097,11 +1097,12 @@ input[type='search'] {
   border-left: 3px solid var(--binder-color, var(--accent));
 }
 
-/* Index-page heroes (Collection, Decks): name + meta on the left, primary
-   action(s) on the right. Stack at narrow widths so actions get full
+/* Hero variants with right-aligned actions: text on the left, action
+   pill(s) on the right. Stack at narrow widths so actions get full
    touch targets and don't crowd the title. */
 .collection-hero,
-.decks-index-hero {
+.decks-index-hero,
+.binder-hero--with-actions {
   flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
@@ -1110,7 +1111,8 @@ input[type='search'] {
 }
 
 .collection-hero-text,
-.decks-index-hero-text {
+.decks-index-hero-text,
+.binder-hero-text {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -1122,18 +1124,32 @@ input[type='search'] {
   align-self: flex-end;
 }
 
+.binder-hero-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-self: flex-end;
+}
+
 @media (max-width: 600px) {
   .collection-hero,
-  .decks-index-hero {
+  .decks-index-hero,
+  .binder-hero--with-actions {
     align-items: stretch;
   }
 
   .collection-hero-action,
-  .decks-index-actions {
+  .decks-index-actions,
+  .binder-hero-actions {
     width: 100%;
   }
 
   .collection-hero-action {
+    justify-content: center;
+  }
+
+  .binder-hero-actions > .pill-btn {
+    flex: 1 1 0;
     justify-content: center;
   }
 }
