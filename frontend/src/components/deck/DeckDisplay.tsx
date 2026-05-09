@@ -260,6 +260,14 @@ export interface DeckDisplayProps {
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
+  /**
+   * Optional parent-controlled state for the Export dialog. When both
+   * are provided, the parent owns the open state — useful for opening
+   * Export from outside the toolbar (e.g. a page-level action sheet).
+   * When omitted, DeckDisplay manages the dialog internally.
+   */
+  exportOpen?: boolean;
+  onExportOpenChange?: (open: boolean) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -404,6 +412,8 @@ export function DeckDisplay({
   onSetQty,
   onEditCard,
   collectionByCopyId,
+  exportOpen: exportOpenProp,
+  onExportOpenChange,
 }: DeckDisplayProps) {
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('name');
@@ -563,7 +573,16 @@ export function DeckDisplay({
     () => buildExport(commander, partnerCommander, cards, exportFormat),
     [commander, partnerCommander, cards, exportFormat]
   );
-  const [exportOpen, setExportOpen] = useState(false);
+  // If the parent passes both props, treat it as a controlled component
+  // (their boolean wins). Otherwise fall back to internal state — keeps
+  // simple callers ergonomic and avoids any setState-in-effect dance.
+  const [internalExportOpen, setInternalExportOpen] = useState(false);
+  const isControlled = exportOpenProp !== undefined && onExportOpenChange !== undefined;
+  const exportOpen = isControlled ? exportOpenProp : internalExportOpen;
+  const setExportOpen = (next: boolean) => {
+    if (isControlled) onExportOpenChange(next);
+    else setInternalExportOpen(next);
+  };
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(exportText);
@@ -997,7 +1016,7 @@ function DeckToolbar({
 
         <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
-        <button type="button" className="btn btn-primary" onClick={onExport}>
+        <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
           Export
         </button>
       </div>

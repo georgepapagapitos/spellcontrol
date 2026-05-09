@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { UploadPanel } from '../components/UploadPanel';
+import { ImportSheet } from '../components/ImportSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { PriceFreshnessLine } from '../components/PriceFreshnessLine';
@@ -39,16 +40,19 @@ export function CollectionPage() {
               </button>
             </div>
           )}
-          <UploadPanel />
+          {/* Empty state only — once a collection exists, the import UI
+              moves into the bottom sheet triggered by the "+" in the
+              OVERVIEW row, not the page content. */}
+          {cards.length === 0 && <UploadPanel />}
         </>
       )}
 
       {!hydrating && cards.length > 0 && (
         <>
           <StatsBar />
-          <hr />
           <CardListTable cards={cards} binders={materialized} />
           <PriceFreshnessLine />
+          <ImportSheet />
         </>
       )}
     </>
