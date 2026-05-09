@@ -59,6 +59,9 @@
   --radius: 8px;
   --radius-lg: 12px;
 
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  --page-max: 1400px;
+
   /* ── Magic colors (MTG-canonical, do not retheme) ─────────────────────── */
   --rarity-mythic-from: #ffd090;
   --rarity-mythic-to: #e88020;
@@ -105,7 +108,7 @@ select {
 }
 
 .container {
-  max-width: 1100px;
+  max-width: var(--page-max);
   margin: 0 auto;
   padding-top: 1.5rem;
 }
@@ -122,7 +125,7 @@ select {
 }
 
 .site-header-inner {
-  max-width: 1100px;
+  max-width: var(--page-max);
   margin: 0 auto;
   display: flex;
   align-items: center;

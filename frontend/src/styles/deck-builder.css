@@ -2,8 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  max-width: 1100px;
-  margin: 0 auto;
 }
 
 .deck-builder-header h1 {
@@ -1608,8 +1606,6 @@ input.toolbar-search-input {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  max-width: 1100px;
-  margin: 0 auto;
 }
 
 .decks-index-header {
@@ -1928,8 +1924,6 @@ input.toolbar-search-input {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 .deck-editor-header {
