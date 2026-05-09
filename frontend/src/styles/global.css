@@ -2562,7 +2562,7 @@ hr {
 }
 
 .card-edit-finish-tag {
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 1px 5px;
   border-radius: 999px;
   background: var(--surface2);
@@ -2597,7 +2597,7 @@ hr {
 }
 
 .card-edit-current-badge {
-  font-size: 10px;
+  font-size: var(--text-xs);
   padding: 1px 6px;
   border-radius: 8px;
   background: var(--accent-light);

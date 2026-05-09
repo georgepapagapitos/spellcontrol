@@ -67,7 +67,10 @@ export function CardEditDialog({
   useLockBodyScroll();
 
   const [printings, setPrintings] = useState<ScryfallCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  // `loadedFor` tracks which cardName the current `printings` belongs to.
+  // Loading is derived as "loadedFor !== cardName" so we don't have to call
+  // setLoading(true) synchronously inside the fetching effect.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
 
@@ -76,20 +79,21 @@ export function CardEditDialog({
   const [qty, setQty] = useState(quantity ?? 1);
   const [search, setSearch] = useState('');
 
+  const loading = loadedFor !== cardName && error === null;
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     fetchPrintings(cardName)
       .then((cards) => {
         if (cancelled) return;
         setPrintings(cards);
-        setLoading(false);
+        setError(null);
+        setLoadedFor(cardName);
       })
       .catch((err) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load printings');
-        setLoading(false);
+        setLoadedFor(cardName);
       });
     return () => {
       cancelled = true;
@@ -136,11 +140,18 @@ export function CardEditDialog({
     );
   }, [selectedCard]);
 
-  useEffect(() => {
+  // When the selected printing changes, reset the finish if the current
+  // choice isn't offered. Compare-prev-during-render keeps this synchronous
+  // without an extra render pass (effect-based version triggers the
+  // react-hooks/set-state-in-effect lint rule).
+  const [prevFinishesKey, setPrevFinishesKey] = useState(availableFinishes.join(','));
+  const finishesKey = availableFinishes.join(',');
+  if (prevFinishesKey !== finishesKey) {
+    setPrevFinishesKey(finishesKey);
     if (availableFinishes.length > 0 && !availableFinishes.includes(selectedFinish)) {
       setSelectedFinish(availableFinishes[0]);
     }
-  }, [availableFinishes, selectedFinish]);
+  }
 
   const isDirty =
     selectedId !== currentScryfallId ||
