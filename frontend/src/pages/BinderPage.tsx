@@ -6,6 +6,7 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderPickerSheet } from '../components/BinderPickerSheet';
 import { BinderView } from '../components/BinderView';
+import { CardListTable } from '../components/CardListTable';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
@@ -29,6 +30,10 @@ export function BinderPage() {
 
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
+  // Toggles between the section/page grid (BinderView) and the
+  // searchable/sortable CardListTable. Local state — the user's choice
+  // doesn't need to survive a reload.
+  const [view, setView] = useState<'pages' | 'list'>('pages');
 
   const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
   // When the user already has a real collection, "Try it out" should only add
@@ -314,27 +319,60 @@ export function BinderPage() {
         </header>
       )}
       <div className="binder-toolbar">
-        <div className="binder-toolbar-search">
-          <input
-            type="search"
-            placeholder="Filter cards by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Filter cards by name"
-          />
-          {search && (
-            <button
-              type="button"
-              className="btn-link"
-              onClick={() => setSearch('')}
-              aria-label="Clear search"
-            >
-              Clear
-            </button>
-          )}
+        <div className="view-toggle" role="tablist" aria-label="Binder view">
+          <button
+            type="button"
+            role="tab"
+            className={`view-toggle-btn${view === 'pages' ? ' is-active' : ''}`}
+            aria-selected={view === 'pages'}
+            onClick={() => setView('pages')}
+          >
+            Pages
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`view-toggle-btn${view === 'list' ? ' is-active' : ''}`}
+            aria-selected={view === 'list'}
+            onClick={() => setView('list')}
+          >
+            List
+          </button>
         </div>
+        {view === 'pages' && (
+          <div className="binder-toolbar-search">
+            <input
+              type="search"
+              placeholder="Filter cards by name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Filter cards by name"
+            />
+            {search && (
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <BinderView binders={materialized} />
+      {view === 'pages' ? (
+        <BinderView binders={materialized} />
+      ) : (
+        (() => {
+          const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
+          if (!active) return null;
+          // Flatten the active binder's filtered cards from the section grouping
+          // — CardListTable does its own search / sort / filter / pagination.
+          const flatCards = active.sections.flatMap((s) => s.cards);
+          return <CardListTable cards={flatCards} binders={[active]} hideBinderFilter />;
+        })()
+      )}
     </>
   );
 }

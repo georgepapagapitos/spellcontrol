@@ -12,6 +12,12 @@ import { useCollectionStore } from '../store/collection';
 interface Props {
   cards: EnrichedCard[];
   binders: MaterializedBinder[];
+  /**
+   * When true, the binder filter dropdown is hidden — used when the
+   * caller has already scoped `cards` to a single binder, where letting
+   * the user "filter by binder" inside that view would just be confusing.
+   */
+  hideBinderFilter?: boolean;
 }
 
 interface Row {
@@ -99,7 +105,7 @@ function PencilIcon() {
   );
 }
 
-export function CardListTable({ cards, binders }: Props) {
+export function CardListTable({ cards, binders, hideBinderFilter = false }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -449,20 +455,22 @@ export function CardListTable({ cards, binders }: Props) {
             </option>
           ))}
         </select>
-        <select
-          className="collection-select"
-          value={binderFilter}
-          onChange={(e) => setBinderFilter(e.target.value)}
-          aria-label="Filter by binder"
-        >
-          <option value="all">All binders</option>
-          {binders.map((b) => (
-            <option key={b.def.id} value={b.def.name}>
-              {b.def.name}
-            </option>
-          ))}
-          <option value="__uncategorized">Uncategorized</option>
-        </select>
+        {!hideBinderFilter && (
+          <select
+            className="collection-select"
+            value={binderFilter}
+            onChange={(e) => setBinderFilter(e.target.value)}
+            aria-label="Filter by binder"
+          >
+            <option value="all">All binders</option>
+            {binders.map((b) => (
+              <option key={b.def.id} value={b.def.name}>
+                {b.def.name}
+              </option>
+            ))}
+            <option value="__uncategorized">Uncategorized</option>
+          </select>
+        )}
       </div>
 
       <div className="card-list-summary-line">

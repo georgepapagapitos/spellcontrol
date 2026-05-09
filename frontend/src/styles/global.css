@@ -1274,6 +1274,48 @@ input[type='search'] {
   flex-wrap: wrap;
 }
 
+/* Segmented control — Pages | List on the binder page. Pill-shaped,
+   single border with a sliding active background, matches the rounded
+   visual language of the page-action buttons. */
+.view-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.view-toggle-btn {
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text2);
+  background: transparent;
+  border: 0;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.view-toggle-btn:hover {
+  color: var(--accent);
+}
+
+.view-toggle-btn.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.view-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .pill-btn {
   display: inline-flex;
   align-items: center;
