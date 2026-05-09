@@ -1,10 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
+import { useDecksStore } from '../store/decks';
 import { ThemePicker } from './ThemePicker';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
+  const deckCount = useDecksStore((s) => s.decks.length);
   const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
   const location = useLocation();
   // Power-user gesture: tapping the Binders tab while already on /binder
@@ -50,6 +52,11 @@ export function Header() {
               className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
             >
               <span>Decks</span>
+              {deckCount > 0 && (
+                <span className="site-nav-count" aria-label={`${deckCount} decks`}>
+                  {deckCount}
+                </span>
+              )}
             </NavLink>
           </nav>
           <nav className="site-nav">
@@ -101,6 +108,11 @@ export function Header() {
         >
           <DeckIcon />
           <span className="mobile-tab-bar-label">Decks</span>
+          {deckCount > 0 && (
+            <span className="mobile-tab-bar-count" aria-label={`${deckCount} decks`}>
+              {deckCount}
+            </span>
+          )}
         </NavLink>
         <ThemePicker variant="tab" />
       </nav>
