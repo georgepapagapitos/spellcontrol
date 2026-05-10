@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { Deck } from '../store/decks';
 
@@ -14,6 +15,7 @@ export function DecksIndexPage() {
   const navigate = useNavigate();
   const sorted = useMemo(() => [...decks].sort((a, b) => b.updatedAt - a.updatedAt), [decks]);
   const [showImport, setShowImport] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
@@ -37,9 +39,12 @@ export function DecksIndexPage() {
   };
 
   const handleDelete = (deck: Deck) => {
-    if (window.confirm(`Delete "${deck.name}"? This cannot be undone.`)) {
-      deleteDeck(deck.id);
-    }
+    setPendingDelete(deck);
+  };
+
+  const confirmDelete = () => {
+    if (pendingDelete) deleteDeck(pendingDelete.id);
+    setPendingDelete(null);
   };
 
   return (
@@ -72,12 +77,25 @@ export function DecksIndexPage() {
 
       {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
 
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete "${pendingDelete.name}"?`}
+          body="This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
       {sorted.length === 0 ? (
-        <div className="decks-index-empty">
-          <p>No decks yet.</p>
-          <Link to="/decks/new" className="btn btn-primary">
-            Build your first deck
-          </Link>
+        <div className="empty-state">
+          <p className="empty-state-tagline">No decks yet.</p>
+          <div className="empty-state-actions">
+            <Link to="/decks/new" className="btn btn-primary">
+              Build your first deck
+            </Link>
+          </div>
         </div>
       ) : (
         <ul className="decks-index-list">

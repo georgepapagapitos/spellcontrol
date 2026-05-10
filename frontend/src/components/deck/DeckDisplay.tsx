@@ -10,6 +10,7 @@ import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { cardMatchesRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
+import { SelectMenu } from '../SelectMenu';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 const CLASSIFY_PRIORITY = [
@@ -785,16 +786,18 @@ function ExportDialog({
               <span className="export-dialog-action-label">Download</span>
             </button>
           </div>
-          <label className="export-dialog-format">
-            <span>Format</span>
-            <select value={format} onChange={(e) => onFormatChange(e.target.value as ExportFormat)}>
-              {(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => (
-                <option key={f} value={f}>
-                  {EXPORT_FORMAT_LABEL[f]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="export-dialog-format">
+            <SelectMenu
+              label="Format"
+              ariaLabel="Export format"
+              value={format}
+              onChange={(v) => onFormatChange(v as ExportFormat)}
+              options={(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => ({
+                value: f,
+                label: EXPORT_FORMAT_LABEL[f],
+              }))}
+            />
+          </div>
           <textarea
             className="export-dialog-preview"
             value={text}
