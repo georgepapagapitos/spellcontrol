@@ -71,13 +71,15 @@ export function Header() {
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
         >
-          <CollectionIcon />
+          <span className="mobile-tab-bar-glyph">
+            <CollectionIcon />
+            {cardCount > 0 && (
+              <span className="mobile-tab-bar-count" aria-label={`${cardCount} cards`}>
+                {formatCount(cardCount)}
+              </span>
+            )}
+          </span>
           <span className="mobile-tab-bar-label">Collection</span>
-          {cardCount > 0 && (
-            <span className="mobile-tab-bar-count" aria-label={`${cardCount} cards`}>
-              {formatCount(cardCount)}
-            </span>
-          )}
         </NavLink>
         <NavLink
           to="/binder"
@@ -92,13 +94,15 @@ export function Header() {
           }}
           aria-haspopup={binderTapOpensPicker ? 'dialog' : undefined}
         >
-          <BinderIcon />
+          <span className="mobile-tab-bar-glyph">
+            <BinderIcon />
+            {binderCount > 0 && (
+              <span className="mobile-tab-bar-count" aria-label={`${binderCount} binders`}>
+                {binderCount}
+              </span>
+            )}
+          </span>
           <span className="mobile-tab-bar-label">Binders</span>
-          {binderCount > 0 && (
-            <span className="mobile-tab-bar-count" aria-label={`${binderCount} binders`}>
-              {binderCount}
-            </span>
-          )}
         </NavLink>
         <NavLink
           to="/decks"
@@ -106,13 +110,15 @@ export function Header() {
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
         >
-          <DeckIcon />
+          <span className="mobile-tab-bar-glyph">
+            <DeckIcon />
+            {deckCount > 0 && (
+              <span className="mobile-tab-bar-count" aria-label={`${deckCount} decks`}>
+                {deckCount}
+              </span>
+            )}
+          </span>
           <span className="mobile-tab-bar-label">Decks</span>
-          {deckCount > 0 && (
-            <span className="mobile-tab-bar-count" aria-label={`${deckCount} decks`}>
-              {deckCount}
-            </span>
-          )}
         </NavLink>
         <ThemePicker variant="tab" />
       </nav>
