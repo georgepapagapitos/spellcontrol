@@ -223,9 +223,16 @@ select {
   font-family: inherit;
 }
 
+/* Match the SVG nav icons' rendered footprint exactly — 22×22 box,
+   border included via border-box so the swatch can't bulge past the
+   .mobile-tab-bar-glyph wrapper and look larger than its siblings.
+   display: block kills the 1-2px baseline gap inline-block introduces,
+   so the swatch sits at the same vertical center as the line-art icons. */
 .theme-picker--tab .theme-swatch {
+  display: block;
   width: 22px;
   height: 22px;
+  box-sizing: border-box;
   border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
@@ -5323,22 +5330,14 @@ hr {
     font-size: var(--text-xs);
   }
 
-  /* Page rows: enable horizontal swipe so binder layout never blows out viewport */
+  /* Page rows wrap on mobile so the viewport never scrolls horizontally.
+     Tapping a page number opens the dedicated BinderPagePreview sheet
+     for full-bleed page-by-page swiping — that's the canonical mobile
+     browse path, so the inline row only needs to lay pages out within
+     the available width. */
   .page-row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
-    margin: 0 -0.65rem;
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
-    scrollbar-width: thin;
-  }
-
-  .page-row .page-wrap {
-    scroll-snap-align: start;
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   /* Modal: full-bleed-ish on phones */
@@ -5484,43 +5483,29 @@ hr {
 }
 
 @media (max-width: 1024px) {
-  /* The visible bar is a hard-locked 3.75rem strip. Safe-area reserve
-     for the home-indicator / gesture nav is handled by the ::after
-     filler below so the bar's own height can never change, even if
-     env(safe-area-inset-bottom) reports different values during a
-     browser-chrome transition (Android Chrome address-bar collapse,
-     gesture-nav reveal, etc.). The bar is also promoted to its own
-     compositor layer so those transitions don't cause paint jitter. */
+  /* Pinned to bottom: 0 so the bar's bottom edge can never move during
+     browser-chrome transitions (Android Chrome address-bar collapse,
+     gesture-nav reveal, etc.). The safe-area reserve lives inside the
+     bar as padding-bottom, with the items occupying the top 3.75rem
+     content area via align-items: stretch on a 3.75rem-min flex container.
+     Promoted to its own compositor layer so transitions don't repaint. */
   .mobile-tab-bar {
     display: flex;
     align-items: stretch;
     position: fixed;
-    bottom: env(safe-area-inset-bottom);
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 60;
-    height: 3.75rem;
-    padding: 0 0.4rem;
+    height: calc(3.75rem + env(safe-area-inset-bottom));
+    padding: 0 0.4rem env(safe-area-inset-bottom);
     background: var(--surface);
     border-top: 0.5px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
     transform: translateZ(0);
     will-change: transform;
     overscroll-behavior: contain;
-  }
-
-  /* Fills the gesture-nav / home-indicator strip beneath the bar with
-     the same surface color, so the visible bar appears flush to the
-     screen edge without the bar itself growing into that area. */
-  .mobile-tab-bar::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-bottom);
-    background: inherit;
-    pointer-events: none;
+    box-sizing: border-box;
   }
 
   .mobile-tab-bar-link {
