@@ -4,7 +4,7 @@ import { importFile, importText } from '../lib/api';
 import type { UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { Modal } from './Modal';
 
 interface PendingImport {
   /** Runs the actual import call. */
@@ -430,49 +430,38 @@ interface DeleteImportsDialogProps {
 }
 
 function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDialogProps) {
-  useLockBodyScroll();
   const totalCards = imports.reduce((sum, h) => sum + h.count, 0);
   return (
-    <div className="modal-backdrop" onClick={onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-imports-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="delete-imports-title" className="choice-dialog-title">
-          Delete {imports.length} import{imports.length === 1 ? '' : 's'}?
-        </h2>
-        <p className="choice-dialog-body">
-          This removes the {totalCards.toLocaleString()} card
-          {totalCards === 1 ? '' : 's'} added by:
-        </p>
-        <ul className="delete-imports-list">
-          {imports.map((h, i) => (
-            <li key={i}>
-              {prettyImportName(h.name, h.format)} · {h.count.toLocaleString()} cards
-            </li>
-          ))}
-        </ul>
-        <p className="choice-dialog-body">
-          Other cards stay where they are. This cannot be undone.
-        </p>
-        <div className="choice-dialog-actions">
-          <button type="button" className="upload-action" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary upload-action-danger"
-            onClick={onConfirm}
-            autoFocus
-          >
-            Delete
-          </button>
-        </div>
+    <Modal onClose={onCancel} labelledBy="delete-imports-title">
+      <h2 id="delete-imports-title" className="choice-dialog-title">
+        Delete {imports.length} import{imports.length === 1 ? '' : 's'}?
+      </h2>
+      <p className="choice-dialog-body">
+        This removes the {totalCards.toLocaleString()} card
+        {totalCards === 1 ? '' : 's'} added by:
+      </p>
+      <ul className="delete-imports-list">
+        {imports.map((h, i) => (
+          <li key={i}>
+            {prettyImportName(h.name, h.format)} · {h.count.toLocaleString()} cards
+          </li>
+        ))}
+      </ul>
+      <p className="choice-dialog-body">Other cards stay where they are. This cannot be undone.</p>
+      <div className="choice-dialog-actions">
+        <button type="button" className="upload-action" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary upload-action-danger"
+          onClick={onConfirm}
+          autoFocus
+        >
+          Delete
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -489,55 +478,46 @@ function ImportModeDialog({
   onPick,
   onCancel,
 }: ImportModeDialogProps) {
-  useLockBodyScroll();
   return (
-    <div className="modal-backdrop" onClick={onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-mode-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="import-mode-title" className="choice-dialog-title">
-          Replace or add to your collection?
-        </h2>
-        <p className="choice-dialog-body">
-          You already have {existingCount.toLocaleString()} card{existingCount === 1 ? '' : 's'}{' '}
-          loaded
-          {incomingPreview ? ` and you're importing ${incomingPreview}` : ''}. Pick how to handle
-          the new cards.
-        </p>
-        <div className="choice-dialog-options">
-          <button
-            type="button"
-            className="choice-dialog-option"
-            onClick={() => onPick('merge')}
-            autoFocus
-          >
-            <span className="choice-dialog-option-title">Add</span>
-            <span className="choice-dialog-option-desc">
-              Keep existing cards and append the new ones. Duplicates will stack.
-            </span>
-          </button>
-          <button
-            type="button"
-            className="choice-dialog-option choice-dialog-option-danger"
-            onClick={() => onPick('replace')}
-          >
-            <span className="choice-dialog-option-title">Replace</span>
-            <span className="choice-dialog-option-desc">
-              Wipe the current collection and start fresh with the imported cards.
-            </span>
-          </button>
-        </div>
-        <div className="choice-dialog-actions">
-          <button type="button" className="upload-action" onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
+    <Modal onClose={onCancel} labelledBy="import-mode-title">
+      <h2 id="import-mode-title" className="choice-dialog-title">
+        Replace or add to your collection?
+      </h2>
+      <p className="choice-dialog-body">
+        You already have {existingCount.toLocaleString()} card{existingCount === 1 ? '' : 's'}{' '}
+        loaded
+        {incomingPreview ? ` and you're importing ${incomingPreview}` : ''}. Pick how to handle the
+        new cards.
+      </p>
+      <div className="choice-dialog-options">
+        <button
+          type="button"
+          className="choice-dialog-option"
+          onClick={() => onPick('merge')}
+          autoFocus
+        >
+          <span className="choice-dialog-option-title">Add</span>
+          <span className="choice-dialog-option-desc">
+            Keep existing cards and append the new ones. Duplicates will stack.
+          </span>
+        </button>
+        <button
+          type="button"
+          className="choice-dialog-option choice-dialog-option-danger"
+          onClick={() => onPick('replace')}
+        >
+          <span className="choice-dialog-option-title">Replace</span>
+          <span className="choice-dialog-option-desc">
+            Wipe the current collection and start fresh with the imported cards.
+          </span>
+        </button>
       </div>
-    </div>
+      <div className="choice-dialog-actions">
+        <button type="button" className="upload-action" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </Modal>
   );
 }
 

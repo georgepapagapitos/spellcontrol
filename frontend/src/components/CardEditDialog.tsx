@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { Modal } from './Modal';
 
 type Finish = 'nonfoil' | 'foil' | 'etched';
 
@@ -64,8 +64,6 @@ export function CardEditDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  useLockBodyScroll();
-
   const [printings, setPrintings] = useState<ScryfallCard[]>([]);
   // `loadedFor` tracks which cardName the current `printings` belongs to.
   // Loading is derived as "loadedFor !== cardName" so we don't have to call
@@ -114,14 +112,6 @@ export function CardEditDialog({
     };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-
   const setGroups = useMemo(() => groupBySet(printings), [printings]);
 
   const filteredGroups = useMemo(() => {
@@ -168,203 +158,199 @@ export function CardEditDialog({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onCancel} role="presentation">
-      <div
-        className="modal card-edit-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Edit printing for ${cardName}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2>Edit printing</h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>
-            ×
-          </button>
-        </div>
+    <Modal
+      onClose={onCancel}
+      label={`Edit printing for ${cardName}`}
+      className="modal card-edit-dialog"
+    >
+      <div className="modal-header">
+        <h2>Edit printing</h2>
+        <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>
+          ×
+        </button>
+      </div>
 
-        <div className="modal-body card-edit-body">
-          {loading && <div className="card-edit-loading">Loading printings...</div>}
-          {error && <div className="card-edit-error">{error}</div>}
+      <div className="modal-body card-edit-body">
+        {loading && <div className="card-edit-loading">Loading printings...</div>}
+        {error && <div className="card-edit-error">{error}</div>}
 
-          {!loading && !error && (
-            <div className="card-edit-layout">
-              <div className="card-edit-preview">
-                {selectedCard && frontImage(selectedCard) ? (
-                  <img
-                    src={frontImage(selectedCard)}
-                    alt={selectedCard.name}
-                    className="card-edit-preview-img"
-                  />
-                ) : (
-                  <div className="card-edit-preview-placeholder">{cardName}</div>
+        {!loading && !error && (
+          <div className="card-edit-layout">
+            <div className="card-edit-preview">
+              {selectedCard && frontImage(selectedCard) ? (
+                <img
+                  src={frontImage(selectedCard)}
+                  alt={selectedCard.name}
+                  className="card-edit-preview-img"
+                />
+              ) : (
+                <div className="card-edit-preview-placeholder">{cardName}</div>
+              )}
+              {selectedCard && (
+                <div className="card-edit-preview-info">
+                  <span className="card-edit-preview-set">
+                    {setMap?.[selectedCard.set.toUpperCase()]?.iconSvgUri && (
+                      <img
+                        src={setMap[selectedCard.set.toUpperCase()].iconSvgUri}
+                        alt=""
+                        aria-hidden
+                        className="card-edit-set-icon"
+                      />
+                    )}
+                    {selectedCard.set.toUpperCase()} #{selectedCard.collector_number}
+                  </span>
+                  <span className="card-edit-preview-price">
+                    {formatPrice(priceForFinish(selectedCard, selectedFinish))}
+                  </span>
+                </div>
+              )}
+
+              {availableFinishes.length > 1 && (
+                <div className="card-edit-finishes" role="group" aria-label="Finish">
+                  {availableFinishes.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      className={`card-edit-finish-btn${selectedFinish === f ? ' is-active' : ''}`}
+                      onClick={() => setSelectedFinish(f)}
+                      aria-pressed={selectedFinish === f}
+                    >
+                      {f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {quantity !== undefined && (
+                <div className="card-edit-qty">
+                  <label className="card-edit-qty-label">Quantity</label>
+                  <div className="card-edit-qty-controls">
+                    <button
+                      type="button"
+                      className="card-edit-qty-btn"
+                      onClick={() => setQty((q) => Math.max(0, q - 1))}
+                      aria-label="Decrease quantity"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      className="card-edit-qty-input"
+                      min={0}
+                      max={99}
+                      value={qty}
+                      onChange={(e) => {
+                        const n = Math.floor(Number(e.target.value));
+                        if (Number.isFinite(n)) setQty(Math.max(0, Math.min(99, n)));
+                      }}
+                      aria-label="Quantity"
+                    />
+                    <button
+                      type="button"
+                      className="card-edit-qty-btn"
+                      onClick={() => setQty((q) => Math.min(99, q + 1))}
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
+                  </div>
+                  {qty === 0 && (
+                    <span className="card-edit-qty-warn">
+                      This will remove the card from your collection
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="card-edit-sets">
+              <div className="card-edit-sets-header">
+                <span>
+                  {printings.length} printing{printings.length === 1 ? '' : 's'} across{' '}
+                  {setGroups.length} set{setGroups.length === 1 ? '' : 's'}
+                </span>
+                <input
+                  type="search"
+                  className="card-edit-set-search"
+                  placeholder="Filter sets..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Filter by set name or code"
+                />
+              </div>
+              <div className="card-edit-sets-list">
+                {filteredGroups.length === 0 && (
+                  <div className="card-edit-sets-empty">No sets match "{search}"</div>
                 )}
-                {selectedCard && (
-                  <div className="card-edit-preview-info">
-                    <span className="card-edit-preview-set">
-                      {setMap?.[selectedCard.set.toUpperCase()]?.iconSvgUri && (
+                {filteredGroups.map((group) => (
+                  <div key={group.setCode} className="card-edit-set-group">
+                    <div className="card-edit-set-name">
+                      {setMap?.[group.setCode]?.iconSvgUri && (
                         <img
-                          src={setMap[selectedCard.set.toUpperCase()].iconSvgUri}
+                          src={setMap[group.setCode].iconSvgUri}
                           alt=""
                           aria-hidden
                           className="card-edit-set-icon"
                         />
                       )}
-                      {selectedCard.set.toUpperCase()} #{selectedCard.collector_number}
-                    </span>
-                    <span className="card-edit-preview-price">
-                      {formatPrice(priceForFinish(selectedCard, selectedFinish))}
-                    </span>
-                  </div>
-                )}
-
-                {availableFinishes.length > 1 && (
-                  <div className="card-edit-finishes" role="group" aria-label="Finish">
-                    {availableFinishes.map((f) => (
-                      <button
-                        key={f}
-                        type="button"
-                        className={`card-edit-finish-btn${selectedFinish === f ? ' is-active' : ''}`}
-                        onClick={() => setSelectedFinish(f)}
-                        aria-pressed={selectedFinish === f}
-                      >
-                        {f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {quantity !== undefined && (
-                  <div className="card-edit-qty">
-                    <label className="card-edit-qty-label">Quantity</label>
-                    <div className="card-edit-qty-controls">
-                      <button
-                        type="button"
-                        className="card-edit-qty-btn"
-                        onClick={() => setQty((q) => Math.max(0, q - 1))}
-                        aria-label="Decrease quantity"
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        className="card-edit-qty-input"
-                        min={0}
-                        max={99}
-                        value={qty}
-                        onChange={(e) => {
-                          const n = Math.floor(Number(e.target.value));
-                          if (Number.isFinite(n)) setQty(Math.max(0, Math.min(99, n)));
-                        }}
-                        aria-label="Quantity"
-                      />
-                      <button
-                        type="button"
-                        className="card-edit-qty-btn"
-                        onClick={() => setQty((q) => Math.min(99, q + 1))}
-                        aria-label="Increase quantity"
-                      >
-                        +
-                      </button>
+                      <span>{group.setName}</span>{' '}
+                      <span className="card-edit-set-code">{group.setCode}</span>
                     </div>
-                    {qty === 0 && (
-                      <span className="card-edit-qty-warn">
-                        This will remove the card from your collection
-                      </span>
-                    )}
+                    {group.cards.map((card) => {
+                      const active = card.id === selectedId;
+                      const finishes: string[] = card.finishes ?? ['nonfoil'];
+                      const price = priceForFinish(
+                        card,
+                        finishes.includes('nonfoil') ? 'nonfoil' : (finishes[0] as Finish)
+                      );
+                      return (
+                        <button
+                          key={card.id}
+                          type="button"
+                          className={`card-edit-printing-row${active ? ' is-active' : ''}${card.id === currentScryfallId ? ' is-current' : ''}`}
+                          onClick={() => setSelectedId(card.id)}
+                          aria-pressed={active}
+                        >
+                          <span className="card-edit-printing-num">#{card.collector_number}</span>
+                          <span className="card-edit-printing-finishes">
+                            {finishes.map((f) => (
+                              <span
+                                key={f}
+                                className={`card-edit-finish-tag card-edit-finish-tag--${f}`}
+                              >
+                                {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
+                              </span>
+                            ))}
+                          </span>
+                          <span className="card-edit-printing-rarity">{card.rarity}</span>
+                          <span className="card-edit-printing-price">{formatPrice(price)}</span>
+                          {card.id === currentScryfallId && (
+                            <span className="card-edit-current-badge">current</span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-
-              <div className="card-edit-sets">
-                <div className="card-edit-sets-header">
-                  <span>
-                    {printings.length} printing{printings.length === 1 ? '' : 's'} across{' '}
-                    {setGroups.length} set{setGroups.length === 1 ? '' : 's'}
-                  </span>
-                  <input
-                    type="search"
-                    className="card-edit-set-search"
-                    placeholder="Filter sets..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    aria-label="Filter by set name or code"
-                  />
-                </div>
-                <div className="card-edit-sets-list">
-                  {filteredGroups.length === 0 && (
-                    <div className="card-edit-sets-empty">No sets match "{search}"</div>
-                  )}
-                  {filteredGroups.map((group) => (
-                    <div key={group.setCode} className="card-edit-set-group">
-                      <div className="card-edit-set-name">
-                        {setMap?.[group.setCode]?.iconSvgUri && (
-                          <img
-                            src={setMap[group.setCode].iconSvgUri}
-                            alt=""
-                            aria-hidden
-                            className="card-edit-set-icon"
-                          />
-                        )}
-                        <span>{group.setName}</span>{' '}
-                        <span className="card-edit-set-code">{group.setCode}</span>
-                      </div>
-                      {group.cards.map((card) => {
-                        const active = card.id === selectedId;
-                        const finishes: string[] = card.finishes ?? ['nonfoil'];
-                        const price = priceForFinish(
-                          card,
-                          finishes.includes('nonfoil') ? 'nonfoil' : (finishes[0] as Finish)
-                        );
-                        return (
-                          <button
-                            key={card.id}
-                            type="button"
-                            className={`card-edit-printing-row${active ? ' is-active' : ''}${card.id === currentScryfallId ? ' is-current' : ''}`}
-                            onClick={() => setSelectedId(card.id)}
-                            aria-pressed={active}
-                          >
-                            <span className="card-edit-printing-num">#{card.collector_number}</span>
-                            <span className="card-edit-printing-finishes">
-                              {finishes.map((f) => (
-                                <span
-                                  key={f}
-                                  className={`card-edit-finish-tag card-edit-finish-tag--${f}`}
-                                >
-                                  {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
-                                </span>
-                              ))}
-                            </span>
-                            <span className="card-edit-printing-rarity">{card.rarity}</span>
-                            <span className="card-edit-printing-price">{formatPrice(price)}</span>
-                            {card.id === currentScryfallId && (
-                              <span className="card-edit-current-badge">current</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
-          )}
-        </div>
-
-        <div className="modal-footer">
-          <button type="button" className="btn" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!isDirty || !selectedCard}
-            onClick={handleConfirm}
-          >
-            Save
-          </button>
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+
+      <div className="modal-footer">
+        <button type="button" className="btn" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!isDirty || !selectedCard}
+          onClick={handleConfirm}
+        >
+          Save
+        </button>
+      </div>
+    </Modal>
   );
 }
