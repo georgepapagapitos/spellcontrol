@@ -5337,21 +5337,33 @@ hr {
     min-height: 36px;
   }
 
-  /* Section header: keep label and meta on a single line, with the meta
-     pushed to the right via auto margin (desktop behavior). The meta
-     shrinks if needed instead of wrapping to a separate row, which feels
-     more compact and accordion-like at this density. */
+  /* Section header on mobile: title + meta share row 1 (meta pushed
+     right via margin-left: auto), the sort breadcrumb wraps to row 2
+     and indents under the title. Trying to fit chevron + pip + title +
+     breadcrumb-chip + meta on a single ~360px row clipped the meta
+     mid-word ("2 page" with the trailing "s" cut off). DOM order is
+     title → breadcrumb → meta; CSS `order` reorders visually so meta
+     stays on row 1 with the title and breadcrumb gets the next row. */
   .section-header {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: baseline;
+    column-gap: 8px;
+    row-gap: 4px;
   }
 
   .section-meta {
+    order: 1;
     margin-left: auto;
-    width: auto;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     white-space: nowrap;
     font-size: var(--text-xs);
+  }
+
+  .section-breadcrumb {
+    order: 2;
+    flex-basis: 100%;
+    /* Align the chip with the title text, past the chevron column. */
+    margin-left: 22px;
   }
 
   /* Page rows wrap on mobile so the viewport never scrolls horizontally.
@@ -5510,11 +5522,17 @@ hr {
   .mobile-tab-bar {
     flex: 0 0 auto;
     display: flex;
-    /* Padding-bottom carries the iOS home-indicator inset; the bar's
-       own background paints through it so the safe area is visually
-       part of the bar, not a gap that lets content show through. */
-    height: calc(3.75rem + env(safe-area-inset-bottom));
-    padding: 0 0.4rem env(safe-area-inset-bottom);
+    /* Carry the system safe-area inset as the bar's bottom padding so
+       the bar's own background paints through the iOS home-indicator
+       strip and the Android gesture region — but cap it. Some builds
+       of Firefox on Samsung devices report ~50–60px for
+       env(safe-area-inset-bottom) (gesture-bar territory), which made
+       the bar absurdly tall. 0.75rem is enough clearance to keep the
+       icons off the home indicator on iOS without ballooning on
+       Android. */
+    --tab-bar-safe-bottom: min(env(safe-area-inset-bottom, 0px), 0.75rem);
+    height: calc(3.25rem + var(--tab-bar-safe-bottom));
+    padding: 0 0.4rem var(--tab-bar-safe-bottom);
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
