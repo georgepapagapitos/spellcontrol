@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { Header } from './Header';
+import { MobileTabBar } from './MobileTabBar';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
@@ -14,15 +15,24 @@ export function Layout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Flex-column shell pinned to 100dvh: header on top (desktop), main fills
+  // the middle and is the scroll container, mobile tab bar locks to the
+  // bottom as a regular flex child. Doing the layout this way (instead of
+  // floating the tab bar with position: fixed) means the bar can't drift,
+  // grow, or detach during browser-chrome animations — the whole shell
+  // resizes together with the dynamic viewport.
   return (
-    <>
+    <div className="app-shell">
       <Header />
-      <div className="container">
-        <Outlet />
-        <BinderEditor />
-        <Footer />
-      </div>
+      <main className="app-main">
+        <div className="container">
+          <Outlet />
+          <BinderEditor />
+          <Footer />
+        </div>
+      </main>
+      <MobileTabBar />
       <ToastViewport />
-    </>
+    </div>
   );
 }
