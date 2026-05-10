@@ -25,7 +25,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 export const authRouter: Router = Router();
 
 // Custom registration handler to check for duplicate usernames before rate limiting
-authRouter.post('/register', async (req: Request, res: Response, next) => {
+authRouter.post('/register', async (req: Request, res: Response) => {
   const username = normalizeUsername(req.body?.username);
   const password = validatePassword(req.body?.password);
   if (!username) {
