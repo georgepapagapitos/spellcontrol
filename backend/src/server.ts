@@ -1,10 +1,14 @@
 import crypto from 'crypto';
+import cookieParser from 'cookie-parser';
 import express, { type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
+import { closeDb, ensureSchema } from './db';
+import { authRouter } from './routes/auth';
+import { syncRouter } from './routes/sync';
 import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
@@ -18,11 +22,15 @@ const app = express();
 const cache = new ScryfallCache(DB_PATH);
 
 app.use(helmet());
+app.use(cookieParser());
 
 const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 
 app.use(express.json({ limit: '10mb' }));
+
+app.use('/api/auth', authRouter);
+app.use('/api/sync', syncRouter);
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -432,20 +440,29 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   res.status(500).json({ error: 'Something went wrong on the server. Try again in a moment.' });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`[server] listening on http://localhost:${PORT}`);
-  console.log(`[server] cache db: ${DB_PATH}`);
-  console.log(`[server] cache stats:`, cache.stats());
-});
-
-function shutdown() {
-  console.log('\n[server] shutting down...');
-  server.closeAllConnections();
-  server.close(() => {
-    cache.close();
-    process.exit(0);
+async function start() {
+  await ensureSchema();
+  const server = app.listen(PORT, () => {
+    console.log(`[server] listening on http://localhost:${PORT}`);
+    console.log(`[server] cache db: ${DB_PATH}`);
+    console.log(`[server] cache stats:`, cache.stats());
   });
+
+  function shutdown() {
+    console.log('\n[server] shutting down...');
+    server.closeAllConnections();
+    server.close(async () => {
+      cache.close();
+      await closeDb();
+      process.exit(0);
+    });
+  }
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+start().catch((err) => {
+  console.error('[server] failed to start:', err);
+  process.exit(1);
+});
