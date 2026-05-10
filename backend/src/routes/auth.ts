@@ -21,14 +21,16 @@ import { users, userData } from '../db/schema';
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
+
 export const authRouter: Router = Router();
 
-authRouter.post('/register', registerLimiter, async (req: Request, res: Response) => {
+// Custom registration handler to check for duplicate usernames before rate limiting
+authRouter.post('/register', async (req: Request, res: Response, next) => {
   const username = normalizeUsername(req.body?.username);
   const password = validatePassword(req.body?.password);
   if (!username) {
     return res.status(400).json({
-      error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
+      error: 'Username must be 32 characters and use only lowercase letters, digits, _ and -.',
     });
   }
   if (!password) {
@@ -46,16 +48,19 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   if (existing.length > 0) {
     return res.status(409).json({ error: 'That username is already taken.' });
   }
+  // If not duplicate, proceed to rate limiter
+  (registerLimiter as any)(req, res, async (err: any) => {
+    if (err) return; // rate limiter already sent response
+    const id = crypto.randomUUID();
+    const passwordHash = await hashPassword(password);
+    const now = Date.now();
+    await db.insert(users).values({ id, username, passwordHash, createdAt: now });
+    await db.insert(userData).values({ userId: id, updatedAt: now });
 
-  const id = crypto.randomUUID();
-  const passwordHash = await hashPassword(password);
-  const now = Date.now();
-  await db.insert(users).values({ id, username, passwordHash, createdAt: now });
-  await db.insert(userData).values({ userId: id, updatedAt: now });
-
-  const token = signSession({ id, username });
-  setSessionCookie(res, token);
-  res.status(201).json({ user: { id, username } });
+    const token = signSession({ id, username });
+    setSessionCookie(res, token);
+    res.status(201).json({ user: { id, username } });
+  });
 });
 
 authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
