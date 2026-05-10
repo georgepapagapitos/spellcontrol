@@ -89,18 +89,46 @@
   --rarity-land-text: #2a1400;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   font-family: var(--font-serif);
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
-  padding: 0 1rem 2rem;
-  /* Belt-and-suspenders against the occasional rogue popover or
-     long string that briefly overflows the viewport before its own
-     container catches it. `overflow-x: clip` is preferred over
-     `hidden` because it doesn't establish a new containing block,
-     so position: fixed / sticky behave the way you'd expect. */
+  /* The app shell owns scrolling; body itself never scrolls. This is
+     what lets the mobile tab bar sit at the bottom of the layout as a
+     regular flex child instead of a position: fixed overlay. */
+  overflow: hidden;
+}
+
+/* App shell: a flex column locked to the dynamic viewport height. The
+   header is the first child (desktop only), .app-main fills the middle
+   and is the actual scroll container, and the mobile tab bar is the
+   last child (mobile only). Because the shell is sized to 100dvh, the
+   whole layout resizes together as mobile browser chrome animates,
+   which keeps the tab bar glued to the visible bottom edge — no more
+   fixed-position drift. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  /* min-height: 0 lets the flex child actually shrink below its
+     content's intrinsic size so its own scrollbar takes over. */
+  min-height: 0;
+  overflow-y: auto;
+  /* Same intent as the old body rule: catch rogue overflow without
+     creating a containing block that would break position: fixed
+     popovers/dialogs rendered inside the page. */
   overflow-x: clip;
+  padding: 0 1rem 2rem;
 }
 
 button {
@@ -120,14 +148,10 @@ select {
 }
 
 .site-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  flex: 0 0 auto;
   background: var(--surface);
   border-bottom: 0.5px solid var(--border);
-  margin: 0 -1rem;
   padding: 0 1rem;
-  backdrop-filter: blur(8px);
 }
 
 .site-header-inner {
@@ -5484,16 +5508,13 @@ hr {
 
 @media (max-width: 1024px) {
   .mobile-tab-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 60;
+    flex: 0 0 auto;
     display: flex;
-    height: 3.75rem;
-    padding: 0 0.4rem;
-    padding-bottom: env(safe-area-inset-bottom);
-    box-sizing: content-box;
+    /* Padding-bottom carries the iOS home-indicator inset; the bar's
+       own background paints through it so the safe area is visually
+       part of the bar, not a gap that lets content show through. */
+    height: calc(3.75rem + env(safe-area-inset-bottom));
+    padding: 0 0.4rem env(safe-area-inset-bottom);
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
@@ -5556,10 +5577,6 @@ hr {
     line-height: 1;
     border: 1.5px solid var(--surface);
     box-sizing: content-box;
-  }
-
-  body {
-    padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
   }
 }
 
