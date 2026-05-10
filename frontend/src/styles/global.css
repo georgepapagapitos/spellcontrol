@@ -5484,28 +5484,39 @@ hr {
 }
 
 @media (max-width: 1024px) {
+  /* The bar is locked to a fixed total height so its rendering is
+     deterministic across pages, devices, and badge presence. The
+     safe-area inset is added on top as bottom padding (gesture-bar
+     reserve) — content always sits inside the same 3.75rem strip. */
   .mobile-tab-bar {
     display: flex;
+    align-items: stretch;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 60;
+    height: calc(3.75rem + env(safe-area-inset-bottom));
+    padding: 0 0.4rem env(safe-area-inset-bottom);
     background: var(--surface);
     border-top: 0.5px solid var(--border);
-    padding: 0.25rem 0.4rem;
-    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
   }
 
   .mobile-tab-bar-link {
     flex: 1 1 0;
+    /* min-width: 0 lets the cell shrink below its content's intrinsic
+       width — without it a long future label could push the bar wider
+       than the viewport and break the locked layout. overflow: hidden
+       is the safety net if a label is wider than the cell. */
+    min-width: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    padding: 0.4rem 0.25rem 0.3rem;
+    gap: 3px;
+    padding: 0 0.25rem;
     border-radius: var(--radius);
     color: var(--text3);
     text-decoration: none;
@@ -5513,7 +5524,9 @@ hr {
     font-size: var(--text-xs);
     font-weight: 500;
     line-height: 1.1;
-    position: relative;
+    /* manipulation kills the iOS double-tap-to-zoom delay and prevents
+       pinch gestures inside the nav from being swallowed as zoom. */
+    touch-action: manipulation;
     transition:
       color 0.12s,
       background 0.12s;
@@ -5528,6 +5541,19 @@ hr {
     color: var(--accent);
   }
 
+  /* Wraps the icon and its badge so the badge is anchored to the icon,
+     not the cell. Keeps badges aligned the same way regardless of how
+     the cell is padded or how tall the bar grows on notched devices. */
+  .mobile-tab-bar-glyph {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
   .mobile-tab-bar-icon {
     display: block;
   }
@@ -5535,15 +5561,19 @@ hr {
   .mobile-tab-bar-label {
     font-size: var(--text-xs);
     letter-spacing: 0.01em;
+    /* Single-line; if the label can't fit, ellipsize rather than wrap.
+       Wrapping would change the cell's effective height and visually
+       shift the icon row even though the bar itself is height-locked. */
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .mobile-tab-bar-count {
     position: absolute;
-    top: 1px;
-    /* Anchor to the right edge of the icon (icon is 22px wide, centered),
-       then nudge slightly outward so the badge sits in the top-right
-       notch of the icon rather than over its body. */
-    left: calc(50% + 6px);
+    top: -6px;
+    left: calc(100% - 4px);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -5563,8 +5593,7 @@ hr {
   }
 
   /* Reserve space at the bottom of every page so fixed nav doesn't cover
-     the last row of content. Footer is hidden on mobile, so this is the
-     only bottom inset needed. */
+     the last row of content. Matches the bar's height exactly. */
   body {
     padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
   }
