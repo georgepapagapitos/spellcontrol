@@ -5484,23 +5484,43 @@ hr {
 }
 
 @media (max-width: 1024px) {
-  /* The bar is locked to a fixed total height so its rendering is
-     deterministic across pages, devices, and badge presence. The
-     safe-area inset is added on top as bottom padding (gesture-bar
-     reserve) — content always sits inside the same 3.75rem strip. */
+  /* The visible bar is a hard-locked 3.75rem strip. Safe-area reserve
+     for the home-indicator / gesture nav is handled by the ::after
+     filler below so the bar's own height can never change, even if
+     env(safe-area-inset-bottom) reports different values during a
+     browser-chrome transition (Android Chrome address-bar collapse,
+     gesture-nav reveal, etc.). The bar is also promoted to its own
+     compositor layer so those transitions don't cause paint jitter. */
   .mobile-tab-bar {
     display: flex;
     align-items: stretch;
     position: fixed;
-    bottom: 0;
+    bottom: env(safe-area-inset-bottom);
     left: 0;
     right: 0;
     z-index: 60;
-    height: calc(3.75rem + env(safe-area-inset-bottom));
-    padding: 0 0.4rem env(safe-area-inset-bottom);
+    height: 3.75rem;
+    padding: 0 0.4rem;
     background: var(--surface);
     border-top: 0.5px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateZ(0);
+    will-change: transform;
+    overscroll-behavior: contain;
+  }
+
+  /* Fills the gesture-nav / home-indicator strip beneath the bar with
+     the same surface color, so the visible bar appears flush to the
+     screen edge without the bar itself growing into that area. */
+  .mobile-tab-bar::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom);
+    background: inherit;
+    pointer-events: none;
   }
 
   .mobile-tab-bar-link {
