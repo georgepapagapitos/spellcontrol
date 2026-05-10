@@ -21,7 +21,6 @@ import { users, userData } from '../db/schema';
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
-
 export const authRouter: Router = Router();
 
 // Custom registration handler to check for duplicate usernames before rate limiting
@@ -49,7 +48,9 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'That username is already taken.' });
   }
   // If not duplicate, proceed to rate limiter
-  (registerLimiter as unknown as (req: Request, res: Response, next: (err?: Error) => void) => void)(req, res, async (err?: Error) => {
+  (
+    registerLimiter as unknown as (req: Request, res: Response, next: (err?: Error) => void) => void
+  )(req, res, async (err?: Error) => {
     if (err) return; // rate limiter already sent response
     const id = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
