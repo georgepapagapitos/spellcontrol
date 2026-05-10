@@ -49,7 +49,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'That username is already taken.' });
   }
   // If not duplicate, proceed to rate limiter
-  (registerLimiter as (req: Request, res: Response, next: (err?: Error) => void) => void)(req, res, async (err?: Error) => {
+  (registerLimiter as unknown as (req: Request, res: Response, next: (err?: Error) => void) => void)(req, res, async (err?: Error) => {
     if (err) return; // rate limiter already sent response
     const id = crypto.randomUUID();
     const passwordHash = await hashPassword(password);
