@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
+import { Modal } from '../Modal';
 import { importDeckText, importDeckFile } from '../../lib/api';
 import { useDecksStore, newDeckCard } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
@@ -52,8 +52,6 @@ export function ImportDeckDialog({ onClose }: Props) {
   const [pendingResult, setPendingResult] = useState<DeckImportResponse | null>(null);
   const [showCommanderSearch, setShowCommanderSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useLockBodyScroll();
 
   const commanderCandidates = useMemo(
     () => dedupeByName(pendingResult?.cards.filter(isValidCommander) ?? []),
@@ -161,157 +159,147 @@ export function ImportDeckDialog({ onClose }: Props) {
   );
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="modal import-deck-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-deck-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2 id="import-deck-title">
-            {step === 'commander' ? 'Select commander' : 'Import deck'}
-          </h2>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label="Close"
-            disabled={isLoading}
-          >
-            ×
-          </button>
-        </div>
+    <Modal
+      onClose={onClose}
+      labelledBy="import-deck-title"
+      className="modal import-deck-modal"
+      dismissable={!isLoading}
+    >
+      <div className="modal-header">
+        <h2 id="import-deck-title">{step === 'commander' ? 'Select commander' : 'Import deck'}</h2>
+        <button
+          type="button"
+          className="modal-close"
+          onClick={onClose}
+          aria-label="Close"
+          disabled={isLoading}
+        >
+          ×
+        </button>
+      </div>
 
-        <div className="modal-body">
-          {error && (
-            <div className="error-banner">
-              <span>{error}</span>
-              <button
-                className="banner-dismiss"
-                onClick={() => setError(null)}
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
-            </div>
-          )}
-
-          {step === 'input' && (
-            <>
-              <p className="import-deck-hint">
-                Paste a deck list below or upload an export file. Supports MTGA, ManaBox, Moxfield,
-                Archidekt, and plain text formats. If the list includes a "Commander" section
-                header, it will be detected automatically.
-              </p>
-              <textarea
-                className="paste-textarea import-textarea"
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                placeholder={
-                  'Commander\n1 Korvold, Fae-Cursed King\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n1 Cultivate\n...'
-                }
-                disabled={isLoading}
-                autoFocus
-              />
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".csv,.tsv,.txt"
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
-                disabled={isLoading}
-              />
-            </>
-          )}
-
-          {step === 'commander' && pendingResult && (
-            <>
-              <p className="import-deck-hint">
-                No commander section was found in the import ({pendingResult.cardCount} cards
-                parsed).{' '}
-                {commanderCandidates.length > 0 && !showCommanderSearch
-                  ? 'Select a commander from the imported cards.'
-                  : 'Search for a commander to lead this deck.'}
-              </p>
-              {commanderCandidates.length > 0 && !showCommanderSearch && (
-                <>
-                  <ul className="import-deck-commander-list">
-                    {commanderCandidates.map((card) => (
-                      <li key={card.id}>
-                        <button
-                          type="button"
-                          className="import-deck-commander-option"
-                          onClick={() => handleCommanderSelect(card)}
-                        >
-                          <img
-                            className="import-deck-commander-art"
-                            src={getCardImageUrl(card, 'small')}
-                            alt=""
-                            aria-hidden="true"
-                          />
-                          <div className="import-deck-commander-info">
-                            <span className="import-deck-commander-name">{card.name}</span>
-                            <span className="import-deck-commander-type">
-                              {card.type_line ?? card.card_faces?.[0]?.type_line}
-                            </span>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    className="btn-link import-deck-search-link"
-                    onClick={() => setShowCommanderSearch(true)}
-                  >
-                    Search for a different commander
-                  </button>
-                </>
-              )}
-              {(showCommanderSearch || commanderCandidates.length === 0) && (
-                <CommanderSearch value={null} onSelect={handleCommanderSelect} />
-              )}
-            </>
-          )}
-
-          {step === 'importing' && (
-            <div className="import-deck-loading" role="status" aria-live="polite">
-              <p>Importing and resolving cards...</p>
-            </div>
-          )}
-        </div>
-
-        {step === 'input' && (
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="btn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-            >
-              Upload file
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handlePasteImport}
-              disabled={isLoading || !pasteText.trim()}
-            >
-              Import
+      <div className="modal-body">
+        {error && (
+          <div className="error-banner">
+            <span>{error}</span>
+            <button className="banner-dismiss" onClick={() => setError(null)} aria-label="Dismiss">
+              ×
             </button>
           </div>
         )}
 
-        {step === 'commander' && (
-          <div className="modal-footer">
-            <button type="button" className="btn" onClick={() => setStep('input')}>
-              Back
-            </button>
+        {step === 'input' && (
+          <>
+            <p className="import-deck-hint">
+              Paste a deck list below or upload an export file. Supports MTGA, ManaBox, Moxfield,
+              Archidekt, and plain text formats. If the list includes a "Commander" section header,
+              it will be detected automatically.
+            </p>
+            <textarea
+              className="paste-textarea import-textarea"
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={
+                'Commander\n1 Korvold, Fae-Cursed King\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n1 Cultivate\n...'
+              }
+              disabled={isLoading}
+              autoFocus
+            />
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv,.tsv,.txt"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+              disabled={isLoading}
+            />
+          </>
+        )}
+
+        {step === 'commander' && pendingResult && (
+          <>
+            <p className="import-deck-hint">
+              No commander section was found in the import ({pendingResult.cardCount} cards parsed).{' '}
+              {commanderCandidates.length > 0 && !showCommanderSearch
+                ? 'Select a commander from the imported cards.'
+                : 'Search for a commander to lead this deck.'}
+            </p>
+            {commanderCandidates.length > 0 && !showCommanderSearch && (
+              <>
+                <ul className="import-deck-commander-list">
+                  {commanderCandidates.map((card) => (
+                    <li key={card.id}>
+                      <button
+                        type="button"
+                        className="import-deck-commander-option"
+                        onClick={() => handleCommanderSelect(card)}
+                      >
+                        <img
+                          className="import-deck-commander-art"
+                          src={getCardImageUrl(card, 'small')}
+                          alt=""
+                          aria-hidden="true"
+                        />
+                        <div className="import-deck-commander-info">
+                          <span className="import-deck-commander-name">{card.name}</span>
+                          <span className="import-deck-commander-type">
+                            {card.type_line ?? card.card_faces?.[0]?.type_line}
+                          </span>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className="btn-link import-deck-search-link"
+                  onClick={() => setShowCommanderSearch(true)}
+                >
+                  Search for a different commander
+                </button>
+              </>
+            )}
+            {(showCommanderSearch || commanderCandidates.length === 0) && (
+              <CommanderSearch value={null} onSelect={handleCommanderSelect} />
+            )}
+          </>
+        )}
+
+        {step === 'importing' && (
+          <div className="import-deck-loading" role="status" aria-live="polite">
+            <p>Importing and resolving cards...</p>
           </div>
         )}
       </div>
-    </div>
+
+      {step === 'input' && (
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+          >
+            Upload file
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handlePasteImport}
+            disabled={isLoading || !pasteText.trim()}
+          >
+            Import
+          </button>
+        </div>
+      )}
+
+      {step === 'commander' && (
+        <div className="modal-footer">
+          <button type="button" className="btn" onClick={() => setStep('input')}>
+            Back
+          </button>
+        </div>
+      )}
+    </Modal>
   );
 }
