@@ -1,5 +1,5 @@
 import { useCollectionStore } from '../store/collection';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { Modal } from './Modal';
 import type { MaterializedBinder, EnrichedCard } from '../types';
 import {
   buildBackup,
@@ -20,7 +20,6 @@ interface Props {
 type ExportKind = 'binder' | 'all-binders' | 'full';
 
 export function BinderExportDialog({ binders, activeId, onClose }: Props) {
-  useLockBodyScroll();
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
 
   const active = binders.find((b) => b.def.id === activeId) ?? null;
@@ -51,64 +50,56 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="binder-export-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="binder-export-title" className="choice-dialog-title">
-          Export
-        </h2>
-        <p className="choice-dialog-body">
-          Export a JSON backup that can be re-imported via Restore. Cards include the full Scryfall
-          enrichment used by this app.
-        </p>
-        <div className="choice-dialog-options">
-          <button
-            type="button"
-            className="choice-dialog-option"
-            onClick={() => handlePick('binder')}
-            disabled={!active}
-            autoFocus
-          >
-            <span className="choice-dialog-option-title">
-              {active ? `This binder — ${active.def.name}` : 'This binder'}
-            </span>
-            <span className="choice-dialog-option-desc">
-              {active
-                ? `Just "${active.def.name}" and its ${active.totalCards.toLocaleString()} card${active.totalCards === 1 ? '' : 's'}.`
-                : 'No active binder.'}
-            </span>
-          </button>
-          <button
-            type="button"
-            className="choice-dialog-option"
-            onClick={() => handlePick('all-binders')}
-            disabled={binders.length === 0}
-          >
-            <span className="choice-dialog-option-title">All binders</span>
-            <span className="choice-dialog-option-desc">
-              {binders.length} binder{binders.length === 1 ? '' : 's'} and every card routed to one
-              of them. Uncategorized cards are not included.
-            </span>
-          </button>
-          <button type="button" className="choice-dialog-option" onClick={() => handlePick('full')}>
-            <span className="choice-dialog-option-title">Full collection</span>
-            <span className="choice-dialog-option-desc">
-              Everything — all cards (including uncategorized) and all binder definitions.
-            </span>
-          </button>
-        </div>
-        <div className="choice-dialog-actions">
-          <button type="button" className="upload-action" onClick={onClose}>
-            Cancel
-          </button>
-        </div>
+    <Modal onClose={onClose} labelledBy="binder-export-title">
+      <h2 id="binder-export-title" className="choice-dialog-title">
+        Export
+      </h2>
+      <p className="choice-dialog-body">
+        Export a JSON backup that can be re-imported via Restore. Cards include the full Scryfall
+        enrichment used by this app.
+      </p>
+      <div className="choice-dialog-options">
+        <button
+          type="button"
+          className="choice-dialog-option"
+          onClick={() => handlePick('binder')}
+          disabled={!active}
+          autoFocus
+        >
+          <span className="choice-dialog-option-title">
+            {active ? `This binder — ${active.def.name}` : 'This binder'}
+          </span>
+          <span className="choice-dialog-option-desc">
+            {active
+              ? `Just "${active.def.name}" and its ${active.totalCards.toLocaleString()} card${active.totalCards === 1 ? '' : 's'}.`
+              : 'No active binder.'}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="choice-dialog-option"
+          onClick={() => handlePick('all-binders')}
+          disabled={binders.length === 0}
+        >
+          <span className="choice-dialog-option-title">All binders</span>
+          <span className="choice-dialog-option-desc">
+            {binders.length} binder{binders.length === 1 ? '' : 's'} and every card routed to one of
+            them. Uncategorized cards are not included.
+          </span>
+        </button>
+        <button type="button" className="choice-dialog-option" onClick={() => handlePick('full')}>
+          <span className="choice-dialog-option-title">Full collection</span>
+          <span className="choice-dialog-option-desc">
+            Everything — all cards (including uncategorized) and all binder definitions.
+          </span>
+        </button>
       </div>
-    </div>
+      <div className="choice-dialog-actions">
+        <button type="button" className="upload-action" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </Modal>
   );
 }
 
