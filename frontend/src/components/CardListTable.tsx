@@ -8,6 +8,7 @@ import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { FilterPopover } from './FilterPopover';
+import { SelectMenu } from './SelectMenu';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { RARITY_ORDER } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -475,34 +476,29 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
             );
           })}
         </div>
-        <select
-          className="collection-select"
+        <SelectMenu
+          ariaLabel="Filter by rarity"
           value={rarityFilter}
-          onChange={(e) => setRarityFilter(e.target.value)}
-          aria-label="Filter by rarity"
-        >
-          <option value="all">All Rarities</option>
-          {RARITIES.map((r) => (
-            <option key={r} value={r}>
-              {r.charAt(0).toUpperCase() + r.slice(1)}
-            </option>
-          ))}
-        </select>
+          onChange={setRarityFilter}
+          options={[
+            { value: 'all', label: 'All Rarities' },
+            ...RARITIES.map((r) => ({
+              value: r,
+              label: r.charAt(0).toUpperCase() + r.slice(1),
+            })),
+          ]}
+        />
         {!hideBinderFilter && (
-          <select
-            className="collection-select"
+          <SelectMenu
+            ariaLabel="Filter by binder"
             value={binderFilter}
-            onChange={(e) => setBinderFilter(e.target.value)}
-            aria-label="Filter by binder"
-          >
-            <option value="all">All binders</option>
-            {binders.map((b) => (
-              <option key={b.def.id} value={b.def.name}>
-                {b.def.name}
-              </option>
-            ))}
-            <option value="__uncategorized">Uncategorized</option>
-          </select>
+            onChange={setBinderFilter}
+            options={[
+              { value: 'all', label: 'All binders' },
+              ...binders.map((b) => ({ value: b.def.name, label: b.def.name })),
+              { value: '__uncategorized', label: 'Uncategorized' },
+            ]}
+          />
         )}
       </div>
 
@@ -665,20 +661,15 @@ function Pagination({ page, totalPages, pageSize, onChange, onPageSizeChange }: 
   return (
     <nav className="pagination" aria-label="Pagination">
       <div className="pagination-meta">
-        <label className="pagination-pagesize">
-          <span>Per page</span>
-          <select
+        <div className="pagination-pagesize">
+          <SelectMenu
+            label="Per page"
+            ariaLabel="Cards per page"
             value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value) as PageSize)}
-            aria-label="Cards per page"
-          >
-            {PAGE_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={(v) => onPageSizeChange(v as PageSize)}
+            options={PAGE_SIZE_OPTIONS.map((n) => ({ value: n, label: String(n) }))}
+          />
+        </div>
         <span className="pagination-status">
           Page {page} of {totalPages}
         </span>

@@ -4,6 +4,7 @@ import { useCollectionStore } from '../store/collection';
 import { SORT_FIELDS, NEW_BINDER_DEFAULT_SORTS, MAX_SORTS } from '../lib/sorting';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { SelectMenu } from './SelectMenu';
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -362,14 +363,16 @@ export function BinderEditor() {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <select
+                  <SelectMenu
+                    ariaLabel="Pocket layout"
                     value={pocketSize}
-                    onChange={(e) => setPocketSize(parseInt(e.target.value) as PocketSize)}
-                  >
-                    <option value={4}>4-pocket</option>
-                    <option value={9}>9-pocket</option>
-                    <option value={12}>12-pocket</option>
-                  </select>
+                    onChange={(v) => setPocketSize(v as PocketSize)}
+                    options={[
+                      { value: 4, label: '4-pocket' },
+                      { value: 9, label: '9-pocket' },
+                      { value: 12, label: '12-pocket' },
+                    ]}
+                  />
                   <label
                     className="field-checkbox"
                     style={{ margin: 0, whiteSpace: 'nowrap' }}
@@ -1426,17 +1429,12 @@ function NumberRangeInput({
 
 function SortSelect({ value, onChange }: { value: SortField; onChange: (v: SortField) => void }) {
   return (
-    <select
-      style={{ fontSize: '0.85rem' }}
+    <SelectMenu
+      ariaLabel="Sort field"
       value={value}
-      onChange={(e) => onChange(e.target.value as SortField)}
-    >
-      {SORT_FIELDS.map((f) => (
-        <option key={f.value} value={f.value}>
-          {f.label}
-        </option>
-      ))}
-    </select>
+      onChange={(v) => onChange(v as SortField)}
+      options={SORT_FIELDS.map((f) => ({ value: f.value, label: f.label }))}
+    />
   );
 }
 
