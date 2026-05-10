@@ -38,11 +38,18 @@ export function ThemePicker({ variant = 'default' }: { variant?: 'default' | 'ta
         aria-label={`Theme: ${active.name}`}
         onClick={() => setOpen((v) => !v)}
       >
-        <Swatch colors={active.swatch} />
         {isTab ? (
-          <span className="mobile-tab-bar-label">Theme</span>
+          <>
+            <span className="mobile-tab-bar-glyph">
+              <Swatch colors={active.swatch} />
+            </span>
+            <span className="mobile-tab-bar-label">Theme</span>
+          </>
         ) : (
-          <span className="theme-picker-trigger-label">{active.name}</span>
+          <>
+            <Swatch colors={active.swatch} />
+            <span className="theme-picker-trigger-label">{active.name}</span>
+          </>
         )}
       </button>
       {open && (
