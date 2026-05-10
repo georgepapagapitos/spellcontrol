@@ -23,18 +23,16 @@ beforeEach(() => {
 
 describe('api', () => {
   it('importText posts JSON and returns the parsed body', async () => {
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(
-        jsonResponse({
-          cards: [],
-          totalRows: 0,
-          scryfallHits: 0,
-          scryfallMisses: 0,
-          unresolvedNames: [],
-          detectedFormat: 'plain',
-        })
-      );
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({
+        cards: [],
+        totalRows: 0,
+        scryfallHits: 0,
+        scryfallMisses: 0,
+        unresolvedNames: [],
+        detectedFormat: 'plain',
+      })
+    );
     const out = await importText('Sol Ring');
     expect(out.detectedFormat).toBe('plain');
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -44,18 +42,16 @@ describe('api', () => {
   });
 
   it('importFile posts FormData', async () => {
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(
-        jsonResponse({
-          cards: [],
-          totalRows: 0,
-          scryfallHits: 0,
-          scryfallMisses: 0,
-          unresolvedNames: [],
-          detectedFormat: 'csv',
-        })
-      );
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({
+        cards: [],
+        totalRows: 0,
+        scryfallHits: 0,
+        scryfallMisses: 0,
+        unresolvedNames: [],
+        detectedFormat: 'csv',
+      })
+    );
     const file = new File(['name\nSol Ring'], 'cards.csv', { type: 'text/csv' });
     await importFile(file);
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
