@@ -5483,72 +5483,42 @@ hr {
 }
 
 @media (max-width: 1024px) {
-  /* Pinned to bottom: 0 so the bar's bottom edge can never move during
-     browser-chrome transitions (Android Chrome address-bar collapse,
-     gesture-nav reveal, etc.). The safe-area reserve lives inside the
-     bar as padding-bottom, with the items occupying the top 3.75rem
-     content area via align-items: stretch on a 3.75rem-min flex container.
-     Promoted to its own compositor layer so transitions don't repaint. */
   .mobile-tab-bar {
-    display: flex;
-    align-items: stretch;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 60;
-    height: calc(3.75rem + env(safe-area-inset-bottom));
-    padding: 0 0.4rem env(safe-area-inset-bottom);
+    display: flex;
+    height: 3.75rem;
+    padding: 0 0.4rem;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-sizing: content-box;
     background: var(--surface);
-    border-top: 0.5px solid var(--border);
+    border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateZ(0);
-    will-change: transform;
-    overscroll-behavior: contain;
-    box-sizing: border-box;
   }
 
   .mobile-tab-bar-link {
-    flex: 1 1 0;
-    /* min-width: 0 lets the cell shrink below its content's intrinsic
-       width — without it a long future label could push the bar wider
-       than the viewport and break the locked layout. overflow: hidden
-       is the safety net if a label is wider than the cell. */
-    min-width: 0;
-    overflow: hidden;
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 3px;
-    padding: 0 0.25rem;
-    border-radius: var(--radius);
     color: var(--text3);
     text-decoration: none;
     font-family: var(--font-serif);
     font-size: var(--text-xs);
     font-weight: 500;
     line-height: 1.1;
-    /* manipulation kills the iOS double-tap-to-zoom delay and prevents
-       pinch gestures inside the nav from being swallowed as zoom. */
-    touch-action: manipulation;
-    transition:
-      color 0.12s,
-      background 0.12s;
     -webkit-tap-highlight-color: transparent;
-  }
-
-  .mobile-tab-bar-link:hover {
-    color: var(--text2);
   }
 
   .mobile-tab-bar-link.active {
     color: var(--accent);
   }
 
-  /* Wraps the icon and its badge so the badge is anchored to the icon,
-     not the cell. Keeps badges aligned the same way regardless of how
-     the cell is padded or how tall the bar grows on notched devices. */
   .mobile-tab-bar-glyph {
     position: relative;
     display: inline-flex;
@@ -5556,7 +5526,6 @@ hr {
     justify-content: center;
     width: 22px;
     height: 22px;
-    flex-shrink: 0;
   }
 
   .mobile-tab-bar-icon {
@@ -5565,14 +5534,7 @@ hr {
 
   .mobile-tab-bar-label {
     font-size: var(--text-xs);
-    letter-spacing: 0.01em;
-    /* Single-line; if the label can't fit, ellipsize rather than wrap.
-       Wrapping would change the cell's effective height and visually
-       shift the icon row even though the bar itself is height-locked. */
-    max-width: 100%;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .mobile-tab-bar-count {
@@ -5592,13 +5554,10 @@ hr {
     font-size: var(--text-xs);
     font-weight: 600;
     line-height: 1;
-    text-align: center;
     border: 1.5px solid var(--surface);
     box-sizing: content-box;
   }
 
-  /* Reserve space at the bottom of every page so fixed nav doesn't cover
-     the last row of content. Matches the bar's height exactly. */
   body {
     padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
   }
