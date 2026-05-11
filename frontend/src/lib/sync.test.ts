@@ -43,7 +43,7 @@ describe('startSync', () => {
     expect(useDecksStore.getState().decks[0]).toMatchObject({ name: 'Server deck' });
   });
 
-  it('clears the collection when the server has no upload', async () => {
+  it('preserves local collection when the server snapshot is empty', async () => {
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
       collection: null,
       binders: [],
@@ -53,8 +53,10 @@ describe('startSync', () => {
     });
     useCollectionStore.setState({ fileName: 'stale.csv', uploadedAt: 1 });
     await startSync();
-    expect(useCollectionStore.getState().fileName).toBe('');
-    expect(useCollectionStore.getState().uploadedAt).toBeNull();
+    // Server is empty (new account / first login after auth). Local data should
+    // be preserved and seeded up to the server rather than wiped.
+    expect(useCollectionStore.getState().fileName).toBe('stale.csv');
+    expect(useCollectionStore.getState().uploadedAt).toBe(1);
   });
 });
 
