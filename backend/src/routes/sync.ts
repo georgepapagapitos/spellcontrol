@@ -21,15 +21,17 @@ async function loadSnapshot(userId: string): Promise<SyncSnapshot> {
   if (!row) {
     // Should not happen — registration creates the row — but recover gracefully.
     const now = Date.now();
-    await db.insert(userData).values({ userId, updatedAt: now });
+    await db
+      .insert(userData)
+      .values({ userId, collection: null, binders: [], decks: [], version: 0, updatedAt: now });
     return { collection: null, binders: [], decks: [], version: 0, updatedAt: now };
   }
   return {
-    collection: row.collection,
-    binders: row.binders,
-    decks: row.decks,
-    version: row.version,
-    updatedAt: row.updatedAt,
+    collection: row.collection ?? null,
+    binders: row.binders ?? [],
+    decks: row.decks ?? [],
+    version: row.version ?? 0,
+    updatedAt: row.updatedAt ?? Date.now(),
   };
 }
 
