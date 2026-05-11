@@ -5411,33 +5411,11 @@ hr {
     min-height: 36px;
   }
 
-  /* Section header on mobile: title + meta share row 1 (meta pushed
-     right via margin-left: auto), the sort breadcrumb wraps to row 2
-     and indents under the title. Trying to fit chevron + pip + title +
-     breadcrumb-chip + meta on a single ~360px row clipped the meta
-     mid-word ("2 page" with the trailing "s" cut off). DOM order is
-     title → breadcrumb → meta; CSS `order` reorders visually so meta
-     stays on row 1 with the title and breadcrumb gets the next row. */
-  .section-header {
-    flex-wrap: wrap;
-    align-items: baseline;
-    column-gap: 8px;
-    row-gap: 4px;
-  }
-
   .section-meta {
-    order: 1;
     margin-left: auto;
     flex: 0 0 auto;
     white-space: nowrap;
     font-size: var(--text-xs);
-  }
-
-  .section-breadcrumb {
-    order: 2;
-    flex-basis: 100%;
-    /* Align the chip with the title text, past the chevron column. */
-    margin-left: 22px;
   }
 
   /* Page rows wrap on mobile so the viewport never scrolls horizontally.
