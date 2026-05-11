@@ -59,29 +59,27 @@ export function SelectMenu<T extends string | number>({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // After the panel renders in the portal, check if it overflows the viewport
-  // bottom and flip it upward if so. useLayoutEffect fires before paint so
-  // there is no visible flash.
+  // After the panel renders in the portal, clamp it to the viewport: flip
+  // upward if it overflows the bottom, and left-anchor if it clips the left
+  // edge. useLayoutEffect fires before paint so there is no visible flash.
+  // Deps are [open] only — the functional setter reads the latest panelPos
+  // without creating a re-run loop when panelPos changes.
   useLayoutEffect(() => {
-    if (!open || !panelRef.current || !panelPos || !buttonRef.current) return;
+    if (!open || !panelRef.current || !buttonRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     const triggerRect = buttonRef.current.getBoundingClientRect();
-    let next: PanelPos | null = null;
-
-    if (panelPos.top !== undefined && rect.bottom > window.innerHeight) {
-      next = {
-        ...(next ?? panelPos),
-        top: undefined,
-        bottom: window.innerHeight - triggerRect.top + 6,
-      };
-    }
-
-    if (rect.left < 8) {
-      next = { ...(next ?? panelPos), right: undefined, left: Math.max(8, triggerRect.left) };
-    }
-
-    if (next) setPanelPos(next);
-  }, [open, panelPos]);
+    setPanelPos((p) => {
+      if (!p) return p;
+      let next = p;
+      if (p.top !== undefined && rect.bottom > window.innerHeight) {
+        next = { ...next, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 };
+      }
+      if (rect.left < 8) {
+        next = { ...next, right: undefined, left: Math.max(8, triggerRect.left) };
+      }
+      return next === p ? p : next;
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
