@@ -1,0 +1,23 @@
+# Local development database only.
+# Run:  npm run db:up
+# Stop: npm run db:down
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: binder-postgres-dev
+    environment:
+      POSTGRES_USER: mtguser
+      POSTGRES_PASSWORD: mtgpassword
+      POSTGRES_DB: mtgbinder
+    ports:
+      - "5432:5432"
+    volumes:
+      - binder-postgres-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mtguser -d mtgbinder']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  binder-postgres-dev:
