@@ -704,6 +704,11 @@
   padding: 0.3rem;
 }
 
+.toolbar-popover-panel--fixed {
+  width: max-content;
+  min-width: unset;
+}
+
 .toolbar-popover-list {
   list-style: none;
   margin: 0;
