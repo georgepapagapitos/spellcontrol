@@ -31,7 +31,7 @@ interface Props<T extends string | number> {
   className?: string;
 }
 
-type PanelPos = { top?: number; bottom?: number; right: number };
+type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
 
 /**
  * Themed single-choice dropdown. Uses the same `toolbar-pill` + popover
@@ -63,16 +63,24 @@ export function SelectMenu<T extends string | number>({
   // bottom and flip it upward if so. useLayoutEffect fires before paint so
   // there is no visible flash.
   useLayoutEffect(() => {
-    if (!open || !panelRef.current || !panelPos) return;
-    if (panelPos.top !== undefined) {
-      const rect = panelRef.current.getBoundingClientRect();
-      if (rect.bottom > window.innerHeight && buttonRef.current) {
-        const triggerRect = buttonRef.current.getBoundingClientRect();
-        setPanelPos(
-          (p) => p && { ...p, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 }
-        );
-      }
+    if (!open || !panelRef.current || !panelPos || !buttonRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    const triggerRect = buttonRef.current.getBoundingClientRect();
+    let next: PanelPos | null = null;
+
+    if (panelPos.top !== undefined && rect.bottom > window.innerHeight) {
+      next = {
+        ...(next ?? panelPos),
+        top: undefined,
+        bottom: window.innerHeight - triggerRect.top + 6,
+      };
     }
+
+    if (rect.left < 8) {
+      next = { ...(next ?? panelPos), right: undefined, left: Math.max(8, triggerRect.left) };
+    }
+
+    if (next) setPanelPos(next);
   }, [open, panelPos]);
 
   useEffect(() => {
@@ -127,6 +135,7 @@ export function SelectMenu<T extends string | number>({
         className="toolbar-popover-panel toolbar-popover-panel--fixed"
         style={{
           position: 'fixed',
+          left: panelPos.left,
           right: panelPos.right,
           top: panelPos.top,
           bottom: panelPos.bottom,
