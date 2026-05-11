@@ -102,6 +102,16 @@ export interface EnrichedCard {
   finish: 'nonfoil' | 'foil' | 'etched';
   /** Derived from finish for backwards compat: true when finish is 'foil' or 'etched'. */
   foil: boolean;
+  /** Normalized condition (nm/lp/mp/hp/damaged). Per-copy user data; Scryfall has no fallback. */
+  condition?: 'nm' | 'lp' | 'mp' | 'hp' | 'damaged';
+  /** Lowercased Scryfall language code (en, ja, de, es, fr, it, pt, ru, ko, zhs, zht, ...). */
+  language?: string;
+  /** True when the user flagged the physical card as altered (custom art, etc.). */
+  altered?: boolean;
+  /** True when the card is a proxy rather than a real printing. */
+  proxy?: boolean;
+  /** True when the user flagged the physical card as a misprint. */
+  misprint?: boolean;
 
   // From Scryfall (optional — undefined if Scryfall lookup failed)
   cmc?: number;

@@ -387,6 +387,11 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     finish: row.finish ?? 'nonfoil',
     foil: (row.finish ?? 'nonfoil') !== 'nonfoil',
   };
+  if (row.condition !== undefined) base.condition = row.condition;
+  if (row.language !== undefined) base.language = row.language;
+  if (row.altered !== undefined) base.altered = row.altered;
+  if (row.proxy !== undefined) base.proxy = row.proxy;
+  if (row.misprint !== undefined) base.misprint = row.misprint;
   if (price > 0) base.pricedAt = Date.now();
 
   if (scryfall) {

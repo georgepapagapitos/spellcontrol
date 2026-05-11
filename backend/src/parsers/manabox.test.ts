@@ -54,6 +54,21 @@ describe('parseManabox', () => {
     expect(parseManabox(`${HEADER}\n${row}`).rows[0].finish).toBe('etched');
   });
 
+  it('captures condition, language, misprint, altered from per-copy columns', () => {
+    // HEADER columns: Name Set Set Coll Foil Cond Lang Qty Scryfall Binder BinderT Rarity Price x y z
+    // Index:             0    1   2   3    4    5    6   7    8        9     10     11    12  13 14 15
+    // Slot 5 = Condition, slot 6 = Language. We add misprint/altered in the tail.
+    const HEADER_WITH_FLAGS =
+      'Name\tSet code\tSet name\tCollector number\tFoil\tCondition\tLanguage\tQuantity\tScryfall ID\tBinder Name\tBinder Type\tRarity\tMisprint\tAltered\tPurchase price\tCurrency';
+    const row =
+      'Sol Ring\tCMR\tCommander Legends\t472\tnormal\tlightly_played\tja\t1\tabc\tBinder\tCard\tuncommon\ttrue\tfalse\t1.50\tUSD';
+    const r = parseManabox(`${HEADER_WITH_FLAGS}\n${row}`).rows[0];
+    expect(r.condition).toBe('lp');
+    expect(r.language).toBe('ja');
+    expect(r.misprint).toBe(true);
+    expect(r.altered).toBe(false);
+  });
+
   it('skips rows with no name', () => {
     const row =
       '\tCMR\tCommander Legends\t472\tnormal\tNM\tEN\t1\tabc\tBinder\tCard\tuncommon\t1.50\tx\ty\tz';

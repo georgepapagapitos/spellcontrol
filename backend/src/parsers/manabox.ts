@@ -1,4 +1,5 @@
 import type { Finish, ImportRow, ParseResult } from './types';
+import { parseCondition, parseLanguage } from './csv';
 
 const PRICE_FROM_END = 6;
 
@@ -42,6 +43,10 @@ export function parseManabox(text: string): ParseResult {
     rarity: headers.findIndex((h) => h.toLowerCase() === 'rarity'),
     quantity: headers.findIndex((h) => h.toLowerCase() === 'quantity'),
     scryfallId: headers.findIndex((h) => h.toLowerCase() === 'scryfall id'),
+    condition: headers.findIndex((h) => h.toLowerCase() === 'condition'),
+    language: headers.findIndex((h) => h.toLowerCase() === 'language'),
+    altered: headers.findIndex((h) => h.toLowerCase() === 'altered'),
+    misprint: headers.findIndex((h) => h.toLowerCase() === 'misprint'),
   };
 
   const rows: ImportRow[] = [];
@@ -102,6 +107,10 @@ export function parseManabox(text: string): ParseResult {
       scryfallId: idx.scryfallId >= 0 ? row[idx.scryfallId] || undefined : undefined,
       purchasePrice,
       sourceCategory: idx.binderName >= 0 ? row[idx.binderName] || undefined : undefined,
+      condition: idx.condition >= 0 ? parseCondition(row[idx.condition]) : undefined,
+      language: idx.language >= 0 ? parseLanguage(row[idx.language]) : undefined,
+      altered: idx.altered >= 0 ? parseManaboxBool(row[idx.altered]) : undefined,
+      misprint: idx.misprint >= 0 ? parseManaboxBool(row[idx.misprint]) : undefined,
       sourceFormat: 'manabox',
     });
   }
@@ -114,6 +123,13 @@ function parseManaboxFinish(raw: string | undefined): Finish {
   if (v === 'foil') return 'foil';
   if (v === 'etched') return 'etched';
   return 'nonfoil';
+}
+
+function parseManaboxBool(raw: string | undefined): boolean | undefined {
+  const v = (raw || '').toLowerCase().trim();
+  if (v === 'true' || v === '1' || v === 'yes') return true;
+  if (v === 'false' || v === '0' || v === 'no') return false;
+  return undefined;
 }
 
 function splitLine(line: string, delim: string): string[] {

@@ -1,5 +1,8 @@
 export type Finish = 'nonfoil' | 'foil' | 'etched';
 
+/** Normalized condition codes. Scryfall does not provide this — it is per-copy user data. */
+export type Condition = 'nm' | 'lp' | 'mp' | 'hp' | 'damaged';
+
 /**
  * Normalized row produced by any parser. All fields except `name` and `quantity` are optional
  * because format coverage varies wildly:
@@ -19,6 +22,16 @@ export interface ImportRow {
   setName?: string;
   collectorNumber?: string;
   finish?: Finish;
+  /** Normalized condition (nm/lp/mp/hp/damaged). Per-copy user data. */
+  condition?: Condition;
+  /** Lowercased Scryfall language code (en, ja, de, es, fr, it, pt, ru, ko, zhs, zht, ...). */
+  language?: string;
+  /** True when the user has flagged the physical card as altered (custom art, etc.). */
+  altered?: boolean;
+  /** True when the card is a proxy rather than a real printing. */
+  proxy?: boolean;
+  /** True when the user has flagged the physical card as a misprint. */
+  misprint?: boolean;
   /** Direct Scryfall ID — when present, lookup is exact and free. */
   scryfallId?: string;
   /** Optional price (USD) from the source export. Falls back to Scryfall pricing if absent. */
