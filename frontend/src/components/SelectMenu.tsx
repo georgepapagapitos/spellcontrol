@@ -157,9 +157,11 @@ export function SelectMenu<T extends string | number>({
                     setOpen(false);
                   }}
                 >
-                  <span className="toolbar-popover-check" aria-hidden>
-                    {renderItemPrefix ? renderItemPrefix(opt, isActive) : isActive ? '✓' : ''}
-                  </span>
+                  {renderItemPrefix && (
+                    <span className="toolbar-popover-check" aria-hidden>
+                      {renderItemPrefix(opt, isActive)}
+                    </span>
+                  )}
                   {opt.itemLabel ?? opt.label}
                 </button>
               </li>
