@@ -18,6 +18,7 @@ import type {
   NegatableChip,
   PocketSize,
   Rarity,
+  SortEntry,
   SortField,
   Treatment,
 } from '../types';
@@ -123,7 +124,7 @@ export function BinderEditor() {
   const [doubleSided, setDoubleSided] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
-  const [sorts, setSorts] = useState<SortField[]>([...NEW_BINDER_DEFAULT_SORTS]);
+  const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [liveMsg, setLiveMsg] = useState('');
@@ -522,9 +523,32 @@ export function BinderEditor() {
                 <div key={i} className="sort-editor-row">
                   <span className="sort-editor-num">{i + 1}.</span>
                   <SortSelect
-                    value={s}
-                    onChange={(v) => setSorts(sorts.map((x, j) => (j === i ? v : x)))}
+                    value={s.field}
+                    onChange={(field) => {
+                      const defaultDir =
+                        SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
+                      setSorts(sorts.map((x, j) => (j === i ? { field, dir: defaultDir } : x)));
+                    }}
                   />
+                  <button
+                    type="button"
+                    className="tab-action sort-dir-toggle"
+                    onClick={() =>
+                      setSorts(
+                        sorts.map((x, j) =>
+                          j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
+                        )
+                      )
+                    }
+                    title={
+                      s.dir === 'asc'
+                        ? 'Ascending — click to reverse'
+                        : 'Descending — click to reverse'
+                    }
+                    aria-label={s.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                  >
+                    {s.dir === 'asc' ? '↑' : '↓'}
+                  </button>
                   <div className="tab-actions sort-editor-actions">
                     <button
                       type="button"
@@ -1428,12 +1452,14 @@ function swap<T>(arr: T[], i: number, j: number): T[] {
   return out;
 }
 
-/** Pick a sort field for a freshly-added row — the first one not already used, or 'name' as fallback. */
-function nextDefaultSort(existing: SortField[]): SortField {
+/** Pick a sort entry for a freshly-added row — the first field not already used, or 'name' as fallback. */
+function nextDefaultSort(existing: SortEntry[]): SortEntry {
   for (const opt of SORT_FIELDS) {
-    if (!existing.includes(opt.value)) return opt.value;
+    if (!existing.some((e) => e.field === opt.value)) {
+      return { field: opt.value, dir: opt.defaultDir };
+    }
   }
-  return 'name';
+  return { field: 'name', dir: 'asc' };
 }
 
 function validateRanges(f: BinderFilter): string | null {
