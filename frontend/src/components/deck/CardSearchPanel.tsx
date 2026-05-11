@@ -197,7 +197,7 @@ interface ResultsProps {
 
 // ── Collection results ───────────────────────────────────────────────────
 function CollectionResults({
-  deckId,
+  deckId: _deckId,
   colorIdentity,
   existingCardCounts,
   query,
@@ -302,13 +302,11 @@ function CollectionResults({
       })}
     </ul>
   );
-
-  void deckId;
 }
 
 // ── Scryfall results ─────────────────────────────────────────────────────
 function ScryfallResults({
-  deckId,
+  deckId: _deckId,
   colorIdentity,
   existingCardCounts,
   query,
@@ -431,6 +429,4 @@ function ScryfallResults({
       })}
     </ul>
   );
-
-  void deckId;
 }
