@@ -18,8 +18,14 @@ import {
 import { getDb } from '../db';
 import { users, userData } from '../db/schema';
 
-const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+// Disable rate limiting in tests to avoid state persisting across test cases
+const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
+const registerLimiter = isTest
+  ? (_req: Request, _res: Response, next: () => void) => next()
+  : rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
+const loginLimiter = isTest
+  ? (_req: Request, _res: Response, next: () => void) => next()
+  : rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 
 export const authRouter: Router = Router();
 
@@ -28,8 +34,7 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   const password = validatePassword(req.body?.password);
   if (!username) {
     return res.status(400).json({
-      error:
-        'Username must be 3\u00132 characters and use only lowercase letters, digits, _ and -.',
+      error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
     });
   }
   if (!password) {
@@ -47,65 +52,6 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   if (existing.length > 0) {
     return res.status(409).json({ error: 'That username is already taken.' });
   }
-
-  const id = crypto.randomUUID();
-  const passwordHash = await hashPassword(password);
-  const now = Date.now();
-  await db.insert(users).values({ id, username, passwordHash, createdAt: now });
-  await db.insert(userData).values({
-    userId: id,
-    collection: null,
-    binders: [],
-    decks: [],
-    version: 0,
-    updatedAt: now,
-  });
-
-  const token = signSession({ id, username });
-  setSessionCookie(res, token);
-  res.status(201).json({ user: { id, username } });
-});
-
-authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
-  const username = normalizeUsername(req.body?.username);
-  const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  if (!username) {
-    return res.status(400).json({
-      error:
-        'Username must be 3\u00132 characters and use only lowercase letters, digits, _ and -.',
-    });
-  }
-  if (!password) {
-    return res
-      .status(400)
-      .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
-  }
-
-  const db = getDb();
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1);
-  if (existing.length > 0) {
-    return res.status(409).json({ error: 'That username is already taken.' });
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    (
-      registerLimiter as unknown as (
-        req: Request,
-        res: Response,
-        next: (err?: unknown) => void
-      ) => void
-    )(req, res, (err?: unknown) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve();
-    });
-  });
 
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
