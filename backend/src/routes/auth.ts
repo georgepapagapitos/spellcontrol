@@ -38,7 +38,8 @@ authRouter.post(
     const password = validatePassword(req.body?.password);
     if (!username) {
       return res.status(400).json({
-        error: 'Username must be 3\u00132 characters and use only lowercase letters, digits, _ and -.',
+        error:
+          'Username must be 3\u00132 characters and use only lowercase letters, digits, _ and -.',
       });
     }
     if (!password) {
