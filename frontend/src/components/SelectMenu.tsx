@@ -74,6 +74,12 @@ export function SelectMenu<T extends string | number>({
       if (p.top !== undefined && rect.bottom > window.innerHeight) {
         next = { ...next, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 };
       }
+      if (next.bottom !== undefined) {
+        const upwardTop = triggerRect.top - 6 - rect.height;
+        if (upwardTop < 8) {
+          next = { ...next, top: 8, bottom: undefined };
+        }
+      }
       if (rect.left < 8) {
         next = { ...next, right: undefined, left: Math.max(8, triggerRect.left) };
       }
@@ -95,12 +101,20 @@ export function SelectMenu<T extends string | number>({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    // Close if the trigger scrolls out of view (e.g. modal scroll)
-    const onScroll = () => setOpen(false);
+    // Close if the trigger scrolls out of view (e.g. modal scroll).
+    // Delayed by one frame so focus-triggered micro-scrolls from the opening
+    // click don't immediately close the panel.
+    const onScroll = () => {
+      setOpen(false);
+    };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
-    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    let scrollRaf = 0;
+    scrollRaf = requestAnimationFrame(() => {
+      document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    });
     return () => {
+      cancelAnimationFrame(scrollRaf);
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('scroll', onScroll, { capture: true });
