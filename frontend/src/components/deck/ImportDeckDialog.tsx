@@ -62,22 +62,22 @@ export function ImportDeckDialog({ onClose }: Props) {
     (result: DeckImportResponse, commander: ScryfallCard) => {
       const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
 
-      const allocateFor = (cardName: string): string | null => {
-        const pick = pickCollectionCopy(cardName, collectionCards, claimed);
+      const allocateFor = (card: ScryfallCard): string | null => {
+        const pick = pickCollectionCopy(card.name, collectionCards, claimed, card.id);
         if (!pick) return null;
         claimed.set(pick.copyId, {
           deckId: '__pending__',
           deckName: '__pending__',
-          cardName,
+          cardName: card.name,
         });
         return pick.copyId;
       };
 
-      const commanderAlloc = allocateFor(commander.name);
+      const commanderAlloc = allocateFor(commander);
 
       const cards = result.cards
         .filter((c) => c.name !== commander.name)
-        .map((card) => newDeckCard(card, allocateFor(card.name)));
+        .map((card) => newDeckCard(card, allocateFor(card)));
 
       const id = createDeck({
         source: 'manual',

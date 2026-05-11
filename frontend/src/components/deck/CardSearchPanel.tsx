@@ -234,7 +234,7 @@ function CollectionResults({
     if (!c) return;
     const full = await getCardByName(c.name).catch(() => null);
     if (!full) return;
-    const claim = pickCollectionCopy(c.name, collection, allocations);
+    const claim = pickCollectionCopy(c.name, collection, allocations, c.scryfallId);
     onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
   };
@@ -369,7 +369,7 @@ function ScryfallResults({
     const c = results[index];
     if (!c) return;
     const owned = ownedNames.has(c.name);
-    const claim = owned ? pickCollectionCopy(c.name, collection, allocations) : null;
+    const claim = owned ? pickCollectionCopy(c.name, collection, allocations, c.id) : null;
     onAdd({ card: c, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
   };

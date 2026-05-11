@@ -166,27 +166,43 @@ app.post(
       const expanded = expandByQuantity(relaxedRows);
       const { resolved, unresolvedNames } = await resolveCards(expanded, cache);
 
-      const cardsByName = new Map<string, ScryfallCard>();
+      // Key by name+setCode so different printings of the same card name are
+      // kept separate (e.g. "Forest (ONE)" and "Forest (NEO)" stay distinct).
+      const deckCardKey = (name: string, setCode?: string) =>
+        `${name}\0${(setCode ?? '').toLowerCase()}`;
+      const lookupDeckCard = (
+        name: string,
+        setCode: string | undefined,
+        map: Map<string, ScryfallCard>
+      ): ScryfallCard | null =>
+        map.get(deckCardKey(name, setCode)) ?? map.get(deckCardKey(name, '')) ?? null;
+
+      const cardsByKey = new Map<string, ScryfallCard>();
       for (let i = 0; i < expanded.length; i++) {
         const card = resolved[i];
-        if (card && !cardsByName.has(expanded[i].name)) {
-          cardsByName.set(expanded[i].name, card);
+        if (!card) continue;
+        const row = expanded[i];
+        const key = deckCardKey(row.name, row.setCode);
+        if (!cardsByKey.has(key)) {
+          cardsByKey.set(key, card);
         }
       }
 
       let commander: ScryfallCard | null = null;
       if (commanderRows.length > 0) {
-        commander = cardsByName.get(commanderRows[0].name) ?? null;
+        const r = commanderRows[0];
+        commander = lookupDeckCard(r.name, r.setCode, cardsByKey);
       }
 
       let companion: ScryfallCard | null = null;
       if (companionRows.length > 0) {
-        companion = cardsByName.get(companionRows[0].name) ?? null;
+        const r = companionRows[0];
+        companion = lookupDeckCard(r.name, r.setCode, cardsByKey);
       }
 
       const cards: ScryfallCard[] = [];
       for (const row of deckRows) {
-        const card = cardsByName.get(row.name);
+        const card = lookupDeckCard(row.name, row.setCode, cardsByKey);
         if (card) {
           for (let i = 0; i < Math.max(1, row.quantity); i++) {
             cards.push(card);

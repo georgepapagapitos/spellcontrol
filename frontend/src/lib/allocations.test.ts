@@ -101,6 +101,46 @@ describe('pickCollectionCopy', () => {
   });
 });
 
+describe('pickCollectionCopy with preferredScryfallId', () => {
+  const allocated = new Map<string, AllocationInfo>();
+
+  it('prefers exact printing even when a cheaper alternative exists', () => {
+    const cheap = card({ copyId: 'a', scryfallId: 'sf-CMR', purchasePrice: 1 });
+    const pricey = card({ copyId: 'b', scryfallId: 'sf-ONE', purchasePrice: 50 });
+    expect(pickCollectionCopy('Sol Ring', [cheap, pricey], allocated, 'sf-ONE')?.copyId).toBe('b');
+  });
+
+  it('falls back to foil/price tiebreak when preferred printing is not owned', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-CMR', foil: false, purchasePrice: 1 });
+    const foilCopy = card({ copyId: 'b', scryfallId: 'sf-NEO', foil: true, purchasePrice: 0.5 });
+    // preferred printing 'sf-XYZ' is not owned; fallback: non-foil wins
+    expect(pickCollectionCopy('Sol Ring', [nonFoil, foilCopy], allocated, 'sf-XYZ')?.copyId).toBe(
+      'a'
+    );
+  });
+
+  it('returns null when all candidates are allocated even with a preference', () => {
+    const claimed = new Map<string, AllocationInfo>();
+    claimed.set('a', { deckId: 'd1', deckName: 'X', cardName: 'Sol Ring' });
+    const a = card({ copyId: 'a', scryfallId: 'sf-ONE' });
+    expect(pickCollectionCopy('Sol Ring', [a], claimed, 'sf-ONE')).toBeNull();
+  });
+
+  it('prefers exact-printing foil over non-preferred non-foil', () => {
+    const nonFoilCheap = card({ copyId: 'a', scryfallId: 'sf-CMR', foil: false, purchasePrice: 1 });
+    const foilPref = card({ copyId: 'b', scryfallId: 'sf-ONE', foil: true, purchasePrice: 2 });
+    expect(
+      pickCollectionCopy('Sol Ring', [nonFoilCheap, foilPref], allocated, 'sf-ONE')?.copyId
+    ).toBe('b');
+  });
+
+  it('passes through to original behavior when preferredScryfallId is undefined', () => {
+    const foil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: true, purchasePrice: 1 });
+    const nonFoil = card({ copyId: 'b', scryfallId: 'sf-NEO', foil: false, purchasePrice: 5 });
+    expect(pickCollectionCopy('Sol Ring', [foil, nonFoil], allocated)?.copyId).toBe('b');
+  });
+});
+
 describe('classifyAllocation', () => {
   it('returns unowned when no copy is allocated', () => {
     expect(classifyAllocation(null, new Map())).toBe('unowned');
