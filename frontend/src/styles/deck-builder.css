@@ -681,6 +681,10 @@
   font-weight: 400;
 }
 
+.toolbar-pill-placeholder {
+  color: var(--text3);
+}
+
 .toolbar-popover {
   position: relative;
   display: inline-flex;
