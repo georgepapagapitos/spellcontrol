@@ -347,14 +347,6 @@ function expandByQuantity(rows: ImportRow[]): ImportRow[] {
   return expanded;
 }
 
-/**
- * Resolve the price to display for a card. Always prefer Scryfall's current
- * market value (the "what it's worth now" number users actually want for
- * binder planning) over whatever the import row carried. Foils prefer
- * usd_foil → usd_etched → usd; non-foils prefer usd → usd_etched → usd_foil.
- * Falls back to the row price (e.g. a ManaBox purchase price) when Scryfall
- * has no price, then to 0.
- */
 // Always prefer Scryfall's market price over whatever the import file claimed.
 // CSV "purchase price" columns vary wildly (some are list price, some are
 // what the user paid years ago, some are blank) and we've decided to ignore
@@ -363,9 +355,13 @@ function expandByQuantity(rows: ImportRow[]): ImportRow[] {
 function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): number {
   const p = scryfall?.prices;
   if (p) {
-    const candidates = row.foil
-      ? [p.usd_foil, p.usd_etched, p.usd]
-      : [p.usd, p.usd_etched, p.usd_foil];
+    const finish = row.finish ?? 'nonfoil';
+    const candidates =
+      finish === 'etched'
+        ? [p.usd_etched, p.usd_foil, p.usd]
+        : finish === 'foil'
+          ? [p.usd_foil, p.usd_etched, p.usd]
+          : [p.usd, p.usd_etched, p.usd_foil];
     for (const raw of candidates) {
       if (!raw) continue;
       const n = Number(raw);
@@ -388,8 +384,14 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
     purchasePrice: price,
     sourceCategory: row.sourceCategory || '',
     sourceFormat: row.sourceFormat,
-    foil: row.foil ?? false,
+    finish: row.finish ?? 'nonfoil',
+    foil: (row.finish ?? 'nonfoil') !== 'nonfoil',
   };
+  if (row.condition !== undefined) base.condition = row.condition;
+  if (row.language !== undefined) base.language = row.language;
+  if (row.altered !== undefined) base.altered = row.altered;
+  if (row.proxy !== undefined) base.proxy = row.proxy;
+  if (row.misprint !== undefined) base.misprint = row.misprint;
   if (price > 0) base.pricedAt = Date.now();
 
   if (scryfall) {

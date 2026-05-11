@@ -191,7 +191,7 @@ export const SAMPLE_IMPORT_LABEL = 'Sample: starter pack';
  */
 export function sampleCardsAsCsv(): string {
   const rows = SAMPLE_CARDS.map(
-    (c) => `"${c.name.replace(/"/g, '""')}",${c.foil ? 'true' : 'false'}`
+    (c) => `"${c.name.replace(/"/g, '""')}",${c.foil ? 'foil' : 'nonfoil'}`
   );
-  return ['name,foil', ...rows].join('\n');
+  return ['name,finish', ...rows].join('\n');
 }
