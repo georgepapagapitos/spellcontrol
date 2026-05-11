@@ -138,6 +138,22 @@ function detachSubscribers(): void {
  */
 export async function startSync(): Promise<void> {
   const snap = await fetchSync();
+
+  const serverIsEmpty =
+    !snap.collection &&
+    (!Array.isArray(snap.binders) || snap.binders.length === 0) &&
+    (!Array.isArray(snap.decks) || snap.decks.length === 0);
+
+  if (serverIsEmpty) {
+    // Server has no data yet (new account or first login after auth was added).
+    // Seed the server with whatever the user already has locally rather than
+    // wiping their local collection with the empty server state.
+    currentVersion = snap.version;
+    attachSubscribers();
+    schedulePush();
+    return;
+  }
+
   await applySnapshot(snap);
   attachSubscribers();
 }
