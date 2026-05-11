@@ -57,8 +57,9 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 
 ## Where data lives
 
-- **Binders, decks, theme** — `localStorage` in your browser. Persists indefinitely. Does not sync across devices.
-- **Card collection** — `IndexedDB` in your browser. Use "Clear cached collection" to wipe it.
+- **User accounts** — Postgres on the backend (`users` table, argon-style bcrypt password hashes, session JWTs in httpOnly cookies).
+- **Synced state (collection, binders, decks)** — Postgres on the backend (`user_data` table, JSONB columns, optimistic-concurrency `version`). Pulled on login, debounced-pushed on every change.
+- **Local cache** — `localStorage` (binders, decks, theme) and `IndexedDB` (collection cards) in the browser. Hydrated from the server snapshot after login; wiped on sign-out.
 - **Scryfall card data** — cached server-side in SQLite for 7 days. Shared across all users of the backend.
 
 ## Setup
@@ -91,13 +92,35 @@ npm run dev --prefix frontend            # :5173
 
 ### Docker
 
-A `docker-compose.yml` is included that pulls prebuilt images from GHCR:
+A `docker-compose.yml` is included that runs Postgres + the backend + the frontend. Copy `.env.example` to `.env` and fill in `POSTGRES_PASSWORD` and `JWT_SECRET` first:
 
 ```bash
-docker compose up -d                     # backend :3737, frontend :8088
+cp .env.example .env
+# edit .env — generate a JWT secret with:  openssl rand -base64 48
+docker compose up -d                     # postgres (internal), backend (internal), frontend :8088
 ```
 
-Images are tagged `ghcr.io/georgepapagapitos/mtg-binder-{backend,frontend}:latest` and built by GitHub Actions on every push to `main`. Watchtower labels are set, so a Watchtower instance will auto-update both containers.
+The backend container is no longer published to the host. The frontend container's nginx proxies `/api/` to it on the docker-compose network, so a single `binder.example.com` reverse-proxy entry is enough.
+
+Backend and frontend images are tagged `ghcr.io/georgepapagapitos/mtg-binder-{backend,frontend}:latest` and built by GitHub Actions on every push to `main`. Watchtower labels are set, so a Watchtower instance will auto-update both containers.
+
+#### Postgres backups
+
+The data lives in the `binder-postgres` named volume. A nightly logical backup is recommended:
+
+```bash
+docker exec binder-postgres pg_dump -U binder binder | gzip > /backups/binder-$(date +%F).sql.gz
+```
+
+Wire that into cron and rotate the files. Restore with `gunzip -c file.sql.gz | docker exec -i binder-postgres psql -U binder binder`.
+
+### Required environment
+
+The backend reads:
+
+- `DATABASE_URL` — Postgres connection string. Required.
+- `JWT_SECRET` — 16+ character random string used to sign session tokens. Required. Rotating it invalidates every session.
+- `PORT` (default `3737`), `DB_PATH` (default `data/scryfall-cache.db`).
 
 ## Architecture
 
@@ -178,6 +201,13 @@ All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 | `POST` | `/api/import-deck`           | Same shape as `/api/import` but parses commander / companion / sideboard sections               |
 | `GET`  | `/api/cards/:name/printings` | All printings of a card (for finish / treatment swaps)                                          |
 | `POST` | `/api/refresh-prices`        | Refresh prices for a list of cards without re-importing                                         |
+| `POST` | `/api/auth/register`         | Create a user. `{ username, password }` → session cookie. 5/hr per IP                           |
+| `POST` | `/api/auth/login`            | Sign in. `{ username, password }` → session cookie. 10 / 15 min per IP                          |
+| `POST` | `/api/auth/logout`           | Clears the session cookie                                                                       |
+| `GET`  | `/api/auth/me`               | Returns the current user, or 401                                                                |
+| `DELETE` | `/api/auth/me`             | Permanently deletes the account and all synced data (auth required)                             |
+| `GET`  | `/api/sync`                  | Returns the user's collection / binders / decks snapshot + version (auth required)              |
+| `PUT`  | `/api/sync`                  | Pushes a new snapshot. `{ collection, binders, decks, baseVersion }`. 409 on stale `baseVersion` |
 
 `EnrichedCard` includes the standard Scryfall fields plus `importId` (per-batch tag), `finishes`, `layout`, `borderColor`, `legalities`, `oracleText`, `frameEffects`, `fullArt`, `imageNormalBack` (DFC reverse), `manaCost`, and `promoTypes`.
 
