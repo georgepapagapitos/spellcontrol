@@ -5428,9 +5428,15 @@ hr {
     min-height: 36px;
   }
 
+  /* Section header on mobile: chip stays inline with the title on row 1;
+     the card/page count wraps to its own row below, right-aligned. */
+  .section-header {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
   .section-meta {
-    margin-left: auto;
-    flex: 0 0 auto;
+    flex-basis: 100%;
     white-space: nowrap;
     font-size: var(--text-xs);
   }
