@@ -98,6 +98,7 @@ export function getSectionMeta(card: EnrichedCard, field: SortField): SectionMet
       return priceBucket(card.purchasePrice);
     case 'edhrec':
       return edhrecBucket(card.edhrecRank);
+    case 'collectorNumber':
     default:
       return { key: 'ALL', label: 'All cards', order: 0 };
   }

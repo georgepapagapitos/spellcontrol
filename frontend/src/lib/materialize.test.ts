@@ -40,7 +40,11 @@ function makeBinder(overrides: BinderOverrides = {}): BinderDef {
     name: 'Test Binder',
     position: 0,
     filterGroups: groups,
-    sorts: ['color', 'cmc', 'name'],
+    sorts: [
+      { field: 'color', dir: 'asc' },
+      { field: 'cmc', dir: 'asc' },
+      { field: 'name', dir: 'asc' },
+    ],
     pocketSize: null,
     doubleSided: false,
     fixedCapacity: null,
@@ -122,7 +126,7 @@ describe('materializeBinders', () => {
   it('groups cards into pages using the pocket size', () => {
     // 10 cards into a 9-pocket binder = 2 pages (9 + 1)
     const cards = Array.from({ length: 10 }, () => makeCard({ colorIdentity: [] }));
-    const binder = makeBinder({ filter: {}, sorts: ['none'] });
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
 
     const { binders } = materializeBinders(cards, [binder], {
       ...defaultOpts,
@@ -134,7 +138,11 @@ describe('materializeBinders', () => {
 
   it('uses binder pocketSize when set instead of globalPocketSize', () => {
     const cards = Array.from({ length: 5 }, () => makeCard({ colorIdentity: [] }));
-    const binder = makeBinder({ filter: {}, sorts: ['none'], pocketSize: 4 });
+    const binder = makeBinder({
+      filter: {},
+      sorts: [{ field: 'none', dir: 'asc' }],
+      pocketSize: 4,
+    });
 
     const { binders } = materializeBinders(cards, [binder], {
       ...defaultOpts,
@@ -147,7 +155,11 @@ describe('materializeBinders', () => {
 
   it('chunks into pages of 12 for 12-pocket binders', () => {
     const cards = Array.from({ length: 25 }, () => makeCard({ colorIdentity: [] }));
-    const binder = makeBinder({ filter: {}, sorts: ['none'], pocketSize: 12 });
+    const binder = makeBinder({
+      filter: {},
+      sorts: [{ field: 'none', dir: 'asc' }],
+      pocketSize: 12,
+    });
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].effectivePocketSize).toBe(12);
     expect(binders[0].totalPages).toBe(3); // ceil(25 / 12)
@@ -160,7 +172,7 @@ describe('materializeBinders', () => {
     const cards = Array.from({ length: 50 }, () => makeCard({ colorIdentity: [] }));
     const binder = makeBinder({
       filter: {},
-      sorts: ['none'],
+      sorts: [{ field: 'none', dir: 'asc' }],
       pocketSize: 9,
       doubleSided: true,
     });
@@ -174,7 +186,7 @@ describe('materializeBinders', () => {
     it('filters cards by name search — non-matching slots become null, page is kept', () => {
       const bolt = makeCard({ name: 'Lightning Bolt', colorIdentity: [], typeLine: 'Instant' });
       const ring = makeCard({ name: 'Sol Ring', colorIdentity: [], typeLine: 'Artifact' });
-      const binder = makeBinder({ filter: {}, sorts: ['none'] });
+      const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
 
       const { binders } = materializeBinders([bolt, ring], [binder], {
         ...defaultOpts,
@@ -191,7 +203,7 @@ describe('materializeBinders', () => {
       const nonMatching = Array.from({ length: 9 }, () =>
         makeCard({ name: 'Sol Ring', colorIdentity: [] })
       );
-      const binder = makeBinder({ filter: {}, sorts: ['none'] });
+      const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
 
       const { binders } = materializeBinders([matching, ...nonMatching], [binder], {
         ...defaultOpts,
@@ -207,7 +219,7 @@ describe('materializeBinders', () => {
         makeCard({ name: 'Filler', colorIdentity: [] })
       );
       const target = makeCard({ name: 'Target Card', colorIdentity: [] });
-      const binder = makeBinder({ filter: {}, sorts: ['none'] });
+      const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
 
       const { binders } = materializeBinders([...filler, target], [binder], {
         ...defaultOpts,
@@ -222,7 +234,7 @@ describe('materializeBinders', () => {
   it('groups by color when primary sort is "color"', () => {
     const redCard = makeCard({ name: 'Red', colorIdentity: ['R'], typeLine: 'Instant', cmc: 1 });
     const blueCard = makeCard({ name: 'Blue', colorIdentity: ['U'], typeLine: 'Instant', cmc: 1 });
-    const binder = makeBinder({ filter: {}, sorts: ['color'] });
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'color', dir: 'asc' }] });
 
     const { binders } = materializeBinders([redCard, blueCard], [binder], defaultOpts);
     const keys = binders[0].sections.map((s) => s.key);
@@ -236,7 +248,7 @@ describe('materializeBinders', () => {
       makeCard({ name: 'Bolt', typeLine: 'Instant', colorIdentity: ['R'] }),
       makeCard({ name: 'Bear', typeLine: 'Creature — Bear', colorIdentity: ['G'] }),
     ];
-    const binder = makeBinder({ filter: {}, sorts: ['type'] });
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'type', dir: 'asc' }] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     const keys = binders[0].sections.map((s) => s.key);
@@ -250,7 +262,7 @@ describe('materializeBinders', () => {
       makeCard({ name: 'One', cmc: 1, typeLine: 'Instant' }),
       makeCard({ name: 'Big', cmc: 9, typeLine: 'Sorcery' }),
     ];
-    const binder = makeBinder({ filter: {}, sorts: ['cmc'] });
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'cmc', dir: 'asc' }] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].sections.map((s) => s.key)).toEqual(['cmc-1', 'cmc-3', 'cmc-7+']);
@@ -259,7 +271,7 @@ describe('materializeBinders', () => {
 
   it('produces one "ALL" section when primary sort is "none"', () => {
     const cards = [makeCard({ colorIdentity: ['R'] }), makeCard({ colorIdentity: ['U'] })];
-    const binder = makeBinder({ filter: {}, sorts: ['none'] });
+    const binder = makeBinder({ filter: {}, sorts: [{ field: 'none', dir: 'asc' }] });
 
     const { binders } = materializeBinders(cards, [binder], defaultOpts);
     expect(binders[0].sections).toHaveLength(1);
@@ -277,7 +289,7 @@ describe('materializeBinders', () => {
       const both = makeCard({ rarity: 'common', purchasePrice: 5, edhrecRank: 50 }); // matches A and B
 
       const binder = makeBinder({
-        sorts: ['none'],
+        sorts: [{ field: 'none', dir: 'asc' }],
         filterGroups: [
           {
             name: 'Commons over $0.70',
@@ -308,7 +320,7 @@ describe('materializeBinders', () => {
 
     it('a single empty group still matches every card', () => {
       const binder = makeBinder({
-        sorts: ['none'],
+        sorts: [{ field: 'none', dir: 'asc' }],
         filterGroups: [{ filter: {} }],
       });
       const { binders } = materializeBinders([makeCard(), makeCard()], [binder], defaultOpts);

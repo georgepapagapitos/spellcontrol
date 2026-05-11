@@ -6,7 +6,7 @@ import type {
   MaterializedBinder,
   Page,
   PocketSize,
-  SortField,
+  SortEntry,
   UncategorizedBucket,
 } from '../types';
 import { compileFilterGroups, cardMatchesAnyGroup } from './rules';
@@ -17,10 +17,14 @@ export interface MaterializeOptions {
   globalPocketSize?: PocketSize;
   search: string;
   /** Sort applied to the uncategorized bucket. */
-  uncategorizedSorts?: SortField[];
+  uncategorizedSorts?: SortEntry[];
 }
 
-const DEFAULT_UNCATEGORIZED_SORTS: SortField[] = ['color', 'cmc', 'name'];
+const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
+  { field: 'color', dir: 'asc' },
+  { field: 'cmc', dir: 'asc' },
+  { field: 'name', dir: 'asc' },
+];
 
 /** Fallback pocket size for binders that don't specify one and for the uncategorized bucket. */
 export const DEFAULT_POCKET_SIZE: PocketSize = 9;
@@ -170,20 +174,20 @@ function buildManualSection(
  * across all chosen sort fields land in stable alphabetical order instead of
  * import order. Skipped if name is already in the chain.
  */
-function withImplicitTiebreaker(sorts: SortField[]): SortField[] {
-  const active = sorts.filter((s) => s && s !== 'none');
-  if (active.includes('name')) return sorts;
-  return [...sorts, 'name'];
+function withImplicitTiebreaker(sorts: SortEntry[]): SortEntry[] {
+  const active = sorts.filter((s) => s && s.field !== 'none');
+  if (active.some((s) => s.field === 'name')) return sorts;
+  return [...sorts, { field: 'name', dir: 'asc' } as SortEntry];
 }
 
 function buildSections(
   cards: EnrichedCard[],
-  sorts: SortField[],
+  sorts: SortEntry[],
   slotSize: number,
   isMatch: (c: EnrichedCard) => boolean
 ): BinderSection[] {
   const primary = sorts[0];
-  const useGrouping = !!primary && primary !== 'none';
+  const useGrouping = !!primary && primary.field !== 'none';
 
   let pageOffset = 0;
   const buildSection = (meta: SectionMeta, sectionCards: EnrichedCard[]): BinderSection | null => {
@@ -212,7 +216,7 @@ function buildSections(
   // from a real card (avoids needing a second lookup table).
   const groups = new Map<string, { meta: SectionMeta; cards: EnrichedCard[] }>();
   for (const card of cards) {
-    const meta = getSectionMeta(card, primary);
+    const meta = getSectionMeta(card, primary.field);
     const entry = groups.get(meta.key);
     if (entry) entry.cards.push(card);
     else groups.set(meta.key, { meta, cards: [card] });
@@ -220,9 +224,11 @@ function buildSections(
 
   // Section ordering: by meta.order, ties broken by label (alphabetical).
   // For set/name groupings, all groups share order=0 so label sort kicks in.
+  // When the primary sort is descending, both layers are reversed.
+  const dirMult = primary.dir === 'desc' ? -1 : 1;
   const ordered = [...groups.values()].sort((a, b) => {
-    if (a.meta.order !== b.meta.order) return a.meta.order - b.meta.order;
-    return a.meta.label.localeCompare(b.meta.label);
+    if (a.meta.order !== b.meta.order) return (a.meta.order - b.meta.order) * dirMult;
+    return a.meta.label.localeCompare(b.meta.label) * dirMult;
   });
 
   const subSorts = sorts.slice(1);

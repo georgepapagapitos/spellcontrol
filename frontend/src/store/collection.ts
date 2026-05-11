@@ -8,7 +8,7 @@ import {
   type ImportHistoryEntry,
   type StoredCollection,
 } from '../lib/local-cards';
-import { buildBackup, type Backup } from '../lib/backup';
+import { buildBackup, normalizeSortEntries, type Backup } from '../lib/backup';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 
 function newBinderId(): string {
@@ -627,7 +627,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'mtg-binder-planner',
-      version: 10,
+      version: 11,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -699,6 +699,14 @@ export const useCollectionStore = create<CollectionState>()(
             }
             return { ...raw, pocketSize, doubleSided };
           });
+        }
+        // v10→v11: sorts changed from SortField[] (string[]) to SortEntry[]
+        // ({ field, dir }[]). Price defaults to desc; everything else to asc.
+        if (fromVersion < 11 && Array.isArray(state.binders)) {
+          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => ({
+            ...b,
+            sorts: normalizeSortEntries(b.sorts),
+          }));
         }
         return state as never;
       },
