@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { EnrichedCard, MaterializedBinder, SortField } from '../types';
+import type { EnrichedCard, MaterializedBinder, SortEntry, SortField } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
@@ -17,6 +17,18 @@ const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
   {} as Record<SortField, string>
 );
+
+const SORT_DEFAULT_DIR: Record<SortField, 'asc' | 'desc'> = SORT_FIELDS.reduce(
+  (acc, f) => ({ ...acc, [f.value]: f.defaultDir }),
+  {} as Record<SortField, 'asc' | 'desc'>
+);
+
+function sortEntryLabel(entry: SortEntry): string {
+  const label = SORT_LABEL[entry.field] ?? entry.field;
+  const isNonDefault = entry.dir !== (SORT_DEFAULT_DIR[entry.field] ?? 'asc');
+  if (!isNonDefault) return label;
+  return `${label} ${entry.dir === 'asc' ? '↑' : '↓'}`;
+}
 
 interface Props {
   binder: MaterializedBinder;
@@ -85,8 +97,8 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   // header so the binder's grouping/ordering hierarchy is visible at a
   // glance — same affordance the page-grid view exposes.
   const sortBreadcrumb = useMemo(() => {
-    const active = binder.effectiveSorts.filter((s) => s && s !== 'none');
-    return active.map((s) => SORT_LABEL[s] ?? s);
+    const active = binder.effectiveSorts.filter((s) => s && s.field !== 'none');
+    return active.map(sortEntryLabel);
   }, [binder.effectiveSorts]);
 
   // Flat page list for "Browse pages" — opens the BinderPagePreview at

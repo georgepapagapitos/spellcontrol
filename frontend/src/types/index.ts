@@ -103,7 +103,15 @@ export type SortField =
   | 'name'
   | 'set'
   | 'price'
-  | 'edhrec';
+  | 'edhrec'
+  | 'collectorNumber';
+
+export type SortDir = 'asc' | 'desc';
+
+export interface SortEntry {
+  field: SortField;
+  dir: SortDir;
+}
 
 /**
  * Pockets per *page* (one side of a physical sheet). A double-sided binder
@@ -233,7 +241,7 @@ export interface BinderDef {
    * Always has length ≥ 1; a single group with an empty filter matches every card.
    */
   filterGroups: BinderFilterGroup[];
-  sorts: SortField[];
+  sorts: SortEntry[];
   /** null = inherit global default pocket size */
   pocketSize: PocketSize | null;
   /**
@@ -309,7 +317,7 @@ export interface MaterializedBinder {
   def: BinderDef;
   effectivePocketSize: PocketSize;
   /** Sort chain actually applied (includes the implicit Name tiebreaker if added). */
-  effectiveSorts: SortField[];
+  effectiveSorts: SortEntry[];
   sections: BinderSection[];
   totalCards: number;
   totalPages: number;
@@ -320,5 +328,5 @@ export interface UncategorizedBucket {
   sections: BinderSection[];
   totalPages: number;
   effectivePocketSize: PocketSize;
-  effectiveSorts: SortField[];
+  effectiveSorts: SortEntry[];
 }

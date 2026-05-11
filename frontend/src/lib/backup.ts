@@ -1,5 +1,20 @@
-import type { BinderDef, EnrichedCard } from '../types';
+import type { BinderDef, EnrichedCard, SortEntry } from '../types';
 import type { StoredCollection } from './local-cards';
+
+/**
+ * Converts a raw sorts value from any version of persisted data into the
+ * current SortEntry[] format. Handles both old string[] and new object[].
+ */
+export function normalizeSortEntries(raw: unknown): SortEntry[] {
+  if (!Array.isArray(raw)) return [{ field: 'color', dir: 'asc' }];
+  return raw.map((item) => {
+    if (item && typeof item === 'object' && 'field' in item) {
+      return item as SortEntry;
+    }
+    const field = String(item);
+    return { field, dir: field === 'price' ? 'desc' : 'asc' } as SortEntry;
+  });
+}
 
 /**
  * Versioned, self-describing backup of everything the app stores locally:
@@ -176,7 +191,13 @@ export function parseBackup(raw: string): Backup {
               ? raw.fixedPageCount * pocketForCapacity
               : null;
         const { fixedPageCount: _drop, ...rest } = raw;
-        return { ...rest, pocketSize, doubleSided, fixedCapacity } as BinderDef;
+        return {
+          ...rest,
+          pocketSize,
+          doubleSided,
+          fixedCapacity,
+          sorts: normalizeSortEntries(rest.sorts),
+        } as BinderDef;
       })
     : [];
   const collection =
