@@ -103,9 +103,9 @@ describe('cardSortValue', () => {
     expect(cardSortValue(setCard, 'set')).toBe('commander masters');
   });
 
-  it('price: returns negated price (higher price sorts first)', () => {
-    expect(cardSortValue(multiCreature, 'price')).toBe(-15);
-    expect(cardSortValue(redInstant, 'price')).toBe(-2);
+  it('price: returns raw price (direction handled by sortCards)', () => {
+    expect(cardSortValue(multiCreature, 'price')).toBe(15);
+    expect(cardSortValue(redInstant, 'price')).toBe(2);
   });
 
   it('edhrec: returns rank (lower rank = more popular = sorts first)', () => {
@@ -138,12 +138,12 @@ describe('sortCards', () => {
   });
 
   it('returns a copy when only "none" sort is provided', () => {
-    const result = sortCards(cards, ['none']);
+    const result = sortCards(cards, [{ field: 'none', dir: 'asc' }]);
     expect(result).toEqual(cards);
   });
 
   it('sorts by color in WUBRG order', () => {
-    const result = sortCards(cards, ['color']);
+    const result = sortCards(cards, [{ field: 'color', dir: 'asc' }]);
     const colorKeys = result.map((c) => {
       const ci = c.colorIdentity;
       if (!ci) return '?';
@@ -159,7 +159,7 @@ describe('sortCards', () => {
   });
 
   it('sorts by name alphabetically', () => {
-    const result = sortCards(cards, ['name']);
+    const result = sortCards(cards, [{ field: 'name', dir: 'asc' }]);
     const names = result.map((c) => c.name);
     expect(names).toEqual(
       [...names].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
@@ -167,7 +167,7 @@ describe('sortCards', () => {
   });
 
   it('sorts by price descending (highest first)', () => {
-    const result = sortCards(cards, ['price']);
+    const result = sortCards(cards, [{ field: 'price', dir: 'desc' }]);
     for (let i = 0; i < result.length - 1; i++) {
       expect(result[i].purchasePrice).toBeGreaterThanOrEqual(result[i + 1].purchasePrice);
     }
@@ -176,7 +176,13 @@ describe('sortCards', () => {
   it('applies multi-level sort: color then name', () => {
     const a = makeCard({ name: 'Zap', colorIdentity: ['R'], typeLine: 'Instant' });
     const b = makeCard({ name: 'Arc Lightning', colorIdentity: ['R'], typeLine: 'Instant' });
-    const result = sortCards([a, b], ['color', 'name']);
+    const result = sortCards(
+      [a, b],
+      [
+        { field: 'color', dir: 'asc' },
+        { field: 'name', dir: 'asc' },
+      ]
+    );
     expect(result[0].name).toBe('Arc Lightning');
     expect(result[1].name).toBe('Zap');
   });
@@ -184,7 +190,7 @@ describe('sortCards', () => {
   it('does not mutate the original array', () => {
     const original = [redInstant, blueCreature];
     const copy = [...original];
-    sortCards(original, ['name']);
+    sortCards(original, [{ field: 'name', dir: 'asc' }]);
     expect(original).toEqual(copy);
   });
 });

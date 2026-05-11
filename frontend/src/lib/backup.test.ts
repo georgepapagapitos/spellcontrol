@@ -39,7 +39,7 @@ const sampleBinder: BinderDef = {
   doubleSided: false,
   fixedCapacity: null,
   filterGroups: [{ filter: {} }],
-  sorts: ['name'],
+  sorts: [{ field: 'name', dir: 'asc' }],
   position: 0,
   createdAt: 0,
   updatedAt: 0,
