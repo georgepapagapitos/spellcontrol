@@ -841,6 +841,7 @@ function scryfallToEnriched(
     sourceCategory: '',
     sourceFormat: 'deck-builder',
     foil: false,
+    finish: 'nonfoil' as const,
     cmc: card.cmc,
     typeLine: card.type_line,
     colorIdentity: card.color_identity,

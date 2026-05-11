@@ -1,9 +1,14 @@
+export type Finish = 'nonfoil' | 'foil' | 'etched';
+
+/** Normalized condition codes. Scryfall does not provide this — it is per-copy user data. */
+export type Condition = 'nm' | 'lp' | 'mp' | 'hp' | 'damaged';
+
 /**
  * Normalized row produced by any parser. All fields except `name` and `quantity` are optional
  * because format coverage varies wildly:
  *   - ManaBox CSV has everything
- *   - Moxfield CSV has name/set/collectorNumber/foil/price but no Scryfall ID
- *   - MTGA-style text has name/set/collectorNumber but no price/foil/condition
+ *   - Moxfield CSV has name/set/collectorNumber/finish/price but no Scryfall ID
+ *   - MTGA-style text has name/set/collectorNumber but no price/finish/condition
  *   - Plain text has only name (and maybe a quantity prefix)
  *
  * The Scryfall enrichment step uses what's present to find the best match.
@@ -16,7 +21,17 @@ export interface ImportRow {
   /** Set NAME (e.g. "Commander Legends"), kept if present but not used for lookup. */
   setName?: string;
   collectorNumber?: string;
-  foil?: boolean;
+  finish?: Finish;
+  /** Normalized condition (nm/lp/mp/hp/damaged). Per-copy user data. */
+  condition?: Condition;
+  /** Lowercased Scryfall language code (en, ja, de, es, fr, it, pt, ru, ko, zhs, zht, ...). */
+  language?: string;
+  /** True when the user has flagged the physical card as altered (custom art, etc.). */
+  altered?: boolean;
+  /** True when the card is a proxy rather than a real printing. */
+  proxy?: boolean;
+  /** True when the user has flagged the physical card as a misprint. */
+  misprint?: boolean;
   /** Direct Scryfall ID — when present, lookup is exact and free. */
   scryfallId?: string;
   /** Optional price (USD) from the source export. Falls back to Scryfall pricing if absent. */

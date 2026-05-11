@@ -7,14 +7,14 @@ type Finish = 'nonfoil' | 'foil' | 'etched';
 
 export interface PrintingSelection {
   card: ScryfallCard;
-  foil: boolean;
+  finish: Finish;
   quantity?: number;
 }
 
 interface Props {
   cardName: string;
   currentScryfallId: string;
-  currentFoil: boolean;
+  currentFinish: Finish;
   /** When set, shows a quantity editor. Only used for collection edits. */
   quantity?: number;
   onConfirm: (selection: PrintingSelection) => void;
@@ -59,7 +59,7 @@ function groupBySet(cards: ScryfallCard[]): SetGroup[] {
 export function CardEditDialog({
   cardName,
   currentScryfallId,
-  currentFoil,
+  currentFinish,
   quantity,
   onConfirm,
   onCancel,
@@ -73,7 +73,7 @@ export function CardEditDialog({
   const [setMap, setSetMap] = useState<SetMap | null>(null);
 
   const [selectedId, setSelectedId] = useState(currentScryfallId);
-  const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFoil ? 'foil' : 'nonfoil');
+  const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFinish);
   const [qty, setQty] = useState(quantity ?? 1);
   const [search, setSearch] = useState('');
 
@@ -145,14 +145,14 @@ export function CardEditDialog({
 
   const isDirty =
     selectedId !== currentScryfallId ||
-    (selectedFinish === 'foil') !== currentFoil ||
+    selectedFinish !== currentFinish ||
     (quantity !== undefined && qty !== quantity);
 
   const handleConfirm = () => {
     if (!selectedCard) return;
     onConfirm({
       card: selectedCard,
-      foil: selectedFinish === 'foil' || selectedFinish === 'etched',
+      finish: selectedFinish,
       ...(quantity !== undefined ? { quantity: qty } : {}),
     });
   };

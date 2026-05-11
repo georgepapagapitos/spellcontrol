@@ -169,7 +169,8 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
       setName: sc.set_name,
       collectorNumber: sc.collector_number,
       rarity: sc.rarity,
-      foil: selection.foil,
+      finish: selection.finish,
+      foil: selection.finish !== 'nonfoil',
       imageSmall: sc.image_uris?.small ?? firstFace?.image_uris?.small,
       imageNormal: sc.image_uris?.normal ?? firstFace?.image_uris?.normal,
       imageNormalBack: sc.card_faces?.[1]?.image_uris?.normal,
@@ -179,15 +180,15 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
       layout: sc.layout,
       finishes: sc.finishes,
       promoTypes: sc.promo_types,
-      purchasePrice: pickPrice(sc, selection.foil),
+      purchasePrice: pickPrice(sc, selection.finish !== 'nonfoil'),
       pricedAt: Date.now(),
     };
     const existing = allCards.filter(
-      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+      (c) => c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish
     );
     const targetQty = selection.quantity ?? existing.length;
     const others = allCards.filter(
-      (c) => !(c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil)
+      (c) => !(c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish)
     );
     const updated = existing
       .slice(0, targetQty)
@@ -411,7 +412,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         <CardEditDialog
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
-          currentFoil={editingCard.foil}
+          currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingQty}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
