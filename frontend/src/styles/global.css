@@ -6644,3 +6644,447 @@ hr {
 .settings-menu-action--danger:hover:not(:disabled) {
   background: var(--err-bg);
 }
+
+/* ── BinderCardEditor ─────────────────────────────────────────────────────── */
+
+.binder-card-editor-tabs {
+  display: flex;
+  border-bottom: 0.5px solid var(--border);
+  padding: 0 1.5rem;
+}
+
+.binder-card-editor-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: -0.5px;
+}
+
+.binder-card-editor-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.binder-card-editor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.binder-card-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.binder-card-editor-row:last-child {
+  border-bottom: none;
+}
+
+.binder-card-editor-row.dragging {
+  background: var(--surface2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius);
+  opacity: 0.85;
+  z-index: 1;
+}
+
+.binder-card-editor-row--excluded {
+  opacity: 0.55;
+}
+
+.binder-card-editor-row--excluded .binder-card-editor-name {
+  text-decoration: line-through;
+}
+
+.binder-card-editor-drag {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: grab;
+  padding: 0 0.25rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.binder-card-editor-drag:active {
+  cursor: grabbing;
+}
+
+.binder-card-editor-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.binder-card-editor-status-dot.rarity-mythic {
+  background: #c25a10;
+}
+.binder-card-editor-status-dot.rarity-rare {
+  background: #9a7410;
+}
+.binder-card-editor-status-dot.rarity-uncommon {
+  background: #4a6890;
+}
+.binder-card-editor-status-dot.rarity-common {
+  background: #888;
+}
+
+.binder-card-editor-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.binder-card-editor-meta {
+  color: var(--text3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.binder-card-editor-foil {
+  color: var(--accent);
+}
+
+.binder-card-editor-pinned-tag {
+  color: var(--accent);
+  font-size: var(--text-xs);
+}
+
+.binder-card-editor-remove {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: var(--text-base);
+  line-height: 1;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+.binder-card-editor-remove:hover {
+  color: var(--text);
+}
+
+.binder-card-editor-restore {
+  background: none;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text3);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.binder-card-editor-restore:hover {
+  color: var(--text);
+  border-color: var(--text3);
+}
+
+.binder-card-editor-section-label {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 1rem 0 0.4rem;
+}
+
+.binder-card-editor-empty {
+  color: var(--text3);
+  font-size: var(--text-sm);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.binder-card-editor-order-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.binder-card-editor-order-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+/* ── Manual order bar (above binder toolbar) ─────────────────────────────── */
+
+.binder-manual-order-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 1rem;
+  background: var(--surface2);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.sort-mode-badge {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.binder-manual-order-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+/* ── CardPickerSheet ─────────────────────────────────────────────────────── */
+
+.card-picker-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+}
+
+.card-picker-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.card-picker-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-top: 0.5px solid var(--border);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.22);
+  max-height: 85dvh;
+  display: flex;
+  flex-direction: column;
+  animation: binder-sheet-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@media (min-width: 1024px) {
+  .card-picker-sheet {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    max-height: 70vh;
+    border-radius: var(--radius-lg);
+    animation: none;
+  }
+}
+
+.card-picker-handle {
+  width: 2.25rem;
+  height: 4px;
+  margin: 0.5rem auto 0.25rem;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+@media (min-width: 1024px) {
+  .card-picker-handle {
+    display: none;
+  }
+}
+
+.card-picker-header {
+  padding: 0.75rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.card-picker-title {
+  font-size: var(--text-lg);
+  font-weight: normal;
+  color: var(--text);
+  margin: 0;
+}
+
+.card-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--text-sm);
+  padding: 0.45rem 0.75rem;
+}
+
+.card-picker-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.card-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.card-picker-row:last-child {
+  border-bottom: none;
+}
+
+.card-picker-rarity {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.card-picker-rarity.rarity-mythic {
+  background: #c25a10;
+}
+.card-picker-rarity.rarity-rare {
+  background: #9a7410;
+}
+.card-picker-rarity.rarity-uncommon {
+  background: #4a6890;
+}
+.card-picker-rarity.rarity-common {
+  background: #888;
+}
+
+.card-picker-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.card-picker-meta {
+  color: var(--text3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-picker-foil {
+  color: var(--accent);
+}
+
+.card-picker-added {
+  color: var(--text3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-picker-add {
+  font-size: var(--text-xs);
+  padding: 0.2rem 0.6rem;
+  flex-shrink: 0;
+}
+
+.card-picker-empty {
+  padding: 1.5rem 1rem;
+  color: var(--text3);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.card-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1rem;
+  border-top: 0.5px solid var(--border);
+  background: var(--surface2);
+}
+
+/* ── AddToBinderSheet ─────────────────────────────────────────────────────── */
+
+.add-to-binder-label {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.add-to-binder-card-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0.15rem 0 0;
+}
+
+.add-to-binder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.add-to-binder-row:last-child {
+  border-bottom: none;
+}
+
+.add-to-binder-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.add-to-binder-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.add-to-binder-btn {
+  font-size: var(--text-xs);
+  padding: 0.2rem 0.6rem;
+  flex-shrink: 0;
+}
+
+.add-to-binder-added {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}

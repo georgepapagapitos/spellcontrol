@@ -237,6 +237,16 @@ export interface BinderDef {
   color: string;
   /** Marks binders created via "Load samples" — purely for tagging in the UI. */
   isSample?: boolean;
+  /** copyIds manually added to this binder. Claimed before rule routing so they
+   *  don't land in other binders. Undefined = no pinned cards. */
+  pinnedCopyIds?: string[];
+  /** copyIds manually excluded from this binder even if rules match them.
+   *  Undefined = no exclusions. */
+  excludedCopyIds?: string[];
+  /** When set, explicit card order overrides the binder's sort fields.
+   *  Cards not in this list (new additions) are appended at the end.
+   *  Undefined = use auto-sort (existing behavior). */
+  manualOrder?: string[];
   createdAt: number;
   updatedAt: number;
 }
