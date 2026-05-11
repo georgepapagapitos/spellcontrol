@@ -4,7 +4,7 @@
   "description": "Backend for MTG Binder Planner — proxies and caches Scryfall card data",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file .env src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "clean": "rm -rf dist",
