@@ -34,7 +34,7 @@ app.use(cookieParser());
 const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
