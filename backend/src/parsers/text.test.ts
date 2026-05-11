@@ -73,25 +73,46 @@ describe('parseTextList', () => {
     });
   });
 
-  describe('foil suffix stripping', () => {
-    it('strips *FOIL* suffix', () => {
+  describe('finish marker extraction', () => {
+    it('strips *FOIL* suffix and sets finish to foil', () => {
       const { rows } = parseTextList('1 Lightning Bolt *FOIL*');
       expect(rows[0].name).toBe('Lightning Bolt');
+      expect(rows[0].finish).toBe('foil');
     });
 
-    it('strips *F* suffix', () => {
+    it('strips *F* suffix and sets finish to foil', () => {
       const { rows } = parseTextList('1 Lightning Bolt *F*');
       expect(rows[0].name).toBe('Lightning Bolt');
+      expect(rows[0].finish).toBe('foil');
     });
 
-    it('strips [FOIL] suffix', () => {
+    it('strips [FOIL] suffix and sets finish to foil', () => {
       const { rows } = parseTextList('1 Lightning Bolt [FOIL]');
       expect(rows[0].name).toBe('Lightning Bolt');
+      expect(rows[0].finish).toBe('foil');
     });
 
     it('is case-insensitive for foil stripping', () => {
       const { rows } = parseTextList('1 Lightning Bolt *foil*');
       expect(rows[0].name).toBe('Lightning Bolt');
+      expect(rows[0].finish).toBe('foil');
+    });
+
+    it('strips *ETCHED* suffix and sets finish to etched', () => {
+      const { rows } = parseTextList('1 Sol Ring *ETCHED*');
+      expect(rows[0].name).toBe('Sol Ring');
+      expect(rows[0].finish).toBe('etched');
+    });
+
+    it('strips [ETCHED] suffix and sets finish to etched', () => {
+      const { rows } = parseTextList('1 Sol Ring [ETCHED]');
+      expect(rows[0].name).toBe('Sol Ring');
+      expect(rows[0].finish).toBe('etched');
+    });
+
+    it('leaves finish undefined for cards without markers', () => {
+      const { rows } = parseTextList('1 Sol Ring');
+      expect(rows[0].finish).toBeUndefined();
     });
   });
 

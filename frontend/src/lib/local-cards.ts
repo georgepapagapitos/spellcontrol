@@ -92,6 +92,9 @@ export async function loadCollection(): Promise<StoredCollection | null> {
       if (!c.copyId) {
         c.copyId = crypto.randomUUID();
       }
+      if (!('finish' in anyCard)) {
+        anyCard.finish = c.foil ? 'foil' : 'nonfoil';
+      }
       return c;
     });
 

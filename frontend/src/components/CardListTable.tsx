@@ -124,7 +124,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     for (const b of binders) {
       for (const section of b.sections) {
         for (const c of section.cards) {
-          const k = `${c.scryfallId}:${c.foil ? 'f' : 'n'}`;
+          const k = `${c.scryfallId}:${c.finish ?? (c.foil ? 'foil' : 'nonfoil')}`;
           if (!map.has(k)) map.set(k, { name: b.def.name, color: b.def.color });
         }
       }
@@ -136,7 +136,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     if (!groupPrintings) {
       // One row per physical copy.
       return cards.map((card) => {
-        const key = `${card.scryfallId}:${card.foil ? 'f' : 'n'}`;
+        const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
         const assignment = cardToBinder.get(key) ?? null;
         return {
           // copyId is unique per physical copy — gives every row a
@@ -152,7 +152,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     // Default: roll duplicate copies of the same printing into one row.
     const grouped = new Map<string, Row>();
     for (const card of cards) {
-      const key = `${card.scryfallId}:${card.foil ? 'f' : 'n'}`;
+      const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
       const existing = grouped.get(key);
       if (existing) {
         existing.qty += 1;
@@ -322,7 +322,8 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       setName: sc.set_name,
       collectorNumber: sc.collector_number,
       rarity: sc.rarity,
-      foil: selection.foil,
+      finish: selection.finish,
+      foil: selection.finish !== 'nonfoil',
       imageSmall: sc.image_uris?.small ?? firstFace?.image_uris?.small,
       imageNormal: sc.image_uris?.normal ?? firstFace?.image_uris?.normal,
       imageNormalBack: sc.card_faces?.[1]?.image_uris?.normal,
@@ -332,18 +333,18 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       layout: sc.layout,
       finishes: sc.finishes,
       promoTypes: sc.promo_types,
-      purchasePrice: pickPrice(sc, selection.foil),
+      purchasePrice: pickPrice(sc, selection.finish !== 'nonfoil'),
       pricedAt: Date.now(),
     };
 
     // Existing copies of this printing/finish — these get updated in place,
     // preserving their copyId so any deck allocations stay intact.
     const existingCopies = allCards.filter(
-      (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
+      (c) => c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish
     );
     const targetQty = selection.quantity ?? existingCopies.length;
     const otherCards = allCards.filter(
-      (c) => !(c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil)
+      (c) => !(c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish)
     );
 
     const updatedExisting = existingCopies
@@ -609,7 +610,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
         <CardEditDialog
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
-          currentFoil={editingCard.foil}
+          currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingQty}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}

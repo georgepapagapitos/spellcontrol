@@ -27,6 +27,7 @@ function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
     sourceCategory: '',
     sourceFormat: 'plain',
     foil: false,
+    finish: 'nonfoil',
     ...overrides,
   };
 }
