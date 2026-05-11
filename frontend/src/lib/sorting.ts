@@ -1,16 +1,17 @@
-import type { EnrichedCard, SortField } from '../types';
+import type { EnrichedCard, SortDir, SortEntry, SortField } from '../types';
 import { COLOR_INFO, getColorKey } from './colors';
 import { TYPE_ORDER, getCardType } from './card-types';
 
-export const SORT_FIELDS: { value: SortField; label: string }[] = [
-  { value: 'color', label: 'Color' },
-  { value: 'type', label: 'Type' },
-  { value: 'rarity', label: 'Rarity' },
-  { value: 'cmc', label: 'CMC' },
-  { value: 'name', label: 'Name' },
-  { value: 'set', label: 'Set' },
-  { value: 'price', label: 'Price' },
-  { value: 'edhrec', label: 'EDHREC rank' },
+export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir }[] = [
+  { value: 'color', label: 'Color', defaultDir: 'asc' },
+  { value: 'type', label: 'Type', defaultDir: 'asc' },
+  { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
+  { value: 'cmc', label: 'CMC', defaultDir: 'asc' },
+  { value: 'name', label: 'Name', defaultDir: 'asc' },
+  { value: 'set', label: 'Set', defaultDir: 'asc' },
+  { value: 'price', label: 'Price', defaultDir: 'desc' },
+  { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
+  { value: 'collectorNumber', label: 'Collector #', defaultDir: 'asc' },
 ];
 
 export const RARITY_ORDER: Record<string, number> = {
@@ -39,32 +40,35 @@ export function cardSortValue(card: EnrichedCard, field: SortField): number | st
     case 'set':
       return (card.setName || card.setCode).toLowerCase();
     case 'price':
-      return -card.purchasePrice;
+      return card.purchasePrice;
     case 'edhrec':
-      // Lower rank = more popular = should come first. Cards with no rank go to the end.
       return card.edhrecRank ?? Number.MAX_SAFE_INTEGER;
+    case 'collectorNumber': {
+      const n = parseInt(card.collectorNumber, 10);
+      return isNaN(n) ? 99999 : n;
+    }
     default:
       return 0;
   }
 }
 
-export function sortCards(cards: EnrichedCard[], sorts: SortField[]): EnrichedCard[] {
-  const active = sorts.filter((s) => s && s !== 'none');
+export function sortCards(cards: EnrichedCard[], sorts: SortEntry[]): EnrichedCard[] {
+  const active = sorts.filter((s) => s && s.field !== 'none');
   if (active.length === 0) return [...cards];
 
   return [...cards].sort((a, b) => {
-    for (const field of active) {
+    for (const { field, dir } of active) {
       const va = cardSortValue(a, field);
       const vb = cardSortValue(b, field);
-      if (va < vb) return -1;
-      if (va > vb) return 1;
+      if (va < vb) return dir === 'desc' ? 1 : -1;
+      if (va > vb) return dir === 'desc' ? -1 : 1;
     }
     return 0;
   });
 }
 
 /** Suggested defaults for newly-created binders. */
-export const NEW_BINDER_DEFAULT_SORTS: SortField[] = ['color'];
+export const NEW_BINDER_DEFAULT_SORTS: SortEntry[] = [{ field: 'color', dir: 'asc' }];
 
 /** Maximum number of sort fields a binder can chain. */
 export const MAX_SORTS = 3;

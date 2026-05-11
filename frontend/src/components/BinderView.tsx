@@ -5,6 +5,7 @@ import type {
   EnrichedCard,
   MaterializedBinder,
   PocketSize,
+  SortEntry,
   SortField,
 } from '../types';
 import { SORT_FIELDS } from '../lib/sorting';
@@ -19,6 +20,18 @@ const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
   {} as Record<SortField, string>
 );
+
+const SORT_DEFAULT_DIR: Record<SortField, 'asc' | 'desc'> = SORT_FIELDS.reduce(
+  (acc, f) => ({ ...acc, [f.value]: f.defaultDir }),
+  {} as Record<SortField, 'asc' | 'desc'>
+);
+
+function sortEntryLabel(entry: SortEntry): string {
+  const label = SORT_LABEL[entry.field] ?? entry.field;
+  const isNonDefault = entry.dir !== (SORT_DEFAULT_DIR[entry.field] ?? 'asc');
+  if (!isNonDefault) return label;
+  return `${label} ${entry.dir === 'asc' ? '↑' : '↓'}`;
+}
 
 interface Props {
   binders: MaterializedBinder[];
@@ -123,17 +136,15 @@ function SectionList({
   totalPages: number;
   sections: BinderSection[];
   pocketSize: PocketSize;
-  sorts: SortField[];
+  sorts: SortEntry[];
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
   onDelete?: () => void;
 }) {
-  const activeSorts = sorts.filter((s) => s && s !== 'none');
-  // Full sort breadcrumb (e.g. "color › name › cmc") — communicates the
+  const activeSorts = sorts.filter((s) => s && s.field !== 'none');
+  // Full sort breadcrumb (e.g. "Color › CMC ↓ › Name") — communicates the
   // section's grouping and the within-section ordering at the same time.
-  // Shown on each section header so the user always knows what the
-  // hierarchy is at a glance.
-  const sortBreadcrumb = activeSorts.map((s) => SORT_LABEL[s] ?? s);
+  const sortBreadcrumb = activeSorts.map(sortEntryLabel);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Tap-to-preview state (touch devices). Tracks which section's card list to
