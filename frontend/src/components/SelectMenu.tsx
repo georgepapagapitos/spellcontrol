@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -21,9 +22,16 @@ interface Props<T extends string | number> {
   leadingIcon?: ReactNode;
   /** Optional check / state element rendered before each option. */
   renderItemPrefix?: (option: SelectOption<T>, active: boolean) => ReactNode;
+  /**
+   * When provided the trigger shows this text whenever `value` doesn't match
+   * any option — useful for "add item" dropdowns that always reset after a pick.
+   */
+  placeholder?: string;
   disabled?: boolean;
   className?: string;
 }
+
+type PanelPos = { top?: number; bottom?: number; right: number };
 
 /**
  * Themed single-choice dropdown. Uses the same `toolbar-pill` + popover
@@ -41,77 +49,140 @@ export function SelectMenu<T extends string | number>({
   ariaLabel,
   leadingIcon,
   renderItemPrefix,
+  placeholder,
   disabled = false,
   className,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // After the panel renders in the portal, check if it overflows the viewport
+  // bottom and flip it upward if so. useLayoutEffect fires before paint so
+  // there is no visible flash.
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current || !panelPos) return;
+    if (panelPos.top !== undefined) {
+      const rect = panelRef.current.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight && buttonRef.current) {
+        const triggerRect = buttonRef.current.getBoundingClientRect();
+        setPanelPos(
+          (p) => p && { ...p, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 }
+        );
+      }
+    }
+  }, [open, panelPos]);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node) &&
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node)
+      )
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    // Close if the trigger scrolls out of view (e.g. modal scroll)
+    const onScroll = () => setOpen(false);
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
     return () => {
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('scroll', onScroll, { capture: true });
     };
   }, [open]);
+
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const right = Math.max(0, window.innerWidth - rect.right);
+      setPanelPos(
+        spaceBelow >= 160
+          ? { top: rect.bottom + 6, right }
+          : { bottom: window.innerHeight - rect.top + 6, right }
+      );
+    }
+    setOpen((v) => !v);
+  };
 
   const active = options.find((o) => o.value === value);
   const triggerValue = active?.triggerLabel ?? active?.label;
 
+  const panel =
+    open &&
+    panelPos &&
+    createPortal(
+      <div
+        ref={panelRef}
+        className="toolbar-popover-panel toolbar-popover-panel--fixed"
+        style={{
+          position: 'fixed',
+          right: panelPos.right,
+          top: panelPos.top,
+          bottom: panelPos.bottom,
+          zIndex: 1200,
+        }}
+      >
+        <ul className="toolbar-popover-list" role="listbox" aria-label={ariaLabel ?? undefined}>
+          {options.map((opt) => {
+            const isActive = opt.value === value;
+            return (
+              <li key={String(opt.value)}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isActive}
+                  className={`toolbar-popover-item${isActive ? ' active' : ''}`}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="toolbar-popover-check" aria-hidden>
+                    {renderItemPrefix ? renderItemPrefix(opt, isActive) : isActive ? '✓' : ''}
+                  </span>
+                  {opt.itemLabel ?? opt.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>,
+      document.body
+    );
+
   return (
     <div className={`toolbar-popover${className ? ` ${className}` : ''}`} ref={wrapperRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={`toolbar-pill${open ? ' open' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={!label ? ariaLabel : undefined}
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
       >
         {leadingIcon}
         {label && <span className="toolbar-pill-label">{label}</span>}
-        {triggerValue !== undefined && triggerValue !== null && (
+        {triggerValue !== undefined && triggerValue !== null ? (
           <span className="toolbar-pill-value">{triggerValue}</span>
-        )}
+        ) : placeholder ? (
+          <span className="toolbar-pill-value toolbar-pill-placeholder">{placeholder}</span>
+        ) : null}
         <ChevronDown />
       </button>
-      {open && (
-        <div className="toolbar-popover-panel">
-          <ul className="toolbar-popover-list" role="listbox" aria-label={ariaLabel ?? undefined}>
-            {options.map((opt) => {
-              const isActive = opt.value === value;
-              return (
-                <li key={String(opt.value)}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    className={`toolbar-popover-item${isActive ? ' active' : ''}`}
-                    onClick={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="toolbar-popover-check" aria-hidden>
-                      {renderItemPrefix ? renderItemPrefix(opt, isActive) : isActive ? '✓' : ''}
-                    </span>
-                    {opt.itemLabel ?? opt.label}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+      {panel}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { BinderPagePreview } from './BinderPagePreview';
 import { Legend } from './Legend';
+import { useConfirm } from '../lib/use-confirm';
 
 const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
@@ -31,6 +32,8 @@ export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+  const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
   // Collection page filter. Migrate any legacy persisted activeTab to the first
@@ -42,6 +45,17 @@ export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
   }, [activeTab, binders, setActiveTab]);
 
   const active = binders.find((b) => b.def.id === activeTab);
+
+  const handleDelete = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: `Delete "${name}"?`,
+      body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
+      confirmLabel: 'Delete binder',
+      danger: true,
+    });
+    if (ok) deleteBinder(id);
+  };
+
   if (!active) {
     return (
       <div className="empty-state">
@@ -52,30 +66,44 @@ export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
 
   if (active.totalCards === 0) {
     return (
-      <div className="empty-state">
-        No cards match this binder's rules.{' '}
-        <button
-          className="btn"
-          style={{ marginLeft: 8 }}
-          onClick={() => setEditingBinder(active.def.id)}
-        >
-          Edit rules
-        </button>
-      </div>
+      <>
+        <div className="empty-state">
+          No cards match this binder's rules.{' '}
+          <button
+            className="btn"
+            style={{ marginLeft: 8 }}
+            onClick={() => setEditingBinder(active.def.id)}
+          >
+            Edit rules
+          </button>
+          <button
+            className="btn btn--danger"
+            style={{ marginLeft: 8 }}
+            onClick={() => handleDelete(active.def.id, active.def.name)}
+          >
+            Delete binder
+          </button>
+        </div>
+        {confirmDialog}
+      </>
     );
   }
 
   return (
-    <SectionList
-      viewKey={active.def.id}
-      binderName={active.def.name}
-      totalPages={active.totalPages}
-      sections={active.sections}
-      pocketSize={active.effectivePocketSize}
-      sorts={active.effectiveSorts}
-      viewToggle={viewToggle}
-      qtyByCopyId={qtyByCopyId}
-    />
+    <>
+      <SectionList
+        viewKey={active.def.id}
+        binderName={active.def.name}
+        totalPages={active.totalPages}
+        sections={active.sections}
+        pocketSize={active.effectivePocketSize}
+        sorts={active.effectiveSorts}
+        viewToggle={viewToggle}
+        qtyByCopyId={qtyByCopyId}
+        onDelete={() => handleDelete(active.def.id, active.def.name)}
+      />
+      {confirmDialog}
+    </>
   );
 }
 
@@ -88,6 +116,7 @@ function SectionList({
   sorts,
   viewToggle,
   qtyByCopyId,
+  onDelete,
 }: {
   viewKey: string;
   binderName: string;
@@ -97,6 +126,7 @@ function SectionList({
   sorts: SortField[];
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
+  onDelete?: () => void;
 }) {
   const activeSorts = sorts.filter((s) => s && s !== 'none');
   // Full sort breadcrumb (e.g. "color › name › cmc") — communicates the
@@ -223,6 +253,11 @@ function SectionList({
             onClick={allCollapsed ? expandAll : collapseAll}
           >
             {allCollapsed ? 'Expand all' : 'Collapse all'}
+          </button>
+        )}
+        {onDelete && (
+          <button type="button" className="btn-link binder-summary-delete" onClick={onDelete}>
+            Delete binder
           </button>
         )}
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
