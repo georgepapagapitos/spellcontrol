@@ -306,7 +306,7 @@ export function DeckEditorPage() {
         <CardEditDialog
           cardName={editingSlot.card.name}
           currentScryfallId={editingSlot.card.id}
-          currentFoil={false}
+          currentFinish="nonfoil"
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingSlot(null)}
         />

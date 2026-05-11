@@ -1,4 +1,4 @@
-import type { ImportFormat, ImportRow, ParseResult } from './types';
+import type { Condition, Finish, ImportFormat, ImportRow, ParseResult } from './types';
 
 /**
  * Common column-name aliases across collection tools. We map any known alias to our normalized field.
@@ -33,11 +33,11 @@ const HEADER_ALIASES: Record<string, keyof FieldMap> = {
   collectornumber: 'collectorNumber',
   'card #': 'collectorNumber',
 
-  // Foil
-  foil: 'foil',
-  'is foil': 'foil',
-  finish: 'foil', // values like "foil" / "nonfoil"
-  printing: 'foil', // values like "Foil" / "Normal"
+  // Finish (foil / etched / nonfoil)
+  foil: 'finish',
+  'is foil': 'finish',
+  finish: 'finish',
+  printing: 'finish',
 
   // Quantity
   quantity: 'quantity',
@@ -66,6 +66,27 @@ const HEADER_ALIASES: Record<string, keyof FieldMap> = {
   folder: 'sourceCategory',
   tags: 'sourceCategory',
   collection: 'sourceCategory',
+
+  // Condition (per-copy user data)
+  condition: 'condition',
+  'card condition': 'condition',
+
+  // Language
+  language: 'language',
+  lang: 'language',
+
+  // Altered / Alter
+  altered: 'altered',
+  alter: 'altered',
+  'is altered': 'altered',
+
+  // Proxy
+  proxy: 'proxy',
+  'is proxy': 'proxy',
+
+  // Misprint
+  misprint: 'misprint',
+  'is misprint': 'misprint',
 };
 
 interface FieldMap {
@@ -73,12 +94,17 @@ interface FieldMap {
   setCode: number;
   setName: number;
   collectorNumber: number;
-  foil: number;
+  finish: number;
   quantity: number;
   rarity: number;
   scryfallId: number;
   purchasePrice: number;
   sourceCategory: number;
+  condition: number;
+  language: number;
+  altered: number;
+  proxy: number;
+  misprint: number;
 }
 
 const EMPTY_MAP: FieldMap = {
@@ -86,12 +112,17 @@ const EMPTY_MAP: FieldMap = {
   setCode: -1,
   setName: -1,
   collectorNumber: -1,
-  foil: -1,
+  finish: -1,
   quantity: -1,
   rarity: -1,
   scryfallId: -1,
   purchasePrice: -1,
   sourceCategory: -1,
+  condition: -1,
+  language: -1,
+  altered: -1,
+  proxy: -1,
+  misprint: -1,
 };
 
 /**
@@ -151,7 +182,7 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
       setName: fieldMap.setName >= 0 ? vals[fieldMap.setName] || undefined : undefined,
       collectorNumber:
         fieldMap.collectorNumber >= 0 ? vals[fieldMap.collectorNumber] || undefined : undefined,
-      foil: fieldMap.foil >= 0 ? parseFoil(vals[fieldMap.foil]) : undefined,
+      finish: fieldMap.finish >= 0 ? parseFinish(vals[fieldMap.finish]) : undefined,
       rarity:
         fieldMap.rarity >= 0 ? (vals[fieldMap.rarity] || '').toLowerCase() || undefined : undefined,
       scryfallId: fieldMap.scryfallId >= 0 ? vals[fieldMap.scryfallId] || undefined : undefined,
@@ -159,6 +190,11 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
         fieldMap.purchasePrice >= 0 ? parsePrice(vals[fieldMap.purchasePrice]) : undefined,
       sourceCategory:
         fieldMap.sourceCategory >= 0 ? vals[fieldMap.sourceCategory] || undefined : undefined,
+      condition: fieldMap.condition >= 0 ? parseCondition(vals[fieldMap.condition]) : undefined,
+      language: fieldMap.language >= 0 ? parseLanguage(vals[fieldMap.language]) : undefined,
+      altered: fieldMap.altered >= 0 ? parseBool(vals[fieldMap.altered]) : undefined,
+      proxy: fieldMap.proxy >= 0 ? parseBool(vals[fieldMap.proxy]) : undefined,
+      misprint: fieldMap.misprint >= 0 ? parseBool(vals[fieldMap.misprint]) : undefined,
       sourceFormat: format,
     });
   }
@@ -232,20 +268,81 @@ function parsePrice(raw: string | undefined): number | undefined {
   return p;
 }
 
-function parseFoil(raw: string | undefined): boolean | undefined {
-  if (!raw) return undefined;
+function parseFinish(raw: string | undefined): Finish | undefined {
+  if (raw === undefined) return undefined;
   const v = raw.toLowerCase().trim();
-  if (v === 'foil' || v === 'true' || v === '1' || v === 'yes' || v === 'y') return true;
+  if (v === 'foil' || v === 'true' || v === '1' || v === 'yes' || v === 'y') return 'foil';
+  if (v === 'etched') return 'etched';
+  // Empty string in a present column means "no foil indicated" — Moxfield uses this convention.
   if (
+    v === '' ||
     v === 'normal' ||
     v === 'nonfoil' ||
     v === 'non-foil' ||
     v === 'false' ||
     v === '0' ||
     v === 'no' ||
-    v === 'n' ||
-    v === ''
+    v === 'n'
   )
-    return false;
+    return 'nonfoil';
+  return undefined;
+}
+
+/**
+ * Normalize condition values across tools. Handles:
+ *   ManaBox: near_mint / lightly_played / moderately_played / heavily_played / damaged / poor
+ *   Moxfield: Near Mint / Lightly Played / Moderately Played / Heavily Played / Damaged
+ *   Archidekt / TCG: NM / LP / MP / HP / DMG / PO
+ */
+export function parseCondition(raw: string | undefined): Condition | undefined {
+  if (!raw) return undefined;
+  const v = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[_\s-]+/g, '');
+  if (v === 'nm' || v === 'nearmint' || v === 'mint' || v === 'm') return 'nm';
+  if (v === 'lp' || v === 'lightlyplayed' || v === 'ex' || v === 'excellent' || v === 'sp')
+    return 'lp';
+  if (v === 'mp' || v === 'moderatelyplayed' || v === 'gd' || v === 'good' || v === 'vg')
+    return 'mp';
+  if (v === 'hp' || v === 'heavilyplayed' || v === 'played' || v === 'pl') return 'hp';
+  if (v === 'dmg' || v === 'damaged' || v === 'poor' || v === 'po') return 'damaged';
+  return undefined;
+}
+
+/**
+ * Normalize language to lowercase short code matching Scryfall conventions.
+ * Handles full names (English/Japanese), 2-letter codes (en/ja), and CN variants (zhs/zht).
+ */
+export function parseLanguage(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const v = raw.toLowerCase().trim();
+  if (!v) return undefined;
+  const FULL: Record<string, string> = {
+    english: 'en',
+    japanese: 'ja',
+    german: 'de',
+    spanish: 'es',
+    french: 'fr',
+    italian: 'it',
+    portuguese: 'pt',
+    russian: 'ru',
+    korean: 'ko',
+    'simplified chinese': 'zhs',
+    'chinese simplified': 'zhs',
+    'traditional chinese': 'zht',
+    'chinese traditional': 'zht',
+    chinese: 'zhs',
+    phyrexian: 'ph',
+  };
+  return FULL[v] ?? v;
+}
+
+function parseBool(raw: string | undefined): boolean | undefined {
+  if (raw === undefined) return undefined;
+  const v = raw.toLowerCase().trim();
+  if (v === '') return undefined;
+  if (v === 'true' || v === '1' || v === 'yes' || v === 'y') return true;
+  if (v === 'false' || v === '0' || v === 'no' || v === 'n') return false;
   return undefined;
 }

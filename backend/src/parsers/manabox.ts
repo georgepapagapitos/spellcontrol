@@ -1,4 +1,5 @@
-import type { ImportRow, ParseResult } from './types';
+import type { Finish, ImportRow, ParseResult } from './types';
+import { parseCondition, parseLanguage } from './csv';
 
 const PRICE_FROM_END = 6;
 
@@ -38,10 +39,14 @@ export function parseManabox(text: string): ParseResult {
     setCode: headers.findIndex((h) => h.toLowerCase() === 'set code'),
     setName: headers.findIndex((h) => h.toLowerCase() === 'set name'),
     collectorNumber: headers.findIndex((h) => h.toLowerCase() === 'collector number'),
-    foil: headers.findIndex((h) => h.toLowerCase() === 'foil'),
+    finish: headers.findIndex((h) => h.toLowerCase() === 'foil'),
     rarity: headers.findIndex((h) => h.toLowerCase() === 'rarity'),
     quantity: headers.findIndex((h) => h.toLowerCase() === 'quantity'),
     scryfallId: headers.findIndex((h) => h.toLowerCase() === 'scryfall id'),
+    condition: headers.findIndex((h) => h.toLowerCase() === 'condition'),
+    language: headers.findIndex((h) => h.toLowerCase() === 'language'),
+    altered: headers.findIndex((h) => h.toLowerCase() === 'altered'),
+    misprint: headers.findIndex((h) => h.toLowerCase() === 'misprint'),
   };
 
   const rows: ImportRow[] = [];
@@ -97,16 +102,34 @@ export function parseManabox(text: string): ParseResult {
       setCode: idx.setCode >= 0 ? row[idx.setCode] || undefined : undefined,
       setName: idx.setName >= 0 ? row[idx.setName] || undefined : undefined,
       collectorNumber: idx.collectorNumber >= 0 ? row[idx.collectorNumber] || undefined : undefined,
-      foil: idx.foil >= 0 ? (row[idx.foil] || '').toLowerCase() === 'foil' : undefined,
+      finish: idx.finish >= 0 ? parseManaboxFinish(row[idx.finish]) : undefined,
       rarity: idx.rarity >= 0 ? (row[idx.rarity] || '').toLowerCase() || undefined : undefined,
       scryfallId: idx.scryfallId >= 0 ? row[idx.scryfallId] || undefined : undefined,
       purchasePrice,
       sourceCategory: idx.binderName >= 0 ? row[idx.binderName] || undefined : undefined,
+      condition: idx.condition >= 0 ? parseCondition(row[idx.condition]) : undefined,
+      language: idx.language >= 0 ? parseLanguage(row[idx.language]) : undefined,
+      altered: idx.altered >= 0 ? parseManaboxBool(row[idx.altered]) : undefined,
+      misprint: idx.misprint >= 0 ? parseManaboxBool(row[idx.misprint]) : undefined,
       sourceFormat: 'manabox',
     });
   }
 
   return { rows, format: 'manabox', unparsedLines };
+}
+
+function parseManaboxFinish(raw: string | undefined): Finish {
+  const v = (raw || '').toLowerCase().trim();
+  if (v === 'foil') return 'foil';
+  if (v === 'etched') return 'etched';
+  return 'nonfoil';
+}
+
+function parseManaboxBool(raw: string | undefined): boolean | undefined {
+  const v = (raw || '').toLowerCase().trim();
+  if (v === 'true' || v === '1' || v === 'yes') return true;
+  if (v === 'false' || v === '0' || v === 'no') return false;
+  return undefined;
 }
 
 function splitLine(line: string, delim: string): string[] {

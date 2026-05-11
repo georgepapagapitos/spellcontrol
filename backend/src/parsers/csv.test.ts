@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCsvAuto, detectCsvFormat } from './csv';
+import { parseCsvAuto, detectCsvFormat, parseCondition, parseLanguage } from './csv';
 
 describe('detectCsvFormat', () => {
   it('detects manabox by Scryfall ID + Binder Name', () => {
@@ -34,7 +34,7 @@ describe('parseCsvAuto', () => {
     const csv = 'name,foil\n"Atraxa, Praetors\'\' Voice",true';
     const out = parseCsvAuto(csv, 'generic-csv');
     expect(out.rows[0].name).toBe("Atraxa, Praetors'' Voice");
-    expect(out.rows[0].foil).toBe(true);
+    expect(out.rows[0].finish).toBe('foil');
   });
 
   it('strips a UTF-8 BOM from the start of the file', () => {
@@ -59,11 +59,11 @@ describe('parseCsvAuto', () => {
     expect(parseCsvAuto(csv, 'generic-csv').rows[0].name).toBe('Sol Ring');
   });
 
-  it('parses quantity, price, foil, set, and rarity', () => {
+  it('parses quantity, price, finish, set, and rarity', () => {
     const csv = 'Name,Set Code,Quantity,Foil,Rarity,Price\nSol Ring,CMR,3,foil,UNCOMMON,$1.50';
     const r = parseCsvAuto(csv, 'generic-csv').rows[0];
     expect(r.quantity).toBe(3);
-    expect(r.foil).toBe(true);
+    expect(r.finish).toBe('foil');
     expect(r.rarity).toBe('uncommon');
     expect(r.purchasePrice).toBe(1.5);
     expect(r.setCode).toBe('CMR');
@@ -81,25 +81,105 @@ describe('parseCsvAuto', () => {
     expect(parseCsvAuto(csv, 'generic-csv').rows[0].purchasePrice).toBeUndefined();
   });
 
-  it('accepts foil aliases (yes/no/true/false/normal/foil/...)', () => {
-    const csv = 'Name,Foil\nA,yes\nB,no\nC,foil\nD,nonfoil\nE,non-foil\nF,maybe';
+  it('accepts finish aliases (yes/no/true/false/normal/foil/etched/...)', () => {
+    const csv = 'Name,Foil\nA,yes\nB,no\nC,foil\nD,nonfoil\nE,non-foil\nF,maybe\nG,etched';
     const out = parseCsvAuto(csv, 'generic-csv').rows;
-    expect(out[0].foil).toBe(true);
-    expect(out[1].foil).toBe(false);
-    expect(out[2].foil).toBe(true);
-    expect(out[3].foil).toBe(false);
-    expect(out[4].foil).toBe(false);
-    expect(out[5].foil).toBeUndefined();
+    expect(out[0].finish).toBe('foil');
+    expect(out[1].finish).toBe('nonfoil');
+    expect(out[2].finish).toBe('foil');
+    expect(out[3].finish).toBe('nonfoil');
+    expect(out[4].finish).toBe('nonfoil');
+    expect(out[5].finish).toBeUndefined();
+    expect(out[6].finish).toBe('etched');
   });
 
-  it('treats blank price/foil cells as undefined/false-ish', () => {
+  it('treats blank finish cells as nonfoil (Moxfield convention)', () => {
     const csv = 'Name,Foil,Price\nSol Ring,,';
     const r = parseCsvAuto(csv, 'generic-csv').rows[0];
     expect(r.purchasePrice).toBeUndefined();
-    expect(r.foil).toBeUndefined();
+    expect(r.finish).toBe('nonfoil');
+  });
+
+  it('parses "Printing" column as finish', () => {
+    const csv = 'Name,Printing\nA,Foil\nB,Normal\nC,Etched';
+    const out = parseCsvAuto(csv, 'generic-csv').rows;
+    expect(out[0].finish).toBe('foil');
+    expect(out[1].finish).toBe('nonfoil');
+    expect(out[2].finish).toBe('etched');
   });
 
   it('returns empty rows for empty input', () => {
     expect(parseCsvAuto('', 'generic-csv').rows).toEqual([]);
+  });
+
+  it('captures condition, language, altered, proxy from Moxfield-style CSV', () => {
+    const csv =
+      'Count,Name,Edition,Condition,Language,Foil,Alter,Proxy\n' +
+      '1,Sol Ring,CMR,Near Mint,English,foil,False,False\n' +
+      '1,Lightning Bolt,M11,Lightly Played,Japanese,,True,True';
+    const out = parseCsvAuto(csv, 'moxfield').rows;
+    expect(out[0]).toMatchObject({
+      condition: 'nm',
+      language: 'en',
+      altered: false,
+      proxy: false,
+      finish: 'foil',
+    });
+    expect(out[1]).toMatchObject({
+      condition: 'lp',
+      language: 'ja',
+      altered: true,
+      proxy: true,
+    });
+  });
+
+  it('captures condition, language, finish from Archidekt-style CSV', () => {
+    const csv =
+      'Quantity,Name,Finish,Condition,Language,Edition Code\n' + '1,Sol Ring,Etched,NM,EN,CMR';
+    const r = parseCsvAuto(csv, 'archidekt').rows[0];
+    expect(r.finish).toBe('etched');
+    expect(r.condition).toBe('nm');
+    expect(r.language).toBe('en');
+  });
+});
+
+describe('parseCondition', () => {
+  it('normalizes common condition values', () => {
+    expect(parseCondition('NM')).toBe('nm');
+    expect(parseCondition('Near Mint')).toBe('nm');
+    expect(parseCondition('near_mint')).toBe('nm');
+    expect(parseCondition('LP')).toBe('lp');
+    expect(parseCondition('Lightly Played')).toBe('lp');
+    expect(parseCondition('lightly_played')).toBe('lp');
+    expect(parseCondition('MP')).toBe('mp');
+    expect(parseCondition('Moderately Played')).toBe('mp');
+    expect(parseCondition('HP')).toBe('hp');
+    expect(parseCondition('Heavily Played')).toBe('hp');
+    expect(parseCondition('Damaged')).toBe('damaged');
+    expect(parseCondition('DMG')).toBe('damaged');
+    expect(parseCondition('Poor')).toBe('damaged');
+  });
+  it('returns undefined for unknown / empty values', () => {
+    expect(parseCondition('')).toBeUndefined();
+    expect(parseCondition(undefined)).toBeUndefined();
+    expect(parseCondition('zonk')).toBeUndefined();
+  });
+});
+
+describe('parseLanguage', () => {
+  it('normalizes full language names to Scryfall codes', () => {
+    expect(parseLanguage('English')).toBe('en');
+    expect(parseLanguage('Japanese')).toBe('ja');
+    expect(parseLanguage('German')).toBe('de');
+    expect(parseLanguage('Simplified Chinese')).toBe('zhs');
+  });
+  it('passes through short codes lowercased', () => {
+    expect(parseLanguage('EN')).toBe('en');
+    expect(parseLanguage('zhs')).toBe('zhs');
+    expect(parseLanguage('ja')).toBe('ja');
+  });
+  it('returns undefined for empty values', () => {
+    expect(parseLanguage('')).toBeUndefined();
+    expect(parseLanguage(undefined)).toBeUndefined();
   });
 });
