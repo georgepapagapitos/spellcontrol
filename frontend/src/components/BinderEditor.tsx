@@ -852,7 +852,6 @@ function FilterGroupFields({
           value={filter.manaCost || ''}
           onChange={(e) => patch({ manaCost: e.target.value })}
           placeholder="{2}{G}{W}"
-          style={{ width: 240 }}
         />
       </div>
 
@@ -940,7 +939,6 @@ function FilterGroupFields({
           value={filter.nameContains || ''}
           onChange={(e) => patch({ nameContains: e.target.value })}
           placeholder="e.g. dragon, sword..."
-          style={{ width: 240 }}
         />
       </div>
 
@@ -1199,7 +1197,6 @@ function ChipBuilder({
               }, 120);
             }}
             placeholder={placeholder}
-            style={{ width: 200 }}
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={open}
@@ -1253,7 +1250,10 @@ function EnumChipBuilder({
     options.find((o) => o.value.toLowerCase() === val.toLowerCase())?.label ?? val;
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+    <div
+      className="chip-builder-wrap"
+      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
+    >
       {chips.map((c, i) => (
         <span
           key={i}
@@ -1280,25 +1280,14 @@ function EnumChipBuilder({
           </button>
         </span>
       ))}
-      <select
+      <SelectMenu
         value=""
-        onChange={(e) => {
-          const v = e.target.value;
-          if (!v) return;
-          onChange([...chips, { value: v, negate: false }]);
-        }}
+        options={available.map((o) => ({ value: o.value, label: o.label }))}
+        onChange={(v) => onChange([...chips, { value: v, negate: false }])}
+        placeholder={available.length === 0 ? 'all added' : (placeholder ?? 'add...')}
+        ariaLabel={placeholder ?? 'add'}
         disabled={available.length === 0}
-        style={{ fontSize: '0.85rem' }}
-      >
-        <option value="" disabled>
-          {available.length === 0 ? 'all added' : (placeholder ?? 'add...')}
-        </option>
-        {available.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      />
     </div>
   );
 }
@@ -1329,7 +1318,10 @@ function SetMultiSelect({
   };
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+    <div
+      className="chip-builder-wrap"
+      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
+    >
       {selected.map((code) => {
         const opt = options.find((o) => o.code.toUpperCase() === code.toUpperCase());
         return (
@@ -1360,7 +1352,6 @@ function SetMultiSelect({
           }}
           placeholder={options.length === 0 ? 'no cards loaded' : 'add set...'}
           disabled={options.length === 0}
-          style={{ width: 200 }}
         />
         {open && filtered.length > 0 && (
           <div className="set-dropdown">
