@@ -133,7 +133,7 @@ export function DeckEditorPage() {
       // try to claim the same collection copy.
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       for (let i = 0; i < delta; i++) {
-        const claim = pickCollectionCopy(card.name, collectionCards, allocations);
+        const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
         const allocatedId = claim?.copyId ?? null;
         if (allocatedId) {
           allocations.set(allocatedId, {
@@ -222,10 +222,7 @@ export function DeckEditorPage() {
               {deck.name}
             </button>
           )}
-          <p className="binder-hero-meta">
-            {deck.cards.length.toLocaleString()} {deck.cards.length === 1 ? 'card' : 'cards'}
-            {deck.commander && <> · {deck.commander.name}</>}
-          </p>
+          {deck.commander && <p className="binder-hero-meta">{deck.commander.name}</p>}
         </div>
         <div className="deck-editor-actions">
           <button
