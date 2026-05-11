@@ -98,6 +98,19 @@ interface CollectionState {
   buildBackupSnapshot: () => Backup;
   restoreFromBackup: (backup: Backup) => Promise<void>;
 
+  // Binder card customization actions
+  /** Add a card to a binder's pinned list. No-op if already pinned. Returns true if added. */
+  pinCardToBinder: (binderId: string, copyId: string) => boolean;
+  /** Remove a card from a binder. If the card is pinned, removes from pinnedCopyIds.
+   *  If rule-matched, adds to excludedCopyIds so it stays hidden even if rules still match. */
+  removeCardFromBinder: (binderId: string, copyId: string, isRuleMatched: boolean) => void;
+  /** Restore a previously excluded card (remove from excludedCopyIds). */
+  restoreExcludedCard: (binderId: string, copyId: string) => void;
+  /** Set the explicit card order. Pass undefined to revert to auto-sort. */
+  setBinderManualOrder: (binderId: string, order: string[] | undefined) => void;
+  /** Snapshot the current sorted order as the manual order. */
+  seedManualOrder: (binderId: string, currentCardIds: string[]) => void;
+
   // Binder actions
   /**
    * Creates the sample binder defs (tagged isSample on BinderDef). When
@@ -464,6 +477,70 @@ export const useCollectionStore = create<CollectionState>()(
             console.warn('[store] Failed to clear cache during restore:', err);
           }
         }
+      },
+
+      // Binder card customization actions
+      pinCardToBinder: (binderId, copyId) => {
+        let added = false;
+        set((s) => ({
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId) return b;
+            const existing = b.pinnedCopyIds ?? [];
+            if (existing.includes(copyId)) return b;
+            added = true;
+            return { ...b, pinnedCopyIds: [...existing, copyId], updatedAt: Date.now() };
+          }),
+        }));
+        return added;
+      },
+
+      removeCardFromBinder: (binderId, copyId, isRuleMatched) => {
+        set((s) => ({
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId) return b;
+            if (isRuleMatched) {
+              const excluded = b.excludedCopyIds ?? [];
+              if (excluded.includes(copyId)) return b;
+              return { ...b, excludedCopyIds: [...excluded, copyId], updatedAt: Date.now() };
+            } else {
+              return {
+                ...b,
+                pinnedCopyIds: (b.pinnedCopyIds ?? []).filter((id) => id !== copyId),
+                manualOrder: (b.manualOrder ?? []).filter((id) => id !== copyId),
+                updatedAt: Date.now(),
+              };
+            }
+          }),
+        }));
+      },
+
+      restoreExcludedCard: (binderId, copyId) => {
+        set((s) => ({
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId) return b;
+            return {
+              ...b,
+              excludedCopyIds: (b.excludedCopyIds ?? []).filter((id) => id !== copyId),
+              updatedAt: Date.now(),
+            };
+          }),
+        }));
+      },
+
+      setBinderManualOrder: (binderId, order) => {
+        set((s) => ({
+          binders: s.binders.map((b) =>
+            b.id !== binderId ? b : { ...b, manualOrder: order ?? undefined, updatedAt: Date.now() }
+          ),
+        }));
+      },
+
+      seedManualOrder: (binderId, currentCardIds) => {
+        set((s) => ({
+          binders: s.binders.map((b) =>
+            b.id !== binderId ? b : { ...b, manualOrder: currentCardIds, updatedAt: Date.now() }
+          ),
+        }));
       },
 
       // Binder actions
