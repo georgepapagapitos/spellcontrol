@@ -702,9 +702,15 @@
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   padding: 0.3rem;
+  max-height: min(360px, calc(100vh - 4rem));
+  overflow-y: auto;
 }
 
 .toolbar-popover-panel--fixed {
+  top: unset;
+  left: unset;
+  right: unset;
+  bottom: unset;
   width: max-content;
   min-width: unset;
 }
