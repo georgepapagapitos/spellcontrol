@@ -21,6 +21,13 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryf
 const app = express();
 const cache = new ScryfallCache(DB_PATH);
 
+// Trust the immediate nginx reverse-proxy so express-rate-limit uses the
+// real client IP (from X-Forwarded-For) rather than the proxy's internal IP.
+// Without this, express-rate-limit v7+ throws a ValidationError when it
+// detects X-Forwarded-For headers without trust proxy configured, which
+// closes the connection before sending a response and causes nginx to 502.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cookieParser());
 
