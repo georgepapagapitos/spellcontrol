@@ -109,7 +109,8 @@ export function DeckNewPage() {
     const allocated = pickCollectionCopy(
       commander.name,
       collectionCards,
-      buildAllocationMap(decks)
+      buildAllocationMap(decks),
+      commander.id
     );
     const id = createDeck({
       source: 'manual',
@@ -290,26 +291,26 @@ function saveGeneratedDeck(
   // duplicates of a non-basic — rare in EDH but possible).
   const claimed = new Map<string, AllocationInfo>(buildAllocationMap(existingDecks));
 
-  const allocateFor = (cardName: string): string | null => {
-    const pick = pickCollectionCopy(cardName, collection, claimed);
+  const allocateFor = (card: ScryfallCard): string | null => {
+    const pick = pickCollectionCopy(card.name, collection, claimed, card.id);
     if (!pick) return null;
     claimed.set(pick.copyId, {
       deckId: '__pending__',
       deckName: '__pending__',
-      cardName,
+      cardName: card.name,
     });
     return pick.copyId;
   };
 
   const commander = generated.commander;
   const partner = generated.partnerCommander;
-  const commanderAlloc = commander ? allocateFor(commander.name) : null;
-  const partnerAlloc = partner ? allocateFor(partner.name) : null;
+  const commanderAlloc = commander ? allocateFor(commander) : null;
+  const partnerAlloc = partner ? allocateFor(partner) : null;
 
   const cards = [];
   for (const cat of Object.keys(generated.categories) as DeckCategory[]) {
     for (const card of generated.categories[cat]) {
-      cards.push(newDeckCard(card, allocateFor(card.name)));
+      cards.push(newDeckCard(card, allocateFor(card)));
     }
   }
 

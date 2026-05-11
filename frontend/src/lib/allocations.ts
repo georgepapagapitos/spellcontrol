@@ -67,11 +67,17 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
 export function pickCollectionCopy(
   cardName: string,
   collection: EnrichedCard[],
-  allocated: Map<string, AllocationInfo>
+  allocated: Map<string, AllocationInfo>,
+  preferredScryfallId?: string
 ): EnrichedCard | null {
   const candidates = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
   if (candidates.length === 0) return null;
   candidates.sort((a, b) => {
+    if (preferredScryfallId) {
+      const aMatch = a.scryfallId === preferredScryfallId ? 0 : 1;
+      const bMatch = b.scryfallId === preferredScryfallId ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+    }
     if (a.foil !== b.foil) return a.foil ? 1 : -1;
     return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
   });
