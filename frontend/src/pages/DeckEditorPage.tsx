@@ -188,17 +188,6 @@ export function DeckEditorPage() {
     <div className="deck-editor-page">
       <header className="deck-editor-header">
         <div className="deck-editor-hero">
-          <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
-            <Link to="/decks" className="binder-hero-crumb-link">
-              All decks
-            </Link>
-            <span className="binder-hero-crumb-sep" aria-hidden>
-              ›
-            </span>
-            <span className="binder-hero-crumb-current" aria-current="page">
-              {deck.name}
-            </span>
-          </nav>
           {renaming ? (
             <input
               autoFocus
