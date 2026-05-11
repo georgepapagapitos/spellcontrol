@@ -34,7 +34,7 @@ describe('parseCsvAuto', () => {
     const csv = 'name,foil\n"Atraxa, Praetors\'\' Voice",true';
     const out = parseCsvAuto(csv, 'generic-csv');
     expect(out.rows[0].name).toBe("Atraxa, Praetors'' Voice");
-    expect(out.rows[0].foil).toBe(true);
+    expect(out.rows[0].finish).toBe('foil');
   });
 
   it('strips a UTF-8 BOM from the start of the file', () => {
@@ -59,11 +59,11 @@ describe('parseCsvAuto', () => {
     expect(parseCsvAuto(csv, 'generic-csv').rows[0].name).toBe('Sol Ring');
   });
 
-  it('parses quantity, price, foil, set, and rarity', () => {
+  it('parses quantity, price, finish, set, and rarity', () => {
     const csv = 'Name,Set Code,Quantity,Foil,Rarity,Price\nSol Ring,CMR,3,foil,UNCOMMON,$1.50';
     const r = parseCsvAuto(csv, 'generic-csv').rows[0];
     expect(r.quantity).toBe(3);
-    expect(r.foil).toBe(true);
+    expect(r.finish).toBe('foil');
     expect(r.rarity).toBe('uncommon');
     expect(r.purchasePrice).toBe(1.5);
     expect(r.setCode).toBe('CMR');
@@ -81,22 +81,31 @@ describe('parseCsvAuto', () => {
     expect(parseCsvAuto(csv, 'generic-csv').rows[0].purchasePrice).toBeUndefined();
   });
 
-  it('accepts foil aliases (yes/no/true/false/normal/foil/...)', () => {
-    const csv = 'Name,Foil\nA,yes\nB,no\nC,foil\nD,nonfoil\nE,non-foil\nF,maybe';
+  it('accepts finish aliases (yes/no/true/false/normal/foil/etched/...)', () => {
+    const csv = 'Name,Foil\nA,yes\nB,no\nC,foil\nD,nonfoil\nE,non-foil\nF,maybe\nG,etched';
     const out = parseCsvAuto(csv, 'generic-csv').rows;
-    expect(out[0].foil).toBe(true);
-    expect(out[1].foil).toBe(false);
-    expect(out[2].foil).toBe(true);
-    expect(out[3].foil).toBe(false);
-    expect(out[4].foil).toBe(false);
-    expect(out[5].foil).toBeUndefined();
+    expect(out[0].finish).toBe('foil');
+    expect(out[1].finish).toBe('nonfoil');
+    expect(out[2].finish).toBe('foil');
+    expect(out[3].finish).toBe('nonfoil');
+    expect(out[4].finish).toBe('nonfoil');
+    expect(out[5].finish).toBeUndefined();
+    expect(out[6].finish).toBe('etched');
   });
 
-  it('treats blank price/foil cells as undefined/false-ish', () => {
+  it('treats blank finish cells as undefined', () => {
     const csv = 'Name,Foil,Price\nSol Ring,,';
     const r = parseCsvAuto(csv, 'generic-csv').rows[0];
     expect(r.purchasePrice).toBeUndefined();
-    expect(r.foil).toBeUndefined();
+    expect(r.finish).toBeUndefined();
+  });
+
+  it('parses "Printing" column as finish', () => {
+    const csv = 'Name,Printing\nA,Foil\nB,Normal\nC,Etched';
+    const out = parseCsvAuto(csv, 'generic-csv').rows;
+    expect(out[0].finish).toBe('foil');
+    expect(out[1].finish).toBe('nonfoil');
+    expect(out[2].finish).toBe('etched');
   });
 
   it('returns empty rows for empty input', () => {

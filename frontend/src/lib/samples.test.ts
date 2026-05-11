@@ -18,9 +18,9 @@ describe('samples', () => {
 });
 
 describe('sampleCardsAsCsv', () => {
-  it('starts with the name,foil header', () => {
+  it('starts with the name,finish header', () => {
     const csv = sampleCardsAsCsv();
-    expect(csv.split('\n')[0]).toBe('name,foil');
+    expect(csv.split('\n')[0]).toBe('name,finish');
   });
 
   it('emits one row per sample card', () => {
@@ -30,12 +30,12 @@ describe('sampleCardsAsCsv', () => {
 
   it('quotes names containing commas and escapes inner quotes', () => {
     const csv = sampleCardsAsCsv();
-    expect(csv).toContain('"Atraxa, Praetors\' Voice",true');
+    expect(csv).toContain('"Atraxa, Praetors\' Voice",foil');
   });
 
-  it('renders the foil flag as true/false text', () => {
+  it('renders the finish value as foil/nonfoil text', () => {
     const csv = sampleCardsAsCsv();
-    expect(csv).toContain('"Sol Ring",true');
-    expect(csv).toContain('"Wurmcoil Engine",false');
+    expect(csv).toContain('"Sol Ring",foil');
+    expect(csv).toContain('"Wurmcoil Engine",nonfoil');
   });
 });

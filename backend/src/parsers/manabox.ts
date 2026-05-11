@@ -1,4 +1,4 @@
-import type { ImportRow, ParseResult } from './types';
+import type { Finish, ImportRow, ParseResult } from './types';
 
 const PRICE_FROM_END = 6;
 
@@ -38,7 +38,7 @@ export function parseManabox(text: string): ParseResult {
     setCode: headers.findIndex((h) => h.toLowerCase() === 'set code'),
     setName: headers.findIndex((h) => h.toLowerCase() === 'set name'),
     collectorNumber: headers.findIndex((h) => h.toLowerCase() === 'collector number'),
-    foil: headers.findIndex((h) => h.toLowerCase() === 'foil'),
+    finish: headers.findIndex((h) => h.toLowerCase() === 'foil'),
     rarity: headers.findIndex((h) => h.toLowerCase() === 'rarity'),
     quantity: headers.findIndex((h) => h.toLowerCase() === 'quantity'),
     scryfallId: headers.findIndex((h) => h.toLowerCase() === 'scryfall id'),
@@ -97,7 +97,7 @@ export function parseManabox(text: string): ParseResult {
       setCode: idx.setCode >= 0 ? row[idx.setCode] || undefined : undefined,
       setName: idx.setName >= 0 ? row[idx.setName] || undefined : undefined,
       collectorNumber: idx.collectorNumber >= 0 ? row[idx.collectorNumber] || undefined : undefined,
-      foil: idx.foil >= 0 ? (row[idx.foil] || '').toLowerCase() === 'foil' : undefined,
+      finish: idx.finish >= 0 ? parseManaboxFinish(row[idx.finish]) : undefined,
       rarity: idx.rarity >= 0 ? (row[idx.rarity] || '').toLowerCase() || undefined : undefined,
       scryfallId: idx.scryfallId >= 0 ? row[idx.scryfallId] || undefined : undefined,
       purchasePrice,
@@ -107,6 +107,13 @@ export function parseManabox(text: string): ParseResult {
   }
 
   return { rows, format: 'manabox', unparsedLines };
+}
+
+function parseManaboxFinish(raw: string | undefined): Finish {
+  const v = (raw || '').toLowerCase().trim();
+  if (v === 'foil') return 'foil';
+  if (v === 'etched') return 'etched';
+  return 'nonfoil';
 }
 
 function splitLine(line: string, delim: string): string[] {

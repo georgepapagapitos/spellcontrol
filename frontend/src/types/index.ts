@@ -32,6 +32,9 @@ export interface EnrichedCard {
    * have one — those cards stay until "Clear all".
    */
   importId?: string;
+  /** The owned finish for this physical copy: nonfoil, foil, or etched. */
+  finish: Finish;
+  /** Derived from finish for backwards compat: true when finish is 'foil' or 'etched'. */
   foil: boolean;
   cmc?: number;
   typeLine?: string;

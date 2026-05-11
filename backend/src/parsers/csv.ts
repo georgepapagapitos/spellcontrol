@@ -1,4 +1,4 @@
-import type { ImportFormat, ImportRow, ParseResult } from './types';
+import type { Finish, ImportFormat, ImportRow, ParseResult } from './types';
 
 /**
  * Common column-name aliases across collection tools. We map any known alias to our normalized field.
@@ -33,11 +33,11 @@ const HEADER_ALIASES: Record<string, keyof FieldMap> = {
   collectornumber: 'collectorNumber',
   'card #': 'collectorNumber',
 
-  // Foil
-  foil: 'foil',
-  'is foil': 'foil',
-  finish: 'foil', // values like "foil" / "nonfoil"
-  printing: 'foil', // values like "Foil" / "Normal"
+  // Finish (foil / etched / nonfoil)
+  foil: 'finish',
+  'is foil': 'finish',
+  finish: 'finish',
+  printing: 'finish',
 
   // Quantity
   quantity: 'quantity',
@@ -73,7 +73,7 @@ interface FieldMap {
   setCode: number;
   setName: number;
   collectorNumber: number;
-  foil: number;
+  finish: number;
   quantity: number;
   rarity: number;
   scryfallId: number;
@@ -86,7 +86,7 @@ const EMPTY_MAP: FieldMap = {
   setCode: -1,
   setName: -1,
   collectorNumber: -1,
-  foil: -1,
+  finish: -1,
   quantity: -1,
   rarity: -1,
   scryfallId: -1,
@@ -151,7 +151,7 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
       setName: fieldMap.setName >= 0 ? vals[fieldMap.setName] || undefined : undefined,
       collectorNumber:
         fieldMap.collectorNumber >= 0 ? vals[fieldMap.collectorNumber] || undefined : undefined,
-      foil: fieldMap.foil >= 0 ? parseFoil(vals[fieldMap.foil]) : undefined,
+      finish: fieldMap.finish >= 0 ? parseFinish(vals[fieldMap.finish]) : undefined,
       rarity:
         fieldMap.rarity >= 0 ? (vals[fieldMap.rarity] || '').toLowerCase() || undefined : undefined,
       scryfallId: fieldMap.scryfallId >= 0 ? vals[fieldMap.scryfallId] || undefined : undefined,
@@ -232,10 +232,11 @@ function parsePrice(raw: string | undefined): number | undefined {
   return p;
 }
 
-function parseFoil(raw: string | undefined): boolean | undefined {
+function parseFinish(raw: string | undefined): Finish | undefined {
   if (!raw) return undefined;
   const v = raw.toLowerCase().trim();
-  if (v === 'foil' || v === 'true' || v === '1' || v === 'yes' || v === 'y') return true;
+  if (v === 'foil' || v === 'true' || v === '1' || v === 'yes' || v === 'y') return 'foil';
+  if (v === 'etched') return 'etched';
   if (
     v === 'normal' ||
     v === 'nonfoil' ||
@@ -246,6 +247,6 @@ function parseFoil(raw: string | undefined): boolean | undefined {
     v === 'n' ||
     v === ''
   )
-    return false;
+    return 'nonfoil';
   return undefined;
 }

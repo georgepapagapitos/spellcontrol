@@ -193,6 +193,9 @@ export function parseBackup(raw: string): Backup {
       if (!card.copyId) {
         card.copyId = crypto.randomUUID();
       }
+      if (!('finish' in (card as unknown as Record<string, unknown>))) {
+        (card as unknown as Record<string, unknown>).finish = card.foil ? 'foil' : 'nonfoil';
+      }
     }
   }
 

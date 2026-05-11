@@ -15,6 +15,7 @@ function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
     sourceCategory: '',
     sourceFormat: 'plain',
     foil: false,
+    finish: 'nonfoil',
     cmc: 2,
     typeLine: 'Instant',
     colorIdentity: ['R'],

@@ -79,7 +79,7 @@ export function BinderPage() {
     if (!groupPrintings) return { effectiveCards: cards, qtyByCopyId: undefined };
     const seen = new Map<string, { card: (typeof cards)[number]; qty: number }>();
     for (const c of cards) {
-      const key = `${c.scryfallId}:${c.foil ? 1 : 0}`;
+      const key = `${c.scryfallId}:${c.finish ?? (c.foil ? 'foil' : 'nonfoil')}`;
       const existing = seen.get(key);
       if (existing) existing.qty += 1;
       else seen.set(key, { card: c, qty: 1 });

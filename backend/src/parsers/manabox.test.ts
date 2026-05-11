@@ -33,7 +33,7 @@ describe('parseManabox', () => {
     expect(r.name).toBe('Sol Ring');
     expect(r.setCode).toBe('CMR');
     expect(r.collectorNumber).toBe('472');
-    expect(r.foil).toBe(false);
+    expect(r.finish).toBe('nonfoil');
     expect(r.quantity).toBe(2);
     expect(r.scryfallId).toBe('abc-123');
     expect(r.sourceCategory).toBe('My Binder');
@@ -45,7 +45,13 @@ describe('parseManabox', () => {
   it('detects foil from the Foil column', () => {
     const row =
       'Sol Ring\tCMR\tCommander Legends\t472\tfoil\tNM\tEN\t1\tabc\tBinder\tCard\tuncommon\t1.50\tx\ty\tz';
-    expect(parseManabox(`${HEADER}\n${row}`).rows[0].foil).toBe(true);
+    expect(parseManabox(`${HEADER}\n${row}`).rows[0].finish).toBe('foil');
+  });
+
+  it('detects etched from the Foil column', () => {
+    const row =
+      'Sol Ring\tCMR\tCommander Legends\t472\tetched\tNM\tEN\t1\tabc\tBinder\tCard\tuncommon\t1.50\tx\ty\tz';
+    expect(parseManabox(`${HEADER}\n${row}`).rows[0].finish).toBe('etched');
   });
 
   it('skips rows with no name', () => {

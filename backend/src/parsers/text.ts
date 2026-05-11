@@ -1,4 +1,4 @@
-import type { ImportRow, ParseResult } from './types';
+import type { Finish, ImportRow, ParseResult } from './types';
 
 /**
  * Matches MTGA-style lines and plain card names, in order from most specific to least:
@@ -40,11 +40,13 @@ export function parseTextList(text: string): ParseResult {
     let match = line.match(MTGA_FULL);
     if (match) {
       usedMtga = true;
+      const cleaned = cleanName(match[2]);
       rows.push({
-        name: cleanName(match[2]),
+        name: cleaned.name,
         quantity: parseInt(match[1]) || 1,
         setCode: match[3].toUpperCase(),
         collectorNumber: match[4],
+        finish: cleaned.finish,
         sourceFormat: 'mtga',
         section: currentSection,
       });
@@ -54,10 +56,12 @@ export function parseTextList(text: string): ParseResult {
     match = line.match(MTGA_NO_COLLECTOR);
     if (match) {
       usedMtga = true;
+      const cleaned = cleanName(match[2]);
       rows.push({
-        name: cleanName(match[2]),
+        name: cleaned.name,
         quantity: parseInt(match[1]) || 1,
         setCode: match[3].toUpperCase(),
+        finish: cleaned.finish,
         sourceFormat: 'mtga',
         section: currentSection,
       });
@@ -66,9 +70,11 @@ export function parseTextList(text: string): ParseResult {
 
     match = line.match(QTY_NAME);
     if (match) {
+      const cleaned = cleanName(match[2]);
       rows.push({
-        name: cleanName(match[2]),
+        name: cleaned.name,
         quantity: parseInt(match[1]) || 1,
+        finish: cleaned.finish,
         sourceFormat: 'plain',
         section: currentSection,
       });
@@ -77,9 +83,11 @@ export function parseTextList(text: string): ParseResult {
 
     // Plain name with no quantity prefix
     if (line.length > 0 && line.length < 200) {
+      const cleaned = cleanName(line);
       rows.push({
-        name: cleanName(line),
+        name: cleaned.name,
         quantity: 1,
+        finish: cleaned.finish,
         sourceFormat: 'plain',
         section: currentSection,
       });
@@ -92,14 +100,24 @@ export function parseTextList(text: string): ParseResult {
   return { rows, format: usedMtga ? 'mtga' : 'plain', unparsedLines };
 }
 
-/**
- * Strips the *FOIL* / *F* / [FOIL] suffixes some lists use, and trims trailing whitespace.
- * Keeps DFC double slashes intact ("Fire // Ice").
- */
-function cleanName(raw: string): string {
-  return raw
-    .replace(/\s*\*F\*\s*$/i, '')
-    .replace(/\s*\*FOIL\*\s*$/i, '')
-    .replace(/\s*\[FOIL\]\s*$/i, '')
-    .trim();
+function cleanName(raw: string): { name: string; finish?: Finish } {
+  let finish: Finish | undefined;
+  let name = raw;
+  if (/\s*\*ETCHED\*\s*$/i.test(name)) {
+    finish = 'etched';
+    name = name.replace(/\s*\*ETCHED\*\s*$/i, '');
+  } else if (/\s*\[ETCHED\]\s*$/i.test(name)) {
+    finish = 'etched';
+    name = name.replace(/\s*\[ETCHED\]\s*$/i, '');
+  } else if (/\s*\*FOIL\*\s*$/i.test(name)) {
+    finish = 'foil';
+    name = name.replace(/\s*\*FOIL\*\s*$/i, '');
+  } else if (/\s*\*F\*\s*$/i.test(name)) {
+    finish = 'foil';
+    name = name.replace(/\s*\*F\*\s*$/i, '');
+  } else if (/\s*\[FOIL\]\s*$/i.test(name)) {
+    finish = 'foil';
+    name = name.replace(/\s*\[FOIL\]\s*$/i, '');
+  }
+  return { name: name.trim(), finish };
 }

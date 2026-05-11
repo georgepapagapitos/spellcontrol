@@ -78,7 +78,10 @@ export function pickCollectionCopy(
       const bMatch = b.scryfallId === preferredScryfallId ? 0 : 1;
       if (aMatch !== bMatch) return aMatch - bMatch;
     }
-    if (a.foil !== b.foil) return a.foil ? 1 : -1;
+    const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
+    const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
+    const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
+    if (aRank !== bRank) return aRank - bRank;
     return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
   });
   return candidates[0];

@@ -15,6 +15,7 @@ function makeCard(typeLine?: string): EnrichedCard {
     sourceCategory: '',
     sourceFormat: 'plain',
     foil: false,
+    finish: 'nonfoil' as const,
     typeLine,
   };
 }

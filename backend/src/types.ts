@@ -98,6 +98,9 @@ export interface EnrichedCard {
   sourceCategory: string;
   /** Which import format this row came from. */
   sourceFormat: string;
+  /** The owned finish for this physical copy. */
+  finish: 'nonfoil' | 'foil' | 'etched';
+  /** Derived from finish for backwards compat: true when finish is 'foil' or 'etched'. */
   foil: boolean;
 
   // From Scryfall (optional — undefined if Scryfall lookup failed)
