@@ -1134,10 +1134,7 @@ function ChipBuilder({
 
   return (
     <div className="chip-builder-wrap">
-      <div
-        className="chip-builder-inner"
-        style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
-      >
+      <div className="chip-builder-inner">
         {chips.map((c, i) => (
           <span
             key={i}
@@ -1250,10 +1247,7 @@ function EnumChipBuilder({
     options.find((o) => o.value.toLowerCase() === val.toLowerCase())?.label ?? val;
 
   return (
-    <div
-      className="chip-builder-wrap"
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
-    >
+    <div className="chip-builder-wrap">
       {chips.map((c, i) => (
         <span
           key={i}
@@ -1318,10 +1312,7 @@ function SetMultiSelect({
   };
 
   return (
-    <div
-      className="chip-builder-wrap"
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
-    >
+    <div className="chip-builder-wrap">
       {selected.map((code) => {
         const opt = options.find((o) => o.code.toUpperCase() === code.toUpperCase());
         return (
