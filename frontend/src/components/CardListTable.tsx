@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
+import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
@@ -92,25 +93,6 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
   return 0;
 }
 
-function PencilIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      <path d="m15 5 4 4" />
-    </svg>
-  );
-}
-
 export function CardListTable({ cards, binders, hideBinderFilter = false }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
@@ -142,7 +124,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     for (const b of binders) {
       for (const section of b.sections) {
         for (const c of section.cards) {
-          const k = c.scryfallId + (c.foil ? ':f' : '');
+          const k = `${c.scryfallId}:${c.foil ? 'f' : 'n'}`;
           if (!map.has(k)) map.set(k, { name: b.def.name, color: b.def.color });
         }
       }
@@ -601,18 +583,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
                   </div>
                 </div>
                 <div className="collection-list-right">
-                  <button
-                    type="button"
-                    className="card-edit-btn"
-                    title="Edit printing"
-                    aria-label={`Edit printing for ${r.card.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingCard(r.card);
-                    }}
-                  >
-                    <PencilIcon />
-                  </button>
+                  <CardRowMenu card={r.card} onEditCard={() => setEditingCard(r.card)} />
                   <div className="collection-list-qty">×{r.qty}</div>
                   <div className="collection-list-price">
                     ${(r.card.purchasePrice * r.qty).toFixed(2)}

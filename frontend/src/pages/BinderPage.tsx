@@ -1,5 +1,9 @@
-import { useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+
+const BinderCardEditor = lazy(() =>
+  import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
+);
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -33,6 +37,7 @@ export function BinderPage() {
 
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
+  const [cardEditorOpen, setCardEditorOpen] = useState(false);
   // Three-way view: 'pages' (the section/page grid) → 'list' (rows
   // with thumbnails + meta) → 'compact' (text-only rows). Local state.
   const [view, setView] = useState<'pages' | 'list' | 'compact'>('pages');
@@ -292,22 +297,6 @@ export function BinderPage() {
           style={{ ['--binder-color' as string]: active.def.color }}
         >
           <div className="binder-hero-text">
-            <nav className="binder-hero-crumbs" aria-label="Breadcrumb">
-              <button
-                type="button"
-                className="binder-hero-crumb-link"
-                aria-haspopup="dialog"
-                onClick={() => setBinderPickerOpen(true)}
-              >
-                All binders
-              </button>
-              <span className="binder-hero-crumb-sep" aria-hidden>
-                ›
-              </span>
-              <span className="binder-hero-crumb-current" aria-current="page">
-                {active.def.name}
-              </span>
-            </nav>
             <h1 className="binder-hero-name">{active.def.name}</h1>
             <p className="binder-hero-meta">
               {active.def.fixedCapacity != null ? (
@@ -342,6 +331,16 @@ export function BinderPage() {
               type="button"
               className="pill-btn"
               aria-haspopup="dialog"
+              onClick={() => setCardEditorOpen(true)}
+              disabled={!activeTab}
+            >
+              <EditCardsIcon />
+              <span>Edit cards</span>
+            </button>
+            <button
+              type="button"
+              className="pill-btn"
+              aria-haspopup="dialog"
               onClick={() => setEditingBinder(activeTab)}
               disabled={!activeTab}
             >
@@ -360,6 +359,14 @@ export function BinderPage() {
           </div>
         </header>
       )}
+      {active?.def.manualOrder?.length ? (
+        <div className="binder-manual-order-bar">
+          <span className="sort-mode-badge">Manual order active</span>
+          <span className="binder-manual-order-hint">
+            Cards are in your custom order. Open "Edit cards" → Order tab to change.
+          </span>
+        </div>
+      ) : null}
       <div className="binder-toolbar">
         <SearchPill
           value={search}
@@ -404,7 +411,35 @@ export function BinderPage() {
           );
         })()
       )}
+      <Suspense fallback={null}>
+        {cardEditorOpen && active && (
+          <BinderCardEditor
+            binder={active}
+            allCards={cards}
+            onClose={() => setCardEditorOpen(false)}
+          />
+        )}
+      </Suspense>
     </>
+  );
+}
+
+function EditCardsIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2 4h12M2 8h8M2 12h6" />
+      <path d="M12 10l1.5 1.5L16 9" />
+    </svg>
   );
 }
 

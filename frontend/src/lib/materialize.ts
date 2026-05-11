@@ -28,6 +28,7 @@ export const DEFAULT_POCKET_SIZE: PocketSize = 9;
 /**
  * Routes cards through binder definitions in priority order.
  * Each card joins the FIRST binder whose rules match. Unmatched cards land in the uncategorized bucket.
+ * Pinned cards (def.pinnedCopyIds) are claimed before rule routing so they can't appear in other binders.
  */
 export function materializeBinders(
   cards: EnrichedCard[],
@@ -41,11 +42,29 @@ export function materializeBinders(
   // Compile each binder's groups once. Outer index = binder, inner = OR-branches.
   const compiledGroups = orderedDefs.map((d) => compileFilterGroups(d.filterGroups));
 
+  // Pre-claim pinned cards: first binder that pins a copyId wins (by position).
+  const reservedToBinder = new Map<string, string>(); // copyId → binderId
+  for (const def of orderedDefs) {
+    for (const copyId of def.pinnedCopyIds ?? []) {
+      if (!reservedToBinder.has(copyId)) {
+        reservedToBinder.set(copyId, def.id);
+      }
+    }
+  }
+
+  const cardsByCopyId = new Map<string, EnrichedCard>(cards.map((c) => [c.copyId, c]));
+
   const buckets = new Map<string, EnrichedCard[]>();
   orderedDefs.forEach((d) => buckets.set(d.id, []));
   const uncategorized: EnrichedCard[] = [];
 
   for (const card of cards) {
+    // Pinned cards go directly to their binder, bypassing rule routing.
+    const claimedBy = reservedToBinder.get(card.copyId);
+    if (claimedBy) {
+      buckets.get(claimedBy)?.push(card);
+      continue;
+    }
     let matched = false;
     for (let i = 0; i < orderedDefs.length; i++) {
       if (cardMatchesAnyGroup(card, compiledGroups[i])) {
@@ -58,12 +77,15 @@ export function materializeBinders(
   }
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
-    const cardsInBinder = buckets.get(def.id)!;
+    const rawCards = buildBinderCards(def, buckets.get(def.id)!, cardsByCopyId);
     const effectivePocketSize = (def.pocketSize ??
       opts.globalPocketSize ??
       DEFAULT_POCKET_SIZE) as PocketSize;
-    const effectiveSorts = withImplicitTiebreaker(def.sorts);
-    const sections = buildSections(cardsInBinder, effectiveSorts, effectivePocketSize, isMatch);
+    const useManualOrder = !!def.manualOrder?.length;
+    const effectiveSorts = useManualOrder ? [] : withImplicitTiebreaker(def.sorts);
+    const sections = useManualOrder
+      ? buildManualSection(rawCards, effectivePocketSize, isMatch)
+      : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch);
     return {
       def,
       effectivePocketSize,
@@ -94,6 +116,53 @@ export function materializeBinders(
       effectiveSorts: uncategorizedSorts,
     },
   };
+}
+
+/**
+ * Applies per-binder exclusions and manual ordering to the raw bucket of cards.
+ * Returns the card list that should be passed to section-building.
+ */
+function buildBinderCards(
+  def: BinderDef,
+  bucket: EnrichedCard[],
+  _cardsByCopyId: Map<string, EnrichedCard>
+): EnrichedCard[] {
+  const excluded = new Set(def.excludedCopyIds ?? []);
+  const cards = bucket.filter((c) => !excluded.has(c.copyId));
+
+  if (!def.manualOrder?.length) return cards;
+
+  // Manual order: cards appear in the specified order; any cards not in the
+  // list (new rule matches or pins added after the order was set) are appended.
+  const byId = new Map(cards.map((c) => [c.copyId, c]));
+  const seen = new Set<string>();
+  const ordered: EnrichedCard[] = [];
+  for (const id of def.manualOrder) {
+    const card = byId.get(id);
+    if (card) {
+      ordered.push(card);
+      seen.add(id);
+    }
+  }
+  for (const card of cards) {
+    if (!seen.has(card.copyId)) ordered.push(card);
+  }
+  return ordered;
+}
+
+/**
+ * Builds a single flat section for binders with manual ordering.
+ * Skips the primary-sort grouping since the user's drag order is authoritative.
+ */
+function buildManualSection(
+  cards: EnrichedCard[],
+  slotSize: PocketSize,
+  isMatch: (c: EnrichedCard) => boolean
+): BinderSection[] {
+  const pages = chunkIntoPages(cards, slotSize, isMatch, 0);
+  const matchingCards = cards.filter(isMatch);
+  if (!matchingCards.length) return [];
+  return [{ key: ALL_SECTION.key, label: ALL_SECTION.label, cards: matchingCards, pages }];
 }
 
 /**

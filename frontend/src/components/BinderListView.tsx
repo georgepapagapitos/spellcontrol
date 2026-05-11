@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder, SortField } from '../types';
+import { CardRowMenu } from './CardRowMenu';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
@@ -366,18 +367,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                         </div>
                       </div>
                       <div className="collection-list-right">
-                        <button
-                          type="button"
-                          className="card-edit-btn"
-                          title="Edit printing"
-                          aria-label={`Edit printing for ${r.card.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingCard(r.card);
-                          }}
-                        >
-                          <PencilIcon />
-                        </button>
+                        <CardRowMenu card={r.card} onEditCard={() => setEditingCard(r.card)} />
                         {r.qty > 1 && <div className="collection-list-qty">×{r.qty}</div>}
                         <div className="collection-list-price">
                           ${(r.card.purchasePrice * r.qty).toFixed(2)}
@@ -447,23 +437,4 @@ function colorKeyToMs(key: string): string {
     default:
       return 'ms-c';
   }
-}
-
-function PencilIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      <path d="m15 5 4 4" />
-    </svg>
-  );
 }
