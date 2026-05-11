@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
-import { ThemePicker } from './ThemePicker';
+import { SettingsMenu } from './SettingsMenu';
 
 export function MobileTabBar() {
   const cardCount = useCollectionStore((s) => s.cards.length);
@@ -71,7 +71,7 @@ export function MobileTabBar() {
         </span>
         <span className="mobile-tab-bar-label">Decks</span>
       </NavLink>
-      <ThemePicker variant="tab" />
+      <SettingsMenu variant="tab" />
     </nav>
   );
 }
