@@ -29,7 +29,8 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   const password = validatePassword(req.body?.password);
   if (!username) {
     return res.status(400).json({
-      error: 'Username must be 3\u00132 characters and use only lowercase letters, digits, _ and -.',
+      error:
+        'Username must be 3\u00132 characters and use only lowercase letters, digits, _ and -.',
     });
   }
   if (!password) {
@@ -49,17 +50,19 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   }
 
   await new Promise<void>((resolve, reject) => {
-    (registerLimiter as unknown as (req: Request, res: Response, next: (err?: unknown) => void) => void)(
-      req,
-      res,
-      (err?: unknown) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve();
+    (
+      registerLimiter as unknown as (
+        req: Request,
+        res: Response,
+        next: (err?: unknown) => void
+      ) => void
+    )(req, res, (err?: unknown) => {
+      if (err) {
+        reject(err);
+        return;
       }
-    );
+      resolve();
+    });
   });
 
   const id = crypto.randomUUID();
