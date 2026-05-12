@@ -950,6 +950,34 @@ input.toolbar-search-input {
   border: 1.5px solid #fff;
 }
 
+/* Precise partial-allocation badge on grid tiles. Replaces the binary
+   "missing" dot when at least one slot in the row is bound to an owned
+   copy — so the user can see "3 of 4 owned" at a glance instead of a
+   generic warning. Warn tone for unowned, err tone for orphan. */
+.deck-card-grid-alloc {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  min-width: 1.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  border: 1px solid #fff;
+}
+.deck-card-grid-alloc-unowned {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+}
+.deck-card-grid-alloc-orphan {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
 /* ── Text view ────────────────────────────────────────────────────────── */
 .deck-text-view {
   background: var(--surface);
@@ -1135,6 +1163,32 @@ input.toolbar-search-input {
    rows keep the muted default colour; missing rows light up red. */
 .deck-row-qty-missing {
   color: var(--err-text, #d8442a);
+}
+
+/* Inline allocation chip rendered next to the card name on partial
+   rows. Quiet by design — fully-allocated rows render nothing — so
+   the deck list still reads as a list. */
+.deck-row-alloc-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.02rem 0.4rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  vertical-align: baseline;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.deck-row-alloc-chip-unowned {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+}
+.deck-row-alloc-chip-orphan {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
 }
 
 .deck-row-price {

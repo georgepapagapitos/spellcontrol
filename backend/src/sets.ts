@@ -7,6 +7,7 @@ interface ScryfallSet {
   code: string;
   name: string;
   icon_svg_uri: string;
+  released_at?: string;
 }
 
 interface ScryfallSetsResponse {
@@ -18,6 +19,7 @@ export interface SetSummary {
   code: string;
   name: string;
   iconSvgUri: string;
+  releasedAt: string;
 }
 
 export type SetMap = Record<string, SetSummary>;
@@ -58,7 +60,7 @@ async function fetchSetMap(): Promise<SetMap> {
   const map: SetMap = {};
   for (const s of json.data) {
     const code = s.code.toUpperCase();
-    map[code] = { code, name: s.name, iconSvgUri: s.icon_svg_uri };
+    map[code] = { code, name: s.name, iconSvgUri: s.icon_svg_uri, releasedAt: s.released_at ?? '' };
   }
   return map;
 }

@@ -16,7 +16,7 @@ import { BinderListView } from '../components/BinderListView';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { FilterPopover } from '../components/FilterPopover';
-import { importText } from '../lib/api';
+import { importText, useSetMap } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -130,14 +130,16 @@ export function BinderPage() {
 
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+  const setMap = useSetMap();
 
   const materialized = useMemo(() => {
     if (effectiveCards.length === 0) return [];
     return materializeBinders(effectiveCards, binders, {
       search: debouncedSearch,
       allocatedCopyIds,
+      setMap,
     }).binders;
-  }, [effectiveCards, binders, debouncedSearch, allocatedCopyIds]);
+  }, [effectiveCards, binders, debouncedSearch, allocatedCopyIds, setMap]);
 
   if (hydrating) {
     return (
