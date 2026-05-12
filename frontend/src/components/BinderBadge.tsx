@@ -36,7 +36,6 @@ export function BinderBadge({ binderId, binderName, binderColor }: Props) {
         style={{ background: binderColor || 'var(--accent)' }}
         aria-hidden
       />
-      <span className="card-list-binder-badge-name">{binderName}</span>
     </button>
   );
 }

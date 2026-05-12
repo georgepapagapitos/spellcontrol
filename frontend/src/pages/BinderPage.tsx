@@ -20,6 +20,18 @@ import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
 import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 
+type BinderViewMode = 'pages' | 'list' | 'compact';
+
+const BINDER_VIEW_KEY = 'mtg-binder-view-mode';
+
+function readStoredBinderView(): BinderViewMode {
+  try {
+    const v = localStorage.getItem(BINDER_VIEW_KEY);
+    if (v === 'pages' || v === 'list' || v === 'compact') return v;
+  } catch {}
+  return 'pages';
+}
+
 export function BinderPage() {
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
@@ -40,9 +52,13 @@ export function BinderPage() {
   const [loadingSamples, setLoadingSamples] = useState(false);
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
-  // Three-way view: 'pages' (the section/page grid) → 'list' (rows
-  // with thumbnails + meta) → 'compact' (text-only rows). Local state.
-  const [view, setView] = useState<'pages' | 'list' | 'compact'>('pages');
+  const [view, setViewRaw] = useState<BinderViewMode>(readStoredBinderView);
+  const setView = (v: BinderViewMode) => {
+    setViewRaw(v);
+    try {
+      localStorage.setItem(BINDER_VIEW_KEY, v);
+    } catch {}
+  };
   // List-view only: roll multiple copies of the same printing into one
   // row. Lifted to the page so the options menu in the toolbar can
   // toggle it without poking into the list component.
