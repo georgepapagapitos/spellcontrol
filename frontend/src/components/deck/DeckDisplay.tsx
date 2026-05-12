@@ -300,6 +300,12 @@ interface Row {
   slotIds: string[];
   /** Allocation status of this row, summarised across the slots it covers. */
   status: AllocationStatus;
+  /** Number of slots in this row whose allocatedCopyId resolves to a real owned copy. */
+  allocatedQty: number;
+  /** Number of slots in this row with no allocatedCopyId (deck wants it, collection lacks it). */
+  unownedQty: number;
+  /** Number of slots in this row whose allocatedCopyId no longer exists in the collection. */
+  orphanQty: number;
   /**
    * Front-face image to display for this row. Prefers the user's owned
    * printing (via `allocatedCopyId` → collection EnrichedCard) so the
@@ -351,6 +357,9 @@ function buildRows(
       existing.qty += 1;
       existing.price += priceOf(card, currency);
       if (dc.slotId) existing.slotIds.push(dc.slotId);
+      if (status === 'allocated') existing.allocatedQty += 1;
+      else if (status === 'orphan') existing.orphanQty += 1;
+      else existing.unownedQty += 1;
       // Severity: orphan > unowned > allocated. Keep the most-noteworthy.
       if (statusSeverity(status) > statusSeverity(existing.status)) {
         existing.status = status;
@@ -380,6 +389,9 @@ function buildRows(
       colorKey: colorKeyOf(card),
       slotIds: dc.slotId ? [dc.slotId] : [],
       status,
+      allocatedQty: status === 'allocated' ? 1 : 0,
+      unownedQty: status === 'unowned' ? 1 : 0,
+      orphanQty: status === 'orphan' ? 1 : 0,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
       foil: owned?.foil ?? false,
@@ -394,6 +406,61 @@ function buildRows(
 
 function statusSeverity(s: AllocationStatus): number {
   return s === 'orphan' ? 2 : s === 'unowned' ? 1 : 0;
+}
+
+// Plain-language description of how this row's slots map to owned copies.
+// Used as the screen-reader label and hover title for the qty pill, so the
+// allocation truth is conveyed even when no warning glyph is shown.
+function allocationSummary(row: Row): string {
+  const missing = row.unownedQty + row.orphanQty;
+  if (missing === 0) {
+    return row.qty === 1 ? 'From your collection' : `All ${row.qty} copies from your collection`;
+  }
+  if (row.allocatedQty === 0) {
+    return row.orphanQty > 0
+      ? 'The collection copy this slot was assigned to is no longer present'
+      : 'Not in your collection';
+  }
+  const orphanNote = row.orphanQty > 0 ? ` (${row.orphanQty} no longer in collection)` : '';
+  return `${row.allocatedQty} of ${row.qty} from your collection${orphanNote}`;
+}
+
+function allocationAriaLabel(row: Row, opts: { editable: boolean }): string {
+  const base = `${row.qty} in deck`;
+  const detail = allocationSummary(row);
+  const tail = opts.editable ? ' — click to change quantity' : '';
+  return `${base} — ${detail}${tail}`;
+}
+
+function allocationTitle(row: Row, opts: { editable: boolean }): string {
+  const detail = allocationSummary(row);
+  if (!opts.editable) return detail;
+  return `${detail} — click to change quantity`;
+}
+
+// Inline chip rendered next to the card name. Stays out of the way when the
+// row is fully allocated; surfaces a precise "M of N owned" count when only
+// some slots are bound to a real collection copy. Orphans get their own
+// tone so a stale-allocation row is distinguishable from a never-owned one.
+function AllocationChip({ row }: { row: Row }) {
+  const missing = row.unownedQty + row.orphanQty;
+  if (missing === 0) return null;
+  const tone = row.orphanQty > 0 ? 'orphan' : 'unowned';
+  const label =
+    row.allocatedQty === 0
+      ? row.orphanQty > 0
+        ? 'orphan'
+        : 'unowned'
+      : `${row.allocatedQty} of ${row.qty} owned`;
+  return (
+    <span
+      className={`deck-row-alloc-chip deck-row-alloc-chip-${tone}`}
+      title={allocationSummary(row)}
+      aria-label={allocationSummary(row)}
+    >
+      {label}
+    </span>
+  );
 }
 
 const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
@@ -505,6 +572,10 @@ export function DeckDisplay({
     const rows: Row[] = [];
     const push = (c: ScryfallCard, allocatedCopyId?: string | null) => {
       const owned = allocatedCopyId ? collectionByCopyId?.get(allocatedCopyId) : undefined;
+      const status: AllocationStatus = classifyAllocation(
+        allocatedCopyId ?? null,
+        collectionByCopyId
+      );
       rows.push({
         name: c.name,
         qty: 1,
@@ -513,7 +584,10 @@ export function DeckDisplay({
         price: priceOf(c, currency),
         colorKey: colorKeyOf(c),
         slotIds: [],
-        status: 'allocated',
+        status,
+        allocatedQty: status === 'allocated' ? 1 : 0,
+        unownedQty: status === 'unowned' ? 1 : 0,
+        orphanQty: status === 'orphan' ? 1 : 0,
         imageNormal: owned?.imageNormal ?? frontFaceImage(c),
         imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
         foil: owned?.foil ?? false,
@@ -1490,7 +1564,7 @@ function DeckCardGrid({
                     type="button"
                     className="deck-card-grid-tile"
                     onClick={() => onRowClick(row.name)}
-                    aria-label={`${row.name} (${row.qty} in deck)`}
+                    aria-label={`${row.name} (${row.qty} in deck — ${allocationSummary(row)})`}
                   >
                     {row.imageNormal ? (
                       <img
@@ -1504,17 +1578,24 @@ function DeckCardGrid({
                     )}
                     {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
                     {row.foil && <span className="deck-card-grid-foil">foil</span>}
-                    {row.status !== 'allocated' && (
-                      <span
-                        className="deck-card-grid-missing"
-                        title={
-                          row.status === 'orphan'
-                            ? 'The collection copy this slot was assigned to is no longer present'
-                            : 'Not in your collection'
-                        }
-                        aria-label="Missing from collection"
-                      />
-                    )}
+                    {row.status !== 'allocated' &&
+                      (row.allocatedQty > 0 ? (
+                        <span
+                          className={`deck-card-grid-alloc deck-card-grid-alloc-${
+                            row.orphanQty > 0 ? 'orphan' : 'unowned'
+                          }`}
+                          title={allocationSummary(row)}
+                          aria-label={allocationSummary(row)}
+                        >
+                          {row.allocatedQty}/{row.qty}
+                        </span>
+                      ) : (
+                        <span
+                          className="deck-card-grid-missing"
+                          title={allocationSummary(row)}
+                          aria-label={allocationSummary(row)}
+                        />
+                      ))}
                     {(() => {
                       const issue = legalityBySlot?.get(row.slotIds[0]);
                       return issue ? (
@@ -1752,14 +1833,8 @@ function DeckCardRow({
         <button
           type="button"
           className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-          aria-label={`${row.qty} in deck — click to change quantity`}
-          title={
-            row.status === 'orphan'
-              ? 'The collection copy this slot was assigned to is no longer present'
-              : row.status === 'unowned'
-                ? 'Not in your collection — click to change quantity'
-                : 'Click to change quantity'
-          }
+          aria-label={allocationAriaLabel(row, { editable: true })}
+          title={allocationTitle(row, { editable: true })}
           onClick={startEditQty}
         >
           {row.qty}
@@ -1767,13 +1842,8 @@ function DeckCardRow({
       ) : (
         <span
           className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-          title={
-            row.status === 'orphan'
-              ? 'The collection copy this slot was assigned to is no longer present'
-              : row.status === 'unowned'
-                ? 'Not in your collection'
-                : undefined
-          }
+          aria-label={allocationAriaLabel(row, { editable: false })}
+          title={allocationTitle(row, { editable: false })}
         >
           {row.qty}
         </span>
@@ -1803,6 +1873,7 @@ function DeckCardRow({
         {row.name}
         {row.foil && <span className="deck-row-foil">foil</span>}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
+        <AllocationChip row={row} />
       </span>
       {showPrefs.mana &&
         (mana ? (
