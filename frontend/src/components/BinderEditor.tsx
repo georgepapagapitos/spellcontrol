@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
@@ -82,16 +83,16 @@ const BORDER_OPTIONS: { key: BorderColor; label: string }[] = [
   { key: 'silver', label: 'Silver' },
   { key: 'gold', label: 'Gold' },
 ];
-const PRESET_COLORS = [
-  '#7a8a70',
-  '#3878c0',
-  '#7060a0',
-  '#d05030',
-  '#409040',
-  '#c89820',
-  '#909090',
-  '#a08040',
-  '#c878a8',
+const PRESET_COLORS: { hex: string; name: string }[] = [
+  { hex: '#7a8a70', name: 'Sage' },
+  { hex: '#3878c0', name: 'Blue' },
+  { hex: '#7060a0', name: 'Purple' },
+  { hex: '#d05030', name: 'Red' },
+  { hex: '#409040', name: 'Green' },
+  { hex: '#c89820', name: 'Gold' },
+  { hex: '#909090', name: 'Gray' },
+  { hex: '#a08040', name: 'Brown' },
+  { hex: '#c878a8', name: 'Pink' },
 ];
 
 const DEFAULT_EDHREC_TOP_N = 100;
@@ -100,7 +101,7 @@ const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
 function pickRandomPresetColor() {
-  return PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+  return PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)].hex;
 }
 
 export function BinderEditor() {
@@ -118,11 +119,11 @@ export function BinderEditor() {
   const existing = !isNew ? binders.find((b) => b.id === editingBinder) : undefined;
 
   const [name, setName] = useState('');
-  const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [color, setColor] = useState(PRESET_COLORS[0].hex);
   // Pre-compute the random color for the next "new binder" open. Kept in state
   // (not a ref) so it can be safely read during the render-phase reset; updated
   // via a macrotask so Math.random() is never called during render.
-  const [nextRandomColor, setNextRandomColor] = useState(PRESET_COLORS[0]);
+  const [nextRandomColor, setNextRandomColor] = useState(PRESET_COLORS[0].hex);
   const [pocketSize, setPocketSize] = useState<PocketSize>(9);
   const [doubleSided, setDoubleSided] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
@@ -476,27 +477,7 @@ export function BinderEditor() {
             <div className="editor-row">
               <div className="field">
                 <label>Tab color</label>
-                <div className="color-picker">
-                  {PRESET_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      className={`color-swatch ${color === c ? 'selected' : ''}`}
-                      style={{ background: c }}
-                      onClick={() => setColor(c)}
-                      title={c}
-                      aria-label={`Color ${c}`}
-                    />
-                  ))}
-                  <label
-                    className={`color-swatch color-swatch-custom ${
-                      !PRESET_COLORS.includes(color) ? 'selected' : ''
-                    }`}
-                    title="Custom color"
-                    aria-label="Custom color"
-                  >
-                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
-                  </label>
-                </div>
+                <ColorPicker value={color} onChange={setColor} />
               </div>
             </div>
           </section>
@@ -1549,6 +1530,145 @@ function NumberRangeInput({
         style={{ width: 90 }}
       />
     </div>
+  );
+}
+
+function ColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current || !triggerRef.current) return;
+    const panelRect = panelRef.current.getBoundingClientRect();
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    setPos((p) => {
+      if (!p) return p;
+      if (p.top !== undefined && panelRect.bottom > window.innerHeight) {
+        return { left: p.left, bottom: window.innerHeight - triggerRect.top + 6 };
+      }
+      return p;
+    });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node) &&
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node)
+      )
+        setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const handleToggle = () => {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setPos(
+        spaceBelow >= 120
+          ? { top: rect.bottom + 6, left: rect.left }
+          : { bottom: window.innerHeight - rect.top + 6, left: rect.left }
+      );
+    }
+    setOpen((v) => !v);
+  };
+
+  const pick = (c: string) => {
+    onChange(c);
+    setOpen(false);
+  };
+
+  const preset = PRESET_COLORS.find((c) => c.hex === value);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`color-picker-trigger${open ? ' open' : ''}`}
+        onClick={handleToggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Tab color"
+      >
+        <span className="color-picker-swatch" style={{ background: value }} />
+        <span className="color-picker-label">{preset ? preset.name : 'Custom'}</span>
+        <svg
+          viewBox="0 0 24 24"
+          width="12"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="color-picker-panel"
+            style={{
+              position: 'fixed',
+              left: pos.left,
+              top: pos.top,
+              bottom: pos.bottom,
+              zIndex: 1200,
+            }}
+            role="listbox"
+            aria-label="Choose tab color"
+          >
+            <div className="color-picker-grid">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  role="option"
+                  aria-selected={value === c.hex}
+                  className={`color-swatch${value === c.hex ? ' selected' : ''}`}
+                  style={{ background: c.hex }}
+                  onClick={() => pick(c.hex)}
+                  aria-label={c.name}
+                  title={c.name}
+                />
+              ))}
+              <label
+                className={`color-swatch color-swatch-custom${!preset ? ' selected' : ''}`}
+                aria-label="Custom color"
+                title="Custom color"
+              >
+                <input
+                  type="color"
+                  value={value}
+                  onChange={(e) => {
+                    onChange(e.target.value);
+                  }}
+                />
+              </label>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
