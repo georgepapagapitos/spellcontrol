@@ -63,9 +63,22 @@ export function BinderPage() {
       /* ignore */
     }
   };
-  // List-view only: roll multiple copies of the same printing into one
-  // row. Lifted to the page so the options menu in the toolbar can
-  // toggle it without poking into the list component.
+  const [showImages, setShowImagesRaw] = useState(() => {
+    try {
+      return localStorage.getItem('mtg-binder-show-images') === 'true';
+    } catch {
+      /* ignore */
+    }
+    return false;
+  });
+  const setShowImages = (v: boolean) => {
+    setShowImagesRaw(v);
+    try {
+      localStorage.setItem('mtg-binder-show-images', String(v));
+    } catch {
+      /* ignore */
+    }
+  };
   const [groupPrintings, setGroupPrintings] = useState(false);
 
   const hasSampleBinders = useMemo(() => binders.some((b) => b.isSample), [binders]);
@@ -409,6 +422,17 @@ export function BinderPage() {
             <FilterPopover
               ariaLabel="Binder options"
               toggles={[
+                ...(view === 'pages'
+                  ? [
+                      {
+                        key: 'show-images',
+                        label: 'Show card images',
+                        hint: 'Display card art thumbnails instead of text names in page slots',
+                        value: showImages,
+                        onChange: setShowImages,
+                      },
+                    ]
+                  : []),
                 {
                   key: 'group-printings',
                   label: 'Group printings',
@@ -425,7 +449,12 @@ export function BinderPage() {
         />
       </div>
       {view === 'pages' ? (
-        <BinderView binders={materialized} viewToggle={viewToggle} qtyByCopyId={qtyByCopyId} />
+        <BinderView
+          binders={materialized}
+          viewToggle={viewToggle}
+          qtyByCopyId={qtyByCopyId}
+          showImages={showImages}
+        />
       ) : (
         (() => {
           const active = materialized.find((b) => b.def.id === activeTab) ?? materialized[0];
