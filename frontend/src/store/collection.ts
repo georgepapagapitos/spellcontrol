@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
+import { useDecksStore } from './decks';
 import {
   saveCollection,
   loadCollection,
@@ -160,6 +161,13 @@ function mergeCards(existing: EnrichedCard[], incoming: EnrichedCard[]): Enriche
   return [...existing, ...incoming];
 }
 
+function remapDeckAllocations(newCards: EnrichedCard[]): void {
+  const { decks, remapAllocations } = useDecksStore.getState();
+  if (decks.length > 0) {
+    remapAllocations(newCards);
+  }
+}
+
 export const useCollectionStore = create<CollectionState>()(
   persist(
     (set, get) => ({
@@ -275,6 +283,10 @@ export const useCollectionStore = create<CollectionState>()(
 
         set(stateUpdate);
 
+        if (collectionMode === 'replace' && existing.length > 0) {
+          remapDeckAllocations(newCards);
+        }
+
         try {
           await saveCollection({
             cards: newCards,
@@ -314,6 +326,9 @@ export const useCollectionStore = create<CollectionState>()(
               }
             : {}),
         });
+        if (remainingCards.length < s.cards.length) {
+          remapDeckAllocations(remainingCards);
+        }
         try {
           if (remainingCards.length === 0 && remainingHistory.length === 0) {
             await clearCollection();
@@ -354,7 +369,12 @@ export const useCollectionStore = create<CollectionState>()(
 
       replaceAllCards: async (cards) => {
         const s = get();
+        const newCopyIds = new Set(cards.map((c) => c.copyId));
+        const lostCopy = s.cards.some((c) => !newCopyIds.has(c.copyId));
         set({ cards });
+        if (lostCopy) {
+          remapDeckAllocations(cards);
+        }
         try {
           await saveCollection({
             cards,
@@ -461,6 +481,7 @@ export const useCollectionStore = create<CollectionState>()(
           importHistory: [],
           error: null,
         });
+        remapDeckAllocations([]);
         try {
           await clearCollection();
         } catch (err) {
@@ -505,6 +526,8 @@ export const useCollectionStore = create<CollectionState>()(
           activeTab: backup.binders[0]?.id ?? 'uncategorized',
           error: null,
         });
+
+        remapDeckAllocations(collection?.cards ?? []);
 
         if (collection) {
           try {
