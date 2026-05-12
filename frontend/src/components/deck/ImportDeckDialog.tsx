@@ -13,6 +13,7 @@ import type { DeckImportResponse } from '../../types';
 
 interface Props {
   onClose: () => void;
+  /** Initial format selection. The user can change it from inside the dialog. */
   format?: DeckFormat;
 }
 
@@ -48,13 +49,14 @@ function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
   });
 }
 
-export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
-  const formatConfig = DECK_FORMAT_CONFIGS[format];
+export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' }: Props) {
   const navigate = useNavigate();
   const decks = useDecksStore((s) => s.decks);
   const createDeck = useDecksStore((s) => s.createDeck);
   const collectionCards = useCollectionStore((s) => s.cards);
 
+  const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(initialFormat);
+  const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const [step, setStep] = useState<Step>('input');
   const [pasteText, setPasteText] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +100,7 @@ export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
       );
 
       const id = createDeck({
-        format,
+        format: selectedFormat,
         source: 'manual',
         commander,
         commanderAllocatedCopyId: commanderPick?.copyId ?? null,
@@ -108,7 +110,7 @@ export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
       onClose();
       navigate(`/decks/${id}`);
     },
-    [allocateCards, collectionCards, decks, createDeck, navigate, onClose, format]
+    [allocateCards, collectionCards, decks, createDeck, navigate, onClose, selectedFormat]
   );
 
   const finalizeWithoutCommander = useCallback(
@@ -118,7 +120,7 @@ export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
       const sideboardCards = allocateCards(sideboard);
 
       const id = createDeck({
-        format,
+        format: selectedFormat,
         source: 'manual',
         commander: null,
         cards,
@@ -128,7 +130,7 @@ export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
       onClose();
       navigate(`/decks/${id}`);
     },
-    [allocateCards, createDeck, navigate, onClose, format]
+    [allocateCards, createDeck, navigate, onClose, selectedFormat]
   );
 
   const handleImportResult = useCallback(
@@ -233,10 +235,34 @@ export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
 
         {step === 'input' && (
           <>
+            <div className="import-deck-format">
+              <span className="import-deck-format-label">Format</span>
+              <div className="format-pill-row" role="radiogroup" aria-label="Deck format">
+                {(Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[]).map((fmt) => {
+                  const cfg = DECK_FORMAT_CONFIGS[fmt];
+                  const active = selectedFormat === fmt;
+                  return (
+                    <button
+                      key={fmt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`format-pill${active ? ' active' : ''}`}
+                      onClick={() => setSelectedFormat(fmt)}
+                      disabled={isLoading}
+                    >
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <p className="import-deck-hint">
               Paste a deck list below or upload an export file. Supports MTGA, ManaBox, Moxfield,
-              Archidekt, and plain text formats. If the list includes a "Commander" section header,
-              it will be detected automatically.
+              Archidekt, and plain text formats.
+              {formatConfig.hasCommander
+                ? ' If the list includes a "Commander" section header, it will be detected automatically.'
+                : ''}
             </p>
             <textarea
               className="paste-textarea import-textarea"

@@ -15,10 +15,12 @@ const BASIC_LAND_NAMES = new Set([
   'Snow-Covered Forest',
 ]);
 
+export type LegalityIssueKind = 'not-legal' | 'over-copy-limit' | 'color-identity';
+
 export interface LegalityIssue {
   slotId: string;
   cardName: string;
-  issue: 'not-legal' | 'over-copy-limit';
+  issue: LegalityIssueKind;
   detail: string;
 }
 
@@ -36,10 +38,38 @@ export function getMaxCopies(card: ScryfallCard, isSingleton: boolean): number {
   return isSingleton ? 1 : 4;
 }
 
+/**
+ * Returns true if the card's color identity fits inside the allowed set.
+ * Allowed is the commander(s)' combined color identity. Colorless cards
+ * (empty color_identity) fit any commander.
+ */
+export function fitsColorIdentity(card: ScryfallCard, allowed: Set<string>): boolean {
+  const ci = card.color_identity ?? [];
+  for (const c of ci) {
+    if (!allowed.has(c)) return false;
+  }
+  return true;
+}
+
+/** Commander color identity from the commander(s). Empty for non-commander formats. */
+export function deckColorIdentity(
+  commander: ScryfallCard | null,
+  partnerCommander: ScryfallCard | null
+): Set<string> {
+  const out = new Set<string>();
+  for (const c of commander?.color_identity ?? []) out.add(c);
+  for (const c of partnerCommander?.color_identity ?? []) out.add(c);
+  return out;
+}
+
 export function validateDeck(
   cards: DeckCard[],
   sideboard: DeckCard[],
-  config: DeckFormatConfig
+  config: DeckFormatConfig,
+  options: {
+    commander?: ScryfallCard | null;
+    partnerCommander?: ScryfallCard | null;
+  } = {}
 ): LegalityIssue[] {
   const issues: LegalityIssue[] = [];
 
@@ -48,7 +78,7 @@ export function validateDeck(
     ...sideboard.map((c) => ({ ...c, zone: 'side' as const })),
   ];
 
-  // Check legality
+  // Legality against Scryfall's per-format key.
   for (const entry of allCards) {
     if (!isCardLegal(entry.card, config.legalityKey)) {
       issues.push({
@@ -60,7 +90,24 @@ export function validateDeck(
     }
   }
 
-  // Check copy limits (count across main + side combined)
+  // Commander color identity. Only enforced for commander-bearing formats
+  // when at least one commander is set — otherwise we have no allowed set.
+  if (config.hasCommander && (options.commander || options.partnerCommander)) {
+    const allowed = deckColorIdentity(options.commander ?? null, options.partnerCommander ?? null);
+    const allowedLabel = allowed.size === 0 ? 'colorless' : [...allowed].sort().join('/');
+    for (const entry of allCards) {
+      if (!fitsColorIdentity(entry.card, allowed)) {
+        issues.push({
+          slotId: entry.slotId,
+          cardName: entry.card.name,
+          issue: 'color-identity',
+          detail: `Outside commander color identity (${allowedLabel})`,
+        });
+      }
+    }
+  }
+
+  // Copy limits (counted across main + side combined).
   const nameCounts = new Map<string, { count: number; slotIds: string[] }>();
   for (const entry of allCards) {
     const name = entry.card.name;
