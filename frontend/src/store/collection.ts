@@ -683,10 +683,11 @@ export const useCollectionStore = create<CollectionState>()(
 
       deleteBinder: (id) => {
         set((s) => {
+          const now = Date.now();
           const remaining = s.binders
             .filter((b) => b.id !== id)
             .sort((a, b) => a.position - b.position)
-            .map((b, i) => ({ ...b, position: i }));
+            .map((b, i) => (b.position === i ? b : { ...b, position: i, updatedAt: now }));
           const newActive = s.activeTab === id ? remaining[0]?.id || 'uncategorized' : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
@@ -704,7 +705,10 @@ export const useCollectionStore = create<CollectionState>()(
           const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
           if (targetIdx < 0 || targetIdx >= sorted.length) return s;
           [sorted[idx], sorted[targetIdx]] = [sorted[targetIdx], sorted[idx]];
-          const renumbered = sorted.map((b, i) => ({ ...b, position: i }));
+          const now = Date.now();
+          const renumbered = sorted.map((b, i) =>
+            b.position === i ? b : { ...b, position: i, updatedAt: now }
+          );
           return { binders: renumbered };
         });
       },
