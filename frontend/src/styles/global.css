@@ -1162,6 +1162,13 @@ input[type='search'] {
   flex: 1 1 240px;
 }
 
+.collection-hero-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-self: flex-end;
+}
+
 .collection-hero-action {
   align-self: flex-end;
 }
@@ -1180,13 +1187,16 @@ input[type='search'] {
     align-items: stretch;
   }
 
+  .collection-hero-actions,
   .collection-hero-action,
   .decks-index-actions,
   .binder-hero-actions {
     width: 100%;
   }
 
+  .collection-hero-actions > .pill-btn,
   .collection-hero-action {
+    flex: 1 1 0;
     justify-content: center;
   }
 
@@ -7121,4 +7131,36 @@ hr {
   display: flex;
   align-items: center;
   gap: 0.2rem;
+}
+
+/* ── Add card sheet ──────────────────────────────────────────────── */
+
+.add-card-sheet .card-picker-header {
+  gap: 0.35rem;
+}
+
+.add-card-sheet-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  margin: 0;
+}
+
+.add-card-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.5rem 0.75rem;
+}
+
+.add-card-sheet-body .card-search-results {
+  max-height: none;
+}
+
+.add-card-sheet-error {
+  color: var(--err-text);
+}
+
+.add-card-sheet-added {
+  color: var(--accent);
+  font-weight: 600;
 }
