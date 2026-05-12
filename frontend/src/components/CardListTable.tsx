@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
 import { BinderBadge } from './BinderBadge';
@@ -140,6 +141,64 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Global hotkeys while the table is mounted. We ignore key events when the
+  // user is typing into an input/textarea/contenteditable so the shortcuts
+  // don't fight with normal text entry.
+  useEffect(() => {
+    function isTypingTarget(t: EventTarget | null): boolean {
+      if (!(t instanceof HTMLElement)) return false;
+      const tag = t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (t.isContentEditable) return true;
+      return false;
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // `/` focuses search even from inside another input would be too
+      // surprising; require focus to be outside a typing target.
+      const typing = isTypingTarget(e.target);
+      if (e.key === '?' && !typing) {
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
+        return;
+      }
+      if (e.key === 'Escape' && shortcutsOpen) {
+        // Modal handles its own Escape, but keep state in sync if it slips.
+        return;
+      }
+      if (typing) return;
+      if (e.key === '/') {
+        const el = document.getElementById('collection-search');
+        if (el instanceof HTMLInputElement) {
+          e.preventDefault();
+          el.focus();
+          el.select();
+        }
+        return;
+      }
+      if (e.key === 'g') {
+        e.preventDefault();
+        setView('grid');
+        return;
+      }
+      if (e.key === 'l') {
+        e.preventDefault();
+        setView('list');
+        return;
+      }
+      if (e.key === 'c') {
+        e.preventDefault();
+        setView('compact');
+        return;
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // setView is a stable closure that only writes localStorage + state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shortcutsOpen]);
 
   const cardToBinder = useMemo(() => {
     // Per-copy assignment — pinned and rule-matched cards are routed by
@@ -420,6 +479,7 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
           onChange={setSearch}
           placeholder="Search by name or type..."
           ariaLabel="Search cards"
+          inputId="collection-search"
           trailing={
             <FilterPopover
               ariaLabel="Collection options"
@@ -663,6 +723,30 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
           pageSize={pageSize}
           onChange={setPage}
           onPageSizeChange={setPageSize}
+        />
+      )}
+
+      {shortcutsOpen && (
+        <KeyboardShortcutsOverlay
+          onClose={() => setShortcutsOpen(false)}
+          groups={[
+            {
+              title: 'Navigation',
+              shortcuts: [
+                { keys: ['/'], description: 'Focus search' },
+                { keys: ['?'], description: 'Show keyboard shortcuts' },
+                { keys: ['Esc'], description: 'Close dialogs and overlays' },
+              ],
+            },
+            {
+              title: 'View',
+              shortcuts: [
+                { keys: ['g'], description: 'Switch to grid view' },
+                { keys: ['l'], description: 'Switch to list view' },
+                { keys: ['c'], description: 'Switch to compact list' },
+              ],
+            },
+          ]}
         />
       )}
 
