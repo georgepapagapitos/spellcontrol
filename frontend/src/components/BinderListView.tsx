@@ -72,8 +72,16 @@ export function BinderListView({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
 
-  /** All deck allocations covering the copies that match (scryfallId, foil). */
+  /**
+   * Deck allocations for a row. Ungrouped rows stand for exactly one
+   * physical copy, so we look up that single copyId. Grouped rows stand in
+   * for every copy of (scryfallId, foil), so we aggregate.
+   */
   const allocationsFor = (card: EnrichedCard): AllocationInfo[] => {
+    if (!isGrouped) {
+      const a = allocations.get(card.copyId);
+      return a ? [a] : [];
+    }
     const out: AllocationInfo[] = [];
     for (const c of allCards) {
       if (c.scryfallId !== card.scryfallId || c.foil !== card.foil) continue;
