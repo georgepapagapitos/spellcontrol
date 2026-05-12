@@ -1,6 +1,6 @@
 import {
   Archetype,
-  type DeckFormat,
+  type DeckSize,
   type ThemeResult,
   type EDHRECCommanderStats,
   type EDHRECCommanderData,
@@ -256,7 +256,7 @@ export function inferArchetype(selectedThemes?: ThemeResult[]): Archetype {
 
 // ─── Base Targets (format-only, backward compat) ────────────────────
 
-export function getBaseRoleTargets(format: DeckFormat): Record<RoleKey, number> {
+export function getBaseRoleTargets(format: DeckSize): Record<RoleKey, number> {
   if (format >= 99) return { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 };
   if (format >= 60) return { ramp: 4, removal: 5, boardwipe: 2, cardDraw: 4 };
   if (format >= 40) return { ramp: 2, removal: 3, boardwipe: 1, cardDraw: 2 };
@@ -274,7 +274,7 @@ export function getBaseRoleTargets(format: DeckFormat): Record<RoleKey, number> 
 const ROLE_KEYS: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
 
 export function getDynamicRoleTargets(
-  format: DeckFormat,
+  format: DeckSize,
   selectedThemes?: ThemeResult[],
   edhrecStats?: EDHRECCommanderStats,
   edhrecData?: EDHRECCommanderData | null,

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { ScryfallCard, ThemeResult } from '@/deck-builder/types';
+import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 
 /**
@@ -30,6 +30,7 @@ export interface DeckCard {
 export interface Deck {
   id: string;
   name: string;
+  format: DeckFormat;
   source: DeckSource;
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null;
@@ -37,6 +38,7 @@ export interface Deck {
   commanderAllocatedCopyId: string | null;
   partnerCommanderAllocatedCopyId: string | null;
   cards: DeckCard[];
+  sideboard: DeckCard[];
   /** For generated decks: snapshot enough context to regenerate. Null otherwise. */
   generationContext: {
     selectedThemes: ThemeResult[];
@@ -68,10 +70,12 @@ interface DecksState {
 
   createDeck(input: {
     name?: string;
+    format?: DeckFormat;
     source: DeckSource;
     commander: ScryfallCard | null;
     partnerCommander?: ScryfallCard | null;
     cards?: DeckCard[];
+    sideboard?: DeckCard[];
     commanderAllocatedCopyId?: string | null;
     partnerCommanderAllocatedCopyId?: string | null;
     generationContext?: Deck['generationContext'];
@@ -93,6 +97,10 @@ interface DecksState {
   addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
+
+  addSideboardCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
+  removeSideboardCard(deckId: string, slotId: string): void;
+  moveBetweenZones(deckId: string, slotId: string, from: 'main' | 'side'): void;
 
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
@@ -127,12 +135,14 @@ export const useDecksStore = create<DecksState>()(
         const deck: Deck = {
           id,
           name: input.name ?? defaultDeckName(input.commander),
+          format: input.format ?? 'commander',
           source: input.source,
           commander: input.commander,
           partnerCommander: input.partnerCommander ?? null,
           commanderAllocatedCopyId: input.commanderAllocatedCopyId ?? null,
           partnerCommanderAllocatedCopyId: input.partnerCommanderAllocatedCopyId ?? null,
           cards: input.cards ?? [],
+          sideboard: input.sideboard ?? [],
           generationContext: input.generationContext ?? null,
           roleCounts: input.roleCounts,
           rampSubtypeCounts: input.rampSubtypeCounts,
@@ -170,11 +180,14 @@ export const useDecksStore = create<DecksState>()(
           ...original,
           id: newDeckId,
           name: `${original.name} (copy)`,
-          // Reset commander allocations — duplicated deck does not claim
-          // the same physical copies the original is using.
           commanderAllocatedCopyId: null,
           partnerCommanderAllocatedCopyId: null,
           cards: original.cards.map((c) => ({
+            slotId: newId('slot'),
+            card: c.card,
+            allocatedCopyId: null,
+          })),
+          sideboard: original.sideboard.map((c) => ({
             slotId: newId('slot'),
             card: c.card,
             allocatedCopyId: null,
@@ -220,6 +233,54 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
+      addSideboardCard: (deckId, card, allocatedCopyId = null) => {
+        const slotId = newId('slot');
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  sideboard: [...d.sideboard, { slotId, card, allocatedCopyId }],
+                })
+              : d
+          ),
+        }));
+        return slotId;
+      },
+
+      removeSideboardCard: (deckId, slotId) =>
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({ ...d, sideboard: d.sideboard.filter((c) => c.slotId !== slotId) })
+              : d
+          ),
+        })),
+
+      moveBetweenZones: (deckId, slotId, from) =>
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            if (from === 'main') {
+              const card = d.cards.find((c) => c.slotId === slotId);
+              if (!card) return d;
+              return touch({
+                ...d,
+                cards: d.cards.filter((c) => c.slotId !== slotId),
+                sideboard: [...d.sideboard, card],
+              });
+            } else {
+              const card = d.sideboard.find((c) => c.slotId === slotId);
+              if (!card) return d;
+              return touch({
+                ...d,
+                sideboard: d.sideboard.filter((c) => c.slotId !== slotId),
+                cards: [...d.cards, card],
+              });
+            }
+          }),
+        })),
+
       setCommander: (deckId, card, allocated = null) =>
         set((s) => ({
           decks: s.decks.map((d) =>
@@ -263,7 +324,7 @@ export const useDecksStore = create<DecksState>()(
     }),
     {
       name: 'mtg-decks',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
@@ -306,6 +367,13 @@ export const useDecksStore = create<DecksState>()(
                 : [],
             };
           });
+        }
+        if (fromVersion < 3 && Array.isArray(state.decks)) {
+          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => ({
+            ...d,
+            format: d.format ?? 'commander',
+            sideboard: d.sideboard ?? [],
+          }));
         }
         return state as never;
       },

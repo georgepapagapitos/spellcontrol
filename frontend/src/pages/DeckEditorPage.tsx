@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useToastsStore } from '../store/toasts';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,9 @@ export function DeckEditorPage() {
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
   const addCard = useDecksStore((s) => s.addCard);
   const removeCard = useDecksStore((s) => s.removeCard);
+  const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
+  const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
+  const moveBetweenZones = useDecksStore((s) => s.moveBetweenZones);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const collectionCards = useCollectionStore((s) => s.cards);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
@@ -36,15 +40,19 @@ export function DeckEditorPage() {
   // Hoisted so the mobile action sheet can open Export without rendering
   // a duplicate button. Passed to DeckDisplay as a controlled prop pair.
   const [exportOpen, setExportOpen] = useState(false);
+  const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
   // multiple times.
+  const formatConfig = deck ? DECK_FORMAT_CONFIGS[deck.format] : null;
+
   const existingCardCounts = useMemo(() => {
     const m = new Map<string, number>();
     if (!deck) return m;
     for (const c of deck.cards) m.set(c.card.name, (m.get(c.card.name) ?? 0) + 1);
+    for (const c of deck.sideboard) m.set(c.card.name, (m.get(c.card.name) ?? 0) + 1);
     return m;
   }, [deck]);
 
@@ -119,6 +127,26 @@ export function DeckEditorPage() {
     });
   };
 
+  const handleRemoveSideboardCard = (slotId: string) => {
+    const slot = deck.sideboard.find((c) => c.slotId === slotId);
+    if (!slot) return;
+    removeSideboardCard(deck.id, slotId);
+    pushToast({
+      message: `Removed ${slot.card.name} from sideboard`,
+      tone: 'info',
+      actionLabel: 'Undo',
+      onAction: () => addSideboardCard(deck.id, slot.card, slot.allocatedCopyId),
+    });
+  };
+
+  const handleMoveToSideboard = (slotId: string) => {
+    moveBetweenZones(deck.id, slotId, 'main');
+  };
+
+  const handleMoveToMainboard = (slotId: string) => {
+    moveBetweenZones(deck.id, slotId, 'side');
+  };
+
   // Click-to-edit qty handler: diffs the desired count against the live
   // count and adds or removes slots in bulk. Bulk removes show ONE toast
   // for the whole batch with an Undo that restores every original
@@ -184,6 +212,12 @@ export function DeckEditorPage() {
     allocatedCopyId: c.allocatedCopyId,
   }));
 
+  const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
+    slotId: c.slotId,
+    card: c.card,
+    allocatedCopyId: c.allocatedCopyId,
+  }));
+
   return (
     <div className="deck-editor-page">
       <header className="deck-editor-header">
@@ -211,7 +245,15 @@ export function DeckEditorPage() {
               {deck.name}
             </button>
           )}
-          {deck.commander && <p className="binder-hero-meta">{deck.commander.name}</p>}
+          <p className="binder-hero-meta">
+            {formatConfig && <span className="deck-format-badge">{formatConfig.label}</span>}
+            {deck.commander && (
+              <>
+                {formatConfig ? ' · ' : ''}
+                {deck.commander.name}
+              </>
+            )}
+          </p>
         </div>
         <div className="deck-editor-actions">
           <button
@@ -256,12 +298,17 @@ export function DeckEditorPage() {
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}
+            format={deck.format}
             commander={deck.commander}
             partnerCommander={deck.partnerCommander}
             commanderAllocatedCopyId={deck.commanderAllocatedCopyId}
             partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
             cards={displayCards}
+            sideboard={displaySideboard}
             onRemoveCard={handleRemoveCard}
+            onRemoveSideboardCard={handleRemoveSideboardCard}
+            onMoveToSideboard={handleMoveToSideboard}
+            onMoveToMainboard={handleMoveToMainboard}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
             collectionByCopyId={collectionById}
@@ -277,15 +324,37 @@ export function DeckEditorPage() {
           />
         </main>
 
-        {showAddPanel && deck.commander && (
+        {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
           <aside className="deck-editor-aside">
+            {formatConfig && formatConfig.sideboardSize > 0 && (
+              <div className="deck-editor-zone-toggle">
+                <button
+                  type="button"
+                  className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}
+                  onClick={() => setAddZone('main')}
+                >
+                  Mainboard
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}
+                  onClick={() => setAddZone('side')}
+                >
+                  Sideboard
+                </button>
+              </div>
+            )}
             <CardSearchPanel
               ref={searchPanelRef}
               deckId={deck.id}
               commanderColorIdentity={commanderColorIdentity}
               existingCardCounts={existingCardCounts}
               onAdd={({ card, allocatedCopyId }) => {
-                addCard(deck.id, card, allocatedCopyId);
+                if (addZone === 'side') {
+                  addSideboardCard(deck.id, card, allocatedCopyId);
+                } else {
+                  addCard(deck.id, card, allocatedCopyId);
+                }
               }}
               onClose={() => setShowAddPanel(false)}
             />
