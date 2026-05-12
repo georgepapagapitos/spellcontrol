@@ -1,6 +1,6 @@
 # MTG Binder Planner
 
-Plan your physical Magic: The Gathering binders. Import a collection export from any popular tool, define binders with custom rules, generate EDHREC-powered Commander decks, and sync everything across devices with an optional account.
+Plan your physical Magic: The Gathering binders. Import a collection export from any popular tool, define binders with custom rules, generate EDHREC-powered Commander decks, and sync everything across devices.
 
 ## What you can do
 
@@ -10,13 +10,13 @@ Plan your physical Magic: The Gathering binders. Import a collection export from
 - **Build decks** with a commander / companion / sideboard structure, search Scryfall for cards, customize sleeves and themes, and see which deck copies are pulled from your collection.
 - **Generate decks** from EDHREC data — pick a commander, choose themes, set a bracket level, and get a full 100-card deck with mana curve balancing and role targeting.
 - **Browse your collection** in a sortable, filterable table with breakdowns by color, type, rarity, and price.
-- **Sign in and sync** — create an account to sync your collection, binders, and decks to the server. Changes push automatically and pull on login.
+- **Sign in and sync** — create an account to store your collection, binders, and decks on the server. Changes push automatically and pull on login.
 - **Skin the app** with a guild theme — accents, surfaces, and warning / error colors all re-tint per theme.
 
 ## How it works
 
 1. **Import** — drop a CSV / TSV / text file or paste a list. The backend resolves every row against a cached Scryfall mirror and returns enriched cards.
-2. **Sign in (optional)** — create an account to sync your collection, binders, and decks to the server. Changes push automatically and pull on login.
+2. **Sign in** — create an account or log in. All state is tied to your account and syncs across devices.
 3. **Define binders** — each binder has one or more match groups. A card joins the first binder (in tab order) that matches.
 4. **Watch the Uncategorized bucket shrink** — anything that does not match any binder lives there until you write a rule for it.
 5. **Allocate decks** — cards reserved by a deck are tagged on the binder side, so you can tell at a glance which slots are spoken for.
