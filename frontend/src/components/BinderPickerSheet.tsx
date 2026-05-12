@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useEscapeKey } from '../lib/use-escape-key';
 import type { MaterializedBinder } from '../types';
 
 interface Props {
@@ -21,15 +21,7 @@ export function BinderPickerSheet({ binders }: Props) {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
 
   useLockBodyScroll(open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, setOpen]);
+  useEscapeKey(() => setOpen(false), open);
 
   if (!open) return null;
 

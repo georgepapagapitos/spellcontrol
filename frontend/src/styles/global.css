@@ -64,6 +64,18 @@
   /* ── Layout ───────────────────────────────────────────────────────────── */
   --page-max: 1400px;
 
+  /* ── Z-index scale ───────────────────────────────────────────────────── */
+  --z-dropdown: 50;
+  --z-popover: 60;
+  --z-sheet-bg: 70;
+  --z-sheet-fg: 71;
+  --z-menu: 80;
+  --z-panel: 100;
+  --z-suggest: 200;
+  --z-modal: 1000;
+  --z-overlay: 1100;
+  --z-tooltip: 9999;
+
   /* ── Magic colors (MTG-canonical, do not retheme) ─────────────────────── */
   --rarity-mythic-from: #ffd090;
   --rarity-mythic-to: #e88020;
@@ -268,7 +280,7 @@ select {
   top: auto;
   bottom: calc(100% + 0.4rem);
   right: 0.5rem;
-  z-index: 80;
+  z-index: var(--z-menu);
   max-height: 60dvh;
   overflow-y: auto;
 }
@@ -286,7 +298,7 @@ select {
   position: absolute;
   top: calc(100% + 0.4rem);
   right: 0;
-  z-index: 100;
+  z-index: var(--z-panel);
   list-style: none;
   margin: 0;
   padding: 0.35rem;
@@ -426,7 +438,7 @@ select {
 .import-sheet-root {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: var(--z-sheet-bg);
 }
 
 .import-sheet-backdrop {
@@ -1568,7 +1580,7 @@ input[type='search'] {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  z-index: 60;
+  z-index: var(--z-popover);
   min-width: 16rem;
   max-width: min(20rem, calc(100vw - 2rem));
   background: var(--surface);
@@ -2351,7 +2363,7 @@ input[type='text'] {
   padding: 8px 12px;
   font-size: var(--text-sm);
   pointer-events: none;
-  z-index: 9999;
+  z-index: var(--z-tooltip);
   /* Clamp to image width + padding so the popup is anchored to the
      card art. Long titles wrap onto multiple lines instead of stretching
      the popup wider than its hero image. */
@@ -2460,7 +2472,7 @@ input[type='text'] {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2828,7 +2840,7 @@ hr {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   min-width: 11rem;
   background: var(--surface);
   border: 0.5px solid var(--border2);
@@ -2850,7 +2862,7 @@ hr {
     position: fixed;
     inset: 0;
     background: var(--overlay-sheet);
-    z-index: 70;
+    z-index: var(--z-sheet-bg);
     animation: binder-sheet-fade 160ms ease-out;
   }
 
@@ -2860,7 +2872,7 @@ hr {
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 71;
+    z-index: var(--z-sheet-fg);
     min-width: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border: none;
@@ -2926,7 +2938,7 @@ hr {
     position: fixed;
     inset: 0;
     background: var(--overlay-sheet);
-    z-index: 70;
+    z-index: var(--z-sheet-bg);
     animation: binder-sheet-fade 160ms ease-out;
   }
 
@@ -2935,7 +2947,7 @@ hr {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 71;
+    z-index: var(--z-sheet-fg);
     background: var(--surface);
     border-top: 0.5px solid var(--border2);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -3178,7 +3190,7 @@ hr {
   position: fixed;
   inset: 0;
   background: var(--overlay);
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -4277,7 +4289,7 @@ hr {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 200;
+  z-index: var(--z-suggest);
   min-width: min(200px, calc(100vw - 2rem));
   max-width: min(280px, calc(100vw - 2rem));
   background: var(--surface-raised, var(--surface));
@@ -4319,7 +4331,7 @@ hr {
   background: var(--surface);
   border: 0.5px solid var(--border2);
   border-radius: var(--radius);
-  z-index: 50;
+  z-index: var(--z-dropdown);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   min-width: min(240px, calc(100vw - 2rem));
 }
@@ -4408,7 +4420,7 @@ hr {
 
 /* ── Card preview (hero carousel + sticky info panel) ──────────────────── */
 .card-preview-backdrop {
-  /* The card image is the hero of this view. Three constraints fight
+  /* The card image is the hero of this view. Three constraints compete
      for the slide width: (a) viewport width — fill nicely on phones,
      (b) absolute reading ceiling so tablets/desktop don't blow it up
      to a billboard, (c) viewport height — must not overflow the track
@@ -4420,7 +4432,7 @@ hr {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.72);
-  z-index: 1100;
+  z-index: var(--z-overlay);
   animation: fade-in 0.15s ease-out;
 }
 
@@ -5173,7 +5185,7 @@ hr {
 
 /* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
 .binder-pages-backdrop {
-  /* Same sizing strategy as .card-preview-backdrop, but the height bound
+  /* Same sizing strategy as .card-preview-backdrop but the height bound
      scales by the actual page aspect (--page-w-ratio = cols×5 / rows×7).
      A 9-pocket / 4-pocket page is 5:7 like a card (ratio ≈ 0.714); a
      12-pocket page is 20:21 (ratio ≈ 0.952), so the same vertical room
@@ -5183,7 +5195,7 @@ hr {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.72);
-  z-index: 1100;
+  z-index: var(--z-overlay);
   animation: fade-in 0.15s ease-out;
 }
 
@@ -6650,7 +6662,7 @@ hr {
   position: absolute;
   top: calc(100% + 0.4rem);
   right: 0;
-  z-index: 100;
+  z-index: var(--z-panel);
   width: 260px;
   background: var(--surface);
   border: 0.5px solid var(--border2);
@@ -6995,7 +7007,7 @@ hr {
 .card-picker-root {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  z-index: var(--z-overlay);
 }
 
 .card-picker-backdrop {

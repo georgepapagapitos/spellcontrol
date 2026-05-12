@@ -41,7 +41,7 @@ function basicLandColorByName(name: string): string | null {
   return null;
 }
 
-export interface ColorInfo {
+interface ColorInfo {
   label: string;
   pip: string;
   border: string;
