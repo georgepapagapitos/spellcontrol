@@ -82,7 +82,13 @@ async function applySnapshot(snap: SyncSnapshot): Promise<void> {
   try {
     currentVersion = snap.version;
     const binders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
-    const decks = Array.isArray(snap.decks) ? (snap.decks as Deck[]) : [];
+    const decks = Array.isArray(snap.decks)
+      ? (snap.decks as Deck[]).map((d) => ({
+          ...d,
+          format: d.format ?? 'commander',
+          sideboard: d.sideboard ?? [],
+        }))
+      : [];
     const collection = (snap.collection as StoredCollection | null) ?? null;
 
     if (collection) {
