@@ -246,22 +246,25 @@ export function DeckNewPage() {
 
       <section className="deck-builder-section">
         <h2 className="deck-builder-section-title">Format</h2>
-        <div className="option-grid option-grid-4">
+        <div className="format-pill-row" role="radiogroup" aria-label="Deck format">
           {(Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[]).map((fmt) => {
             const cfg = DECK_FORMAT_CONFIGS[fmt];
+            const active = selectedFormat === fmt;
             return (
               <button
                 key={fmt}
                 type="button"
-                className={`option-card${selectedFormat === fmt ? ' active' : ''}`}
+                role="radio"
+                aria-checked={active}
+                className={`format-pill${active ? ' active' : ''}`}
                 onClick={() => setSelectedFormat(fmt)}
               >
-                <span className="option-card-label">{cfg.label}</span>
-                <span className="option-card-sub">{cfg.description}</span>
+                {cfg.label}
               </button>
             );
           })}
         </div>
+        <p className="format-pill-hint">{formatConfig.description}</p>
       </section>
 
       {formatConfig.hasCommander && (
