@@ -99,22 +99,34 @@ describe('cardSortValue', () => {
     expect(cardSortValue(blueCreature, 'name')).toBe('merfolk wizard');
   });
 
-  it('set: returns set name lowercase when no set map is provided', () => {
+  it('setName: returns set name lowercase', () => {
     const setCard = makeCard({ setName: 'Commander Masters', setCode: 'CMM' });
-    expect(cardSortValue(setCard, 'set')).toBe('commander masters');
+    expect(cardSortValue(setCard, 'setName')).toBe('commander masters');
   });
 
-  it('set: returns release date when set map provides one', () => {
+  it('setReleaseDate: returns release date when set map provides one', () => {
     const setCard = makeCard({ setName: 'Commander Masters', setCode: 'CMM' });
     const ctx = {
       setMap: {
         CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
       },
     };
-    expect(cardSortValue(setCard, 'set', ctx)).toBe('2023-08-04');
+    expect(cardSortValue(setCard, 'setReleaseDate', ctx)).toBe('2023-08-04');
   });
 
-  it('set: sorts chronologically by release date when set map is provided', () => {
+  it('setReleaseDate: sets without a known release date sort to the end', () => {
+    const known = makeCard({ setCode: 'CMM', setName: 'Commander Masters' });
+    const unknown = makeCard({ setCode: 'ZZZ', setName: 'Mystery Set' });
+    const ctx = {
+      setMap: {
+        CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+      },
+    };
+    const sorted = sortCards([unknown, known], [{ field: 'setReleaseDate', dir: 'asc' }], ctx);
+    expect(sorted.map((c) => c.setCode)).toEqual(['CMM', 'ZZZ']);
+  });
+
+  it('setReleaseDate: sorts chronologically by release date', () => {
     const blb = makeCard({ setName: 'Bloomburrow', setCode: 'BLB' });
     const fin = makeCard({ setName: 'Final Fantasy', setCode: 'FIN' });
     const ecl = makeCard({ setName: 'Edge of Eternities', setCode: 'ECL' });
@@ -125,7 +137,7 @@ describe('cardSortValue', () => {
         ECL: { code: 'ECL', name: 'Edge of Eternities', iconSvgUri: '', releasedAt: '2025-08-01' },
       },
     };
-    const sorted = sortCards([fin, blb, ecl], [{ field: 'set', dir: 'asc' }], ctx);
+    const sorted = sortCards([fin, blb, ecl], [{ field: 'setReleaseDate', dir: 'asc' }], ctx);
     expect(sorted.map((c) => c.setCode)).toEqual(['BLB', 'FIN', 'ECL']);
   });
 

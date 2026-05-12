@@ -729,7 +729,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'spellcontrol',
-      version: 13,
+      version: 14,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -813,6 +813,20 @@ export const useCollectionStore = create<CollectionState>()(
         // v11→v12: added optional `mode` field to BinderDef. Undefined = 'rules'.
         // v12→v13: added optional `hideDeckAllocated` field. Undefined = include
         // deck-allocated cards (current behavior). No data transform needed.
+        // v13→v14: split 'set' sort into 'setReleaseDate' (chronological) and
+        // 'setName' (alphabetical). Existing 'set' entries map to
+        // 'setReleaseDate' since that matches the post-fix behavior (sets sort
+        // by Scryfall release date).
+        if (fromVersion < 14 && Array.isArray(state.binders)) {
+          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
+            const sorts = b.sorts as Array<{ field: string; dir: string }> | undefined;
+            if (!Array.isArray(sorts)) return b;
+            return {
+              ...b,
+              sorts: sorts.map((s) => (s.field === 'set' ? { ...s, field: 'setReleaseDate' } : s)),
+            };
+          });
+        }
         return state as never;
       },
     }

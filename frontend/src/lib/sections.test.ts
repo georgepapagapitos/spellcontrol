@@ -46,10 +46,26 @@ describe('getSectionMeta', () => {
     expect(getSectionMeta(card({ cmc: undefined }), 'cmc').label).toBe('Unknown CMC');
   });
 
-  it('set bucket uses set name and code', () => {
-    const meta = getSectionMeta(card({ setCode: 'CMM', setName: 'Commander Masters' }), 'set');
+  it('setReleaseDate bucket uses set name and code and orders by release', () => {
+    const meta = getSectionMeta(
+      card({ setCode: 'CMM', setName: 'Commander Masters' }),
+      'setReleaseDate',
+      {
+        setMap: {
+          CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+        },
+      }
+    );
     expect(meta.key).toBe('CMM');
     expect(meta.label).toBe('Commander Masters');
+    expect(meta.order).toBe(new Date('2023-08-04').getTime());
+  });
+
+  it('setName bucket sorts alphabetically (order=0, label tiebreak)', () => {
+    const meta = getSectionMeta(card({ setCode: 'CMM', setName: 'Commander Masters' }), 'setName');
+    expect(meta.key).toBe('CMM');
+    expect(meta.label).toBe('Commander Masters');
+    expect(meta.order).toBe(0);
   });
 
   it('name bucket uses first letter, # for non-letters', () => {

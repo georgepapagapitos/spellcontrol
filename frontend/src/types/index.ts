@@ -101,7 +101,8 @@ export type SortField =
   | 'rarity'
   | 'cmc'
   | 'name'
-  | 'set'
+  | 'setReleaseDate'
+  | 'setName'
   | 'price'
   | 'edhrec'
   | 'collectorNumber';

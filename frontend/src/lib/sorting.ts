@@ -13,7 +13,8 @@ export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir
   { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
   { value: 'cmc', label: 'CMC', defaultDir: 'asc' },
   { value: 'name', label: 'Name', defaultDir: 'asc' },
-  { value: 'set', label: 'Set', defaultDir: 'asc' },
+  { value: 'setReleaseDate', label: 'Set (release date)', defaultDir: 'desc' },
+  { value: 'setName', label: 'Set (name)', defaultDir: 'asc' },
   { value: 'price', label: 'Price', defaultDir: 'desc' },
   { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
   { value: 'collectorNumber', label: 'Collector #', defaultDir: 'asc' },
@@ -46,12 +47,14 @@ export function cardSortValue(
       return card.cmc ?? 999;
     case 'name':
       return card.name.toLowerCase();
-    case 'set': {
+    case 'setReleaseDate': {
       const code = (card.setCode || '').toUpperCase();
       const released = ctx?.setMap?.[code]?.releasedAt;
-      if (released) return released;
-      return (card.setName || card.setCode).toLowerCase();
+      // Sets without a known release date sort to the end (largest string).
+      return released || '￿';
     }
+    case 'setName':
+      return (card.setName || card.setCode).toLowerCase();
     case 'price':
       return card.purchasePrice;
     case 'edhrec':

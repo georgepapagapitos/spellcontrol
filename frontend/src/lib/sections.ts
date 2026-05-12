@@ -95,15 +95,22 @@ export function getSectionMeta(
     }
     case 'cmc':
       return cmcBucket(card.cmc);
-    case 'set': {
+    case 'setReleaseDate': {
       const code = (card.setCode || '').toUpperCase();
       const released = ctx?.setMap?.[code]?.releasedAt;
       return {
         key: card.setCode || 'unknown',
         label: card.setName || card.setCode || 'Unknown set',
-        order: released ? new Date(released).getTime() : 0,
+        // Unknown release dates sort last (Infinity).
+        order: released ? new Date(released).getTime() : Number.MAX_SAFE_INTEGER,
       };
     }
+    case 'setName':
+      return {
+        key: card.setCode || 'unknown',
+        label: card.setName || card.setCode || 'Unknown set',
+        order: 0,
+      };
     case 'name':
       return nameBucket(card.name);
     case 'price':
