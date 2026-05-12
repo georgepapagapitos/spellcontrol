@@ -131,97 +131,11 @@ The backend reads:
 
 ## Architecture
 
-```
-mtg-binder-planner/
-├── backend/                              Node + Express 5 + TypeScript + Postgres + SQLite
-│   └── src/
-│       ├── server.ts                     Routes, helmet, rate limiting, multer
-│       ├── auth.ts                       bcrypt hashing, JWT signing and verification
-│       ├── cache.ts                      SQLite-backed Scryfall cache (TTL 7 days)
-│       ├── scryfall.ts                   Resolve by id / name+set+collector / name; printings fetch
-│       ├── sets.ts                       Cached set metadata
-│       ├── types.ts                      EnrichedCard, response types
-│       ├── db/
-│       │   ├── index.ts                  Postgres connection pool (pg)
-│       │   └── schema.ts                 users + user_data table DDL (Drizzle)
-│       ├── routes/
-│       │   ├── auth.ts                   Register, login, logout, me, delete account
-│       │   └── sync.ts                   GET/PUT user data snapshots
-│       └── parsers/
-│           ├── index.ts                  Format detection and dispatch
-│           ├── manabox.ts                ManaBox TSV
-│           ├── csv.ts                    Moxfield / Archidekt / Deckbox / TCGplayer / Cardsphere / generic
-│           ├── text.ts                   MTGA + plain text
-│           └── types.ts                  Normalized ImportRow
-└── frontend/                             React 18 + Vite + TypeScript + Zustand + react-router-dom 7
-    └── src/
-        ├── App.tsx                       Routes and auth guard
-        ├── main.tsx                      Entrypoint
-        ├── pages/
-        │   ├── AuthPage.tsx              Login and registration
-        │   ├── CollectionPage.tsx        Sortable, filterable collection table
-        │   ├── BinderPage.tsx            Active binder with pages / list toggle
-        │   ├── DecksIndexPage.tsx        Deck list
-        │   ├── DeckNewPage.tsx           Create / import a deck
-        │   └── DeckEditorPage.tsx        Edit deck contents and theme
-        ├── components/
-        │   ├── Layout.tsx, Header.tsx, Footer.tsx, MobileTabBar.tsx
-        │   ├── UploadPanel.tsx, ImportSheet.tsx
-        │   ├── BinderTabs.tsx, BinderView.tsx, BinderListView.tsx
-        │   ├── BinderEditor.tsx          OR-grouped rule editor
-        │   ├── BinderExportDialog.tsx, BinderPickerSheet.tsx, BinderPagePreview.tsx
-        │   ├── BinderCardEditor.tsx      Edit card details within a binder
-        │   ├── PageGrid.tsx, CardSlot.tsx, CardPreview.tsx, CardPreviewContext.ts
-        │   ├── CardListTable.tsx, CardEditDialog.tsx, CardRowMenu.tsx
-        │   ├── CardPickerSheet.tsx, AddCardSheet.tsx, AddToBinderSheet.tsx
-        │   ├── StatsBar.tsx, FilterPopover.tsx, SearchPill.tsx, ViewModeToggle.tsx
-        │   ├── SettingsMenu.tsx, ManaCost.tsx, DeckBadge.tsx
-        │   ├── Modal.tsx, SelectMenu.tsx, ConfirmDialog.tsx, ToastViewport.tsx
-        │   ├── PriceFreshnessLine.tsx, Legend.tsx, ErrorBoundary.tsx
-        │   └── deck/
-        │       ├── CommanderSearch.tsx, CardSearchPanel.tsx
-        │       ├── DeckDisplay.tsx, DeckCustomizer.tsx
-        │       └── ImportDeckDialog.tsx, ThemePicker.tsx
-        ├── deck-builder/                 EDHREC-powered deck generation
-        │   ├── hooks/useUserLists.ts
-        │   ├── lib/                      commanderTheme, partnerUtils, region, utils, constants/
-        │   ├── services/
-        │   │   ├── deckBuilder/          Generator, analyzer, enricher, bracket estimator, curve utils
-        │   │   ├── edhrec/               EDHREC client and theme mapper
-        │   │   ├── scryfall/             Scryfall search client
-        │   │   └── tagger/               Card role tagger client
-        │   ├── store/index.ts            Deck builder Zustand store
-        │   └── types/index.ts
-        ├── lib/
-        │   ├── rules.ts                  Rule-matching engine (OR groups)
-        │   ├── materialize.ts            Routes cards into binders + uncategorized
-        │   ├── sorting.ts                Multi-level sort
-        │   ├── allocations.ts            Deck-copy to collection-card allocation
-        │   ├── sections.ts               Deck section parsing (commander / companion / sideboard)
-        │   ├── colors.ts, card-types.ts, foil-style.ts, slot-text.ts
-        │   ├── samples.ts               Sample collection for first-run
-        │   ├── themes.ts                Guild themes
-        │   ├── api.ts                    Backend client
-        │   ├── auth-api.ts              Auth API client
-        │   ├── sync.ts                  Server sync (pull/push with optimistic concurrency)
-        │   ├── scryfall-to-enriched.ts  Scryfall response to EnrichedCard transform
-        │   ├── local-cards.ts           IndexedDB persistence (idb)
-        │   ├── backup.ts               Export / restore local state
-        │   ├── scryfall-catalog.ts      Catalog autocomplete
-        │   ├── format-time.ts
-        │   └── use-*.ts                 Hooks (debounce, holographic, swipe, scroll lock, centered-slide, confirm)
-        ├── store/
-        │   ├── auth.ts                  Authentication state
-        │   ├── collection.ts            Cards + binders
-        │   ├── decks.ts                 Decks (persisted)
-        │   ├── theme.ts                 Active guild theme
-        │   └── toasts.ts               Toast queue
-        ├── styles/
-        │   ├── global.css
-        │   ├── themes.css               Guild theme CSS variables
-        │   └── deck-builder.css
-        └── types/index.ts
-```
+The repo is a monorepo with two workspaces: `backend/` and `frontend/`.
+
+**Backend** — Node + Express 5 + TypeScript. Postgres (via Drizzle) stores user accounts and synced state. A SQLite cache (via better-sqlite3) holds Scryfall card data with a 7-day TTL. Format-specific parsers in `src/parsers/` handle import detection and normalization.
+
+**Frontend** — React 18 + Vite + TypeScript + Zustand + react-router-dom 7. Collection and binder state lives in IndexedDB and localStorage, synced to the server on change. The `deck-builder/` subsystem handles EDHREC-powered deck generation with its own services, store, and types. Plain CSS with guild-themed custom properties for re-skinning.
 
 ## API
 
