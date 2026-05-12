@@ -1718,7 +1718,7 @@ input.toolbar-search-input {
 .decks-index-card {
   position: relative;
   background: var(--surface);
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: visible;
   transition:
