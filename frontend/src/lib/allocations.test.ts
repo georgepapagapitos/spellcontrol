@@ -36,6 +36,8 @@ function deck(overrides: Partial<Deck> = {}): Deck {
     commanderAllocatedCopyId: null,
     partnerCommanderAllocatedCopyId: null,
     cards: [],
+    sideboard: [],
+    format: 'commander',
     generationContext: null,
     createdAt: 0,
     updatedAt: 0,

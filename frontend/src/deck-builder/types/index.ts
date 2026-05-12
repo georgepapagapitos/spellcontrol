@@ -326,17 +326,26 @@ export interface DeckHistoryEntry {
   timestamp: number;
 }
 
-// Deck format/size
-export type DeckFormat = number;
+// Deck size (used by the generation engine for scaling)
+export type DeckSize = number;
+
+// MTG format that a deck is built for
+export type DeckFormat = 'commander' | 'brawl' | 'standard' | 'pauper';
 
 export interface DeckFormatConfig {
-  size: DeckFormat;
+  format: DeckFormat;
   label: string;
   description: string;
+  deckSize: number;
+  mainboardSize: number;
+  sideboardSize: number;
   defaultLands: number;
   landRange: [number, number];
   hasCommander: boolean;
-  allowMultipleCopies: boolean;
+  isSingleton: boolean;
+  maxCopies: number;
+  legalityKey: string;
+  supportsGeneration: boolean;
 }
 
 // EDHREC budget filter
@@ -412,7 +421,7 @@ export interface AdvancedTargets {
 
 // User customization
 export interface Customization {
-  deckFormat: DeckFormat;
+  deckFormat: DeckSize;
   landCount: number;
   nonBasicLandCount: number; // How many non-basic lands to include (rest will be basics)
   bannedCards: string[]; // Card names to exclude from deck generation
