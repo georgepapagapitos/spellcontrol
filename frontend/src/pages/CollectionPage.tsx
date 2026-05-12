@@ -6,7 +6,6 @@ import { ImportSheet } from '../components/ImportSheet';
 import { AddCardSheet } from '../components/AddCardSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
-import { PriceFreshnessLine } from '../components/PriceFreshnessLine';
 
 export function CollectionPage() {
   const cards = useCollectionStore((s) => s.cards);
@@ -74,7 +73,6 @@ export function CollectionPage() {
           </header>
           <StatsBar />
           <CardListTable cards={cards} binders={materialized} />
-          <PriceFreshnessLine />
           <ImportSheet />
           {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}
         </>
