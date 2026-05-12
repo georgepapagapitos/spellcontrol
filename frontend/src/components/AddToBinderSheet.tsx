@@ -5,12 +5,17 @@ import type { EnrichedCard } from '../types';
 
 interface Props {
   card: EnrichedCard;
+  /** If set, the card is already routed to this binder. Picking another
+   *  binder triggers a "move": remove from current (unpin or exclude),
+   *  then pin to the destination. */
+  currentBinderId?: string | null;
   onClose: () => void;
 }
 
-export function AddToBinderSheet({ card, onClose }: Props) {
+export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const binders = useCollectionStore((s) => s.binders);
   const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
+  const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
   const [addedTo, setAddedTo] = useState<string | null>(null);
 
   useLockBodyScroll();
@@ -32,10 +37,21 @@ export function AddToBinderSheet({ card, onClose }: Props) {
 
   const sorted = [...binders].sort((a, b) => a.position - b.position);
 
-  const handleAdd = (binderId: string) => {
+  const handlePick = (binderId: string) => {
+    if (binderId === currentBinderId) return;
+    if (currentBinderId) {
+      const current = binders.find((b) => b.id === currentBinderId);
+      const wasPinned = !!current?.pinnedCopyIds?.includes(card.copyId);
+      // If not in pinnedCopyIds, the card landed in this binder via rule
+      // routing, so we need to exclude rather than unpin.
+      removeCardFromBinder(currentBinderId, card.copyId, !wasPinned);
+    }
     pinCardToBinder(binderId, card.copyId);
     setAddedTo(binderId);
   };
+
+  const headerLabel = currentBinderId ? 'Moving' : 'Adding';
+  const dialogLabel = currentBinderId ? 'Move to binder' : 'Add to binder';
 
   return (
     <div
@@ -50,12 +66,12 @@ export function AddToBinderSheet({ card, onClose }: Props) {
         className="card-picker-sheet"
         role="dialog"
         aria-modal="true"
-        aria-label="Add to binder"
+        aria-label={dialogLabel}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
-          <p className="add-to-binder-label">Adding</p>
+          <p className="add-to-binder-label">{headerLabel}</p>
           <p className="add-to-binder-card-name">
             {card.name}
             {card.foil ? <span className="card-picker-foil"> foil</span> : null}
@@ -70,6 +86,7 @@ export function AddToBinderSheet({ card, onClose }: Props) {
           <ul className="card-picker-list" role="list">
             {sorted.map((binder) => {
               const isAdded = addedTo === binder.id;
+              const isCurrent = binder.id === currentBinderId;
               return (
                 <li key={binder.id} className="add-to-binder-row">
                   <span
@@ -80,17 +97,23 @@ export function AddToBinderSheet({ card, onClose }: Props) {
                   <span className="add-to-binder-name">{binder.name}</span>
                   {isAdded ? (
                     <span className="add-to-binder-added" aria-live="polite">
-                      <CheckIcon /> Added
+                      <CheckIcon /> {currentBinderId ? 'Moved' : 'Added'}
+                    </span>
+                  ) : isCurrent ? (
+                    <span className="add-to-binder-current" aria-label="Already in this binder">
+                      Already here
                     </span>
                   ) : (
                     <button
                       type="button"
                       className="btn add-to-binder-btn"
-                      onClick={() => handleAdd(binder.id)}
-                      aria-label={`Add ${card.name} to ${binder.name}`}
+                      onClick={() => handlePick(binder.id)}
+                      aria-label={`${
+                        currentBinderId ? 'Move' : 'Add'
+                      } ${card.name} to ${binder.name}`}
                       disabled={!!addedTo}
                     >
-                      Add
+                      {currentBinderId ? 'Move' : 'Add'}
                     </button>
                   )}
                 </li>
