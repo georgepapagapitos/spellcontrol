@@ -196,8 +196,6 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-    // setView is a stable closure that only writes localStorage + state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shortcutsOpen]);
 
   const cardToBinder = useMemo(() => {
