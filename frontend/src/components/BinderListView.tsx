@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { EnrichedCard, MaterializedBinder, SortEntry, SortField } from '../types';
+import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
@@ -7,28 +7,11 @@ import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { useCollectionStore } from '../store/collection';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
-import { SORT_FIELDS } from '../lib/sorting';
+import { sortEntryLabel } from '../lib/sorting';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
 import { DeckBadge } from './DeckBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
-
-const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
-  (acc, f) => ({ ...acc, [f.value]: f.label }),
-  {} as Record<SortField, string>
-);
-
-const SORT_DEFAULT_DIR: Record<SortField, 'asc' | 'desc'> = SORT_FIELDS.reduce(
-  (acc, f) => ({ ...acc, [f.value]: f.defaultDir }),
-  {} as Record<SortField, 'asc' | 'desc'>
-);
-
-function sortEntryLabel(entry: SortEntry): string {
-  const label = SORT_LABEL[entry.field] ?? entry.field;
-  const isNonDefault = entry.dir !== (SORT_DEFAULT_DIR[entry.field] ?? 'asc');
-  if (!isNonDefault) return label;
-  return `${label} ${entry.dir === 'asc' ? '↑' : '↓'}`;
-}
 
 interface Props {
   binder: MaterializedBinder;

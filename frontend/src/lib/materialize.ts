@@ -13,7 +13,7 @@ import { compileFilterGroups, cardMatchesAnyGroup } from './rules';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
 import { sortCards } from './sorting';
 
-export interface MaterializeOptions {
+interface MaterializeOptions {
   globalPocketSize?: PocketSize;
   search: string;
   /** Sort applied to the uncategorized bucket. */
@@ -27,7 +27,7 @@ const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
 ];
 
 /** Fallback pocket size for binders that don't specify one and for the uncategorized bucket. */
-export const DEFAULT_POCKET_SIZE: PocketSize = 9;
+const DEFAULT_POCKET_SIZE: PocketSize = 9;
 
 /**
  * Routes cards through binder definitions in priority order.

@@ -11,26 +11,7 @@ export interface SyncSnapshot {
   updatedAt: number;
 }
 
-async function handle<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let msg = `Request failed: HTTP ${response.status}`;
-    try {
-      const body = await response.text();
-      try {
-        const err = JSON.parse(body);
-        if (err.error) msg = err.error;
-      } catch {
-        if (body.length > 0 && body.length < 200) msg = body;
-      }
-    } catch {
-      /* ignore */
-    }
-    const e = new Error(msg) as Error & { status?: number };
-    e.status = response.status;
-    throw e;
-  }
-  return (await response.json()) as T;
-}
+import { handleResponse } from './fetch-utils';
 
 function authedFetch(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, { credentials: 'same-origin', ...init });
@@ -42,7 +23,7 @@ export async function register(username: string, password: string): Promise<Auth
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  const data = await handle<{ user: AuthUser }>(res);
+  const data = await handleResponse<{ user: AuthUser }>(res);
   return data.user;
 }
 
@@ -52,7 +33,7 @@ export async function login(username: string, password: string): Promise<AuthUse
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  const data = await handle<{ user: AuthUser }>(res);
+  const data = await handleResponse<{ user: AuthUser }>(res);
   return data.user;
 }
 
@@ -63,16 +44,16 @@ export async function logout(): Promise<void> {
 export async function fetchMe(): Promise<AuthUser | null> {
   const res = await authedFetch('/api/auth/me', { method: 'GET' });
   if (res.status === 401) return null;
-  const data = await handle<{ user: AuthUser }>(res);
+  const data = await handleResponse<{ user: AuthUser }>(res);
   return data.user;
 }
 
 export async function fetchSync(): Promise<SyncSnapshot> {
   const res = await authedFetch('/api/sync', { method: 'GET' });
-  return handle<SyncSnapshot>(res);
+  return handleResponse<SyncSnapshot>(res);
 }
 
-export interface PutSyncResult {
+interface PutSyncResult {
   version: number;
   updatedAt: number;
 }
@@ -102,5 +83,5 @@ export async function putSync(input: {
     e.current = body.current;
     throw e;
   }
-  return handle<PutSyncResult>(res);
+  return handleResponse<PutSyncResult>(res);
 }
