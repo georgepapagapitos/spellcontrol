@@ -3880,49 +3880,10 @@ hr {
 }
 
 /* ── Color picker ───────────────────────────────────────────────────────── */
-.color-picker-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  border: 0.5px solid var(--border2);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-}
-
-.color-picker-trigger:hover,
-.color-picker-trigger.open {
-  border-color: var(--accent);
-}
-
-.color-picker-swatch {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid var(--border2);
-  flex-shrink: 0;
-}
-
-.color-picker-label {
-  min-width: 3rem;
-}
-
-.color-picker-panel {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  padding: 0.75rem;
-}
-
-.color-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
+.color-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .color-swatch {
@@ -3948,18 +3909,24 @@ hr {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: conic-gradient(
-    from 0deg,
-    #ff0000,
-    #ffff00,
-    #00ff00,
-    #00ffff,
-    #0000ff,
-    #ff00ff,
-    #ff0000
-  );
+  background: var(--surface);
+  border: 1.5px dashed var(--text3);
   position: relative;
   overflow: hidden;
+}
+
+.color-swatch-custom.selected {
+  border-style: solid;
+  border-color: var(--text);
+}
+
+.color-swatch-custom-icon {
+  color: var(--text3);
+  pointer-events: none;
+}
+
+.color-swatch-custom.selected .color-swatch-custom-icon {
+  color: var(--on-accent, var(--surface));
 }
 
 .color-swatch-custom input[type='color'] {
