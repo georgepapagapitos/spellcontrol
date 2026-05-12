@@ -3,7 +3,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 import { useDecksStore } from './decks';
-import { buildAllocationMap } from '../lib/allocations';
 import {
   saveCollection,
   loadCollection,
@@ -231,17 +230,7 @@ export const useCollectionStore = create<CollectionState>()(
           set({ hydrating: false });
           const cards = get().cards;
           if (cards.length > 0) {
-            const { decks } = useDecksStore.getState();
-            if (decks.length > 0) {
-              const allocationMap = buildAllocationMap(decks);
-              if (allocationMap.size > 0) {
-                const copyIds = new Set(cards.map((c) => c.copyId));
-                const hasOrphan = [...allocationMap.keys()].some((id) => !copyIds.has(id));
-                if (hasOrphan) {
-                  remapDeckAllocations(cards);
-                }
-              }
-            }
+            remapDeckAllocations(cards);
           }
         }
       },
@@ -301,9 +290,7 @@ export const useCollectionStore = create<CollectionState>()(
 
         set(stateUpdate);
 
-        if (collectionMode === 'replace' && existing.length > 0) {
-          remapDeckAllocations(newCards);
-        }
+        remapDeckAllocations(newCards);
 
         try {
           await saveCollection({
