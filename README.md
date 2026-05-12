@@ -40,23 +40,21 @@ Quantities, split cards (`Fire // Ice`), DFCs, adventure cards, and foil notatio
 
 Each binder has one or more **match groups**. A card joins the binder if it matches **any** group (OR). Within a group, every set field must match (AND). Empty fields impose no constraint.
 
-- **Rarity** — multi-select.
-- **Color identity** — Scryfall color identity. `M` matches any multicolor.
-- **Type** — substring match against the Scryfall type line. ANY of the selected types matches.
-- **Price range** — min / max in USD.
-- **CMC range** — min / max mana value.
-- **Mana cost** — exact match on the normalized cost string.
-- **Name contains** — case-insensitive substring.
-- **Oracle text contains** — case-insensitive substring on rules text.
-- **Set codes** — comma-separated, exact match.
-- **Foil** — any / foil only / non-foil only.
-- **Finishes** — IS / IS NOT against the finish you actually own.
-- **Layouts** — IS / IS NOT against the card layout (normal, modal_dfc, adventure, etc).
-- **Treatments** — IS / IS NOT against frame effects (showcase, extended, fullart, etc).
-- **Border colors** — IS / IS NOT against the border color.
 - **Legalities** — IS / IS NOT against format-legal status (commander, modern, etc).
-- **Source category contains** — substring on the original category from your import (ManaBox binder name, Moxfield tag, etc).
-- **EDHREC popularity** — "Top N most popular EDH cards" from Scryfall's `edhrec_rank`.
+- **Color identity** — IS / IS NOT. `M` matches any multicolor.
+- **Rarity** — IS / IS NOT.
+- **CMC** — min / max mana value.
+- **Mana cost** — exact match on the normalized cost string.
+- **Type line** — IS / IS NOT substring chips against the Scryfall type line.
+- **Oracle text** — IS / IS NOT substring chips against rules text.
+- **Sets** — multi-select from sets in your collection.
+- **Price** — min / max in USD.
+- **Finishes** — IS / IS NOT (nonfoil, foil, etched).
+- **Layout** — IS / IS NOT (normal, modal_dfc, adventure, etc).
+- **Name contains** — case-insensitive substring.
+- **Treatment** — IS / IS NOT frame effects (showcase, extended, fullart, etc).
+- **Border** — IS / IS NOT border color.
+- **EDHREC popularity** — top N most popular EDH cards from Scryfall's `edhrec_rank`.
 
 ## Where data lives
 
@@ -157,7 +155,7 @@ All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 | `GET`    | `/api/sync`                  | Returns the user's collection / binders / decks snapshot + version (auth required)               |
 | `PUT`    | `/api/sync`                  | Pushes a new snapshot. `{ collection, binders, decks, baseVersion }`. 409 on stale `baseVersion` |
 
-`EnrichedCard` includes the standard Scryfall fields plus `importId` (per-batch tag), `finishes`, `layout`, `borderColor`, `legalities`, `oracleText`, `frameEffects`, `fullArt`, `imageNormalBack` (DFC reverse), `manaCost`, and `promoTypes`.
+`EnrichedCard` combines import-row data (`copyId`, `name`, `setCode`, `collectorNumber`, `rarity`, `scryfallId`, `purchasePrice`, `finish`, `sourceCategory`, `sourceFormat`) with optional per-copy fields (`condition`, `language`, `altered`, `proxy`, `misprint`) and Scryfall enrichment (`cmc`, `typeLine`, `colorIdentity`, `colors`, `edhrecRank`, images, `finishes`, `layout`, `borderColor`, `legalities`, `oracleText`, `frameEffects`, `fullArt`, `manaCost`, `promoTypes`, `imageNormalBack` for DFCs).
 
 ## Tweakables
 
