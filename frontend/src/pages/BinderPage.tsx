@@ -1,6 +1,7 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AddCardSheet } from '../components/AddCardSheet';
+import { ImportBinderSheet } from '../components/ImportBinderSheet';
 
 const BinderCardEditor = lazy(() =>
   import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
@@ -40,6 +41,7 @@ export function BinderPage() {
   const [loadingSamples, setLoadingSamples] = useState(false);
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
+  const [importBinderSheetOpen, setImportBinderSheetOpen] = useState(false);
   // Three-way view: 'pages' (the section/page grid) → 'list' (rows
   // with thumbnails + meta) → 'compact' (text-only rows). Local state.
   const [view, setView] = useState<'pages' | 'list' | 'compact'>('pages');
@@ -128,6 +130,9 @@ export function BinderPage() {
             <Link to="/collection" className="btn btn-primary">
               Import your collection
             </Link>
+            <button type="button" className="btn" onClick={() => setImportBinderSheetOpen(true)}>
+              Import a binder
+            </button>
             <button
               type="button"
               className="btn"
@@ -138,6 +143,9 @@ export function BinderPage() {
             </button>
           </div>
         </div>
+        {importBinderSheetOpen && (
+          <ImportBinderSheet onClose={() => setImportBinderSheetOpen(false)} />
+        )}
         {showSamplesIntro && (
           <SamplesIntroDialog
             loading={loadingSamples}
@@ -242,6 +250,9 @@ export function BinderPage() {
             <button className="btn btn-primary" onClick={() => setEditingBinder('new')}>
               Create your first binder
             </button>
+            <button type="button" className="btn" onClick={() => setImportBinderSheetOpen(true)}>
+              Import a binder
+            </button>
             {!hasSampleBinders && (
               <button
                 type="button"
@@ -260,6 +271,9 @@ export function BinderPage() {
             </p>
           )}
         </div>
+        {importBinderSheetOpen && (
+          <ImportBinderSheet onClose={() => setImportBinderSheetOpen(false)} />
+        )}
         {showSamplesIntro && (
           <SamplesIntroDialog
             loading={loadingSamples}
@@ -368,6 +382,15 @@ export function BinderPage() {
               <SwitchBinderIcon />
               <span>Switch binder</span>
             </button>
+            <button
+              type="button"
+              className="pill-btn"
+              aria-haspopup="dialog"
+              onClick={() => setImportBinderSheetOpen(true)}
+            >
+              <ImportBinderIcon />
+              <span>Import binder</span>
+            </button>
           </div>
         </header>
       )}
@@ -438,6 +461,9 @@ export function BinderPage() {
           binderName={active.def.name}
           onClose={() => setAddCardSheetOpen(false)}
         />
+      )}
+      {importBinderSheetOpen && (
+        <ImportBinderSheet onClose={() => setImportBinderSheetOpen(false)} />
       )}
     </>
   );
@@ -559,6 +585,25 @@ function CompactListIcon() {
       <path d="M3 10h18" />
       <path d="M3 14h18" />
       <path d="M3 18h18" />
+    </svg>
+  );
+}
+
+function ImportBinderIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 2v8M5 7l3 3 3-3" />
+      <path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
     </svg>
   );
 }
