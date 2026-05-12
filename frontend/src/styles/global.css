@@ -3309,6 +3309,40 @@ hr {
   background: var(--danger-bg, rgba(185, 69, 69, 0.08));
 }
 
+.choice-dialog-option-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  cursor: default;
+}
+
+.binder-name-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.binder-name-input {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-family: inherit;
+}
+
+.binder-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.binder-import-note {
+  color: var(--text3);
+  font-style: italic;
+}
+
 .choice-dialog-actions {
   display: flex;
   justify-content: flex-end;
