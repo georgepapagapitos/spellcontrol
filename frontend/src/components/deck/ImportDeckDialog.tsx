@@ -63,7 +63,7 @@ export function ImportDeckDialog({ onClose }: Props) {
       const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
 
       const allocateFor = (card: ScryfallCard): string | null => {
-        const pick = pickCollectionCopy(card.name, collectionCards, claimed, card.id);
+        const pick = pickCollectionCopy(card.name, collectionCards, claimed);
         if (!pick) return null;
         claimed.set(pick.copyId, {
           deckId: '__pending__',

@@ -292,7 +292,7 @@ function saveGeneratedDeck(
   const claimed = new Map<string, AllocationInfo>(buildAllocationMap(existingDecks));
 
   const allocateFor = (card: ScryfallCard): string | null => {
-    const pick = pickCollectionCopy(card.name, collection, claimed, card.id);
+    const pick = pickCollectionCopy(card.name, collection, claimed);
     if (!pick) return null;
     claimed.set(pick.copyId, {
       deckId: '__pending__',
