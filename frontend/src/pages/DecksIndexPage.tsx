@@ -1,19 +1,124 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { Deck } from '../store/decks';
+import type { ScryfallCard } from '../deck-builder/types';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
+
+type DeckSortField = 'edited' | 'created' | 'name' | 'commander' | 'cards' | 'value';
+type SortDir = 'asc' | 'desc';
+
+const DECK_SORT_OPTIONS: SelectOption<DeckSortField>[] = [
+  { value: 'edited', label: 'Date edited' },
+  { value: 'created', label: 'Date created' },
+  { value: 'name', label: 'Name' },
+  { value: 'commander', label: 'Commander' },
+  { value: 'cards', label: 'Card count' },
+  { value: 'value', label: 'Value' },
+];
+
+const DECK_SORT_DEFAULT_DIR: Record<DeckSortField, SortDir> = {
+  edited: 'desc',
+  created: 'desc',
+  name: 'asc',
+  commander: 'asc',
+  cards: 'desc',
+  value: 'desc',
+};
+
+function cardPrice(card: ScryfallCard): number {
+  const raw = getCardPrice(card, 'USD');
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : 0;
+}
+
+function deckValue(deck: Deck): number {
+  let total = 0;
+  if (deck.commander) total += cardPrice(deck.commander);
+  if (deck.partnerCommander) total += cardPrice(deck.partnerCommander);
+  for (const dc of deck.cards) total += cardPrice(dc.card);
+  return total;
+}
+
+const STORAGE_KEY = 'decks-index-sort';
+
+function loadSort(): { field: DeckSortField; dir: SortDir } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.field in DECK_SORT_DEFAULT_DIR) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return { field: 'edited', dir: 'desc' };
+}
+
+function deckSortValue(deck: Deck, field: DeckSortField): number | string {
+  switch (field) {
+    case 'edited':
+      return deck.updatedAt;
+    case 'created':
+      return deck.createdAt;
+    case 'name':
+      return deck.name.toLowerCase();
+    case 'commander':
+      return (deck.commander?.name ?? '').toLowerCase();
+    case 'cards':
+      return (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
+    case 'value':
+      return deckValue(deck);
+  }
+}
 
 export function DecksIndexPage() {
   const decks = useDecksStore((s) => s.decks);
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
   const navigate = useNavigate();
-  const sorted = useMemo(() => [...decks].sort((a, b) => b.updatedAt - a.updatedAt), [decks]);
+
+  const [sortField, setSortField] = useState<DeckSortField>(loadSort().field);
+  const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
+
+  const persistSort = useCallback((field: DeckSortField, dir: SortDir) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ field, dir }));
+  }, []);
+
+  const handleFieldChange = useCallback(
+    (field: DeckSortField) => {
+      const dir = DECK_SORT_DEFAULT_DIR[field];
+      setSortField(field);
+      setSortDir(dir);
+      persistSort(field, dir);
+    },
+    [persistSort]
+  );
+
+  const handleDirToggle = useCallback(() => {
+    setSortDir((prev) => {
+      const next = prev === 'asc' ? 'desc' : 'asc';
+      persistSort(sortField, next);
+      return next;
+    });
+  }, [sortField, persistSort]);
+
+  const sorted = useMemo(() => {
+    return [...decks].sort((a, b) => {
+      const va = deckSortValue(a, sortField);
+      const vb = deckSortValue(b, sortField);
+      if (va < vb) return sortDir === 'desc' ? 1 : -1;
+      if (va > vb) return sortDir === 'desc' ? -1 : 1;
+      return 0;
+    });
+  }, [decks, sortField, sortDir]);
+
   const [showImport, setShowImport] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
 
@@ -74,6 +179,26 @@ export function DecksIndexPage() {
           </Link>
         </div>
       </header>
+
+      {sorted.length > 1 && (
+        <div className="decks-index-sort-bar">
+          <SelectMenu
+            value={sortField}
+            options={DECK_SORT_OPTIONS}
+            onChange={handleFieldChange}
+            label="Sort"
+            ariaLabel="Sort decks by"
+          />
+          <button
+            type="button"
+            className="toolbar-pill decks-index-sort-dir"
+            aria-label={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+            onClick={handleDirToggle}
+          >
+            {sortDir === 'asc' ? '↑' : '↓'}
+          </button>
+        </div>
+      )}
 
       {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
 
