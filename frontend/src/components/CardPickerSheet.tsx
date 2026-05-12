@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useEscapeKey } from '../lib/use-escape-key';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -18,18 +19,11 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
   const searchRef = useRef<HTMLInputElement>(null);
 
   useLockBodyScroll();
+  useEscapeKey(onClose);
 
   useEffect(() => {
     searchRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

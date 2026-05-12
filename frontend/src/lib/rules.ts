@@ -19,7 +19,7 @@ interface CompiledChips {
  * struct does that work once per filter so the inner loop is just
  * comparisons.
  */
-export interface CompiledFilter {
+interface CompiledFilter {
   legalities?: CompiledChips;
   colors?: CompiledChips;
   rarities?: CompiledChips;
