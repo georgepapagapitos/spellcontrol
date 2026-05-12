@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
+import type { EnrichedCard } from '../types';
 
 /**
  * Persisted deck shape. Stores full ScryfallCard payloads so a saved deck
@@ -110,6 +112,10 @@ interface DecksState {
 
   /** Replace the whole card list — used when committing a generated deck. */
   replaceCards(deckId: string, cards: DeckCard[]): void;
+
+  /** Re-match all deck allocations against a new collection. Called when the
+   *  collection is replaced so allocatedCopyIds stay valid. */
+  remapAllocations(newCollection: EnrichedCard[]): void;
 }
 
 function newId(prefix: string): string {
@@ -321,6 +327,85 @@ export const useDecksStore = create<DecksState>()(
         set((s) => ({
           decks: s.decks.map((d) => (d.id === deckId ? touch({ ...d, cards }) : d)),
         })),
+
+      remapAllocations: (newCollection) =>
+        set((s) => {
+          const allocated = new Map<string, AllocationInfo>();
+
+          const remappedDecks = s.decks.map((deck) => {
+            let commanderAllocatedCopyId = deck.commanderAllocatedCopyId;
+            if (deck.commander && commanderAllocatedCopyId) {
+              const pick = pickCollectionCopy(
+                deck.commander.name,
+                newCollection,
+                allocated,
+                deck.commander.id
+              );
+              commanderAllocatedCopyId = pick?.copyId ?? null;
+              if (pick) {
+                allocated.set(pick.copyId, {
+                  deckId: deck.id,
+                  deckName: deck.name,
+                  cardName: deck.commander.name,
+                });
+              }
+            }
+
+            let partnerCommanderAllocatedCopyId = deck.partnerCommanderAllocatedCopyId;
+            if (deck.partnerCommander && partnerCommanderAllocatedCopyId) {
+              const pick = pickCollectionCopy(
+                deck.partnerCommander.name,
+                newCollection,
+                allocated,
+                deck.partnerCommander.id
+              );
+              partnerCommanderAllocatedCopyId = pick?.copyId ?? null;
+              if (pick) {
+                allocated.set(pick.copyId, {
+                  deckId: deck.id,
+                  deckName: deck.name,
+                  cardName: deck.partnerCommander.name,
+                });
+              }
+            }
+
+            const cards = deck.cards.map((c) => {
+              if (!c.allocatedCopyId) return c;
+              const pick = pickCollectionCopy(c.card.name, newCollection, allocated, c.card.id);
+              if (pick) {
+                allocated.set(pick.copyId, {
+                  deckId: deck.id,
+                  deckName: deck.name,
+                  cardName: c.card.name,
+                });
+              }
+              return { ...c, allocatedCopyId: pick?.copyId ?? null };
+            });
+
+            const sideboard = (deck.sideboard ?? []).map((c) => {
+              if (!c.allocatedCopyId) return c;
+              const pick = pickCollectionCopy(c.card.name, newCollection, allocated, c.card.id);
+              if (pick) {
+                allocated.set(pick.copyId, {
+                  deckId: deck.id,
+                  deckName: deck.name,
+                  cardName: c.card.name,
+                });
+              }
+              return { ...c, allocatedCopyId: pick?.copyId ?? null };
+            });
+
+            return touch({
+              ...deck,
+              commanderAllocatedCopyId,
+              partnerCommanderAllocatedCopyId,
+              cards,
+              sideboard,
+            });
+          });
+
+          return { decks: remappedDecks };
+        }),
     }),
     {
       name: 'mtg-decks',
