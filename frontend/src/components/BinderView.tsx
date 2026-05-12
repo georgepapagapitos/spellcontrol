@@ -90,7 +90,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
             Edit rules
           </button>
           <button
-            className="btn btn--danger"
+            className="btn btn-danger"
             style={{ marginLeft: 8 }}
             onClick={() => handleDelete(active.def.id, active.def.name)}
           >
