@@ -1009,7 +1009,7 @@ function scryfallToEnriched(
     name: card.name,
     setCode: card.set,
     setName: card.set_name,
-    collectorNumber: '',
+    collectorNumber: card.collector_number ?? '',
     rarity: card.rarity,
     scryfallId: card.id,
     purchasePrice: Number.isFinite(price) ? price : 0,
