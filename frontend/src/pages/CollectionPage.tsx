@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { UploadPanel } from '../components/UploadPanel';
 import { ImportSheet } from '../components/ImportSheet';
+import { AddCardSheet } from '../components/AddCardSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { PriceFreshnessLine } from '../components/PriceFreshnessLine';
@@ -14,6 +15,7 @@ export function CollectionPage() {
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
   const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
+  const [addCardOpen, setAddCardOpen] = useState(false);
 
   // Materialize without search — the collection table has its own local search.
   const { materialized } = useMemo(() => {
@@ -49,20 +51,32 @@ export function CollectionPage() {
             <div className="collection-hero-text">
               <h1 className="binder-hero-name">Collection</h1>
             </div>
-            <button
-              type="button"
-              className="pill-btn collection-hero-action"
-              aria-haspopup="dialog"
-              onClick={() => setImportSheetOpen(true)}
-            >
-              <PlusIcon />
-              <span>Import cards</span>
-            </button>
+            <div className="collection-hero-actions">
+              <button
+                type="button"
+                className="pill-btn collection-hero-action"
+                aria-haspopup="dialog"
+                onClick={() => setAddCardOpen(true)}
+              >
+                <PlusIcon />
+                <span>Add card</span>
+              </button>
+              <button
+                type="button"
+                className="pill-btn collection-hero-action"
+                aria-haspopup="dialog"
+                onClick={() => setImportSheetOpen(true)}
+              >
+                <ImportIcon />
+                <span>Import cards</span>
+              </button>
+            </div>
           </header>
           <StatsBar />
           <CardListTable cards={cards} binders={materialized} />
           <PriceFreshnessLine />
           <ImportSheet />
+          {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}
         </>
       )}
     </>
@@ -82,6 +96,25 @@ function PlusIcon() {
       aria-hidden
     >
       <path d="M8 3v10M3 8h10" />
+    </svg>
+  );
+}
+
+function ImportIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 2v8M5 7l3 3 3-3" />
+      <path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
     </svg>
   );
 }

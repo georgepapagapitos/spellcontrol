@@ -1,5 +1,6 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AddCardSheet } from '../components/AddCardSheet';
 
 const BinderCardEditor = lazy(() =>
   import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
@@ -38,6 +39,7 @@ export function BinderPage() {
   const [showSamplesIntro, setShowSamplesIntro] = useState(false);
   const [loadingSamples, setLoadingSamples] = useState(false);
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
+  const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
   // Three-way view: 'pages' (the section/page grid) → 'list' (rows
   // with thumbnails + meta) → 'compact' (text-only rows). Local state.
   const [view, setView] = useState<'pages' | 'list' | 'compact'>('pages');
@@ -331,6 +333,16 @@ export function BinderPage() {
               type="button"
               className="pill-btn"
               aria-haspopup="dialog"
+              onClick={() => setAddCardSheetOpen(true)}
+              disabled={!activeTab}
+            >
+              <AddCardIcon />
+              <span>Add card</span>
+            </button>
+            <button
+              type="button"
+              className="pill-btn"
+              aria-haspopup="dialog"
               onClick={() => setCardEditorOpen(true)}
               disabled={!activeTab}
             >
@@ -420,7 +432,32 @@ export function BinderPage() {
           />
         )}
       </Suspense>
+      {addCardSheetOpen && active && (
+        <AddCardSheet
+          binderId={active.def.id}
+          binderName={active.def.name}
+          onClose={() => setAddCardSheetOpen(false)}
+        />
+      )}
     </>
+  );
+}
+
+function AddCardIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 3v10M3 8h10" />
+    </svg>
   );
 }
 
