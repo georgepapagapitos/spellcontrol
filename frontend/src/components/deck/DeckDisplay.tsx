@@ -244,6 +244,8 @@ export interface DeckDisplayProps {
   deckId?: string;
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
+  commanderAllocatedCopyId?: string | null;
+  partnerCommanderAllocatedCopyId?: string | null;
   cards: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
@@ -297,6 +299,11 @@ interface Row {
    */
   imageNormal?: string;
   imageNormalBack?: string;
+  foil: boolean;
+  finish: EnrichedCard['finish'];
+  finishes?: string[];
+  promoTypes?: string[];
+  frameEffects?: string[];
 }
 
 function frontFaceImage(card: ScryfallCard): string | undefined {
@@ -345,6 +352,11 @@ function buildRows(
       if (owned?.imageNormal && !ownedImage.has(card.name)) {
         existing.imageNormal = owned.imageNormal;
         existing.imageNormalBack = owned.imageNormalBack;
+        existing.foil = owned.foil;
+        existing.finish = owned.finish;
+        existing.finishes = owned.finishes;
+        existing.promoTypes = owned.promoTypes;
+        existing.frameEffects = owned.frameEffects;
         ownedImage.add(card.name);
       }
       continue;
@@ -361,6 +373,11 @@ function buildRows(
       status,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
+      foil: owned?.foil ?? false,
+      finish: owned?.finish ?? 'nonfoil',
+      finishes: owned?.finishes,
+      promoTypes: owned?.promoTypes,
+      frameEffects: owned?.frameEffects,
     });
   }
   return [...map.values()];
@@ -407,6 +424,8 @@ export function DeckDisplay({
   deckId,
   commander,
   partnerCommander,
+  commanderAllocatedCopyId,
+  partnerCommanderAllocatedCopyId,
   cards,
   bracketEstimation,
   deckGrade,
@@ -469,7 +488,8 @@ export function DeckDisplay({
   // ids are blank because remove is not allowed on the commander.
   const commanderRows: Row[] = useMemo(() => {
     const rows: Row[] = [];
-    const push = (c: ScryfallCard) => {
+    const push = (c: ScryfallCard, allocatedCopyId?: string | null) => {
+      const owned = allocatedCopyId ? collectionByCopyId?.get(allocatedCopyId) : undefined;
       rows.push({
         name: c.name,
         qty: 1,
@@ -478,15 +498,26 @@ export function DeckDisplay({
         price: priceOf(c, currency),
         colorKey: colorKeyOf(c),
         slotIds: [],
-        status: 'allocated', // commanders are usually owned; if not, we don't badge them
-        imageNormal: frontFaceImage(c),
-        imageNormalBack: backFaceImage(c),
+        status: 'allocated',
+        imageNormal: owned?.imageNormal ?? frontFaceImage(c),
+        imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
+        foil: owned?.foil ?? false,
+        finish: owned?.finish ?? 'nonfoil',
+        finishes: owned?.finishes,
+        promoTypes: owned?.promoTypes,
+        frameEffects: owned?.frameEffects,
       });
     };
-    if (commander) push(commander);
-    if (partnerCommander) push(partnerCommander);
+    if (commander) push(commander, commanderAllocatedCopyId);
+    if (partnerCommander) push(partnerCommander, partnerCommanderAllocatedCopyId);
     return rows;
-  }, [commander, partnerCommander]);
+  }, [
+    commander,
+    partnerCommander,
+    commanderAllocatedCopyId,
+    partnerCommanderAllocatedCopyId,
+    collectionByCopyId,
+  ]);
 
   // Non-commander rows grouped by canonical type.
   const groups = useMemo(() => {
@@ -616,7 +647,15 @@ export function DeckDisplay({
     for (const g of visibleGroups) {
       for (const row of g.rows) {
         indexByName.set(row.name, enrichedCards.length);
-        enrichedCards.push(scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack));
+        enrichedCards.push(
+          scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack, {
+            foil: row.foil,
+            finish: row.finish,
+            finishes: row.finishes,
+            promoTypes: row.promoTypes,
+            frameEffects: row.frameEffects,
+          })
+        );
         labels.push(g.title);
       }
     }
@@ -815,10 +854,19 @@ function ExportDialog({
 // Deck-builder cards never went through our import flow, so they have no
 // "purchase price" from a CSV. We fall back to Scryfall's listed USD price
 // so the carousel still shows a meaningful number instead of $0.00.
+interface EnrichedOverrides {
+  foil?: boolean;
+  finish?: EnrichedCard['finish'];
+  finishes?: string[];
+  promoTypes?: string[];
+  frameEffects?: string[];
+}
+
 function scryfallToEnriched(
   card: ScryfallCard,
   frontOverride?: string,
-  backOverride?: string
+  backOverride?: string,
+  overrides?: EnrichedOverrides
 ): EnrichedCard {
   const front =
     frontOverride ?? card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
@@ -840,8 +888,11 @@ function scryfallToEnriched(
     purchasePrice: Number.isFinite(price) ? price : 0,
     sourceCategory: '',
     sourceFormat: 'deck-builder',
-    foil: false,
-    finish: 'nonfoil' as const,
+    foil: overrides?.foil ?? false,
+    finish: overrides?.finish ?? ('nonfoil' as const),
+    finishes: overrides?.finishes,
+    promoTypes: overrides?.promoTypes,
+    frameEffects: overrides?.frameEffects,
     cmc: card.cmc,
     typeLine: card.type_line,
     colorIdentity: card.color_identity,
@@ -1253,6 +1304,7 @@ function DeckCardGrid({
                       <span className="deck-card-grid-fallback">{row.name}</span>
                     )}
                     {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
+                    {row.foil && <span className="deck-card-grid-foil">foil</span>}
                     {row.status !== 'allocated' && (
                       <span
                         className="deck-card-grid-missing"
@@ -1523,6 +1575,7 @@ function DeckCardRow({
         ))}
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
+        {row.foil && <span className="deck-row-foil">foil</span>}
       </span>
       {showPrefs.mana &&
         (mana ? (
