@@ -12,6 +12,7 @@ import type {
 import { compileFilterGroups, cardMatchesAnyGroup } from './rules';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
 import { sortCards } from './sorting';
+import type { SetMap } from './api';
 
 interface MaterializeOptions {
   globalPocketSize?: PocketSize;
@@ -22,6 +23,8 @@ interface MaterializeOptions {
    *  skip these cards entirely — they aren't routed to that binder, don't fall
    *  through to other binders, and don't land in Uncategorized. */
   allocatedCopyIds?: ReadonlySet<string>;
+  /** Scryfall set metadata. When provided, "set" sort uses release date. */
+  setMap?: SetMap;
 }
 
 const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
@@ -112,9 +115,10 @@ export function materializeBinders(
       DEFAULT_POCKET_SIZE) as PocketSize;
     const useManualOrder = !!def.manualOrder?.length;
     const effectiveSorts = useManualOrder ? [] : withImplicitTiebreaker(def.sorts);
+    const sortCtx = opts.setMap ? { setMap: opts.setMap } : undefined;
     const sections = useManualOrder
       ? buildManualSection(rawCards, effectivePocketSize, isMatch)
-      : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch);
+      : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch, sortCtx);
     return {
       def,
       effectivePocketSize,
@@ -128,11 +132,13 @@ export function materializeBinders(
   const uncategorizedSorts = withImplicitTiebreaker(
     opts.uncategorizedSorts ?? DEFAULT_UNCATEGORIZED_SORTS
   );
+  const uncatCtx = opts.setMap ? { setMap: opts.setMap } : undefined;
   const uncategorizedSections = buildSections(
     uncategorized,
     uncategorizedSorts,
     opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
-    isMatch
+    isMatch,
+    uncatCtx
   );
 
   return {
@@ -209,7 +215,8 @@ function buildSections(
   cards: EnrichedCard[],
   sorts: SortEntry[],
   slotSize: number,
-  isMatch: (c: EnrichedCard) => boolean
+  isMatch: (c: EnrichedCard) => boolean,
+  ctx?: { setMap?: SetMap }
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';
@@ -232,7 +239,7 @@ function buildSections(
   };
 
   if (!useGrouping) {
-    const sorted = sortCards(cards, sorts);
+    const sorted = sortCards(cards, sorts, ctx);
     const section = buildSection(ALL_SECTION, sorted);
     return section ? [section] : [];
   }
@@ -241,7 +248,7 @@ function buildSections(
   // from a real card (avoids needing a second lookup table).
   const groups = new Map<string, { meta: SectionMeta; cards: EnrichedCard[] }>();
   for (const card of cards) {
-    const meta = getSectionMeta(card, primary.field);
+    const meta = getSectionMeta(card, primary.field, ctx);
     const entry = groups.get(meta.key);
     if (entry) entry.cards.push(card);
     else groups.set(meta.key, { meta, cards: [card] });
@@ -259,7 +266,7 @@ function buildSections(
   const subSorts = sorts.slice(1);
   const sections: BinderSection[] = [];
   for (const { meta, cards: gCards } of ordered) {
-    const sorted = sortCards(gCards, subSorts);
+    const sorted = sortCards(gCards, subSorts, ctx);
     const section = buildSection(meta, sorted);
     if (section) sections.push(section);
   }

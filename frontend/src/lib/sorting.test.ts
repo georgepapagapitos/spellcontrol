@@ -99,9 +99,46 @@ describe('cardSortValue', () => {
     expect(cardSortValue(blueCreature, 'name')).toBe('merfolk wizard');
   });
 
-  it('set: returns set name lowercase', () => {
+  it('setName: returns set name lowercase', () => {
     const setCard = makeCard({ setName: 'Commander Masters', setCode: 'CMM' });
-    expect(cardSortValue(setCard, 'set')).toBe('commander masters');
+    expect(cardSortValue(setCard, 'setName')).toBe('commander masters');
+  });
+
+  it('setReleaseDate: returns release date when set map provides one', () => {
+    const setCard = makeCard({ setName: 'Commander Masters', setCode: 'CMM' });
+    const ctx = {
+      setMap: {
+        CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+      },
+    };
+    expect(cardSortValue(setCard, 'setReleaseDate', ctx)).toBe('2023-08-04');
+  });
+
+  it('setReleaseDate: sets without a known release date sort to the end', () => {
+    const known = makeCard({ setCode: 'CMM', setName: 'Commander Masters' });
+    const unknown = makeCard({ setCode: 'ZZZ', setName: 'Mystery Set' });
+    const ctx = {
+      setMap: {
+        CMM: { code: 'CMM', name: 'Commander Masters', iconSvgUri: '', releasedAt: '2023-08-04' },
+      },
+    };
+    const sorted = sortCards([unknown, known], [{ field: 'setReleaseDate', dir: 'asc' }], ctx);
+    expect(sorted.map((c) => c.setCode)).toEqual(['CMM', 'ZZZ']);
+  });
+
+  it('setReleaseDate: sorts chronologically by release date', () => {
+    const blb = makeCard({ setName: 'Bloomburrow', setCode: 'BLB' });
+    const fin = makeCard({ setName: 'Final Fantasy', setCode: 'FIN' });
+    const ecl = makeCard({ setName: 'Edge of Eternities', setCode: 'ECL' });
+    const ctx = {
+      setMap: {
+        BLB: { code: 'BLB', name: 'Bloomburrow', iconSvgUri: '', releasedAt: '2024-08-02' },
+        FIN: { code: 'FIN', name: 'Final Fantasy', iconSvgUri: '', releasedAt: '2025-06-13' },
+        ECL: { code: 'ECL', name: 'Edge of Eternities', iconSvgUri: '', releasedAt: '2025-08-01' },
+      },
+    };
+    const sorted = sortCards([fin, blb, ecl], [{ field: 'setReleaseDate', dir: 'asc' }], ctx);
+    expect(sorted.map((c) => c.setCode)).toEqual(['BLB', 'FIN', 'ECL']);
   });
 
   it('price: returns raw price (direction handled by sortCards)', () => {
