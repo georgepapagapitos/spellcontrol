@@ -28,7 +28,9 @@ function readStoredBinderView(): BinderViewMode {
   try {
     const v = localStorage.getItem(BINDER_VIEW_KEY);
     if (v === 'pages' || v === 'list' || v === 'compact') return v;
-  } catch {}
+  } catch {
+    /* ignore */
+  }
   return 'pages';
 }
 
@@ -57,7 +59,9 @@ export function BinderPage() {
     setViewRaw(v);
     try {
       localStorage.setItem(BINDER_VIEW_KEY, v);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
   // List-view only: roll multiple copies of the same printing into one
   // row. Lifted to the page so the options menu in the toolbar can

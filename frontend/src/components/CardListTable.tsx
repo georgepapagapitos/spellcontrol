@@ -45,7 +45,9 @@ function readStoredCollectionView(): ViewMode {
   try {
     const v = localStorage.getItem(COLLECTION_VIEW_KEY);
     if (v === 'grid' || v === 'list' || v === 'compact') return v;
-  } catch {}
+  } catch {
+    /* ignore */
+  }
   return 'list';
 }
 type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
@@ -123,7 +125,9 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     setViewRaw(v);
     try {
       localStorage.setItem(COLLECTION_VIEW_KEY, v);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   };
   const [binderFilter, setBinderFilter] = useState<string>('all');
   // Default ON: a collection reads as "what printings do I own and how
