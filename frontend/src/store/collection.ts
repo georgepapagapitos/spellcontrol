@@ -3,7 +3,6 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 import { useDecksStore } from './decks';
-import { buildAllocationMap } from '../lib/allocations';
 import {
   saveCollection,
   loadCollection,
@@ -231,17 +230,7 @@ export const useCollectionStore = create<CollectionState>()(
           set({ hydrating: false });
           const cards = get().cards;
           if (cards.length > 0) {
-            const { decks } = useDecksStore.getState();
-            if (decks.length > 0) {
-              const allocationMap = buildAllocationMap(decks);
-              if (allocationMap.size > 0) {
-                const copyIds = new Set(cards.map((c) => c.copyId));
-                const hasOrphan = [...allocationMap.keys()].some((id) => !copyIds.has(id));
-                if (hasOrphan) {
-                  remapDeckAllocations(cards);
-                }
-              }
-            }
+            remapDeckAllocations(cards);
           }
         }
       },
@@ -301,9 +290,7 @@ export const useCollectionStore = create<CollectionState>()(
 
         set(stateUpdate);
 
-        if (collectionMode === 'replace' && existing.length > 0) {
-          remapDeckAllocations(newCards);
-        }
+        remapDeckAllocations(newCards);
 
         try {
           await saveCollection({
@@ -742,7 +729,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'spellcontrol',
-      version: 13,
+      version: 14,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -826,6 +813,20 @@ export const useCollectionStore = create<CollectionState>()(
         // v11→v12: added optional `mode` field to BinderDef. Undefined = 'rules'.
         // v12→v13: added optional `hideDeckAllocated` field. Undefined = include
         // deck-allocated cards (current behavior). No data transform needed.
+        // v13→v14: split 'set' sort into 'setReleaseDate' (chronological) and
+        // 'setName' (alphabetical). Existing 'set' entries map to
+        // 'setReleaseDate' since that matches the post-fix behavior (sets sort
+        // by Scryfall release date).
+        if (fromVersion < 14 && Array.isArray(state.binders)) {
+          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
+            const sorts = b.sorts as Array<{ field: string; dir: string }> | undefined;
+            if (!Array.isArray(sorts)) return b;
+            return {
+              ...b,
+              sorts: sorts.map((s) => (s.field === 'set' ? { ...s, field: 'setReleaseDate' } : s)),
+            };
+          });
+        }
         return state as never;
       },
     }

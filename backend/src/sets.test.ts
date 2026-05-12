@@ -16,8 +16,18 @@ describe('getSetMap', () => {
         JSON.stringify({
           object: 'list',
           data: [
-            { code: 'cmr', name: 'Commander Legends', icon_svg_uri: 'a.svg' },
-            { code: 'rna', name: 'Ravnica Allegiance', icon_svg_uri: 'b.svg' },
+            {
+              code: 'cmr',
+              name: 'Commander Legends',
+              icon_svg_uri: 'a.svg',
+              released_at: '2020-11-20',
+            },
+            {
+              code: 'rna',
+              name: 'Ravnica Allegiance',
+              icon_svg_uri: 'b.svg',
+              released_at: '2019-01-25',
+            },
           ],
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -27,6 +37,7 @@ describe('getSetMap', () => {
     const map = await getSetMap();
     expect(map.CMR.name).toBe('Commander Legends');
     expect(map.CMR.iconSvgUri).toBe('a.svg');
+    expect(map.CMR.releasedAt).toBe('2020-11-20');
     expect(map.RNA.code).toBe('RNA');
   });
 

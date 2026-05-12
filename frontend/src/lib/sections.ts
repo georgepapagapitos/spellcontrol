@@ -1,6 +1,11 @@
 import type { EnrichedCard, SortField } from '../types';
 import { COLOR_INFO, COLOR_ORDER, getColorKey } from './colors';
 import { TYPE_ORDER, getCardType } from './card-types';
+import type { SetMap } from './api';
+
+export interface SectionContext {
+  setMap?: SetMap;
+}
 
 /**
  * Metadata for a top-level binder section. The primary sort field drives
@@ -61,7 +66,11 @@ function nameBucket(name: string): SectionMeta {
   return { key: 'name-#', label: '#', order: 0 };
 }
 
-export function getSectionMeta(card: EnrichedCard, field: SortField): SectionMeta {
+export function getSectionMeta(
+  card: EnrichedCard,
+  field: SortField,
+  ctx?: SectionContext
+): SectionMeta {
   switch (field) {
     case 'color': {
       const k = getColorKey(card);
@@ -86,7 +95,17 @@ export function getSectionMeta(card: EnrichedCard, field: SortField): SectionMet
     }
     case 'cmc':
       return cmcBucket(card.cmc);
-    case 'set':
+    case 'setReleaseDate': {
+      const code = (card.setCode || '').toUpperCase();
+      const released = ctx?.setMap?.[code]?.releasedAt;
+      return {
+        key: card.setCode || 'unknown',
+        label: card.setName || card.setCode || 'Unknown set',
+        // Unknown release dates sort last (Infinity).
+        order: released ? new Date(released).getTime() : Number.MAX_SAFE_INTEGER,
+      };
+    }
+    case 'setName':
       return {
         key: card.setCode || 'unknown',
         label: card.setName || card.setCode || 'Unknown set',
