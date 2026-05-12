@@ -68,6 +68,11 @@ export function BinderTabs({ binders }: Props) {
             >
               <span className="tab-color-dot" aria-hidden style={{ background: b.def.color }} />
               <span className="tab-label">{b.def.name}</span>
+              {b.def.mode === 'manual' && (
+                <span className="tab-mode-badge" aria-label="Manual mode">
+                  Manual
+                </span>
+              )}
               <span className="tab-count">{b.totalCards.toLocaleString()}</span>
             </button>
 
