@@ -1,4 +1,4 @@
-import type { DeckComposition } from '@/deck-builder/types';
+import type { DeckComposition, DeckFormat, DeckFormatConfig, DeckSize } from '@/deck-builder/types';
 
 export const BASE_DECK_COMPOSITION: DeckComposition = {
   lands: 37,
@@ -11,63 +11,117 @@ export const BASE_DECK_COMPOSITION: DeckComposition = {
   utility: 3,
 };
 
-// Deck format configurations
-import type { DeckFormat, DeckFormatConfig } from '@/deck-builder/types';
-
+// Format configurations keyed by MTG format name
 export const DECK_FORMAT_CONFIGS: Record<DeckFormat, DeckFormatConfig> = {
-  40: {
-    size: 40,
-    label: 'Brawl (40)',
-    description: '39 cards + commander',
-    defaultLands: 16,
-    landRange: [14, 18],
-    hasCommander: true,
-    allowMultipleCopies: false,
-  },
-  60: {
-    size: 60,
-    label: 'Brawl (60)',
-    description: '59 cards + commander',
-    defaultLands: 23,
-    landRange: [19, 27],
-    hasCommander: true,
-    allowMultipleCopies: false,
-  },
-  99: {
-    size: 99,
-    label: 'Commander (99)',
+  commander: {
+    format: 'commander',
+    label: 'Commander',
     description: '99 cards + commander',
+    deckSize: 100,
+    mainboardSize: 99,
+    sideboardSize: 0,
     defaultLands: 37,
     landRange: [32, 42],
     hasCommander: true,
-    allowMultipleCopies: false,
+    isSingleton: true,
+    maxCopies: 1,
+    legalityKey: 'commander',
+    supportsGeneration: true,
+  },
+  brawl: {
+    format: 'brawl',
+    label: 'Brawl',
+    description: '59 cards + commander',
+    deckSize: 60,
+    mainboardSize: 59,
+    sideboardSize: 0,
+    defaultLands: 23,
+    landRange: [19, 27],
+    hasCommander: true,
+    isSingleton: true,
+    maxCopies: 1,
+    legalityKey: 'brawl',
+    supportsGeneration: true,
+  },
+  standard: {
+    format: 'standard',
+    label: 'Standard',
+    description: '60-card constructed with 15-card sideboard',
+    deckSize: 60,
+    mainboardSize: 60,
+    sideboardSize: 15,
+    defaultLands: 24,
+    landRange: [20, 26],
+    hasCommander: false,
+    isSingleton: false,
+    maxCopies: 4,
+    legalityKey: 'standard',
+    supportsGeneration: false,
+  },
+  pauper: {
+    format: 'pauper',
+    label: 'Pauper',
+    description: '60-card constructed (commons only) with 15-card sideboard',
+    deckSize: 60,
+    mainboardSize: 60,
+    sideboardSize: 15,
+    defaultLands: 24,
+    landRange: [20, 26],
+    hasCommander: false,
+    isSingleton: false,
+    maxCopies: 4,
+    legalityKey: 'pauper',
+    supportsGeneration: false,
   },
 };
 
-// Helper to get format config for any deck size (known or custom)
+// Legacy helper for the generation engine — accepts a deck size and returns
+// a config suitable for commander/brawl generation scaling.
 export function getDeckFormatConfig(size: number): DeckFormatConfig {
-  if (size in DECK_FORMAT_CONFIGS) {
-    return DECK_FORMAT_CONFIGS[size];
+  if (size === 99 || size === 100) return DECK_FORMAT_CONFIGS.commander;
+  if (size === 59 || size === 60) return DECK_FORMAT_CONFIGS.brawl;
+  if (size === 40) {
+    return {
+      format: 'brawl',
+      label: 'Brawl (40)',
+      description: '39 cards + commander',
+      deckSize: 40,
+      mainboardSize: 39,
+      sideboardSize: 0,
+      defaultLands: 16,
+      landRange: [14, 18],
+      hasCommander: true,
+      isSingleton: true,
+      maxCopies: 1,
+      legalityKey: 'brawl',
+      supportsGeneration: true,
+    };
   }
   // Interpolate sensible defaults for custom sizes
   const landRatio = size <= 50 ? 0.4 : size <= 70 ? 0.38 : 0.37;
   const defaultLands = Math.round((size - 1) * landRatio);
   return {
-    size,
+    format: 'commander',
     label: `Custom (${size})`,
     description: `${size - 1} cards + commander`,
+    deckSize: size + 1,
+    mainboardSize: size,
+    sideboardSize: 0,
     defaultLands,
     landRange: [Math.max(1, Math.floor(defaultLands * 0.8)), Math.ceil(defaultLands * 1.2)] as [
       number,
       number,
     ],
     hasCommander: true,
-    allowMultipleCopies: false,
+    isSingleton: true,
+    maxCopies: 1,
+    legalityKey: 'commander',
+    supportsGeneration: true,
   };
 }
 
-// Base deck composition for different formats (excluding commander/lands)
-export const FORMAT_BASE_COMPOSITION: Record<DeckFormat, DeckComposition> = {
+// Base deck composition for different deck sizes (generation engine only)
+export const FORMAT_BASE_COMPOSITION: Record<DeckSize, DeckComposition> = {
   40: {
     lands: 17,
     ramp: 2,

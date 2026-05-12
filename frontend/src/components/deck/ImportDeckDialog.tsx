@@ -7,11 +7,13 @@ import { useCollectionStore } from '../../store/collection';
 import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from '../../lib/allocations';
 import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
 
 interface Props {
   onClose: () => void;
+  format?: DeckFormat;
 }
 
 type Step = 'input' | 'commander' | 'importing';
@@ -30,6 +32,13 @@ function isValidCommander(card: ScryfallCard): boolean {
   return legality === 'legal' || legality === 'restricted';
 }
 
+function splitImportZones(cards: ScryfallCard[]): {
+  mainboard: ScryfallCard[];
+  sideboard: ScryfallCard[];
+} {
+  return { mainboard: cards, sideboard: [] };
+}
+
 function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
   const seen = new Set<string>();
   return cards.filter((c) => {
@@ -39,7 +48,8 @@ function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
   });
 }
 
-export function ImportDeckDialog({ onClose }: Props) {
+export function ImportDeckDialog({ onClose, format = 'commander' }: Props) {
+  const formatConfig = DECK_FORMAT_CONFIGS[format];
   const navigate = useNavigate();
   const decks = useDecksStore((s) => s.decks);
   const createDeck = useDecksStore((s) => s.createDeck);
@@ -58,42 +68,75 @@ export function ImportDeckDialog({ onClose }: Props) {
     [pendingResult]
   );
 
+  const allocateCards = useCallback(
+    (cardList: ScryfallCard[]) => {
+      const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
+      return cardList.map((card) => {
+        const pick = pickCollectionCopy(card.name, collectionCards, claimed);
+        if (pick) {
+          claimed.set(pick.copyId, {
+            deckId: '__pending__',
+            deckName: '__pending__',
+            cardName: card.name,
+          });
+        }
+        return newDeckCard(card, pick?.copyId ?? null);
+      });
+    },
+    [decks, collectionCards]
+  );
+
   const finalizeDeck = useCallback(
     (result: DeckImportResponse, commander: ScryfallCard) => {
-      const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
-
-      const allocateFor = (card: ScryfallCard): string | null => {
-        const pick = pickCollectionCopy(card.name, collectionCards, claimed);
-        if (!pick) return null;
-        claimed.set(pick.copyId, {
-          deckId: '__pending__',
-          deckName: '__pending__',
-          cardName: card.name,
-        });
-        return pick.copyId;
-      };
-
-      const commanderAlloc = allocateFor(commander);
-
-      const cards = result.cards
-        .filter((c) => c.name !== commander.name)
-        .map((card) => newDeckCard(card, allocateFor(card)));
+      const mainCards = result.cards.filter((c) => c.name !== commander.name);
+      const cards = allocateCards(mainCards);
+      const commanderPick = pickCollectionCopy(
+        commander.name,
+        collectionCards,
+        buildAllocationMap(decks),
+        commander.id
+      );
 
       const id = createDeck({
+        format,
         source: 'manual',
         commander,
-        commanderAllocatedCopyId: commanderAlloc,
+        commanderAllocatedCopyId: commanderPick?.copyId ?? null,
         cards,
       });
 
       onClose();
       navigate(`/decks/${id}`);
     },
-    [decks, collectionCards, createDeck, navigate, onClose]
+    [allocateCards, collectionCards, decks, createDeck, navigate, onClose, format]
+  );
+
+  const finalizeWithoutCommander = useCallback(
+    (result: DeckImportResponse) => {
+      const { mainboard, sideboard } = splitImportZones(result.cards);
+      const cards = allocateCards(mainboard);
+      const sideboardCards = allocateCards(sideboard);
+
+      const id = createDeck({
+        format,
+        source: 'manual',
+        commander: null,
+        cards,
+        sideboard: sideboardCards,
+      });
+
+      onClose();
+      navigate(`/decks/${id}`);
+    },
+    [allocateCards, createDeck, navigate, onClose, format]
   );
 
   const handleImportResult = useCallback(
     (result: DeckImportResponse) => {
+      if (!formatConfig.hasCommander) {
+        finalizeWithoutCommander(result);
+        return;
+      }
       if (result.commander) {
         finalizeDeck(result, result.commander);
         return;
@@ -107,7 +150,7 @@ export function ImportDeckDialog({ onClose }: Props) {
       setStep('commander');
       setIsLoading(false);
     },
-    [finalizeDeck]
+    [finalizeDeck, finalizeWithoutCommander, formatConfig]
   );
 
   const handlePasteImport = useCallback(async () => {

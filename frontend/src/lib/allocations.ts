@@ -51,6 +51,15 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
         });
       }
     }
+    for (const c of deck.sideboard ?? []) {
+      if (c.allocatedCopyId) {
+        m.set(c.allocatedCopyId, {
+          deckId: deck.id,
+          deckName: deck.name,
+          cardName: c.card.name,
+        });
+      }
+    }
   }
   return m;
 }
