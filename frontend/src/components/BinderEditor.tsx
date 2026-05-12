@@ -1,5 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
@@ -477,7 +476,47 @@ export function BinderEditor() {
             <div className="editor-row">
               <div className="field">
                 <label>Tab color</label>
-                <ColorPicker value={color} onChange={setColor} />
+                <div className="color-picker">
+                  {PRESET_COLORS.map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      className={`color-swatch${color === c.hex ? ' selected' : ''}`}
+                      style={{ background: c.hex }}
+                      onClick={() => setColor(c.hex)}
+                      title={c.name}
+                      aria-label={c.name}
+                    />
+                  ))}
+                  <label
+                    className={`color-swatch color-swatch-custom${
+                      !PRESET_COLORS.some((c) => c.hex === color) ? ' selected' : ''
+                    }`}
+                    title="Custom color"
+                    aria-label="Custom color"
+                    style={
+                      !PRESET_COLORS.some((c) => c.hex === color)
+                        ? { background: color }
+                        : undefined
+                    }
+                  >
+                    <svg
+                      className="color-swatch-custom-icon"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+                  </label>
+                </div>
               </div>
             </div>
           </section>
@@ -1530,145 +1569,6 @@ function NumberRangeInput({
         style={{ width: 90 }}
       />
     </div>
-  );
-}
-
-function ColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
-
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !triggerRef.current) return;
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    setPos((p) => {
-      if (!p) return p;
-      if (p.top !== undefined && panelRect.bottom > window.innerHeight) {
-        return { left: p.left, bottom: window.innerHeight - triggerRect.top + 6 };
-      }
-      return p;
-    });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node) &&
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const handleToggle = () => {
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setPos(
-        spaceBelow >= 120
-          ? { top: rect.bottom + 6, left: rect.left }
-          : { bottom: window.innerHeight - rect.top + 6, left: rect.left }
-      );
-    }
-    setOpen((v) => !v);
-  };
-
-  const pick = (c: string) => {
-    onChange(c);
-    setOpen(false);
-  };
-
-  const preset = PRESET_COLORS.find((c) => c.hex === value);
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`color-picker-trigger${open ? ' open' : ''}`}
-        onClick={handleToggle}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label="Tab color"
-      >
-        <span className="color-picker-swatch" style={{ background: value }} />
-        <span className="color-picker-label">{preset ? preset.name : 'Custom'}</span>
-        <svg
-          viewBox="0 0 24 24"
-          width="12"
-          height="12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-      {open &&
-        pos &&
-        createPortal(
-          <div
-            ref={panelRef}
-            className="color-picker-panel"
-            style={{
-              position: 'fixed',
-              left: pos.left,
-              top: pos.top,
-              bottom: pos.bottom,
-              zIndex: 1200,
-            }}
-            role="listbox"
-            aria-label="Choose tab color"
-          >
-            <div className="color-picker-grid">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c.hex}
-                  type="button"
-                  role="option"
-                  aria-selected={value === c.hex}
-                  className={`color-swatch${value === c.hex ? ' selected' : ''}`}
-                  style={{ background: c.hex }}
-                  onClick={() => pick(c.hex)}
-                  aria-label={c.name}
-                  title={c.name}
-                />
-              ))}
-              <label
-                className={`color-swatch color-swatch-custom${!preset ? ' selected' : ''}`}
-                aria-label="Custom color"
-                title="Custom color"
-              >
-                <input
-                  type="color"
-                  value={value}
-                  onChange={(e) => {
-                    onChange(e.target.value);
-                  }}
-                />
-              </label>
-            </div>
-          </div>,
-          document.body
-        )}
-    </>
   );
 }
 
