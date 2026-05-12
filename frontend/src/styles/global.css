@@ -5560,8 +5560,19 @@ hr {
      browse path, so the inline row only needs to lay pages out within
      the available width. */
   .page-row {
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px 8px;
+  }
+
+  .page-wrap {
+    min-width: 0;
+  }
+
+  .grid-9,
+  .grid-4,
+  .grid-12 {
+    width: 100%;
   }
 
   /* Modal: full-bleed-ish on phones */
