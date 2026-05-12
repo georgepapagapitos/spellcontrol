@@ -38,6 +38,18 @@ interface Row {
 }
 
 type ViewMode = 'grid' | 'list' | 'compact';
+
+const COLLECTION_VIEW_KEY = 'mtg-collection-view-mode';
+
+function readStoredCollectionView(): ViewMode {
+  try {
+    const v = localStorage.getItem(COLLECTION_VIEW_KEY);
+    if (v === 'grid' || v === 'list' || v === 'compact') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'list';
+}
 type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -108,7 +120,15 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       setSortDir(SORT_FIELD_BY_KEY[key].defaultDir);
     }
   };
-  const [view, setView] = useState<ViewMode>('list');
+  const [view, setViewRaw] = useState<ViewMode>(readStoredCollectionView);
+  const setView = (v: ViewMode) => {
+    setViewRaw(v);
+    try {
+      localStorage.setItem(COLLECTION_VIEW_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  };
   const [binderFilter, setBinderFilter] = useState<string>('all');
   // Default ON: a collection reads as "what printings do I own and how
   // many?" — the rolled-up qty pill matches that mental model. Power
@@ -530,7 +550,13 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       )}
 
       {sorted.length === 0 ? (
-        <div className="empty-state">No cards match your filters.</div>
+        <div className="empty-state">
+          <p className="empty-state-tagline">No matches</p>
+          <p className="empty-state-hint">
+            No cards match your current filters. Try broadening your search or clearing some
+            filters.
+          </p>
+        </div>
       ) : view === 'grid' ? (
         <div className="collection-grid">
           {pageItems.map((r, i) => (
