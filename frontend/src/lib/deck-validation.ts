@@ -15,7 +15,7 @@ const BASIC_LAND_NAMES = new Set([
   'Snow-Covered Forest',
 ]);
 
-export type LegalityIssueKind = 'not-legal' | 'over-copy-limit' | 'color-identity';
+type LegalityIssueKind = 'not-legal' | 'over-copy-limit' | 'color-identity';
 
 export interface LegalityIssue {
   slotId: string;

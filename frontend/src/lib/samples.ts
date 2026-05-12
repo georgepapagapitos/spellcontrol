@@ -13,7 +13,7 @@
 
 import type { BinderInput } from '../types';
 
-export interface SampleBinderTemplate {
+interface SampleBinderTemplate {
   /** Stable id for the template — used only for keys, not persisted. */
   templateId: string;
   /** Used to seed the BinderInput. The input is given a fresh id at create time. */
