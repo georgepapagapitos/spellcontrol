@@ -1111,7 +1111,7 @@ input.toolbar-search-input {
   display: inline-block;
   margin-left: 0.35rem;
   padding: 0 0.35rem;
-  font-size: 0.6rem;
+  font-size: var(--text-xs);
   border-radius: 999px;
   background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
   color: #1a2438;
