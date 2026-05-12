@@ -7164,3 +7164,52 @@ hr {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ── Import binder sheet ──────────────────────────────────────── */
+
+.import-binder-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.import-binder-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-binder-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.import-binder-name {
+  width: 100%;
+}
+
+.import-binder-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-size: var(--text-sm);
+}
+
+.import-binder-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.import-binder-footer-right {
+  display: flex;
+  gap: 0.5rem;
+}
