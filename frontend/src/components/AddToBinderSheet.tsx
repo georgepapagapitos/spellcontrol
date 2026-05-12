@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -36,6 +37,19 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   }, [addedTo, onClose]);
 
   const sorted = [...binders].sort((a, b) => a.position - b.position);
+
+  const compiledByBinder = useMemo(
+    () => new Map(binders.map((b) => [b.id, compileFilterGroups(b.filterGroups)])),
+    [binders]
+  );
+
+  const cardMatchesBinder = (binderId: string): boolean => {
+    const binder = binders.find((b) => b.id === binderId);
+    if (!binder || binder.mode === 'manual') return true;
+    if (areAllGroupsEmpty(binder.filterGroups)) return true;
+    const compiled = compiledByBinder.get(binderId);
+    return compiled ? cardMatchesAnyGroup(card, compiled) : true;
+  };
 
   const handlePick = (binderId: string) => {
     if (binderId === currentBinderId) return;
@@ -87,6 +101,8 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
             {sorted.map((binder) => {
               const isAdded = addedTo === binder.id;
               const isCurrent = binder.id === currentBinderId;
+              const matches = cardMatchesBinder(binder.id);
+              const isManual = binder.mode === 'manual';
               return (
                 <li key={binder.id} className="add-to-binder-row">
                   <span
@@ -94,7 +110,13 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                     style={{ background: binder.color ?? 'var(--accent)' }}
                     aria-hidden
                   />
-                  <span className="add-to-binder-name">{binder.name}</span>
+                  <span className="add-to-binder-name">
+                    {binder.name}
+                    {isManual && <span className="add-to-binder-mode-hint">Manual</span>}
+                  </span>
+                  {!matches && !isCurrent && !isAdded && (
+                    <span className="add-to-binder-mismatch">Does not match rules</span>
+                  )}
                   {isAdded ? (
                     <span className="add-to-binder-added" aria-live="polite">
                       <CheckIcon /> {currentBinderId ? 'Moved' : 'Added'}
