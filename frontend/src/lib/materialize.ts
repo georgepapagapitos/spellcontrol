@@ -18,6 +18,10 @@ interface MaterializeOptions {
   search: string;
   /** Sort applied to the uncategorized bucket. */
   uncategorizedSorts?: SortEntry[];
+  /** copyIds currently allocated to any deck. Binders with hideDeckAllocated=false
+   *  skip these cards entirely — they aren't routed to that binder, don't fall
+   *  through to other binders, and don't land in Uncategorized. */
+  allocatedCopyIds?: ReadonlySet<string>;
 }
 
 const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
@@ -28,6 +32,8 @@ const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
 
 /** Fallback pocket size for binders that don't specify one and for the uncategorized bucket. */
 const DEFAULT_POCKET_SIZE: PocketSize = 9;
+
+const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
  * Routes cards through binder definitions in priority order.
@@ -45,6 +51,8 @@ export function materializeBinders(
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
   // Compile each binder's groups once. Outer index = binder, inner = OR-branches.
   const compiledGroups = orderedDefs.map((d) => compileFilterGroups(d.filterGroups));
+  const defsById = new Map(orderedDefs.map((d) => [d.id, d]));
+  const allocated = opts.allocatedCopyIds ?? EMPTY_SET;
 
   // Pre-claim pinned cards: first binder that pins a copyId wins (by position).
   const reservedToBinder = new Map<string, string>(); // copyId → binderId
@@ -63,22 +71,38 @@ export function materializeBinders(
   const uncategorized: EnrichedCard[] = [];
 
   for (const card of cards) {
+    const isAllocated = allocated.has(card.copyId);
+
     // Pinned cards go directly to their binder, bypassing rule routing.
     const claimedBy = reservedToBinder.get(card.copyId);
     if (claimedBy) {
+      const claimingDef = defsById.get(claimedBy)!;
+      // If the pinning binder hides deck-allocated cards and this card is in a
+      // deck, swallow it — don't render anywhere, but keep the pin metadata so
+      // it returns to its slot when the deck releases it.
+      if (isAllocated && claimingDef.hideDeckAllocated === false) continue;
       buckets.get(claimedBy)?.push(card);
       continue;
     }
     let matched = false;
+    let swallowed = false;
     for (let i = 0; i < orderedDefs.length; i++) {
-      if (orderedDefs[i].mode === 'manual') continue;
+      const def = orderedDefs[i];
+      if (def.mode === 'manual') continue;
       if (cardMatchesAnyGroup(card, compiledGroups[i])) {
-        buckets.get(orderedDefs[i].id)!.push(card);
-        matched = true;
+        if (isAllocated && def.hideDeckAllocated === false) {
+          // First matching binder hides deck-allocated cards: card is dropped
+          // from the binder system entirely (not routed to a later binder, not
+          // sent to uncategorized). It returns when un-allocated.
+          swallowed = true;
+        } else {
+          buckets.get(def.id)!.push(card);
+          matched = true;
+        }
         break;
       }
     }
-    if (!matched) uncategorized.push(card);
+    if (!matched && !swallowed) uncategorized.push(card);
   }
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {

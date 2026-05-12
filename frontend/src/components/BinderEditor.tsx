@@ -126,6 +126,7 @@ export function BinderEditor() {
   const [pocketSize, setPocketSize] = useState<PocketSize>(9);
   const [doubleSided, setDoubleSided] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
+  const [showDeckAllocated, setShowDeckAllocated] = useState(true);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
@@ -196,6 +197,7 @@ export function BinderEditor() {
         setPocketSize(existing.pocketSize ?? 9);
         setDoubleSided(!!existing.doubleSided);
         setFixedCapacity(existing.fixedCapacity ?? null);
+        setShowDeckAllocated(existing.hideDeckAllocated !== false);
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
               name: g.name,
@@ -211,6 +213,7 @@ export function BinderEditor() {
         setPocketSize(9);
         setDoubleSided(false);
         setFixedCapacity(null);
+        setShowDeckAllocated(true);
         setGroups([newGroup()]);
         setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
@@ -320,6 +323,7 @@ export function BinderEditor() {
       fixedCapacity,
       color,
       mode: routingMode,
+      hideDeckAllocated: showDeckAllocated ? undefined : false,
     };
 
     setSaving(true);
@@ -477,6 +481,23 @@ export function BinderEditor() {
                 still display, just flagged as over-capacity.
               </div>
             )}
+            <div className="editor-row">
+              <div className="field" style={{ flex: 1 }}>
+                <label>Deck cards</label>
+                <label
+                  className="field-checkbox"
+                  style={{ margin: 0 }}
+                  title="When off, cards currently allocated to any deck are hidden from this binder until the deck releases them. Pins and manual order are preserved."
+                >
+                  <input
+                    type="checkbox"
+                    checked={showDeckAllocated}
+                    onChange={(e) => setShowDeckAllocated(e.target.checked)}
+                  />
+                  Show cards that are in a deck
+                </label>
+              </div>
+            </div>
             <div className="editor-row">
               <div className="field">
                 <label>Tab color</label>

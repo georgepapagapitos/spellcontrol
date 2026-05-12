@@ -742,7 +742,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'spellcontrol',
-      version: 12,
+      version: 13,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -824,6 +824,8 @@ export const useCollectionStore = create<CollectionState>()(
           }));
         }
         // v11→v12: added optional `mode` field to BinderDef. Undefined = 'rules'.
+        // v12→v13: added optional `hideDeckAllocated` field. Undefined = include
+        // deck-allocated cards (current behavior). No data transform needed.
         return state as never;
       },
     }

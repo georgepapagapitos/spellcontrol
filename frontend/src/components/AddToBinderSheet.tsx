@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useAllocations } from '../lib/allocations';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { useEscapeKey } from '../lib/use-escape-key';
 import type { EnrichedCard } from '../types';
@@ -19,6 +20,8 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
   const [addedTo, setAddedTo] = useState<string | null>(null);
+  const allocations = useAllocations();
+  const isAllocated = allocations.has(card.copyId);
 
   useLockBodyScroll();
   useEscapeKey(onClose);
@@ -110,6 +113,9 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                   </span>
                   {!matches && !isCurrent && !isAdded && (
                     <span className="add-to-binder-mismatch">Does not match rules</span>
+                  )}
+                  {isAllocated && binder.hideDeckAllocated === false && !isCurrent && !isAdded && (
+                    <span className="add-to-binder-mismatch">Hidden while in a deck</span>
                   )}
                   {isAdded ? (
                     <span className="add-to-binder-added" aria-live="polite">

@@ -395,4 +395,99 @@ describe('materializeBinders', () => {
       expect(binders[0].totalCards).toBe(1);
     });
   });
+
+  describe('hideDeckAllocated', () => {
+    it('keeps allocated cards visible when hideDeckAllocated is undefined (default)', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+      });
+      const { binders, uncategorized } = materializeBinders([card], [binder], {
+        ...defaultOpts,
+        allocatedCopyIds: new Set([card.copyId]),
+      });
+      expect(binders[0].totalCards).toBe(1);
+      expect(uncategorized.totalCards).toBe(0);
+    });
+
+    it('drops allocated rule-matched cards entirely when hideDeckAllocated is false', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        hideDeckAllocated: false,
+      });
+      const { binders, uncategorized } = materializeBinders([card], [binder], {
+        ...defaultOpts,
+        allocatedCopyIds: new Set([card.copyId]),
+      });
+      expect(binders[0].totalCards).toBe(0);
+      expect(uncategorized.totalCards).toBe(0);
+    });
+
+    it('drops allocated pinned cards but preserves pin metadata', () => {
+      const card = makeCard({ rarity: 'common' });
+      const binder = makeBinder({
+        filter: {},
+        mode: 'manual',
+        pinnedCopyIds: [card.copyId],
+        hideDeckAllocated: false,
+      });
+      const { binders, uncategorized } = materializeBinders([card], [binder], {
+        ...defaultOpts,
+        allocatedCopyIds: new Set([card.copyId]),
+      });
+      expect(binders[0].totalCards).toBe(0);
+      expect(uncategorized.totalCards).toBe(0);
+      expect(binders[0].def.pinnedCopyIds).toEqual([card.copyId]);
+    });
+
+    it('allocated card returns once un-allocated', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        hideDeckAllocated: false,
+      });
+      const { binders } = materializeBinders([card], [binder], {
+        ...defaultOpts,
+        allocatedCopyIds: new Set(),
+      });
+      expect(binders[0].totalCards).toBe(1);
+    });
+
+    it('hide-mode binder swallows the card even if a later binder would match', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const hideBinder = makeBinder({
+        id: 'hide',
+        position: 0,
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        hideDeckAllocated: false,
+      });
+      const fallback = makeBinder({
+        id: 'fallback',
+        position: 1,
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+      });
+      const { binders, uncategorized } = materializeBinders([card], [hideBinder, fallback], {
+        ...defaultOpts,
+        allocatedCopyIds: new Set([card.copyId]),
+      });
+      expect(binders.find((b) => b.def.id === 'hide')!.totalCards).toBe(0);
+      expect(binders.find((b) => b.def.id === 'fallback')!.totalCards).toBe(0);
+      expect(uncategorized.totalCards).toBe(0);
+    });
+
+    it('does not affect non-allocated cards in a hide-mode binder', () => {
+      const allocatedCard = makeCard({ rarity: 'rare' });
+      const freeCard = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        hideDeckAllocated: false,
+      });
+      const { binders } = materializeBinders([allocatedCard, freeCard], [binder], {
+        ...defaultOpts,
+        allocatedCopyIds: new Set([allocatedCard.copyId]),
+      });
+      expect(binders[0].totalCards).toBe(1);
+    });
+  });
 });
