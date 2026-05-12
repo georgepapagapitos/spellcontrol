@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
 import { CardPreview } from './CardPreview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
+import { useAllocations, type AllocationInfo } from '../lib/allocations';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -131,6 +133,8 @@ export function BinderPagePreview({
     trackRef,
   });
 
+  const allocations = useAllocations();
+
   const handleCardTap = (card: EnrichedCard) => {
     const scope = resolveCard(card);
     if (scope) setInnerCard(scope);
@@ -254,6 +258,7 @@ export function BinderPagePreview({
                   cols={cols}
                   rows={rows}
                   aspect={slideAspect}
+                  allocations={allocations}
                   onTapCard={handleCardTap}
                 />
               </div>
@@ -293,12 +298,14 @@ function SlideGrid({
   cols,
   rows,
   aspect,
+  allocations,
   onTapCard,
 }: {
   slots: (EnrichedCard | null)[];
   cols: number;
   rows: number;
   aspect: string;
+  allocations: Map<string, AllocationInfo>;
   onTapCard: (card: EnrichedCard) => void;
 }) {
   return (
@@ -311,20 +318,37 @@ function SlideGrid({
       }}
     >
       {slots.map((card, i) => (
-        <Cell key={i} card={card} onTap={onTapCard} />
+        <Cell
+          key={i}
+          card={card}
+          allocation={card ? (allocations.get(card.copyId) ?? null) : null}
+          onTap={onTapCard}
+        />
       ))}
     </div>
   );
 }
 
-function Cell({ card, onTap }: { card: EnrichedCard | null; onTap: (card: EnrichedCard) => void }) {
+function Cell({
+  card,
+  allocation,
+  onTap,
+}: {
+  card: EnrichedCard | null;
+  allocation: AllocationInfo | null;
+  onTap: (card: EnrichedCard) => void;
+}) {
   if (!card) return <div className="binder-pages-cell empty" />;
   return (
     <button
       type="button"
-      className={`binder-pages-cell${card.foil ? ' is-foil' : ''}`}
+      className={`binder-pages-cell${card.foil ? ' is-foil' : ''}${
+        allocation ? ' is-allocated' : ''
+      }`}
       onClick={() => onTap(card)}
-      aria-label={`Open ${card.name}${card.foil ? ' (foil)' : ''}`}
+      aria-label={`Open ${card.name}${card.foil ? ' (foil)' : ''}${
+        allocation ? ` (in deck: ${allocation.deckName})` : ''
+      }`}
     >
       {card.imageNormal ? (
         <img
@@ -336,6 +360,28 @@ function Cell({ card, onTap }: { card: EnrichedCard | null; onTap: (card: Enrich
         />
       ) : (
         <span className="binder-pages-cell-fallback">{card.name}</span>
+      )}
+      {allocation && (
+        <Link
+          to={`/decks/${allocation.deckId}`}
+          className="slot-deck-badge"
+          title={`In deck: ${allocation.deckName}`}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Open deck ${allocation.deckName}`}
+        >
+          <svg
+            width="9"
+            height="9"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
+            <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
+            <rect x="6" y="0" width="9" height="11" rx="1.5" />
+          </svg>
+        </Link>
       )}
     </button>
   );
