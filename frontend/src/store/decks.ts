@@ -334,7 +334,7 @@ export const useDecksStore = create<DecksState>()(
 
           const remappedDecks = s.decks.map((deck) => {
             let commanderAllocatedCopyId = deck.commanderAllocatedCopyId;
-            if (deck.commander && commanderAllocatedCopyId) {
+            if (deck.commander) {
               const pick = pickCollectionCopy(
                 deck.commander.name,
                 newCollection,
@@ -352,7 +352,7 @@ export const useDecksStore = create<DecksState>()(
             }
 
             let partnerCommanderAllocatedCopyId = deck.partnerCommanderAllocatedCopyId;
-            if (deck.partnerCommander && partnerCommanderAllocatedCopyId) {
+            if (deck.partnerCommander) {
               const pick = pickCollectionCopy(
                 deck.partnerCommander.name,
                 newCollection,
@@ -370,7 +370,6 @@ export const useDecksStore = create<DecksState>()(
             }
 
             const cards = deck.cards.map((c) => {
-              if (!c.allocatedCopyId) return c;
               const pick = pickCollectionCopy(c.card.name, newCollection, allocated, c.card.id);
               if (pick) {
                 allocated.set(pick.copyId, {
@@ -383,7 +382,6 @@ export const useDecksStore = create<DecksState>()(
             });
 
             const sideboard = (deck.sideboard ?? []).map((c) => {
-              if (!c.allocatedCopyId) return c;
               const pick = pickCollectionCopy(c.card.name, newCollection, allocated, c.card.id);
               if (pick) {
                 allocated.set(pick.copyId, {
