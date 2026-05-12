@@ -806,7 +806,9 @@ function SortMenu({
   onToggleSort: (k: SortKey) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -824,17 +826,26 @@ function SortMenu({
     };
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setFlipUp(window.innerHeight - rect.bottom < 160);
+    }
+    setOpen((v) => !v);
+  };
+
   const activeLabel = SORT_FIELD_BY_KEY[sortKey].label;
 
   return (
     <div className="toolbar-popover" ref={wrapperRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={`toolbar-pill${open ? ' open' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Sort"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
       >
         <SortDirArrow dir={sortDir} />
         <span className="toolbar-pill-label">{activeLabel}</span>
@@ -853,7 +864,7 @@ function SortMenu({
         </svg>
       </button>
       {open && (
-        <div className="toolbar-popover-panel">
+        <div className={`toolbar-popover-panel${flipUp ? ' toolbar-popover-panel--flip-up' : ''}`}>
           <ul className="toolbar-popover-list" role="menu" aria-label="Sort by">
             {SORT_FIELDS.map((f) => {
               const active = f.key === sortKey;

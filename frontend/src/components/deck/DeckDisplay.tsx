@@ -1071,7 +1071,9 @@ function ToolbarPopover({
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -1089,15 +1091,24 @@ function ToolbarPopover({
     };
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setFlipUp(window.innerHeight - rect.bottom < 160);
+    }
+    setOpen((v) => !v);
+  };
+
   return (
     <div className="toolbar-popover" ref={wrapperRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={`toolbar-pill${open ? ' open' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={!label ? ariaLabel : undefined}
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
       >
         {icon}
         {label && <span className="toolbar-pill-label">{label}</span>}
@@ -1116,7 +1127,11 @@ function ToolbarPopover({
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
-      {open && <div className="toolbar-popover-panel">{children(() => setOpen(false))}</div>}
+      {open && (
+        <div className={`toolbar-popover-panel${flipUp ? ' toolbar-popover-panel--flip-up' : ''}`}>
+          {children(() => setOpen(false))}
+        </div>
+      )}
     </div>
   );
 }
