@@ -3645,3 +3645,66 @@ input.deck-row-qty-input.deck-row-qty-missing {
   gap: 0.5rem;
   align-items: center;
 }
+
+/* ── Format badge ─────────────────────────────────────────────────── */
+.deck-format-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius);
+  background: var(--surface2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* ── Legality banner ──────────────────────────────────────────────── */
+.deck-legality-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--warn-light, hsl(40 90% 92%));
+  color: var(--warn-text, hsl(30 80% 30%));
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* ── Per-card illegal indicator ───────────────────────────────────── */
+.deck-row-illegal {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3rem;
+  color: var(--warn-text, hsl(30 80% 45%));
+  vertical-align: middle;
+}
+
+/* ── Sideboard section ────────────────────────────────────────────── */
+.deck-sideboard-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border2);
+}
+
+.deck-sideboard-header {
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.deck-sideboard-empty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+/* ── Zone toggle (mainboard / sideboard) ──────────────────────────── */
+.deck-editor-zone-toggle {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}

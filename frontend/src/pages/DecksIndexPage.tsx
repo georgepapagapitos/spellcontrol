@@ -9,6 +9,7 @@ import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { Deck } from '../store/decks';
 import type { ScryfallCard } from '../deck-builder/types';
+import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
@@ -161,8 +162,8 @@ export function DecksIndexPage() {
             {sorted.length.toLocaleString()} {sorted.length === 1 ? 'deck' : 'decks'}
           </p>
           <p className="decks-index-subtitle">
-            Saved Commander decks. Build a new one from a commander, generate from EDHREC, or start
-            blank and add cards from your collection.
+            Saved decks. Build a new one from scratch, generate from EDHREC, or import an existing
+            deck list.
           </p>
         </div>
         <div className="decks-index-actions">
@@ -258,9 +259,12 @@ export function DecksIndexPage() {
                           ))}
                         </span>
                       )}
+                      <span className="deck-format-badge">
+                        {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
+                      </span>
                       <span>
-                        {deck.commander?.name ?? 'No commander'} · {totalCards} cards ·{' '}
-                        {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                        {deck.commander ? `${deck.commander.name} · ` : ''}
+                        {totalCards} cards · {deck.source === 'generated' ? 'Generated' : 'Manual'}
                       </span>
                     </div>
                     {themes.length > 0 && (
