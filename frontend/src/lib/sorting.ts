@@ -1,6 +1,11 @@
 import type { EnrichedCard, SortDir, SortEntry, SortField } from '../types';
 import { COLOR_INFO, getColorKey } from './colors';
 import { TYPE_ORDER, getCardType } from './card-types';
+import type { SetMap } from './api';
+
+export interface SortContext {
+  setMap?: SetMap;
+}
 
 export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir }[] = [
   { value: 'color', label: 'Color', defaultDir: 'asc' },
@@ -23,7 +28,11 @@ export const RARITY_ORDER: Record<string, number> = {
   bonus: 5,
 };
 
-export function cardSortValue(card: EnrichedCard, field: SortField): number | string {
+export function cardSortValue(
+  card: EnrichedCard,
+  field: SortField,
+  ctx?: SortContext
+): number | string {
   switch (field) {
     case 'color':
       return COLOR_INFO[getColorKey(card)]?.order ?? 99;
@@ -37,8 +46,12 @@ export function cardSortValue(card: EnrichedCard, field: SortField): number | st
       return card.cmc ?? 999;
     case 'name':
       return card.name.toLowerCase();
-    case 'set':
+    case 'set': {
+      const code = (card.setCode || '').toUpperCase();
+      const released = ctx?.setMap?.[code]?.releasedAt;
+      if (released) return released;
       return (card.setName || card.setCode).toLowerCase();
+    }
     case 'price':
       return card.purchasePrice;
     case 'edhrec':
@@ -52,14 +65,18 @@ export function cardSortValue(card: EnrichedCard, field: SortField): number | st
   }
 }
 
-export function sortCards(cards: EnrichedCard[], sorts: SortEntry[]): EnrichedCard[] {
+export function sortCards(
+  cards: EnrichedCard[],
+  sorts: SortEntry[],
+  ctx?: SortContext
+): EnrichedCard[] {
   const active = sorts.filter((s) => s && s.field !== 'none');
   if (active.length === 0) return [...cards];
 
   return [...cards].sort((a, b) => {
     for (const { field, dir } of active) {
-      const va = cardSortValue(a, field);
-      const vb = cardSortValue(b, field);
+      const va = cardSortValue(a, field, ctx);
+      const vb = cardSortValue(b, field, ctx);
       if (va < vb) return dir === 'desc' ? 1 : -1;
       if (va > vb) return dir === 'desc' ? -1 : 1;
     }

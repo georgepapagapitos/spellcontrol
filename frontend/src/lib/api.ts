@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { DeckImportResponse, UploadResponse } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { handleResponse } from './fetch-utils';
@@ -31,6 +32,7 @@ interface SetSummary {
   code: string;
   name: string;
   iconSvgUri: string;
+  releasedAt: string;
 }
 export type SetMap = Record<string, SetSummary>;
 
@@ -48,6 +50,23 @@ export function getSetMap(): Promise<SetMap> {
       });
   }
   return setMapPromise;
+}
+
+/** React hook that resolves the set map once per mount (cached globally). */
+export function useSetMap(): SetMap | undefined {
+  const [map, setMap] = useState<SetMap | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    getSetMap()
+      .then((m) => {
+        if (!cancelled) setMap(m);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return map;
 }
 
 /** Import via pasted text — MTGA format, plain card names, or CSV-as-text. */

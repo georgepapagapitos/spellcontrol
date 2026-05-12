@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
+import { useSetMap } from '../lib/api';
 import { UploadPanel } from '../components/UploadPanel';
 import { ImportSheet } from '../components/ImportSheet';
 import { AddCardSheet } from '../components/AddCardSheet';
@@ -19,6 +20,7 @@ export function CollectionPage() {
 
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+  const setMap = useSetMap();
 
   // Materialize without search — the collection table has its own local search.
   const { materialized } = useMemo(() => {
@@ -26,9 +28,10 @@ export function CollectionPage() {
     const result = materializeBinders(cards, binders, {
       search: '',
       allocatedCopyIds,
+      setMap,
     });
     return { materialized: result.binders };
-  }, [cards, binders, allocatedCopyIds]);
+  }, [cards, binders, allocatedCopyIds, setMap]);
 
   return (
     <>

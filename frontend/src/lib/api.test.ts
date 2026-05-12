@@ -137,7 +137,14 @@ describe('api', () => {
 
 describe('getSetMap', () => {
   it('caches the response across calls', async () => {
-    const sets = { CMR: { code: 'CMR', name: 'Commander Legends', iconSvgUri: 'x' } };
+    const sets = {
+      CMR: {
+        code: 'CMR',
+        name: 'Commander Legends',
+        iconSvgUri: 'x',
+        releasedAt: '2020-11-20',
+      },
+    };
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ sets }));
     const a = await getSetMap();
     const b = await getSetMap();
