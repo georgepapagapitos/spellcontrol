@@ -39,8 +39,12 @@ describe('isCardLegal', () => {
   });
 
   it('treats banned, not_legal, and missing keys as illegal', () => {
-    expect(isCardLegal(card({ legalities: { pauper: 'banned' } }), 'pauper')).toBe(false);
-    expect(isCardLegal(card({ legalities: { pauper: 'not_legal' } }), 'pauper')).toBe(false);
+    expect(
+      isCardLegal(card({ legalities: { commander: 'legal', pauper: 'banned' } }), 'pauper')
+    ).toBe(false);
+    expect(
+      isCardLegal(card({ legalities: { commander: 'legal', pauper: 'not_legal' } }), 'pauper')
+    ).toBe(false);
     expect(isCardLegal(card({ legalities: { commander: 'legal' } }), 'pauper')).toBe(false);
   });
 });
@@ -139,7 +143,10 @@ describe('validateDeck', () => {
   });
 
   it('allows up to 4 copies in non-singleton formats and flags the 5th', () => {
-    const c = card({ name: 'Lightning Bolt', legalities: { standard: 'legal' } });
+    const c = card({
+      name: 'Lightning Bolt',
+      legalities: { commander: 'legal', standard: 'legal' },
+    });
     const four = [slot(c, 'a'), slot(c, 'b'), slot(c, 'c'), slot(c, 'd')];
     expect(
       validateDeck(four, [], standard).filter((i) => i.issue === 'over-copy-limit')
@@ -151,7 +158,10 @@ describe('validateDeck', () => {
   });
 
   it('counts copies across mainboard and sideboard combined', () => {
-    const c = card({ name: 'Lightning Bolt', legalities: { standard: 'legal' } });
+    const c = card({
+      name: 'Lightning Bolt',
+      legalities: { commander: 'legal', standard: 'legal' },
+    });
     const main = [slot(c, 'a'), slot(c, 'b'), slot(c, 'c')];
     const side = [slot(c, 'd'), slot(c, 'e')]; // total 5 across both
     const issues = validateDeck(main, side, standard);
@@ -159,7 +169,7 @@ describe('validateDeck', () => {
   });
 
   it('allows unlimited basics regardless of format', () => {
-    const plains = card({ name: 'Plains', legalities: { standard: 'legal' } });
+    const plains = card({ name: 'Plains', legalities: { commander: 'legal', standard: 'legal' } });
     const issues = validateDeck(
       Array.from({ length: 24 }, (_, i) => slot(plains, `p${i}`)),
       [],
@@ -172,7 +182,7 @@ describe('validateDeck', () => {
     const c = card({
       name: 'Lightning Bolt',
       color_identity: ['R'],
-      legalities: { standard: 'legal' },
+      legalities: { commander: 'legal', standard: 'legal' },
     });
     const issues = validateDeck([slot(c, 'a')], [], standard);
     expect(issues.some((i) => i.issue === 'color-identity')).toBe(false);
