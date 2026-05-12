@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import type { ScryfallCard } from '@/deck-builder/types';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 import {
   saveCollection,
@@ -9,6 +10,7 @@ import {
   type StoredCollection,
 } from '../lib/local-cards';
 import { buildBackup, normalizeSortEntries, type Backup } from '../lib/backup';
+import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 
 function newBinderId(): string {
@@ -90,6 +92,12 @@ interface CollectionState {
    * the caller can compute the new array and persist in one round-trip.
    */
   replaceAllCards: (cards: EnrichedCard[]) => Promise<void>;
+  /**
+   * Adds a single card to the collection from a Scryfall card object.
+   * Creates an EnrichedCard with a fresh copyId and persists. Returns the
+   * new copyId so callers can pin it to a binder in the same action.
+   */
+  addCard: (card: ScryfallCard) => Promise<string>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
@@ -359,6 +367,26 @@ export const useCollectionStore = create<CollectionState>()(
         } catch (err) {
           console.warn('[store] Failed to persist after replaceAllCards:', err);
         }
+      },
+
+      addCard: async (card) => {
+        const enriched = scryfallToEnrichedCard(card);
+        const s = get();
+        const updated = [...s.cards, enriched];
+        set({ cards: updated });
+        try {
+          await saveCollection({
+            cards: updated,
+            fileName: s.fileName,
+            scryfallHits: s.scryfallHits,
+            scryfallMisses: s.scryfallMisses,
+            uploadedAt: s.uploadedAt ?? Date.now(),
+            importHistory: s.importHistory,
+          });
+        } catch (err) {
+          console.warn('[store] Failed to persist after addCard:', err);
+        }
+        return enriched.copyId;
       },
 
       refreshPrices: async (scryfallIds) => {
