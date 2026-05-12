@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
+import { useAllocations } from '../lib/allocations';
 import { UploadPanel } from '../components/UploadPanel';
 import { ImportSheet } from '../components/ImportSheet';
 import { AddCardSheet } from '../components/AddCardSheet';
@@ -16,12 +17,18 @@ export function CollectionPage() {
   const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
   const [addCardOpen, setAddCardOpen] = useState(false);
 
+  const allocations = useAllocations();
+  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+
   // Materialize without search — the collection table has its own local search.
   const { materialized } = useMemo(() => {
     if (cards.length === 0) return { materialized: [] };
-    const result = materializeBinders(cards, binders, { search: '' });
+    const result = materializeBinders(cards, binders, {
+      search: '',
+      allocatedCopyIds,
+    });
     return { materialized: result.binders };
-  }, [cards, binders]);
+  }, [cards, binders, allocatedCopyIds]);
 
   return (
     <>

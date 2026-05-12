@@ -274,6 +274,11 @@ export interface BinderDef {
    *  Cards not in this list (new additions) are appended at the end.
    *  Undefined = use auto-sort (existing behavior). */
   manualOrder?: string[];
+  /** When false, cards allocated to any deck are excluded from this binder's
+   *  view and membership entirely (no fallback binder, no Uncategorized).
+   *  Pin/exclusion/manualOrder metadata is preserved — cards return when the
+   *  deck releases them. Undefined/true = current behavior (include them). */
+  hideDeckAllocated?: boolean;
   createdAt: number;
   updatedAt: number;
 }
