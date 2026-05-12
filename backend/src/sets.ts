@@ -48,7 +48,7 @@ async function fetchSetMap(): Promise<SetMap> {
   const response = await fetch(SCRYFALL_SETS_URL, {
     headers: {
       Accept: 'application/json',
-      'User-Agent': 'mtg-binder-planner/1.0',
+      'User-Agent': 'spellcontrol/1.0',
     },
   });
   if (!response.ok) {

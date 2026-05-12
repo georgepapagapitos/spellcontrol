@@ -71,14 +71,14 @@ describe('parseBackup', () => {
 
   it('rejects missing format marker', () => {
     expect(() => parseBackup(JSON.stringify({ version: 1, binders: [] }))).toThrow(
-      /MTG Binder Planner backup/
+      /SpellControl backup/
     );
   });
 
   it('rejects mismatched format string', () => {
     expect(() =>
       parseBackup(JSON.stringify({ format: 'something-else', version: 1, binders: [] }))
-    ).toThrow(/MTG Binder Planner backup/);
+    ).toThrow(/SpellControl backup/);
   });
 
   it('rejects newer-than-supported version', () => {
@@ -153,9 +153,7 @@ describe('filename helpers', () => {
   const fixed = new Date('2026-03-04T05:06:00Z');
 
   it('uses a YYYY-MM-DD-HHMM timestamp', () => {
-    expect(backupFileName(fixed)).toMatch(
-      /mtg-binder-planner-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json/
-    );
+    expect(backupFileName(fixed)).toMatch(/spellcontrol-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json/);
   });
 
   it('sanitizes binder names', () => {
@@ -164,7 +162,7 @@ describe('filename helpers', () => {
   });
 
   it('emits all-binders filename', () => {
-    expect(allBindersBackupFileName(fixed)).toMatch(/^mtg-binders-all-/);
+    expect(allBindersBackupFileName(fixed)).toMatch(/^spellcontrol-binders-all-/);
   });
 });
 

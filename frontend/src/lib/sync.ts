@@ -182,7 +182,7 @@ export async function stopSyncAndWipeLocal(): Promise<void> {
   });
   useDecksStore.setState({ decks: [], hydrated: true });
   try {
-    localStorage.removeItem('mtg-binder-planner');
+    localStorage.removeItem('spellcontrol');
     localStorage.removeItem('mtg-decks');
   } catch {
     /* ignore */
