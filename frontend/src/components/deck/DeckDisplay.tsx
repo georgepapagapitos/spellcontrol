@@ -845,7 +845,11 @@ export function DeckDisplay({
               </div>
             )}
             {viewMode === 'grid' && (
-              <DeckCardGrid groups={visibleGroups} onRowClick={openPreview} />
+              <DeckCardGrid
+                groups={visibleGroups}
+                onRowClick={openPreview}
+                legalityBySlot={legalityBySlot}
+              />
             )}
             {viewMode === 'text' && <DeckTextView text={exportText} />}
           </div>
@@ -1439,13 +1443,30 @@ function DeckTextIcon() {
   );
 }
 
+// ── Legality badge (red ! disc) ─────────────────────────────────────────
+// Shared by list and grid view. The icon itself is theme-colored; the
+// caller sets size and position through the passed className.
+function LegalityBadge({ issue, className }: { issue: LegalityIssue; className: string }) {
+  return (
+    <span className={className} role="img" aria-label={issue.detail} title={issue.detail}>
+      <svg viewBox="0 0 20 20" width="100%" height="100%" aria-hidden>
+        <circle cx="10" cy="10" r="9" fill="currentColor" />
+        <rect x="9" y="4.5" width="2" height="7" rx="1" fill="#fff" />
+        <circle cx="10" cy="14.5" r="1.1" fill="#fff" />
+      </svg>
+    </span>
+  );
+}
+
 // ── Grid view ────────────────────────────────────────────────────────────
 function DeckCardGrid({
   groups,
   onRowClick,
+  legalityBySlot,
 }: {
   groups: { title: string; icon: string; rows: Row[] }[];
   onRowClick: (name: string) => void;
+  legalityBySlot?: Map<string, LegalityIssue>;
 }) {
   return (
     <div className="deck-card-grid-sections">
@@ -1494,6 +1515,12 @@ function DeckCardGrid({
                         aria-label="Missing from collection"
                       />
                     )}
+                    {(() => {
+                      const issue = legalityBySlot?.get(row.slotIds[0]);
+                      return issue ? (
+                        <LegalityBadge issue={issue} className="deck-card-grid-illegal" />
+                      ) : null;
+                    })()}
                   </button>
                 </li>
               ))}
@@ -1775,13 +1802,7 @@ function DeckCardRow({
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
         {row.foil && <span className="deck-row-foil">foil</span>}
-        {legalityIssue && (
-          <span className="deck-row-illegal" title={legalityIssue.detail}>
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden>
-              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 11a1 1 0 110 2 1 1 0 010-2zm1-3a1 1 0 01-2 0V6a1 1 0 112 0v4z" />
-            </svg>
-          </span>
-        )}
+        {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
       </span>
       {showPrefs.mana &&
         (mana ? (

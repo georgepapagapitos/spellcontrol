@@ -3689,12 +3689,31 @@ input.deck-row-qty-input.deck-row-qty-missing {
 }
 
 /* ── Per-card illegal indicator ───────────────────────────────────── */
+/* Filled red disc with white "!". Used inline in list view next to the
+   card name, and as a corner overlay on grid tiles. Background is
+   currentColor so the disc tone follows --err-* theme tokens. */
 .deck-row-illegal {
   display: inline-flex;
   align-items: center;
-  margin-left: 0.3rem;
-  color: var(--warn-text, hsl(30 80% 45%));
-  vertical-align: middle;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: 0.35rem;
+  color: var(--err-border, #b03434);
+  vertical-align: -1px;
+  flex-shrink: 0;
+}
+
+.deck-card-grid-illegal {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.35rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--err-border, #b03434);
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.35));
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* ── Sideboard section ────────────────────────────────────────────── */
