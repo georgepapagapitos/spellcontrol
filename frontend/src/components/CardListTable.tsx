@@ -546,7 +546,13 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       )}
 
       {sorted.length === 0 ? (
-        <div className="empty-state">No cards match your filters.</div>
+        <div className="empty-state">
+          <p className="empty-state-tagline">No matches</p>
+          <p className="empty-state-hint">
+            No cards match your current filters. Try broadening your search or clearing some
+            filters.
+          </p>
+        </div>
       ) : view === 'grid' ? (
         <div className="collection-grid">
           {pageItems.map((r, i) => (
