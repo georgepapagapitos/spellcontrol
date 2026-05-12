@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
@@ -496,7 +496,15 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
             : `${sorted.length.toLocaleString()} of ${totalRowCount.toLocaleString()} printings`}
           {' · '}${totalValue.toFixed(0)}
         </span>
-        <SortMenu sortKey={sortKey} sortDir={sortDir} onToggleSort={toggleSort} />
+        <SelectMenu
+          ariaLabel="Sort"
+          value={sortKey}
+          options={SORT_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+          onChange={toggleSort}
+          closeOnSelect={false}
+          leadingIcon={<SortDirArrow dir={sortDir} />}
+          renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
+        />
       </div>
 
       {previewIndex !== null && sorted[previewIndex] && (
@@ -793,102 +801,6 @@ function CompactListIcon() {
       <path d="M3 14h18" />
       <path d="M3 18h18" />
     </svg>
-  );
-}
-
-function SortMenu({
-  sortKey,
-  sortDir,
-  onToggleSort,
-}: {
-  sortKey: SortKey;
-  sortDir: 'asc' | 'desc';
-  onToggleSort: (k: SortKey) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [flipUp, setFlipUp] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setFlipUp(window.innerHeight - rect.bottom < 160);
-    }
-    setOpen((v) => !v);
-  };
-
-  const activeLabel = SORT_FIELD_BY_KEY[sortKey].label;
-
-  return (
-    <div className="toolbar-popover" ref={wrapperRef}>
-      <button
-        ref={buttonRef}
-        type="button"
-        className={`toolbar-pill${open ? ' open' : ''}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Sort"
-        onClick={handleToggle}
-      >
-        <SortDirArrow dir={sortDir} />
-        <span className="toolbar-pill-label">{activeLabel}</span>
-        <svg
-          viewBox="0 0 24 24"
-          width="12"
-          height="12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-      {open && (
-        <div className={`toolbar-popover-panel${flipUp ? ' toolbar-popover-panel--flip-up' : ''}`}>
-          <ul className="toolbar-popover-list" role="menu" aria-label="Sort by">
-            {SORT_FIELDS.map((f) => {
-              const active = f.key === sortKey;
-              return (
-                <li key={f.key}>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    className={`toolbar-popover-item${active ? ' active' : ''}`}
-                    onClick={() => onToggleSort(f.key)}
-                  >
-                    <span className="toolbar-popover-check" aria-hidden>
-                      {active ? <SortDirArrow dir={sortDir} /> : ''}
-                    </span>
-                    {f.label}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
   );
 }
 

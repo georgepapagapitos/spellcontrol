@@ -29,6 +29,8 @@ interface Props<T extends string | number> {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** When false the panel stays open after picking an option (e.g. sort toggle). */
+  closeOnSelect?: boolean;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -52,6 +54,7 @@ export function SelectMenu<T extends string | number>({
   placeholder,
   disabled = false,
   className,
+  closeOnSelect = true,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -166,7 +169,7 @@ export function SelectMenu<T extends string | number>({
                   className={`toolbar-popover-item${isActive ? ' active' : ''}`}
                   onClick={() => {
                     onChange(opt.value);
-                    setOpen(false);
+                    if (closeOnSelect) setOpen(false);
                   }}
                 >
                   {renderItemPrefix && (

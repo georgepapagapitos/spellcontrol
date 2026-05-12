@@ -715,11 +715,6 @@
   min-width: unset;
 }
 
-.toolbar-popover-panel--flip-up {
-  top: unset;
-  bottom: calc(100% + 0.4rem);
-}
-
 .toolbar-popover-list {
   list-style: none;
   margin: 0;
