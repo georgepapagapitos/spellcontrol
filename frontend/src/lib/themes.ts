@@ -9,7 +9,7 @@
  * Swatches here are for the picker UI only — they should match the two
  * guild colors the theme is built from.
  */
-export interface ThemeDef {
+interface ThemeDef {
   id: string;
   name: string;
   guild: string;

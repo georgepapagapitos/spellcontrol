@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
+import { useEscapeKey } from '../lib/use-escape-key';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -20,14 +21,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const [addedTo, setAddedTo] = useState<string | null>(null);
 
   useLockBodyScroll();
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useEscapeKey(onClose);
 
   // Auto-close after showing confirmation feedback.
   useEffect(() => {
