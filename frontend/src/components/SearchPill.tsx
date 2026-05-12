@@ -16,6 +16,8 @@ interface Props {
   className?: string;
   /** Hide the inline Clear button. Defaults to false. */
   hideClear?: boolean;
+  /** Optional id for the input — used by keyboard-shortcut handlers to focus it. */
+  inputId?: string;
 }
 
 /**
@@ -33,11 +35,13 @@ export function SearchPill({
   ariaLabel,
   className,
   hideClear = false,
+  inputId,
 }: Props) {
   return (
     <div className={`search-pill${className ? ` ${className}` : ''}`}>
       <SearchIcon />
       <input
+        id={inputId}
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
