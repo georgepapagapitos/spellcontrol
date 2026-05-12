@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { validateDeck as runValidation, type LegalityIssue } from '../../lib/deck-validation';
+import type { DeckCard } from '../../store/decks';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { CardPreview } from '../CardPreview';
@@ -243,11 +246,13 @@ export interface DeckDisplayProps {
   title: string;
   /** When set, the card-preview's "In deck" chip is suppressed for this deck. */
   deckId?: string;
+  format?: DeckFormat;
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
   commanderAllocatedCopyId?: string | null;
   partnerCommanderAllocatedCopyId?: string | null;
   cards: DeckDisplayCard[];
+  sideboard?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
   deckGrade?: { letter: string; headline: string };
@@ -259,6 +264,9 @@ export interface DeckDisplayProps {
   cardDrawSubtypeCounts?: Record<string, number>;
   /** Editing callback. When provided, each row gets a remove option in its menu. */
   onRemoveCard?: (slotId: string) => void;
+  onRemoveSideboardCard?: (slotId: string) => void;
+  onMoveToSideboard?: (slotId: string) => void;
+  onMoveToMainboard?: (slotId: string) => void;
   /**
    * Editing callback for click-to-edit qty. When provided, the qty cell
    * becomes a clickable target that swaps to a numeric input on click;
@@ -423,11 +431,13 @@ function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
 export function DeckDisplay({
   title,
   deckId,
+  format = 'commander',
   commander,
   partnerCommander,
   commanderAllocatedCopyId,
   partnerCommanderAllocatedCopyId,
   cards,
+  sideboard = [],
   bracketEstimation,
   deckGrade,
   roleCounts,
@@ -436,12 +446,16 @@ export function DeckDisplay({
   boardwipeSubtypeCounts,
   cardDrawSubtypeCounts,
   onRemoveCard,
+  onRemoveSideboardCard,
+  onMoveToSideboard,
+  onMoveToMainboard,
   onSetQty,
   onEditCard,
   collectionByCopyId,
   exportOpen: exportOpenProp,
   onExportOpenChange,
 }: DeckDisplayProps) {
+  const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
   const [sort, setSort] = useState<SortMode>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -541,6 +555,55 @@ export function DeckDisplay({
     return ordered;
   }, [cards, commanderRows, collectionByCopyId]);
 
+  // Sideboard rows grouped by canonical type.
+  const sideboardGroups = useMemo(() => {
+    if (sideboard.length === 0) return [];
+    const rows = buildRows(sideboard, currency, collectionByCopyId);
+    const buckets = new Map<TypeGroup, Row[]>();
+    for (const row of rows) {
+      const t = classifyType(row.card);
+      const bucket = buckets.get(t) ?? [];
+      bucket.push(row);
+      buckets.set(t, bucket);
+    }
+    const ordered: { title: string; icon: string; rows: Row[] }[] = [];
+    for (const t of DISPLAY_ORDER) {
+      const r = buckets.get(t);
+      if (r && r.length > 0) ordered.push({ title: t, icon: TYPE_ICON[t], rows: r });
+    }
+    return ordered;
+  }, [sideboard, collectionByCopyId]);
+
+  // Legality issues for the current format.
+  const legalityIssues = useMemo(() => {
+    const mainDeckCards: DeckCard[] = cards.map((c) => ({
+      slotId: c.slotId ?? '',
+      card: c.card,
+      allocatedCopyId: c.allocatedCopyId ?? null,
+    }));
+    const sideDeckCards: DeckCard[] = sideboard.map((c) => ({
+      slotId: c.slotId ?? '',
+      card: c.card,
+      allocatedCopyId: c.allocatedCopyId ?? null,
+    }));
+    return runValidation(mainDeckCards, sideDeckCards, formatConfig);
+  }, [cards, sideboard, formatConfig]);
+
+  const legalityBySlot = useMemo(() => {
+    const map = new Map<string, LegalityIssue>();
+    for (const issue of legalityIssues) {
+      if (!map.has(issue.slotId)) map.set(issue.slotId, issue);
+    }
+    return map;
+  }, [legalityIssues]);
+
+  const illegalCardCount = useMemo(() => {
+    const names = new Set(
+      legalityIssues.filter((i) => i.issue === 'not-legal').map((i) => i.cardName)
+    );
+    return names.size;
+  }, [legalityIssues]);
+
   const visibleGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
     return groups.map((g) => {
@@ -548,6 +611,14 @@ export function DeckDisplay({
       return { ...g, rows: sortRows(filtered, sort, sortDir) };
     });
   }, [groups, sort, sortDir, search]);
+
+  const visibleSideboardGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sideboardGroups.map((g) => {
+      const filtered = q ? g.rows.filter((r) => r.name.toLowerCase().includes(q)) : g.rows;
+      return { ...g, rows: sortRows(filtered, sort, sortDir) };
+    });
+  }, [sideboardGroups, sort, sortDir, search]);
 
   // Flat list for stats panels (commanders included, since color identity
   // and curve are commander-relevant too).
@@ -609,8 +680,8 @@ export function DeckDisplay({
   }, [allCards]);
 
   const exportText = useMemo(
-    () => buildExport(commander, partnerCommander, cards, exportFormat),
-    [commander, partnerCommander, cards, exportFormat]
+    () => buildExport(commander, partnerCommander, cards, exportFormat, sideboard),
+    [commander, partnerCommander, cards, exportFormat, sideboard]
   );
   // If the parent passes both props, treat it as a controlled component
   // (their boolean wins). Otherwise fall back to internal state — keeps
@@ -702,6 +773,16 @@ export function DeckDisplay({
           onExport={() => setExportOpen(true)}
         />
 
+        {illegalCardCount > 0 && (
+          <div className="deck-legality-banner">
+            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden>
+              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 11a1 1 0 110 2 1 1 0 010-2zm1-3a1 1 0 01-2 0V6a1 1 0 112 0v4z" />
+            </svg>
+            {illegalCardCount} {illegalCardCount === 1 ? 'card' : 'cards'} not legal in{' '}
+            {formatConfig.label}
+          </div>
+        )}
+
         <div className="deck-display-body">
           <div className="deck-display-main">
             {viewMode === 'list' && (
@@ -718,8 +799,40 @@ export function DeckDisplay({
                     onRemoveCard={onRemoveCard}
                     onSetQty={onSetQty}
                     onEditCard={onEditCard}
+                    legalityBySlot={legalityBySlot}
+                    onMoveToSideboard={
+                      formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
+                    }
                   />
                 ))}
+
+                {formatConfig.sideboardSize > 0 && (
+                  <div className="deck-sideboard-section">
+                    <h3 className="deck-sideboard-header">
+                      Sideboard ({sideboard.reduce((sum, _) => sum + 1, 0)}/
+                      {formatConfig.sideboardSize})
+                    </h3>
+                    {visibleSideboardGroups.map((g) => (
+                      <CategorySection
+                        key={`sb-${g.title}`}
+                        title={g.title}
+                        iconClass={g.icon}
+                        rows={g.rows}
+                        currency={currency}
+                        showPrefs={showPrefs}
+                        onRowClick={openPreview}
+                        onRemoveCard={onRemoveSideboardCard}
+                        onSetQty={undefined}
+                        onEditCard={onEditCard}
+                        legalityBySlot={legalityBySlot}
+                        onMoveToMainboard={onMoveToMainboard}
+                      />
+                    ))}
+                    {sideboard.length === 0 && (
+                      <p className="deck-sideboard-empty">No sideboard cards yet</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {viewMode === 'grid' && (
@@ -1432,6 +1545,9 @@ function CategorySection({
   onRemoveCard,
   onSetQty,
   onEditCard,
+  legalityBySlot,
+  onMoveToSideboard,
+  onMoveToMainboard,
 }: {
   title: string;
   iconClass: string;
@@ -1442,6 +1558,9 @@ function CategorySection({
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
+  legalityBySlot?: Map<string, LegalityIssue>;
+  onMoveToSideboard?: (slotId: string) => void;
+  onMoveToMainboard?: (slotId: string) => void;
 }) {
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
@@ -1470,6 +1589,15 @@ function CategorySection({
             onRemoveCard={onRemoveCard}
             onSetQty={onSetQty}
             onEditCard={onEditCard}
+            legalityIssue={legalityBySlot?.get(row.slotIds[0])}
+            onMoveToZone={onMoveToSideboard ?? onMoveToMainboard}
+            moveLabel={
+              onMoveToSideboard
+                ? 'Move to sideboard'
+                : onMoveToMainboard
+                  ? 'Move to mainboard'
+                  : undefined
+            }
           />
         ))}
       </ul>
@@ -1485,6 +1613,9 @@ function DeckCardRow({
   onRemoveCard,
   onSetQty,
   onEditCard,
+  legalityIssue,
+  onMoveToZone,
+  moveLabel,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -1493,6 +1624,9 @@ function DeckCardRow({
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
+  legalityIssue?: LegalityIssue;
+  onMoveToZone?: (slotId: string) => void;
+  moveLabel?: string;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -1632,6 +1766,13 @@ function DeckCardRow({
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
         {row.foil && <span className="deck-row-foil">foil</span>}
+        {legalityIssue && (
+          <span className="deck-row-illegal" title={legalityIssue.detail}>
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden>
+              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 11a1 1 0 110 2 1 1 0 010-2zm1-3a1 1 0 01-2 0V6a1 1 0 112 0v4z" />
+            </svg>
+          </span>
+        )}
       </span>
       {showPrefs.mana &&
         (mana ? (
@@ -1717,6 +1858,20 @@ function DeckCardRow({
                 onClick={handleRemoveAll}
               >
                 Remove all {row.qty} copies
+              </button>
+            )}
+            {onMoveToZone && moveLabel && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onMoveToZone(row.slotIds[0]);
+                }}
+              >
+                {moveLabel}
               </button>
             )}
           </div>
@@ -2093,14 +2248,27 @@ function formatLine(card: ScryfallCard, qty: number, format: ExportFormat): stri
   }
 }
 
+function groupAndSort(cards: DeckDisplayCard[]): { card: ScryfallCard; qty: number }[] {
+  const grouped = new Map<string, { card: ScryfallCard; qty: number }>();
+  for (const dc of cards) {
+    const existing = grouped.get(dc.card.name);
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      grouped.set(dc.card.name, { card: dc.card, qty: 1 });
+    }
+  }
+  return [...grouped.values()].sort((a, b) => a.card.name.localeCompare(b.card.name));
+}
+
 function buildExport(
   commander: ScryfallCard | null,
   partner: ScryfallCard | null | undefined,
   cards: DeckDisplayCard[],
-  format: ExportFormat
+  format: ExportFormat,
+  sideboardCards: DeckDisplayCard[] = []
 ): string {
   const lines: string[] = [];
-  // MTGA decklist convention: commander section first.
   if (format === 'mtga' && (commander || partner)) {
     lines.push('Commander');
     if (commander) lines.push(formatLine(commander, 1, format));
@@ -2112,18 +2280,16 @@ function buildExport(
     if (partner) lines.push(formatLine(partner, 1, format));
   }
 
-  const grouped = new Map<string, { card: ScryfallCard; qty: number }>();
-  for (const dc of cards) {
-    const existing = grouped.get(dc.card.name);
-    if (existing) {
-      existing.qty += 1;
-    } else {
-      grouped.set(dc.card.name, { card: dc.card, qty: 1 });
-    }
-  }
-  const sorted = [...grouped.values()].sort((a, b) => a.card.name.localeCompare(b.card.name));
-  for (const { card, qty } of sorted) {
+  for (const { card, qty } of groupAndSort(cards)) {
     lines.push(formatLine(card, qty, format));
+  }
+
+  if (sideboardCards.length > 0) {
+    lines.push('');
+    lines.push('Sideboard');
+    for (const { card, qty } of groupAndSort(sideboardCards)) {
+      lines.push(formatLine(card, qty, format));
+    }
   }
   return lines.join('\n');
 }
