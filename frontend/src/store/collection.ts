@@ -25,7 +25,7 @@ function newImportId(): string {
   return `imp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export type ImportMode = 'replace' | 'merge';
+export type ImportMode = 'replace' | 'merge' | 'binder';
 
 interface CollectionState {
   cards: EnrichedCard[];
@@ -64,7 +64,7 @@ interface CollectionState {
     response: UploadResponse,
     fileName: string,
     mode: ImportMode,
-    options?: { isSample?: boolean }
+    options?: { isSample?: boolean; binderName?: string }
   ) => Promise<void>;
   /**
    * Removes the import history entry with the given id and any cards stamped
@@ -218,7 +218,8 @@ export const useCollectionStore = create<CollectionState>()(
         const existing = get().cards;
         const existingHistory = get().importHistory;
         const stamped = response.cards.map((c) => ({ ...c, importId }));
-        const newCards = mode === 'merge' ? mergeCards(existing, stamped) : stamped;
+        const collectionMode = mode === 'binder' ? 'merge' : mode;
+        const newCards = collectionMode === 'merge' ? mergeCards(existing, stamped) : stamped;
         const entry: ImportHistoryEntry = {
           id: importId,
           name: fileName,
@@ -228,9 +229,9 @@ export const useCollectionStore = create<CollectionState>()(
           ...(options?.isSample ? { isSample: true } : {}),
         };
         const importHistory =
-          mode === 'merge' && existing.length > 0 ? [...existingHistory, entry] : [entry];
+          collectionMode === 'merge' && existing.length > 0 ? [...existingHistory, entry] : [entry];
 
-        set({
+        const stateUpdate: Partial<CollectionState> = {
           cards: newCards,
           fileName,
           scryfallHits: response.scryfallHits,
@@ -240,7 +241,31 @@ export const useCollectionStore = create<CollectionState>()(
           uploadedAt,
           importHistory,
           error: null,
-        });
+        };
+
+        if (mode === 'binder' && options?.binderName) {
+          const copyIds = stamped.map((c) => c.copyId);
+          const now = Date.now();
+          const binder: BinderDef = {
+            id: newBinderId(),
+            name: options.binderName,
+            position: get().binders.length,
+            filterGroups: [{ filter: {} }],
+            sorts: [],
+            pocketSize: null,
+            doubleSided: false,
+            fixedCapacity: null,
+            color: '#6366f1',
+            pinnedCopyIds: copyIds,
+            manualOrder: copyIds,
+            createdAt: now,
+            updatedAt: now,
+          };
+          stateUpdate.binders = [...get().binders, binder];
+          stateUpdate.activeTab = binder.id;
+        }
+
+        set(stateUpdate);
 
         try {
           await saveCollection({
