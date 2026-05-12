@@ -7,6 +7,7 @@ const BinderCardEditor = lazy(() =>
 );
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
+import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
 import { BinderPickerSheet } from '../components/BinderPickerSheet';
@@ -127,10 +128,16 @@ export function BinderPage() {
     return { effectiveCards: deduped, qtyByCopyId: qtyMap };
   }, [cards, groupPrintings]);
 
+  const allocations = useAllocations();
+  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+
   const materialized = useMemo(() => {
     if (effectiveCards.length === 0) return [];
-    return materializeBinders(effectiveCards, binders, { search: debouncedSearch }).binders;
-  }, [effectiveCards, binders, debouncedSearch]);
+    return materializeBinders(effectiveCards, binders, {
+      search: debouncedSearch,
+      allocatedCopyIds,
+    }).binders;
+  }, [effectiveCards, binders, debouncedSearch, allocatedCopyIds]);
 
   if (hydrating) {
     return (
