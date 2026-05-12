@@ -23,7 +23,7 @@ export function normalizeSortEntries(raw: unknown): SortEntry[] {
  * Versioning lets us evolve the schema without locking users out of older
  * backup files — bump `version` and add a migration path in `parseBackup`.
  */
-export const BACKUP_FORMAT = 'mtg-binder-planner-backup';
+export const BACKUP_FORMAT = 'spellcontrol-backup';
 export const BACKUP_VERSION = 1;
 
 export interface Backup {
@@ -108,15 +108,15 @@ function safeName(name: string): string {
 }
 
 export function backupFileName(now: Date = new Date()): string {
-  return `mtg-binder-planner-backup-${timestamp(now)}.json`;
+  return `spellcontrol-backup-${timestamp(now)}.json`;
 }
 
 export function binderBackupFileName(binderName: string, now: Date = new Date()): string {
-  return `mtg-binder-${safeName(binderName)}-${timestamp(now)}.json`;
+  return `spellcontrol-binder-${safeName(binderName)}-${timestamp(now)}.json`;
 }
 
 export function allBindersBackupFileName(now: Date = new Date()): string {
-  return `mtg-binders-all-${timestamp(now)}.json`;
+  return `spellcontrol-binders-all-${timestamp(now)}.json`;
 }
 
 export function downloadBackup(backup: Backup, fileName?: string): void {
@@ -153,7 +153,7 @@ export function parseBackup(raw: string): Backup {
 
   if (obj.format !== BACKUP_FORMAT) {
     throw new Error(
-      "This doesn't look like an MTG Binder Planner backup file. Expected an export from this app."
+      "This doesn't look like a SpellControl backup file. Expected an export from this app."
     );
   }
   if (typeof obj.version !== 'number') {

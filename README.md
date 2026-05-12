@@ -1,4 +1,4 @@
-# MTG Binder Planner
+# SpellControl
 
 Plan your physical Magic: The Gathering binders. Import a collection export from any popular tool, define binders with custom rules, build decks across multiple MTG formats (Commander, Brawl, Standard, Pauper), and sync everything across devices.
 
@@ -104,7 +104,7 @@ docker compose up -d                     # postgres (internal), backend (interna
 
 The backend container is no longer published to the host. The frontend container's nginx proxies `/api/` to it on the docker-compose network, so a single `binder.example.com` reverse-proxy entry is enough.
 
-Backend and frontend images are tagged `ghcr.io/georgepapagapitos/mtg-binder-{backend,frontend}:latest` and built by GitHub Actions on every push to `main`. Watchtower labels are set, so a Watchtower instance will auto-update both containers.
+Backend and frontend images are tagged `ghcr.io/georgepapagapitos/spellcontrol-{backend,frontend}:latest` and built by GitHub Actions on every push to `main`. Watchtower labels are set, so a Watchtower instance will auto-update both containers.
 
 #### Dev database
 
