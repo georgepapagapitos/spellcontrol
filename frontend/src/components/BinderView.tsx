@@ -39,9 +39,11 @@ interface Props {
   viewToggle?: React.ReactNode;
   /** Per-copyId qty when binder is in group-printings mode (otherwise undefined). */
   qtyByCopyId?: Map<string, number>;
+  /** When true, card slots show thumbnail images instead of text names. */
+  showImages?: boolean;
 }
 
-export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
+export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -113,6 +115,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId }: Props) {
         sorts={active.effectiveSorts}
         viewToggle={viewToggle}
         qtyByCopyId={qtyByCopyId}
+        showImages={showImages}
         onDelete={() => handleDelete(active.def.id, active.def.name)}
       />
       {confirmDialog}
@@ -129,6 +132,7 @@ function SectionList({
   sorts,
   viewToggle,
   qtyByCopyId,
+  showImages,
   onDelete,
 }: {
   viewKey: string;
@@ -139,6 +143,7 @@ function SectionList({
   sorts: SortEntry[];
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
+  showImages?: boolean;
   onDelete?: () => void;
 }) {
   const activeSorts = sorts.filter((s) => s && s.field !== 'none');
@@ -288,6 +293,7 @@ function SectionList({
             pocketSize={pocketSize}
             isPreviewOpen={preview !== null || pagesStartIndex !== null}
             qtyByCopyId={qtyByCopyId}
+            showImages={showImages}
             onToggle={() => toggle(section.key)}
             onOpenCard={(card) => {
               const i = flatCards.cardIndex.get(card);
@@ -373,6 +379,7 @@ function SectionBlock({
   pocketSize,
   isPreviewOpen,
   qtyByCopyId,
+  showImages,
   onToggle,
   onOpenCard,
   onOpenPages,
@@ -385,6 +392,7 @@ function SectionBlock({
   pocketSize: PocketSize;
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
+  showImages?: boolean;
   onToggle: () => void;
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPages: (startPageIndex: number) => void;
@@ -436,6 +444,7 @@ function SectionBlock({
                 pageNum={page.pageNum}
                 pageIndex={idx}
                 pocketSize={pocketSize}
+                showImages={showImages}
               />
             ))}
           </div>

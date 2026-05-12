@@ -9,6 +9,7 @@ import { useAllocations } from '../lib/allocations';
 
 interface Props {
   card: EnrichedCard | null;
+  showImage?: boolean;
 }
 
 interface TooltipPos {
@@ -33,7 +34,7 @@ const hasHover =
   window.matchMedia('(hover: hover)').matches &&
   !window.matchMedia('(pointer: coarse)').matches;
 
-export function CardSlot({ card }: Props) {
+export function CardSlot({ card, showImage }: Props) {
   const preview = useContext(CardPreviewContext);
   const previewOpen = preview?.isPreviewOpen ?? false;
   const allocations = useAllocations();
@@ -177,7 +178,17 @@ export function CardSlot({ card }: Props) {
           allocation ? ` (in deck: ${allocation.deckName})` : ''
         }`}
       >
-        <span className="slot-name">{displayName}</span>
+        {showImage && card.imageSmall ? (
+          <img
+            src={card.imageSmall}
+            alt={card.name}
+            className="slot-img"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <span className="slot-name">{displayName}</span>
+        )}
         {allocation && (
           <Link
             to={`/decks/${allocation.deckId}`}
