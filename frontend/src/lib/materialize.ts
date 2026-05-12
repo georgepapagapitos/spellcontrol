@@ -71,6 +71,7 @@ export function materializeBinders(
     }
     let matched = false;
     for (let i = 0; i < orderedDefs.length; i++) {
+      if (orderedDefs[i].mode === 'manual') continue;
       if (cardMatchesAnyGroup(card, compiledGroups[i])) {
         buckets.get(orderedDefs[i].id)!.push(card);
         matched = true;
