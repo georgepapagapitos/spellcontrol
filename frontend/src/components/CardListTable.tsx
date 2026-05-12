@@ -331,6 +331,10 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
   const allCards = useCollectionStore((s) => s.cards);
   const allocations = useAllocations();
   const allocationsFor = (c: EnrichedCard): AllocationInfo[] => {
+    if (!groupPrintings) {
+      const a = allocations.get(c.copyId);
+      return a ? [a] : [];
+    }
     const out: AllocationInfo[] = [];
     for (const x of allCards) {
       if (x.scryfallId !== c.scryfallId || x.foil !== c.foil) continue;
