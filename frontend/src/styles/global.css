@@ -3785,6 +3785,12 @@ hr {
   font-size: var(--text-sm);
   color: var(--text3);
   width: 1.5rem;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.sort-editor-row .toolbar-popover {
+  min-width: 10rem;
 }
 
 .sort-editor-list .btn-add-group {

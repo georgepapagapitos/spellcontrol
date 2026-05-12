@@ -583,26 +583,26 @@ export function BinderEditor() {
                           setSorts(sorts.map((x, j) => (j === i ? { field, dir: defaultDir } : x)));
                         }}
                       />
-                      <button
-                        type="button"
-                        className="tab-action sort-dir-toggle"
-                        onClick={() =>
-                          setSorts(
-                            sorts.map((x, j) =>
-                              j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
-                            )
-                          )
-                        }
-                        title={
-                          s.dir === 'asc'
-                            ? 'Ascending — click to reverse'
-                            : 'Descending — click to reverse'
-                        }
-                        aria-label={s.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
-                      >
-                        {s.dir === 'asc' ? '↑' : '↓'}
-                      </button>
                       <div className="tab-actions sort-editor-actions">
+                        <button
+                          type="button"
+                          className="tab-action"
+                          onClick={() =>
+                            setSorts(
+                              sorts.map((x, j) =>
+                                j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
+                              )
+                            )
+                          }
+                          title={
+                            s.dir === 'asc'
+                              ? 'Ascending — click to reverse'
+                              : 'Descending — click to reverse'
+                          }
+                          aria-label={s.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                        >
+                          {s.dir === 'asc' ? '↑' : '↓'}
+                        </button>
                         <button
                           type="button"
                           className="tab-action"
