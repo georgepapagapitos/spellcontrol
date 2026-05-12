@@ -1,7 +1,7 @@
 {
-  "name": "mtg-binder-planner-backend",
+  "name": "spellcontrol-backend",
   "version": "1.0.0",
-  "description": "Backend for MTG Binder Planner — proxies and caches Scryfall card data",
+  "description": "Backend for SpellControl — proxies and caches Scryfall card data",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",

@@ -10,11 +10,11 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <NavLink className="site-brand" to="/collection" aria-label="MTG Binder Planner">
+        <NavLink className="site-brand" to="/collection" aria-label="SpellControl">
           <span className="site-brand-mark" aria-hidden="true">
-            MBP
+            SC
           </span>
-          <span className="site-brand-text">MTG Binder Planner</span>
+          <span className="site-brand-text">SpellControl</span>
         </NavLink>
         <nav className="site-nav-links" aria-label="Primary">
           <NavLink

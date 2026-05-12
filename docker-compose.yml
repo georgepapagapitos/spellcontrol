@@ -18,7 +18,7 @@ services:
     cpus: 0.5
 
   backend:
-    image: ghcr.io/georgepapagapitos/mtg-binder-backend:latest
+    image: ghcr.io/georgepapagapitos/spellcontrol-backend:latest
     container_name: binder-backend
     restart: unless-stopped
     environment:
@@ -40,7 +40,7 @@ services:
     cpus: 0.5
 
   frontend:
-    image: ghcr.io/georgepapagapitos/mtg-binder-frontend:latest
+    image: ghcr.io/georgepapagapitos/spellcontrol-frontend:latest
     container_name: binder-frontend
     restart: unless-stopped
     ports:
