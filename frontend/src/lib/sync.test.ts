@@ -8,6 +8,7 @@ import { useDecksStore } from '../store/decks';
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
   useCollectionStore.setState({
     binders: [],
     cards: [],
@@ -22,7 +23,7 @@ beforeEach(() => {
 });
 
 describe('startSync', () => {
-  it('hydrates stores from the server snapshot', async () => {
+  it('merges server snapshot with local state', async () => {
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
       collection: {
         fileName: 'remote.csv',
@@ -32,8 +33,8 @@ describe('startSync', () => {
         uploadedAt: 123,
         importHistory: [],
       },
-      binders: [{ id: 'b1', name: 'Server binder' }],
-      decks: [{ id: 'd1', name: 'Server deck' }],
+      binders: [{ id: 'b1', name: 'Server binder', createdAt: 100, updatedAt: 100, position: 0 }],
+      decks: [{ id: 'd1', name: 'Server deck', createdAt: 100, updatedAt: 100 }],
       version: 3,
       updatedAt: 999,
     });
@@ -53,10 +54,46 @@ describe('startSync', () => {
     });
     useCollectionStore.setState({ fileName: 'stale.csv', uploadedAt: 1 });
     await startSync();
-    // Server is empty (new account / first login after auth). Local data should
-    // be preserved and seeded up to the server rather than wiped.
     expect(useCollectionStore.getState().fileName).toBe('stale.csv');
     expect(useCollectionStore.getState().uploadedAt).toBe(1);
+  });
+
+  it('prefers newer local binder over older remote', async () => {
+    useCollectionStore.setState({
+      binders: [
+        { id: 'b1', name: 'Local Updated', createdAt: 100, updatedAt: 2000, position: 0 } as never,
+      ],
+    });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [{ id: 'b1', name: 'Server Stale', createdAt: 100, updatedAt: 1000, position: 0 }],
+      decks: [],
+      version: 3,
+      updatedAt: 999,
+    });
+    await startSync();
+    expect(useCollectionStore.getState().binders[0]).toMatchObject({ name: 'Local Updated' });
+  });
+
+  it('does not resurrect locally deleted binder when meta exists', async () => {
+    localStorage.setItem(
+      'spellcontrol-sync-meta',
+      JSON.stringify({
+        version: 2,
+        binderIds: ['b-deleted'],
+        deckIds: [],
+        collectionUploadedAt: null,
+      })
+    );
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [{ id: 'b-deleted', name: 'Ghost', createdAt: 100, updatedAt: 100, position: 0 }],
+      decks: [],
+      version: 3,
+      updatedAt: 999,
+    });
+    await startSync();
+    expect(useCollectionStore.getState().binders).toHaveLength(0);
   });
 });
 
@@ -83,7 +120,7 @@ describe('flushSync', () => {
     );
   });
 
-  it('on 409 conflict, applies the server snapshot and retries', async () => {
+  it('on 409 conflict, merges with server snapshot and retries', async () => {
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
       collection: null,
       binders: [],
@@ -95,7 +132,7 @@ describe('flushSync', () => {
       status: 409,
       current: {
         collection: null,
-        binders: [{ id: 'remote' } as never],
+        binders: [{ id: 'remote', createdAt: 100, updatedAt: 100, position: 0 } as never],
         decks: [],
         version: 7,
         updatedAt: 100,
@@ -121,6 +158,8 @@ describe('stopSyncAndWipeLocal', () => {
   it('clears stores and removes localStorage entries', async () => {
     localStorage.setItem('spellcontrol', '{"binders":[]}');
     localStorage.setItem('mtg-decks', '{"decks":[]}');
+    localStorage.setItem('spellcontrol-sync-meta', '{}');
+    localStorage.setItem('spellcontrol-sync-dirty', '1');
     useCollectionStore.setState({ binders: [{ id: 'x', name: 'leftover' } as never] });
     useDecksStore.setState({ decks: [{ id: 'y' }] as never });
 
@@ -130,5 +169,7 @@ describe('stopSyncAndWipeLocal', () => {
     expect(useDecksStore.getState().decks).toEqual([]);
     expect(localStorage.getItem('spellcontrol')).toBeNull();
     expect(localStorage.getItem('mtg-decks')).toBeNull();
+    expect(localStorage.getItem('spellcontrol-sync-meta')).toBeNull();
+    expect(localStorage.getItem('spellcontrol-sync-dirty')).toBeNull();
   });
 });

@@ -4,6 +4,16 @@ import { useDecksStore } from '../store/decks';
 import { saveCollection, clearCollection, type StoredCollection } from './local-cards';
 import type { Deck } from '../store/decks';
 import type { BinderDef } from '../types';
+import {
+  mergeBinders,
+  mergeDecks,
+  mergeCollection,
+  buildSyncMeta,
+  saveSyncMeta,
+  loadSyncMeta,
+  setDirty,
+  clearDirty,
+} from './sync-merge';
 
 const PUSH_DEBOUNCE_MS = 1500;
 
@@ -42,19 +52,22 @@ async function pushNow(): Promise<void> {
   }
   pushing = true;
   try {
+    const binders = buildBindersSnapshot();
+    const decks = buildDecksSnapshot();
+    const collection = buildCollectionSnapshot();
     const result = await putSync({
-      collection: buildCollectionSnapshot(),
-      binders: buildBindersSnapshot(),
-      decks: buildDecksSnapshot(),
+      collection,
+      binders,
+      decks,
       baseVersion: currentVersion,
     });
     currentVersion = result.version;
+    saveSyncMeta(buildSyncMeta(result.version, binders, decks, collection));
+    clearDirty();
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
     if (e.status === 409 && e.current) {
-      // Server moved on (another device wrote). Apply server state and retry
-      // with our local on top — last-writer-wins, plus a re-pull to stay in sync.
-      await applySnapshot(e.current);
+      await mergeWithSnapshot(e.current);
       pushPending = true;
     } else {
       console.warn('[sync] push failed:', err);
@@ -70,6 +83,7 @@ async function pushNow(): Promise<void> {
 
 function schedulePush(): void {
   if (isApplyingRemote) return;
+  setDirty();
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushTimer = null;
@@ -77,46 +91,88 @@ function schedulePush(): void {
   }, PUSH_DEBOUNCE_MS);
 }
 
-async function applySnapshot(snap: SyncSnapshot): Promise<void> {
+async function mergeWithSnapshot(snap: SyncSnapshot): Promise<void> {
   isApplyingRemote = true;
   try {
     currentVersion = snap.version;
-    const binders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
-    const decks = Array.isArray(snap.decks)
+    const meta = loadSyncMeta();
+
+    const localBinders = useCollectionStore.getState().binders;
+    const localDecks = useDecksStore.getState().decks;
+    const localCollection = buildCollectionSnapshot();
+
+    const remoteBinders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
+    const remoteDecks = Array.isArray(snap.decks)
       ? (snap.decks as Deck[]).map((d) => ({
           ...d,
           format: d.format ?? 'commander',
           sideboard: d.sideboard ?? [],
         }))
       : [];
-    const collection = (snap.collection as StoredCollection | null) ?? null;
+    const remoteCollection = (snap.collection as StoredCollection | null) ?? null;
 
-    if (collection) {
-      await saveCollection(collection);
-    } else {
-      await clearCollection();
+    const mergedBinders = mergeBinders(localBinders, remoteBinders, meta);
+    const mergedDecks = mergeDecks(localDecks, remoteDecks, meta);
+    const mergedCollection = mergeCollection(localCollection, remoteCollection);
+
+    if (mergedCollection !== localCollection) {
+      if (mergedCollection) await saveCollection(mergedCollection);
+      else await clearCollection();
     }
 
     useCollectionStore.setState({
-      binders,
-      cards: collection?.cards ?? [],
-      fileName: collection?.fileName ?? '',
-      scryfallHits: collection?.scryfallHits ?? 0,
-      scryfallMisses: collection?.scryfallMisses ?? 0,
-      uploadedAt: collection?.uploadedAt ?? null,
-      importHistory: collection?.importHistory ?? [],
+      binders: mergedBinders,
+      cards: mergedCollection?.cards ?? [],
+      fileName: mergedCollection?.fileName ?? '',
+      scryfallHits: mergedCollection?.scryfallHits ?? 0,
+      scryfallMisses: mergedCollection?.scryfallMisses ?? 0,
+      uploadedAt: mergedCollection?.uploadedAt ?? null,
+      importHistory: mergedCollection?.importHistory ?? [],
       hydrating: false,
     });
-    useDecksStore.setState({ decks, hydrated: true });
+    useDecksStore.setState({ decks: mergedDecks, hydrated: true });
+
+    saveSyncMeta(buildSyncMeta(snap.version, mergedBinders, mergedDecks, mergedCollection));
   } finally {
     isApplyingRemote = false;
   }
 }
 
-/**
- * Subscribe to store changes. Any update outside of an in-flight remote-apply
- * triggers a debounced push to the server.
- */
+function handleVisibilityChange(): void {
+  if (document.visibilityState === 'hidden' && pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = null;
+    void pushNow();
+  }
+}
+
+function handleBeforeUnload(): void {
+  if (!pushTimer && !pushing) return;
+  if (pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = null;
+  }
+  try {
+    const payload = JSON.stringify({
+      collection: buildCollectionSnapshot(),
+      binders: buildBindersSnapshot(),
+      decks: buildDecksSnapshot(),
+      baseVersion: currentVersion,
+    });
+    fetch('/api/sync', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      credentials: 'same-origin',
+      keepalive: true,
+    }).catch(() => {
+      /* best effort */
+    });
+  } catch {
+    /* payload too large or other error — dirty flag remains set */
+  }
+}
+
 function attachSubscribers(): void {
   detachSubscribers();
   const u1 = useCollectionStore.subscribe((state, prev) => {
@@ -128,6 +184,8 @@ function attachSubscribers(): void {
     schedulePush();
   });
   unsubscribers = [u1, u2];
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('beforeunload', handleBeforeUnload);
 }
 
 function detachSubscribers(): void {
@@ -137,10 +195,12 @@ function detachSubscribers(): void {
     clearTimeout(pushTimer);
     pushTimer = null;
   }
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('beforeunload', handleBeforeUnload);
 }
 
 /**
- * Pull the server snapshot and hydrate both stores. Called once after login.
+ * Pull the server snapshot and merge with local state. Called once after login.
  */
 export async function startSync(): Promise<void> {
   const snap = await fetchSync();
@@ -151,17 +211,36 @@ export async function startSync(): Promise<void> {
     (!Array.isArray(snap.decks) || snap.decks.length === 0);
 
   if (serverIsEmpty) {
-    // Server has no data yet (new account or first login after auth was added).
-    // Seed the server with whatever the user already has locally rather than
-    // wiping their local collection with the empty server state.
     currentVersion = snap.version;
     attachSubscribers();
     schedulePush();
     return;
   }
 
-  await applySnapshot(snap);
+  await mergeWithSnapshot(snap);
   attachSubscribers();
+
+  // If the merge picked any local-wins, push the merged state to the server.
+  const remoteBinders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
+  const remoteDecks = Array.isArray(snap.decks) ? (snap.decks as Deck[]) : [];
+  const mergedBinders = useCollectionStore.getState().binders;
+  const mergedDecks = useDecksStore.getState().decks;
+
+  const changed =
+    mergedBinders.length !== remoteBinders.length ||
+    mergedDecks.length !== remoteDecks.length ||
+    mergedBinders.some(
+      (b, i) =>
+        b.id !== (remoteBinders[i]?.id ?? '') || b.updatedAt !== (remoteBinders[i]?.updatedAt ?? 0)
+    ) ||
+    mergedDecks.some(
+      (d, i) =>
+        d.id !== (remoteDecks[i]?.id ?? '') || d.updatedAt !== (remoteDecks[i]?.updatedAt ?? 0)
+    );
+
+  if (changed) {
+    schedulePush();
+  }
 }
 
 /**
@@ -171,11 +250,13 @@ export async function startSync(): Promise<void> {
 export async function stopSyncAndWipeLocal(): Promise<void> {
   detachSubscribers();
   currentVersion = 0;
+  clearDirty();
+  try {
+    localStorage.removeItem('spellcontrol-sync-meta');
+  } catch {
+    /* ignore */
+  }
   await clearCollection();
-  // Reset stores first so their persist middleware writes the cleared state to
-  // localStorage; only then remove the keys outright. Doing it in the reverse
-  // order gives persist a chance to immediately rewrite the keys we just
-  // deleted.
   useCollectionStore.setState({
     binders: [],
     cards: [],
