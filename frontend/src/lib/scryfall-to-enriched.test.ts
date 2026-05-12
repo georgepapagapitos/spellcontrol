@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { scryfallToEnrichedCard } from './scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 
