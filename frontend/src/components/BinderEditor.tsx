@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
+import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
 import { SORT_FIELDS, NEW_BINDER_DEFAULT_SORTS, MAX_SORTS } from '../lib/sorting';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
@@ -109,6 +110,8 @@ export function BinderEditor() {
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const createBinder = useCollectionStore((s) => s.createBinder);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
+  const importCards = useCollectionStore((s) => s.importCards);
+  const setLoading = useCollectionStore((s) => s.setLoading);
 
   const isOpen = editingBinder !== null;
   const isNew = editingBinder === 'new';
@@ -130,6 +133,10 @@ export function BinderEditor() {
   const [liveMsg, setLiveMsg] = useState('');
   // After adding a group, set this to the new index so the group's name input can autofocus.
   const [autofocusGroupIdx, setAutofocusGroupIdx] = useState<number | null>(null);
+  const [binderMode, setBinderMode] = useState<'rules' | 'import'>('rules');
+  const [importPasteText, setImportPasteText] = useState('');
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importFile_, setImportFile] = useState<File | null>(null);
 
   // Set codes the user actually owns — used to populate the multi-select.
   const ownedSets = useMemo(() => {
@@ -208,6 +215,9 @@ export function BinderEditor() {
       setErrorMsg(null);
       setLiveMsg('');
       setAutofocusGroupIdx(null);
+      setBinderMode('rules');
+      setImportPasteText('');
+      setImportFile(null);
     }
   }
 
@@ -275,9 +285,13 @@ export function BinderEditor() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       setErrorMsg('Name is required');
+      return;
+    }
+    if (binderMode === 'import' && isNew && !importPasteText.trim() && !importFile_) {
+      setErrorMsg('Paste a card list or upload a CSV');
       return;
     }
     for (let i = 0; i < groups.length; i++) {
@@ -311,6 +325,20 @@ export function BinderEditor() {
         updateBinder(existing.id, input);
       } else {
         createBinder(input);
+
+        const hasImport = importPasteText.trim() || importFile_;
+        if (hasImport) {
+          setLoading(true);
+          try {
+            const result = importFile_
+              ? await importFile(importFile_)
+              : await importText(importPasteText.trim());
+            const label = importFile_ ? importFile_.name : 'pasted-list';
+            await importCards(result, label, 'binder', { binderName: name.trim() });
+          } finally {
+            setLoading(false);
+          }
+        }
       }
       setEditingBinder(null);
     } catch (err) {
@@ -473,127 +501,212 @@ export function BinderEditor() {
             </div>
           </section>
 
-          {/* Filters */}
-          <section className="editor-section">
-            <h3>
-              Filters{' '}
-              <span className="muted">
-                {groups.length === 1
-                  ? '— a card joins this binder if it matches every filter below'
-                  : '— a card joins this binder if it matches any rule group below'}
-              </span>
-            </h3>
-
-            <FilterGroupList
-              groups={groups}
-              cards={cards}
-              ownedSets={ownedSets}
-              typeSuggestions={typeSuggestions}
-              oracleSuggestions={oracleSuggestions}
-              autofocusIdx={autofocusGroupIdx}
-              clearAutofocus={() => setAutofocusGroupIdx(null)}
-              onPatchFilter={patchFilter}
-              onSetName={setGroupName}
-              onAdd={addGroup}
-              onDuplicate={duplicateGroup}
-              onRemove={removeGroup}
-            />
-
-            <div className="sr-only" role="status" aria-live="polite">
-              {liveMsg}
+          {isNew && (
+            <div className="binder-mode-toggle" role="radiogroup" aria-label="Binder creation mode">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={binderMode === 'rules'}
+                className={`binder-mode-pill${binderMode === 'rules' ? ' active' : ''}`}
+                onClick={() => setBinderMode('rules')}
+              >
+                Build with rules
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={binderMode === 'import'}
+                className={`binder-mode-pill${binderMode === 'import' ? ' active' : ''}`}
+                onClick={() => setBinderMode('import')}
+              >
+                Import a list
+              </button>
             </div>
+          )}
 
-            {showEmptyWarning && (
-              <div className="warn-banner" style={{ marginTop: '0.75rem' }}>
-                ⚠️ This binder has no filters — it will match every remaining card. Add at least
-                one, or place this binder near the bottom of the priority list.
-              </div>
-            )}
-          </section>
+          {(binderMode === 'rules' || existing) && (
+            <>
+              {/* Filters */}
+              <section className="editor-section">
+                <h3>
+                  Filters{' '}
+                  <span className="muted">
+                    {groups.length === 1
+                      ? '— a card joins this binder if it matches every filter below'
+                      : '— a card joins this binder if it matches any rule group below'}
+                  </span>
+                </h3>
 
-          {/* Sort */}
-          <section className="editor-section">
-            <h3>Sort within binder</h3>
-            <p className="muted" style={{ marginBottom: '0.5rem' }}>
-              The first sort splits the binder into section headers; later sorts order cards within
-              each section.
-            </p>
-            <div className="sort-editor-list">
-              {sorts.map((s, i) => (
-                <div key={i} className="sort-editor-row">
-                  <span className="sort-editor-num">{i + 1}.</span>
-                  <SortSelect
-                    value={s.field}
-                    onChange={(field) => {
-                      const defaultDir =
-                        SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
-                      setSorts(sorts.map((x, j) => (j === i ? { field, dir: defaultDir } : x)));
-                    }}
-                  />
+                <FilterGroupList
+                  groups={groups}
+                  cards={cards}
+                  ownedSets={ownedSets}
+                  typeSuggestions={typeSuggestions}
+                  oracleSuggestions={oracleSuggestions}
+                  autofocusIdx={autofocusGroupIdx}
+                  clearAutofocus={() => setAutofocusGroupIdx(null)}
+                  onPatchFilter={patchFilter}
+                  onSetName={setGroupName}
+                  onAdd={addGroup}
+                  onDuplicate={duplicateGroup}
+                  onRemove={removeGroup}
+                />
+
+                <div className="sr-only" role="status" aria-live="polite">
+                  {liveMsg}
+                </div>
+
+                {showEmptyWarning && (
+                  <div className="warn-banner" style={{ marginTop: '0.75rem' }}>
+                    ⚠️ This binder has no filters — it will match every remaining card. Add at least
+                    one, or place this binder near the bottom of the priority list.
+                  </div>
+                )}
+              </section>
+
+              {/* Sort */}
+              <section className="editor-section">
+                <h3>Sort within binder</h3>
+                <p className="muted" style={{ marginBottom: '0.5rem' }}>
+                  The first sort splits the binder into section headers; later sorts order cards
+                  within each section.
+                </p>
+                <div className="sort-editor-list">
+                  {sorts.map((s, i) => (
+                    <div key={i} className="sort-editor-row">
+                      <span className="sort-editor-num">{i + 1}.</span>
+                      <SortSelect
+                        value={s.field}
+                        onChange={(field) => {
+                          const defaultDir =
+                            SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
+                          setSorts(sorts.map((x, j) => (j === i ? { field, dir: defaultDir } : x)));
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="tab-action sort-dir-toggle"
+                        onClick={() =>
+                          setSorts(
+                            sorts.map((x, j) =>
+                              j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
+                            )
+                          )
+                        }
+                        title={
+                          s.dir === 'asc'
+                            ? 'Ascending — click to reverse'
+                            : 'Descending — click to reverse'
+                        }
+                        aria-label={s.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                      >
+                        {s.dir === 'asc' ? '↑' : '↓'}
+                      </button>
+                      <div className="tab-actions sort-editor-actions">
+                        <button
+                          type="button"
+                          className="tab-action"
+                          onClick={() => setSorts(swap(sorts, i, i - 1))}
+                          disabled={i === 0}
+                          title="Move up"
+                          aria-label="Move sort up"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          className="tab-action"
+                          onClick={() => setSorts(swap(sorts, i, i + 1))}
+                          disabled={i === sorts.length - 1}
+                          title="Move down"
+                          aria-label="Move sort down"
+                        >
+                          ▼
+                        </button>
+                        <button
+                          type="button"
+                          className="tab-action"
+                          onClick={() => setSorts(sorts.filter((_, j) => j !== i))}
+                          disabled={sorts.length === 1}
+                          title="Remove this sort"
+                          aria-label="Remove sort"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {sorts.length < MAX_SORTS && (
+                    <button
+                      type="button"
+                      className="btn btn-add-group"
+                      onClick={() => setSorts([...sorts, nextDefaultSort(sorts)])}
+                    >
+                      + Add sort
+                    </button>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+
+          {binderMode === 'import' && isNew && (
+            <section className="editor-section">
+              <p className="muted" style={{ marginBottom: '0.5rem' }}>
+                Paste a card list or upload a CSV. Cards will be added to your collection and placed
+                in this binder in the order listed.
+              </p>
+              {importFile_ ? (
+                <div className="import-binder-file-row">
+                  <span className="import-binder-file-name">{importFile_.name}</span>
                   <button
                     type="button"
-                    className="tab-action sort-dir-toggle"
-                    onClick={() =>
-                      setSorts(
-                        sorts.map((x, j) =>
-                          j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
-                        )
-                      )
-                    }
-                    title={
-                      s.dir === 'asc'
-                        ? 'Ascending — click to reverse'
-                        : 'Descending — click to reverse'
-                    }
-                    aria-label={s.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                    className="btn-link"
+                    onClick={() => {
+                      setImportFile(null);
+                      if (importFileRef.current) importFileRef.current.value = '';
+                    }}
                   >
-                    {s.dir === 'asc' ? '↑' : '↓'}
+                    Remove
                   </button>
-                  <div className="tab-actions sort-editor-actions">
-                    <button
-                      type="button"
-                      className="tab-action"
-                      onClick={() => setSorts(swap(sorts, i, i - 1))}
-                      disabled={i === 0}
-                      title="Move up"
-                      aria-label="Move sort up"
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      className="tab-action"
-                      onClick={() => setSorts(swap(sorts, i, i + 1))}
-                      disabled={i === sorts.length - 1}
-                      title="Move down"
-                      aria-label="Move sort down"
-                    >
-                      ▼
-                    </button>
-                    <button
-                      type="button"
-                      className="tab-action"
-                      onClick={() => setSorts(sorts.filter((_, j) => j !== i))}
-                      disabled={sorts.length === 1}
-                      title="Remove this sort"
-                      aria-label="Remove sort"
-                    >
-                      ×
-                    </button>
-                  </div>
                 </div>
-              ))}
-              {sorts.length < MAX_SORTS && (
+              ) : (
+                <textarea
+                  className="paste-textarea import-binder-textarea"
+                  value={importPasteText}
+                  onChange={(e) => setImportPasteText(e.target.value)}
+                  placeholder={'1 Llanowar Elves\n1 Birds of Paradise\n4 Lightning Bolt\n...'}
+                  disabled={saving}
+                  autoFocus
+                />
+              )}
+              <div style={{ marginTop: '0.5rem' }}>
                 <button
                   type="button"
-                  className="btn btn-add-group"
-                  onClick={() => setSorts([...sorts, nextDefaultSort(sorts)])}
+                  className="btn"
+                  onClick={() => importFileRef.current?.click()}
+                  disabled={saving}
                 >
-                  + Add sort
+                  Upload CSV
                 </button>
-              )}
-            </div>
-          </section>
+                <input
+                  type="file"
+                  ref={importFileRef}
+                  accept=".csv,.tsv,.txt"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImportFile(file);
+                      setImportPasteText('');
+                    }
+                    if (importFileRef.current) importFileRef.current.value = '';
+                  }}
+                  disabled={saving}
+                />
+              </div>
+            </section>
+          )}
 
           {errorMsg && <div className="error-banner">{errorMsg}</div>}
         </div>
@@ -603,7 +716,13 @@ export function BinderEditor() {
             Cancel
           </button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : existing ? 'Save changes' : 'Create binder'}
+            {saving
+              ? 'Saving...'
+              : existing
+                ? 'Save changes'
+                : binderMode === 'import'
+                  ? 'Create and import'
+                  : 'Create binder'}
           </button>
         </div>
       </div>
