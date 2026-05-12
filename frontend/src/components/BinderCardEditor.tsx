@@ -147,6 +147,12 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
           </button>
         </div>
 
+        {binder.def.mode === 'manual' && (
+          <p className="binder-card-editor-manual-hint">
+            Manual mode — only pinned cards appear in this binder
+          </p>
+        )}
+
         <div className="binder-card-editor-tabs">
           <button
             type="button"
