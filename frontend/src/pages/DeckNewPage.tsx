@@ -14,9 +14,11 @@ import type {
   ScryfallCard,
   GeneratedDeck,
   DeckCategory,
+  DeckFormat,
   EDHRECTheme,
   ThemeResult,
 } from '@/deck-builder/types';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
 interface PrefillState {
   commander: ScryfallCard;
@@ -48,6 +50,8 @@ export function DeckNewPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>(() => prefill?.themes ?? []);
   const [showImport, setShowImport] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<DeckFormat>('commander');
+  const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
 
   // Reset the deck-builder store on mount so opening "New deck" after
   // creating a deck always starts at a blank commander search — the
@@ -105,20 +109,25 @@ export function DeckNewPage() {
 
   // ── Start-blank ───────────────────────────────────────────────────────
   const handleStartBlank = useCallback(() => {
-    if (!commander) return;
-    const allocated = pickCollectionCopy(
-      commander.name,
-      collectionCards,
-      buildAllocationMap(decks),
-      commander.id
-    );
+    if (formatConfig.hasCommander && !commander) return;
+    let commanderAlloc: string | null = null;
+    if (commander) {
+      const allocated = pickCollectionCopy(
+        commander.name,
+        collectionCards,
+        buildAllocationMap(decks),
+        commander.id
+      );
+      commanderAlloc = allocated?.copyId ?? null;
+    }
     const id = createDeck({
+      format: selectedFormat,
       source: 'manual',
-      commander,
-      commanderAllocatedCopyId: allocated?.copyId ?? null,
+      commander: commander ?? null,
+      commanderAllocatedCopyId: commanderAlloc,
     });
     navigate(`/decks/${id}`);
-  }, [commander, collectionCards, decks, createDeck, navigate]);
+  }, [commander, collectionCards, decks, createDeck, navigate, selectedFormat, formatConfig]);
 
   // ── Generate ──────────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
@@ -217,22 +226,52 @@ export function DeckNewPage() {
         </Link>
         <h1>New deck</h1>
         <p className="deck-builder-subtitle">
-          Pick a commander, then generate a 100-card deck from EDHREC data, start blank and add
-          cards by hand, or
+          {formatConfig.hasCommander ? (
+            <>
+              Pick a commander, then generate a deck from EDHREC data, start blank and add cards by
+              hand, or{' '}
+            </>
+          ) : (
+            <>Create a {formatConfig.label} deck and add cards manually, or </>
+          )}
           <button type="button" className="btn-link" onClick={() => setShowImport(true)}>
             import an existing deck list.
           </button>
         </p>
       </header>
 
-      {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
+      {showImport && (
+        <ImportDeckDialog onClose={() => setShowImport(false)} format={selectedFormat} />
+      )}
 
       <section className="deck-builder-section">
-        <h2 className="deck-builder-section-title">Commander</h2>
-        <CommanderSearch value={commander} onSelect={handleSelectCommander} />
+        <h2 className="deck-builder-section-title">Format</h2>
+        <div className="option-grid option-grid-4">
+          {(Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[]).map((fmt) => {
+            const cfg = DECK_FORMAT_CONFIGS[fmt];
+            return (
+              <button
+                key={fmt}
+                type="button"
+                className={`option-card${selectedFormat === fmt ? ' active' : ''}`}
+                onClick={() => setSelectedFormat(fmt)}
+              >
+                <span className="option-card-label">{cfg.label}</span>
+                <span className="option-card-sub">{cfg.description}</span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
-      {commander && (
+      {formatConfig.hasCommander && (
+        <section className="deck-builder-section">
+          <h2 className="deck-builder-section-title">Commander</h2>
+          <CommanderSearch value={commander} onSelect={handleSelectCommander} />
+        </section>
+      )}
+
+      {formatConfig.hasCommander && commander && (
         <ThemePicker
           commanderName={commander.name}
           selectedSlugs={selectedThemeSlugs}
@@ -240,37 +279,59 @@ export function DeckNewPage() {
         />
       )}
 
-      {commander && <DeckCustomizer customization={customization} update={updateCustomization} />}
+      {formatConfig.hasCommander && commander && (
+        <DeckCustomizer customization={customization} update={updateCustomization} />
+      )}
 
-      {commander && (
+      {formatConfig.hasCommander ? (
+        commander && (
+          <section className="deck-builder-section deck-builder-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+            >
+              {isGenerating ? 'Building…' : 'Generate deck'}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={handleStartBlank}
+              disabled={isGenerating}
+            >
+              Start blank
+            </button>
+            <p className="deck-builder-actions-hint">
+              Generate uses EDHREC data to draft a full 100. Start blank gives you just the
+              commander so you can pick every card by hand.
+            </p>
+            {progress && (
+              <div className="deck-builder-progress" role="status" aria-live="polite">
+                <div className="deck-builder-progress-bar">
+                  <div
+                    className="deck-builder-progress-fill"
+                    style={{ width: `${Math.max(2, progress.percent)}%` }}
+                  />
+                </div>
+                <div className="deck-builder-progress-msg">{progress.message}</div>
+              </div>
+            )}
+            {error && <div className="error-banner deck-builder-error">{error}</div>}
+          </section>
+        )
+      ) : (
         <section className="deck-builder-section deck-builder-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-          >
-            {isGenerating ? 'Building…' : 'Generate deck'}
-          </button>
-          <button type="button" className="btn" onClick={handleStartBlank} disabled={isGenerating}>
-            Start blank
+          <button type="button" className="btn btn-primary" onClick={handleStartBlank}>
+            Create deck
           </button>
           <p className="deck-builder-actions-hint">
-            Generate uses EDHREC data to draft a full 100. Start blank gives you just the commander
-            so you can pick every card by hand.
+            Create an empty {formatConfig.label} deck ({formatConfig.mainboardSize}-card mainboard
+            {formatConfig.sideboardSize > 0
+              ? ` with ${formatConfig.sideboardSize}-card sideboard`
+              : ''}
+            ). Add cards manually in the editor.
           </p>
-          {progress && (
-            <div className="deck-builder-progress" role="status" aria-live="polite">
-              <div className="deck-builder-progress-bar">
-                <div
-                  className="deck-builder-progress-fill"
-                  style={{ width: `${Math.max(2, progress.percent)}%` }}
-                />
-              </div>
-              <div className="deck-builder-progress-msg">{progress.message}</div>
-            </div>
-          )}
-          {error && <div className="error-banner deck-builder-error">{error}</div>}
         </section>
       )}
     </div>
