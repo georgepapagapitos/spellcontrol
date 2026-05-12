@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -979,34 +980,15 @@ function DeckToolbar({
         </span>
       </div>
       <div className="deck-toolbar-controls">
-        <ToolbarPopover
+        <SelectMenu
           ariaLabel="Sort"
-          value={SORT_LABEL[sort]}
-          icon={<SortDirIcon dir={sortDir} />}
-        >
-          {() => (
-            <ul className="toolbar-popover-list" role="menu" aria-label="Sort by">
-              {SORT_ORDER.map((m) => (
-                <li key={m}>
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={sort === m}
-                    className={`toolbar-popover-item${sort === m ? ' active' : ''}`}
-                    onClick={() => {
-                      onToggleSort(m);
-                    }}
-                  >
-                    <span className="toolbar-popover-check" aria-hidden>
-                      {sort === m ? <SortDirIcon dir={sortDir} /> : ''}
-                    </span>
-                    {SORT_LABEL[m]}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </ToolbarPopover>
+          value={sort}
+          options={SORT_ORDER.map((m) => ({ value: m, label: SORT_LABEL[m] }))}
+          onChange={onToggleSort}
+          closeOnSelect={false}
+          leadingIcon={<SortDirIcon dir={sortDir} />}
+          renderItemPrefix={(_opt, active) => (active ? <SortDirIcon dir={sortDir} /> : null)}
+        />
 
         <ToolbarPopover
           label="Show"
@@ -1105,54 +1087,128 @@ function SortDirIcon({ dir }: { dir: 'asc' | 'desc' }) {
   );
 }
 
-// ── Toolbar popover (Sort + Show share this shell) ──────────────────────
+// ── Toolbar popover (portal-positioned, same mechanism as SelectMenu) ───
+type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
+
 function ToolbarPopover({
   label,
   ariaLabel,
-  value,
   icon,
   children,
 }: {
   label?: string;
-  /** Used for aria-label when no visible text label is rendered. */
   ariaLabel?: string;
-  /** Optional current value displayed next to the label, e.g. "Name" for Sort. */
-  value?: string;
   icon?: React.ReactNode;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current || !buttonRef.current) return;
+    const rect = panelRef.current.getBoundingClientRect();
+    const triggerRect = buttonRef.current.getBoundingClientRect();
+    setPanelPos((p) => {
+      if (!p) return p;
+      let next = p;
+      if (p.top !== undefined && rect.bottom > window.innerHeight) {
+        next = { ...next, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 };
+      }
+      if (next.bottom !== undefined) {
+        const upwardTop = triggerRect.top - 6 - rect.height;
+        if (upwardTop < 8) {
+          next = { ...next, top: 8, bottom: undefined };
+        }
+      }
+      if (rect.left < 8) {
+        next = { ...next, right: undefined, left: Math.max(8, triggerRect.left) };
+      }
+      return next === p ? p : next;
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node) &&
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node)
+      )
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const onScroll = () => {
+      setOpen(false);
+    };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
+    let scrollRaf = 0;
+    scrollRaf = requestAnimationFrame(() => {
+      document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    });
     return () => {
+      cancelAnimationFrame(scrollRaf);
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('scroll', onScroll, { capture: true });
     };
   }, [open]);
+
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const right = Math.max(0, window.innerWidth - rect.right);
+      setPanelPos(
+        spaceBelow >= 160
+          ? { top: rect.bottom + 6, right }
+          : { bottom: window.innerHeight - rect.top + 6, right }
+      );
+    }
+    setOpen((v) => !v);
+  };
+
+  const panel =
+    open &&
+    panelPos &&
+    createPortal(
+      <div
+        ref={panelRef}
+        className="toolbar-popover-panel toolbar-popover-panel--fixed"
+        style={{
+          position: 'fixed',
+          left: panelPos.left,
+          right: panelPos.right,
+          top: panelPos.top,
+          bottom: panelPos.bottom,
+          zIndex: 1200,
+        }}
+      >
+        {children(() => setOpen(false))}
+      </div>,
+      document.body
+    );
 
   return (
     <div className="toolbar-popover" ref={wrapperRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={`toolbar-pill${open ? ' open' : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={!label ? ariaLabel : undefined}
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
       >
         {icon}
         {label && <span className="toolbar-pill-label">{label}</span>}
-        {value && <span className="toolbar-pill-value">{value}</span>}
         <svg
           viewBox="0 0 24 24"
           width="12"
@@ -1167,7 +1223,7 @@ function ToolbarPopover({
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
-      {open && <div className="toolbar-popover-panel">{children(() => setOpen(false))}</div>}
+      {panel}
     </div>
   );
 }
