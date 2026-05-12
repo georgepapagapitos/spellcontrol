@@ -33,7 +33,7 @@ export default function AuthPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1 className="auth-title">Binder planner</h1>
+        <h1 className="auth-title">SpellControl</h1>
         <p className="auth-subtitle">
           {mode === 'login'
             ? 'Sign in to sync your collection across devices.'

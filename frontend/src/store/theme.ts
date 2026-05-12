@@ -18,7 +18,7 @@ export const useThemeStore = create<ThemeState>()(
       },
     }),
     {
-      name: 'mtg-binder-theme',
+      name: 'spellcontrol-theme',
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         const id = state && isValidTheme(state.theme) ? state.theme : DEFAULT_THEME;
@@ -35,7 +35,7 @@ export const useThemeStore = create<ThemeState>()(
  */
 export function bootstrapTheme(): void {
   try {
-    const raw = localStorage.getItem('mtg-binder-theme');
+    const raw = localStorage.getItem('spellcontrol-theme');
     if (!raw) {
       document.documentElement.setAttribute('data-theme', DEFAULT_THEME);
       return;

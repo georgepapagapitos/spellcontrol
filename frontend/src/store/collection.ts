@@ -679,7 +679,7 @@ export const useCollectionStore = create<CollectionState>()(
       setSearch: (s) => set({ search: s }),
     }),
     {
-      name: 'mtg-binder-planner',
+      name: 'spellcontrol',
       version: 11,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({

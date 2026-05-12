@@ -188,7 +188,7 @@ async function fetchBatchWithRetry(
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
-          'User-Agent': 'mtg-binder-planner/1.0',
+          'User-Agent': 'spellcontrol/1.0',
         },
         body: JSON.stringify({ identifiers }),
       });
@@ -322,7 +322,7 @@ async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | n
       const response = await fetch(url, {
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'mtg-binder-planner/1.0',
+          'User-Agent': 'spellcontrol/1.0',
         },
       });
 
