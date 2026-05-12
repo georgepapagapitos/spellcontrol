@@ -90,7 +90,7 @@ describe('remapAllocations', () => {
     expect(deck.cards[0].allocatedCopyId).toBeNull();
   });
 
-  it('preserves unallocated slots', () => {
+  it('allocates unallocated slots when a matching card exists in collection', () => {
     useDecksStore.setState({
       decks: [
         baseDeck({
@@ -103,7 +103,42 @@ describe('remapAllocations', () => {
     useDecksStore.getState().remapAllocations(newCollection);
 
     const deck = useDecksStore.getState().decks[0];
+    expect(deck.cards[0].allocatedCopyId).toBe('new-copy-1');
+  });
+
+  it('leaves unallocated slots null when card is not in collection', () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          cards: [slot('Mana Crypt', null)],
+        }),
+      ],
+    });
+
+    const newCollection = [enriched({ copyId: 'new-copy-1', name: 'Sol Ring' })];
+    useDecksStore.getState().remapAllocations(newCollection);
+
+    const deck = useDecksStore.getState().decks[0];
     expect(deck.cards[0].allocatedCopyId).toBeNull();
+  });
+
+  it('re-allocates after collection delete and reimport', () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          cards: [slot('Sol Ring', 'old-copy-1')],
+        }),
+      ],
+    });
+
+    // Step 1: collection deleted — remap against empty nulls all allocations
+    useDecksStore.getState().remapAllocations([]);
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBeNull();
+
+    // Step 2: new collection imported — should re-allocate
+    const freshCollection = [enriched({ copyId: 'fresh-copy', name: 'Sol Ring' })];
+    useDecksStore.getState().remapAllocations(freshCollection);
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('fresh-copy');
   });
 
   it('avoids double-claiming the same copy across decks', () => {
