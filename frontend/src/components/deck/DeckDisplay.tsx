@@ -586,20 +586,29 @@ export function DeckDisplay({
       card: c.card,
       allocatedCopyId: c.allocatedCopyId ?? null,
     }));
-    return runValidation(mainDeckCards, sideDeckCards, formatConfig);
-  }, [cards, sideboard, formatConfig]);
+    return runValidation(mainDeckCards, sideDeckCards, formatConfig, {
+      commander,
+      partnerCommander: partnerCommander ?? null,
+    });
+  }, [cards, sideboard, formatConfig, commander, partnerCommander]);
 
   const legalityBySlot = useMemo(() => {
     const map = new Map<string, LegalityIssue>();
     for (const issue of legalityIssues) {
+      // Prefer the more specific issue type if multiple apply to the same slot.
+      // Color-identity and not-legal both signal "this card does not belong";
+      // copy-limit is a separate flavor. Keep whichever we saw first since the
+      // tooltip only has room for one detail line anyway.
       if (!map.has(issue.slotId)) map.set(issue.slotId, issue);
     }
     return map;
   }, [legalityIssues]);
 
-  const illegalCardCount = useMemo(() => {
+  const flaggedCardCount = useMemo(() => {
     const names = new Set(
-      legalityIssues.filter((i) => i.issue === 'not-legal').map((i) => i.cardName)
+      legalityIssues
+        .filter((i) => i.issue === 'not-legal' || i.issue === 'color-identity')
+        .map((i) => i.cardName)
     );
     return names.size;
   }, [legalityIssues]);
@@ -773,12 +782,12 @@ export function DeckDisplay({
           onExport={() => setExportOpen(true)}
         />
 
-        {illegalCardCount > 0 && (
+        {flaggedCardCount > 0 && (
           <div className="deck-legality-banner">
             <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden>
               <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 11a1 1 0 110 2 1 1 0 010-2zm1-3a1 1 0 01-2 0V6a1 1 0 112 0v4z" />
             </svg>
-            {illegalCardCount} {illegalCardCount === 1 ? 'card' : 'cards'} not legal in{' '}
+            {flaggedCardCount} {flaggedCardCount === 1 ? 'card' : 'cards'} flagged in{' '}
             {formatConfig.label}
           </div>
         )}

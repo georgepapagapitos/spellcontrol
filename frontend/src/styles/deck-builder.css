@@ -3562,6 +3562,21 @@ input.deck-row-qty-input.deck-row-qty-missing {
   line-height: 1.5;
 }
 
+.import-deck-format {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+
+.import-deck-format-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text3);
+  font-weight: 600;
+}
+
 .import-deck-modal .paste-textarea {
   min-height: 200px;
 }
@@ -3707,4 +3722,54 @@ input.deck-row-qty-input.deck-row-qty-missing {
   display: flex;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
+}
+
+/* ── Format selector pills (new deck, import deck) ────────────────── */
+.format-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.format-pill {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.format-pill:hover,
+.format-pill:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.format-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent, #fff);
+}
+
+.format-pill-hint {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+@media (max-width: 600px) {
+  .format-pill {
+    flex: 1 1 calc(50% - 0.4rem);
+    text-align: center;
+  }
 }
