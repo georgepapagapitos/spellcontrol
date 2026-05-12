@@ -12,7 +12,7 @@ import type { EnrichedCard } from '../types';
  * Replacing on upload is just `put` — we don't keep history.
  */
 
-const DB_NAME = 'mtg-binder-planner';
+const DB_NAME = 'spellcontrol';
 const DB_VERSION = 1;
 const STORE_NAME = 'collection';
 const CURRENT_KEY = 'current';

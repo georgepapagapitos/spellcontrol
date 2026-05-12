@@ -119,7 +119,7 @@ describe('flushSync', () => {
 
 describe('stopSyncAndWipeLocal', () => {
   it('clears stores and removes localStorage entries', async () => {
-    localStorage.setItem('mtg-binder-planner', '{"binders":[]}');
+    localStorage.setItem('spellcontrol', '{"binders":[]}');
     localStorage.setItem('mtg-decks', '{"decks":[]}');
     useCollectionStore.setState({ binders: [{ id: 'x', name: 'leftover' } as never] });
     useDecksStore.setState({ decks: [{ id: 'y' }] as never });
@@ -128,7 +128,7 @@ describe('stopSyncAndWipeLocal', () => {
 
     expect(useCollectionStore.getState().binders).toEqual([]);
     expect(useDecksStore.getState().decks).toEqual([]);
-    expect(localStorage.getItem('mtg-binder-planner')).toBeNull();
+    expect(localStorage.getItem('spellcontrol')).toBeNull();
     expect(localStorage.getItem('mtg-decks')).toBeNull();
   });
 });
