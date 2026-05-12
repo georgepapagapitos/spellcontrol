@@ -5,9 +5,13 @@ import type { EnrichedCard } from '../types';
 interface Props {
   card: EnrichedCard;
   onEditCard: () => void;
+  /** The binder this card is currently routed to, if any. Drives the
+   *  "Move to binder" vs "Add to binder" label and the disabled row in the
+   *  sheet. */
+  currentBinder?: { id: string; name: string; color: string | null } | null;
 }
 
-export function CardRowMenu({ card, onEditCard }: Props) {
+export function CardRowMenu({ card, onEditCard, currentBinder }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -47,6 +51,18 @@ export function CardRowMenu({ card, onEditCard }: Props) {
         </button>
         {menuOpen && (
           <div role="menu" className="deck-row-menu-popover">
+            {currentBinder && (
+              <div className="deck-row-menu-status" aria-live="polite">
+                <span
+                  className="card-list-binder-badge-swatch"
+                  style={{ background: currentBinder.color || 'var(--accent)' }}
+                  aria-hidden
+                />
+                <span>
+                  In <strong>{currentBinder.name}</strong>
+                </span>
+              </div>
+            )}
             <button
               type="button"
               role="menuitem"
@@ -71,14 +87,18 @@ export function CardRowMenu({ card, onEditCard }: Props) {
               }}
             >
               <BinderIcon />
-              Add to binder
+              {currentBinder ? 'Move to binder' : 'Add to binder'}
             </button>
           </div>
         )}
       </div>
 
       {binderSheetOpen && (
-        <AddToBinderSheet card={card} onClose={() => setBinderSheetOpen(false)} />
+        <AddToBinderSheet
+          card={card}
+          currentBinderId={currentBinder?.id ?? null}
+          onClose={() => setBinderSheetOpen(false)}
+        />
       )}
     </>
   );

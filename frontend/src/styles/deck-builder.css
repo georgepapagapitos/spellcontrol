@@ -1299,6 +1299,22 @@ input.toolbar-search-input {
   cursor: pointer;
 }
 
+.deck-row-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem 0.4rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 0.5px solid var(--border);
+  color: var(--text2);
+  font-size: var(--text-xs);
+}
+
+.deck-row-menu-status strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .deck-row-menu-item:hover:not(:disabled) {
   background: var(--accent-light);
 }

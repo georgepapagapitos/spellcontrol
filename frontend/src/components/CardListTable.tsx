@@ -5,6 +5,7 @@ import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
+import { BinderBadge } from './BinderBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
@@ -31,6 +32,7 @@ interface Row {
   key: string;
   card: EnrichedCard;
   qty: number;
+  binderId: string | null;
   binderName: string | null;
   binderColor: string | null;
 }
@@ -120,12 +122,15 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
   const [pageSize, setPageSize] = useState<PageSize>(25);
 
   const cardToBinder = useMemo(() => {
-    const map = new Map<string, { name: string; color: string }>();
+    // Per-copy assignment — pinned and rule-matched cards are routed by
+    // copyId in materializeBinders, so we mirror that here. Falls back to
+    // printing+finish for old materialized cards without a copyId.
+    const map = new Map<string, { id: string; name: string; color: string }>();
     for (const b of binders) {
       for (const section of b.sections) {
         for (const c of section.cards) {
-          const k = `${c.scryfallId}:${c.finish ?? (c.foil ? 'foil' : 'nonfoil')}`;
-          if (!map.has(k)) map.set(k, { name: b.def.name, color: b.def.color });
+          const assignment = { id: b.def.id, name: b.def.name, color: b.def.color };
+          if (c.copyId && !map.has(c.copyId)) map.set(c.copyId, assignment);
         }
       }
     }
@@ -136,20 +141,23 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
     if (!groupPrintings) {
       // One row per physical copy.
       return cards.map((card) => {
-        const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
-        const assignment = cardToBinder.get(key) ?? null;
+        const assignment = cardToBinder.get(card.copyId) ?? null;
         return {
           // copyId is unique per physical copy — gives every row a
           // stable key even when two share the same printing+foil.
           key: card.copyId,
           card,
           qty: 1,
+          binderId: assignment?.id ?? null,
           binderName: assignment?.name ?? null,
           binderColor: assignment?.color ?? null,
         };
       });
     }
     // Default: roll duplicate copies of the same printing into one row.
+    // The row inherits the binder of the first copy seen — if multiple
+    // copies route to different binders, the badge reflects whichever copy
+    // we display as the representative.
     const grouped = new Map<string, Row>();
     for (const card of cards) {
       const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
@@ -157,11 +165,12 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
       if (existing) {
         existing.qty += 1;
       } else {
-        const assignment = cardToBinder.get(key) ?? null;
+        const assignment = cardToBinder.get(card.copyId) ?? null;
         grouped.set(key, {
           key,
           card,
           qty: 1,
+          binderId: assignment?.id ?? null,
           binderName: assignment?.name ?? null,
           binderColor: assignment?.color ?? null,
         });
@@ -584,6 +593,11 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
                     {r.card.name}
                     {r.card.foil && <span className="card-list-foil-tag">foil</span>}
                     <DeckBadge allocations={allocationsFor(r.card)} />
+                    <BinderBadge
+                      binderId={r.binderId}
+                      binderName={r.binderName}
+                      binderColor={r.binderColor}
+                    />
                   </div>
                   <div className="collection-list-meta">
                     <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
@@ -592,7 +606,15 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
                   </div>
                 </div>
                 <div className="collection-list-right">
-                  <CardRowMenu card={r.card} onEditCard={() => setEditingCard(r.card)} />
+                  <CardRowMenu
+                    card={r.card}
+                    onEditCard={() => setEditingCard(r.card)}
+                    currentBinder={
+                      r.binderId && r.binderName
+                        ? { id: r.binderId, name: r.binderName, color: r.binderColor }
+                        : null
+                    }
+                  />
                   <div className="collection-list-qty">×{r.qty}</div>
                   <div className="collection-list-price">
                     ${(r.card.purchasePrice * r.qty).toFixed(2)}
