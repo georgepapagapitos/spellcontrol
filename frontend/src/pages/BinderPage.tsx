@@ -477,6 +477,15 @@ export function BinderPage() {
               viewToggle={viewToggle}
               qtyByCopyId={qtyByCopyId}
               density={view === 'compact' ? 'compact' : 'detail'}
+              onDelete={async () => {
+                const ok = await confirm({
+                  title: `Delete "${active.def.name}"?`,
+                  body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
+                  confirmLabel: 'Delete binder',
+                  danger: true,
+                });
+                if (ok) deleteBinder(active.def.id);
+              }}
             />
           );
         })()

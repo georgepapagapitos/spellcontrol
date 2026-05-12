@@ -26,6 +26,7 @@ interface Props {
   qtyByCopyId?: Map<string, number>;
   /** 'detail' = thumbnail + multi-line meta. 'compact' = text-only single line. */
   density?: 'detail' | 'compact';
+  onDelete?: () => void;
 }
 
 interface Row {
@@ -54,7 +55,13 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
  * grid view. Sister to CardListTable, but binder-scoped: rows live under
  * their section header instead of being globally sorted into a flat list.
  */
-export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'detail' }: Props) {
+export function BinderListView({
+  binder,
+  viewToggle,
+  qtyByCopyId,
+  density = 'detail',
+  onDelete,
+}: Props) {
   const isCompact = density === 'compact';
   const isGrouped = !!qtyByCopyId;
   const allCards = useCollectionStore((s) => s.cards);
@@ -271,6 +278,11 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
             onClick={allCollapsed ? expandAll : collapseAll}
           >
             {allCollapsed ? 'Expand all' : 'Collapse all'}
+          </button>
+        )}
+        {onDelete && (
+          <button type="button" className="btn-link binder-summary-delete" onClick={onDelete}>
+            Delete binder
           </button>
         )}
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
