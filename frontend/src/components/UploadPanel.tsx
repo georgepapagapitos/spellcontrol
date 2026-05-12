@@ -67,15 +67,10 @@ export function UploadPanel() {
   };
 
   function queueImport(p: PendingImport) {
-    if (hasCollection) {
-      setPendingImport(p);
-    } else {
-      // First-time import: skip the prompt and replace.
-      runImport(p, 'replace');
-    }
+    setPendingImport(p);
   }
 
-  async function runImport(p: PendingImport, mode: ImportMode) {
+  async function runImport(p: PendingImport, mode: ImportMode, binderName?: string) {
     setPendingImport(null);
     setLoading(true);
     setError(null);
@@ -83,13 +78,19 @@ export function UploadPanel() {
     setShowUnresolved(false);
     try {
       const result = await p.fn();
-      await importCards(result, p.label, mode, { isSample: p.isSample });
+      await importCards(result, p.label, mode, {
+        isSample: p.isSample,
+        binderName,
+      });
       const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
       if (result.scryfallHits > 0) {
         parts.push(`${result.scryfallHits.toLocaleString()} matched`);
       }
       if (result.unresolvedNames.length > 0) {
         parts.push(`${result.unresolvedNames.length} unresolved`);
+      }
+      if (mode === 'binder' && binderName) {
+        parts.push(`binder "${binderName}" created`);
       }
       setSuccessMsg(parts.join(' · '));
       if (p.label === 'pasted-list') setPasteText('');
@@ -407,7 +408,7 @@ export function UploadPanel() {
         <ImportModeDialog
           existingCount={cards.length}
           incomingPreview={pendingImport.preview}
-          onPick={(mode) => runImport(pendingImport, mode)}
+          onPick={(mode, binderName) => runImport(pendingImport, mode, binderName)}
           onCancel={() => setPendingImport(null)}
         />
       )}
@@ -468,7 +469,7 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
 interface ImportModeDialogProps {
   existingCount: number;
   incomingPreview?: string;
-  onPick: (mode: ImportMode) => void;
+  onPick: (mode: ImportMode, binderName?: string) => void;
   onCancel: () => void;
 }
 
@@ -478,39 +479,94 @@ function ImportModeDialog({
   onPick,
   onCancel,
 }: ImportModeDialogProps) {
+  const [binderName, setBinderName] = useState('');
+  const [showBinderInput, setShowBinderInput] = useState(false);
+
+  const handleBinderSubmit = () => {
+    const name = binderName.trim();
+    if (!name) return;
+    onPick('binder', name);
+  };
+
   return (
     <Modal onClose={onCancel} labelledBy="import-mode-title">
       <h2 id="import-mode-title" className="choice-dialog-title">
-        Replace or add to your collection?
+        How should these cards be imported?
       </h2>
-      <p className="choice-dialog-body">
-        You already have {existingCount.toLocaleString()} card{existingCount === 1 ? '' : 's'}{' '}
-        loaded
-        {incomingPreview ? ` and you're importing ${incomingPreview}` : ''}. Pick how to handle the
-        new cards.
-      </p>
+      {existingCount > 0 && (
+        <p className="choice-dialog-body">
+          You already have {existingCount.toLocaleString()} card{existingCount === 1 ? '' : 's'}{' '}
+          loaded
+          {incomingPreview ? ` and you are importing ${incomingPreview}` : ''}.
+        </p>
+      )}
       <div className="choice-dialog-options">
         <button
           type="button"
           className="choice-dialog-option"
-          onClick={() => onPick('merge')}
-          autoFocus
+          onClick={() => onPick(existingCount > 0 ? 'merge' : 'replace')}
+          autoFocus={!showBinderInput}
         >
-          <span className="choice-dialog-option-title">Add</span>
+          <span className="choice-dialog-option-title">Add to collection</span>
           <span className="choice-dialog-option-desc">
-            Keep existing cards and append the new ones. Duplicates will stack.
+            {existingCount > 0
+              ? 'Keep existing cards and append the new ones. Duplicates will stack.'
+              : 'Import these cards into your collection. They will be routed through your binder rules.'}
           </span>
         </button>
-        <button
-          type="button"
-          className="choice-dialog-option choice-dialog-option-danger"
-          onClick={() => onPick('replace')}
-        >
-          <span className="choice-dialog-option-title">Replace</span>
-          <span className="choice-dialog-option-desc">
-            Wipe the current collection and start fresh with the imported cards.
-          </span>
-        </button>
+        {!showBinderInput ? (
+          <button
+            type="button"
+            className="choice-dialog-option"
+            onClick={() => setShowBinderInput(true)}
+          >
+            <span className="choice-dialog-option-title">Import as binder</span>
+            <span className="choice-dialog-option-desc">
+              Create a new binder with these cards in the order they were listed.
+            </span>
+          </button>
+        ) : (
+          <div className="choice-dialog-option choice-dialog-option-active">
+            <span className="choice-dialog-option-title">Import as binder</span>
+            <div className="binder-name-input-row">
+              <input
+                type="text"
+                className="binder-name-input"
+                placeholder="Binder name"
+                value={binderName}
+                onChange={(e) => setBinderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleBinderSubmit();
+                }}
+                autoFocus
+                maxLength={60}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleBinderSubmit}
+                disabled={!binderName.trim()}
+              >
+                Import
+              </button>
+            </div>
+            <span className="choice-dialog-option-desc binder-import-note">
+              Cards will also be added to your collection.
+            </span>
+          </div>
+        )}
+        {existingCount > 0 && (
+          <button
+            type="button"
+            className="choice-dialog-option choice-dialog-option-danger"
+            onClick={() => onPick('replace')}
+          >
+            <span className="choice-dialog-option-title">Replace collection</span>
+            <span className="choice-dialog-option-desc">
+              Wipe the current collection and start fresh with the imported cards.
+            </span>
+          </button>
+        )}
       </div>
       <div className="choice-dialog-actions">
         <button type="button" className="upload-action" onClick={onCancel}>
