@@ -328,4 +328,71 @@ describe('materializeBinders', () => {
       expect(binders[0].totalCards).toBe(2);
     });
   });
+
+  describe('manual mode', () => {
+    it('manual binder only shows pinned cards', () => {
+      const rareCard = makeCard({ rarity: 'rare', name: 'Pinned Rare' });
+      const commonCard = makeCard({ rarity: 'rare', name: 'Unpinned Rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        mode: 'manual',
+        pinnedCopyIds: [rareCard.copyId],
+      });
+      const { binders, uncategorized } = materializeBinders(
+        [rareCard, commonCard],
+        [binder],
+        defaultOpts
+      );
+      expect(binders[0].totalCards).toBe(1);
+      expect(uncategorized.totalCards).toBe(1);
+    });
+
+    it('manual binder does not steal rule matches from downstream binders', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const manualBinder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        mode: 'manual',
+        position: 0,
+      });
+      const rulesBinder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        position: 1,
+      });
+      const { binders } = materializeBinders([card], [manualBinder, rulesBinder], defaultOpts);
+      expect(binders[0].totalCards).toBe(0);
+      expect(binders[1].totalCards).toBe(1);
+    });
+
+    it('excludedCopyIds still apply in manual mode', () => {
+      const card = makeCard({ name: 'Excluded Pin' });
+      const binder = makeBinder({
+        mode: 'manual',
+        pinnedCopyIds: [card.copyId],
+        excludedCopyIds: [card.copyId],
+      });
+      const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+      expect(binders[0].totalCards).toBe(0);
+      expect(uncategorized.totalCards).toBe(0);
+    });
+
+    it('switching back to rules restores normal routing', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+        mode: 'rules',
+      });
+      const { binders } = materializeBinders([card], [binder], defaultOpts);
+      expect(binders[0].totalCards).toBe(1);
+    });
+
+    it('undefined mode defaults to rules behavior', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: [{ value: 'rare', negate: false }] },
+      });
+      expect(binder.mode).toBeUndefined();
+      const { binders } = materializeBinders([card], [binder], defaultOpts);
+      expect(binders[0].totalCards).toBe(1);
+    });
+  });
 });

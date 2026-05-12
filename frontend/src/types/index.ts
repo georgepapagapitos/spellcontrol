@@ -261,6 +261,9 @@ export interface BinderDef {
   color: string;
   /** Marks binders created via "Load samples" — purely for tagging in the UI. */
   isSample?: boolean;
+  /** 'rules' (default): filterGroups drive routing; pins are exceptions.
+   *  'manual': only pinned cards appear; filterGroups are preserved but ignored. */
+  mode?: 'rules' | 'manual';
   /** copyIds manually added to this binder. Claimed before rule routing so they
    *  don't land in other binders. Undefined = no pinned cards. */
   pinnedCopyIds?: string[];

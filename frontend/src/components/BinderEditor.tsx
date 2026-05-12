@@ -127,6 +127,7 @@ export function BinderEditor() {
   const [doubleSided, setDoubleSided] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
+  const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -202,6 +203,7 @@ export function BinderEditor() {
             }))
           : [newGroup()];
         setGroups(existingGroups);
+        setRoutingMode(existing.mode ?? 'rules');
         setSorts([...existing.sorts]);
       } else {
         setName('');
@@ -210,6 +212,7 @@ export function BinderEditor() {
         setDoubleSided(false);
         setFixedCapacity(null);
         setGroups([newGroup()]);
+        setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
       }
       setErrorMsg(null);
@@ -316,6 +319,7 @@ export function BinderEditor() {
       doubleSided,
       fixedCapacity,
       color,
+      mode: routingMode,
     };
 
     setSaving(true);
@@ -548,29 +552,51 @@ export function BinderEditor() {
             <>
               {/* Filters */}
               <section className="editor-section">
-                <h3>
-                  Filters{' '}
-                  <span className="muted">
-                    {groups.length === 1
-                      ? '— a card joins this binder if it matches every filter below'
-                      : '— a card joins this binder if it matches any rule group below'}
-                  </span>
-                </h3>
+                {routingMode === 'manual' && existing && (
+                  <div className="manual-mode-banner">
+                    <p>
+                      This binder uses manual mode. Only pinned cards appear; filter rules are
+                      paused.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setRoutingMode('rules')}
+                    >
+                      Switch to rules
+                    </button>
+                  </div>
+                )}
 
-                <FilterGroupList
-                  groups={groups}
-                  cards={cards}
-                  ownedSets={ownedSets}
-                  typeSuggestions={typeSuggestions}
-                  oracleSuggestions={oracleSuggestions}
-                  autofocusIdx={autofocusGroupIdx}
-                  clearAutofocus={() => setAutofocusGroupIdx(null)}
-                  onPatchFilter={patchFilter}
-                  onSetName={setGroupName}
-                  onAdd={addGroup}
-                  onDuplicate={duplicateGroup}
-                  onRemove={removeGroup}
-                />
+                <div
+                  style={
+                    routingMode === 'manual' ? { opacity: 0.5, pointerEvents: 'none' } : undefined
+                  }
+                >
+                  <h3>
+                    Filters{' '}
+                    <span className="muted">
+                      {groups.length === 1
+                        ? '— a card joins this binder if it matches every filter below'
+                        : '— a card joins this binder if it matches any rule group below'}
+                    </span>
+                  </h3>
+
+                  <FilterGroupList
+                    groups={groups}
+                    cards={cards}
+                    ownedSets={ownedSets}
+                    typeSuggestions={typeSuggestions}
+                    oracleSuggestions={oracleSuggestions}
+                    autofocusIdx={autofocusGroupIdx}
+                    clearAutofocus={() => setAutofocusGroupIdx(null)}
+                    onPatchFilter={patchFilter}
+                    onSetName={setGroupName}
+                    onAdd={addGroup}
+                    onDuplicate={duplicateGroup}
+                    onRemove={removeGroup}
+                  />
+                </div>
 
                 <div className="sr-only" role="status" aria-live="polite">
                   {liveMsg}

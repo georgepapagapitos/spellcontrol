@@ -14,6 +14,7 @@ import {
 import { buildBackup, normalizeSortEntries, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
+import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -116,6 +117,8 @@ interface CollectionState {
   removeCardFromBinder: (binderId: string, copyId: string, isRuleMatched: boolean) => void;
   /** Restore a previously excluded card (remove from excludedCopyIds). */
   restoreExcludedCard: (binderId: string, copyId: string) => void;
+  /** Switch a binder between rules and manual mode. */
+  setBinderMode: (binderId: string, mode: 'rules' | 'manual') => void;
   /** Set the explicit card order. Pass undefined to revert to auto-sort. */
   setBinderManualOrder: (binderId: string, order: string[] | undefined) => void;
   /** Snapshot the current sorted order as the manual order. */
@@ -573,13 +576,22 @@ export const useCollectionStore = create<CollectionState>()(
       // Binder card customization actions
       pinCardToBinder: (binderId, copyId) => {
         let added = false;
+        const card = get().cards.find((c) => c.copyId === copyId);
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
             const existing = b.pinnedCopyIds ?? [];
             if (existing.includes(copyId)) return b;
             added = true;
-            return { ...b, pinnedCopyIds: [...existing, copyId], updatedAt: Date.now() };
+            const now = Date.now();
+            const updated = { ...b, pinnedCopyIds: [...existing, copyId], updatedAt: now };
+            if (b.mode !== 'manual' && card && !areAllGroupsEmpty(b.filterGroups)) {
+              const compiled = compileFilterGroups(b.filterGroups);
+              if (!cardMatchesAnyGroup(card, compiled)) {
+                updated.mode = 'manual';
+              }
+            }
+            return updated;
           }),
         }));
         return added;
@@ -615,6 +627,14 @@ export const useCollectionStore = create<CollectionState>()(
               updatedAt: Date.now(),
             };
           }),
+        }));
+      },
+
+      setBinderMode: (binderId, mode) => {
+        set((s) => ({
+          binders: s.binders.map((b) =>
+            b.id !== binderId ? b : { ...b, mode, updatedAt: Date.now() }
+          ),
         }));
       },
 
@@ -722,7 +742,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'spellcontrol',
-      version: 11,
+      version: 12,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -803,6 +823,7 @@ export const useCollectionStore = create<CollectionState>()(
             sorts: normalizeSortEntries(b.sorts),
           }));
         }
+        // v11→v12: added optional `mode` field to BinderDef. Undefined = 'rules'.
         return state as never;
       },
     }
