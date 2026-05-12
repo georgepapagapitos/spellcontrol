@@ -380,7 +380,15 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                         </div>
                       </div>
                       <div className="collection-list-right">
-                        <CardRowMenu card={r.card} onEditCard={() => setEditingCard(r.card)} />
+                        <CardRowMenu
+                          card={r.card}
+                          onEditCard={() => setEditingCard(r.card)}
+                          currentBinder={{
+                            id: binder.def.id,
+                            name: binder.def.name,
+                            color: binder.def.color,
+                          }}
+                        />
                         {r.qty > 1 && <div className="collection-list-qty">×{r.qty}</div>}
                         <div className="collection-list-price">
                           ${(r.card.purchasePrice * r.qty).toFixed(2)}
