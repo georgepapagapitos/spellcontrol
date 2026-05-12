@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { THEMES } from '../lib/themes';
 import { useThemeStore } from '../store/theme';
 import { useCollectionStore } from '../store/collection';
+import { useDecksStore } from '../store/decks';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 
@@ -19,9 +20,12 @@ export function SettingsMenu({ variant = 'default' }: { variant?: 'default' | 't
   const setTheme = useThemeStore((s) => s.setTheme);
   const username = useAuth((s) => s.user?.username ?? null);
   const logout = useAuth((s) => s.logout);
-  const cardCount = useCollectionStore((s) => s.cards.length);
+  const cards = useCollectionStore((s) => s.cards);
+  const cardCount = cards.length;
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const refreshPrices = useCollectionStore((s) => s.refreshPrices);
+  const remapAllocations = useDecksStore((s) => s.remapAllocations);
+  const deckCount = useDecksStore((s) => s.decks.length);
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -56,6 +60,13 @@ export function SettingsMenu({ variant = 'default' }: { variant?: 'default' | 't
         tone: 'error',
       });
     }
+  }
+
+  function handleRepairAllocations() {
+    if (cardCount === 0 || deckCount === 0) return;
+    setOpen(false);
+    remapAllocations(cards);
+    toast.show({ message: 'Deck allocations repaired.', tone: 'success' });
   }
 
   async function handleLogout() {
@@ -126,6 +137,7 @@ export function SettingsMenu({ variant = 'default' }: { variant?: 'default' | 't
           </div>
 
           <div className="settings-menu-section">
+            <div className="settings-menu-heading">Maintenance</div>
             <button
               type="button"
               role="menuitem"
@@ -133,7 +145,16 @@ export function SettingsMenu({ variant = 'default' }: { variant?: 'default' | 't
               onClick={() => void handleRefreshPrices()}
               disabled={cardCount === 0 || isRefreshingPrices}
             >
-              {isRefreshingPrices ? 'Refreshing prices…' : 'Refresh all card prices'}
+              {isRefreshingPrices ? 'Refreshing prices…' : 'Refresh card prices'}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="settings-menu-action"
+              onClick={handleRepairAllocations}
+              disabled={cardCount === 0 || deckCount === 0}
+            >
+              Repair deck allocations
             </button>
             {username ? (
               <button
