@@ -26,7 +26,7 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/scryfall-api/, ''),
         headers: {
-          'User-Agent': 'mtg-binder-planner/1.0',
+          'User-Agent': 'spellcontrol/1.0',
           Accept: 'application/json',
         },
       },
