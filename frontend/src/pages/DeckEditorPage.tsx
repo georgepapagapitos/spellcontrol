@@ -258,6 +258,8 @@ export function DeckEditorPage() {
             deckId={deck.id}
             commander={deck.commander}
             partnerCommander={deck.partnerCommander}
+            commanderAllocatedCopyId={deck.commanderAllocatedCopyId}
+            partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
             cards={displayCards}
             onRemoveCard={handleRemoveCard}
             onSetQty={handleSetQty}
