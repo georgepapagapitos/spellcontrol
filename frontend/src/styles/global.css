@@ -5285,6 +5285,15 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Enables cqw units on overlays (e.g. the "in a deck" badge) so they
+     scale with cell width. */
+  container-type: inline-size;
+}
+
+.binder-pages-cell.is-allocated img,
+.binder-pages-cell.is-allocated .binder-pages-cell-fallback {
+  opacity: 0.4;
+  filter: grayscale(0.7);
 }
 
 .binder-pages-cell.is-foil::after {
