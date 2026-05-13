@@ -150,7 +150,9 @@ function PlayerPanel({
   const [seatMenuOpen, setSeatMenuOpen] = useState(false);
   const disabled = !canEdit || player.eliminated || game.status === 'finished';
 
-  const colorKey = identityKey(player.colorIdentity);
+  const colorKey = player.panelColorKey
+    ? player.panelColorKey.toLowerCase()
+    : identityKey(player.colorIdentity);
 
   // Pressing the tap zones: a single tap = ±1, a long press starts a repeater
   // that fires every 130ms. Releasing (or leaving the zone) stops the repeat.
@@ -500,6 +502,48 @@ function SeatMenu({
             </div>
           </form>
         )}
+        {canEdit && (
+          <div className="seat-menu-colors">
+            <span className="seat-menu-label">Panel color</span>
+            <div className="seat-menu-swatches" role="radiogroup" aria-label="Panel color">
+              {(['W', 'U', 'B', 'R', 'G', 'M', 'C'] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={player.panelColorKey === k}
+                  aria-label={SWATCH_LABEL[k]}
+                  className={`seat-menu-swatch pp-color-${k.toLowerCase()} ${
+                    player.panelColorKey === k ? 'is-selected' : ''
+                  }`}
+                  onClick={() => {
+                    dispatch({
+                      type: 'update-player',
+                      seat: player.seat,
+                      patch: { panelColorKey: k },
+                    });
+                  }}
+                />
+              ))}
+              <button
+                type="button"
+                className={`seat-menu-swatch is-auto ${
+                  player.panelColorKey === null ? 'is-selected' : ''
+                }`}
+                aria-label="Auto (from commander)"
+                onClick={() => {
+                  dispatch({
+                    type: 'update-player',
+                    seat: player.seat,
+                    patch: { panelColorKey: null },
+                  });
+                }}
+              >
+                A
+              </button>
+            </div>
+          </div>
+        )}
         {canEdit && game.status !== 'finished' && (
           <button
             type="button"
@@ -520,6 +564,16 @@ function SeatMenu({
     </div>
   );
 }
+
+const SWATCH_LABEL: Record<'W' | 'U' | 'B' | 'R' | 'G' | 'M' | 'C', string> = {
+  W: 'White',
+  U: 'Blue',
+  B: 'Black',
+  R: 'Red',
+  G: 'Green',
+  M: 'Multicolor',
+  C: 'Colorless',
+};
 
 // ── Center game menu (end / reset / log) ───────────────────────────────────
 

@@ -31,8 +31,10 @@ export interface GamePlayer {
   deckName: string | null;
   /** Commander name (display only). */
   commander: string | null;
-  /** Commander color identity (W/U/B/R/G); drives the panel color tint. */
+  /** Commander color identity (W/U/B/R/G); drives the *default* panel color. */
   colorIdentity: string[];
+  /** Player-chosen panel color override (W/U/B/R/G/M/C) or null to auto. */
+  panelColorKey: string | null;
   life: number;
   poison: number;
   /** Commander damage taken from each opponent seat. */
@@ -102,7 +104,13 @@ export type GameAction =
       patch: Partial<
         Pick<
           GamePlayer,
-          'name' | 'deckId' | 'deckName' | 'commander' | 'colorIdentity' | 'connected'
+          | 'name'
+          | 'deckId'
+          | 'deckName'
+          | 'commander'
+          | 'colorIdentity'
+          | 'panelColorKey'
+          | 'connected'
         >
       >;
       ts?: number;
@@ -259,6 +267,7 @@ export function makePlayer(input: {
     deckName: input.deckName ?? null,
     commander: input.commander ?? null,
     colorIdentity: input.colorIdentity ?? [],
+    panelColorKey: null,
     life: input.startingLife,
     poison: 0,
     commanderDamage: {},

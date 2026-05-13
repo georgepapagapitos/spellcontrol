@@ -62,6 +62,7 @@ async function generateUniqueCode(): Promise<string> {
 }
 
 const VALID_COLORS = new Set(['W', 'U', 'B', 'R', 'G']);
+const VALID_PANEL_KEYS = new Set(['W', 'U', 'B', 'R', 'G', 'M', 'C']);
 function sanitizeColorIdentity(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
@@ -71,6 +72,33 @@ function sanitizeColorIdentity(raw: unknown): string[] {
     if (VALID_COLORS.has(up) && !out.includes(up)) out.push(up);
   }
   return out;
+}
+/** Whitelist panel color override; anything else falls back to auto (null). */
+function sanitizePanelColorKey(raw: unknown): string | null {
+  if (raw === null) return null;
+  if (typeof raw !== 'string') return null;
+  const up = raw.toUpperCase();
+  return VALID_PANEL_KEYS.has(up) ? up : null;
+}
+
+/**
+ * Scrub user-controllable fields on actions before they hit the reducer.
+ * The reducer is pure and trusts its inputs; the route is the place to
+ * enforce that, e.g., a panel-color override is one of the seven known
+ * keys and not arbitrary text that would land in a CSS class name.
+ */
+function sanitizeAction(action: GameAction): GameAction {
+  if (action.type === 'update-player' && action.patch) {
+    const patch = { ...action.patch };
+    if ('panelColorKey' in patch) {
+      patch.panelColorKey = sanitizePanelColorKey(patch.panelColorKey);
+    }
+    if ('colorIdentity' in patch) {
+      patch.colorIdentity = sanitizeColorIdentity(patch.colorIdentity);
+    }
+    return { ...action, patch };
+  }
+  return action;
 }
 
 function isParticipant(state: GameState, userId: string): boolean {
@@ -320,8 +348,9 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
   for (const raw of body.actions as GameAction[]) {
     const denied = actionIsAllowed(raw, next, req.user!.id);
     if (denied) return res.status(403).json({ error: denied });
+    const action = sanitizeAction(raw);
     try {
-      next = applyAction(next, raw);
+      next = applyAction(next, action);
     } catch (err) {
       return res
         .status(400)
