@@ -59,8 +59,22 @@ export async function ensureSchema(): Promise<void> {
       collection JSONB,
       binders JSONB NOT NULL DEFAULT '[]'::jsonb,
       decks JSONB NOT NULL DEFAULT '[]'::jsonb,
+      games JSONB NOT NULL DEFAULT '[]'::jsonb,
       version INTEGER NOT NULL DEFAULT 0,
       updated_at BIGINT NOT NULL
     );
+    ALTER TABLE user_data ADD COLUMN IF NOT EXISTS games JSONB NOT NULL DEFAULT '[]'::jsonb;
+    CREATE TABLE IF NOT EXISTS game_sessions (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      state JSONB NOT NULL,
+      version INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS game_sessions_host_idx ON game_sessions(host_user_id);
+    CREATE INDEX IF NOT EXISTS game_sessions_updated_idx ON game_sessions(updated_at);
   `);
 }

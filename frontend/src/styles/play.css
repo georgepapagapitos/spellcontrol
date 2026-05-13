@@ -1,0 +1,1411 @@
+/* ── Play page ─────────────────────────────────────────────────────────────
+ *
+ * The active GameBoard is a fullscreen fixed overlay (z-index ≥ overlay) so
+ * it eats the app shell — header, mobile tab bar, footer — and gives the
+ * player the entire viewport for life-counter primary actions. The setup
+ * form and history view remain in the normal page flow.
+ *
+ * Colors flow through theme tokens for app chrome, and Magic-canonical
+ * palette values for per-player panels (W/U/B/R/G/M/C). Those palette
+ * values are intentionally *not* themed by the guild selector — color
+ * identity is part of the game's information, not part of UI theming.
+ */
+
+.play-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.play-page-header h1 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0;
+}
+
+.play-tabs {
+  display: inline-flex;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+  gap: 0.25rem;
+}
+
+.play-tab {
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.play-tab.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.play-tab-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--warn-text);
+  display: inline-block;
+}
+
+.play-tab.is-active .play-tab-dot {
+  background: var(--on-accent);
+}
+
+.play-tab-count {
+  background: var(--accent-light);
+  color: inherit;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  padding: 0 0.45rem;
+  min-width: 1.25rem;
+  text-align: center;
+}
+
+/* ── Setup forms ─────────────────────────────────────────────────────────── */
+
+.play-setup {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* Prevent the whole panel from growing wider than the page column when
+     a long deck name in a child <select> tries to expand its track. */
+  min-width: 0;
+  overflow-x: clip;
+}
+
+@media (max-width: 480px) {
+  .play-setup {
+    padding: 0.9rem;
+  }
+}
+
+.play-setup-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.play-setup-help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  /* Each grid cell may contain a <select> with long deck names — let the
+     1fr tracks actually flex by killing the default min-content minimum. */
+  min-width: 0;
+}
+
+.play-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  /* Same reason as above — fields are grid items; allow them to shrink so
+     their contents (especially <select>) can shrink below their natural
+     width instead of pushing the panel sideways. */
+  min-width: 0;
+  /* Theme the native controls inside (checkbox/radio fill, number-input
+     spinner buttons, range thumbs) so the form picks up the active guild
+     accent instead of the browser default blue. */
+  accent-color: var(--accent);
+}
+
+/* Text-like inputs and selects fill their cell; checkboxes / radios stay
+   their natural size and live in the flex-row layout next to the label. */
+.play-field input:not([type='checkbox']):not([type='radio']),
+.play-field select {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  color: var(--text);
+  font-size: var(--text-base);
+  /* The default <select> intrinsic width = the widest option. With user
+     deck names that can be very long; clamp to 100% of the cell. */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.play-field input:focus,
+.play-field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.play-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-field-checkbox input {
+  accent-color: var(--accent);
+}
+
+.play-setup-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* On very narrow viewports drop to a single column so seat cards don't get
+   squashed below their content. The 220px minmax above already does this
+   most of the time, but explicitly forcing it below ~420px guarantees the
+   cards stay inside their container even when there are long deck names. */
+@media (max-width: 420px) {
+  .play-setup-players {
+    grid-template-columns: 1fr;
+  }
+}
+
+.play-setup-player {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  background: var(--surface2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  /* CRITICAL: <fieldset> defaults to min-width: min-content in every
+     browser, which means it refuses to shrink below the intrinsic width of
+     its contents (the deck <select> in particular). Without this the
+     fieldset would push past its grid track and overflow the surrounding
+     play-setup card on narrow viewports. */
+  min-width: 0;
+}
+
+.play-setup-player legend {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 0 0.4rem;
+}
+
+.play-setup-start {
+  align-self: flex-start;
+}
+
+.play-online-modes {
+  display: inline-flex;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+  gap: 0.2rem;
+  align-self: flex-start;
+}
+
+.play-online-mode {
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+}
+
+.play-online-mode.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ── Active-game indicators in app chrome ──────────────────────────────── */
+
+.site-nav-game-dot,
+.mobile-tab-bar-game-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--warn-text);
+  display: inline-block;
+  box-shadow: 0 0 6px var(--warn-text);
+  animation: play-pulse 1.8s ease-in-out infinite;
+}
+
+.site-nav-game-dot {
+  margin-left: 0.35rem;
+}
+
+/* Sits on the upper-right of the heart icon in the mobile bar. */
+.mobile-tab-bar-game-dot {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+}
+
+@keyframes play-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Resume banner ─────────────────────────────────────────────────────── */
+
+.play-resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+}
+
+.play-resume-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.play-resume-banner-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.play-resume-banner-status {
+  font-weight: 400;
+  color: var(--text2);
+  text-transform: capitalize;
+}
+
+.play-resume-banner-players {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.play-resume-banner-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+/* End-game winner picker — radio buttons styled as chips inside the
+ * existing ConfirmDialog frame. */
+.play-end-winners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.play-end-winner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.play-end-winner:hover {
+  border-color: var(--accent);
+}
+
+.play-end-winner.is-selected {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.play-end-winner input {
+  accent-color: var(--accent);
+}
+
+/* When the game board overlay is mounted, every modal-backdrop in the
+ * document needs to climb above it — by default --z-modal (1000) sits below
+ * --z-overlay (1100), so confirmation dialogs triggered from inside a game
+ * would render behind the board and be unreachable. */
+body:has(.game-board) .modal-backdrop {
+  z-index: calc(var(--z-overlay) + 50);
+}
+
+/* ── Active game: fullscreen board ─────────────────────────────────────── */
+
+.game-board {
+  position: fixed;
+  inset: 0;
+  /* dvh keeps the board glued to the visible viewport as iOS Safari's URL
+     bar animates in and out. Fall back to vh on browsers without dvh. */
+  height: 100vh;
+  height: 100dvh;
+  z-index: var(--z-overlay);
+  background: #07090d;
+  color: #f4f6fa;
+  display: flex;
+  overflow: hidden;
+  /* Disable text selection so taps never accidentally highlight a player name
+     instead of registering as a life change. */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Avoid the iOS Safari double-tap zoom on the tap zones. */
+  touch-action: manipulation;
+  /* Honor the iPhone safe areas so corner panels don't tuck under the
+     home-indicator bar or the camera notch. */
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+.game-board-grid {
+  flex: 1;
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── 2 players ──
+ *   default (portrait): top/bottom stacked
+ *   landscape OR wide:  side-by-side
+ */
+.game-board-2 .game-board-grid {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+@media (min-width: 700px) and (orientation: landscape), (min-width: 1024px) {
+  .game-board-2 .game-board-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+  }
+}
+
+/* ── 3 players ──
+ *   default (portrait): 2 on top, 1 full-width below
+ *   landscape:          3 side-by-side
+ */
+.game-board-3 .game-board-grid {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.game-board-3 .game-board-grid > :nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .game-board-3 .game-board-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr;
+  }
+  .game-board-3 .game-board-grid > :nth-child(3) {
+    grid-column: auto;
+  }
+}
+
+/* ── 4 players ── always 2×2 */
+.game-board-4 .game-board-grid {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* ── Player panel ─────────────────────────────────────────────────────── */
+
+.player-panel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  /* Per-color playmat tones. Each color block below sets --pp-base
+     (the bottom-right deep tone), --pp-edge (the top-left brighter tone
+     used in the radial spotlight), and --pp-accent (the saturated
+     glow used by winner highlight and host star). Backgrounds layer a
+     soft radial highlight over a diagonal gradient so panels feel like
+     a playmat rather than a flat block. */
+  --pp-base: #2a3340;
+  --pp-edge: #4a5566;
+  --pp-accent: #b6c5dc;
+  background:
+    radial-gradient(ellipse at 30% 0%, var(--pp-edge) 0%, transparent 60%),
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--pp-base) 92%, white 8%) 0%,
+      var(--pp-base) 65%,
+      color-mix(in srgb, var(--pp-base) 70%, black 30%) 100%
+    );
+  transition:
+    filter 200ms ease,
+    transform 200ms ease;
+}
+
+.player-panel.is-eliminated {
+  filter: grayscale(0.9) brightness(0.55);
+}
+
+.player-panel.is-winner {
+  /* Override to a victory-gold regardless of the player's color so the
+     winner pops at a glance. */
+  --pp-base: #7a5e14;
+  --pp-edge: #c9a23a;
+  --pp-accent: #ffe07a;
+  box-shadow: inset 0 0 0 3px var(--pp-accent);
+}
+
+.player-panel.is-mine::before {
+  /* A faint dashed marker on the outside edge to remind "this is your seat"
+     in online games. Doesn't fight the color tint. */
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.player-panel-content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 0.5rem 0.65rem 0.65rem;
+  pointer-events: none;
+  min-height: 0;
+}
+
+@media (min-width: 600px) {
+  .player-panel-content {
+    padding: 0.75rem 0.9rem 0.9rem;
+  }
+}
+
+/* The two tap zones cover the panel. They sit *under* the content layer
+   z-index-wise but pointer-events: none on the content lets taps pass
+   through to the zones except for interactive controls (buttons etc.,
+   which restore pointer-events). */
+.player-panel-tapzone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.player-panel-tapzone.is-left {
+  left: 0;
+}
+
+.player-panel-tapzone.is-right {
+  right: 0;
+}
+
+.player-panel-tapzone:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Re-enable interactivity on actual controls inside the content layer. */
+.player-panel-content button,
+.player-panel-content input,
+.player-panel-content form,
+.player-panel-drawer,
+.seat-menu {
+  pointer-events: auto;
+}
+
+.player-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.player-panel-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  /* Long names truncate so the menu button always stays on-screen. */
+  max-width: calc(100% - 2.5rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 600px) {
+  .player-panel-name {
+    font-size: var(--text-md);
+  }
+}
+
+.player-panel-host {
+  color: var(--warn-text);
+}
+
+.player-panel-offline {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 400;
+}
+
+.player-panel-menu-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  width: 1.7rem;
+  height: 1.7rem;
+  font-size: var(--text-md);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (min-width: 600px) {
+  .player-panel-menu-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: var(--text-md);
+  }
+}
+
+.player-panel-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.player-panel-life-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+}
+
+@media (min-width: 600px) {
+  .player-panel-life-wrap {
+    gap: 1rem;
+  }
+}
+
+.player-panel-life {
+  /* Scale to the smaller viewport dimension so 4-player splits don't render
+     a tiny number on a wide screen or a giant one on a narrow screen. The
+     1-player case (lobby) will use the upper bound. */
+  font-size: clamp(3.2rem, 14vmin, 9rem);
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.02em;
+  pointer-events: none;
+}
+
+/* Tighter life font when 4 panels share the screen — each panel is half by
+   half the viewport, so we want a number that doesn't crowd the ±5 buttons
+   on a small phone. */
+.game-board-4 .player-panel-life,
+.game-board-3 .player-panel-life {
+  font-size: clamp(2.8rem, 11vmin, 7rem);
+}
+
+.is-eliminated .player-panel-life {
+  text-decoration: line-through;
+}
+
+.is-winner .player-panel-life {
+  color: var(--pp-accent);
+}
+
+.player-panel-step-btn {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  min-width: 2.4rem;
+}
+
+@media (min-width: 600px) {
+  .player-panel-step-btn {
+    padding: 0.4rem 0.9rem;
+    font-size: var(--text-md);
+    min-width: 3rem;
+  }
+}
+
+.player-panel-step-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.player-panel-step-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.player-panel-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+  text-align: center;
+}
+
+.player-panel-deck {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-panel-commander {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 600px) {
+  .player-panel-deck {
+    font-size: var(--text-sm);
+  }
+}
+
+/* In tight 3/4-player layouts on small screens, fold the deck/commander info
+   out of the way so the life number stays the headline. */
+@media (max-width: 480px) {
+  .game-board-3 .player-panel-deck,
+  .game-board-4 .player-panel-deck,
+  .game-board-3 .player-panel-commander,
+  .game-board-4 .player-panel-commander {
+    display: none;
+  }
+}
+
+/* Short viewports (landscape phones): hide commander subtitle so the life
+   number still owns the panel. */
+@media (max-height: 480px) {
+  .player-panel-commander {
+    display: none;
+  }
+  .player-panel-content {
+    padding: 0.4rem 0.55rem 0.5rem;
+  }
+}
+
+.player-panel-drawer-btn {
+  margin-top: 0.3rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: var(--text-xs);
+}
+
+.player-panel-winner-tag,
+.player-panel-eliminated-tag {
+  position: absolute;
+  top: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--pp-accent);
+  border: 1px solid var(--pp-accent);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.player-panel-eliminated-tag {
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Counters drawer ───────────────────────────────────────────────────── */
+
+.player-panel-drawer {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 4;
+  background: rgba(7, 9, 13, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 60%;
+  overflow-y: auto;
+}
+
+.player-panel-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.player-panel-drawer-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-md);
+}
+
+.player-panel-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  font-size: var(--text-sm);
+}
+
+.counter-row.is-lethal {
+  border-color: rgba(240, 168, 168, 0.65);
+  background: rgba(58, 29, 31, 0.55);
+}
+
+.counter-row-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.counter-row-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.counter-row-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  border-radius: 999px;
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: var(--text-md);
+}
+
+.counter-row-btn:disabled {
+  opacity: 0.3;
+}
+
+.counter-row-value {
+  font-family: var(--font-mono);
+  min-width: 1.5rem;
+  text-align: center;
+  color: #fff;
+}
+
+/* ── Seat menu (popover inside a panel) ─────────────────────────────────── */
+
+.seat-menu {
+  position: absolute;
+  top: 3rem;
+  right: 0.7rem;
+  z-index: 5;
+  background: #14181f;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(18rem, 80vw);
+  box-shadow: var(--shadow-modal);
+}
+
+.seat-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.seat-menu-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-md);
+}
+
+.seat-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.seat-menu-label {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.seat-menu-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.seat-menu-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 0.3rem 0.5rem;
+  font-family: var(--font-mono);
+}
+
+.seat-menu-action {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.6rem;
+  font-size: var(--text-sm);
+}
+
+.seat-menu-action:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.seat-menu-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.seat-menu-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.3rem;
+}
+
+.seat-menu-swatch {
+  /* Solid swatch using the per-color --pp-base so the picker mirrors
+     what each option produces on the actual panel. */
+  background: var(--pp-base, #3a4252);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  height: 1.9rem;
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 80ms ease;
+}
+
+.seat-menu-swatch:hover {
+  transform: scale(1.06);
+}
+
+.seat-menu-swatch.is-selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+.seat-menu-swatch.is-auto {
+  background: linear-gradient(135deg, #444c5c 50%, #1a1f29 50%);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── Center game menu ──────────────────────────────────────────────────── */
+
+.game-board-menu-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: #14181f;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  box-shadow: var(--shadow-modal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  /* Prevent any pointer events from leaking through to the tap zones
+     positioned beneath. */
+  touch-action: manipulation;
+}
+
+@media (min-width: 600px) {
+  .game-board-menu-btn {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+}
+
+.game-board-menu-btn:hover {
+  background: #1c222d;
+}
+
+.game-board-banner {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.game-board-error {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: var(--err-bg);
+  color: var(--err-text);
+  border: 1px solid var(--err-border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.75rem;
+  font-size: var(--text-sm);
+}
+
+.game-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.game-menu {
+  background: #14181f;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  width: min(30rem, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.game-menu-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-md);
+}
+
+.game-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.game-menu-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.7);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-menu-format {
+  text-transform: capitalize;
+  color: #fff;
+  font-weight: 500;
+}
+
+.game-menu-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  font-size: var(--text-base);
+  text-align: left;
+}
+
+.game-menu-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.game-menu-action--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.game-menu-action--primary:hover {
+  background: var(--accent-hover);
+}
+
+.game-menu-action--danger {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+.game-menu-action-hint {
+  font-size: var(--text-xs);
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.game-menu-log {
+  margin-top: 0.4rem;
+}
+
+.game-menu-log summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.game-menu-log-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: var(--text-sm);
+}
+
+.game-menu-log-item {
+  display: flex;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.game-menu-log-item time {
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  min-width: 4.5rem;
+}
+
+.game-menu-log-item.kind-end,
+.game-menu-log-item.kind-start {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.game-menu-log-item.kind-eliminate {
+  color: #f0a8a8;
+}
+
+/* ── Color palettes per player ─────────────────────────────────────────── */
+
+/* Per-color playmat palettes. Hand-tuned so white text reads cleanly over
+   each --pp-base, the --pp-edge top spotlight feels like a soft glow, and
+   the --pp-accent value is the saturated guild color used for the winner
+   ring and the host star. */
+.pp-color-w {
+  --pp-base: #b09a4c; /* warm gold like an aged sun ribbon */
+  --pp-edge: #d8c477;
+  --pp-accent: #fff1bd;
+}
+
+.pp-color-u {
+  --pp-base: #1f4f8c; /* sapphire deep */
+  --pp-edge: #3a82c4;
+  --pp-accent: #82c1ff;
+}
+
+.pp-color-b {
+  --pp-base: #2c1f3a; /* obsidian plum */
+  --pp-edge: #5a3f78;
+  --pp-accent: #b994e0;
+}
+
+.pp-color-r {
+  --pp-base: #8a2818; /* crimson ember */
+  --pp-edge: #c44a30;
+  --pp-accent: #ff8e6a;
+}
+
+.pp-color-g {
+  --pp-base: #2a6a36; /* forest moss */
+  --pp-edge: #4ca352;
+  --pp-accent: #9be0a3;
+}
+
+.pp-color-m {
+  --pp-base: #7a5614; /* aged-gold multicolor */
+  --pp-edge: #c89538;
+  --pp-accent: #ffd56e;
+}
+
+.pp-color-c {
+  --pp-base: #3a4252; /* gunmetal slate */
+  --pp-edge: #6b7388;
+  --pp-accent: #c2cad8;
+}
+
+/* ── Code banner (host's join code) ─────────────────────────────────────── */
+
+.play-code-banner {
+  background: rgba(20, 24, 31, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-modal);
+}
+
+.play-code-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.play-code-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  letter-spacing: 0.3em;
+  color: #fff;
+  font-weight: 600;
+}
+
+.play-code-hint {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: var(--text-xs);
+}
+
+/* ── History view (setup-tab and history-tab share the page chrome) ────── */
+
+.play-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-records {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.play-records-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.play-records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.play-records-table th,
+.play-records-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.play-records-table th {
+  font-weight: 600;
+  color: var(--text2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.play-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.play-history-item {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.play-history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+}
+
+.play-history-format {
+  background: var(--accent-light);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.play-history-mode {
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.play-history-date {
+  flex: 1;
+}
+
+.play-history-remove {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.play-history-winner {
+  font-size: var(--text-sm);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.play-history-duration {
+  color: var(--text3);
+  font-weight: 400;
+}
+
+.play-history-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-history-players li.is-winner {
+  color: var(--warn-text);
+  font-weight: 500;
+}
+
+.play-history-player-name {
+  margin-right: 0.4rem;
+  color: var(--text);
+}
+
+.play-history-player-deck {
+  color: var(--text3);
+  margin-right: 0.4rem;
+  font-style: italic;
+}
+
+.play-history-player-life {
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

@@ -9,6 +9,7 @@ import { DeckNewPage } from './pages/DeckNewPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
+import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './store/auth';
 import { startSync } from './lib/sync';
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/decks" element={<DecksIndexPage />} />
         <Route path="/decks/new" element={<DeckNewPage />} />
         <Route path="/decks/:id" element={<DeckEditorPage />} />
+        <Route path="/play" element={<PlayPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/collection" replace />} />

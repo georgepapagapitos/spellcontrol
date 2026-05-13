@@ -193,6 +193,12 @@
 
   /* Black-on-light SVGs render as-is. */
   --svg-invert: 0;
+
+  /* Tell the browser this theme is a light surface so native form controls
+     (checkboxes, number-input spinners, date pickers, scrollbars) render
+     with the light UA palette — without this, an OS in dark mode forces
+     black-square checkboxes and dark spinner buttons over our light page. */
+  color-scheme: light;
 }
 
 [data-theme='dimir'],
@@ -203,4 +209,7 @@
 [data-theme='rakdos'] {
   /* Invert black-on-dark SVGs (e.g. set icons) so they read as light glyphs. */
   --svg-invert: 1;
+
+  /* Match native form controls to the dark surface. */
+  color-scheme: dark;
 }
