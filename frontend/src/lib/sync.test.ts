@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as authApi from './auth-api';
 import { startSync, stopSyncAndWipeLocal, flushSync } from './sync';
 import { markDestructive } from './sync-intent';
+import { saveCollection, clearCollection } from './local-cards';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
@@ -12,6 +13,7 @@ beforeEach(async () => {
   // Detach any subscribers and reset module-level sync state left by a
   // previous test before we start mocking the next one.
   await stopSyncAndWipeLocal();
+  await clearCollection();
   vi.restoreAllMocks();
   localStorage.clear();
   // Default: silent putSync; individual tests override.
@@ -105,6 +107,131 @@ describe('startSync', () => {
   });
 });
 
+describe('cache hydration safety', () => {
+  it('hydrates IndexedDB cards into the store before pushing (the #153 regression)', async () => {
+    // The scenario that wiped collections in prod: an existing authed user
+    // refreshes after a deploy. zustand persist has binders; IndexedDB has
+    // cards; the new OWNER_KEY/VERSION_KEY are absent. Previously, the auto-
+    // dirty branch fired pushNow() before IndexedDB was read, so the push
+    // sent collection: null and nuked the server.
+    await saveCollection({
+      fileName: 'mine.csv',
+      cards: [{ copyId: 'c1', name: 'Lightning Bolt' } as never],
+      scryfallHits: 1,
+      scryfallMisses: 0,
+      uploadedAt: 100,
+      importHistory: [],
+    });
+    // Pre-deploy state: binders persisted via zustand, but cards still in
+    // IndexedDB and not yet loaded into the store.
+    useCollectionStore.setState({
+      binders: [{ id: 'b1', name: 'My binder', createdAt: 1, updatedAt: 1, position: 0 } as never],
+      cards: [],
+      fileName: '',
+      uploadedAt: null,
+    });
+    // Server has the user's data already.
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: {
+        fileName: 'mine.csv',
+        cards: [{ copyId: 'c1', name: 'Lightning Bolt' } as never],
+        scryfallHits: 1,
+        scryfallMisses: 0,
+        uploadedAt: 100,
+        importHistory: [],
+      },
+      binders: [{ id: 'b1', name: 'My binder', createdAt: 1, updatedAt: 1, position: 0 }],
+      decks: [],
+      games: [],
+      version: 5,
+      updatedAt: 0,
+    });
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 6, updatedAt: 100 });
+
+    await startSync('user-1');
+
+    // Even if a push did fire for any reason, it MUST carry the cards from
+    // IndexedDB — never null.
+    for (const call of putSpy.mock.calls) {
+      const payload = call[0];
+      if (payload.collection !== null) {
+        expect((payload.collection as { cards: unknown[] }).cards.length).toBeGreaterThan(0);
+      }
+    }
+    // Store reflects the IndexedDB collection.
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+    expect(useCollectionStore.getState().fileName).toBe('mine.csv');
+  });
+
+  it('promotes local data to a fresh server account instead of wiping it', async () => {
+    // Guest-promotion scenario: a user just signed up. Their local persist
+    // and IndexedDB have content; the server account is empty.
+    await saveCollection({
+      fileName: 'guest.csv',
+      cards: [{ copyId: 'c1' } as never],
+      scryfallHits: 0,
+      scryfallMisses: 0,
+      uploadedAt: 50,
+      importHistory: [],
+    });
+    useCollectionStore.setState({
+      binders: [
+        { id: 'gb', name: 'Guest binder', createdAt: 1, updatedAt: 1, position: 0 } as never,
+      ],
+    });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 0,
+      updatedAt: 0,
+    });
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 100 });
+
+    await startSync('new-user');
+
+    expect(putSpy).toHaveBeenCalled();
+    const pushedAny = putSpy.mock.calls.some(
+      (call) =>
+        Array.isArray(call[0].binders) && call[0].binders.length > 0 && call[0].collection !== null
+    );
+    expect(pushedAny).toBe(true);
+    // Store retains the local data — server's empty snapshot was NOT applied.
+    expect(useCollectionStore.getState().binders).toHaveLength(1);
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+  });
+
+  it('does not wipe IndexedDB when the server returns an empty snapshot and local has data', async () => {
+    await saveCollection({
+      fileName: 'mine.csv',
+      cards: [{ copyId: 'c1' } as never],
+      scryfallHits: 0,
+      scryfallMisses: 0,
+      uploadedAt: 100,
+      importHistory: [],
+    });
+    useCollectionStore.setState({
+      binders: [{ id: 'b1', name: 'b', createdAt: 1, updatedAt: 1, position: 0 } as never],
+    });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 0,
+      updatedAt: 0,
+    });
+    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 100 });
+
+    await startSync('user-1');
+
+    // The post-fetch guest-promotion path keeps local data, doesn't wipe.
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+    expect(useCollectionStore.getState().binders).toHaveLength(1);
+  });
+});
+
 describe('mutation flow', () => {
   it('destructive mutator triggers immediate push without waiting on the debounce', async () => {
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
@@ -155,6 +282,44 @@ describe('mutation flow', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(putSpy).toHaveBeenCalledTimes(1);
     expect(putSpy.mock.calls[0][0]).toMatchObject({ baseVersion: 5, collection: null });
+  });
+
+  it('user mutation during fetch window skips applyServerSnapshot', async () => {
+    let resolveFetch: ((v: never) => void) | null = null;
+    const fetchPromise = new Promise<never>((resolve) => {
+      resolveFetch = resolve as never;
+    });
+    vi.spyOn(authApi, 'fetchSync').mockReturnValue(fetchPromise as never);
+    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 2, updatedAt: 100 });
+
+    const syncPromise = startSync('user-1');
+
+    // Wait a tick for startSync to reach the fetchSync await.
+    await new Promise((r) => setTimeout(r, 10));
+
+    // User mutation during the fetch window.
+    useCollectionStore.setState({
+      binders: [{ id: 'mine', createdAt: 1, updatedAt: 1, position: 0 } as never],
+    });
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Now let the server respond with conflicting state.
+    resolveFetch!({
+      collection: null,
+      binders: [{ id: 'remote', createdAt: 100, updatedAt: 100, position: 0 } as never],
+      decks: [],
+      games: [],
+      version: 9,
+      updatedAt: 100,
+    } as never);
+
+    await syncPromise;
+    await new Promise((r) => setTimeout(r, 50));
+
+    // The server snapshot must NOT have overwritten the user's mutation.
+    const binders = useCollectionStore.getState().binders;
+    expect(binders).toHaveLength(1);
+    expect(binders[0].id).toBe('mine');
   });
 });
 
