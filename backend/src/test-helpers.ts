@@ -10,16 +10,19 @@ import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 
 /**
- * Returns a Postgres connection string for tests. Falls back to a sensible
- * default that matches the docker-compose dev DB, but CI / local devs can
- * override with TEST_DATABASE_URL.
+ * Default connection string for the local dev Postgres (docker-compose.dev.yml
+ * + the user's existing volume). Exported so the vitest globalSetup can probe
+ * the same URL it falls back to here.
+ */
+export const DEFAULT_TEST_DATABASE_URL = 'postgres://mtguser:mtgpassword@localhost:5432/mtgbinder';
+
+/**
+ * Returns a Postgres connection string for tests. Prefers explicit
+ * TEST_DATABASE_URL (CI sets this via its postgres service), then falls back
+ * to the user's runtime DATABASE_URL, then to the dev-container default.
  */
 export function testDatabaseUrl(): string {
-  return (
-    process.env.TEST_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    'postgres://binder:binder@localhost:5432/binder'
-  );
+  return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_TEST_DATABASE_URL;
 }
 
 /**
