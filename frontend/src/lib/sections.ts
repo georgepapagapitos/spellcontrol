@@ -118,6 +118,7 @@ export function getSectionMeta(
     case 'edhrec':
       return edhrecBucket(card.edhrecRank);
     case 'collectorNumber':
+    case 'quantity':
     default:
       return { key: 'ALL', label: 'All cards', order: 0 };
   }
