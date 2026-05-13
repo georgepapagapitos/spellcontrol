@@ -53,9 +53,6 @@ interface CollectionState {
   binders: BinderDef[];
   activeTab: string;
   editingBinder: string | null;
-  /** Whether the mobile binder picker sheet is open. Driven by the bottom
-   * nav's Binders icon while on the /binder route. */
-  binderPickerOpen: boolean;
   /** Whether the import bottom-sheet is open. Triggered by the small "+"
    * button on the OVERVIEW row of the Collection page. */
   importSheetOpen: boolean;
@@ -143,7 +140,6 @@ interface CollectionState {
   // UI actions
   setActiveTab: (tab: string) => void;
   setEditingBinder: (id: string | null) => void;
-  setBinderPickerOpen: (open: boolean) => void;
   setImportSheetOpen: (open: boolean) => void;
 
   // Config actions
@@ -188,7 +184,6 @@ export const useCollectionStore = create<CollectionState>()(
       error: null,
       activeTab: 'uncategorized',
       editingBinder: null,
-      binderPickerOpen: false,
       importSheetOpen: false,
       search: '',
 
@@ -722,7 +717,6 @@ export const useCollectionStore = create<CollectionState>()(
 
       setActiveTab: (tab) => set({ activeTab: tab }),
       setEditingBinder: (id) => set({ editingBinder: id }),
-      setBinderPickerOpen: (open) => set({ binderPickerOpen: open }),
       setImportSheetOpen: (open) => set({ importSheetOpen: open }),
 
       setSearch: (s) => set({ search: s }),

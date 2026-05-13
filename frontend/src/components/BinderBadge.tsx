@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { useCollectionStore } from '../store/collection';
 
 interface Props {
   /** Binder identity. Null/undefined → no badge. */
@@ -11,11 +10,9 @@ interface Props {
 
 /**
  * "In a binder" indicator used by the collection list. Mirrors DeckBadge in
- * shape and position. Clicking selects that binder and jumps to the binder
- * route — same affordance as DeckBadge's deck link.
+ * shape and position. Clicking jumps to the binder detail page.
  */
 export function BinderBadge({ binderId, binderName, binderColor }: Props) {
-  const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const navigate = useNavigate();
   if (!binderId || !binderName) return null;
   const label = `In binder: ${binderName}`;
@@ -27,8 +24,7 @@ export function BinderBadge({ binderId, binderName, binderColor }: Props) {
       aria-label={label}
       onClick={(e) => {
         e.stopPropagation();
-        setActiveTab(binderId);
-        navigate('/binder');
+        navigate(`/binders/${binderId}`);
       }}
     >
       <span

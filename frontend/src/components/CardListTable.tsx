@@ -27,6 +27,12 @@ interface Props {
    * the user "filter by binder" inside that view would just be confusing.
    */
   hideBinderFilter?: boolean;
+  /**
+   * Opens the collection breakdown drawer (Colors / Types / Rarity).
+   * When omitted, the Stats button in the sticky toolbar is hidden —
+   * binder-scoped views don't have a breakdown drawer of their own.
+   */
+  onOpenStats?: () => void;
 }
 
 interface Row {
@@ -108,7 +114,7 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
   return 0;
 }
 
-export function CardListTable({ cards, binders, hideBinderFilter = false }: Props) {
+export function CardListTable({ cards, binders, hideBinderFilter = false, onOpenStats }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -467,118 +473,136 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
 
   const orderedTypes = TYPE_ORDER.filter((t) => (typeCounts[t] ?? 0) > 0);
 
+  const collectionCardCount = cards.length;
+  const collectionValue = useMemo(
+    () => cards.reduce((sum, c) => sum + c.purchasePrice, 0),
+    [cards]
+  );
+
   return (
     <div className="card-list">
-      {/* Search + view toggle — primary row. Search is the highest-frequency
-          control across the table, so it leads. */}
-      <div className="collection-toolbar-row">
-        <SearchPill
-          value={search}
-          onChange={setSearch}
-          placeholder="Search by name or type..."
-          ariaLabel="Search cards"
-          inputId="collection-search"
-          trailing={
-            <FilterPopover
-              ariaLabel="Collection options"
-              toggles={[
-                {
-                  key: 'group-printings',
-                  label: 'Group printings',
-                  hint: 'Roll duplicate copies of the same printing into a single row with a qty pill',
-                  value: groupPrintings,
-                  onChange: setGroupPrintings,
-                  defaultValue: true,
-                },
-              ]}
-            />
-          }
-        />
-        <ViewModeToggle<ViewMode>
-          ariaLabel="Collection view mode"
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'grid', label: 'Grid view', icon: <GridIcon /> },
-            { value: 'list', label: 'List view (with thumbnails)', icon: <ListIcon /> },
-            { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
-          ]}
-        />
-      </div>
-
-      {/* Type chips — most diagnostic filter, sit just below search. */}
-      <div className="collection-type-chips" role="group" aria-label="Filter by type">
-        {orderedTypes.map((t) => {
-          const active = typeFilter === t;
-          return (
+      <div className="collection-toolbar">
+        {/* Search + totals + stats + view toggle — primary row. Search is the
+            highest-frequency control across the table, so it leads. */}
+        <div className="collection-toolbar-row">
+          <SearchPill
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by name or type..."
+            ariaLabel="Search cards"
+            inputId="collection-search"
+            trailing={
+              <FilterPopover
+                ariaLabel="Collection options"
+                toggles={[
+                  {
+                    key: 'group-printings',
+                    label: 'Group printings',
+                    hint: 'Roll duplicate copies of the same printing into a single row with a qty pill',
+                    value: groupPrintings,
+                    onChange: setGroupPrintings,
+                    defaultValue: true,
+                  },
+                ]}
+              />
+            }
+          />
+          <div className="collection-toolbar-totals" aria-label="Collection totals">
+            <span className="collection-toolbar-totals-num">
+              {collectionCardCount.toLocaleString()}
+            </span>
+            <span className="collection-toolbar-totals-unit">cards</span>
+            <span className="collection-toolbar-totals-sep">·</span>
+            <span className="collection-toolbar-totals-num">${collectionValue.toFixed(0)}</span>
+          </div>
+          {onOpenStats && (
             <button
-              key={t}
               type="button"
-              className={`collection-type-chip${active ? ' is-active' : ''}`}
-              onClick={() => setTypeFilter(active ? 'all' : t)}
-              aria-pressed={active}
+              className="collection-toolbar-stats-btn"
+              onClick={onOpenStats}
+              aria-label="Open collection breakdown"
+              title="Breakdown"
             >
-              <i className={`ms ms-${typeIcon(t)} chip-type-icon`} aria-hidden />
-              <span>
-                {TYPE_LABELS[t] ?? t} {typeCounts[t]}
-              </span>
+              <StatsIcon />
+              <span className="collection-toolbar-stats-label">Stats</span>
             </button>
-          );
-        })}
-      </div>
+          )}
+        </div>
 
-      {/* Narrow-further row — color chips + dropdowns share one line. */}
-      <div className="collection-filter-row">
-        <div className="color-filter-row" role="group" aria-label="Filter by color">
-          {COLOR_FILTERS.map((c) => {
-            const active = colorFilter.has(c.key);
+        {/* Type chips — most diagnostic filter, sit just below search. */}
+        <div className="collection-type-chips" role="group" aria-label="Filter by type">
+          {orderedTypes.map((t) => {
+            const active = typeFilter === t;
             return (
               <button
-                key={c.key}
+                key={t}
                 type="button"
-                className={`color-filter-btn${active ? ' is-active' : ''}`}
-                onClick={() => toggleColor(c.key)}
-                aria-label={c.label}
+                className={`collection-type-chip${active ? ' is-active' : ''}`}
+                onClick={() => setTypeFilter(active ? 'all' : t)}
                 aria-pressed={active}
-                title={c.label}
               >
-                <i
-                  className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
-                  aria-hidden
-                />
+                <i className={`ms ms-${typeIcon(t)} chip-type-icon`} aria-hidden />
+                <span>
+                  {TYPE_LABELS[t] ?? t} {typeCounts[t]}
+                </span>
               </button>
             );
           })}
         </div>
-        <SelectMenu
-          ariaLabel="Filter by rarity"
-          value={rarityFilter}
-          onChange={setRarityFilter}
-          options={[
-            { value: 'all', label: 'All Rarities' },
-            ...RARITIES.map((r) => ({
-              value: r,
-              label: r.charAt(0).toUpperCase() + r.slice(1),
-            })),
-          ]}
-        />
-        {!hideBinderFilter && (
+
+        {/* Narrow-further row — color chips + dropdowns share one line. */}
+        <div className="collection-filter-row">
+          <div className="color-filter-row" role="group" aria-label="Filter by color">
+            {COLOR_FILTERS.map((c) => {
+              const active = colorFilter.has(c.key);
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`color-filter-btn${active ? ' is-active' : ''}`}
+                  onClick={() => toggleColor(c.key)}
+                  aria-label={c.label}
+                  aria-pressed={active}
+                  title={c.label}
+                >
+                  <i
+                    className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
+                    aria-hidden
+                  />
+                </button>
+              );
+            })}
+          </div>
           <SelectMenu
-            ariaLabel="Filter by binder"
-            value={binderFilter}
-            onChange={setBinderFilter}
+            ariaLabel="Filter by rarity"
+            value={rarityFilter}
+            onChange={setRarityFilter}
             options={[
-              { value: 'all', label: 'All binders' },
-              ...binders.map((b) => ({ value: b.def.name, label: b.def.name })),
-              { value: '__uncategorized', label: 'Uncategorized' },
+              { value: 'all', label: 'All Rarities' },
+              ...RARITIES.map((r) => ({
+                value: r,
+                label: r.charAt(0).toUpperCase() + r.slice(1),
+              })),
             ]}
           />
-        )}
+          {!hideBinderFilter && (
+            <SelectMenu
+              ariaLabel="Filter by binder"
+              value={binderFilter}
+              onChange={setBinderFilter}
+              options={[
+                { value: 'all', label: 'All binders' },
+                ...binders.map((b) => ({ value: b.def.name, label: b.def.name })),
+                { value: '__uncategorized', label: 'Uncategorized' },
+              ]}
+            />
+          )}
+        </div>
       </div>
 
       <div className="card-list-summary-line">
         {/* Counts here describe what's currently visible (after filters /
-            search), not the whole collection — the OVERVIEW row above
+            search), not the whole collection — the sticky toolbar above
             owns the canonical totals. Announced to AT so screen readers
             stay in sync with visual filtering. */}
         <span aria-live="polite" aria-atomic="true">
@@ -587,15 +611,27 @@ export function CardListTable({ cards, binders, hideBinderFilter = false }: Prop
             : `${sorted.length.toLocaleString()} of ${totalRowCount.toLocaleString()} printings`}
           {' · '}${totalValue.toFixed(0)}
         </span>
-        <SelectMenu
-          ariaLabel="Sort"
-          value={sortKey}
-          options={SORT_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
-          onChange={toggleSort}
-          closeOnSelect={false}
-          leadingIcon={<SortDirArrow dir={sortDir} />}
-          renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
-        />
+        <div className="card-list-summary-actions">
+          <SelectMenu
+            ariaLabel="Sort"
+            value={sortKey}
+            options={SORT_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+            onChange={toggleSort}
+            closeOnSelect={false}
+            leadingIcon={<SortDirArrow dir={sortDir} />}
+            renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
+          />
+          <ViewModeToggle<ViewMode>
+            ariaLabel="Collection view mode"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'grid', label: 'Grid view', icon: <GridIcon /> },
+              { value: 'list', label: 'List view (with thumbnails)', icon: <ListIcon /> },
+              { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+            ]}
+          />
+        </div>
       </div>
 
       {previewIndex !== null && sorted[previewIndex] && (
@@ -934,6 +970,26 @@ function CompactListIcon() {
       <path d="M3 10h18" />
       <path d="M3 14h18" />
       <path d="M3 18h18" />
+    </svg>
+  );
+}
+
+function StatsIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 20V10" />
+      <path d="M12 20V4" />
+      <path d="M20 20v-7" />
     </svg>
   );
 }
