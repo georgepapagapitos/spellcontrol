@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GameLayout, GamePlayer, GameState } from '../../lib/game-state';
+import { makePlayer } from '../../lib/game-state';
 import type { BoardLayout, EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import { layoutsForCount, resolveLayout } from '../../lib/board-layouts';
+import { paletteForIndex, paletteForSeat } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
 import { LifeKeypad } from './LifeKeypad';
+import { ViewModeToggle } from '../ViewModeToggle';
 
 interface Props {
   game: GameState;
@@ -97,37 +100,34 @@ export function GameBoard({
           );
         })}
         {(board.empty ?? []).map((cell, i) => (
-          <EmptyPanel
-            key={`empty-${i}`}
-            cell={cell}
-            // The first empty cell hosts the global menu button so it's
-            // never overlapping a player's content. Subsequent empties (if
-            // any) are decorative placeholders.
-            hostsMenu={i === 0}
-            onMenu={() => setMenuOpen(true)}
-          />
+          <EmptyPanel key={`empty-${i}`} cell={cell} />
         ))}
       </div>
 
-      {/* Fallback corner menu button when the active layout has no empty
-          cell to host it (e.g. 4p Pod, 6p Pod). The button is pinned in CSS
-          and panels at the bottom-right cell reserve right-side padding so
-          the Counters drawer button can't slide under it. */}
-      {!board.empty?.length && (
-        <button
-          type="button"
-          className="game-board-menu-btn"
-          aria-label="Game menu"
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen(true);
-          }}
-        >
-          <MenuIcon />
-        </button>
-      )}
+      {/* Floating central hub at the layout's seam — the boundary
+          between rotated (far-side) and upright (near-side) seats.
+          --seam-top-pct / --seam-left-pct position it precisely;
+          row-seam layouts pin top by row index, col-seam layouts pin
+          left by column index. */}
+      <button
+        type="button"
+        className="game-board-menu-btn"
+        style={{
+          ['--seam-top-pct' as never]:
+            'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
+          ['--seam-left-pct' as never]:
+            'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
+        }}
+        aria-label="Game menu"
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          setMenuOpen(true);
+        }}
+      >
+        <MenuIcon />
+      </button>
 
       {errorMessage && <div className="game-board-error">{errorMessage}</div>}
       {banner && <div className="game-board-banner">{banner}</div>}
@@ -172,9 +172,15 @@ function PlayerPanel({
   const [lethalFlash, setLethalFlash] = useState(false);
   const disabled = !canEdit || player.eliminated || game.status === 'finished';
 
-  const colorKey = player.panelColorKey
-    ? player.panelColorKey.toLowerCase()
-    : identityKey(player.colorIdentity);
+  // Three-tier color resolution:
+  //   explicit override → MTG color identity → seat-palette fallback.
+  // The seat palette is derived deterministically from the game id so each
+  // new game draws a fresh set of vivid colors, stable for that game.
+  const overrideKey = player.panelColorKey ? player.panelColorKey.toLowerCase() : null;
+  const hasIdentity = Array.isArray(player.colorIdentity) && player.colorIdentity.length > 0;
+  const identityClass = hasIdentity ? identityKey(player.colorIdentity) : null;
+  const colorKey = overrideKey ?? identityClass;
+  const seatPalette = useMemo(() => paletteForSeat(game.id, player.seat), [game.id, player.seat]);
 
   const { display: animatedLife, popKey } = useAnimatedNumber(player.life);
   const { chips, push: pushDelta } = useFloatingDelta();
@@ -257,52 +263,102 @@ function PlayerPanel({
     disabled,
   });
 
+  const isSideways = rotation === 90 || rotation === 270;
   return (
-    <section
-      ref={panelRef}
-      className={`player-panel pp-color-${colorKey} ${player.eliminated ? 'is-eliminated' : ''} ${
-        game.winnerSeat === player.seat ? 'is-winner' : ''
-      } ${canEdit ? 'is-mine' : ''} ${lethalFlash ? 'is-lethal-flash' : ''}`}
-      // Grid placement comes from the layout registry. Rotation is set as a
-      // CSS variable consumed by the .player-panel transform rule so it
-      // composes cleanly with any other transforms.
+    <div
+      className="player-panel-cell"
       style={{
         gridColumn: slot.colSpan ? `${slot.col} / span ${slot.colSpan}` : `${slot.col}`,
         gridRow: slot.rowSpan ? `${slot.row} / span ${slot.rowSpan}` : `${slot.row}`,
-        ['--pp-rot' as never]: `${rotation}deg`,
       }}
-      data-seat={player.seat}
-      aria-label={`${player.name}: ${player.life} life`}
     >
-      <div className="player-panel-tapzone is-left" {...tapHandlers(-1)} aria-label="-1 life" />
-      <div className="player-panel-tapzone is-right" {...tapHandlers(1)} aria-label="+1 life" />
+      <section
+        ref={panelRef}
+        className={`player-panel ${colorKey ? `pp-color-${colorKey}` : 'pp-seat'} ${
+          player.eliminated ? 'is-eliminated' : ''
+        } ${game.winnerSeat === player.seat ? 'is-winner' : ''} ${canEdit ? 'is-mine' : ''} ${
+          lethalFlash ? 'is-lethal-flash' : ''
+        }`}
+        // Rotation is set as a CSS variable consumed by the .player-panel
+        // transform rule so it composes cleanly with any other transforms.
+        // When no identity / no override applies, the inline palette vars
+        // take over as the fallback. Sideways panels (90 / 270) are sized
+        // by the CSS to the parent cell's swapped dimensions before rotating
+        // (see `.player-panel[data-sideways]`).
+        style={{
+          ['--pp-rot' as never]: `${rotation}deg`,
+          ...(colorKey
+            ? {}
+            : {
+                ['--pp-base' as never]: seatPalette.base,
+                ['--pp-edge' as never]: seatPalette.edge,
+                ['--pp-accent' as never]: seatPalette.accent,
+              }),
+        }}
+        data-seat={player.seat}
+        data-sideways={isSideways || undefined}
+        aria-label={`${player.name}: ${player.life} life`}
+      >
+        {(game.tapOrientation ?? 'horizontal') === 'vertical' ? (
+          <>
+            <div className="player-panel-tapzone is-top" {...tapHandlers(1)} aria-label="+1 life" />
+            <div
+              className="player-panel-tapzone is-bottom"
+              {...tapHandlers(-1)}
+              aria-label="-1 life"
+            />
+          </>
+        ) : (
+          <>
+            <div
+              className="player-panel-tapzone is-left"
+              {...tapHandlers(-1)}
+              aria-label="-1 life"
+            />
+            <div
+              className="player-panel-tapzone is-right"
+              {...tapHandlers(1)}
+              aria-label="+1 life"
+            />
+          </>
+        )}
 
-      <div className="player-panel-floats" aria-hidden="true">
-        {chips.map((c) => (
-          <span
-            key={c.id}
-            className={`floating-delta ${c.value > 0 ? 'is-positive' : 'is-negative'}`}
-            style={{ left: `${c.x}%`, top: `${c.y}%` }}
-          >
-            {c.value > 0 ? `+${c.value}` : `−${Math.abs(c.value)}`}
-          </span>
-        ))}
-      </div>
+        <div className="player-panel-floats" aria-hidden="true">
+          {chips.map((c) => (
+            <span
+              key={c.id}
+              className={`floating-delta ${c.value > 0 ? 'is-positive' : 'is-negative'}`}
+              style={{ left: `${c.x}%`, top: `${c.y}%` }}
+            >
+              {c.value > 0 ? `+${c.value}` : `−${Math.abs(c.value)}`}
+            </span>
+          ))}
+        </div>
 
-      <div className="player-panel-content" aria-hidden="false">
-        <header className="player-panel-head">
-          <div className="player-panel-name" title={player.name}>
-            {player.isHost && (
-              <span className="player-panel-host" aria-label="host">
-                ★
-              </span>
+        <div className="player-panel-content" aria-hidden="false">
+          <div className="player-panel-corner is-tl">
+            <div className="player-panel-name" title={player.name}>
+              {player.isHost && (
+                <span className="player-panel-host" aria-label="host">
+                  ★
+                </span>
+              )}
+              <span className="player-panel-name-text">{player.name}</span>
+              {!player.connected && <span className="player-panel-offline">offline</span>}
+            </div>
+            {(player.deckName || player.commander) && (
+              <div
+                className="player-panel-subtitle"
+                title={player.commander || player.deckName || undefined}
+              >
+                {player.commander || player.deckName}
+              </div>
             )}
-            {player.name}
-            {!player.connected && <span className="player-panel-offline"> · offline</span>}
           </div>
+
           <button
             type="button"
-            className="player-panel-menu-btn"
+            className="player-panel-menu-btn is-corner-br"
             aria-label="Seat menu"
             onClick={(e) => {
               e.stopPropagation();
@@ -311,55 +367,53 @@ function PlayerPanel({
           >
             ⋯
           </button>
-        </header>
 
-        <div className="player-panel-life-wrap">
-          <button
-            type="button"
-            className="player-panel-step-btn"
-            aria-label="-5 life"
-            disabled={disabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              adjust(-5);
-            }}
-          >
-            −5
-          </button>
-          <button
-            type="button"
-            className="player-panel-life player-panel-life-btn"
-            aria-label={`Set life — currently ${player.life}`}
-            aria-live="polite"
-            disabled={!canEdit || game.status === 'finished'}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!canEdit || game.status === 'finished') return;
-              setKeypadOpen(true);
-            }}
-          >
-            <span key={popKey} className="player-panel-life-num is-pop">
-              {animatedLife}
-            </span>
-          </button>
-          <button
-            type="button"
-            className="player-panel-step-btn"
-            aria-label="+5 life"
-            disabled={disabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              adjust(5);
-            }}
-          >
-            +5
-          </button>
-        </div>
+          <div className="player-panel-life-wrap">
+            <button
+              type="button"
+              className="player-panel-step-btn"
+              aria-label="-5 life"
+              disabled={disabled}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                adjust(-5);
+              }}
+            >
+              −5
+            </button>
+            <button
+              type="button"
+              className="player-panel-life player-panel-life-btn"
+              aria-label={`Set life — currently ${player.life}`}
+              aria-live="polite"
+              disabled={!canEdit || game.status === 'finished'}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!canEdit || game.status === 'finished') return;
+                setKeypadOpen(true);
+              }}
+            >
+              <span key={popKey} className="player-panel-life-num is-pop">
+                {animatedLife}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="player-panel-step-btn"
+              aria-label="+5 life"
+              disabled={disabled}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                adjust(5);
+              }}
+            >
+              +5
+            </button>
+          </div>
 
-        <footer className="player-panel-foot">
-          {player.deckName && <div className="player-panel-deck">{player.deckName}</div>}
-          {player.commander && <div className="player-panel-commander">{player.commander}</div>}
           {(game.commanderDamageEnabled || game.poisonEnabled) && (
             <button
               type="button"
@@ -373,52 +427,52 @@ function PlayerPanel({
               Counters {drawerOpen ? '▾' : '▴'}
             </button>
           )}
-        </footer>
-      </div>
+        </div>
 
-      {drawerOpen && (
-        <CountersDrawer
-          player={player}
-          game={game}
-          opponents={opponents}
-          disabled={disabled}
-          dispatch={dispatch}
-          onClose={() => setDrawerOpen(false)}
-        />
-      )}
+        {drawerOpen && (
+          <CountersDrawer
+            player={player}
+            game={game}
+            opponents={opponents}
+            disabled={disabled}
+            dispatch={dispatch}
+            onClose={() => setDrawerOpen(false)}
+          />
+        )}
 
-      {seatMenuOpen && (
-        <SeatMenu
-          player={player}
-          game={game}
-          canEdit={canEdit}
-          dispatch={dispatch}
-          onClose={() => setSeatMenuOpen(false)}
-        />
-      )}
+        {seatMenuOpen && (
+          <SeatMenu
+            player={player}
+            game={game}
+            canEdit={canEdit}
+            dispatch={dispatch}
+            onClose={() => setSeatMenuOpen(false)}
+          />
+        )}
 
-      {game.winnerSeat === player.seat && <div className="player-panel-winner-tag">Winner</div>}
-      {player.eliminated && game.winnerSeat !== player.seat && (
-        <div className="player-panel-eliminated-tag">Out</div>
-      )}
+        {game.winnerSeat === player.seat && <div className="player-panel-winner-tag">Winner</div>}
+        {player.eliminated && game.winnerSeat !== player.seat && (
+          <div className="player-panel-eliminated-tag">Out</div>
+        )}
 
-      {keypadOpen && (
-        <LifeKeypad
-          playerName={player.name}
-          currentLife={player.life}
-          onConfirm={(value) => {
-            dispatch({
-              type: 'set-life',
-              seat: player.seat,
-              value,
-              actorSeat: player.seat,
-            });
-            setKeypadOpen(false);
-          }}
-          onClose={() => setKeypadOpen(false)}
-        />
-      )}
-    </section>
+        {keypadOpen && (
+          <LifeKeypad
+            playerName={player.name}
+            currentLife={player.life}
+            onConfirm={(value) => {
+              dispatch({
+                type: 'set-life',
+                seat: player.seat,
+                value,
+                actorSeat: player.seat,
+              });
+              setKeypadOpen(false);
+            }}
+            onClose={() => setKeypadOpen(false)}
+          />
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -727,7 +781,12 @@ function SeatMenu({
                 className={`seat-menu-swatch is-auto ${
                   player.panelColorKey === null ? 'is-selected' : ''
                 }`}
-                aria-label="Auto (from commander)"
+                style={{
+                  ['--pp-base' as never]: paletteForSeat(game.id, player.seat).base,
+                  ['--pp-edge' as never]: paletteForSeat(game.id, player.seat).edge,
+                }}
+                aria-label="Seat default (auto from commander color identity)"
+                title="Seat default"
                 onClick={() => {
                   dispatch({
                     type: 'update-player',
@@ -735,10 +794,11 @@ function SeatMenu({
                     patch: { panelColorKey: null },
                   });
                 }}
-              >
-                A
-              </button>
+              />
             </div>
+            <span className="seat-menu-color-hint">
+              Seat default uses your deck&apos;s color identity, or your seat color if none.
+            </span>
           </div>
         )}
         {canEdit && game.status !== 'finished' && (
@@ -791,89 +851,240 @@ function GameMenu({
   onLeave?: () => void;
   onEnd?: () => void;
 }) {
+  const isFinished = game.status === 'finished';
   return (
     <div className="game-menu-backdrop" onClick={onClose}>
       <div className="game-menu" role="dialog" onClick={(e) => e.stopPropagation()}>
+        <span className="game-menu-grabber" aria-hidden="true" />
         <header className="game-menu-head">
-          <span>{game.mode === 'online' ? `Game ${game.code}` : 'Local game'}</span>
+          <div className="game-menu-title">
+            <span className="game-menu-title-main">
+              {game.mode === 'online' ? `Game ${game.code}` : 'Local game'}
+            </span>
+            <span className="game-menu-title-sub">{game.format}</span>
+          </div>
           <button type="button" className="game-menu-close" aria-label="Close" onClick={onClose}>
             ✕
           </button>
         </header>
+
         <div className="game-menu-body">
-          <div className="game-menu-meta">
-            <span className="game-menu-format">{game.format}</span>
-            <span>Starting life {game.startingLife}</span>
-            {game.commanderDamageEnabled && <span>Commander damage</span>}
-            {game.poisonEnabled && <span>Poison</span>}
+          <div className="game-menu-meta" aria-label="Game settings">
+            <span className="game-menu-chip">{game.startingLife} starting life</span>
+            {game.commanderDamageEnabled && (
+              <span className="game-menu-chip">Commander damage</span>
+            )}
+            {game.poisonEnabled && <span className="game-menu-chip">Poison</span>}
+            <span className="game-menu-chip is-mode">{game.mode}</span>
           </div>
-          {canControlAll && game.status !== 'finished' && (
-            <LayoutPicker
-              total={game.players.length}
-              current={resolveLayout(game.players.length, game.layout).id}
-              shared={game.mode === 'local'}
-              onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
-            />
+
+          {canControlAll && !isFinished && (
+            <section className="game-menu-section">
+              <PlayerRoster game={game} dispatch={dispatch} />
+            </section>
           )}
-          {onMinimize && game.status !== 'finished' && (
-            <button
-              type="button"
-              className="game-menu-action game-menu-action--primary"
-              onClick={() => {
-                onMinimize();
-                onClose();
-              }}
-            >
-              Minimize
-              <span className="game-menu-action-hint">Keep the game running — come back later</span>
-            </button>
+
+          {canControlAll && !isFinished && (
+            <section className="game-menu-section">
+              <LayoutPicker
+                total={game.players.length}
+                current={resolveLayout(game.players.length, game.layout).id}
+                shared={game.mode === 'local'}
+                startingLife={game.startingLife}
+                onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
+              />
+            </section>
           )}
-          {game.status !== 'finished' && (
-            <>
-              <button
-                type="button"
-                className="game-menu-action"
-                onClick={() => {
-                  onEnd?.();
-                  onClose();
-                }}
-              >
-                End game
-                <span className="game-menu-action-hint">Pick a winner, save to history</span>
-              </button>
-              {canControlAll && (
+
+          {canControlAll && !isFinished && (
+            <section className="game-menu-section">
+              <ViewModeToggle
+                className="tap-orientation-toggle"
+                ariaLabel="Tap zone orientation"
+                value={game.tapOrientation ?? 'horizontal'}
+                onChange={(next) => dispatch({ type: 'settings', patch: { tapOrientation: next } })}
+                options={[
+                  {
+                    value: 'horizontal',
+                    label: 'Horizontal taps',
+                    icon: (
+                      <>
+                        <TapZoneIcon orientation="horizontal" />
+                        <span>Horizontal taps</span>
+                      </>
+                    ),
+                  },
+                  {
+                    value: 'vertical',
+                    label: 'Vertical taps',
+                    icon: (
+                      <>
+                        <TapZoneIcon orientation="vertical" />
+                        <span>Vertical taps</span>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            </section>
+          )}
+
+          <section className="game-menu-section">
+            <div className="game-menu-actions">
+              {onMinimize && !isFinished && (
                 <button
                   type="button"
-                  className="game-menu-action"
+                  className="game-menu-pill is-primary is-wide"
                   onClick={() => {
-                    dispatch({ type: 'reset' });
+                    onMinimize();
                     onClose();
                   }}
                 >
-                  Reset
-                  <span className="game-menu-action-hint">Back to starting life, same seats</span>
+                  Minimize
                 </button>
               )}
-            </>
-          )}
-          {onLeave && (
-            <button
-              type="button"
-              className="game-menu-action game-menu-action--danger"
-              onClick={() => {
-                onLeave();
-                onClose();
-              }}
-            >
-              {game.status === 'finished' ? 'Close' : 'Discard game'}
-              {game.status !== 'finished' && (
-                <span className="game-menu-action-hint">Throw this game away</span>
+              {!isFinished && (
+                <div className="game-menu-actions-row">
+                  <button
+                    type="button"
+                    className="game-menu-pill"
+                    onClick={() => {
+                      onEnd?.();
+                      onClose();
+                    }}
+                  >
+                    End game
+                  </button>
+                  {canControlAll && (
+                    <button
+                      type="button"
+                      className="game-menu-pill"
+                      onClick={() => {
+                        dispatch({ type: 'reset' });
+                        onClose();
+                      }}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
               )}
-            </button>
-          )}
+              {onLeave && (
+                <button
+                  type="button"
+                  className={`game-menu-pill is-wide ${isFinished ? '' : 'is-danger'}`}
+                  onClick={() => {
+                    onLeave();
+                    onClose();
+                  }}
+                >
+                  {isFinished ? 'Close' : 'Discard game'}
+                </button>
+              )}
+            </div>
+          </section>
+
           <EventLog game={game} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Tap-zone orientation icon (mini board split) ─────────────────────────
+
+function TapZoneIcon({ orientation }: { orientation: 'horizontal' | 'vertical' }) {
+  // Small two-cell rectangle hinting at the split direction. Tracks the
+  // segmented-toggle's currentColor so it inherits hover / active state.
+  if (orientation === 'horizontal') {
+    return (
+      <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="7" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+        <rect x="10" y="1" width="7" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="18" viewBox="0 0 14 18" fill="none" aria-hidden="true">
+      <rect x="1" y="1" width="12" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="1" y="10" width="12" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+// ── Player roster (add / remove players mid-game) ────────────────────────
+
+const MAX_PLAYERS = 6;
+const MIN_PLAYERS = 2;
+
+function PlayerRoster({ game, dispatch }: { game: GameState; dispatch: (a: GameAction) => void }) {
+  const players = game.players;
+  const isOnline = game.mode === 'online';
+  // Roster locks once the game has actually been played — any life
+  // adjustment, poison tick, commander-damage hit, or elimination flips
+  // it in-progress. Until then it's effectively still in setup and seats
+  // can be added or removed.
+  const inProgress = players.some(
+    (p) =>
+      p.life !== game.startingLife ||
+      p.poison > 0 ||
+      p.eliminated ||
+      Object.keys(p.commanderDamage).length > 0
+  );
+  const canRemove = !inProgress && players.length > MIN_PLAYERS;
+  // Add-player is local-only — online seats are claimed by remote players
+  // joining via the game code from their own device.
+  const canAdd = !isOnline && !inProgress && players.length < MAX_PLAYERS;
+
+  const addPlayer = () => {
+    const usedSeats = new Set(players.map((p) => p.seat));
+    let nextSeat = 0;
+    while (usedSeats.has(nextSeat)) nextSeat += 1;
+    const player = makePlayer({
+      id: `local_${nextSeat}_${Date.now()}`,
+      userId: null,
+      seat: nextSeat,
+      name: `Player ${nextSeat + 1}`,
+      startingLife: game.startingLife,
+    });
+    dispatch({ type: 'add-player', player });
+  };
+
+  return (
+    <div className="game-menu-roster" role="group" aria-label="Players">
+      <div className="game-menu-roster-grid">
+        {players.map((p) => (
+          <div key={p.id} className="game-menu-roster-chip">
+            <span className="game-menu-roster-name" title={p.name}>
+              {p.name}
+            </span>
+            <button
+              type="button"
+              className="game-menu-roster-remove"
+              aria-label={`Remove ${p.name}`}
+              disabled={!canRemove}
+              onClick={() => dispatch({ type: 'remove-player', seat: p.seat })}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        {!inProgress && canAdd && (
+          <button
+            type="button"
+            className="game-menu-roster-add"
+            onClick={addPlayer}
+            aria-label="Add player"
+          >
+            + Add player
+          </button>
+        )}
+      </div>
+      {inProgress && (
+        <span className="game-menu-roster-locked">
+          Roster locks once the game starts. Reset to change seats.
+        </span>
+      )}
     </div>
   );
 }
@@ -884,73 +1095,96 @@ function LayoutPicker({
   total,
   current,
   shared,
+  startingLife,
   onPick,
 }: {
   total: number;
   current: GameLayout;
   shared: boolean;
+  startingLife: number;
   onPick: (layout: GameLayout) => void;
 }) {
   const options = layoutsForCount(total);
   if (options.length < 2) return null;
-  const activeHint = options.find((o) => o.id === current)?.hint ?? options[0].hint;
   return (
     <div className="layout-picker" role="group" aria-label="Board layout">
-      <span className="seat-menu-label">Board layout</span>
-      <div
-        className="layout-picker-grid"
-        style={{
-          gridTemplateColumns: `repeat(${Math.min(options.length, 3)}, 1fr)`,
-        }}
-      >
+      <div className="layout-picker-grid">
         {options.map((opt) => (
           <button
             key={opt.id}
             type="button"
             className={`layout-option ${current === opt.id ? 'is-selected' : ''}`}
+            aria-label={`Layout ${opt.id}`}
             aria-pressed={current === opt.id}
             onClick={() => onPick(opt.id)}
-            title={opt.hint}
           >
-            <LayoutPreview layout={opt} shared={shared} />
-            <span className="layout-option-label">{opt.label}</span>
+            <LayoutPreview layout={opt} shared={shared} startingLife={startingLife} />
           </button>
         ))}
       </div>
-      <span className="layout-option-hint">{activeHint}</span>
     </div>
   );
 }
 
 /**
  * Mini board preview rendered from the same BoardLayout the real board
- * uses, so the thumbnail can never disagree with the rendered seats. Each
- * cell shows a small orientation bar so flipped vs upright is readable at
- * thumbnail size.
+ * uses, so the thumbnail can never disagree with the rendered seats. The
+ * preview takes the layout's natural aspect ratio (cols × rows) so a 2×2
+ * pod renders as a square, a 4×1 line as a wide bar, a 1×2 facing as a
+ * tall stack. Each cell shows the starting-life numeral so the picker
+ * reads as a true miniature of the board.
  */
-function LayoutPreview({ layout, shared }: { layout: BoardLayout; shared: boolean }) {
+function LayoutPreview({
+  layout,
+  shared,
+  startingLife,
+}: {
+  layout: BoardLayout;
+  shared: boolean;
+  startingLife: number;
+}) {
+  const seamTop = 'row' in layout.seam ? (layout.seam.row / layout.rows) * 100 : 50;
+  const seamLeft = 'col' in layout.seam ? (layout.seam.col / layout.cols) * 100 : 50;
   return (
     <div
       className="layout-option-preview"
       style={{
         gridTemplateColumns: `repeat(${layout.cols}, 1fr)`,
         gridTemplateRows: `repeat(${layout.rows}, 1fr)`,
+        aspectRatio: `${layout.cols} / ${layout.rows}`,
+        ['--seam-top-pct' as never]: `${seamTop}%`,
+        ['--seam-left-pct' as never]: `${seamLeft}%`,
       }}
       aria-hidden="true"
     >
       {layout.seats.map((slot, i) => {
         const rot = shared ? slot.rot : 0;
+        const palette = paletteForIndex(i);
         return (
           <span
-            key={i}
+            key={`seat-${i}`}
             className={`layout-option-cell ${rot === 180 ? 'is-flipped' : ''}`}
             style={{
               gridColumn: slot.colSpan ? `${slot.col} / span ${slot.colSpan}` : `${slot.col}`,
               gridRow: slot.rowSpan ? `${slot.row} / span ${slot.rowSpan}` : `${slot.row}`,
+              ['--pp-base' as never]: palette.base,
+              ['--pp-edge' as never]: palette.edge,
             }}
-          />
+          >
+            <span className="layout-option-cell-num">{startingLife}</span>
+          </span>
         );
       })}
+      {layout.empty?.map((cell, i) => (
+        <span
+          key={`empty-${i}`}
+          className="layout-option-cell is-empty"
+          style={{
+            gridColumn: cell.colSpan ? `${cell.col} / span ${cell.colSpan}` : `${cell.col}`,
+            gridRow: cell.rowSpan ? `${cell.row} / span ${cell.rowSpan}` : `${cell.row}`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -1025,45 +1259,16 @@ function identityKey(ci: string[]): string {
 }
 
 /**
- * Renders an explicitly-empty grid cell — a faded placeholder that matches
- * the panel shape but reads as "no player here." When `hostsMenu` is set,
- * the cell doubles as the global game-menu button, replacing the otherwise
- * floating corner button so it can't overlap any panel content.
+ * Renders an explicitly-empty grid cell — a faded placeholder that
+ * matches the panel shape but reads as "no player here." The global
+ * game-menu hub is rendered separately at the layout's row seam.
  */
-function EmptyPanel({
-  cell,
-  hostsMenu,
-  onMenu,
-}: {
-  cell: EmptyCell;
-  hostsMenu: boolean;
-  onMenu: () => void;
-}) {
+function EmptyPanel({ cell }: { cell: EmptyCell }) {
   const style: React.CSSProperties = {
     gridColumn: cell.colSpan ? `${cell.col} / span ${cell.colSpan}` : `${cell.col}`,
     gridRow: cell.rowSpan ? `${cell.row} / span ${cell.rowSpan}` : `${cell.row}`,
   };
-  if (!hostsMenu) {
-    return <div className="player-panel is-empty" style={style} aria-hidden="true" />;
-  }
-  return (
-    <button
-      type="button"
-      className="player-panel is-empty is-menu"
-      style={style}
-      aria-label="Game menu"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        onMenu();
-      }}
-    >
-      <span className="empty-panel-menu-chip">
-        <MenuIcon />
-        <span className="empty-panel-menu-label">Menu</span>
-      </span>
-    </button>
-  );
+  return <div className="player-panel is-empty" style={style} aria-hidden="true" />;
 }
 
 function MenuIcon() {
