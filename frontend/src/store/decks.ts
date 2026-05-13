@@ -330,75 +330,178 @@ export const useDecksStore = create<DecksState>()(
 
       remapAllocations: (newCollection) =>
         set((s) => {
+          // Stability rule: if a slot's current allocatedCopyId still exists
+          // in the new collection and isn't already claimed by an earlier slot,
+          // keep it. Only re-pick when the prior binding is truly broken
+          // (copy was deleted or got stolen by an earlier slot in this pass).
+          //
+          // This is what makes "card in deck = card in binder" stay consistent
+          // across reloads, imports, and edits: we don't reshuffle bindings
+          // the user (or a prior allocation) already established.
+          const byCopyId = new Map<string, EnrichedCard>();
+          for (const c of newCollection) byCopyId.set(c.copyId, c);
+
           const allocated = new Map<string, AllocationInfo>();
+          const claim = (
+            copyId: string,
+            deckId: string,
+            deckName: string,
+            cardName: string
+          ): void => {
+            allocated.set(copyId, { deckId, deckName, cardName });
+          };
+
+          // Two passes: first preserve every still-valid binding so they get
+          // first dibs, then fill in the gaps. Otherwise a deck earlier in
+          // the array could pick up a copy that a later deck had a stable
+          // binding to.
+          interface SlotRef {
+            deckId: string;
+            deckName: string;
+            cardName: string;
+            scryfallId: string | undefined;
+            currentCopyId: string | null;
+            apply: (copyId: string | null) => void;
+          }
+          const slots: SlotRef[] = [];
+
+          // Snapshot mutations into placeholders first; apply at the end.
+          const updates = new Map<
+            string,
+            {
+              commanderAllocatedCopyId: string | null;
+              partnerCommanderAllocatedCopyId: string | null;
+              cards: { slotId: string; allocatedCopyId: string | null }[];
+              sideboard: { slotId: string; allocatedCopyId: string | null }[];
+            }
+          >();
+          for (const deck of s.decks) {
+            updates.set(deck.id, {
+              commanderAllocatedCopyId: deck.commanderAllocatedCopyId,
+              partnerCommanderAllocatedCopyId: deck.partnerCommanderAllocatedCopyId,
+              cards: deck.cards.map((c) => ({
+                slotId: c.slotId,
+                allocatedCopyId: c.allocatedCopyId,
+              })),
+              sideboard: (deck.sideboard ?? []).map((c) => ({
+                slotId: c.slotId,
+                allocatedCopyId: c.allocatedCopyId,
+              })),
+            });
+          }
+
+          for (const deck of s.decks) {
+            const u = updates.get(deck.id)!;
+            if (deck.commander) {
+              slots.push({
+                deckId: deck.id,
+                deckName: deck.name,
+                cardName: deck.commander.name,
+                scryfallId: deck.commander.id,
+                currentCopyId: deck.commanderAllocatedCopyId,
+                apply: (copyId) => {
+                  u.commanderAllocatedCopyId = copyId;
+                },
+              });
+            }
+            if (deck.partnerCommander) {
+              slots.push({
+                deckId: deck.id,
+                deckName: deck.name,
+                cardName: deck.partnerCommander.name,
+                scryfallId: deck.partnerCommander.id,
+                currentCopyId: deck.partnerCommanderAllocatedCopyId,
+                apply: (copyId) => {
+                  u.partnerCommanderAllocatedCopyId = copyId;
+                },
+              });
+            }
+            for (const c of deck.cards) {
+              const slotId = c.slotId;
+              slots.push({
+                deckId: deck.id,
+                deckName: deck.name,
+                cardName: c.card.name,
+                scryfallId: c.card.id,
+                currentCopyId: c.allocatedCopyId,
+                apply: (copyId) => {
+                  const target = u.cards.find((x) => x.slotId === slotId);
+                  if (target) target.allocatedCopyId = copyId;
+                },
+              });
+            }
+            for (const c of deck.sideboard ?? []) {
+              const slotId = c.slotId;
+              slots.push({
+                deckId: deck.id,
+                deckName: deck.name,
+                cardName: c.card.name,
+                scryfallId: c.card.id,
+                currentCopyId: c.allocatedCopyId,
+                apply: (copyId) => {
+                  const target = u.sideboard.find((x) => x.slotId === slotId);
+                  if (target) target.allocatedCopyId = copyId;
+                },
+              });
+            }
+          }
+
+          // Pass 1: preserve still-valid bindings. A binding is valid if
+          // the copy exists, still has the same name (defensive — guards
+          // against renames in user-edited collections), and isn't claimed.
+          const needsPick: SlotRef[] = [];
+          for (const slot of slots) {
+            const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
+            if (
+              slot.currentCopyId &&
+              current &&
+              current.name === slot.cardName &&
+              !allocated.has(slot.currentCopyId)
+            ) {
+              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+            } else {
+              needsPick.push(slot);
+            }
+          }
+
+          // Pass 2: pick fresh copies for slots that lost their binding.
+          for (const slot of needsPick) {
+            const pick = pickCollectionCopy(
+              slot.cardName,
+              newCollection,
+              allocated,
+              slot.scryfallId
+            );
+            if (pick) {
+              claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              slot.apply(pick.copyId);
+            } else {
+              slot.apply(null);
+            }
+          }
 
           const remappedDecks = s.decks.map((deck) => {
-            let commanderAllocatedCopyId = deck.commanderAllocatedCopyId;
-            if (deck.commander) {
-              const pick = pickCollectionCopy(
-                deck.commander.name,
-                newCollection,
-                allocated,
-                deck.commander.id
+            const u = updates.get(deck.id)!;
+            const cardsChanged =
+              u.commanderAllocatedCopyId !== deck.commanderAllocatedCopyId ||
+              u.partnerCommanderAllocatedCopyId !== deck.partnerCommanderAllocatedCopyId ||
+              deck.cards.some((c, i) => u.cards[i]?.allocatedCopyId !== c.allocatedCopyId) ||
+              (deck.sideboard ?? []).some(
+                (c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId
               );
-              commanderAllocatedCopyId = pick?.copyId ?? null;
-              if (pick) {
-                allocated.set(pick.copyId, {
-                  deckId: deck.id,
-                  deckName: deck.name,
-                  cardName: deck.commander.name,
-                });
-              }
-            }
-
-            let partnerCommanderAllocatedCopyId = deck.partnerCommanderAllocatedCopyId;
-            if (deck.partnerCommander) {
-              const pick = pickCollectionCopy(
-                deck.partnerCommander.name,
-                newCollection,
-                allocated,
-                deck.partnerCommander.id
-              );
-              partnerCommanderAllocatedCopyId = pick?.copyId ?? null;
-              if (pick) {
-                allocated.set(pick.copyId, {
-                  deckId: deck.id,
-                  deckName: deck.name,
-                  cardName: deck.partnerCommander.name,
-                });
-              }
-            }
-
-            const cards = deck.cards.map((c) => {
-              const pick = pickCollectionCopy(c.card.name, newCollection, allocated, c.card.id);
-              if (pick) {
-                allocated.set(pick.copyId, {
-                  deckId: deck.id,
-                  deckName: deck.name,
-                  cardName: c.card.name,
-                });
-              }
-              return { ...c, allocatedCopyId: pick?.copyId ?? null };
-            });
-
-            const sideboard = (deck.sideboard ?? []).map((c) => {
-              const pick = pickCollectionCopy(c.card.name, newCollection, allocated, c.card.id);
-              if (pick) {
-                allocated.set(pick.copyId, {
-                  deckId: deck.id,
-                  deckName: deck.name,
-                  cardName: c.card.name,
-                });
-              }
-              return { ...c, allocatedCopyId: pick?.copyId ?? null };
-            });
-
+            if (!cardsChanged) return deck;
             return touch({
               ...deck,
-              commanderAllocatedCopyId,
-              partnerCommanderAllocatedCopyId,
-              cards,
-              sideboard,
+              commanderAllocatedCopyId: u.commanderAllocatedCopyId,
+              partnerCommanderAllocatedCopyId: u.partnerCommanderAllocatedCopyId,
+              cards: deck.cards.map((c, i) => ({
+                ...c,
+                allocatedCopyId: u.cards[i].allocatedCopyId,
+              })),
+              sideboard: (deck.sideboard ?? []).map((c, i) => ({
+                ...c,
+                allocatedCopyId: u.sideboard[i].allocatedCopyId,
+              })),
             });
           });
 
