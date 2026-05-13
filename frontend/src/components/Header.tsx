@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
-import { SettingsMenu } from './SettingsMenu';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
@@ -29,7 +28,7 @@ export function Header() {
             )}
           </NavLink>
           <NavLink
-            to="/binder"
+            to="/binders"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
             <span>Binders</span>
@@ -52,7 +51,16 @@ export function Header() {
           </NavLink>
         </nav>
         <nav className="site-nav">
-          <SettingsMenu />
+          <NavLink
+            to="/settings"
+            className={({ isActive }) =>
+              isActive ? 'site-nav-settings active' : 'site-nav-settings'
+            }
+            aria-label="Settings"
+          >
+            <GearIcon />
+            <span className="site-nav-settings-label">Settings</span>
+          </NavLink>
         </nav>
       </div>
     </header>
@@ -63,4 +71,23 @@ function formatCount(n: number): string {
   if (n < 1000) return String(n);
   if (n < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
   return `${Math.round(n / 1000)}k`;
+}
+
+function GearIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+    </svg>
+  );
 }

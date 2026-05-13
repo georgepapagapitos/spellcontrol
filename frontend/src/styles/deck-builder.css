@@ -1770,6 +1770,13 @@ input.toolbar-search-input {
   gap: 0.375rem;
 }
 
+/* Push the view toggle to the right edge of the sort bar so it visually
+   pairs with the deck list it controls — same pattern the collection
+   page uses on its summary line. */
+.decks-index-viewmode {
+  margin-left: auto;
+}
+
 .decks-index-sort-dir {
   min-width: 2rem;
   justify-content: center;
@@ -1781,8 +1788,35 @@ input.toolbar-search-input {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1rem;
+}
+
+/* Grid: multi-column tiles. The default — auto-fills as wide as the
+   viewport allows. */
+.decks-index-list.is-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* List: single column, full-width rows with art thumbnails. Reads as a
+   denser feed than grid without losing the commander art. */
+.decks-index-list.is-list {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+/* Compact: single column, no art, denser rows. Best for "I have 80
+   decks and want to skim names." */
+.decks-index-list.is-compact {
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+}
+
+.decks-index-list.is-compact .decks-index-card-link {
+  padding: 0.45rem 0.75rem;
+}
+
+.decks-index-list.is-compact .decks-index-card-name {
+  font-size: var(--text-sm);
 }
 
 .decks-index-card {
@@ -3860,5 +3894,282 @@ input.deck-row-qty-input.deck-row-qty-missing {
   .format-pill {
     flex: 1 1 calc(50% - 0.4rem);
     text-align: center;
+  }
+}
+
+/* ── Binders index page ────────────────────────────────────────────────────
+   Mirrors the decks index in shape so users get the same gesture
+   language across both surfaces (sort pill, view toggle, card grid).
+   Per-card color comes from the binder definition via the --binder-color
+   custom prop set inline on each card. */
+
+.binders-index-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.binders-index-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.binders-index-hero-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.binders-index-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--text3);
+  font-size: var(--text-sm);
+}
+
+.binders-index-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.binders-index-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.binders-index-viewmode {
+  margin-left: auto;
+}
+
+.binders-index-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.binders-index-list.is-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.binders-index-list.is-list {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.binders-index-list.is-compact {
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+}
+
+.binders-index-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--binder-color, var(--accent));
+  border-radius: var(--radius-lg);
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.binders-index-card:hover {
+  border-color: var(--accent);
+  border-left-color: var(--binder-color, var(--accent));
+  transform: translateY(-1px);
+}
+
+.binders-index-card-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.binders-index-card-swatch {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 0.5px solid var(--border2);
+}
+
+.binders-index-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.binders-index-card-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.binders-index-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.binders-index-card-tag {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+}
+
+.binders-index-list.is-compact .binders-index-card-link {
+  padding: 0.45rem 0.75rem;
+}
+
+.binders-index-list.is-compact .binders-index-card-name {
+  font-size: var(--text-sm);
+}
+
+.binders-index-list.is-compact .binders-index-card-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.binders-index-card-menu {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+}
+
+.binders-index-card-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text3);
+  cursor: pointer;
+}
+
+.binders-index-card-menu-btn:hover,
+.binders-index-card-menu-btn[aria-expanded='true'] {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.binders-index-card-menu-backdrop {
+  display: none;
+}
+
+.binders-index-card-menu-handle {
+  display: none;
+}
+
+.binders-index-card-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 10rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+}
+
+.binders-index-card-menu-item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.binders-index-card-menu-item:hover:not(:disabled) {
+  background: var(--surface2);
+}
+
+.binders-index-card-menu-item:disabled {
+  color: var(--text3);
+  cursor: not-allowed;
+}
+
+.binders-index-card-menu-item--danger {
+  color: var(--err-text);
+}
+
+.binders-index-card-menu-item--danger:hover {
+  background: var(--err-bg);
+}
+
+.binders-index-danger {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.binders-index-danger-btn {
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+/* On mobile the per-card menu becomes a bottom sheet, matching the
+   decks index action sheet. */
+@media (max-width: 640px) {
+  .binders-index-card-menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-sheet-bg);
+    background: var(--overlay-sheet);
+  }
+
+  .binders-index-card-menu-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    z-index: var(--z-sheet-fg);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    box-shadow: var(--shadow-sheet);
+  }
+
+  .binders-index-card-menu-handle {
+    display: block;
+    width: 2.25rem;
+    height: 4px;
+    margin: 0.25rem auto 0.5rem;
+    border-radius: 999px;
+    background: var(--border);
+  }
+
+  .binders-index-card-menu-item {
+    padding: 0.85rem 0.5rem;
+    font-size: var(--text-base);
   }
 }
