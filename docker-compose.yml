@@ -1,16 +1,16 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: binder-postgres
+    container_name: spellcontrol-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: binder
+      POSTGRES_USER: spellcontrol
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: binder
+      POSTGRES_DB: spellcontrol
     volumes:
-      - binder-postgres:/var/lib/postgresql/data
+      - spellcontrol-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U binder -d binder']
+      test: ['CMD-SHELL', 'pg_isready -U spellcontrol -d spellcontrol']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -19,39 +19,39 @@ services:
 
   backend:
     image: ghcr.io/georgepapagapitos/spellcontrol-backend:latest
-    container_name: binder-backend
+    container_name: spellcontrol-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://binder:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/binder
+      DATABASE_URL: postgres://spellcontrol:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/spellcontrol
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (32+ random chars)}
       NODE_ENV: production
     # Backend is no longer exposed to the host — the frontend container's
     # nginx proxies /api/ to it on the docker-compose network.
     expose:
-      - "3737"
+      - '3737'
     volumes:
-      - binder-data:/data
+      - spellcontrol-data:/data
     depends_on:
       postgres:
         condition: service_healthy
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - 'com.centurylinklabs.watchtower.enable=true'
     mem_limit: 256m
     cpus: 0.5
 
   frontend:
     image: ghcr.io/georgepapagapitos/spellcontrol-frontend:latest
-    container_name: binder-frontend
+    container_name: spellcontrol-frontend
     restart: unless-stopped
     ports:
-      - "8088:80"
+      - '8088:80'
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - 'com.centurylinklabs.watchtower.enable=true'
     mem_limit: 64m
     cpus: 0.25
     depends_on:
       - backend
 
 volumes:
-  binder-data:
-  binder-postgres:
+  spellcontrol-data:
+  spellcontrol-postgres:
