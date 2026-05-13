@@ -20,6 +20,7 @@ import {
   type CreateGameInput,
   type JoinGameInput,
 } from '../lib/games-api';
+import { markDestructive } from '../lib/sync-intent';
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -327,7 +328,10 @@ export const usePlayStore = create<PlayState>()(
 
       // ── History ───────────────────────────────────────────────────────────
       setHistory: (records) => set({ history: records }),
-      removeHistory: (id) => set((s) => ({ history: s.history.filter((r) => r.id !== id) })),
+      removeHistory: (id) => {
+        markDestructive();
+        set((s) => ({ history: s.history.filter((r) => r.id !== id) }));
+      },
     }),
     {
       name: 'mtg-play',

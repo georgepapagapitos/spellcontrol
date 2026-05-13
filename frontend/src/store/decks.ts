@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
+import { markDestructive } from '../lib/sync-intent';
 import type { EnrichedCard } from '../types';
 
 /**
@@ -174,7 +175,10 @@ export const useDecksStore = create<DecksState>()(
           decks: s.decks.map((d) => (d.id === id ? touch({ ...d, name }) : d)),
         })),
 
-      deleteDeck: (id) => set((s) => ({ decks: s.decks.filter((d) => d.id !== id) })),
+      deleteDeck: (id) => {
+        markDestructive();
+        set((s) => ({ decks: s.decks.filter((d) => d.id !== id) }));
+      },
 
       duplicateDeck: (id) => {
         const state = useDecksStore.getState();
