@@ -14,6 +14,7 @@ function mockState(overrides: Partial<GameState> = {}): GameState {
     commanderDamageEnabled: true,
     poisonEnabled: false,
     layout: 'pod',
+    tapOrientation: 'horizontal',
     players: [],
     events: [],
     winnerSeat: null,
