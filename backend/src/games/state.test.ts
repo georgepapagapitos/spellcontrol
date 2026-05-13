@@ -120,4 +120,181 @@ describe('applyAction', () => {
     expect(rec.durationMs).toBe(1_000_000);
     expect(rec.players).toHaveLength(2);
   });
+
+  it('gameToRecord with no startedAt yields zero duration', () => {
+    const s = applyAction(lobby(), { type: 'end', winnerSeat: null });
+    const rec = gameToRecord(s, 9999);
+    expect(rec.durationMs).toBe(0);
+    expect(rec.startedAt).toBeNull();
+    expect(rec.winnerSeat).toBeNull();
+  });
+
+  it('end is a no-op when already finished', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    s = applyAction(s, { type: 'end', winnerSeat: 0 });
+    const v = s.version;
+    const again = applyAction(s, { type: 'end', winnerSeat: 1 });
+    expect(again).toBe(s); // identity — short-circuit returns prev
+    expect(again.version).toBe(v);
+  });
+
+  it('start is a no-op when not in lobby', () => {
+    const started = applyAction(lobby(), { type: 'start' });
+    const again = applyAction(started, { type: 'start' });
+    expect(again).toBe(started);
+  });
+
+  it('set-life replaces life and logs set-life event', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    s = applyAction(s, { type: 'set-life', seat: 0, value: 12, actorSeat: 0 });
+    expect(s.players[0].life).toBe(12);
+    expect(s.events.at(-1)?.kind).toBe('set-life');
+  });
+
+  it('set-life throws on unknown seat', () => {
+    expect(() =>
+      applyAction(lobby(), { type: 'set-life', seat: 99, value: 1, actorSeat: 0 })
+    ).toThrow();
+  });
+
+  it('poison cannot go below 0', () => {
+    const s = applyAction(lobby(), { type: 'poison', seat: 0, delta: -5, actorSeat: 0 });
+    expect(s.players[0].poison).toBe(0);
+  });
+
+  it('poison throws on unknown seat', () => {
+    expect(() =>
+      applyAction(lobby(), { type: 'poison', seat: 99, delta: 1, actorSeat: 0 })
+    ).toThrow();
+  });
+
+  it('cmd-dmg negative delta clamps at 0', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: 5, actorSeat: 0 });
+    s = applyAction(s, { type: 'cmd-dmg', seat: 1, fromSeat: 0, delta: -20, actorSeat: 0 });
+    expect(s.players[1].commanderDamage[0]).toBe(0);
+  });
+
+  it('cmd-dmg throws on unknown seat', () => {
+    expect(() =>
+      applyAction(lobby(), { type: 'cmd-dmg', seat: 99, fromSeat: 0, delta: 1, actorSeat: 0 })
+    ).toThrow();
+  });
+
+  it('eliminate manual and revive cycle (mid-game)', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'eliminate', seat: 1, eliminated: true });
+    expect(s.players[1].eliminated).toBe(true);
+    expect(s.events.at(-1)?.kind).toBe('eliminate');
+    s = applyAction(s, { type: 'eliminate', seat: 1, eliminated: false });
+    expect(s.players[1].eliminated).toBe(false);
+    expect(s.events.at(-1)?.kind).toBe('revive');
+  });
+
+  it('manual eliminate of the second-to-last alive triggers auto-win', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'eliminate', seat: 1, eliminated: true });
+    s = applyAction(s, { type: 'eliminate', seat: 2, eliminated: true });
+    expect(s.status).toBe('finished');
+    expect(s.winnerSeat).toBe(0);
+  });
+
+  it('add-player inserts and sorts by seat; remove-player drops', () => {
+    let s = lobby(2);
+    const extra = {
+      id: 'u9',
+      userId: 'u9',
+      seat: 3,
+      name: 'late',
+      deckId: null,
+      deckName: null,
+      commander: null,
+      life: 40,
+      poison: 0,
+      commanderDamage: {},
+      eliminated: false,
+      isHost: false,
+      connected: true,
+    };
+    s = applyAction(s, { type: 'add-player', player: extra });
+    expect(s.players.map((p) => p.seat)).toEqual([0, 1, 3]);
+    expect(s.events.at(-1)?.kind).toBe('join');
+
+    s = applyAction(s, { type: 'remove-player', seat: 3 });
+    expect(s.players).toHaveLength(2);
+    expect(s.events.at(-1)?.kind).toBe('leave');
+  });
+
+  it('add-player throws on a taken seat', () => {
+    const player = {
+      id: 'x',
+      userId: 'x',
+      seat: 0,
+      name: 'x',
+      deckId: null,
+      deckName: null,
+      commander: null,
+      life: 40,
+      poison: 0,
+      commanderDamage: {},
+      eliminated: false,
+      isHost: false,
+      connected: true,
+    };
+    expect(() => applyAction(lobby(), { type: 'add-player', player })).toThrow();
+  });
+
+  it('remove-player throws on unknown seat', () => {
+    expect(() => applyAction(lobby(), { type: 'remove-player', seat: 9 })).toThrow();
+  });
+
+  it('update-player patches profile fields', () => {
+    const s = applyAction(lobby(), {
+      type: 'update-player',
+      seat: 0,
+      patch: { name: 'Renamed', deckName: 'D' },
+    });
+    expect(s.players[0].name).toBe('Renamed');
+    expect(s.players[0].deckName).toBe('D');
+  });
+
+  it('update-player throws on unknown seat', () => {
+    expect(() =>
+      applyAction(lobby(), { type: 'update-player', seat: 9, patch: { name: 'x' } })
+    ).toThrow();
+  });
+
+  it('note appends to event log without changing players', () => {
+    const before = lobby();
+    const s = applyAction(before, { type: 'note', actorSeat: 0, message: 'hello' });
+    expect(s.players).toEqual(before.players);
+    expect(s.events.at(-1)).toMatchObject({ kind: 'note', message: 'hello' });
+  });
+
+  it('settings without startingLife leaves life alone', () => {
+    const s = applyAction(lobby(), { type: 'settings', patch: { poisonEnabled: true } });
+    expect(s.poisonEnabled).toBe(true);
+    expect(s.players[0].life).toBe(40);
+  });
+
+  it('event log is bounded to MAX_EVENTS', () => {
+    let s = applyAction(lobby(), { type: 'start' });
+    for (let i = 0; i < 600; i++) {
+      s = applyAction(s, { type: 'note', actorSeat: null, message: `n${i}` });
+    }
+    expect(s.events.length).toBeLessThanOrEqual(500);
+    // Newest events should be retained
+    expect(s.events.at(-1)?.message).toBe('n599');
+  });
+
+  it('auto-win seat-0 wins when all opponents draw to 0', () => {
+    // 3p game; eliminate both opponents simultaneously via lethal damage and
+    // verify last-one-standing wins.
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'life', seat: 1, delta: -40, actorSeat: 0 });
+    expect(s.status).toBe('active');
+    s = applyAction(s, { type: 'life', seat: 2, delta: -40, actorSeat: 0 });
+    expect(s.status).toBe('finished');
+    expect(s.winnerSeat).toBe(0);
+  });
 });
