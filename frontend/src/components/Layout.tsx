@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useCollectionStore } from '../store/collection';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
 import { Footer } from './Footer';
@@ -8,12 +6,9 @@ import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
 
 export function Layout() {
-  const hydrateCards = useCollectionStore((s) => s.hydrateCards);
-
-  useEffect(() => {
-    hydrateCards();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Store hydration is owned by the sync layer (see startSync in lib/sync.ts).
+  // It loads IndexedDB cards into the store before any push, so Layout no
+  // longer needs to call hydrateCards manually.
 
   // Flex-column shell pinned to 100dvh: header on top (desktop), main fills
   // the middle and is the scroll container, mobile tab bar locks to the
