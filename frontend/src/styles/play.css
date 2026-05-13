@@ -89,6 +89,16 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  /* Prevent the whole panel from growing wider than the page column when
+     a long deck name in a child <select> tries to expand its track. */
+  min-width: 0;
+  overflow-x: clip;
+}
+
+@media (max-width: 480px) {
+  .play-setup {
+    padding: 0.9rem;
+  }
 }
 
 .play-setup-title {
@@ -107,6 +117,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
+  /* Each grid cell may contain a <select> with long deck names — let the
+     1fr tracks actually flex by killing the default min-content minimum. */
+  min-width: 0;
 }
 
 .play-field {
@@ -115,9 +128,15 @@
   gap: 0.25rem;
   font-size: var(--text-sm);
   color: var(--text2);
+  /* Same reason as above — fields are grid items; allow them to shrink so
+     their contents (especially <select>) can shrink below their natural
+     width instead of pushing the panel sideways. */
+  min-width: 0;
 }
 
-.play-field input,
+/* Text-like inputs and selects fill their cell; checkboxes / radios stay
+   their natural size and live in the flex-row layout next to the label. */
+.play-field input:not([type='checkbox']):not([type='radio']),
 .play-field select {
   background: var(--surface2);
   border: 0.5px solid var(--border);
@@ -125,6 +144,12 @@
   padding: 0.5rem 0.6rem;
   color: var(--text);
   font-size: var(--text-base);
+  /* The default <select> intrinsic width = the widest option. With user
+     deck names that can be very long; clamp to 100% of the cell. */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .play-field input:focus,
@@ -147,6 +172,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.75rem;
+  min-width: 0;
+}
+
+/* On very narrow viewports drop to a single column so seat cards don't get
+   squashed below their content. The 220px minmax above already does this
+   most of the time, but explicitly forcing it below ~420px guarantees the
+   cards stay inside their container even when there are long deck names. */
+@media (max-width: 420px) {
+  .play-setup-players {
+    grid-template-columns: 1fr;
+  }
 }
 
 .play-setup-player {
@@ -157,6 +193,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  /* CRITICAL: <fieldset> defaults to min-width: min-content in every
+     browser, which means it refuses to shrink below the intrinsic width of
+     its contents (the deck <select> in particular). Without this the
+     fieldset would push past its grid track and overflow the surrounding
+     play-setup card on narrow viewports. */
+  min-width: 0;
 }
 
 .play-setup-player legend {
