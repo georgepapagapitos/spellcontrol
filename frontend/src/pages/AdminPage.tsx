@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore, type Deck } from '../store/decks';
-import { buildAllocationMap } from '../lib/allocations';
+import { buildAllocationMap, findSuboptimalPrintings } from '../lib/allocations';
 import type { EnrichedCard } from '../types';
 
 type Tab = 'overview' | 'decks' | 'allocations' | 'collection' | 'binders' | 'storage' | 'raw';
@@ -38,6 +38,33 @@ export function AdminPage() {
   }, [cards]);
 
   const allocationMap = useMemo(() => buildAllocationMap(decks), [decks]);
+
+  // Slots bound to a wrong printing when the preferred printing is owned.
+  // Single highest-signal allocation bug class — every other audit (orphan,
+  // double-claim, name mismatch) is covered by the existing rows above.
+  const suboptimalPrintings = useMemo(
+    () => (hydrating ? [] : findSuboptimalPrintings(decks, cards)),
+    [decks, cards, hydrating]
+  );
+  const suboptimalGrouped = useMemo(() => {
+    const m = new Map<
+      string,
+      { deckName: string; cardName: string; allocatedSet: string; count: number }
+    >();
+    for (const r of suboptimalPrintings) {
+      const k = `${r.deckId}|${r.cardName}|${r.preferredScryfallId}|${r.allocatedSet}`;
+      const prev = m.get(k);
+      if (prev) prev.count++;
+      else
+        m.set(k, {
+          deckName: r.deckName,
+          cardName: r.cardName,
+          allocatedSet: r.allocatedSet,
+          count: 1,
+        });
+    }
+    return [...m.values()].sort((a, b) => b.count - a.count);
+  }, [suboptimalPrintings]);
 
   // Expose everything on window for console poking.
   useEffect(() => {
@@ -210,6 +237,15 @@ export function AdminPage() {
                   {overview.nameMismatch}
                 </td>
               </tr>
+              <tr>
+                <th>
+                  Deck slots: <span className="admin-err">suboptimal printing</span> (bound to wrong
+                  printing while the preferred printing is owned)
+                </th>
+                <td className={suboptimalPrintings.length ? 'admin-err' : ''}>
+                  {suboptimalPrintings.length}
+                </td>
+              </tr>
             </tbody>
           </table>
           {(overview.orphan > 0 || overview.nameMismatch > 0) && (
@@ -217,6 +253,38 @@ export function AdminPage() {
               Found {overview.orphan} orphan and {overview.nameMismatch} name-mismatched
               allocations. Open the Decks tab to find them.
             </p>
+          )}
+          {suboptimalPrintings.length > 0 && (
+            <>
+              <p className="admin-warn">
+                {suboptimalPrintings.length} slot(s) are bound to a wrong printing. A page refresh
+                runs the allocation remap, which auto-heals these — if they persist after refresh,
+                file a bug.
+              </p>
+              <table className="admin-table admin-table--dense">
+                <thead>
+                  <tr>
+                    <th>Deck</th>
+                    <th>Card</th>
+                    <th>Got (set)</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suboptimalGrouped.slice(0, 25).map((g, i) => (
+                    <tr key={i} className="admin-row--err">
+                      <td>{g.deckName}</td>
+                      <td>{g.cardName}</td>
+                      <td className="admin-mono">{g.allocatedSet}</td>
+                      <td>{g.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {suboptimalGrouped.length > 25 && (
+                <p className="admin-sub">…and {suboptimalGrouped.length - 25} more rows.</p>
+              )}
+            </>
           )}
         </section>
       )}
