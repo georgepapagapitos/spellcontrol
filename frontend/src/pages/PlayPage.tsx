@@ -212,6 +212,9 @@ export function PlayPage() {
 
 // ── Local setup ─────────────────────────────────────────────────────────────
 
+const MIN_LOCAL_PLAYERS = 2;
+const MAX_LOCAL_PLAYERS = 6;
+
 function LocalSetup({
   decks,
   onStart,
@@ -226,15 +229,10 @@ function LocalSetup({
   const [startingLife, setStartingLife] = useState<number>(formatCfg.defaultLife);
   const [commanderDamageEnabled, setCmdDmg] = useState<boolean>(formatCfg.cmdDmg);
   const [poisonEnabled, setPoison] = useState<boolean>(false);
-  const [count, setCount] = useState<number>(2);
-  const [players, setPlayers] = useState<LocalGameSetup['players']>(() => [
-    blankPlayer('Player 1'),
-    blankPlayer('Player 2'),
-    blankPlayer('Player 3'),
-    blankPlayer('Player 4'),
-    blankPlayer('Player 5'),
-    blankPlayer('Player 6'),
-  ]);
+  const [count, setCount] = useState<number>(MIN_LOCAL_PLAYERS);
+  const [players, setPlayers] = useState<LocalGameSetup['players']>(() =>
+    Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => blankPlayer(`Player ${i + 1}`))
+  );
 
   function applyFormat(next: GameFormat) {
     const cfg = FORMAT_OPTIONS.find((f) => f.value === next) ?? FORMAT_OPTIONS[0];
@@ -245,6 +243,28 @@ function LocalSetup({
 
   function setPlayer(i: number, patch: Partial<LocalGameSetup['players'][number]>) {
     setPlayers((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+
+  function addPlayer() {
+    if (count >= MAX_LOCAL_PLAYERS) return;
+    setCount((c) => Math.min(c + 1, MAX_LOCAL_PLAYERS));
+  }
+
+  function removePlayer(index: number) {
+    if (count <= MIN_LOCAL_PLAYERS) return;
+    // Shift names down so the visible seats stay 1..N after the splice,
+    // then drop the last seat.
+    setPlayers((prev) => {
+      const next = [...prev];
+      next.splice(index, 1);
+      next.push(blankPlayer(`Player ${next.length + 1}`));
+      // Re-number the placeholder names that the user hasn't customized so
+      // the visible list reads Player 1 / Player 2 / … sequentially.
+      return next.map((p, i) =>
+        /^Player \d+$/.test(p.name) ? { ...p, name: `Player ${i + 1}` } : p
+      );
+    });
+    setCount((c) => Math.max(c - 1, MIN_LOCAL_PLAYERS));
   }
 
   return (
@@ -261,15 +281,19 @@ function LocalSetup({
         });
       }}
     >
-      <h2 className="play-setup-title">
-        {hasActive ? 'Start a different game' : 'New local game'}
-      </h2>
-      <p className="play-setup-help">
-        Shared device. Pass the phone, tap your own life buttons, log a winner at the end.
-        {hasActive && ' Starting a new game will discard the one you have minimized.'}
-      </p>
-      <div className="play-setup-grid">
-        <label className="play-field">
+      <header className="play-setup-header">
+        <h2 className="play-setup-title">
+          {hasActive ? 'Start a different game' : 'New local game'}
+        </h2>
+        <p className="play-setup-help">
+          Pass the device, tap your own life. The host sets the format and seat count; decks are
+          optional.
+          {hasActive && ' Starting a new game will discard the one you have minimized.'}
+        </p>
+      </header>
+
+      <section className="play-setup-row">
+        <label className="play-field play-field-inline">
           <span>Format</span>
           <select value={format} onChange={(e) => applyFormat(e.target.value as GameFormat)}>
             {FORMAT_OPTIONS.map((f) => (
@@ -279,62 +303,58 @@ function LocalSetup({
             ))}
           </select>
         </label>
-        <label className="play-field">
-          <span>Starting life</span>
-          <input
-            type="number"
+
+        <div className="play-field play-field-inline">
+          <span id="starting-life-label">Starting life</span>
+          <Stepper
+            value={startingLife}
             min={1}
             max={200}
-            value={startingLife}
-            onChange={(e) =>
-              setStartingLife(Math.max(1, Math.min(200, Number(e.target.value) || 0)))
-            }
+            step={5}
+            ariaLabelledBy="starting-life-label"
+            onChange={setStartingLife}
           />
-        </label>
-        <label className="play-field">
-          <span>Players</span>
-          <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
-            <option value={2}>2</option>
-            <option value={3}>3</option>
-            <option value={4}>4</option>
-            <option value={5}>5</option>
-            <option value={6}>6</option>
-          </select>
-        </label>
-        <label className="play-field play-field-checkbox">
-          <input
-            type="checkbox"
-            checked={commanderDamageEnabled}
-            onChange={(e) => setCmdDmg(e.target.checked)}
-          />
-          <span>Commander damage</span>
-        </label>
-        <label className="play-field play-field-checkbox">
-          <input
-            type="checkbox"
-            checked={poisonEnabled}
-            onChange={(e) => setPoison(e.target.checked)}
-          />
-          <span>Poison counters</span>
-        </label>
-      </div>
-      <div className="play-setup-players">
-        {players.slice(0, count).map((p, i) => (
-          <fieldset key={i} className="play-setup-player">
-            <legend>Seat {i + 1}</legend>
-            <label className="play-field">
-              <span>Name</span>
+        </div>
+      </section>
+
+      <section className="play-setup-rules" aria-label="Game rules">
+        <RulePill
+          on={commanderDamageEnabled}
+          onChange={setCmdDmg}
+          label="Commander damage"
+          hint="Lose at 21 combat damage from a single commander."
+        />
+        <RulePill
+          on={poisonEnabled}
+          onChange={setPoison}
+          label="Poison counters"
+          hint="Lose at 10 poison counters."
+        />
+      </section>
+
+      <section className="play-setup-roster" aria-label="Players">
+        <header className="play-setup-roster-head">
+          <h3 className="play-setup-section-title">Players</h3>
+          <span className="play-setup-roster-count">{count}</span>
+        </header>
+        <ul className="play-setup-roster-list">
+          {players.slice(0, count).map((p, i) => (
+            <li key={i} className="play-setup-seat">
+              <span className="play-setup-seat-num" aria-hidden="true">
+                {i + 1}
+              </span>
               <input
+                className="play-setup-seat-name"
                 value={p.name}
                 onChange={(e) => setPlayer(i, { name: e.target.value })}
                 maxLength={40}
+                aria-label={`Player ${i + 1} name`}
+                placeholder={`Player ${i + 1}`}
               />
-            </label>
-            <label className="play-field">
-              <span>Deck</span>
-              <DeckPicker
+              <SeatDeck
                 decks={decks}
                 value={p.deckId}
+                deckName={p.deckName}
                 onChange={(deck) =>
                   setPlayer(i, {
                     deckId: deck?.id ?? null,
@@ -344,14 +364,153 @@ function LocalSetup({
                   })
                 }
               />
-            </label>
-          </fieldset>
-        ))}
-      </div>
+              {count > MIN_LOCAL_PLAYERS && (
+                <button
+                  type="button"
+                  className="play-setup-seat-remove"
+                  aria-label={`Remove ${p.name || `Player ${i + 1}`}`}
+                  onClick={() => removePlayer(i)}
+                >
+                  ✕
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {count < MAX_LOCAL_PLAYERS && (
+          <button
+            type="button"
+            className="play-setup-roster-add"
+            onClick={addPlayer}
+            aria-label="Add player"
+          >
+            + Add player
+          </button>
+        )}
+      </section>
+
       <button type="submit" className="pill-btn pill-btn-primary play-setup-start">
         Start game
       </button>
     </form>
+  );
+}
+
+// ── Sub-components: stepper, rule pill, per-seat deck affordance ──────────
+
+function Stepper({
+  value,
+  min,
+  max,
+  step = 1,
+  ariaLabelledBy,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  ariaLabelledBy?: string;
+  onChange: (next: number) => void;
+}) {
+  const dec = () => onChange(Math.max(min, value - step));
+  const inc = () => onChange(Math.min(max, value + step));
+  return (
+    <div className="play-stepper" role="group" aria-labelledby={ariaLabelledBy}>
+      <button
+        type="button"
+        className="play-stepper-btn"
+        onClick={dec}
+        aria-label="Decrease"
+        disabled={value <= min}
+      >
+        −
+      </button>
+      <span className="play-stepper-value" aria-live="polite">
+        {value}
+      </span>
+      <button
+        type="button"
+        className="play-stepper-btn"
+        onClick={inc}
+        aria-label="Increase"
+        disabled={value >= max}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function RulePill({
+  on,
+  onChange,
+  label,
+  hint,
+}: {
+  on: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      className={`play-rule-pill ${on ? 'is-on' : ''}`}
+      onClick={() => onChange(!on)}
+    >
+      <span className="play-rule-pill-label">{label}</span>
+      <span className="play-rule-pill-hint">{hint}</span>
+      <span className="play-rule-pill-state" aria-hidden="true">
+        {on ? 'On' : 'Off'}
+      </span>
+    </button>
+  );
+}
+
+function SeatDeck({
+  decks,
+  value,
+  deckName,
+  onChange,
+}: {
+  decks: Deck[];
+  value: string | null;
+  deckName: string | null;
+  onChange: (deck: Deck | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!open && !value) {
+    return (
+      <button
+        type="button"
+        className="play-setup-seat-deck-add"
+        onClick={() => setOpen(true)}
+        aria-label="Add deck"
+      >
+        + Deck
+      </button>
+    );
+  }
+  return (
+    <div className="play-setup-seat-deck">
+      <DeckPicker decks={decks} value={value} onChange={onChange} />
+      {value && deckName && (
+        <button
+          type="button"
+          className="play-setup-seat-deck-clear"
+          aria-label="Clear deck"
+          onClick={() => {
+            onChange(null);
+            setOpen(false);
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </div>
   );
 }
 

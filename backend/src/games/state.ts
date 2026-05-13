@@ -22,12 +22,13 @@
  *    each player. The default for every count.
  *  - `pod-alt` — the asymmetric inverse of `pod`, used by odd counts
  *    (3p, 5p) where 1v2 and 2v1 are genuinely different seatings.
- *  - `same`    — everyone on the same side of the device, all upright.
- *    Useful when one person is holding the phone and others lean in.
- *  - `line`    — single row of upright panels. Sized for landscape
- *    tablets / desktops; only sensible at 4p.
+ * Layout ids are opaque strings — the frontend's board-layouts registry
+ * defines the actual seat placements, and the server treats the field as
+ * a free-form persistence token. Unknown ids fall back to a default at
+ * render time, so adding/removing layouts on the client never invalidates
+ * persisted games.
  */
-export type GameLayout = 'pod' | 'pod-alt' | 'same' | 'line';
+export type GameLayout = string;
 
 export type GameFormat =
   | 'commander'
