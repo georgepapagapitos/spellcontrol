@@ -49,6 +49,12 @@ export function Header() {
               </span>
             )}
           </NavLink>
+          <NavLink
+            to="/play"
+            className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
+          >
+            <span>Play</span>
+          </NavLink>
         </nav>
         <nav className="site-nav">
           <NavLink

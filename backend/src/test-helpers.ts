@@ -7,6 +7,7 @@ import * as schema from './db/schema';
 import { setDbForTesting, closeDb } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
+import { gamesRouter } from './routes/games';
 
 /**
  * Returns a Postgres connection string for tests. Falls back to a sensible
@@ -68,7 +69,18 @@ export async function createTestEnv(): Promise<TestEnv> {
       collection JSONB,
       binders JSONB NOT NULL DEFAULT '[]'::jsonb,
       decks JSONB NOT NULL DEFAULT '[]'::jsonb,
+      games JSONB NOT NULL DEFAULT '[]'::jsonb,
       version INTEGER NOT NULL DEFAULT 0,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE TABLE game_sessions (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      state JSONB NOT NULL,
+      version INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     );
   `);
@@ -81,6 +93,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use(express.json({ limit: '10mb' }));
   app.use('/api/auth', authRouter);
   app.use('/api/sync', syncRouter);
+  app.use('/api/games', gamesRouter);
 
   return {
     app,

@@ -1,0 +1,740 @@
+/* ── Play page ─────────────────────────────────────────────────────────────
+ *
+ * Local games rotate seat panels so each player reads upright when sitting
+ * around a shared device. Online games never rotate — the viewer is always
+ * looking at their own screen.
+ *
+ * All colors flow through theme tokens (--accent / --surface / --text /
+ * --err-* / --warn-*) so the page reskins automatically per guild theme.
+ */
+
+.play-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.play-page-header h1 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0;
+}
+
+.play-tabs {
+  display: inline-flex;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+  gap: 0.25rem;
+}
+
+.play-tab {
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.play-tab.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.play-tab-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--warn-text);
+  display: inline-block;
+}
+
+.play-tab.is-active .play-tab-dot {
+  background: var(--on-accent);
+}
+
+.play-tab-count {
+  background: var(--accent-light);
+  color: inherit;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  padding: 0 0.45rem;
+  min-width: 1.25rem;
+  text-align: center;
+}
+
+/* ── Setup forms ─────────────────────────────────────────────────────────── */
+
+.play-setup {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-setup-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+.play-setup-help {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.play-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-field input,
+.play-field select {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.play-field input:focus,
+.play-field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.play-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-field-checkbox input {
+  accent-color: var(--accent);
+}
+
+.play-setup-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.play-setup-player {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  background: var(--surface2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.play-setup-player legend {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  padding: 0 0.4rem;
+}
+
+.play-setup-start {
+  align-self: flex-start;
+}
+
+.play-online-modes {
+  display: inline-flex;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+  gap: 0.2rem;
+  align-self: flex-start;
+}
+
+.play-online-mode {
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+}
+
+.play-online-mode.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ── Board layout ────────────────────────────────────────────────────────── */
+
+.play-board {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-code-banner {
+  background: var(--accent-light);
+  color: var(--text);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.play-code-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text2);
+}
+
+.play-code-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.play-code-hint {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  flex: 1;
+  min-width: 200px;
+}
+
+.play-board-error {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border: 0.5px solid var(--err-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-sm);
+}
+
+.play-seats {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.play-seats-2 {
+  grid-template-columns: 1fr;
+}
+
+.play-seats-3 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.play-seats-3 > :nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.play-seats-4 {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (min-width: 720px) {
+  .play-seats-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Seat panel ──────────────────────────────────────────────────────────── */
+
+.play-seat {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  /* Rotation transform set inline per seat. transform-origin defaults to
+     center which is what we want — the panel spins in place. */
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.play-seat.is-mine {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-light);
+}
+
+.play-seat.is-eliminated {
+  opacity: 0.55;
+  background: var(--surface2);
+}
+
+.play-seat.is-winner {
+  border-color: var(--warn-border);
+  background: linear-gradient(180deg, var(--warn-bg) 0%, var(--surface) 60%);
+}
+
+.play-seat-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.play-seat-name {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.play-seat-host {
+  color: var(--warn-text);
+  font-size: var(--text-sm);
+}
+
+.play-seat-offline {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-weight: 400;
+}
+
+.play-seat-deck {
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-seat-commander {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-style: italic;
+}
+
+.play-seat-life-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.play-seat-life {
+  font-family: var(--font-mono);
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  line-height: 1;
+}
+
+.is-eliminated .play-seat-life {
+  text-decoration: line-through;
+}
+
+.is-winner .play-seat-life {
+  color: var(--warn-text);
+}
+
+.play-life-btn {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 0.6rem 0.75rem;
+  font-size: var(--text-md);
+  min-width: 2.5rem;
+  font-weight: 600;
+}
+
+.play-life-btn:hover:not(:disabled) {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+.play-life-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.play-life-btn--big {
+  font-size: var(--text-lg);
+}
+
+.play-seat-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.play-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.play-counter-label {
+  color: var(--text2);
+  margin-right: 0.2rem;
+}
+
+.play-counter-btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: var(--text-md);
+  min-width: 1.6rem;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+}
+
+.play-counter-btn:disabled {
+  opacity: 0.4;
+}
+
+.play-counter-value {
+  font-family: var(--font-mono);
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.play-counter-toggle {
+  background: transparent;
+  border: 0.5px solid var(--border);
+  color: var(--text2);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: var(--text-xs);
+}
+
+.play-cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.4rem;
+}
+
+.play-cmd-cell {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.play-cmd-cell.is-lethal {
+  border-color: var(--err-border);
+  background: var(--err-bg);
+  color: var(--err-text);
+}
+
+.play-cmd-cell-from {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.play-cmd-cell.is-lethal .play-cmd-cell-from {
+  color: var(--err-text);
+}
+
+.play-cmd-cell-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.play-cmd-cell-value {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+}
+
+.play-seat-eliminate {
+  align-self: flex-start;
+  background: transparent;
+  border: 0.5px solid var(--border);
+  color: var(--text2);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: var(--text-sm);
+}
+
+.play-seat-eliminate:hover {
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+.is-eliminated .play-seat-eliminate {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Toolbar + log ───────────────────────────────────────────────────────── */
+
+.play-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.play-toolbar-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-toolbar-format {
+  text-transform: capitalize;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.play-toolbar-dot {
+  color: var(--text3);
+}
+
+.play-toolbar-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pill-btn-danger {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+.play-log {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+}
+
+.play-log summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-log-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: var(--text-sm);
+}
+
+.play-log-item {
+  display: flex;
+  gap: 0.5rem;
+  color: var(--text2);
+}
+
+.play-log-item time {
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  min-width: 4.5rem;
+}
+
+.play-log-item.kind-end,
+.play-log-item.kind-start {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.play-log-item.kind-eliminate {
+  color: var(--err-text);
+}
+
+/* ── History ─────────────────────────────────────────────────────────────── */
+
+.play-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-records {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.play-records-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.play-records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.play-records-table th,
+.play-records-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.play-records-table th {
+  font-weight: 600;
+  color: var(--text2);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.play-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.play-history-item {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.play-history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+}
+
+.play-history-format {
+  background: var(--accent-light);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.play-history-mode {
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.play-history-date {
+  flex: 1;
+}
+
+.play-history-remove {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.play-history-winner {
+  font-size: var(--text-sm);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.play-history-duration {
+  color: var(--text3);
+  font-weight: 400;
+}
+
+.play-history-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.play-history-players li.is-winner {
+  color: var(--warn-text);
+  font-weight: 500;
+}
+
+.play-history-player-name {
+  margin-right: 0.4rem;
+  color: var(--text);
+}
+
+.play-history-player-deck {
+  color: var(--text3);
+  margin-right: 0.4rem;
+  font-style: italic;
+}
+
+.play-history-player-life {
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

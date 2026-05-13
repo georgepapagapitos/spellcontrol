@@ -57,6 +57,17 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-label">Decks</span>
       </NavLink>
       <NavLink
+        to="/play"
+        className={({ isActive }) =>
+          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
+        }
+      >
+        <span className="mobile-tab-bar-glyph">
+          <PlayIcon />
+        </span>
+        <span className="mobile-tab-bar-label">Play</span>
+      </NavLink>
+      <NavLink
         to="/settings"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
@@ -115,6 +126,15 @@ function DeckIcon() {
     <svg {...ICON_BASE}>
       <rect x="3" y="7" width="13" height="14" rx="1.8" />
       <path d="M8 4h11a2 2 0 0 1 2 2v11" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  // Heart silhouette — life total.
+  return (
+    <svg {...ICON_BASE}>
+      <path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 8-3 4.5 4.5 0 0 1 8 3c-2 4.5-7 9-7 9Z" />
     </svg>
   );
 }
