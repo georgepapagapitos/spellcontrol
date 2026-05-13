@@ -105,7 +105,8 @@ export type SortField =
   | 'setName'
   | 'price'
   | 'edhrec'
-  | 'collectorNumber';
+  | 'collectorNumber'
+  | 'quantity';
 
 export type SortDir = 'asc' | 'desc';
 
