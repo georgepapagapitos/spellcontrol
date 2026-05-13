@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
@@ -13,6 +14,7 @@ export function BinderTabs({ binders }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+  const navigate = useNavigate();
   const moveBinder = useCollectionStore((s) => s.moveBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
@@ -50,7 +52,10 @@ export function BinderTabs({ binders }: Props) {
           <div key={b.def.id} className={`binder-tab-group ${isActive ? 'active' : ''}`}>
             <button
               className={`tab ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(b.def.id)}
+              onClick={() => {
+                setActiveTab(b.def.id);
+                navigate(`/binders/${b.def.id}`);
+              }}
               style={
                 isActive
                   ? {

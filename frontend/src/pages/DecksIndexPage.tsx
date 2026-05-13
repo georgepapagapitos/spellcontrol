@@ -5,6 +5,7 @@ import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { Deck } from '../store/decks';
@@ -49,6 +50,19 @@ function deckValue(deck: Deck): number {
 }
 
 const STORAGE_KEY = 'decks-index-sort';
+const VIEW_KEY = 'mtg-decks-view-mode';
+
+type DecksViewMode = 'grid' | 'list' | 'compact';
+
+function readStoredView(): DecksViewMode {
+  try {
+    const v = localStorage.getItem(VIEW_KEY);
+    if (v === 'grid' || v === 'list' || v === 'compact') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'grid';
+}
 
 function loadSort(): { field: DeckSortField; dir: SortDir } {
   try {
@@ -87,28 +101,40 @@ export function DecksIndexPage() {
 
   const [sortField, setSortField] = useState<DeckSortField>(loadSort().field);
   const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
+  const [view, setViewRaw] = useState<DecksViewMode>(readStoredView);
+  const setView = (v: DecksViewMode) => {
+    setViewRaw(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const persistSort = useCallback((field: DeckSortField, dir: SortDir) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ field, dir }));
   }, []);
 
-  const handleFieldChange = useCallback(
+  // Combined sort pill: clicking the active field flips direction;
+  // clicking a different field switches to it with its default direction.
+  // Mirrors the collection page so the gesture is consistent app-wide.
+  const toggleSort = useCallback(
     (field: DeckSortField) => {
-      const dir = DECK_SORT_DEFAULT_DIR[field];
-      setSortField(field);
-      setSortDir(dir);
-      persistSort(field, dir);
+      if (field === sortField) {
+        setSortDir((prev) => {
+          const next = prev === 'asc' ? 'desc' : 'asc';
+          persistSort(sortField, next);
+          return next;
+        });
+      } else {
+        const dir = DECK_SORT_DEFAULT_DIR[field];
+        setSortField(field);
+        setSortDir(dir);
+        persistSort(field, dir);
+      }
     },
-    [persistSort]
+    [sortField, persistSort]
   );
-
-  const handleDirToggle = useCallback(() => {
-    setSortDir((prev) => {
-      const next = prev === 'asc' ? 'desc' : 'asc';
-      persistSort(sortField, next);
-      return next;
-    });
-  }, [sortField, persistSort]);
 
   const sorted = useMemo(() => {
     return [...decks].sort((a, b) => {
@@ -181,23 +207,30 @@ export function DecksIndexPage() {
         </div>
       </header>
 
-      {sorted.length > 1 && (
+      {sorted.length > 0 && (
         <div className="decks-index-sort-bar">
-          <SelectMenu
-            value={sortField}
-            options={DECK_SORT_OPTIONS}
-            onChange={handleFieldChange}
-            label="Sort"
-            ariaLabel="Sort decks by"
+          {sorted.length > 1 && (
+            <SelectMenu
+              value={sortField}
+              options={DECK_SORT_OPTIONS}
+              onChange={toggleSort}
+              ariaLabel="Sort decks by"
+              closeOnSelect={false}
+              leadingIcon={<SortDirArrow dir={sortDir} />}
+              renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
+            />
+          )}
+          <ViewModeToggle<DecksViewMode>
+            ariaLabel="Decks view mode"
+            className="decks-index-viewmode"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'grid', label: 'Grid view', icon: <GridIcon /> },
+              { value: 'list', label: 'List view', icon: <ListIcon /> },
+              { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+            ]}
           />
-          <button
-            type="button"
-            className="toolbar-pill decks-index-sort-dir"
-            aria-label={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-            onClick={handleDirToggle}
-          >
-            {sortDir === 'asc' ? '↑' : '↓'}
-          </button>
         </div>
       )}
 
@@ -224,7 +257,7 @@ export function DecksIndexPage() {
           </div>
         </div>
       ) : (
-        <ul className="decks-index-list">
+        <ul className={`decks-index-list is-${view}`}>
           {sorted.map((deck) => {
             const totalCards =
               (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
@@ -242,7 +275,7 @@ export function DecksIndexPage() {
             return (
               <li key={deck.id} className="decks-index-card">
                 <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
-                  {art && (
+                  {view !== 'compact' && art && (
                     <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
                   )}
                   <div className="decks-index-card-body">
@@ -267,7 +300,7 @@ export function DecksIndexPage() {
                         {totalCards} cards · {deck.source === 'generated' ? 'Generated' : 'Manual'}
                       </span>
                     </div>
-                    {themes.length > 0 && (
+                    {view !== 'compact' && themes.length > 0 && (
                       <div className="decks-index-card-themes">
                         {themes.map((t) => (
                           <span key={t.slug ?? t.name} className="decks-index-card-theme-chip">
@@ -393,5 +426,98 @@ function DeckCardMenu({
         </>
       )}
     </div>
+  );
+}
+
+function SortDirArrow({ dir }: { dir: SortDir }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {dir === 'asc' ? (
+        <>
+          <path d="M12 4v16" />
+          <path d="m6 10 6-6 6 6" />
+        </>
+      ) : (
+        <>
+          <path d="M12 4v16" />
+          <path d="m6 14 6 6 6-6" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function ListIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="4" cy="6" r="0.5" />
+      <circle cx="4" cy="12" r="0.5" />
+      <circle cx="4" cy="18" r="0.5" />
+    </svg>
+  );
+}
+
+function CompactListIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 6h18" />
+      <path d="M3 10h18" />
+      <path d="M3 14h18" />
+      <path d="M3 18h18" />
+    </svg>
   );
 }

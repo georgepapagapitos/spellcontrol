@@ -7,6 +7,7 @@ import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { BackLink } from '../components/BackLink';
 import { useToastsStore } from '../store/toasts';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -220,6 +221,7 @@ export function DeckEditorPage() {
 
   return (
     <div className="deck-editor-page">
+      <BackLink to="/decks" label="All decks" />
       <header className="deck-editor-header">
         <div className="deck-editor-hero">
           {renaming ? (
