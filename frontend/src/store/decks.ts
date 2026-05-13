@@ -446,11 +446,93 @@ export const useDecksStore = create<DecksState>()(
             }
           }
 
-          // Pass 1: preserve still-valid bindings. A binding is valid if
-          // the copy exists, still has the same name (defensive — guards
-          // against renames in user-edited collections), and isn't claimed.
+          // Index free copies by name → scryfallId → list, so pass 2 can
+          // cheaply ask "is there a free copy of name N with printing P?"
+          // without rescanning the whole collection per slot.
+          const freeByNameByPrinting = new Map<string, Map<string, EnrichedCard[]>>();
+          for (const c of newCollection) {
+            if (allocated.has(c.copyId)) continue;
+            let byPrinting = freeByNameByPrinting.get(c.name);
+            if (!byPrinting) {
+              byPrinting = new Map();
+              freeByNameByPrinting.set(c.name, byPrinting);
+            }
+            const list = byPrinting.get(c.scryfallId) ?? [];
+            list.push(c);
+            byPrinting.set(c.scryfallId, list);
+          }
+          const removeFromFree = (copy: EnrichedCard): void => {
+            const byPrinting = freeByNameByPrinting.get(copy.name);
+            if (!byPrinting) return;
+            const list = byPrinting.get(copy.scryfallId);
+            if (!list) return;
+            const idx = list.indexOf(copy);
+            if (idx >= 0) list.splice(idx, 1);
+            if (list.length === 0) byPrinting.delete(copy.scryfallId);
+            if (byPrinting.size === 0) freeByNameByPrinting.delete(copy.name);
+          };
+
+          // Pass 1 — exact preserve: keep the current binding when the copy
+          // exists, still has the same name, and (if the slot expresses a
+          // preferred printing) the current copy is that printing. This is
+          // the strongest signal of "the user already chose this," so it
+          // gets first dibs on copies.
           const needsPick: SlotRef[] = [];
           for (const slot of slots) {
+            const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
+            const printingOk =
+              !slot.scryfallId || (current ? current.scryfallId === slot.scryfallId : false);
+            if (
+              slot.currentCopyId &&
+              current &&
+              current.name === slot.cardName &&
+              printingOk &&
+              !allocated.has(slot.currentCopyId)
+            ) {
+              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+              removeFromFree(current);
+            } else {
+              needsPick.push(slot);
+            }
+          }
+
+          // Pass 2 — printing upgrade: a slot bound to a wrong-printing copy
+          // (or unbound) gets a free same-printing copy if one exists. This
+          // is the corrective step that unsticks the basic-lands case where
+          // pre-fix randomness left slots on whatever Plains was cheap.
+          const stillNeedsPick: SlotRef[] = [];
+          for (const slot of needsPick) {
+            if (!slot.scryfallId) {
+              stillNeedsPick.push(slot);
+              continue;
+            }
+            const byPrinting = freeByNameByPrinting.get(slot.cardName);
+            const list = byPrinting?.get(slot.scryfallId);
+            if (list && list.length > 0) {
+              // Match pickCollectionCopy's secondary preferences: nonfoil > foil,
+              // then cheapest. Same scryfallId means same printing, but finish
+              // and price still vary.
+              list.sort((a, b) => {
+                const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
+                const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
+                const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
+                if (aRank !== bRank) return aRank - bRank;
+                return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
+              });
+              const pick = list[0];
+              claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              removeFromFree(pick);
+              slot.apply(pick.copyId);
+            } else {
+              stillNeedsPick.push(slot);
+            }
+          }
+
+          // Pass 3 — preserve fallback: no matching-printing copy was free, but
+          // the current binding (wrong printing) is still a valid name match.
+          // Keep it rather than churning to a different wrong-printing copy.
+          const needsFreshPick: SlotRef[] = [];
+          for (const slot of stillNeedsPick) {
             const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
             if (
               slot.currentCopyId &&
@@ -459,13 +541,16 @@ export const useDecksStore = create<DecksState>()(
               !allocated.has(slot.currentCopyId)
             ) {
               claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+              removeFromFree(current);
             } else {
-              needsPick.push(slot);
+              needsFreshPick.push(slot);
             }
           }
 
-          // Pass 2: pick fresh copies for slots that lost their binding.
-          for (const slot of needsPick) {
+          // Pass 4 — fresh pick: anything left has no usable current binding
+          // and no preferred printing available; fall back to pickCollectionCopy's
+          // name-only heuristic (cheapest non-foil).
+          for (const slot of needsFreshPick) {
             const pick = pickCollectionCopy(
               slot.cardName,
               newCollection,
@@ -474,6 +559,7 @@ export const useDecksStore = create<DecksState>()(
             );
             if (pick) {
               claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              removeFromFree(pick);
               slot.apply(pick.copyId);
             } else {
               slot.apply(null);

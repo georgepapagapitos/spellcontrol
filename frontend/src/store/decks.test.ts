@@ -225,6 +225,79 @@ describe('remapAllocations', () => {
     expect(deck.sideboard[0].allocatedCopyId).toBe('new-sb');
   });
 
+  it('upgrades a wrong-printing binding to the slot preferred printing when free', () => {
+    // Pre-fix code may have shuffled this slot onto a same-name but wrong-
+    // printing copy. Stability alone preserved the wrong binding forever.
+    // The corrective pass must swap to the preferred printing when free.
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          cards: [slot('Plains', 'wrong-printing-copy', 'sf-preferred')],
+        }),
+      ],
+    });
+
+    const collection = [
+      enriched({
+        copyId: 'wrong-printing-copy',
+        name: 'Plains',
+        scryfallId: 'sf-other',
+        setCode: 'M20',
+      }),
+      enriched({
+        copyId: 'right-printing-copy',
+        name: 'Plains',
+        scryfallId: 'sf-preferred',
+        setCode: 'ECL',
+      }),
+    ];
+    useDecksStore.getState().remapAllocations(collection);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('right-printing-copy');
+  });
+
+  it('keeps wrong-printing binding when no preferred-printing copy is free', () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          cards: [slot('Plains', 'wrong-printing-copy', 'sf-preferred')],
+        }),
+      ],
+    });
+
+    // Only the wrong printing is owned — don't churn, keep what we have.
+    const collection = [
+      enriched({ copyId: 'wrong-printing-copy', name: 'Plains', scryfallId: 'sf-other' }),
+    ];
+    useDecksStore.getState().remapAllocations(collection);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('wrong-printing-copy');
+  });
+
+  it('distributes scarce preferred-printing copies fairly across slots', () => {
+    // Two slots want printing X. Only one copy of X is owned. The other
+    // slot should fall back to a free non-preferred copy rather than be
+    // unowned.
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          cards: [slot('Plains', 'old-1', 'sf-preferred'), slot('Plains', 'old-2', 'sf-preferred')],
+        }),
+      ],
+    });
+
+    const collection = [
+      enriched({ copyId: 'pref', name: 'Plains', scryfallId: 'sf-preferred' }),
+      enriched({ copyId: 'other', name: 'Plains', scryfallId: 'sf-other' }),
+    ];
+    useDecksStore.getState().remapAllocations(collection);
+
+    const allocated = useDecksStore.getState().decks[0].cards.map((c) => c.allocatedCopyId);
+    expect(allocated).toContain('pref');
+    expect(allocated).toContain('other');
+    expect(new Set(allocated).size).toBe(2);
+  });
+
   it('preserves existing binding when the allocated copy still exists', () => {
     useDecksStore.setState({
       decks: [
