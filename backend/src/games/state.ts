@@ -11,21 +11,23 @@
 
 /**
  * Visual arrangement of player panels on the board. Affects only how seats
- * are rendered — the game logic is layout-agnostic. Values:
+ * are rendered — the game logic is layout-agnostic.
  *
- *  - `default` — auto layout per player count, with seats on the far side
- *    of a shared device rotated 180° so they read upright when the phone
- *    is passed (e.g. 2x2 for 4p; 2+2+1 for 5p).
- *  - `same`    — same grid as `default` but no rotation, so every panel
- *    reads upright from one side of the device.
- *  - `row`     — single horizontal row of panels, no rotation. Best on a
- *    tablet or desktop held landscape.
+ * Each layout id maps (per-count) to a CSS-grid template plus an array of
+ * per-seat rotations (0° or 180°, never 90°). The mapping lives in the
+ * client-side layout registry — the server only persists the id.
  *
- * Layouts use only 0° and 180° rotations — never 90° — so text never reads
- * sideways. Grid + rotation choices are encoded in the layout registry on
- * the client.
+ *  - `pod`     — across-the-table. Panels split between two sides of the
+ *    device; the "far" side reads upside-down so a passed phone faces
+ *    each player. The default for every count.
+ *  - `pod-alt` — the asymmetric inverse of `pod`, used by odd counts
+ *    (3p, 5p) where 1v2 and 2v1 are genuinely different seatings.
+ *  - `same`    — everyone on the same side of the device, all upright.
+ *    Useful when one person is holding the phone and others lean in.
+ *  - `line`    — single row of upright panels. Sized for landscape
+ *    tablets / desktops; only sensible at 4p.
  */
-export type GameLayout = 'default' | 'same' | 'row';
+export type GameLayout = 'pod' | 'pod-alt' | 'same' | 'line';
 
 export type GameFormat =
   | 'commander'
@@ -100,7 +102,7 @@ export interface GameState {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
-  /** Visual arrangement of player panels. Defaults to 'default'. */
+  /** Visual arrangement of player panels. Defaults to 'pod'. */
   layout: GameLayout;
   players: GamePlayer[];
   events: GameEvent[];
@@ -258,7 +260,7 @@ export function createGameState(input: {
     startingLife: input.startingLife,
     commanderDamageEnabled: input.commanderDamageEnabled,
     poisonEnabled: input.poisonEnabled,
-    layout: input.layout ?? 'default',
+    layout: input.layout ?? 'pod',
     players: input.players,
     events: [],
     winnerSeat: null,
