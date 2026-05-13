@@ -7617,3 +7617,202 @@ hr {
 .settings-card--danger .settings-card-title {
   color: var(--err-text);
 }
+
+/* ── Admin / debug page ─────────────────────────────────────────────── */
+.admin-page {
+  padding: 1rem 0 4rem;
+}
+.admin-header h1 {
+  margin: 0 0 0.25rem;
+}
+.admin-sub {
+  color: var(--muted, #888);
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+.admin-sub code {
+  background: var(--surface2);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border, #333);
+  margin: 1rem 0;
+}
+.admin-tab {
+  background: none;
+  border: none;
+  padding: 0.5rem 0.9rem;
+  color: inherit;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-size: 0.9rem;
+}
+.admin-tab:hover {
+  background: var(--surface2);
+}
+.admin-tab--active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+.admin-section {
+  margin: 1.25rem 0;
+}
+.admin-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+.admin-section h3 {
+  margin: 1.25rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+  vertical-align: top;
+}
+.admin-table th {
+  font-weight: 600;
+  color: var(--muted, #aaa);
+}
+.admin-table--dense td,
+.admin-table--dense th {
+  padding: 0.2rem 0.45rem;
+}
+.admin-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: var(--muted, #888);
+}
+.admin-err {
+  color: var(--err-text);
+  font-weight: 600;
+}
+.admin-row--err {
+  background: var(--err-bg);
+}
+.admin-row--err td {
+  color: var(--err-text);
+}
+.admin-warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--warn-border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.admin-deck-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+}
+@media (max-width: 720px) {
+  .admin-deck-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.admin-deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+}
+.admin-deck-list li {
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.admin-deck-link {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.admin-deck-link:hover {
+  background: var(--surface2);
+}
+.admin-deck-link.is-active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.admin-deck-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.admin-deck-meta {
+  font-size: 0.75rem;
+  color: var(--muted, #888);
+}
+.admin-claim-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.admin-search {
+  width: 100%;
+  max-width: 320px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
+  background: var(--surface2);
+  color: inherit;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+}
+.admin-danger-h {
+  color: var(--err-text);
+}
+.admin-danger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-danger button {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border: 1px solid var(--err-border);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-danger button:hover {
+  filter: brightness(1.15);
+}
+.admin-raw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-raw-actions button {
+  background: var(--surface2);
+  color: inherit;
+  border: 1px solid var(--border, #333);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-raw-actions button:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.admin-footer-note {
+  margin-top: 2rem;
+}
