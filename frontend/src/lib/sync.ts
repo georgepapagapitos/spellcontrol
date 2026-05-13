@@ -2,7 +2,12 @@ import { fetchSync, putSync, type SyncSnapshot } from './auth-api';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
-import { saveCollection, clearCollection, type StoredCollection } from './local-cards';
+import {
+  loadCollection,
+  saveCollection,
+  clearCollection,
+  type StoredCollection,
+} from './local-cards';
 import type { Deck } from '../store/decks';
 import type { BinderDef } from '../types';
 import type { GameRecord } from './game-state';
@@ -11,29 +16,35 @@ import { consumeImmediateFlush } from './sync-intent';
 /**
  * Sync model: server is the source of truth for authed users.
  *
- * Local storage (zustand persist + IndexedDB) is treated as a cache for fast
- * reload and offline reads. It is never merged with the server. The store's
- * current state IS the "pending push" payload; a single dirty flag in
- * localStorage records whether there are unpushed changes across reloads.
+ * Local storage (zustand persist + IndexedDB) is a write-through cache plus a
+ * dirty marker. On boot we hydrate the in-memory store from the cache BEFORE
+ * any network decision, then sync in the background. The current store state
+ * is the "pending push" payload; a single dirty flag in localStorage carries
+ * unpushed-changes state across reloads.
  *
- *   • startSync(userId): if dirty (or this is a new owner), push current state.
- *     Then fetch server and overwrite stores. On 409: server wins for the
- *     refresh, then re-push our current state on top.
- *   • Subscribers: any store change marks dirty and schedules a push.
- *     Destructive mutators (clearCards, deleteBinder, ...) flag the next push
- *     as immediate via sync-intent, bypassing the debounce.
+ * Invariants:
+ *   • pushNow() refuses to run until cacheHydrated is true. This prevents an
+ *     empty store (cards default to [] because zustand persist doesn't cover
+ *     them) from overwriting a populated server.
+ *   • applyServerSnapshot() is skipped if the user mutated state during the
+ *     fetch window. Their intent wins; the next push reconciles.
+ *   • Subscribers attach after cache hydration, so the hydration setState
+ *     never triggers spurious pushes.
  */
 
 const DEBOUNCE_MS = 500;
 const VERSION_KEY = 'spellcontrol-sync-base-version';
 const DIRTY_KEY = 'spellcontrol-sync-dirty';
 const OWNER_KEY = 'spellcontrol-sync-owner';
+const LEGACY_META_KEY = 'spellcontrol-sync-meta';
 
 let currentVersion = 0;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let pushing = false;
 let pushPending = false;
 let isApplyingServer = false;
+let cacheHydrated = false;
+let mutationCount = 0;
 let unsubscribers: Array<() => void> = [];
 
 type SyncedListener = () => void;
@@ -114,13 +125,38 @@ function buildCollection(): StoredCollection | null {
   };
 }
 
+function hasLocalData(): boolean {
+  return (
+    useCollectionStore.getState().binders.length > 0 ||
+    useCollectionStore.getState().cards.length > 0 ||
+    useDecksStore.getState().decks.length > 0 ||
+    usePlayStore.getState().history.length > 0
+  );
+}
+
+function isServerEmpty(snap: SyncSnapshot): boolean {
+  return (
+    !snap.collection &&
+    (!Array.isArray(snap.binders) || snap.binders.length === 0) &&
+    (!Array.isArray(snap.decks) || snap.decks.length === 0) &&
+    (!Array.isArray(snap.games) || snap.games.length === 0)
+  );
+}
+
 async function pushNow(): Promise<void> {
   if (pushing) {
     pushPending = true;
     return;
   }
+  if (!cacheHydrated) {
+    // Safety belt. The store may not yet reflect the IndexedDB cache, in
+    // which case pushing would overwrite the server with empty cards. The
+    // caller (startSync) is responsible for hydrating before allowing pushes.
+    return;
+  }
   if (!isDirty()) return;
   pushing = true;
+  const countAtStart = mutationCount;
   try {
     const result = await putSync({
       collection: buildCollection(),
@@ -130,7 +166,12 @@ async function pushNow(): Promise<void> {
       baseVersion: currentVersion,
     });
     persistVersion(result.version);
-    clearDirty();
+    if (mutationCount === countAtStart) {
+      // No mutation happened during the push round-trip — the payload we sent
+      // is current. Clear the dirty marker. If a mutation DID happen, leave
+      // dirty set so the finally-block reschedules a push.
+      clearDirty();
+    }
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
     if (e.status === 409 && e.current) {
@@ -145,8 +186,9 @@ async function pushNow(): Promise<void> {
     }
   } finally {
     pushing = false;
-    if (pushPending) {
-      pushPending = false;
+    const moreToPush = pushPending || mutationCount !== countAtStart;
+    pushPending = false;
+    if (moreToPush) {
       schedulePush(true);
     }
   }
@@ -167,6 +209,40 @@ function schedulePush(immediate = false): void {
       pushTimer = null;
       void pushNow();
     }, DEBOUNCE_MS);
+  }
+}
+
+async function hydrateFromCache(): Promise<void> {
+  // Apply the IndexedDB-stored collection to the in-memory store. Wrapped in
+  // isApplyingServer so attached subscribers (if any) don't observe this as a
+  // user mutation. Cards live in IndexedDB only — zustand persist excludes
+  // them due to size — so without this step pushNow() would see cards=[].
+  isApplyingServer = true;
+  try {
+    let stored: StoredCollection | null = null;
+    try {
+      stored = await loadCollection();
+    } catch (err) {
+      console.warn('[sync] cache hydrate failed:', err);
+    }
+    if (stored) {
+      useCollectionStore.setState({
+        cards: stored.cards,
+        fileName: stored.fileName,
+        scryfallHits: stored.scryfallHits,
+        scryfallMisses: stored.scryfallMisses,
+        uploadedAt: stored.uploadedAt,
+        importHistory: stored.importHistory ?? [],
+        hydrating: false,
+      });
+    } else {
+      // Nothing cached but mark hydration complete so the UI stops showing a
+      // loading state.
+      useCollectionStore.setState({ hydrating: false });
+    }
+  } finally {
+    isApplyingServer = false;
+    cacheHydrated = true;
   }
 }
 
@@ -217,6 +293,7 @@ function handleVisibilityChange(): void {
 }
 
 function handleBeforeUnload(): void {
+  if (!cacheHydrated) return;
   if (!pushTimer && !pushing && !isDirty()) return;
   if (pushTimer) {
     clearTimeout(pushTimer);
@@ -253,14 +330,20 @@ function attachSubscribers(): void {
   detachSubscribers();
   const u1 = useCollectionStore.subscribe((state, prev) => {
     if (state.binders === prev.binders && state.cards === prev.cards) return;
+    if (isApplyingServer) return;
+    mutationCount++;
     schedulePush();
   });
   const u2 = useDecksStore.subscribe((state, prev) => {
     if (state.decks === prev.decks) return;
+    if (isApplyingServer) return;
+    mutationCount++;
     schedulePush();
   });
   const u3 = usePlayStore.subscribe((state, prev) => {
     if (state.history === prev.history) return;
+    if (isApplyingServer) return;
+    mutationCount++;
     schedulePush();
   });
   unsubscribers = [u1, u2, u3];
@@ -286,26 +369,34 @@ function detachSubscribers(): void {
 }
 
 /**
- * Pull the server snapshot and overwrite local state. Called once after login.
+ * Pull the server snapshot and reconcile with local state. Called once after
+ * login.
  *
- * Pass the authed user's id so we can detect cross-user persisted state and
- * wipe it before pushing to the wrong account.
+ * Flow:
+ *   1. Hydrate IndexedDB cache into the store (so cards reflect reality).
+ *   2. Attach subscribers (so user mutations during the fetch get observed).
+ *   3. If dirty (unpushed local changes), push them.
+ *   4. Fetch server snapshot.
+ *   5. Reconcile:
+ *      - If user mutated during the fetch window: skip server apply, just
+ *        record the new base version. The user's push is already queued.
+ *      - Else if server is empty and we have local data: promote local
+ *        (handles guest → authed signup flow).
+ *      - Else: apply server snapshot (overwrite).
  */
 export async function startSync(userId?: string): Promise<void> {
   syncedState = 'syncing';
   emitSynced();
 
-  // Migrate legacy sync-meta from the merge era — no longer used.
+  // Drop legacy sync-meta from the pre-#153 merge era.
   try {
-    localStorage.removeItem('spellcontrol-sync-meta');
+    localStorage.removeItem(LEGACY_META_KEY);
   } catch {
     /* ignore */
   }
 
-  // Cross-user safety: if persist'd state belongs to a different user, wipe
-  // before we contaminate their account with the previous user's snapshot.
-  // (The normal logout flow already wipes; this guards against stale cookies
-  // and edge cases.)
+  // Cross-user safety: if persisted state belongs to a different user, wipe
+  // before contaminating their account.
   if (userId) {
     let owner: string | null = null;
     try {
@@ -321,39 +412,45 @@ export async function startSync(userId?: string): Promise<void> {
     } catch {
       /* ignore */
     }
-    // First sync after switching from guest (no prior owner): treat local
-    // state as a pending push so guest binders/decks are promoted into the
-    // newly authed account.
-    if (!owner) {
-      const hasLocal =
-        useCollectionStore.getState().binders.length > 0 ||
-        useDecksStore.getState().decks.length > 0 ||
-        useCollectionStore.getState().cards.length > 0 ||
-        usePlayStore.getState().history.length > 0;
-      if (hasLocal) setDirty();
-    }
   }
 
   loadVersion();
+  await hydrateFromCache();
+  attachSubscribers();
 
-  // If we have unpushed local changes, send them first. Server is then
-  // guaranteed to reflect the user's most recent intent before we overwrite
-  // the store from a fetch.
+  // Push any unpushed local changes first, so the server reflects the most
+  // recent local intent before we apply the fetched snapshot.
   if (isDirty()) {
     await pushNow();
   }
 
-  // Fetch the authoritative snapshot and overwrite local state. No merge.
+  const mutationCountAtFetchStart = mutationCount;
+
+  let snap: SyncSnapshot | null = null;
   try {
-    const snap = await fetchSync();
-    await applyServerSnapshot(snap);
-    // If our push above didn't run or didn't fully cover our state, the
-    // subscriber chain hasn't been attached yet so the overwrite is clean.
+    snap = await fetchSync();
   } catch (err) {
     console.warn('[sync] fetch on startSync failed:', err);
   }
 
-  attachSubscribers();
+  if (snap) {
+    if (mutationCount !== mutationCountAtFetchStart) {
+      // The user mutated state during the fetch window. Their intent is
+      // fresher than the server's reply — don't overwrite. Just record the
+      // server's version so the next push uses the right base. Their push
+      // is already queued by the subscriber.
+      persistVersion(snap.version);
+    } else if (isServerEmpty(snap) && hasLocalData()) {
+      // Guest promotion path: a newly authed user has local data but the
+      // server account is empty. Push local up.
+      persistVersion(snap.version);
+      setDirty();
+      await pushNow();
+    } else {
+      await applyServerSnapshot(snap);
+    }
+  }
+
   syncedState = 'ready';
   emitSynced();
 }
@@ -371,8 +468,10 @@ export async function stopSyncAndWipeLocal(): Promise<void> {
 
 async function wipeLocal(): Promise<void> {
   currentVersion = 0;
+  cacheHydrated = false;
+  mutationCount = 0;
   clearDirty();
-  for (const key of [VERSION_KEY, OWNER_KEY, 'spellcontrol-sync-meta']) {
+  for (const key of [VERSION_KEY, OWNER_KEY, LEGACY_META_KEY]) {
     try {
       localStorage.removeItem(key);
     } catch {

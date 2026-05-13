@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CollectionPage } from './pages/CollectionPage';
@@ -12,18 +12,13 @@ import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './store/auth';
-import { startSync, getSyncState, onSyncedChange } from './lib/sync';
+import { startSync } from './lib/sync';
 
 export default function App() {
   const status = useAuth((s) => s.status);
   const userId = useAuth((s) => s.user?.id);
   const bootstrap = useAuth((s) => s.bootstrap);
   const syncStartedFor = useRef<string | null>(null);
-  const [syncState, setSyncState] = useState(getSyncState());
-
-  useEffect(() => {
-    return onSyncedChange(() => setSyncState(getSyncState()));
-  }, []);
 
   useEffect(() => {
     void bootstrap();
@@ -31,7 +26,9 @@ export default function App() {
 
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
   // on every status change while still firing again if a different user logs in
-  // (e.g. logout → login as someone else).
+  // (e.g. logout → login as someone else). startSync runs in the background;
+  // we don't block the UI on it — the store is hydrated from the local cache
+  // first so the user sees their data immediately.
   useEffect(() => {
     if (status === 'guest') {
       syncStartedFor.current = null;
@@ -50,9 +47,6 @@ export default function App() {
   }
   if (status === 'guest') {
     return <AuthPage />;
-  }
-  if (syncState !== 'ready') {
-    return <div className="auth-page" aria-busy="true" />;
   }
 
   return (
