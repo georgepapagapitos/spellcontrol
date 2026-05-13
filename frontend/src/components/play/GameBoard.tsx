@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GameLayout, GamePlayer, GameState } from '../../lib/game-state';
-import type { BoardLayout, SeatSlot } from '../../lib/board-layouts';
+import type { BoardLayout, EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import { layoutsForCount, resolveLayout } from '../../lib/board-layouts';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
@@ -96,24 +96,38 @@ export function GameBoard({
             />
           );
         })}
+        {(board.empty ?? []).map((cell, i) => (
+          <EmptyPanel
+            key={`empty-${i}`}
+            cell={cell}
+            // The first empty cell hosts the global menu button so it's
+            // never overlapping a player's content. Subsequent empties (if
+            // any) are decorative placeholders.
+            hostsMenu={i === 0}
+            onMenu={() => setMenuOpen(true)}
+          />
+        ))}
       </div>
 
-      <button
-        type="button"
-        className="game-board-menu-btn"
-        aria-label="Game menu"
-        // Pinned to a corner via CSS so it can't ever overlap a panel's life
-        // numeral. Stop pointer events from bubbling so a stray tap-and-hold
-        // on the underlying panel doesn't fire.
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          setMenuOpen(true);
-        }}
-      >
-        <MenuIcon />
-      </button>
+      {/* Fallback corner menu button when the active layout has no empty
+          cell to host it (e.g. 4p Pod, 6p Pod). The button is pinned in CSS
+          and panels at the bottom-right cell reserve right-side padding so
+          the Counters drawer button can't slide under it. */}
+      {!board.empty?.length && (
+        <button
+          type="button"
+          className="game-board-menu-btn"
+          aria-label="Game menu"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen(true);
+          }}
+        >
+          <MenuIcon />
+        </button>
+      )}
 
       {errorMessage && <div className="game-board-error">{errorMessage}</div>}
       {banner && <div className="game-board-banner">{banner}</div>}
@@ -1008,6 +1022,48 @@ function identityKey(ci: string[]): string {
   if (!ci || ci.length === 0) return 'c';
   if (ci.length === 1) return ci[0].toLowerCase();
   return 'm';
+}
+
+/**
+ * Renders an explicitly-empty grid cell — a faded placeholder that matches
+ * the panel shape but reads as "no player here." When `hostsMenu` is set,
+ * the cell doubles as the global game-menu button, replacing the otherwise
+ * floating corner button so it can't overlap any panel content.
+ */
+function EmptyPanel({
+  cell,
+  hostsMenu,
+  onMenu,
+}: {
+  cell: EmptyCell;
+  hostsMenu: boolean;
+  onMenu: () => void;
+}) {
+  const style: React.CSSProperties = {
+    gridColumn: cell.colSpan ? `${cell.col} / span ${cell.colSpan}` : `${cell.col}`,
+    gridRow: cell.rowSpan ? `${cell.row} / span ${cell.rowSpan}` : `${cell.row}`,
+  };
+  if (!hostsMenu) {
+    return <div className="player-panel is-empty" style={style} aria-hidden="true" />;
+  }
+  return (
+    <button
+      type="button"
+      className="player-panel is-empty is-menu"
+      style={style}
+      aria-label="Game menu"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onMenu();
+      }}
+    >
+      <span className="empty-panel-menu-chip">
+        <MenuIcon />
+        <span className="empty-panel-menu-label">Menu</span>
+      </span>
+    </button>
+  );
 }
 
 function MenuIcon() {
