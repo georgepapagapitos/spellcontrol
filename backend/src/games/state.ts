@@ -9,6 +9,24 @@
  * notice — set life to 0 and the player flips to eliminated.
  */
 
+/**
+ * Visual arrangement of player panels on the board. Affects only how seats
+ * are rendered — the game logic is layout-agnostic. Values:
+ *
+ *  - `default` — auto layout per player count, with seats on the far side
+ *    of a shared device rotated 180° so they read upright when the phone
+ *    is passed (e.g. 2x2 for 4p; 2+2+1 for 5p).
+ *  - `same`    — same grid as `default` but no rotation, so every panel
+ *    reads upright from one side of the device.
+ *  - `row`     — single horizontal row of panels, no rotation. Best on a
+ *    tablet or desktop held landscape.
+ *
+ * Layouts use only 0° and 180° rotations — never 90° — so text never reads
+ * sideways. Grid + rotation choices are encoded in the layout registry on
+ * the client.
+ */
+export type GameLayout = 'default' | 'same' | 'row';
+
 export type GameFormat =
   | 'commander'
   | 'standard'
@@ -82,6 +100,8 @@ export interface GameState {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
+  /** Visual arrangement of player panels. Defaults to 'default'. */
+  layout: GameLayout;
   players: GamePlayer[];
   events: GameEvent[];
   winnerSeat: number | null;
@@ -131,7 +151,10 @@ export type GameAction =
   | {
       type: 'settings';
       patch: Partial<
-        Pick<GameState, 'startingLife' | 'commanderDamageEnabled' | 'poisonEnabled' | 'format'>
+        Pick<
+          GameState,
+          'startingLife' | 'commanderDamageEnabled' | 'poisonEnabled' | 'format' | 'layout'
+        >
       >;
       ts?: number;
     };
@@ -220,6 +243,7 @@ export function createGameState(input: {
   startingLife: number;
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
+  layout?: GameLayout;
   players: GamePlayer[];
   ts?: number;
 }): GameState {
@@ -234,6 +258,7 @@ export function createGameState(input: {
     startingLife: input.startingLife,
     commanderDamageEnabled: input.commanderDamageEnabled,
     poisonEnabled: input.poisonEnabled,
+    layout: input.layout ?? 'default',
     players: input.players,
     events: [],
     winnerSeat: null,

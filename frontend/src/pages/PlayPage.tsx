@@ -232,6 +232,8 @@ function LocalSetup({
     blankPlayer('Player 2'),
     blankPlayer('Player 3'),
     blankPlayer('Player 4'),
+    blankPlayer('Player 5'),
+    blankPlayer('Player 6'),
   ]);
 
   function applyFormat(next: GameFormat) {
@@ -295,6 +297,8 @@ function LocalSetup({
             <option value={2}>2</option>
             <option value={3}>3</option>
             <option value={4}>4</option>
+            <option value={5}>5</option>
+            <option value={6}>6</option>
           </select>
         </label>
         <label className="play-field play-field-checkbox">
