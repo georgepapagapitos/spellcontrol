@@ -120,7 +120,7 @@ d('POST /api/auth/logout', () => {
     expect(res.status).toBe(200);
     const cookies = res.headers['set-cookie'];
     const arr = Array.isArray(cookies) ? cookies : cookies ? [cookies] : [];
-    expect(arr.some((c: string) => /binder_session=;/.test(c))).toBe(true);
+    expect(arr.some((c: string) => /spellcontrol_session=;/.test(c))).toBe(true);
   });
 });
 
