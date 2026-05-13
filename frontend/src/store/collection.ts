@@ -14,6 +14,7 @@ import { buildBackup, normalizeSortEntries, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
+import { markDestructive } from '../lib/sync-intent';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -307,6 +308,7 @@ export const useCollectionStore = create<CollectionState>()(
 
       deleteImports: async (ids) => {
         if (ids.length === 0) return;
+        markDestructive();
         const idSet = new Set(ids);
         const s = get();
         const remainingCards = s.cards.filter((c) => !c.importId || !idSet.has(c.importId));
@@ -470,6 +472,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       clearCards: async () => {
+        markDestructive();
         set({
           cards: [],
           fileName: '',
@@ -684,6 +687,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       deleteBinder: (id) => {
+        markDestructive();
         set((s) => {
           const now = Date.now();
           const remaining = s.binders
@@ -696,6 +700,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       deleteAllBinders: () => {
+        markDestructive();
         set({ binders: [], activeTab: 'uncategorized' });
       },
 
