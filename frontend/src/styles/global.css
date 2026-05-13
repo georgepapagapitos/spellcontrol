@@ -12,6 +12,11 @@
      Mana pip colors live in lib/colors.ts and rarity colors below — those
      are MTG-canonical and never themed. */
 
+  /* Fallback color-scheme — themes override per-guild. Pinned to light so
+     a user whose OS is in dark mode doesn't get black-square form controls
+     during the brief pre-theme-bootstrap window. */
+  color-scheme: light;
+
   --bg: #eaecf0;
   --surface: #f4f6fa;
   --surface2: #fafcff;

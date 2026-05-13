@@ -132,6 +132,10 @@
      their contents (especially <select>) can shrink below their natural
      width instead of pushing the panel sideways. */
   min-width: 0;
+  /* Theme the native controls inside (checkbox/radio fill, number-input
+     spinner buttons, range thumbs) so the form picks up the active guild
+     accent instead of the browser default blue. */
+  accent-color: var(--accent);
 }
 
 /* Text-like inputs and selects fill their cell; checkboxes / radios stay
