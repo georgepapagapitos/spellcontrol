@@ -27,16 +27,27 @@ export function useAllocations(): Map<string, AllocationInfo> {
 
 export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
   const m = new Map<string, AllocationInfo>();
+  const isDev =
+    typeof import.meta !== 'undefined' && (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
+  const claim = (copyId: string, info: AllocationInfo) => {
+    if (isDev && m.has(copyId)) {
+      const prior = m.get(copyId)!;
+      console.warn(
+        `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" (${prior.deckId}) and "${info.cardName}" in "${info.deckName}" (${info.deckId})`
+      );
+    }
+    m.set(copyId, info);
+  };
   for (const deck of decks) {
     if (deck.commander && deck.commanderAllocatedCopyId) {
-      m.set(deck.commanderAllocatedCopyId, {
+      claim(deck.commanderAllocatedCopyId, {
         deckId: deck.id,
         deckName: deck.name,
         cardName: deck.commander.name,
       });
     }
     if (deck.partnerCommander && deck.partnerCommanderAllocatedCopyId) {
-      m.set(deck.partnerCommanderAllocatedCopyId, {
+      claim(deck.partnerCommanderAllocatedCopyId, {
         deckId: deck.id,
         deckName: deck.name,
         cardName: deck.partnerCommander.name,
@@ -44,7 +55,7 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
     }
     for (const c of deck.cards) {
       if (c.allocatedCopyId) {
-        m.set(c.allocatedCopyId, {
+        claim(c.allocatedCopyId, {
           deckId: deck.id,
           deckName: deck.name,
           cardName: c.card.name,
@@ -53,7 +64,7 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
     }
     for (const c of deck.sideboard ?? []) {
       if (c.allocatedCopyId) {
-        m.set(c.allocatedCopyId, {
+        claim(c.allocatedCopyId, {
           deckId: deck.id,
           deckName: deck.name,
           cardName: c.card.name,
@@ -69,8 +80,12 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
  *
  * Preference order:
  *   1. Not already allocated to any deck (so we never double-claim).
- *   2. Non-foil over foil (foils are usually display copies).
- *   3. Cheapest purchasePrice (so the deck claims the budget copy first;
+ *   2. If `preferredScryfallId` is given and at least one free copy of that
+ *      exact printing exists, restrict candidates to that printing. This is a
+ *      hard filter, not a tiebreaker — a deck slot's printing is treated as
+ *      meaningful intent rather than a hint.
+ *   3. Non-foil over foil (foils are usually display copies).
+ *   4. Cheapest purchasePrice (so the deck claims the budget copy first;
  *      premium copies stay free for the user).
  */
 export function pickCollectionCopy(
@@ -79,15 +94,15 @@ export function pickCollectionCopy(
   allocated: Map<string, AllocationInfo>,
   preferredScryfallId?: string
 ): EnrichedCard | null {
-  const candidates = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
-  if (candidates.length === 0) return null;
+  const free = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
+  if (free.length === 0) return null;
+  let candidates = free;
+  if (preferredScryfallId) {
+    const printingMatches = free.filter((c) => c.scryfallId === preferredScryfallId);
+    if (printingMatches.length > 0) candidates = printingMatches;
+  }
+  const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
   candidates.sort((a, b) => {
-    if (preferredScryfallId) {
-      const aMatch = a.scryfallId === preferredScryfallId ? 0 : 1;
-      const bMatch = b.scryfallId === preferredScryfallId ? 0 : 1;
-      if (aMatch !== bMatch) return aMatch - bMatch;
-    }
-    const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
     const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
     const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
     if (aRank !== bRank) return aRank - bRank;
