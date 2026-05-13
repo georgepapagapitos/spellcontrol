@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { EnrichedCard, MaterializedBinder } from '../types';
+import type { EnrichedCard, MaterializedBinder, SortField, SortDir } from '../types';
+import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
@@ -13,7 +14,7 @@ import { SearchPill } from './SearchPill';
 import { FilterPopover } from './FilterPopover';
 import { SelectMenu } from './SelectMenu';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { RARITY_ORDER } from '../lib/sorting';
+import { sortCards, printingKey, type SortContext } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
@@ -21,6 +22,8 @@ import { useCollectionStore } from '../store/collection';
 interface Props {
   cards: EnrichedCard[];
   binders: MaterializedBinder[];
+  /** Map of set code -> set summary (release date, name, icon). Drives "Set" sort. */
+  setMap?: SetMap;
   /**
    * When true, the binder filter dropdown is hidden — used when the
    * caller has already scoped `cards` to a single binder, where letting
@@ -94,6 +97,15 @@ const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'des
   { key: 'set', label: 'Set', defaultDir: 'asc' },
 ];
 
+const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
+  name: 'name',
+  set: 'setName',
+  rarity: 'rarity',
+  price: 'price',
+  qty: 'quantity',
+  cmc: 'cmc',
+};
+
 const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FIELDS.reduce(
   (acc, f) => {
     acc[f.key] = f;
@@ -114,7 +126,13 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
   return 0;
 }
 
-export function CardListTable({ cards, binders, hideBinderFilter = false, onOpenStats }: Props) {
+export function CardListTable({
+  cards,
+  binders,
+  setMap,
+  hideBinderFilter = false,
+  onOpenStats,
+}: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -308,35 +326,21 @@ export function CardListTable({ cards, binders, hideBinderFilter = false, onOpen
   }, [rows, debouncedSearch, binderFilter, colorFilter, typeFilter, rarityFilter]);
 
   const sorted = useMemo(() => {
-    const dir = sortDir === 'asc' ? 1 : -1;
-    const out = [...filtered];
-    out.sort((a, b) => {
-      let cmp = 0;
-      switch (sortKey) {
-        case 'name':
-          cmp = a.card.name.localeCompare(b.card.name);
-          break;
-        case 'set':
-          cmp = a.card.setCode.localeCompare(b.card.setCode);
-          break;
-        case 'rarity':
-          cmp = (RARITY_ORDER[a.card.rarity] ?? 99) - (RARITY_ORDER[b.card.rarity] ?? 99);
-          break;
-        case 'price':
-          cmp = a.card.purchasePrice - b.card.purchasePrice;
-          break;
-        case 'qty':
-          cmp = a.qty - b.qty;
-          break;
-        case 'cmc':
-          cmp = (a.card.cmc ?? 99) - (b.card.cmc ?? 99);
-          break;
-      }
-      if (cmp === 0) cmp = a.card.name.localeCompare(b.card.name);
-      return cmp * dir;
-    });
-    return out;
-  }, [filtered, sortKey, sortDir]);
+    const field: SortField = SORT_KEY_TO_FIELD[sortKey];
+    const dir: SortDir = sortDir;
+    // Map row.qty into a printing-keyed table so the shared comparator's
+    // "quantity" sort uses the displayed (rolled-up or per-copy) qty.
+    const qtyByPrintingKey = new Map<string, number>();
+    for (const r of filtered) qtyByPrintingKey.set(printingKey(r.card), r.qty);
+    const ctx: SortContext = { setMap, qtyByPrintingKey };
+    const sortedCards = sortCards(
+      filtered.map((r) => r.card),
+      [{ field, dir }],
+      ctx
+    );
+    const byCopyId = new Map(filtered.map((r) => [r.card.copyId, r]));
+    return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
+  }, [filtered, sortKey, sortDir, setMap]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages);
