@@ -14,7 +14,8 @@ import { gamesRouter } from './routes/games';
  * + the user's existing volume). Exported so the vitest globalSetup can probe
  * the same URL it falls back to here.
  */
-export const DEFAULT_TEST_DATABASE_URL = 'postgres://mtguser:mtgpassword@localhost:5432/mtgbinder';
+export const DEFAULT_TEST_DATABASE_URL =
+  'postgres://mtguser:mtgpassword@localhost:5432/spellcontrol';
 
 /**
  * Returns a Postgres connection string for tests. Prefers explicit
@@ -113,7 +114,7 @@ export function extractSessionCookie(setCookie: string | string[] | undefined): 
   if (!setCookie) return null;
   const headers = Array.isArray(setCookie) ? setCookie : [setCookie];
   for (const h of headers) {
-    const match = /(?:^|; )(binder_session=[^;]+)/.exec(h);
+    const match = /(?:^|; )(spellcontrol_session=[^;]+)/.exec(h);
     if (match) return match[1];
   }
   return null;
