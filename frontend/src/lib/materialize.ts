@@ -11,7 +11,7 @@ import type {
 } from '../types';
 import { compileFilterGroups, cardMatchesAnyGroup } from './rules';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
-import { sortCards } from './sorting';
+import { sortCards, buildQtyByPrintingKey } from './sorting';
 import type { SetMap } from './api';
 
 interface MaterializeOptions {
@@ -115,7 +115,10 @@ export function materializeBinders(
       DEFAULT_POCKET_SIZE) as PocketSize;
     const useManualOrder = !!def.manualOrder?.length;
     const effectiveSorts = useManualOrder ? [] : withImplicitTiebreaker(def.sorts);
-    const sortCtx = opts.setMap ? { setMap: opts.setMap } : undefined;
+    const sortCtx = {
+      setMap: opts.setMap,
+      qtyByPrintingKey: buildQtyByPrintingKey(rawCards),
+    };
     const sections = useManualOrder
       ? buildManualSection(rawCards, effectivePocketSize, isMatch)
       : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch, sortCtx);
@@ -132,7 +135,10 @@ export function materializeBinders(
   const uncategorizedSorts = withImplicitTiebreaker(
     opts.uncategorizedSorts ?? DEFAULT_UNCATEGORIZED_SORTS
   );
-  const uncatCtx = opts.setMap ? { setMap: opts.setMap } : undefined;
+  const uncatCtx = {
+    setMap: opts.setMap,
+    qtyByPrintingKey: buildQtyByPrintingKey(uncategorized),
+  };
   const uncategorizedSections = buildSections(
     uncategorized,
     uncategorizedSorts,
@@ -216,7 +222,7 @@ function buildSections(
   sorts: SortEntry[],
   slotSize: number,
   isMatch: (c: EnrichedCard) => boolean,
-  ctx?: { setMap?: SetMap }
+  ctx?: { setMap?: SetMap; qtyByPrintingKey?: Map<string, number> }
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';

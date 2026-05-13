@@ -5,20 +5,39 @@ import type { SetMap } from './api';
 
 export interface SortContext {
   setMap?: SetMap;
+  /** Count of physical copies sharing each printing key, keyed by `printingKey(card)`. */
+  qtyByPrintingKey?: Map<string, number>;
 }
 
 export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir }[] = [
   { value: 'color', label: 'Color', defaultDir: 'asc' },
+  { value: 'name', label: 'Name', defaultDir: 'asc' },
+  { value: 'collectorNumber', label: 'Number', defaultDir: 'asc' },
+  { value: 'price', label: 'Price', defaultDir: 'desc' },
+  { value: 'quantity', label: 'Quantity', defaultDir: 'desc' },
+  { value: 'cmc', label: 'Mana value', defaultDir: 'asc' },
+  { value: 'setReleaseDate', label: 'Release date', defaultDir: 'desc' },
+  { value: 'setName', label: 'Set', defaultDir: 'asc' },
   { value: 'type', label: 'Type', defaultDir: 'asc' },
   { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
-  { value: 'cmc', label: 'CMC', defaultDir: 'asc' },
-  { value: 'name', label: 'Name', defaultDir: 'asc' },
-  { value: 'setReleaseDate', label: 'Set (release date)', defaultDir: 'desc' },
-  { value: 'setName', label: 'Set (name)', defaultDir: 'asc' },
-  { value: 'price', label: 'Price', defaultDir: 'desc' },
   { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
-  { value: 'collectorNumber', label: 'Collector #', defaultDir: 'asc' },
 ];
+
+/** Key used to group physical copies of the same printing (scryfallId + finish). */
+export function printingKey(card: EnrichedCard): string {
+  const finish = card.finish ?? (card.foil ? 'foil' : 'nonfoil');
+  return `${card.scryfallId}|${finish}`;
+}
+
+/** Build a count of physical copies per printing key. */
+export function buildQtyByPrintingKey(cards: EnrichedCard[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of cards) {
+    const k = printingKey(c);
+    m.set(k, (m.get(k) ?? 0) + 1);
+  }
+  return m;
+}
 
 export const RARITY_ORDER: Record<string, number> = {
   mythic: 0,
@@ -63,6 +82,8 @@ export function cardSortValue(
       const n = parseInt(card.collectorNumber, 10);
       return isNaN(n) ? 99999 : n;
     }
+    case 'quantity':
+      return ctx?.qtyByPrintingKey?.get(printingKey(card)) ?? 1;
     default:
       return 0;
   }
