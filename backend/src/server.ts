@@ -9,6 +9,7 @@ import { ScryfallCache } from './cache';
 import { closeDb, ensureSchema } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
+import { gamesRouter } from './routes/games';
 import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
@@ -39,6 +40,7 @@ app.use(express.json({ limit: '25mb' }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/games', gamesRouter);
 
 const upload = multer({
   storage: multer.memoryStorage(),

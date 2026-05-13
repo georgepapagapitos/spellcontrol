@@ -7,6 +7,8 @@ export interface SyncSnapshot {
   collection: unknown;
   binders: unknown[];
   decks: unknown[];
+  /** Added with the play feature — older snapshots may omit it. */
+  games?: unknown[];
   version: number;
   updatedAt: number;
 }
@@ -66,6 +68,7 @@ export async function putSync(input: {
   collection: unknown;
   binders: unknown[];
   decks: unknown[];
+  games?: unknown[];
   baseVersion: number;
 }): Promise<PutSyncResult> {
   const res = await authedFetch('/api/sync', {
