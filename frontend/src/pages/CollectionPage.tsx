@@ -86,6 +86,7 @@ export function CollectionPage() {
           <CardListTable
             cards={cards}
             binders={materialized}
+            setMap={setMap}
             onOpenStats={() => setStatsOpen(true)}
           />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
