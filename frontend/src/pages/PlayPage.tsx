@@ -5,7 +5,8 @@ import { useDecksStore, type Deck } from '../store/decks';
 import { aggregateDeckRecords, usePlayStore, type LocalGameSetup } from '../store/play';
 import { GameBoard } from '../components/play/GameBoard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { GameFormat, GameRecord } from '../lib/game-state';
+import { Modal } from '../components/Modal';
+import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
 type Tab = 'local' | 'online' | 'history';
 
@@ -152,18 +153,9 @@ export function PlayPage() {
       {tab === 'history' && <HistoryTab history={history} userId={user?.id ?? null} />}
 
       {pendingEnd && (
-        <ConfirmDialog
-          title="End the game?"
-          body="Pick the winner (or end without one)."
-          confirmLabel="Save"
-          onConfirm={() => {
-            const game = pendingEnd === 'local' ? local : online;
-            if (!game) {
-              setPendingEnd(null);
-              return;
-            }
-            const alive = game.players.filter((p) => !p.eliminated);
-            const winnerSeat = alive.length === 1 ? alive[0].seat : null;
+        <EndGameDialog
+          game={pendingEnd === 'local' ? local : online}
+          onConfirm={(winnerSeat) => {
             if (pendingEnd === 'local') endLocal(winnerSeat);
             else void dispatchOnline({ type: 'end', winnerSeat });
             setPendingEnd(null);
@@ -642,5 +634,71 @@ function HistoryTab({ history, userId }: { history: GameRecord[]; userId: string
         </ul>
       </section>
     </div>
+  );
+}
+
+/**
+ * End-game dialog with a real winner picker. If exactly one player is alive
+ * it's pre-selected; the user can still pick "No winner" or override. The
+ * picker is rendered on top of the game-board overlay (the body:has(.game-board)
+ * z-index rule in play.css handles the layering).
+ */
+function EndGameDialog({
+  game,
+  onConfirm,
+  onCancel,
+}: {
+  game: { players: GamePlayer[] } | null;
+  onConfirm: (winnerSeat: number | null) => void;
+  onCancel: () => void;
+}) {
+  const alive = game?.players.filter((p) => !p.eliminated) ?? [];
+  const defaultWinner = alive.length === 1 ? alive[0].seat : null;
+  const [winnerSeat, setWinnerSeat] = useState<number | null>(defaultWinner);
+
+  if (!game) return null;
+  return (
+    <Modal onClose={onCancel} label="End game">
+      <h2 className="choice-dialog-title">End the game?</h2>
+      <p className="choice-dialog-body">Pick the winner — or end without one.</p>
+      <div className="play-end-winners" role="radiogroup" aria-label="Winner">
+        {game.players.map((p) => (
+          <label
+            key={p.seat}
+            className={`play-end-winner ${winnerSeat === p.seat ? 'is-selected' : ''}`}
+          >
+            <input
+              type="radio"
+              name="winner"
+              checked={winnerSeat === p.seat}
+              onChange={() => setWinnerSeat(p.seat)}
+            />
+            <span>{p.name}</span>
+          </label>
+        ))}
+        <label className={`play-end-winner ${winnerSeat === null ? 'is-selected' : ''}`}>
+          <input
+            type="radio"
+            name="winner"
+            checked={winnerSeat === null}
+            onChange={() => setWinnerSeat(null)}
+          />
+          <span>No winner</span>
+        </label>
+      </div>
+      <div className="choice-dialog-actions">
+        <button type="button" className="btn" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => onConfirm(winnerSeat)}
+          autoFocus
+        >
+          Save
+        </button>
+      </div>
+    </Modal>
   );
 }
