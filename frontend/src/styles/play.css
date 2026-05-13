@@ -217,6 +217,339 @@
   align-self: flex-start;
 }
 
+/* ── Local setup: redesigned ─────────────────────────────────────────────
+   Sleeker, pill-driven layout. Replaces the dropdown-heavy form with
+   inline stepper, rule pills, and an add/remove roster. */
+
+.play-setup-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.play-setup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: center;
+}
+
+.play-field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.play-field-inline > span {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+.play-field-inline select {
+  width: auto !important;
+  min-width: 9rem;
+}
+
+/* Numeric stepper (− value +) — used for starting life. */
+.play-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+  gap: 0.15rem;
+}
+
+.play-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 50%;
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.play-stepper-btn:hover:not(:disabled),
+.play-stepper-btn:focus-visible {
+  background: var(--accent-light);
+  color: var(--accent);
+  outline: none;
+}
+
+.play-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.play-stepper-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-md);
+  min-width: 2.4rem;
+  text-align: center;
+  color: var(--text);
+}
+
+/* Rule toggle: full-width pill with label + hint + on/off state */
+.play-setup-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.5rem;
+}
+
+.play-rule-pill {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.65rem 0.85rem;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.play-rule-pill:hover {
+  border-color: var(--border2);
+}
+
+.play-rule-pill.is-on {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+.play-rule-pill-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  grid-column: 1;
+}
+
+.play-rule-pill-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  grid-column: 1;
+  line-height: 1.3;
+}
+
+.play-rule-pill-state {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text3);
+}
+
+.play-rule-pill.is-on .play-rule-pill-state {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Roster: numbered seats with name + optional deck + remove. */
+.play-setup-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.play-setup-roster-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-setup-section-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  margin: 0;
+}
+
+.play-setup-roster-count {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  color: var(--text2);
+}
+
+.play-setup-roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.play-setup-seat {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
+  min-width: 0;
+}
+
+.play-setup-seat-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+.play-setup-seat-name {
+  /* Override the default .play-field input chrome so the name input
+     reads as a flat editable field inside the seat row. */
+  background: transparent !important;
+  border: none !important;
+  padding: 0.3rem 0.2rem !important;
+  font-size: var(--text-base) !important;
+  font-weight: 500 !important;
+  min-width: 0;
+}
+
+.play-setup-seat-name:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+.play-setup-seat-deck,
+.play-setup-seat-deck-add {
+  min-width: 0;
+}
+
+.play-setup-seat-deck {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.play-setup-seat-deck select {
+  min-width: 0;
+  max-width: 12rem;
+  font-size: var(--text-sm) !important;
+  padding: 0.3rem 0.5rem !important;
+}
+
+.play-setup-seat-deck-add {
+  background: transparent;
+  border: 1px dashed var(--border2);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.play-setup-seat-deck-add:hover,
+.play-setup-seat-deck-add:focus-visible {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.play-setup-seat-remove,
+.play-setup-seat-deck-clear {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text3);
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.play-setup-seat-remove:hover,
+.play-setup-seat-deck-clear:hover {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+.play-setup-roster-add {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed var(--border2);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.play-setup-roster-add:hover,
+.play-setup-roster-add:focus-visible {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
 .play-online-modes {
   display: inline-flex;
   background: var(--surface2);
@@ -403,9 +736,23 @@ body:has(.game-board) .modal-backdrop {
 
 /* ── Player panel ─────────────────────────────────────────────────────── */
 
-.player-panel {
-  transform: rotate(var(--pp-rot, 0deg));
+/* Cell wrapper around each panel. Establishes a container-query context
+   so the panel inside can size itself based on the cell's dimensions —
+   needed for sideways (90° / 270°) rotation where the panel renders with
+   swapped width/height to fit the cell after rotation. */
+.player-panel-cell {
+  container-type: size;
   position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.player-panel {
+  /* Fills its cell by default; sideways override below uses absolute
+     positioning + swapped dimensions. */
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--pp-rot, 0deg));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -432,9 +779,27 @@ body:has(.game-board) .modal-backdrop {
       var(--pp-base) 60%,
       color-mix(in srgb, var(--pp-base) 78%, black 22%) 100%
     );
-  transition:
-    filter 200ms ease,
-    transform 200ms ease;
+  /* Filter transitions for eliminated/lethal pulse. Transform is NOT
+     transitioned — when a layout switch fires, a panel that changes
+     rotation would animate while a panel that just changes grid cell
+     would snap (CSS grid placement isn't transitionable), giving an
+     inconsistent half-animated switch. Snap all panels together. */
+  transition: filter 200ms ease;
+}
+
+/* Sideways rotation (90° / 270°) — the panel is rendered with its
+   width and height swapped relative to the cell, then rotated, so the
+   rotated visual bounding box matches the cell exactly. Container
+   queries on the parent cell read the cell's pixel dimensions; we use
+   `100cqh` for the panel's width (=cell height) and `100cqw` for its
+   height (=cell width). */
+.player-panel[data-sideways] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100cqh;
+  height: 100cqw;
+  transform: translate(-50%, -50%) rotate(var(--pp-rot, 0deg));
 }
 
 .player-panel.is-eliminated {
@@ -512,16 +877,42 @@ body:has(.game-board) .modal-backdrop {
   position: relative;
   z-index: 2;
   flex: 1;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: 0.5rem 0.65rem 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.65rem;
   pointer-events: none;
   min-height: 0;
 }
 
 @media (min-width: 600px) {
   .player-panel-content {
-    padding: 0.75rem 0.9rem 0.9rem;
+    padding: 0.75rem 0.9rem;
+  }
+}
+
+/* Corner overlays float on top of the centered life row. They sit at the
+   panel edges and never compete with the headline number. */
+.player-panel-corner {
+  position: absolute;
+  top: 0.5rem;
+  max-width: calc(100% - 3.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  pointer-events: none;
+}
+
+.player-panel-corner.is-tl {
+  left: 0.65rem;
+}
+
+@media (min-width: 600px) {
+  .player-panel-corner {
+    top: 0.7rem;
+  }
+  .player-panel-corner.is-tl {
+    left: 0.85rem;
   }
 }
 
@@ -531,11 +922,16 @@ body:has(.game-board) .modal-backdrop {
    which restore pointer-events). */
 .player-panel-tapzone {
   position: absolute;
+  z-index: 1;
+  cursor: pointer;
+}
+
+/* Horizontal orientation: left half = −1, right half = +1. */
+.player-panel-tapzone.is-left,
+.player-panel-tapzone.is-right {
   top: 0;
   bottom: 0;
   width: 50%;
-  z-index: 1;
-  cursor: pointer;
 }
 
 .player-panel-tapzone.is-left {
@@ -544,6 +940,22 @@ body:has(.game-board) .modal-backdrop {
 
 .player-panel-tapzone.is-right {
   right: 0;
+}
+
+/* Vertical orientation: top half = +1, bottom half = −1. */
+.player-panel-tapzone.is-top,
+.player-panel-tapzone.is-bottom {
+  left: 0;
+  right: 0;
+  height: 50%;
+}
+
+.player-panel-tapzone.is-top {
+  top: 0;
+}
+
+.player-panel-tapzone.is-bottom {
+  bottom: 0;
 }
 
 .player-panel-tapzone:active {
@@ -559,23 +971,21 @@ body:has(.game-board) .modal-backdrop {
   pointer-events: auto;
 }
 
-.player-panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
 .player-panel-name {
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  /* Long names truncate so the menu button always stays on-screen. */
-  max-width: calc(100% - 2.5rem);
+  letter-spacing: 0.01em;
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+}
+
+.player-panel-name-text {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -587,22 +997,55 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .player-panel-host {
-  color: var(--warn-text);
+  color: var(--pp-accent, #ffe07a);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
 }
 
 .player-panel-offline {
   font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.55);
-  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  margin-left: 0.2rem;
+}
+
+.player-panel-subtitle {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .game-board-3 .player-panel-subtitle,
+  .game-board-4 .player-panel-subtitle,
+  .game-board-5 .player-panel-subtitle,
+  .game-board-6 .player-panel-subtitle {
+    display: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .player-panel-subtitle {
+    display: none;
+  }
 }
 
 .player-panel-menu-btn {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.35);
   border: none;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  width: 1.7rem;
-  height: 1.7rem;
+  width: 1.8rem;
+  height: 1.8rem;
   font-size: var(--text-md);
   line-height: 1;
   display: inline-flex;
@@ -611,43 +1054,95 @@ body:has(.game-board) .modal-backdrop {
   flex-shrink: 0;
 }
 
+/* Per-player seat menu sits in the bottom-right corner of each panel (in
+   panel-local coords) so it stays far from the central game-menu hub at
+   the panel seams. For top-row panels (rotated 180°) bottom-right of the
+   panel renders at the screen's top-left corner — also clear of the hub. */
+.player-panel-menu-btn.is-corner-br {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.65rem;
+  z-index: 3;
+}
+
 @media (min-width: 600px) {
   .player-panel-menu-btn {
-    width: 1.9rem;
-    height: 1.9rem;
-    font-size: var(--text-md);
+    width: 2rem;
+    height: 2rem;
+  }
+  .player-panel-menu-btn.is-corner-br {
+    bottom: 0.7rem;
+    right: 0.85rem;
   }
 }
 
 .player-panel-menu-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.55);
 }
 
 .player-panel-life-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  /* Fills the entire panel content area. The life numeral is absolutely
+     centered to 50% / 50% — independent of panel width, step-button
+     widths, or seat colSpan. The 3-player layout's wide Player 1 panel
+     and the single-column Player 2/3 panels all center identically. */
+  position: absolute;
+  inset: 0;
   font-family: var(--font-mono);
+  pointer-events: none;
+}
+
+.player-panel-life-wrap > .player-panel-life-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.player-panel-life-wrap > .player-panel-step-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.player-panel-life-wrap > .player-panel-step-btn:first-child {
+  left: 1rem;
+}
+
+.player-panel-life-wrap > .player-panel-step-btn:last-child {
+  right: 1rem;
+}
+
+@media (min-width: 600px) {
+  .player-panel-life-wrap > .player-panel-step-btn:first-child {
+    left: 1.5rem;
+  }
+  .player-panel-life-wrap > .player-panel-step-btn:last-child {
+    right: 1.5rem;
+  }
 }
 
 @media (min-width: 600px) {
   .player-panel-life-wrap {
-    gap: 1rem;
+    gap: 0.8rem;
   }
 }
 
 .player-panel-life {
-  /* Scale to the smaller viewport dimension so 4-player splits don't render
-     a tiny number on a wide screen or a giant one on a narrow screen. The
-     1-player case (lobby) will use the upper bound. */
-  font-size: clamp(3.2rem, 14vmin, 9rem);
-  font-weight: 700;
-  line-height: 1;
+  /* Life numeral dominates the panel — sized to fill, with step buttons
+     pushed to the outer edges so they read as accents, not equals. */
+  font-size: clamp(6rem, 28vmin, 18rem);
+  font-weight: 900;
+  line-height: 0.9;
   color: #fff;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-  letter-spacing: -0.02em;
+  text-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(0, 0, 0, 0.25);
+  letter-spacing: -0.04em;
   pointer-events: none;
+  flex: 0 0 auto;
+  text-align: center;
 }
 
 /* Tighter life font when 4 panels share the screen — each panel is half by
@@ -655,45 +1150,25 @@ body:has(.game-board) .modal-backdrop {
    on a small phone. */
 .game-board-4 .player-panel-life,
 .game-board-3 .player-panel-life {
-  font-size: clamp(2.8rem, 11vmin, 7rem);
+  font-size: clamp(4.5rem, 20vmin, 12rem);
 }
 
 .game-board-5 .player-panel-life,
 .game-board-6 .player-panel-life {
-  font-size: clamp(2.2rem, 8.5vmin, 5.4rem);
+  font-size: clamp(3.5rem, 14vmin, 8rem);
 }
 
-/* On very large desktop monitors we can push the life numeral much bigger;
-   the default 9rem ceiling looks small at >1600px width. */
 @media (min-width: 1600px) {
   .game-board-2 .player-panel-life {
-    font-size: clamp(4rem, 18vmin, 13rem);
+    font-size: clamp(7rem, 30vmin, 22rem);
   }
   .game-board-3 .player-panel-life,
   .game-board-4 .player-panel-life {
-    font-size: clamp(3.2rem, 13vmin, 9rem);
+    font-size: clamp(5rem, 22vmin, 15rem);
   }
   .game-board-5 .player-panel-life,
   .game-board-6 .player-panel-life {
-    font-size: clamp(2.6rem, 10vmin, 7rem);
-  }
-}
-
-/* Shrink the ±5 chip buttons on dense boards so they don't eat into the
-   life numeral on phones at 5/6 players. */
-.game-board-5 .player-panel-step-btn,
-.game-board-6 .player-panel-step-btn {
-  padding: 0.22rem 0.45rem;
-  font-size: var(--text-xs);
-  min-width: 1.9rem;
-}
-
-@media (min-width: 600px) {
-  .game-board-5 .player-panel-step-btn,
-  .game-board-6 .player-panel-step-btn {
-    padding: 0.3rem 0.65rem;
-    font-size: var(--text-sm);
-    min-width: 2.4rem;
+    font-size: clamp(4rem, 16vmin, 11rem);
   }
 }
 
@@ -705,97 +1180,82 @@ body:has(.game-board) .modal-backdrop {
   color: var(--pp-accent);
 }
 
+/* Step buttons read as subtle accents flanking the headline life numeral,
+   not as competing pill chips. They use the panel's own deeper tone so they
+   blend into the color rather than slap a dark chip on top of it. */
 .player-panel-step-btn {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fff;
+  background: transparent;
+  border: none;
+  color: rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
   border-radius: 999px;
-  padding: 0.35rem 0.65rem;
-  font-size: var(--text-sm);
+  padding: 0.25rem 0.55rem;
+  font-size: var(--text-md);
+  font-weight: 700;
   font-family: var(--font-mono);
-  min-width: 2.4rem;
+  letter-spacing: -0.02em;
+  flex: 0 0 auto;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    transform 80ms ease;
 }
 
 @media (min-width: 600px) {
   .player-panel-step-btn {
-    padding: 0.4rem 0.9rem;
-    font-size: var(--text-md);
-    min-width: 3rem;
+    padding: 0.3rem 0.7rem;
+    font-size: var(--text-lg);
   }
 }
 
 .player-panel-step-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
 .player-panel-step-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.6);
+  background: rgba(255, 255, 255, 0.1);
 }
 
-.player-panel-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  align-items: center;
-  text-align: center;
+.player-panel-step-btn:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
-.player-panel-deck {
+@media (max-height: 480px) {
+  .player-panel-content {
+    padding: 0.4rem 0.55rem;
+  }
+}
+
+/* Counters chip pinned to the bottom-center of the panel — only renders
+   when commander damage or poison is enabled. */
+.player-panel-drawer-btn {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 0.28rem 0.85rem;
   font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.85);
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
-.player-panel-commander {
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.6);
-  font-style: italic;
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.player-panel-drawer-btn:hover {
+  background: rgba(0, 0, 0, 0.65);
 }
 
 @media (min-width: 600px) {
-  .player-panel-deck {
-    font-size: var(--text-sm);
+  .player-panel-drawer-btn {
+    bottom: 0.7rem;
+    padding: 0.32rem 1rem;
   }
-}
-
-/* In tight 3/4-player layouts on small screens, fold the deck/commander info
-   out of the way so the life number stays the headline. */
-@media (max-width: 480px) {
-  .game-board-3 .player-panel-deck,
-  .game-board-4 .player-panel-deck,
-  .game-board-3 .player-panel-commander,
-  .game-board-4 .player-panel-commander {
-    display: none;
-  }
-}
-
-/* Short viewports (landscape phones): hide commander subtitle so the life
-   number still owns the panel. */
-@media (max-height: 480px) {
-  .player-panel-commander {
-    display: none;
-  }
-  .player-panel-content {
-    padding: 0.4rem 0.55rem 0.5rem;
-  }
-}
-
-.player-panel-drawer-btn {
-  margin-top: 0.3rem;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.85);
-  border: none;
-  border-radius: 999px;
-  padding: 0.25rem 0.7rem;
-  font-size: var(--text-xs);
 }
 
 .player-panel-winner-tag,
@@ -910,8 +1370,11 @@ body:has(.game-board) .modal-backdrop {
 /* ── Seat menu (popover inside a panel) ─────────────────────────────────── */
 
 .seat-menu {
+  /* Anchored above the bottom-right menu button so the popover opens
+     upward — same placement intent as before, just relative to the new
+     corner location. */
   position: absolute;
-  top: 3rem;
+  bottom: 3rem;
   right: 0.7rem;
   z-index: 5;
   background: #14181f;
@@ -1021,9 +1484,32 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .seat-menu-swatch.is-auto {
-  background: linear-gradient(135deg, #444c5c 50%, #1a1f29 50%);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  /* Tinted with the seat palette so the user sees their fallback color. A
+     diagonal split signals "auto/default" without a glyph. */
+  background: linear-gradient(
+    135deg,
+    var(--pp-edge, #6aa6ff) 0%,
+    var(--pp-edge, #6aa6ff) 50%,
+    var(--pp-base, #3a4252) 50%,
+    var(--pp-base, #3a4252) 100%
+  );
+  position: relative;
+}
+
+.seat-menu-swatch.is-auto::after {
+  content: '';
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+}
+
+.seat-menu-color-hint {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.3;
+  margin-top: 0.1rem;
 }
 
 /* ── Game menu button (fallback for layouts without an empty cell) ────── */
@@ -1035,17 +1521,26 @@ body:has(.game-board) .modal-backdrop {
    grid (the .game-board has 8px padding around the grid), so it doesn't
    overlap any panel content. */
 .game-board-menu-btn {
+  /* Positioned at the seam of the active layout (lifecounter-style
+     hub). The renderer sets --seam-top-pct and --seam-left-pct from
+     the layout's seam definition so the button always lands at the
+     boundary between far-side (rotated) and near-side (upright) seats
+     — works for both row-seam layouts (stacked) and col-seam layouts
+     (side-by-side 2p). */
   position: absolute;
-  right: calc(env(safe-area-inset-right, 0) + 4px);
-  bottom: calc(env(safe-area-inset-bottom, 0) + 4px);
+  top: var(--seam-top-pct, 50%);
+  left: var(--seam-left-pct, 50%);
+  transform: translate(-50%, -50%);
   z-index: 10;
-  background: rgba(20, 24, 31, 0.92);
+  background: rgba(14, 17, 24, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2.6rem;
+  height: 2.6rem;
   border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 4px rgba(0, 0, 0, 0.25);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1057,13 +1552,24 @@ body:has(.game-board) .modal-backdrop {
 
 @media (min-width: 600px) {
   .game-board-menu-btn {
-    width: 2.6rem;
-    height: 2.6rem;
+    width: 3rem;
+    height: 3rem;
   }
 }
 
 .game-board-menu-btn:hover {
   background: #1c222d;
+}
+
+.game-board-menu-btn:active {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+
+/* The previous "empty cell hosts the menu" affordance is gone — the hub
+   floats at the row seam. Strip the chip styling so empty cells just
+   read as quiet placeholders. */
+.player-panel.is-empty {
+  pointer-events: none;
 }
 
 .game-board-banner {
@@ -1092,102 +1598,372 @@ body:has(.game-board) .modal-backdrop {
 .game-menu-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: var(--z-modal);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 1rem;
+  padding: 0;
+  animation: pp-fade-in 160ms ease-out;
+}
+
+@media (min-width: 600px) {
+  .game-menu-backdrop {
+    align-items: center;
+    padding: 1.5rem;
+  }
 }
 
 .game-menu {
-  background: #14181f;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-lg);
-  width: min(30rem, 100%);
-  max-height: 80vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  /* Bottom-sheet on mobile: rounded top only, full width. */
+  border-radius: 18px 18px 0 0;
+  border-bottom: none;
+  width: 100%;
+  max-height: 88dvh;
   overflow-y: auto;
-  color: #fff;
+  color: var(--text);
   display: flex;
   flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+  animation: pp-sheet-up 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (min-width: 600px) {
+  .game-menu {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    width: min(32rem, 100%);
+    max-height: 82dvh;
+    box-shadow: var(--shadow-modal);
+    animation: pp-scale-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+@keyframes pp-sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Drag-handle pill at the top of the sheet — visual hint that it's a sheet
+   on mobile. Hidden on desktop. */
+.game-menu-grabber {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border2);
+  opacity: 0.6;
+  margin: 0.55rem auto 0;
+  flex-shrink: 0;
+}
+
+@media (min-width: 600px) {
+  .game-menu-grabber {
+    display: none;
+  }
 }
 
 .game-menu-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-weight: 600;
+  padding: 0.6rem 1rem 0.75rem;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.game-menu-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.game-menu-title-main {
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-menu-title-sub {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  font-weight: 500;
 }
 
 .game-menu-close {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
   font-size: var(--text-md);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.game-menu-close:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .game-menu-body {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+  padding: 0.85rem 1rem 1rem;
+}
+
+@media (min-width: 600px) {
+  .game-menu-body {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+}
+
+.game-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+/* Tap-orientation toggle — full-width segmented control with descriptive
+   labels inside each pill so the affordance is self-explanatory (no
+   separate "Tap zones" label needed). Uses the shared ViewModeToggle
+   component and just widens the buttons to fit text + icon. */
+.tap-orientation-toggle {
+  display: flex;
+  width: 100%;
+}
+
+.tap-orientation-toggle .toolbar-viewmode-btn {
+  flex: 1;
+  width: auto;
+  height: auto;
+  padding: 0.55rem 0.75rem;
   gap: 0.5rem;
-  padding: 0.9rem 1rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tap-orientation-toggle .toolbar-viewmode-btn svg {
+  flex-shrink: 0;
 }
 
 .game-menu-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  font-size: var(--text-sm);
-  color: rgba(255, 255, 255, 0.7);
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 0.35rem;
 }
 
-.game-menu-format {
+.game-menu-chip {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-transform: capitalize;
-  color: #fff;
-  font-weight: 500;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
 }
 
-.game-menu-action {
+.game-menu-chip.is-mode {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Player roster (in-game add / remove) ── */
+
+.game-menu-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.4rem;
+}
+
+.game-menu-roster-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: var(--text-sm);
+  color: var(--text);
+  min-width: 0;
+}
+
+.game-menu-roster-name {
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-menu-roster-remove {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.game-menu-roster-remove:hover:not(:disabled) {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+.game-menu-roster-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-menu-roster-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.7rem;
+  background: transparent;
+  border: 1px dashed var(--border2);
+  border-radius: 10px;
+  color: var(--text2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.game-menu-roster-add:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.game-menu-roster-locked {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-style: italic;
+}
+
+.game-menu-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.8rem;
-  font-size: var(--text-base);
-  text-align: left;
+  gap: 0.45rem;
 }
 
-.game-menu-action:hover {
-  background: rgba(255, 255, 255, 0.16);
+.game-menu-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
 }
 
-.game-menu-action--primary {
-  background: var(--accent);
-  color: var(--on-accent);
+/* Game-menu pill — same visual language as `.pill-btn`. Picks up the
+   active app theme so the menu reads light or dark with the rest of the
+   app, while the underlying game board stays its own dark overlay. */
+.game-menu-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 80ms ease;
+}
+
+.game-menu-pill:hover {
+  background: var(--accent-light);
   border-color: var(--accent);
+  color: var(--accent);
 }
 
-.game-menu-action--primary:hover {
+.game-menu-pill:active {
+  transform: scale(0.98);
+}
+
+.game-menu-pill.is-wide {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-size: var(--text-base);
+}
+
+.game-menu-pill.is-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.game-menu-pill.is-primary:hover {
   background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--on-accent);
 }
 
-.game-menu-action--danger {
+.game-menu-pill.is-danger {
   background: var(--err-bg);
-  color: var(--err-text);
   border-color: var(--err-border);
+  color: var(--err-text);
 }
 
-.game-menu-action-hint {
-  font-size: var(--text-xs);
-  opacity: 0.75;
-  font-weight: 400;
+.game-menu-pill.is-danger:hover {
+  background: var(--err-border);
+  color: var(--on-accent);
 }
 
 .game-menu-log {
@@ -1242,46 +2018,52 @@ body:has(.game-board) .modal-backdrop {
    the --pp-accent value is the saturated guild color used for the winner
    ring and the host star. */
 .pp-color-w {
-  --pp-base: #b09a4c; /* warm gold like an aged sun ribbon */
-  --pp-edge: #d8c477;
+  --pp-base: #c9a83a;
+  --pp-edge: #f0d970;
   --pp-accent: #fff1bd;
 }
 
 .pp-color-u {
-  --pp-base: #1f4f8c; /* sapphire deep */
-  --pp-edge: #3a82c4;
-  --pp-accent: #82c1ff;
+  --pp-base: #1f5fb8;
+  --pp-edge: #4ea0e8;
+  --pp-accent: #a8d2ff;
 }
 
 .pp-color-b {
-  --pp-base: #2c1f3a; /* obsidian plum */
-  --pp-edge: #5a3f78;
-  --pp-accent: #b994e0;
+  --pp-base: #3a2454;
+  --pp-edge: #6d4ca0;
+  --pp-accent: #c8a8f0;
 }
 
 .pp-color-r {
-  --pp-base: #8a2818; /* crimson ember */
-  --pp-edge: #c44a30;
-  --pp-accent: #ff8e6a;
+  --pp-base: #b02a1c;
+  --pp-edge: #e25a3a;
+  --pp-accent: #ffaa88;
 }
 
 .pp-color-g {
-  --pp-base: #2a6a36; /* forest moss */
-  --pp-edge: #4ca352;
-  --pp-accent: #9be0a3;
+  --pp-base: #2f8442;
+  --pp-edge: #58c465;
+  --pp-accent: #b0eab8;
 }
 
 .pp-color-m {
-  --pp-base: #7a5614; /* aged-gold multicolor */
-  --pp-edge: #c89538;
-  --pp-accent: #ffd56e;
+  --pp-base: #9c6a18;
+  --pp-edge: #e0b048;
+  --pp-accent: #ffe48a;
 }
 
 .pp-color-c {
-  --pp-base: #3a4252; /* gunmetal slate */
-  --pp-edge: #6b7388;
-  --pp-accent: #c2cad8;
+  --pp-base: #4a5366;
+  --pp-edge: #7d8aa3;
+  --pp-accent: #d0d8e8;
 }
+
+/* `.pp-seat` is a marker class for panels using the fallback palette. The
+   actual color values are set inline by GameBoard.tsx via
+   paletteForSeat(gameId, seat) — see frontend/src/lib/seat-palette.ts. We
+   don't define defaults here because the panel's own base rule already
+   supplies a neutral slate that the inline vars then override. */
 
 /* ── Code banner (host's join code) ─────────────────────────────────────── */
 
@@ -1466,16 +2248,46 @@ body:has(.game-board) .modal-backdrop {
    resets its own styling so the big numeral renders identically to the old
    plain div. */
 .player-panel-life-btn {
+  /* IMPORTANT: do not use the `font` shorthand here — it would clobber the
+     font-size set on `.player-panel-life`. Reset only the button chrome. */
   background: transparent;
   border: none;
-  padding: 0;
   margin: 0;
   cursor: pointer;
   color: inherit;
-  font: inherit;
+  font-family: inherit;
+  font-weight: inherit;
   letter-spacing: inherit;
-  line-height: inherit;
+  line-height: 1;
   pointer-events: auto;
+  z-index: 2;
+  border-radius: 999px;
+  /* The hit area is intentionally smaller than the visual digits — the
+     user must tap squarely in the middle of the number to open the
+     keypad. Stray taps fall through to the ±1 tap zones. */
+  width: clamp(1.5rem, 4vmin, 2.5rem);
+  height: clamp(1.5rem, 4vmin, 2.5rem);
+  padding: 0;
+  overflow: visible;
+  display: block;
+  text-align: center;
+}
+
+.player-panel-life-btn > .player-panel-life-num {
+  /* Anchor the rendered glyphs to the center of the small hit-area box,
+     letting them overflow the box in all directions at full font size.
+     Uses the individual `translate` CSS property (not the `transform`
+     shorthand) so the pop animation's `scale` composes with it instead
+     of clobbering the centering and jerking the digits. */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  white-space: nowrap;
+  /* Pointer-events off — the digits overflow the button bounds visually,
+     but only the button's own (small) hit-rect should trigger the keypad.
+     Taps on the digit overflow areas pass through to the ±1 tap zones. */
+  pointer-events: none;
 }
 
 .player-panel-life-num {
@@ -1489,13 +2301,13 @@ body:has(.game-board) .modal-backdrop {
 
 @keyframes pp-pop {
   0% {
-    transform: scale(1);
+    scale: 1;
   }
   40% {
-    transform: scale(1.12);
+    scale: 1.12;
   }
   100% {
-    transform: scale(1);
+    scale: 1;
   }
 }
 
@@ -1604,7 +2416,9 @@ body:has(.game-board) .modal-backdrop {
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 1000;
+  /* Must sit above the game board (--z-overlay: 1100) — both are portaled
+     to body, so a literal 1000 would be painted under the board. */
+  z-index: calc(var(--z-overlay) + 50);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1613,10 +2427,14 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .life-keypad {
-  background: var(--bg2, #1c2330);
-  color: var(--text, #fff);
+  /* Adopts the active app theme — the game board is its own dark overlay,
+     but the keypad is a modal that sits on top of it like any other
+     dialog and reads with the rest of the app. */
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-modal);
   padding: 1rem;
   width: min(360px, 100%);
   display: flex;
@@ -1654,19 +2472,29 @@ body:has(.game-board) .modal-backdrop {
 
 .life-keypad-title {
   font-size: var(--text-sm);
-  color: var(--text2, rgba(255, 255, 255, 0.7));
+  color: var(--text2);
 }
 
 .life-keypad-close {
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
   border-radius: 50%;
   width: 1.9rem;
   height: 1.9rem;
   font-size: var(--text-md);
   line-height: 1;
   cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.life-keypad-close:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .life-keypad-display {
@@ -1677,6 +2505,7 @@ body:has(.game-board) .modal-backdrop {
   padding: 0.5rem 0;
   line-height: 1;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .life-keypad-grid {
@@ -1686,9 +2515,9 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .life-keypad-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 10px;
   padding: 0.9rem 0;
   font-family: var(--font-mono);
@@ -1696,35 +2525,42 @@ body:has(.game-board) .modal-backdrop {
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .life-keypad-btn:hover,
 .life-keypad-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .life-keypad-btn:active {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .life-keypad-btn.is-action {
-  background: rgba(255, 255, 255, 0.04);
-  font-size: var(--text-md);
+  color: var(--text2);
 }
 
 .life-keypad-confirm {
-  background: var(--accent, #3b82f6);
+  background: var(--accent);
   border: none;
-  color: #fff;
+  color: var(--on-accent);
   border-radius: 10px;
   padding: 0.85rem 0;
   font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
+  transition: background 120ms ease;
 }
 
 .life-keypad-confirm:hover {
-  filter: brightness(1.1);
+  background: var(--accent-hover);
 }
 
 /* ── Pointer-capable affordances (desktop mouse, trackpads) ──
@@ -1749,18 +2585,12 @@ body:has(.game-board) .modal-backdrop {
     cursor: pointer;
   }
   .player-panel-step-btn:not(:disabled):hover {
-    background: rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(0, 0, 0, 0.7);
+    background: rgba(255, 255, 255, 0.12);
   }
   .player-panel-drawer-btn:hover {
     filter: brightness(1.15);
   }
-}
-
-/* The `line` layout (4p, single horizontal row) gets a denser life font
-   since each panel is much narrower than a 2x2 cell. */
-.game-board.layout-line .player-panel-life {
-  font-size: clamp(2rem, 7vmin, 5rem);
 }
 
 /* ── Layout picker UI ── */
@@ -1768,90 +2598,113 @@ body:has(.game-board) .modal-backdrop {
 .layout-picker {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
 }
 
 .layout-picker-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.55rem;
 }
 
 .layout-option {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text, #fff);
-  border-radius: 10px;
-  padding: 0.6rem 0.5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
-  text-align: center;
+  justify-content: center;
   transition:
     border-color 120ms ease,
-    background 120ms ease;
+    background 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
 .layout-option:hover {
-  border-color: rgba(255, 255, 255, 0.28);
+  border-color: var(--border2);
 }
 
 .layout-option.is-selected {
-  border-color: var(--warn-text, #ffe07a);
-  background: rgba(255, 224, 122, 0.08);
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 2px var(--accent-light);
 }
 
 .layout-option-preview {
+  /* Aspect-ratio is set inline per layout (cols × rows) so the thumbnail
+     looks like a real miniature of the board: 2×2 pod = square, 2×3 = a
+     taller rectangle. The mini hub dot sits at --seam-pct from the top
+     edge so layouts with identical seat counts but different seams
+     (e.g. 6p 4v2 vs 2v4) read as distinct in the picker. */
+  position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
   display: grid;
-  gap: 2px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  padding: 2px;
-  max-width: 64px;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  /* Constrain height so tall layouts (3+ rows) don't blow the thumbnail
+     up; the aspect-ratio still applies, but max-height keeps the picker
+     compact. */
+  max-height: 130px;
+  align-self: center;
+}
+
+/* Mini hub dot at the seam — mirrors the floating game-board-menu-btn
+   on the actual board. */
+.layout-option-preview::after {
+  content: '';
+  position: absolute;
+  top: var(--seam-top-pct, 50%);
+  left: var(--seam-left-pct, 50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text2);
+  border: 2px solid var(--bg);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .layout-option-cell {
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 2px;
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--pp-edge, #6aa6ff) 80%, transparent) 0%,
+    color-mix(in srgb, var(--pp-base, #4a5366) 92%, transparent) 100%
+  );
+  border-radius: 5px;
   position: relative;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.layout-option-cell.is-flipped::before {
-  content: '';
-  position: absolute;
-  top: 12%;
-  left: 18%;
-  right: 18%;
-  height: 2px;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 1px;
+.layout-option-cell.is-flipped .layout-option-cell-num {
+  transform: rotate(180deg);
 }
 
-.layout-option-cell:not(.is-flipped)::before {
-  content: '';
-  position: absolute;
-  bottom: 12%;
-  left: 18%;
-  right: 18%;
-  height: 2px;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 1px;
+.layout-option-cell.is-empty {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
 }
 
-.layout-option-label {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.layout-option-hint {
-  font-size: var(--text-xs);
-  color: var(--text3, rgba(255, 255, 255, 0.55));
-  line-height: 1.25;
+.layout-option-cell-num {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: clamp(0.7rem, 2.5vmin, 1.1rem);
+  color: rgba(0, 0, 0, 0.55);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  display: inline-block;
 }
 
 /* Respect reduced-motion users — kill all decorative animations but keep

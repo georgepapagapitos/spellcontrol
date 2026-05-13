@@ -27,7 +27,16 @@
  *  - `line`    — single row of upright panels. Sized for landscape
  *    tablets / desktops; only sensible at 4p.
  */
-export type GameLayout = 'pod' | 'pod-alt' | 'same' | 'line';
+/**
+ * Layout id — opaque string token tied to an entry in the frontend's
+ * board-layouts registry. The reducer never inspects it; only the picker
+ * + GameBoard renderer use it. Unknown ids fall back to the count's
+ * default via `resolveLayout`, so adding or removing layouts in the
+ * registry never invalidates persisted games.
+ */
+export type GameLayout = string;
+
+export type TapOrientation = 'horizontal' | 'vertical';
 
 export type GameFormat =
   | 'commander'
@@ -109,6 +118,14 @@ export interface GameState {
   poisonEnabled: boolean;
   /** Visual arrangement of player panels. Defaults to 'pod'. */
   layout: GameLayout;
+  /**
+   * Tap-zone orientation per panel.
+   * - `horizontal` (default): left half = −1, right half = +1.
+   * - `vertical`: top half = +1, bottom half = −1.
+   * Persisted per game; persisted games from before this field default to
+   * `horizontal` via the resolver.
+   */
+  tapOrientation: TapOrientation;
   players: GamePlayer[];
   events: GameEvent[];
   winnerSeat: number | null;
@@ -160,7 +177,12 @@ export type GameAction =
       patch: Partial<
         Pick<
           GameState,
-          'startingLife' | 'commanderDamageEnabled' | 'poisonEnabled' | 'format' | 'layout'
+          | 'startingLife'
+          | 'commanderDamageEnabled'
+          | 'poisonEnabled'
+          | 'format'
+          | 'layout'
+          | 'tapOrientation'
         >
       >;
       ts?: number;
@@ -251,6 +273,7 @@ export function createGameState(input: {
   commanderDamageEnabled: boolean;
   poisonEnabled: boolean;
   layout?: GameLayout;
+  tapOrientation?: TapOrientation;
   players: GamePlayer[];
   ts?: number;
 }): GameState {
@@ -266,6 +289,7 @@ export function createGameState(input: {
     commanderDamageEnabled: input.commanderDamageEnabled,
     poisonEnabled: input.poisonEnabled,
     layout: input.layout ?? 'pod',
+    tapOrientation: input.tapOrientation ?? 'horizontal',
     players: input.players,
     events: [],
     winnerSeat: null,

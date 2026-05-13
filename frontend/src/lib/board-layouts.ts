@@ -1,43 +1,68 @@
 import type { GameLayout } from './game-state';
 
 /**
- * A board layout is a uniform CSS Grid + a placement for each seat. Seats
- * may span columns or rows; unused cells may be declared as `empty` so the
- * grid stays uniform (e.g. 5-player layouts are a 3×2 grid with one
- * intentionally-empty cell, matching the reference apps).
+ * Layout model
+ * ─────────────
+ * Every layout is a **2-column** CSS Grid. The number of rows is the
+ * smallest count that fits the chosen arrangement (typically
+ * `ceil(playerCount / 2)`, sometimes larger when a Wide row is part of
+ * the layout). Each seat occupies a single cell that may span:
  *
- * Rotations are always 0° or 180°. Never 90°. Empty cells render as
- * subtle placeholders — they also act as natural anchors for board chrome
- * like the global menu button, which slots into the empty cell when one
- * is present.
+ *   • Normal  — colSpan 1, rowSpan 1
+ *   • Wide    — colSpan 2, rowSpan 1  (fills a whole row)
+ *   • Tall    — colSpan 1, rowSpan 2  (fills both cells of a column)
+ *
+ * Cells with no seat render as faded placeholders. Players can span into
+ * what would otherwise be an empty cell. Rotation is 0° or 180° per seat
+ * — "top side" seats are 180° and "bottom side" seats are 0°, so each
+ * player reads their own panel right-side-up from their seat at the
+ * table.
+ *
+ * `seamAfterRow` tells the renderer where the central game-menu hub
+ * sits — between row `seamAfterRow` and row `seamAfterRow + 1`. The hub
+ * always lands at the visual boundary between rotated and upright seats.
  */
 
 export interface SeatSlot {
-  /** 1-based grid column start. */
-  col: number;
+  /** 1-based grid column start (1 or 2). */
+  col: 1 | 2;
   /** 1-based grid row start. */
   row: number;
-  colSpan?: number;
-  rowSpan?: number;
-  rot: 0 | 180;
+  /** colspan — 1 normal, 2 wide. */
+  colSpan?: 1 | 2;
+  /** rowspan — 1 normal, 2 tall. */
+  rowSpan?: 1 | 2;
+  /**
+   * Panel rotation in degrees. 0 = upright, 180 = facing across a row
+   * seam, 90 / 270 = facing across a column seam (e.g. side-by-side 2p
+   * where each player reads from their own long edge of the device).
+   */
+  rot: 0 | 90 | 180 | 270;
 }
 
 export interface EmptyCell {
-  col: number;
+  col: 1 | 2;
   row: number;
-  colSpan?: number;
-  rowSpan?: number;
+  colSpan?: 1 | 2;
+  rowSpan?: 1 | 2;
 }
 
 export interface BoardLayout {
   id: GameLayout;
-  /** Short, user-facing label for the picker. */
-  label: string;
-  /** One-liner displayed below the picker when this layout is active. */
-  hint: string;
-  cols: number;
+  /** Always 2 in this model — preserved on the type for renderer ergonomics. */
+  cols: 2;
   rows: number;
-  /** Seat positions, in seat-index order. Length must equal player count. */
+  /**
+   * Position of the central hub button.
+   * - `{ row: N }`: hub sits on the horizontal seam between row N and
+   *   row N+1 (typical for top-vs-bottom layouts where seats are
+   *   rotated 0° / 180°).
+   * - `{ col: N }`: hub sits on the vertical seam between col N and
+   *   col N+1 (used for side-by-side 2p where seats are rotated
+   *   90° / 270° and face across a column seam).
+   */
+  seam: { row: number } | { col: number };
+  /** Seat positions in seat-index order. Length must equal player count. */
   seats: SeatSlot[];
   /** Cells with no player — render as faded placeholders. */
   empty?: EmptyCell[];
@@ -46,152 +71,185 @@ export interface BoardLayout {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function s(
-  col: number,
+  col: 1 | 2,
   row: number,
-  rot: 0 | 180 = 0,
-  span?: { c?: number; r?: number }
+  rot: 0 | 90 | 180 | 270,
+  span?: { c?: 1 | 2; r?: 1 | 2 }
 ): SeatSlot {
   return { col, row, rot, colSpan: span?.c, rowSpan: span?.r };
 }
 
-function e(col: number, row: number, span?: { c?: number; r?: number }): EmptyCell {
+function e(col: 1 | 2, row: number, span?: { c?: 1 | 2; r?: 1 | 2 }): EmptyCell {
   return { col, row, colSpan: span?.c, rowSpan: span?.r };
 }
 
 // ── Layout tables ──────────────────────────────────────────────────────────
 //
-// Indexed by player count. Each count exposes one or more layouts; the first
-// entry is the default for new games at that count.
+// Indexed by player count. The first entry is the default for new games at
+// that count. Within a count, layouts are ordered roughly by how common
+// they are at a real table.
 
 const LAYOUTS: Record<number, BoardLayout[]> = {
+  // ── 2 players ──────────────────────────────────────────────────────────
+  // 2p uniquely supports both row-seam (stacked) and col-seam
+  // (side-by-side) arrangements — the device sits flat between two
+  // players who face each other across either axis.
   2: [
     {
-      id: 'pod',
-      label: 'Facing',
-      hint: 'Phone between two players, each panel reads from their side.',
-      cols: 1,
+      // Stacked Wide rows — facing across the short edge of the device.
+      id: '2p-stacked',
+      cols: 2,
       rows: 2,
-      seats: [s(1, 1, 180), s(1, 2, 0)],
+      seam: { row: 1 },
+      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 0, { c: 2 })],
     },
     {
-      id: 'same',
-      label: 'Same side',
-      hint: 'Both players look at the device from the same side.',
-      cols: 1,
-      rows: 2,
-      seats: [s(1, 1, 0), s(1, 2, 0)],
+      // Side-by-side — facing across the long edge. The left seat
+      // rotates 90° CW and the right seat 270° CW (= 90° CCW) so each
+      // player reads their life number from their seat. The hub sits
+      // on the vertical seam between the two cells.
+      id: '2p-side',
+      cols: 2,
+      rows: 1,
+      seam: { col: 1 },
+      seats: [s(1, 1, 90), s(2, 1, 270)],
     },
   ],
 
+  // ── 3 players ──────────────────────────────────────────────────────────
+  // All in a 2×2 grid. The lone seat can sit on top or bottom, on either
+  // column, or span the row as a Wide cell.
   3: [
     {
-      // 1 across (spans both columns), 2 on the near side.
-      id: 'pod',
-      label: '1 vs 2',
-      hint: 'One player across the table, two on the near side.',
+      // Wide top + 2 normal bottom. Lone player faces the pair.
+      id: '3p-wide-top',
       cols: 2,
       rows: 2,
+      seam: { row: 1 },
       seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 0), s(2, 2, 0)],
     },
     {
-      // Inverse — 2 across, 1 near (the lone seat spans).
-      id: 'pod-alt',
-      label: '2 vs 1',
-      hint: 'Two players across the table, one on the near side.',
+      // 2 normal top + Wide bottom — inverse pairing.
+      id: '3p-wide-bottom',
       cols: 2,
       rows: 2,
+      seam: { row: 1 },
       seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0, { c: 2 })],
     },
     {
-      id: 'same',
-      label: 'Same side',
-      hint: 'All three players look at the device from the same side.',
+      // 2 top + 1 bottom-left, top-right empty corner.
+      id: '3p-tt-bl',
       cols: 2,
       rows: 2,
-      seats: [s(1, 1, 0), s(2, 1, 0), s(1, 2, 0, { c: 2 })],
+      seam: { row: 1 },
+      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0)],
+      empty: [e(2, 2)],
+    },
+    {
+      // 2 top + 1 bottom-right, bottom-left empty corner.
+      id: '3p-tt-br',
+      cols: 2,
+      rows: 2,
+      seam: { row: 1 },
+      seats: [s(1, 1, 180), s(2, 1, 180), s(2, 2, 0)],
+      empty: [e(1, 2)],
+    },
+    {
+      // 1 top-right + 2 bottom, top-left empty corner.
+      id: '3p-tr-bb',
+      cols: 2,
+      rows: 2,
+      seam: { row: 1 },
+      seats: [s(2, 1, 180), s(1, 2, 0), s(2, 2, 0)],
+      empty: [e(1, 1)],
+    },
+    {
+      // 1 top-left + 2 bottom, top-right empty corner.
+      id: '3p-tl-bb',
+      cols: 2,
+      rows: 2,
+      seam: { row: 1 },
+      seats: [s(1, 1, 180), s(1, 2, 0), s(2, 2, 0)],
+      empty: [e(2, 1)],
     },
   ],
 
+  // ── 4 players ──────────────────────────────────────────────────────────
+  // Classic 2×2 pod is the default. Wide-top + 2 + Wide-bottom is the
+  // "1 vs 1 vs 2 in the middle" arrangement.
   4: [
     {
-      id: 'pod',
-      label: 'Pod',
-      hint: 'Classic Commander pod — two players on each side of the device.',
+      // Classic Commander pod — 2 on each side of the device.
+      id: '4p-pod',
       cols: 2,
       rows: 2,
+      seam: { row: 1 },
       seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0), s(2, 2, 0)],
     },
     {
-      id: 'same',
-      label: 'Same side',
-      hint: 'All four players look at the device from the same side.',
+      // Wide top + 2 middle + Wide bottom. The two outer players each
+      // sit alone on a long edge; the middle pair sits across from each
+      // other at the seam.
+      id: '4p-wide-middle',
       cols: 2,
-      rows: 2,
-      seats: [s(1, 1, 0), s(2, 1, 0), s(1, 2, 0), s(2, 2, 0)],
-    },
-    {
-      id: 'line',
-      label: 'Line',
-      hint: 'Single row — best for a landscape tablet between four players.',
-      cols: 4,
-      rows: 1,
-      seats: [s(1, 1, 0), s(2, 1, 0), s(3, 1, 0), s(4, 1, 0)],
+      rows: 3,
+      seam: { row: 2 },
+      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0, { c: 2 })],
     },
   ],
 
-  // 5p uses a uniform 3×2 grid with one cell intentionally empty. The empty
-  // cell anchors the global menu button so it never overlaps a panel.
+  // ── 5 players ──────────────────────────────────────────────────────────
+  // 3 rows × 2 cols with one Wide row absorbing the odd seat.
   5: [
     {
-      id: 'pod',
-      label: '3 vs 2',
-      hint: 'Three players across the table, two on the near side.',
-      cols: 3,
-      rows: 2,
-      seats: [s(1, 1, 180), s(2, 1, 180), s(3, 1, 180), s(1, 2, 0), s(2, 2, 0)],
-      empty: [e(3, 2)],
+      // Wide top + 2 middle + 2 bottom (3 across the far side, 2 near).
+      id: '5p-wide-top',
+      cols: 2,
+      rows: 3,
+      seam: { row: 2 },
+      seats: [s(1, 1, 180, { c: 2 }), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0), s(2, 3, 0)],
     },
     {
-      id: 'pod-alt',
-      label: '2 vs 3',
-      hint: 'Two players across the table, three on the near side.',
-      cols: 3,
-      rows: 2,
-      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0), s(2, 2, 0), s(3, 2, 0)],
-      empty: [e(3, 1)],
+      // 2 top + 2 middle + Wide bottom (inverse).
+      id: '5p-wide-bottom',
+      cols: 2,
+      rows: 3,
+      seam: { row: 2 },
+      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0, { c: 2 })],
     },
     {
-      id: 'same',
-      label: 'Same side',
-      hint: 'All five players look at the device from the same side.',
-      cols: 3,
-      rows: 2,
-      seats: [s(1, 1, 0), s(2, 1, 0), s(3, 1, 0), s(1, 2, 0), s(2, 2, 0)],
-      empty: [e(3, 2)],
+      // 2 top + Wide middle + 2 bottom (2 vs 1 vs 2).
+      id: '5p-wide-middle',
+      cols: 2,
+      rows: 3,
+      seam: { row: 2 },
+      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180, { c: 2 }), s(1, 3, 0), s(2, 3, 0)],
     },
   ],
 
+  // ── 6 players ──────────────────────────────────────────────────────────
+  // 3 rows × 2 cols, fully populated.
   6: [
     {
-      id: 'pod',
-      label: '3 vs 3',
-      hint: 'Three players on each side of the device.',
-      cols: 3,
-      rows: 2,
-      seats: [s(1, 1, 180), s(2, 1, 180), s(3, 1, 180), s(1, 2, 0), s(2, 2, 0), s(3, 2, 0)],
+      // 4 across the far side (top + middle rows rotated) and 2 near.
+      id: '6p-4v2',
+      cols: 2,
+      rows: 3,
+      seam: { row: 2 },
+      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 180), s(2, 2, 180), s(1, 3, 0), s(2, 3, 0)],
     },
     {
-      id: 'same',
-      label: 'Same side',
-      hint: 'All six players look at the device from the same side.',
-      cols: 3,
-      rows: 2,
-      seats: [s(1, 1, 0), s(2, 1, 0), s(3, 1, 0), s(1, 2, 0), s(2, 2, 0), s(3, 2, 0)],
+      // 2 far + 4 near.
+      id: '6p-2v4',
+      cols: 2,
+      rows: 3,
+      seam: { row: 1 },
+      seats: [s(1, 1, 180), s(2, 1, 180), s(1, 2, 0), s(2, 2, 0), s(1, 3, 0), s(2, 3, 0)],
     },
   ],
 };
 
-/** All layout ids available at the given player count (default first). */
+/** All layouts available at the given player count (default first). */
 export function layoutsForCount(count: number): BoardLayout[] {
   const c = Math.max(2, Math.min(count, 6));
   return LAYOUTS[c] ?? LAYOUTS[2];
@@ -199,9 +257,9 @@ export function layoutsForCount(count: number): BoardLayout[] {
 
 /**
  * Resolve a (count, layoutId) pair to its concrete BoardLayout, falling
- * back to the default for the count if the id isn't available. Legacy
- * persisted ids (`'default'`, `'row'`) miss the registry and use the
- * count's default.
+ * back to the count's default if the id is unknown. Legacy persisted ids
+ * (`'pod'`, `'pod-alt'`, `'same'`, `'line'`) miss the registry and get
+ * the new default automatically.
  */
 export function resolveLayout(
   count: number,
