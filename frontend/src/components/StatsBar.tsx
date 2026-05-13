@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
+import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { EnrichedCard } from '../types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -44,16 +45,26 @@ const RARITY_BUCKETS: Array<{ key: string; label: string; color: string }> = [
   { key: 'common', label: 'Common', color: 'var(--rarity-common-to)' },
 ];
 
-export function StatsBar() {
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function StatsBar({ open, onClose }: Props) {
   const cards = useCollectionStore((s) => s.cards);
   const scryfallMisses = useCollectionStore((s) => s.scryfallMisses);
   const binderDefs = useCollectionStore((s) => s.binders);
-  // Collapsed by default — the actual collection (search + cards) is
-  // why the user opened this page. Stats are interesting context but
-  // shouldn't push the cards below the fold on first load.
-  const [statsExpanded, setStatsExpanded] = useState(false);
 
-  const totalValue = cards.reduce((sum, c) => sum + c.purchasePrice, 0);
+  useLockBodyScroll(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
 
   // Unique printings (by scryfallId) — breakdowns count one per unique printing,
   // matching the reference UI where 3,365 unique sums to 6,440 total copies.
@@ -75,7 +86,6 @@ export function StatsBar() {
   }, [uniqueCards]);
 
   const typeBreakdown = useMemo(() => {
-    // Per-type total count + per-color split for the stacked mini-bars.
     const totals: Record<string, number> = {};
     const splits: Record<string, Record<string, number>> = {};
     for (const c of uniqueCards) {
@@ -105,7 +115,6 @@ export function StatsBar() {
   const uniqueTotal = uniqueCards.length;
   const denom = Math.max(1, uniqueTotal);
 
-  // Stale-import detection (kept from previous version).
   const usesNewFilters = binderDefs.some((b) =>
     (b.filterGroups || []).some((g) => {
       const f = g.filter || {};
@@ -123,142 +132,6 @@ export function StatsBar() {
 
   return (
     <>
-      <button
-        type="button"
-        className={`breakdown-overview is-toggle${statsExpanded ? ' is-open' : ''}`}
-        onClick={() => setStatsExpanded((v) => !v)}
-        aria-expanded={statsExpanded}
-        aria-controls="breakdown-grid"
-      >
-        <span className="breakdown-overview-text">
-          <span className="breakdown-overview-label">Overview</span>
-          <span className="breakdown-overview-stats">
-            <span className="breakdown-overview-num">{cards.length.toLocaleString()}</span>
-            <span className="breakdown-overview-unit">cards</span>
-            <span className="breakdown-overview-sep">·</span>
-            <span className="breakdown-overview-num">${totalValue.toFixed(0)}</span>
-            <span className="breakdown-overview-unit">value</span>
-          </span>
-        </span>
-        <svg
-          className="breakdown-overview-chevron"
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m4 6 4 4 4-4" />
-        </svg>
-      </button>
-
-      <div
-        id="breakdown-grid"
-        className={`breakdown-grid${statsExpanded ? '' : ' is-collapsed'}`}
-        aria-hidden={!statsExpanded}
-      >
-        {/* Colors */}
-        <section className="breakdown-card" aria-label="Cards by color">
-          <h3 className="breakdown-title">Colors</h3>
-          <ul className="breakdown-list">
-            {COLOR_BUCKETS.map((b) => {
-              const count = colorCounts[b.key] ?? 0;
-              const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
-              const width = (count / denom) * 100;
-              return (
-                <li key={b.key} className="breakdown-row">
-                  <div className="breakdown-row-head">
-                    <i className={`ms ${b.ms} ms-cost color-pip-mana`} aria-hidden />
-                    <span className="breakdown-row-label">{b.label}</span>
-                    <span className="breakdown-row-count">{count.toLocaleString()}</span>
-                    <span className="breakdown-row-pct">({pct}%)</span>
-                  </div>
-                  <div className="breakdown-bar">
-                    <div
-                      className="breakdown-bar-fill"
-                      style={{ width: `${width}%`, background: b.color }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        {/* Types */}
-        <section className="breakdown-card" aria-label="Cards by type">
-          <h3 className="breakdown-title">Types</h3>
-          <ul className="breakdown-list breakdown-list-types">
-            {typeBreakdown.map((t) => {
-              const width = (t.total / denom) * 100;
-              return (
-                <li key={t.key} className="breakdown-row">
-                  <div className="breakdown-row-head">
-                    {TYPE_ICONS[t.key] && (
-                      <i className={`ms ${TYPE_ICONS[t.key]} breakdown-icon`} aria-hidden />
-                    )}
-                    <span className="breakdown-row-label">{t.label}</span>
-                    <span className="breakdown-row-count">{t.total.toLocaleString()}</span>
-                  </div>
-                  <div className="breakdown-bar">
-                    <div className="breakdown-bar-fill segmented" style={{ width: `${width}%` }}>
-                      {COLOR_BUCKETS.map((b) => {
-                        const seg = t.splits[b.key] ?? 0;
-                        if (seg === 0) return null;
-                        const segPct = (seg / t.total) * 100;
-                        return (
-                          <div
-                            key={b.key}
-                            className="breakdown-bar-seg"
-                            style={{ width: `${segPct}%`, background: b.color }}
-                            title={`${b.label}: ${seg}`}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        {/* Rarity */}
-        <section className="breakdown-card" aria-label="Cards by rarity">
-          <h3 className="breakdown-title">Rarity</h3>
-          <ul className="breakdown-list">
-            {RARITY_BUCKETS.map((b) => {
-              const count = rarityCounts[b.key] ?? 0;
-              const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
-              const width = (count / denom) * 100;
-              return (
-                <li key={b.key} className="breakdown-row">
-                  <div className="breakdown-row-head">
-                    <i
-                      className={`ms ms-planeswalker breakdown-icon breakdown-icon-rarity rarity-${b.key}`}
-                      aria-hidden
-                    />
-                    <span className="breakdown-row-label">{b.label}</span>
-                    <span className="breakdown-row-count">{count.toLocaleString()}</span>
-                    <span className="breakdown-row-pct">({pct}%)</span>
-                  </div>
-                  <div className="breakdown-bar">
-                    <div
-                      className="breakdown-bar-fill"
-                      style={{ width: `${width}%`, background: b.color }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      </div>
-
       {showStaleBanner && (
         <div className="warn-banner">
           ⚠️ Your cards are missing some Scryfall fields — re-import your collection to use the new
@@ -269,6 +142,141 @@ export function StatsBar() {
         <div className="warn-banner">
           ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched with
           Scryfall data — color/CMC/type sorting may be inaccurate for those cards.
+        </div>
+      )}
+
+      {open && (
+        <div className="stats-drawer-root">
+          <div className="stats-drawer-backdrop" onClick={onClose} aria-hidden />
+          <aside
+            className="stats-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Collection breakdown"
+          >
+            <header className="stats-drawer-header">
+              <h2 className="stats-drawer-title">Breakdown</h2>
+              <button
+                type="button"
+                className="stats-drawer-close"
+                onClick={onClose}
+                aria-label="Close breakdown"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </header>
+
+            <div className="stats-drawer-body">
+              <section className="breakdown-card" aria-label="Cards by color">
+                <h3 className="breakdown-title">Colors</h3>
+                <ul className="breakdown-list">
+                  {COLOR_BUCKETS.map((b) => {
+                    const count = colorCounts[b.key] ?? 0;
+                    const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
+                    const width = (count / denom) * 100;
+                    return (
+                      <li key={b.key} className="breakdown-row">
+                        <div className="breakdown-row-head">
+                          <i className={`ms ${b.ms} ms-cost color-pip-mana`} aria-hidden />
+                          <span className="breakdown-row-label">{b.label}</span>
+                          <span className="breakdown-row-count">{count.toLocaleString()}</span>
+                          <span className="breakdown-row-pct">({pct}%)</span>
+                        </div>
+                        <div className="breakdown-bar">
+                          <div
+                            className="breakdown-bar-fill"
+                            style={{ width: `${width}%`, background: b.color }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+
+              <section className="breakdown-card" aria-label="Cards by type">
+                <h3 className="breakdown-title">Types</h3>
+                <ul className="breakdown-list breakdown-list-types">
+                  {typeBreakdown.map((t) => {
+                    const width = (t.total / denom) * 100;
+                    return (
+                      <li key={t.key} className="breakdown-row">
+                        <div className="breakdown-row-head">
+                          {TYPE_ICONS[t.key] && (
+                            <i className={`ms ${TYPE_ICONS[t.key]} breakdown-icon`} aria-hidden />
+                          )}
+                          <span className="breakdown-row-label">{t.label}</span>
+                          <span className="breakdown-row-count">{t.total.toLocaleString()}</span>
+                        </div>
+                        <div className="breakdown-bar">
+                          <div
+                            className="breakdown-bar-fill segmented"
+                            style={{ width: `${width}%` }}
+                          >
+                            {COLOR_BUCKETS.map((b) => {
+                              const seg = t.splits[b.key] ?? 0;
+                              if (seg === 0) return null;
+                              const segPct = (seg / t.total) * 100;
+                              return (
+                                <div
+                                  key={b.key}
+                                  className="breakdown-bar-seg"
+                                  style={{ width: `${segPct}%`, background: b.color }}
+                                  title={`${b.label}: ${seg}`}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+
+              <section className="breakdown-card" aria-label="Cards by rarity">
+                <h3 className="breakdown-title">Rarity</h3>
+                <ul className="breakdown-list">
+                  {RARITY_BUCKETS.map((b) => {
+                    const count = rarityCounts[b.key] ?? 0;
+                    const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
+                    const width = (count / denom) * 100;
+                    return (
+                      <li key={b.key} className="breakdown-row">
+                        <div className="breakdown-row-head">
+                          <i
+                            className={`ms ms-planeswalker breakdown-icon breakdown-icon-rarity rarity-${b.key}`}
+                            aria-hidden
+                          />
+                          <span className="breakdown-row-label">{b.label}</span>
+                          <span className="breakdown-row-count">{count.toLocaleString()}</span>
+                          <span className="breakdown-row-pct">({pct}%)</span>
+                        </div>
+                        <div className="breakdown-bar">
+                          <div
+                            className="breakdown-bar-fill"
+                            style={{ width: `${width}%`, background: b.color }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </div>
+          </aside>
         </div>
       )}
     </>

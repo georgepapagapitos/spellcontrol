@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
+import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { ThemePicker } from '../components/deck/ThemePicker';
@@ -220,10 +221,8 @@ export function DeckNewPage() {
 
   return (
     <div className="deck-builder-page">
+      <BackLink to="/decks" label="All decks" />
       <header className="deck-builder-header">
-        <Link to="/decks" className="btn-link">
-          ← All decks
-        </Link>
         <h1>New deck</h1>
         <p className="deck-builder-subtitle">
           {formatConfig.hasCommander ? (

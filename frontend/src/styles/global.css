@@ -519,6 +519,101 @@ select {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Collection breakdown drawer — slides in from the right with the
+   Colors / Types / Rarity sections. Triggered by the Stats button in
+   the sticky collection toolbar. */
+.stats-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.stats-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-sheet);
+  animation: binder-sheet-fade 160ms ease-out;
+}
+
+.stats-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100%);
+  background: var(--surface);
+  border-left: 0.5px solid var(--border2);
+  box-shadow: var(--shadow-sheet);
+  display: flex;
+  flex-direction: column;
+  animation: stats-drawer-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes stats-drawer-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-drawer {
+    animation: none;
+  }
+}
+
+.stats-drawer-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.stats-drawer-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.stats-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text3);
+  cursor: pointer;
+}
+
+.stats-drawer-close:hover,
+.stats-drawer-close:focus-visible {
+  background: var(--surface2);
+  color: var(--text);
+  outline: none;
+}
+
+.stats-drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.85rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  -webkit-overflow-scrolling: touch;
+}
+
 .import-card {
   background: var(--surface);
   border: 0.5px solid var(--border);
@@ -1664,141 +1759,6 @@ input[type='text'] {
 .stat-value {
   font-size: var(--text-2xl);
   color: var(--text);
-}
-
-/* Header row above the breakdown grid — section label + collection totals.
-   Doubles as a tap target that toggles the breakdown grid open/closed.
-   The text (label + stats) lives in an inner container that wraps as a
-   group; the chevron always stays anchored to the right edge. */
-.breakdown-overview {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  margin-bottom: 0.6rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.breakdown-overview-text {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem 1rem;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.breakdown-overview.is-toggle {
-  width: 100%;
-  background: transparent;
-  border-left: 0;
-  border-right: 0;
-  border-top: 0;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.breakdown-overview.is-toggle:hover .breakdown-overview-label,
-.breakdown-overview.is-toggle:focus-visible .breakdown-overview-label {
-  color: var(--text);
-}
-
-.breakdown-overview.is-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius);
-}
-
-.breakdown-overview-chevron {
-  color: var(--text3);
-  flex: 0 0 auto;
-  align-self: flex-end;
-  margin-bottom: 0.15rem;
-  transition: transform 160ms ease;
-}
-
-.breakdown-overview.is-open .breakdown-overview-chevron {
-  transform: rotate(180deg);
-}
-
-.breakdown-overview-label {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: var(--text-xs);
-  color: var(--text3);
-  font-weight: 600;
-}
-
-.breakdown-overview-stats {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.breakdown-overview-num {
-  color: var(--text);
-  font-weight: 600;
-  font-size: var(--text-lg);
-}
-
-.breakdown-overview-unit {
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: var(--text-xs);
-}
-
-.breakdown-overview-sep {
-  color: var(--text3);
-  margin: 0 0.2rem;
-}
-
-/* Breakdown cards — Colors / Types / Rarity */
-.breakdown-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  /* The bottom border closes off the stats section. It's part of this
-     panel (rather than a separate <hr/>) so that when the panel
-     collapses it disappears with the rest of the content — no orphan
-     divider above the cards. */
-  padding-bottom: 1rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 0.5px solid var(--border);
-  /* Smoothly collapse/expand with the toggle above. max-height is a
-     pragmatic ceiling that's far larger than the panel ever gets — the
-     transition is what matters. interpolate-size is the future-clean
-     way but isn't broadly supported yet. */
-  max-height: 2000px;
-  opacity: 1;
-  overflow: hidden;
-  transition:
-    max-height 260ms cubic-bezier(0.2, 0.9, 0.3, 1),
-    opacity 180ms ease,
-    margin-bottom 220ms ease,
-    padding-bottom 220ms ease;
-}
-
-.breakdown-grid.is-collapsed {
-  max-height: 0;
-  opacity: 0;
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom-color: transparent;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .breakdown-grid {
-    transition: none;
-  }
 }
 
 .breakdown-card {
@@ -5583,11 +5543,6 @@ hr {
     gap: 8px;
   }
 
-  .breakdown-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
   .breakdown-card {
     padding: 0.75rem 0.85rem;
   }
@@ -6000,12 +5955,99 @@ hr {
   flex-shrink: 0;
 }
 
+/* Sticky toolbar wrapper. Pins search / type chips / filter row to the
+   top of the .app-main scroll container so they stay reachable while
+   the user scrolls a long collection. Bleeds full-width with negative
+   margins so the page-padding background doesn't show a gutter behind
+   the sticky bar; matching positive padding restores the inner content
+   alignment. */
+.collection-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-panel);
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+  padding: 0.75rem 1rem 0.5rem;
+  margin: 0 -1rem 0.75rem;
+}
+
+.collection-toolbar .collection-filter-row {
+  margin-bottom: 0;
+}
+
 /* Search row + view toggle */
 .collection-toolbar-row {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   margin-bottom: 0.6rem;
+}
+
+.collection-toolbar-totals {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0 0.25rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.collection-toolbar-totals-num {
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.collection-toolbar-totals-unit {
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-xs);
+}
+
+.collection-toolbar-totals-sep {
+  color: var(--text3);
+  margin: 0 0.15rem;
+}
+
+.collection-toolbar-stats-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.1rem;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  color: var(--text2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    border-color 0.12s,
+    color 0.12s;
+}
+
+.collection-toolbar-stats-btn:hover,
+.collection-toolbar-stats-btn:focus-visible {
+  color: var(--text);
+  border-color: var(--accent);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .collection-toolbar-stats-label {
+    display: none;
+  }
+
+  .collection-toolbar-totals-unit {
+    display: none;
+  }
+
+  .collection-toolbar-stats-btn {
+    padding: 0 0.6rem;
+  }
 }
 
 /* Filter row (color icons + dropdowns) */
@@ -6084,13 +6126,22 @@ hr {
 
 .card-list-summary-line {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   font-size: var(--text-sm);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.6rem;
+}
+
+/* Sort + view toggle sit together on the right side of the summary line,
+   adjacent to the rows they affect. */
+.card-list-summary-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 /* Set code + collector number (used in list view) */
@@ -6739,188 +6790,216 @@ hr {
   cursor: progress;
 }
 
-/* Settings menu — gear-icon trigger that opens a popover containing
-   account info, theme selection, and maintenance actions. Two display
-   modes: a desktop button in the site-header and a mobile-tab-bar
-   item that opens the same panel upward. */
-.settings-menu {
-  position: relative;
-  display: flex;
-}
-
-.settings-menu-trigger {
-  appearance: none;
-  background: transparent;
-  border: 0;
+/* Gear-icon Settings link in the desktop site header — sibling to the
+   primary nav links, simpler than a popover since the page handles
+   everything. */
+.site-nav-settings {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.55rem;
   border-radius: var(--radius);
   color: var(--text2);
-  font-family: inherit;
-  cursor: pointer;
+  text-decoration: none;
+  font-size: var(--text-sm);
 }
 
-.settings-menu-trigger:hover {
+.site-nav-settings:hover {
   color: var(--text);
   background: var(--surface2);
 }
 
-.settings-menu-trigger-label {
-  font-size: var(--text-sm);
+.site-nav-settings.active {
+  color: var(--accent);
 }
 
 @media (max-width: 1024px) {
-  .settings-menu-trigger-label {
+  .site-nav-settings-label {
     display: none;
   }
 }
 
-.settings-menu--tab {
-  flex: 1 1 0;
-  display: flex;
-}
-
-.settings-menu-tab-trigger {
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  width: 100%;
-  font-family: inherit;
-}
-
-.settings-menu-panel {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  z-index: var(--z-panel);
-  width: 260px;
-  background: var(--surface);
-  border: 0.5px solid var(--border2);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-tooltip);
+/* Settings page — full route at /settings. Stacked sections with the
+   same card aesthetic used elsewhere (binder cards, breakdown cards). */
+.settings-page {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 }
 
-/* Tab-mounted variant: open upward, sit above the bottom nav. */
-.settings-menu--tab .settings-menu-panel {
-  top: auto;
-  bottom: calc(100% + 0.4rem);
-  right: 0.5rem;
-  max-height: 70dvh;
-  overflow-y: auto;
+.settings-page-hero {
+  margin-bottom: 0.5rem;
 }
 
-.settings-menu-section {
-  padding: 0.5rem 0.6rem;
+.settings-page-hero-text {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.settings-menu-section + .settings-menu-section {
+.settings-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.settings-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.settings-card-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.settings-card-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text3);
+}
+
+.settings-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* One row = label + description on the left, action button on the right.
+   Wraps below ~520px so the button doesn't squeeze the label. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
   border-top: 0.5px solid var(--border);
 }
 
-.settings-menu-account {
-  gap: 0.1rem;
+.settings-card-body > .settings-row:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
-.settings-menu-account-label {
-  color: var(--text3);
+.settings-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-row-label {
   font-size: var(--text-xs);
+  color: var(--text3);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  margin-bottom: 0.1rem;
 }
 
-.settings-menu-account-name {
+.settings-row-value {
   color: var(--text);
   font-size: var(--text-base);
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.settings-menu-heading {
+.settings-row-hint {
+  font-size: var(--text-sm);
   color: var(--text3);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0 0.05rem 0.2rem;
+  margin-top: 0.15rem;
 }
 
-.settings-menu-themes {
+@media (max-width: 520px) {
+  .settings-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-row .pill-btn {
+    align-self: flex-end;
+  }
+}
+
+.settings-theme-grid {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.5rem;
 }
 
-.settings-menu-theme {
+.settings-theme-option {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'swatch name'
+    'swatch guild';
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.1rem 0.65rem;
   width: 100%;
-  padding: 0.4rem 0.5rem;
-  background: transparent;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
   color: var(--text);
-  border: none;
-  border-radius: 6px;
-  font-size: var(--text-base);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
 
-.settings-menu-theme:hover {
-  background: var(--surface2);
+.settings-theme-option:hover {
+  border-color: var(--accent);
 }
 
-.settings-menu-theme.is-active {
+.settings-theme-option.is-active {
+  border-color: var(--accent);
   background: var(--accent-light);
-  color: var(--accent);
 }
 
-.settings-menu-theme-guild {
-  color: var(--text3);
+.settings-theme-swatch {
+  grid-area: swatch;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  border: 0.5px solid var(--border2);
+}
+
+.settings-theme-name {
+  grid-area: name;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.settings-theme-guild {
+  grid-area: guild;
   font-size: var(--text-xs);
+  color: var(--text3);
   font-family: var(--font-mono);
 }
 
-.settings-menu-action {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  padding: 0.55rem 0.5rem;
-  border-radius: 6px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--text-base);
-  cursor: pointer;
-}
-
-.settings-menu-action:hover:not(:disabled) {
-  background: var(--surface2);
-}
-
-.settings-menu-action:disabled {
-  color: var(--text3);
-  cursor: not-allowed;
-}
-
-.settings-menu-action--danger {
+/* Reuse pill-btn for the action buttons; just add a danger variant for
+   destructive actions like Sign out / Delete. */
+.pill-btn-danger {
   color: var(--err-text);
+  border-color: color-mix(in srgb, var(--err-text) 40%, transparent);
 }
 
-.settings-menu-action--danger:hover:not(:disabled) {
+.pill-btn-danger:hover,
+.pill-btn-danger:focus-visible {
   background: var(--err-bg);
+  border-color: var(--err-text);
+  color: var(--err-text);
 }
 
 /* ── BinderCardEditor ─────────────────────────────────────────────────────── */
@@ -7500,4 +7579,41 @@ hr {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* BackLink — chevron + label, sits above a detail-page hero. Same
+   gesture in the same place on every detail surface so the exit is
+   predictable across the app. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.35rem;
+  border-radius: 999px;
+  color: var(--text3);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--text);
+  background: var(--surface2);
+  outline: none;
+}
+
+/* Danger-zone variant for /settings sections: tinted left edge so the
+   destructive section reads at a glance without colour-shifting the
+   whole card body. */
+.settings-card--danger {
+  border-color: color-mix(in srgb, var(--err-text) 30%, var(--border));
+  border-left: 3px solid var(--err-text);
+}
+
+.settings-card--danger .settings-card-title {
+  color: var(--err-text);
 }

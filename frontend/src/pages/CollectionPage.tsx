@@ -18,6 +18,8 @@ export function CollectionPage() {
   const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
   const [addCardOpen, setAddCardOpen] = useState(false);
 
+  const [statsOpen, setStatsOpen] = useState(false);
+
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   const setMap = useSetMap();
@@ -81,8 +83,12 @@ export function CollectionPage() {
               </button>
             </div>
           </header>
-          <StatsBar />
-          <CardListTable cards={cards} binders={materialized} />
+          <CardListTable
+            cards={cards}
+            binders={materialized}
+            onOpenStats={() => setStatsOpen(true)}
+          />
+          <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
           <ImportSheet />
           {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}
         </>
