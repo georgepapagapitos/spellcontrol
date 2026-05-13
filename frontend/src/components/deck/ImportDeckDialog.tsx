@@ -74,7 +74,12 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     (cardList: ScryfallCard[]) => {
       const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
       return cardList.map((card) => {
-        const pick = pickCollectionCopy(card.name, collectionCards, claimed);
+        // Pass card.id as the preferred printing so the initial allocation
+        // respects the imported deck's specific printings. Without this,
+        // basic lands (and any multi-printing card) bind to "any same-name
+        // copy" and the binder overlay highlights the wrong physical card
+        // until the next remap fixes it.
+        const pick = pickCollectionCopy(card.name, collectionCards, claimed, card.id);
         if (pick) {
           claimed.set(pick.copyId, {
             deckId: '__pending__',
