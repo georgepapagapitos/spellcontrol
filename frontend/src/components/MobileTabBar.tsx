@@ -1,19 +1,11 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
-import { SettingsMenu } from './SettingsMenu';
 
 export function MobileTabBar() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
   const deckCount = useDecksStore((s) => s.decks.length);
-  const setBinderPickerOpen = useCollectionStore((s) => s.setBinderPickerOpen);
-  const location = useLocation();
-  // Power-user gesture: tapping the Binders tab while already on /binder
-  // (and there's something to pick) opens the picker sheet. The visible
-  // "Switch binder" pill in the page hero is still the primary affordance —
-  // this is an additive shortcut, not the only path.
-  const binderTapOpensPicker = location.pathname.startsWith('/binder') && binderCount > 0;
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -33,17 +25,10 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-label">Collection</span>
       </NavLink>
       <NavLink
-        to="/binder"
+        to="/binders"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
         }
-        onClick={(e) => {
-          if (binderTapOpensPicker) {
-            e.preventDefault();
-            setBinderPickerOpen(true);
-          }
-        }}
-        aria-haspopup={binderTapOpensPicker ? 'dialog' : undefined}
       >
         <span className="mobile-tab-bar-glyph">
           <BinderIcon />
@@ -71,7 +56,17 @@ export function MobileTabBar() {
         </span>
         <span className="mobile-tab-bar-label">Decks</span>
       </NavLink>
-      <SettingsMenu variant="tab" />
+      <NavLink
+        to="/settings"
+        className={({ isActive }) =>
+          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
+        }
+      >
+        <span className="mobile-tab-bar-glyph">
+          <GearIcon />
+        </span>
+        <span className="mobile-tab-bar-label">Settings</span>
+      </NavLink>
     </nav>
   );
 }
@@ -120,6 +115,15 @@ function DeckIcon() {
     <svg {...ICON_BASE}>
       <rect x="3" y="7" width="13" height="14" rx="1.8" />
       <path d="M8 4h11a2 2 0 0 1 2 2v11" />
+    </svg>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg {...ICON_BASE}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
     </svg>
   );
 }

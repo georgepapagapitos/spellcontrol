@@ -3,9 +3,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CollectionPage } from './pages/CollectionPage';
 import { BinderPage } from './pages/BinderPage';
+import { BindersIndexPage } from './pages/BindersIndexPage';
 import { DecksIndexPage } from './pages/DecksIndexPage';
 import { DeckNewPage } from './pages/DeckNewPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
+import { SettingsPage } from './pages/SettingsPage';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './store/auth';
 import { startSync } from './lib/sync';
@@ -44,10 +46,13 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
         <Route path="/collection" element={<CollectionPage />} />
-        <Route path="/binder" element={<BinderPage />} />
+        <Route path="/binder" element={<Navigate to="/binders" replace />} />
+        <Route path="/binders" element={<BindersIndexPage />} />
+        <Route path="/binders/:id" element={<BinderPage />} />
         <Route path="/decks" element={<DecksIndexPage />} />
         <Route path="/decks/new" element={<DeckNewPage />} />
         <Route path="/decks/:id" element={<DeckEditorPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/collection" replace />} />
       </Route>
     </Routes>
