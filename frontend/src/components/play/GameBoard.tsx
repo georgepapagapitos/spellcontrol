@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GameLayout, GamePlayer, GameState } from '../../lib/game-state';
+import type { BoardLayout, SeatSlot } from '../../lib/board-layouts';
+import { layoutsForCount, resolveLayout } from '../../lib/board-layouts';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
@@ -51,9 +53,9 @@ export function GameBoard({
 }: Props) {
   const total = game.players.length;
   const isShared = game.mode === 'local';
-  // `layout` is a recent field; legacy persisted games may lack it. Default
-  // here so we never read `undefined` in CSS class composition or rotation.
-  const layout: GameLayout = (game.layout as GameLayout | undefined) ?? 'default';
+  // Resolve to a concrete layout (grid + per-seat slots). Unknown / legacy
+  // layout ids fall back to the count's default.
+  const board = resolveLayout(total, game.layout);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
@@ -67,31 +69,42 @@ export function GameBoard({
 
   return (
     <div
-      className={`game-board game-board-${Math.min(total, 6)} layout-${layout} mode-${game.mode}`}
+      className={`game-board game-board-${Math.min(total, 6)} layout-${board.id} mode-${game.mode}`}
       data-shared={isShared || undefined}
     >
-      <div className="game-board-grid">
-        {game.players.map((p, i) => (
-          <PlayerPanel
-            key={p.id}
-            player={p}
-            game={game}
-            dispatch={dispatch}
-            rotation={seatRotation(i, total, isShared, layout)}
-            canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
-            opponents={game.players.filter((o) => o.seat !== p.seat)}
-          />
-        ))}
+      <div
+        className="game-board-grid"
+        style={{
+          gridTemplateColumns: `repeat(${board.cols}, 1fr)`,
+          gridTemplateRows: `repeat(${board.rows}, 1fr)`,
+        }}
+      >
+        {game.players.map((p, i) => {
+          const slot = board.seats[i] ?? board.seats[board.seats.length - 1];
+          return (
+            <PlayerPanel
+              key={p.id}
+              player={p}
+              game={game}
+              dispatch={dispatch}
+              slot={slot}
+              // Rotation only applies in shared (local) mode — on online
+              // games each device is in front of its owner, always upright.
+              rotation={isShared ? slot.rot : 0}
+              canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
+              opponents={game.players.filter((o) => o.seat !== p.seat)}
+            />
+          );
+        })}
       </div>
 
       <button
         type="button"
         className="game-board-menu-btn"
         aria-label="Game menu"
-        // Stop pointer events from bubbling to anything beneath — the button
-        // sits at the center where four player panels meet, and we don't want
-        // a stray tap-and-hold on an adjacent panel to fire just because the
-        // pointer was inside this hit area.
+        // Pinned to a corner via CSS so it can't ever overlap a panel's life
+        // numeral. Stop pointer events from bubbling so a stray tap-and-hold
+        // on the underlying panel doesn't fire.
         onPointerDown={(e) => e.stopPropagation()}
         onPointerUp={(e) => e.stopPropagation()}
         onClick={(e) => {
@@ -120,64 +133,13 @@ export function GameBoard({
   );
 }
 
-/**
- * Decide the rotation in degrees for the seat at the given index.
- *
- * Online: never rotate — the viewer holds their own device upright.
- * Local: rotation depends on chosen layout. `default` rotates the panels
- * on the far side of a shared phone so they read upright when passed.
- * `same` and `row` are no-rotation variants — useful when everyone's
- * looking at the device from the same side, or on a tablet held landscape.
- */
-function seatRotation(
-  seatIndex: number,
-  total: number,
-  shared: boolean,
-  layout: GameLayout
-): number {
-  if (!shared) return 0;
-  if (layout === 'same' || layout === 'row') return 0;
-  // Default per-count rotations: top-row seats get flipped 180°.
-  if (total === 2) return seatIndex === 0 ? 180 : 0;
-  if (total === 3) return seatIndex < 2 ? 180 : 0;
-  if (total === 4) return seatIndex < 2 ? 180 : 0;
-  if (total === 5) return seatIndex < 4 ? 180 : 0;
-  if (total === 6) return seatIndex < 3 ? 180 : 0;
-  return 0;
-}
-
-/**
- * Layouts available for a given player count. The default layout is always
- * first. Layout availability is per-count because `row` only really makes
- * sense for 3+ players (2-player stacked vs side is already auto by
- * orientation media query).
- */
-const LAYOUTS_FOR_COUNT: Record<number, GameLayout[]> = {
-  2: ['default', 'same'],
-  3: ['default', 'same', 'row'],
-  4: ['default', 'same', 'row'],
-  5: ['default', 'same', 'row'],
-  6: ['default', 'same', 'row'],
-};
-
-const LAYOUT_LABEL: Record<GameLayout, string> = {
-  default: 'Pod',
-  same: 'Same side',
-  row: 'Row',
-};
-
-const LAYOUT_HINT: Record<GameLayout, string> = {
-  default: 'Players sit around the device; panels on the far side are flipped.',
-  same: 'Everyone reads the screen from the same side.',
-  row: 'Single horizontal row — best for landscape tablets.',
-};
-
 // ── Player panel ───────────────────────────────────────────────────────────
 
 function PlayerPanel({
   player,
   game,
   dispatch,
+  slot,
   rotation,
   canEdit,
   opponents,
@@ -185,6 +147,7 @@ function PlayerPanel({
   player: GamePlayer;
   game: GameState;
   dispatch: (a: GameAction) => void;
+  slot: SeatSlot;
   rotation: number;
   canEdit: boolean;
   opponents: GamePlayer[];
@@ -286,11 +249,14 @@ function PlayerPanel({
       className={`player-panel pp-color-${colorKey} ${player.eliminated ? 'is-eliminated' : ''} ${
         game.winnerSeat === player.seat ? 'is-winner' : ''
       } ${canEdit ? 'is-mine' : ''} ${lethalFlash ? 'is-lethal-flash' : ''}`}
-      // Rotation is expressed as a CSS variable so layouts can override it
-      // at specific breakpoints (e.g. 5p portrait rotates 4 panels, but 5p
-      // landscape only rotates 3). JS sets a sensible default; CSS wins
-      // when a media query overrides --pp-rot for a given seat.
-      style={{ ['--pp-rot' as never]: `${rotation}deg` }}
+      // Grid placement comes from the layout registry. Rotation is set as a
+      // CSS variable consumed by the .player-panel transform rule so it
+      // composes cleanly with any other transforms.
+      style={{
+        gridColumn: slot.colSpan ? `${slot.col} / span ${slot.colSpan}` : `${slot.col}`,
+        gridRow: slot.rowSpan ? `${slot.row} / span ${slot.rowSpan}` : `${slot.row}`,
+        ['--pp-rot' as never]: `${rotation}deg`,
+      }}
       data-seat={player.seat}
       aria-label={`${player.name}: ${player.life} life`}
     >
@@ -830,7 +796,7 @@ function GameMenu({
           {canControlAll && game.status !== 'finished' && (
             <LayoutPicker
               total={game.players.length}
-              current={(game.layout as GameLayout | undefined) ?? 'default'}
+              current={resolveLayout(game.players.length, game.layout).id}
               shared={game.mode === 'local'}
               onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
             />
@@ -911,66 +877,63 @@ function LayoutPicker({
   shared: boolean;
   onPick: (layout: GameLayout) => void;
 }) {
-  const options = LAYOUTS_FOR_COUNT[Math.min(Math.max(total, 2), 6)] ?? ['default'];
+  const options = layoutsForCount(total);
   if (options.length < 2) return null;
+  const activeHint = options.find((o) => o.id === current)?.hint ?? options[0].hint;
   return (
     <div className="layout-picker" role="group" aria-label="Board layout">
       <span className="seat-menu-label">Board layout</span>
-      <div className="layout-picker-grid">
+      <div
+        className="layout-picker-grid"
+        style={{
+          gridTemplateColumns: `repeat(${Math.min(options.length, 3)}, 1fr)`,
+        }}
+      >
         {options.map((opt) => (
           <button
-            key={opt}
+            key={opt.id}
             type="button"
-            className={`layout-option ${current === opt ? 'is-selected' : ''}`}
-            aria-pressed={current === opt}
-            onClick={() => onPick(opt)}
-            title={LAYOUT_HINT[opt]}
+            className={`layout-option ${current === opt.id ? 'is-selected' : ''}`}
+            aria-pressed={current === opt.id}
+            onClick={() => onPick(opt.id)}
+            title={opt.hint}
           >
-            <LayoutPreview layout={opt} total={total} shared={shared} />
-            <span className="layout-option-label">{LAYOUT_LABEL[opt]}</span>
+            <LayoutPreview layout={opt} shared={shared} />
+            <span className="layout-option-label">{opt.label}</span>
           </button>
         ))}
       </div>
-      <span className="layout-option-hint">{LAYOUT_HINT[current]}</span>
+      <span className="layout-option-hint">{activeHint}</span>
     </div>
   );
 }
 
 /**
- * Tiny SVG-free preview of a layout — uses the same grid + rotation rules
- * the real board uses, so the thumbnail is always in sync. A small bar at
- * the top or bottom of each cell indicates which way the panel "reads."
+ * Mini board preview rendered from the same BoardLayout the real board
+ * uses, so the thumbnail can never disagree with the rendered seats. Each
+ * cell shows a small orientation bar so flipped vs upright is readable at
+ * thumbnail size.
  */
-function LayoutPreview({
-  layout,
-  total,
-  shared,
-}: {
-  layout: GameLayout;
-  total: number;
-  shared: boolean;
-}) {
-  const cells = Array.from({ length: total }, (_, i) => i);
-  const cols = layout === 'row' ? total : total >= 5 ? 2 : total >= 3 ? 2 : 1;
-  const rows = layout === 'row' ? 1 : Math.ceil(total / cols);
+function LayoutPreview({ layout, shared }: { layout: BoardLayout; shared: boolean }) {
   return (
     <div
       className="layout-option-preview"
       style={{
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
+        gridTemplateColumns: `repeat(${layout.cols}, 1fr)`,
+        gridTemplateRows: `repeat(${layout.rows}, 1fr)`,
       }}
       aria-hidden="true"
     >
-      {cells.map((i) => {
-        const flipped = seatRotation(i, total, shared, layout) === 180;
-        // 5p default preview: bottom cell spans full width.
-        const isBottomSpan = layout !== 'row' && total === 5 && i === 4;
+      {layout.seats.map((slot, i) => {
+        const rot = shared ? slot.rot : 0;
         return (
           <span
             key={i}
-            className={`layout-option-cell ${flipped ? 'is-flipped' : ''}`}
-            style={isBottomSpan ? { gridColumn: '1 / -1' } : undefined}
+            className={`layout-option-cell ${rot === 180 ? 'is-flipped' : ''}`}
+            style={{
+              gridColumn: slot.colSpan ? `${slot.col} / span ${slot.colSpan}` : `${slot.col}`,
+              gridRow: slot.rowSpan ? `${slot.row} / span ${slot.rowSpan}` : `${slot.row}`,
+            }}
           />
         );
       })}

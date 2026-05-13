@@ -400,102 +400,10 @@ body:has(.game-board) .modal-backdrop {
   width: 100%;
   height: 100%;
   min-height: 0;
-}
-
-/* ── 2 players ──
- *   default (portrait): top/bottom stacked
- *   landscape OR wide:  side-by-side
- */
-.game-board-2 .game-board-grid {
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-@media (min-width: 700px) and (orientation: landscape), (min-width: 1024px) {
-  .game-board-2 .game-board-grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
-  }
-}
-
-/* ── 3 players ──
- *   default (portrait): 2 on top, 1 full-width below
- *   landscape:          3 side-by-side
- */
-.game-board-3 .game-board-grid {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-.game-board-3 .game-board-grid > :nth-child(3) {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 900px) and (orientation: landscape) {
-  .game-board-3 .game-board-grid {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 1fr;
-  }
-  .game-board-3 .game-board-grid > :nth-child(3) {
-    grid-column: auto;
-  }
-}
-
-/* ── 4 players ── always 2×2 */
-.game-board-4 .game-board-grid {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-/* ── 5 players ──
- *   default (portrait): 2 + 2 + 1 — the bottom row is a single full-width
- *   panel (asymmetric on purpose; a true upright 5-way isn't possible and
- *   2+2+1 keeps the host upright while the four others form two facing
- *   pairs across the phone's long axis).
- *   landscape: 3 across the top + 2 across the bottom.
- */
-.game-board-5 .game-board-grid {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
-}
-
-.game-board-5 .game-board-grid > :nth-child(5) {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 900px) and (orientation: landscape) {
-  .game-board-5 .game-board-grid {
-    grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: 1fr 1fr;
-  }
-  .game-board-5 .game-board-grid > :nth-child(1),
-  .game-board-5 .game-board-grid > :nth-child(2),
-  .game-board-5 .game-board-grid > :nth-child(3) {
-    grid-column: span 2;
-  }
-  .game-board-5 .game-board-grid > :nth-child(4),
-  .game-board-5 .game-board-grid > :nth-child(5) {
-    grid-column: span 3;
-  }
-  /* 5p landscape: top row of 3 rotated, bottom row of 2 upright. Overrides
-     the portrait default of rotating the first four. */
-  .game-board-5[data-shared] .game-board-grid > .player-panel:nth-child(4) {
-    --pp-rot: 0deg;
-  }
-}
-
-/* ── 6 players ── 2 × 3 (top row of 3 rotated, bottom row upright) */
-.game-board-6 .game-board-grid {
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-@media (max-width: 600px) and (orientation: portrait) {
-  /* Narrow phones: 3 columns get cramped — fall back to 2×3. */
-  .game-board-6 .game-board-grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(3, 1fr);
-  }
+  /* The actual grid template (columns/rows) and each panel's grid-column /
+     grid-row are set inline by GameBoard.tsx, reading from the selected
+     BoardLayout in lib/board-layouts.ts. Nothing here hard-codes a layout
+     so changing the registry can never disagree with CSS. */
 }
 
 /* ── Player panel ─────────────────────────────────────────────────────── */
@@ -1075,34 +983,37 @@ body:has(.game-board) .modal-backdrop {
   letter-spacing: 0.02em;
 }
 
-/* ── Center game menu ──────────────────────────────────────────────────── */
+/* ── Game menu button ──────────────────────────────────────────────────── */
 
+/* Pinned to the bottom-right corner of the board (above the iPhone safe
+   area). It used to sit centered where four panels meet, which worked for
+   2x2 but overlapped a panel's life numeral on 3-across, 5-across, and any
+   layout where a seat occupies the middle of the board. */
 .game-board-menu-btn {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  right: calc(0.75rem + env(safe-area-inset-right, 0));
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
   z-index: 10;
   background: #14181f;
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: #fff;
-  width: 2.8rem;
-  height: 2.8rem;
+  width: 2.6rem;
+  height: 2.6rem;
   border-radius: 50%;
   box-shadow: var(--shadow-modal);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  /* Prevent any pointer events from leaking through to the tap zones
+  /* Prevent any pointer events from leaking through to the tap zone
      positioned beneath. */
   touch-action: manipulation;
 }
 
 @media (min-width: 600px) {
   .game-board-menu-btn {
-    width: 3.2rem;
-    height: 3.2rem;
+    width: 3rem;
+    height: 3rem;
   }
 }
 
@@ -1801,65 +1712,10 @@ body:has(.game-board) .modal-backdrop {
   }
 }
 
-/* ── Layout variants ──
-   `default` is the per-count grid + rotation defined above. `same` keeps
-   the grid but suppresses all rotation. `row` flattens to a single
-   horizontal row regardless of player count. */
-
-.game-board.layout-same .player-panel,
-.game-board.layout-row .player-panel {
-  --pp-rot: 0deg !important;
-}
-
-.game-board.layout-row .game-board-grid {
-  grid-template-columns: repeat(var(--row-seats, 4), 1fr) !important;
-  grid-template-rows: 1fr !important;
-}
-
-.game-board.layout-row.game-board-2 .game-board-grid {
-  --row-seats: 2;
-}
-.game-board.layout-row.game-board-3 .game-board-grid {
-  --row-seats: 3;
-}
-.game-board.layout-row.game-board-4 .game-board-grid {
-  --row-seats: 4;
-}
-.game-board.layout-row.game-board-5 .game-board-grid {
-  --row-seats: 5;
-}
-.game-board.layout-row.game-board-6 .game-board-grid {
-  --row-seats: 6;
-}
-
-/* Reset any per-child overrides (e.g. the 5p `:nth-child(5)` full-width
-   rule) so the row layout truly is a single line. */
-.game-board.layout-row .game-board-grid > .player-panel {
-  grid-column: auto !important;
-  grid-row: auto !important;
-}
-
-/* Row layout on phones with 5-6 panels would be unusably narrow — fall
-   back to the default grid when the viewport can't fit a row comfortably.
-   `same` keeps its grid at all sizes. */
-@media (max-width: 700px) {
-  .game-board.layout-row.game-board-5 .game-board-grid,
-  .game-board.layout-row.game-board-6 .game-board-grid {
-    grid-template-columns: 1fr 1fr !important;
-    grid-template-rows: repeat(3, 1fr) !important;
-  }
-  .game-board.layout-row.game-board-5 .game-board-grid > :nth-child(5),
-  .game-board.layout-row.game-board-6 .game-board-grid > :nth-child(5),
-  .game-board.layout-row.game-board-6 .game-board-grid > :nth-child(6) {
-    grid-column: auto !important;
-  }
-}
-
-/* When `row` shrinks panels horizontally below their portrait min-width,
-   life font also wants to be smaller. */
-.game-board.layout-row.game-board-5 .player-panel-life,
-.game-board.layout-row.game-board-6 .player-panel-life {
-  font-size: clamp(1.8rem, 6vmin, 4.4rem);
+/* The `line` layout (4p, single horizontal row) gets a denser life font
+   since each panel is much narrower than a 2x2 cell. */
+.game-board.layout-line .player-panel-life {
+  font-size: clamp(2rem, 7vmin, 5rem);
 }
 
 /* ── Layout picker UI ── */
