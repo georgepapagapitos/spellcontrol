@@ -597,7 +597,7 @@ body:has(.game-board) .modal-backdrop {
   border-radius: 50%;
   width: 1.7rem;
   height: 1.7rem;
-  font-size: 1rem;
+  font-size: var(--text-md);
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -609,7 +609,7 @@ body:has(.game-board) .modal-backdrop {
   .player-panel-menu-btn {
     width: 1.9rem;
     height: 1.9rem;
-    font-size: 1.1rem;
+    font-size: var(--text-md);
   }
 }
 
@@ -805,7 +805,7 @@ body:has(.game-board) .modal-backdrop {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 1rem;
+  font-size: var(--text-md);
 }
 
 .player-panel-drawer-body {
@@ -848,7 +848,7 @@ body:has(.game-board) .modal-backdrop {
   border-radius: 999px;
   width: 1.8rem;
   height: 1.8rem;
-  font-size: 1rem;
+  font-size: var(--text-md);
 }
 
 .counter-row-btn:disabled {
@@ -893,7 +893,7 @@ body:has(.game-board) .modal-backdrop {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 1rem;
+  font-size: var(--text-md);
 }
 
 .seat-menu-body {
@@ -1075,7 +1075,7 @@ body:has(.game-board) .modal-backdrop {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
 }
 
 .game-menu-body {

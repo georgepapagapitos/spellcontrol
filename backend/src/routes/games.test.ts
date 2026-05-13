@@ -175,6 +175,80 @@ d('miscellaneous', () => {
     expect(res.status).toBe(400);
   });
 
+  it('PATCH sanitizes panelColorKey on update-player', async () => {
+    const host = await registerAndGetCookie('games_pck_h');
+    const joiner = await registerAndGetCookie('games_pck_j');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+
+    // Valid override flows through; lowercase is normalized to uppercase.
+    const valid = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [{ type: 'update-player', seat: 1, patch: { panelColorKey: 'r' } }],
+      });
+    expect(valid.status).toBe(200);
+    const seat1 = valid.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1.panelColorKey).toBe('R');
+
+    // Garbage value gets coerced to null instead of landing in a CSS class.
+    const garbage = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: valid.body.game.version,
+        actions: [
+          { type: 'update-player', seat: 1, patch: { panelColorKey: '"><script>x</script>' } },
+        ],
+      });
+    expect(garbage.status).toBe(200);
+    const seat1After = garbage.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1After.panelColorKey).toBeNull();
+
+    // Explicit null is preserved (it means "reset to auto").
+    const cleared = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: garbage.body.game.version,
+        actions: [{ type: 'update-player', seat: 1, patch: { panelColorKey: null } }],
+      });
+    expect(cleared.status).toBe(200);
+  });
+
+  it('PATCH sanitizes colorIdentity on update-player', async () => {
+    const host = await registerAndGetCookie('games_ci_h');
+    const joiner = await registerAndGetCookie('games_ci_j');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [
+          {
+            type: 'update-player',
+            seat: 1,
+            patch: { colorIdentity: ['w', 'X', 'u', 'u'] },
+          },
+        ],
+      });
+    expect(res.status).toBe(200);
+    const seat1 = res.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(seat1.colorIdentity).toEqual(['W', 'U']);
+  });
+
   it('PATCH surfaces reducer errors as 400', async () => {
     const cookie = await registerAndGetCookie('games_misc5');
     const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
