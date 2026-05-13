@@ -102,7 +102,7 @@ cp .env.example .env
 docker compose up -d                     # postgres (internal), backend (internal), frontend :8088
 ```
 
-The backend container is no longer published to the host. The frontend container's nginx proxies `/api/` to it on the docker-compose network, so a single `binder.example.com` reverse-proxy entry is enough.
+The backend container is no longer published to the host. The frontend container's nginx proxies `/api/` to it on the docker-compose network, so a single `spellcontrol.example.com` reverse-proxy entry is enough.
 
 Backend and frontend images are tagged `ghcr.io/georgepapagapitos/spellcontrol-{backend,frontend}:latest` and built by GitHub Actions on every push to `main`. Watchtower labels are set, so a Watchtower instance will auto-update both containers.
 
@@ -112,13 +112,13 @@ For local development, `docker-compose.dev.yml` runs just the Postgres container
 
 #### Postgres backups
 
-The data lives in the `binder-postgres` named volume. A nightly logical backup is recommended:
+The data lives in the `spellcontrol-postgres` named volume. A nightly logical backup is recommended:
 
 ```bash
-docker exec binder-postgres pg_dump -U binder binder | gzip > /backups/binder-$(date +%F).sql.gz
+docker exec spellcontrol-postgres pg_dump -U spellcontrol spellcontrol | gzip > /backups/spellcontrol-$(date +%F).sql.gz
 ```
 
-Wire that into cron and rotate the files. Restore with `gunzip -c file.sql.gz | docker exec -i binder-postgres psql -U binder binder`.
+Wire that into cron and rotate the files. Restore with `gunzip -c file.sql.gz | docker exec -i spellcontrol-postgres psql -U spellcontrol spellcontrol`.
 
 ### Required environment
 
@@ -166,7 +166,7 @@ All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 - Default sorts for new binders — `NEW_BINDER_DEFAULT_SORTS` in [frontend/src/lib/sorting.ts](frontend/src/lib/sorting.ts)
 - Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/BinderEditor.tsx](frontend/src/components/BinderEditor.tsx)
 - Backend port — `PORT` env var (default `3737`)
-- SQLite location — `DB_PATH` env var (default `backend/data/scryfall-cache.db`; the Docker image mounts a `binder-data` volume at `/data`)
+- SQLite location — `DB_PATH` env var (default `backend/data/scryfall-cache.db`; the Docker image mounts a `spellcontrol-data` volume at `/data`)
 
 ## Scripts
 

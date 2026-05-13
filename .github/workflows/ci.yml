@@ -50,19 +50,19 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: binder
-          POSTGRES_PASSWORD: binder
-          POSTGRES_DB: binder
+          POSTGRES_USER: spellcontrol
+          POSTGRES_PASSWORD: spellcontrol
+          POSTGRES_DB: spellcontrol
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U binder -d binder"
+          --health-cmd "pg_isready -U spellcontrol -d spellcontrol"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
 
     env:
-      TEST_DATABASE_URL: postgres://binder:binder@localhost:5432/binder
+      TEST_DATABASE_URL: postgres://spellcontrol:spellcontrol@localhost:5432/spellcontrol
       JWT_SECRET: ci-test-jwt-secret-ci-test-jwt-secret
 
     defaults:

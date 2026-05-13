@@ -4,15 +4,15 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: binder-postgres-dev
+    container_name: spellcontrol-postgres-dev
     environment:
       POSTGRES_USER: mtguser
       POSTGRES_PASSWORD: mtgpassword
       POSTGRES_DB: spellcontrol
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
-      - binder-postgres-dev:/var/lib/postgresql/data
+      - spellcontrol-postgres-dev:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U mtguser -d spellcontrol']
       interval: 5s
@@ -20,4 +20,4 @@ services:
       retries: 5
 
 volumes:
-  binder-postgres-dev:
+  spellcontrol-postgres-dev:
