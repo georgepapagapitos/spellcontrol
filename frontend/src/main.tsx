@@ -7,6 +7,7 @@ import 'mana-font/css/mana.min.css';
 import './styles/global.css';
 import './styles/themes.css';
 import './styles/deck-builder.css';
+import './styles/play.css';
 import { bootstrapTheme } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 

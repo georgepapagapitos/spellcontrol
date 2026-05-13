@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { usePlayStore } from '../store/play';
 
 export function MobileTabBar() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
   const deckCount = useDecksStore((s) => s.decks.length);
+  const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -55,6 +57,20 @@ export function MobileTabBar() {
           )}
         </span>
         <span className="mobile-tab-bar-label">Decks</span>
+      </NavLink>
+      <NavLink
+        to="/play"
+        className={({ isActive }) =>
+          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
+        }
+      >
+        <span className="mobile-tab-bar-glyph">
+          <PlayIcon />
+          {hasActiveGame && (
+            <span className="mobile-tab-bar-game-dot" aria-label="game in progress" />
+          )}
+        </span>
+        <span className="mobile-tab-bar-label">Play</span>
       </NavLink>
       <NavLink
         to="/settings"
@@ -115,6 +131,15 @@ function DeckIcon() {
     <svg {...ICON_BASE}>
       <rect x="3" y="7" width="13" height="14" rx="1.8" />
       <path d="M8 4h11a2 2 0 0 1 2 2v11" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  // Heart silhouette — life total.
+  return (
+    <svg {...ICON_BASE}>
+      <path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 8-3 4.5 4.5 0 0 1 8 3c-2 4.5-7 9-7 9Z" />
     </svg>
   );
 }

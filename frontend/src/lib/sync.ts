@@ -1,9 +1,11 @@
 import { fetchSync, putSync, type SyncSnapshot } from './auth-api';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { usePlayStore } from '../store/play';
 import { saveCollection, clearCollection, type StoredCollection } from './local-cards';
 import type { Deck } from '../store/decks';
 import type { BinderDef } from '../types';
+import type { GameRecord } from './game-state';
 import {
   mergeBinders,
   mergeDecks,
@@ -32,6 +34,25 @@ function buildDecksSnapshot(): Deck[] {
   return useDecksStore.getState().decks;
 }
 
+function buildGamesSnapshot(): GameRecord[] {
+  return usePlayStore.getState().history;
+}
+
+/**
+ * Merge game records by id. Each record is immutable once written (a finished
+ * game never changes), so union-by-id with the most recent endedAt as the
+ * tiebreaker is sufficient. The result is sorted newest-first.
+ */
+function mergeGameRecords(local: GameRecord[], remote: GameRecord[]): GameRecord[] {
+  const byId = new Map<string, GameRecord>();
+  for (const r of remote) byId.set(r.id, r);
+  for (const r of local) {
+    const cur = byId.get(r.id);
+    if (!cur || r.endedAt > cur.endedAt) byId.set(r.id, r);
+  }
+  return Array.from(byId.values()).sort((a, b) => b.endedAt - a.endedAt);
+}
+
 function buildCollectionSnapshot(): StoredCollection | null {
   const s = useCollectionStore.getState();
   if (!s.cards.length && !s.fileName && !s.uploadedAt) return null;
@@ -54,11 +75,13 @@ async function pushNow(): Promise<void> {
   try {
     const binders = buildBindersSnapshot();
     const decks = buildDecksSnapshot();
+    const games = buildGamesSnapshot();
     const collection = buildCollectionSnapshot();
     const result = await putSync({
       collection,
       binders,
       decks,
+      games,
       baseVersion: currentVersion,
     });
     currentVersion = result.version;
@@ -110,10 +133,12 @@ async function mergeWithSnapshot(snap: SyncSnapshot): Promise<void> {
         }))
       : [];
     const remoteCollection = (snap.collection as StoredCollection | null) ?? null;
+    const remoteGames = Array.isArray(snap.games) ? (snap.games as GameRecord[]) : [];
 
     const mergedBinders = mergeBinders(localBinders, remoteBinders, meta);
     const mergedDecks = mergeDecks(localDecks, remoteDecks, meta);
     const mergedCollection = mergeCollection(localCollection, remoteCollection);
+    const mergedGames = mergeGameRecords(usePlayStore.getState().history, remoteGames);
 
     if (mergedCollection !== localCollection) {
       if (mergedCollection) await saveCollection(mergedCollection);
@@ -131,6 +156,7 @@ async function mergeWithSnapshot(snap: SyncSnapshot): Promise<void> {
       hydrating: false,
     });
     useDecksStore.setState({ decks: mergedDecks, hydrated: true });
+    usePlayStore.setState({ history: mergedGames });
 
     saveSyncMeta(buildSyncMeta(snap.version, mergedBinders, mergedDecks, mergedCollection));
   } finally {
@@ -157,6 +183,7 @@ function handleBeforeUnload(): void {
       collection: buildCollectionSnapshot(),
       binders: buildBindersSnapshot(),
       decks: buildDecksSnapshot(),
+      games: buildGamesSnapshot(),
       baseVersion: currentVersion,
     });
     fetch('/api/sync', {
@@ -183,7 +210,11 @@ function attachSubscribers(): void {
     if (state.decks === prev.decks) return;
     schedulePush();
   });
-  unsubscribers = [u1, u2];
+  const u3 = usePlayStore.subscribe((state, prev) => {
+    if (state.history === prev.history) return;
+    schedulePush();
+  });
+  unsubscribers = [u1, u2, u3];
   document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('beforeunload', handleBeforeUnload);
 }
@@ -208,7 +239,8 @@ export async function startSync(): Promise<void> {
   const serverIsEmpty =
     !snap.collection &&
     (!Array.isArray(snap.binders) || snap.binders.length === 0) &&
-    (!Array.isArray(snap.decks) || snap.decks.length === 0);
+    (!Array.isArray(snap.decks) || snap.decks.length === 0) &&
+    (!Array.isArray(snap.games) || snap.games.length === 0);
 
   if (serverIsEmpty) {
     currentVersion = snap.version;
@@ -268,9 +300,12 @@ export async function stopSyncAndWipeLocal(): Promise<void> {
     hydrating: false,
   });
   useDecksStore.setState({ decks: [], hydrated: true });
+  usePlayStore.getState().clearOnline();
+  usePlayStore.setState({ local: null, history: [], hydrated: true });
   try {
     localStorage.removeItem('spellcontrol');
     localStorage.removeItem('mtg-decks');
+    localStorage.removeItem('mtg-play');
   } catch {
     /* ignore */
   }
