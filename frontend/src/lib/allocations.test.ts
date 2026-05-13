@@ -3,10 +3,12 @@ import {
   buildAllocationMap,
   pickCollectionCopy,
   classifyAllocation,
+  findSuboptimalPrintings,
   type AllocationInfo,
 } from './allocations';
 import type { EnrichedCard } from '../types';
-import type { Deck } from '../store/decks';
+import type { Deck, DeckCard } from '../store/decks';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
@@ -159,6 +161,88 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
     });
     const nonFoil = card({ copyId: 'b', scryfallId: 'sf-NEO', foil: false, purchasePrice: 5 });
     expect(pickCollectionCopy('Sol Ring', [foil, nonFoil], allocated)?.copyId).toBe('b');
+  });
+});
+
+describe('findSuboptimalPrintings', () => {
+  function slot(name: string, scryfallId: string, allocatedCopyId: string | null): DeckCard {
+    return {
+      slotId: `s-${Math.random()}`,
+      card: { name, id: scryfallId } as ScryfallCard,
+      allocatedCopyId,
+    };
+  }
+
+  it('reports a slot bound to a wrong-printing copy when preferred printing is owned', () => {
+    const d = deck({
+      id: 'd1',
+      name: 'A',
+      cards: [slot('Plains', 'sf-pref', 'wrong-copy')],
+    });
+    const collection: EnrichedCard[] = [
+      card({ copyId: 'wrong-copy', name: 'Plains', scryfallId: 'sf-other', setCode: 'M20' }),
+      card({ copyId: 'right-copy', name: 'Plains', scryfallId: 'sf-pref', setCode: 'ECL' }),
+    ];
+    const out = findSuboptimalPrintings([d], collection);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      deckName: 'A',
+      cardName: 'Plains',
+      preferredScryfallId: 'sf-pref',
+      allocatedCopyId: 'wrong-copy',
+      allocatedSet: 'M20',
+    });
+  });
+
+  it('does not report when the slot is already on the preferred printing', () => {
+    const d = deck({
+      id: 'd1',
+      cards: [slot('Plains', 'sf-pref', 'right-copy')],
+    });
+    const collection = [card({ copyId: 'right-copy', name: 'Plains', scryfallId: 'sf-pref' })];
+    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+  });
+
+  it('does not report when the preferred printing is not owned at all', () => {
+    // No upgrade possible; the slot is doing the best it can.
+    const d = deck({
+      id: 'd1',
+      cards: [slot('Plains', 'sf-pref', 'only-copy')],
+    });
+    const collection = [card({ copyId: 'only-copy', name: 'Plains', scryfallId: 'sf-other' })];
+    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+  });
+
+  it('does not report unallocated slots', () => {
+    const d = deck({
+      id: 'd1',
+      cards: [slot('Plains', 'sf-pref', null)],
+    });
+    const collection = [card({ copyId: 'c', name: 'Plains', scryfallId: 'sf-pref' })];
+    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+  });
+
+  it('checks commander, partner, and sideboard alongside the main deck', () => {
+    const d = deck({
+      id: 'd1',
+      name: 'X',
+      commander: { name: 'Atraxa', id: 'sf-atraxa-pref' } as ScryfallCard,
+      commanderAllocatedCopyId: 'cmdr-wrong',
+      partnerCommander: { name: 'Thrasios', id: 'sf-thra-pref' } as ScryfallCard,
+      partnerCommanderAllocatedCopyId: 'part-wrong',
+      sideboard: [slot('Bolt', 'sf-bolt-pref', 'side-wrong')],
+    });
+    const collection = [
+      card({ copyId: 'cmdr-wrong', name: 'Atraxa', scryfallId: 'sf-atraxa-other' }),
+      card({ copyId: 'cmdr-right', name: 'Atraxa', scryfallId: 'sf-atraxa-pref' }),
+      card({ copyId: 'part-wrong', name: 'Thrasios', scryfallId: 'sf-thra-other' }),
+      card({ copyId: 'part-right', name: 'Thrasios', scryfallId: 'sf-thra-pref' }),
+      card({ copyId: 'side-wrong', name: 'Bolt', scryfallId: 'sf-bolt-other' }),
+      card({ copyId: 'side-right', name: 'Bolt', scryfallId: 'sf-bolt-pref' }),
+    ];
+    const out = findSuboptimalPrintings([d], collection);
+    expect(out).toHaveLength(3);
+    expect(out.map((r) => r.cardName).sort()).toEqual(['Atraxa', 'Bolt', 'Thrasios']);
   });
 });
 
