@@ -7,18 +7,22 @@ import * as schema from './db/schema';
 import { setDbForTesting, closeDb } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
+import { gamesRouter } from './routes/games';
 
 /**
- * Returns a Postgres connection string for tests. Falls back to a sensible
- * default that matches the docker-compose dev DB, but CI / local devs can
- * override with TEST_DATABASE_URL.
+ * Default connection string for the local dev Postgres (docker-compose.dev.yml
+ * + the user's existing volume). Exported so the vitest globalSetup can probe
+ * the same URL it falls back to here.
+ */
+export const DEFAULT_TEST_DATABASE_URL = 'postgres://mtguser:mtgpassword@localhost:5432/mtgbinder';
+
+/**
+ * Returns a Postgres connection string for tests. Prefers explicit
+ * TEST_DATABASE_URL (CI sets this via its postgres service), then falls back
+ * to the user's runtime DATABASE_URL, then to the dev-container default.
  */
 export function testDatabaseUrl(): string {
-  return (
-    process.env.TEST_DATABASE_URL ||
-    process.env.DATABASE_URL ||
-    'postgres://binder:binder@localhost:5432/binder'
-  );
+  return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_TEST_DATABASE_URL;
 }
 
 /**
@@ -68,7 +72,18 @@ export async function createTestEnv(): Promise<TestEnv> {
       collection JSONB,
       binders JSONB NOT NULL DEFAULT '[]'::jsonb,
       decks JSONB NOT NULL DEFAULT '[]'::jsonb,
+      games JSONB NOT NULL DEFAULT '[]'::jsonb,
       version INTEGER NOT NULL DEFAULT 0,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE TABLE game_sessions (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      state JSONB NOT NULL,
+      version INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     );
   `);
@@ -81,6 +96,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use(express.json({ limit: '10mb' }));
   app.use('/api/auth', authRouter);
   app.use('/api/sync', syncRouter);
+  app.use('/api/games', gamesRouter);
 
   return {
     app,
