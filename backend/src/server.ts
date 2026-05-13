@@ -12,6 +12,7 @@ import { syncRouter } from './routes/sync';
 import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
+import { sliceResolvedDeckImport } from './deck-import';
 import type { ImportRow } from './parsers/types';
 import type { DeckImportResponse, EnrichedCard, ScryfallCard, UploadResponse } from './types';
 
@@ -157,66 +158,42 @@ app.post(
           r.section !== 'maybeboard'
       );
 
+      // Resolve each expanded row independently so distinct printings of the
+      // same name (e.g. Plains FDN #272 vs FDN #282) stay distinct in the deck.
+      // The previous implementation collapsed by (name, setCode), losing
+      // printing precision on basic lands and any same-set multi-printing card.
+      //
+      // Two-pass resolution: first try with all the row's info (scryfallId or
+      // name+set+collector). For any row that didn't resolve AND originally had
+      // a collectorNumber, retry without it — some deck-builder exports use
+      // collector numbers Scryfall doesn't recognize for the exact printing the
+      // user owns; falling back to name+set lets us still produce a card.
       const allRows = [...commanderRows, ...companionRows, ...deckRows];
-      // Strip collector numbers so resolution falls back to name+set. Deck exports
-      // from various tools use collector numbers that may not match Scryfall's
-      // numbering for the same printing, causing false negatives. For deck import
-      // we only need the card data, not an exact printing match.
-      const relaxedRows = allRows.map((r) => ({ ...r, collectorNumber: undefined }));
-      const expanded = expandByQuantity(relaxedRows);
-      const { resolved, unresolvedNames } = await resolveCards(expanded, cache);
+      const expanded = expandByQuantity(allRows);
+      const firstPass = await resolveCards(expanded, cache);
+      const resolved = firstPass.resolved;
 
-      // Key by name+setCode so different printings of the same card name are
-      // kept separate (e.g. "Forest (ONE)" and "Forest (NEO)" stay distinct).
-      const deckCardKey = (name: string, setCode?: string) =>
-        `${name}\0${(setCode ?? '').toLowerCase()}`;
-      const lookupDeckCard = (
-        name: string,
-        setCode: string | undefined,
-        map: Map<string, ScryfallCard>
-      ): ScryfallCard | null =>
-        map.get(deckCardKey(name, setCode)) ?? map.get(deckCardKey(name, '')) ?? null;
-
-      const cardsByKey = new Map<string, ScryfallCard>();
-      for (let i = 0; i < expanded.length; i++) {
-        const card = resolved[i];
-        if (!card) continue;
-        const row = expanded[i];
-        const key = deckCardKey(row.name, row.setCode);
-        if (!cardsByKey.has(key)) {
-          cardsByKey.set(key, card);
-        }
+      const retryIdxs: number[] = [];
+      resolved.forEach((card, i) => {
+        if (!card && expanded[i].collectorNumber) retryIdxs.push(i);
+      });
+      if (retryIdxs.length > 0) {
+        const retryRows = retryIdxs.map((i) => ({ ...expanded[i], collectorNumber: undefined }));
+        const retry = await resolveCards(retryRows, cache);
+        retryIdxs.forEach((origIdx, j) => {
+          if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
+        });
       }
-
-      let commander: ScryfallCard | null = null;
-      if (commanderRows.length > 0) {
-        const r = commanderRows[0];
-        commander = lookupDeckCard(r.name, r.setCode, cardsByKey);
-      }
-
-      let companion: ScryfallCard | null = null;
-      if (companionRows.length > 0) {
-        const r = companionRows[0];
-        companion = lookupDeckCard(r.name, r.setCode, cardsByKey);
-      }
-
-      const cards: ScryfallCard[] = [];
-      for (const row of deckRows) {
-        const card = lookupDeckCard(row.name, row.setCode, cardsByKey);
-        if (card) {
-          for (let i = 0; i < Math.max(1, row.quantity); i++) {
-            cards.push(card);
-          }
-        }
-      }
+      const sections = sliceResolvedDeckImport(commanderRows, companionRows, deckRows, resolved);
 
       const response: DeckImportResponse = {
-        commander,
-        companion,
-        cards,
-        unresolvedNames: dedupePreservingOrder(unresolvedNames),
+        commander: sections.commander,
+        companion: sections.companion,
+        cards: sections.cards,
+        unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
         detectedFormat: parseResult.format,
-        cardCount: cards.length + (commander ? 1 : 0) + (companion ? 1 : 0),
+        cardCount:
+          sections.cards.length + (sections.commander ? 1 : 0) + (sections.companion ? 1 : 0),
       };
 
       res.json(response);
