@@ -6,54 +6,102 @@ import { saveCollection, clearCollection, type StoredCollection } from './local-
 import type { Deck } from '../store/decks';
 import type { BinderDef } from '../types';
 import type { GameRecord } from './game-state';
-import {
-  mergeBinders,
-  mergeDecks,
-  mergeCollection,
-  buildSyncMeta,
-  saveSyncMeta,
-  loadSyncMeta,
-  setDirty,
-  clearDirty,
-} from './sync-merge';
+import { consumeImmediateFlush } from './sync-intent';
 
-const PUSH_DEBOUNCE_MS = 1500;
+/**
+ * Sync model: server is the source of truth for authed users.
+ *
+ * Local storage (zustand persist + IndexedDB) is treated as a cache for fast
+ * reload and offline reads. It is never merged with the server. The store's
+ * current state IS the "pending push" payload; a single dirty flag in
+ * localStorage records whether there are unpushed changes across reloads.
+ *
+ *   • startSync(userId): if dirty (or this is a new owner), push current state.
+ *     Then fetch server and overwrite stores. On 409: server wins for the
+ *     refresh, then re-push our current state on top.
+ *   • Subscribers: any store change marks dirty and schedules a push.
+ *     Destructive mutators (clearCards, deleteBinder, ...) flag the next push
+ *     as immediate via sync-intent, bypassing the debounce.
+ */
+
+const DEBOUNCE_MS = 500;
+const VERSION_KEY = 'spellcontrol-sync-base-version';
+const DIRTY_KEY = 'spellcontrol-sync-dirty';
+const OWNER_KEY = 'spellcontrol-sync-owner';
 
 let currentVersion = 0;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let pushing = false;
 let pushPending = false;
-let isApplyingRemote = false;
+let isApplyingServer = false;
 let unsubscribers: Array<() => void> = [];
 
-function buildBindersSnapshot(): BinderDef[] {
+type SyncedListener = () => void;
+const syncedListeners = new Set<SyncedListener>();
+let syncedState: 'idle' | 'syncing' | 'ready' = 'idle';
+
+export function onSyncedChange(fn: SyncedListener): () => void {
+  syncedListeners.add(fn);
+  return () => syncedListeners.delete(fn);
+}
+function emitSynced(): void {
+  for (const fn of syncedListeners) fn();
+}
+export function getSyncState(): 'idle' | 'syncing' | 'ready' {
+  return syncedState;
+}
+
+function setDirty(): void {
+  try {
+    localStorage.setItem(DIRTY_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+function clearDirty(): void {
+  try {
+    localStorage.removeItem(DIRTY_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+function isDirty(): boolean {
+  try {
+    return localStorage.getItem(DIRTY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function persistVersion(v: number): void {
+  currentVersion = v;
+  try {
+    localStorage.setItem(VERSION_KEY, String(v));
+  } catch {
+    /* ignore */
+  }
+}
+function loadVersion(): void {
+  try {
+    const raw = localStorage.getItem(VERSION_KEY);
+    currentVersion = raw ? Number.parseInt(raw, 10) || 0 : 0;
+  } catch {
+    currentVersion = 0;
+  }
+}
+
+function buildBinders(): BinderDef[] {
   return useCollectionStore.getState().binders;
 }
 
-function buildDecksSnapshot(): Deck[] {
+function buildDecks(): Deck[] {
   return useDecksStore.getState().decks;
 }
 
-function buildGamesSnapshot(): GameRecord[] {
+function buildGames(): GameRecord[] {
   return usePlayStore.getState().history;
 }
 
-/**
- * Merge game records by id. Each record is immutable once written (a finished
- * game never changes), so union-by-id with the most recent endedAt as the
- * tiebreaker is sufficient. The result is sorted newest-first.
- */
-function mergeGameRecords(local: GameRecord[], remote: GameRecord[]): GameRecord[] {
-  const byId = new Map<string, GameRecord>();
-  for (const r of remote) byId.set(r.id, r);
-  for (const r of local) {
-    const cur = byId.get(r.id);
-    if (!cur || r.endedAt > cur.endedAt) byId.set(r.id, r);
-  }
-  return Array.from(byId.values()).sort((a, b) => b.endedAt - a.endedAt);
-}
-
-function buildCollectionSnapshot(): StoredCollection | null {
+function buildCollection(): StoredCollection | null {
   const s = useCollectionStore.getState();
   if (!s.cards.length && !s.fileName && !s.uploadedAt) return null;
   return {
@@ -71,59 +119,61 @@ async function pushNow(): Promise<void> {
     pushPending = true;
     return;
   }
+  if (!isDirty()) return;
   pushing = true;
   try {
-    const binders = buildBindersSnapshot();
-    const decks = buildDecksSnapshot();
-    const games = buildGamesSnapshot();
-    const collection = buildCollectionSnapshot();
     const result = await putSync({
-      collection,
-      binders,
-      decks,
-      games,
+      collection: buildCollection(),
+      binders: buildBinders(),
+      decks: buildDecks(),
+      games: buildGames(),
       baseVersion: currentVersion,
     });
-    currentVersion = result.version;
-    saveSyncMeta(buildSyncMeta(result.version, binders, decks, collection));
+    persistVersion(result.version);
     clearDirty();
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
     if (e.status === 409 && e.current) {
-      await mergeWithSnapshot(e.current);
+      // Server moved on. Re-base on its version, then re-push our current
+      // local state on top. Last-write-wins for the values we touched.
+      persistVersion(e.current.version);
       pushPending = true;
     } else {
+      // Network or other failure — keep dirty. Retry on next mutation or
+      // on the next online event.
       console.warn('[sync] push failed:', err);
     }
   } finally {
     pushing = false;
     if (pushPending) {
       pushPending = false;
-      schedulePush();
+      schedulePush(true);
     }
   }
 }
 
-function schedulePush(): void {
-  if (isApplyingRemote) return;
+function schedulePush(immediate = false): void {
+  if (isApplyingServer) return;
   setDirty();
-  if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => {
+  const forceImmediate = immediate || consumeImmediateFlush();
+  if (pushTimer) {
+    clearTimeout(pushTimer);
     pushTimer = null;
+  }
+  if (forceImmediate) {
     void pushNow();
-  }, PUSH_DEBOUNCE_MS);
+  } else {
+    pushTimer = setTimeout(() => {
+      pushTimer = null;
+      void pushNow();
+    }, DEBOUNCE_MS);
+  }
 }
 
-async function mergeWithSnapshot(snap: SyncSnapshot): Promise<void> {
-  isApplyingRemote = true;
+async function applyServerSnapshot(snap: SyncSnapshot): Promise<void> {
+  isApplyingServer = true;
   try {
-    currentVersion = snap.version;
-    const meta = loadSyncMeta();
-
-    const localBinders = useCollectionStore.getState().binders;
-    const localDecks = useDecksStore.getState().decks;
-    const localCollection = buildCollectionSnapshot();
-
+    persistVersion(snap.version);
     const remoteBinders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
     const remoteDecks = Array.isArray(snap.decks)
       ? (snap.decks as Deck[]).map((d) => ({
@@ -135,32 +185,26 @@ async function mergeWithSnapshot(snap: SyncSnapshot): Promise<void> {
     const remoteCollection = (snap.collection as StoredCollection | null) ?? null;
     const remoteGames = Array.isArray(snap.games) ? (snap.games as GameRecord[]) : [];
 
-    const mergedBinders = mergeBinders(localBinders, remoteBinders, meta);
-    const mergedDecks = mergeDecks(localDecks, remoteDecks, meta);
-    const mergedCollection = mergeCollection(localCollection, remoteCollection);
-    const mergedGames = mergeGameRecords(usePlayStore.getState().history, remoteGames);
-
-    if (mergedCollection !== localCollection) {
-      if (mergedCollection) await saveCollection(mergedCollection);
-      else await clearCollection();
+    if (remoteCollection) {
+      await saveCollection(remoteCollection);
+    } else {
+      await clearCollection();
     }
 
     useCollectionStore.setState({
-      binders: mergedBinders,
-      cards: mergedCollection?.cards ?? [],
-      fileName: mergedCollection?.fileName ?? '',
-      scryfallHits: mergedCollection?.scryfallHits ?? 0,
-      scryfallMisses: mergedCollection?.scryfallMisses ?? 0,
-      uploadedAt: mergedCollection?.uploadedAt ?? null,
-      importHistory: mergedCollection?.importHistory ?? [],
+      binders: remoteBinders,
+      cards: remoteCollection?.cards ?? [],
+      fileName: remoteCollection?.fileName ?? '',
+      scryfallHits: remoteCollection?.scryfallHits ?? 0,
+      scryfallMisses: remoteCollection?.scryfallMisses ?? 0,
+      uploadedAt: remoteCollection?.uploadedAt ?? null,
+      importHistory: remoteCollection?.importHistory ?? [],
       hydrating: false,
     });
-    useDecksStore.setState({ decks: mergedDecks, hydrated: true });
-    usePlayStore.setState({ history: mergedGames });
-
-    saveSyncMeta(buildSyncMeta(snap.version, mergedBinders, mergedDecks, mergedCollection));
+    useDecksStore.setState({ decks: remoteDecks, hydrated: true });
+    usePlayStore.setState({ history: remoteGames });
   } finally {
-    isApplyingRemote = false;
+    isApplyingServer = false;
   }
 }
 
@@ -173,17 +217,18 @@ function handleVisibilityChange(): void {
 }
 
 function handleBeforeUnload(): void {
-  if (!pushTimer && !pushing) return;
+  if (!pushTimer && !pushing && !isDirty()) return;
   if (pushTimer) {
     clearTimeout(pushTimer);
     pushTimer = null;
   }
+  if (!isDirty()) return;
   try {
     const payload = JSON.stringify({
-      collection: buildCollectionSnapshot(),
-      binders: buildBindersSnapshot(),
-      decks: buildDecksSnapshot(),
-      games: buildGamesSnapshot(),
+      collection: buildCollection(),
+      binders: buildBinders(),
+      decks: buildDecks(),
+      games: buildGames(),
       baseVersion: currentVersion,
     });
     fetch('/api/sync', {
@@ -196,8 +241,12 @@ function handleBeforeUnload(): void {
       /* best effort */
     });
   } catch {
-    /* payload too large or other error — dirty flag remains set */
+    /* payload too large — dirty flag stays set, retried on next boot */
   }
+}
+
+function handleOnline(): void {
+  if (isDirty()) schedulePush(true);
 }
 
 function attachSubscribers(): void {
@@ -217,6 +266,7 @@ function attachSubscribers(): void {
   unsubscribers = [u1, u2, u3];
   document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('beforeunload', handleBeforeUnload);
+  window.addEventListener('online', handleOnline);
 }
 
 function detachSubscribers(): void {
@@ -226,53 +276,86 @@ function detachSubscribers(): void {
     clearTimeout(pushTimer);
     pushTimer = null;
   }
-  document.removeEventListener('visibilitychange', handleVisibilityChange);
-  window.removeEventListener('beforeunload', handleBeforeUnload);
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener('online', handleOnline);
+  }
 }
 
 /**
- * Pull the server snapshot and merge with local state. Called once after login.
+ * Pull the server snapshot and overwrite local state. Called once after login.
+ *
+ * Pass the authed user's id so we can detect cross-user persisted state and
+ * wipe it before pushing to the wrong account.
  */
-export async function startSync(): Promise<void> {
-  const snap = await fetchSync();
+export async function startSync(userId?: string): Promise<void> {
+  syncedState = 'syncing';
+  emitSynced();
 
-  const serverIsEmpty =
-    !snap.collection &&
-    (!Array.isArray(snap.binders) || snap.binders.length === 0) &&
-    (!Array.isArray(snap.decks) || snap.decks.length === 0) &&
-    (!Array.isArray(snap.games) || snap.games.length === 0);
-
-  if (serverIsEmpty) {
-    currentVersion = snap.version;
-    attachSubscribers();
-    schedulePush();
-    return;
+  // Migrate legacy sync-meta from the merge era — no longer used.
+  try {
+    localStorage.removeItem('spellcontrol-sync-meta');
+  } catch {
+    /* ignore */
   }
 
-  await mergeWithSnapshot(snap);
+  // Cross-user safety: if persist'd state belongs to a different user, wipe
+  // before we contaminate their account with the previous user's snapshot.
+  // (The normal logout flow already wipes; this guards against stale cookies
+  // and edge cases.)
+  if (userId) {
+    let owner: string | null = null;
+    try {
+      owner = localStorage.getItem(OWNER_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (owner && owner !== userId) {
+      await wipeLocal();
+    }
+    try {
+      localStorage.setItem(OWNER_KEY, userId);
+    } catch {
+      /* ignore */
+    }
+    // First sync after switching from guest (no prior owner): treat local
+    // state as a pending push so guest binders/decks are promoted into the
+    // newly authed account.
+    if (!owner) {
+      const hasLocal =
+        useCollectionStore.getState().binders.length > 0 ||
+        useDecksStore.getState().decks.length > 0 ||
+        useCollectionStore.getState().cards.length > 0 ||
+        usePlayStore.getState().history.length > 0;
+      if (hasLocal) setDirty();
+    }
+  }
+
+  loadVersion();
+
+  // If we have unpushed local changes, send them first. Server is then
+  // guaranteed to reflect the user's most recent intent before we overwrite
+  // the store from a fetch.
+  if (isDirty()) {
+    await pushNow();
+  }
+
+  // Fetch the authoritative snapshot and overwrite local state. No merge.
+  try {
+    const snap = await fetchSync();
+    await applyServerSnapshot(snap);
+    // If our push above didn't run or didn't fully cover our state, the
+    // subscriber chain hasn't been attached yet so the overwrite is clean.
+  } catch (err) {
+    console.warn('[sync] fetch on startSync failed:', err);
+  }
+
   attachSubscribers();
-
-  // If the merge picked any local-wins, push the merged state to the server.
-  const remoteBinders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
-  const remoteDecks = Array.isArray(snap.decks) ? (snap.decks as Deck[]) : [];
-  const mergedBinders = useCollectionStore.getState().binders;
-  const mergedDecks = useDecksStore.getState().decks;
-
-  const changed =
-    mergedBinders.length !== remoteBinders.length ||
-    mergedDecks.length !== remoteDecks.length ||
-    mergedBinders.some(
-      (b, i) =>
-        b.id !== (remoteBinders[i]?.id ?? '') || b.updatedAt !== (remoteBinders[i]?.updatedAt ?? 0)
-    ) ||
-    mergedDecks.some(
-      (d, i) =>
-        d.id !== (remoteDecks[i]?.id ?? '') || d.updatedAt !== (remoteDecks[i]?.updatedAt ?? 0)
-    );
-
-  if (changed) {
-    schedulePush();
-  }
+  syncedState = 'ready';
+  emitSynced();
 }
 
 /**
@@ -281,12 +364,20 @@ export async function startSync(): Promise<void> {
  */
 export async function stopSyncAndWipeLocal(): Promise<void> {
   detachSubscribers();
+  await wipeLocal();
+  syncedState = 'idle';
+  emitSynced();
+}
+
+async function wipeLocal(): Promise<void> {
   currentVersion = 0;
   clearDirty();
-  try {
-    localStorage.removeItem('spellcontrol-sync-meta');
-  } catch {
-    /* ignore */
+  for (const key of [VERSION_KEY, OWNER_KEY, 'spellcontrol-sync-meta']) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
   }
   await clearCollection();
   useCollectionStore.setState({
@@ -302,12 +393,12 @@ export async function stopSyncAndWipeLocal(): Promise<void> {
   useDecksStore.setState({ decks: [], hydrated: true });
   usePlayStore.getState().clearOnline();
   usePlayStore.setState({ local: null, history: [], hydrated: true });
-  try {
-    localStorage.removeItem('spellcontrol');
-    localStorage.removeItem('mtg-decks');
-    localStorage.removeItem('mtg-play');
-  } catch {
-    /* ignore */
+  for (const key of ['spellcontrol', 'mtg-decks', 'mtg-play']) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
   }
 }
 
