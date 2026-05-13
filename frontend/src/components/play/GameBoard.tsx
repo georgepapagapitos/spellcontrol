@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GameAction, GamePlayer, GameState } from '../../lib/game-state';
+import type { GameAction, GameLayout, GamePlayer, GameState } from '../../lib/game-state';
+import { useAnimatedNumber } from '../../lib/use-animated-number';
+import { useFloatingDelta } from '../../lib/use-floating-delta';
+import { haptics } from '../../lib/haptics';
+import { LifeKeypad } from './LifeKeypad';
 
 interface Props {
   game: GameState;
@@ -47,6 +51,9 @@ export function GameBoard({
 }: Props) {
   const total = game.players.length;
   const isShared = game.mode === 'local';
+  // `layout` is a recent field; legacy persisted games may lack it. Default
+  // here so we never read `undefined` in CSS class composition or rotation.
+  const layout: GameLayout = (game.layout as GameLayout | undefined) ?? 'default';
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
@@ -60,7 +67,7 @@ export function GameBoard({
 
   return (
     <div
-      className={`game-board game-board-${Math.min(total, 4)} mode-${game.mode}`}
+      className={`game-board game-board-${Math.min(total, 6)} layout-${layout} mode-${game.mode}`}
       data-shared={isShared || undefined}
     >
       <div className="game-board-grid">
@@ -70,7 +77,7 @@ export function GameBoard({
             player={p}
             game={game}
             dispatch={dispatch}
-            rotation={seatRotation(i, total, isShared)}
+            rotation={seatRotation(i, total, isShared, layout)}
             canEdit={canControlAll || (viewerUserId != null && p.userId === viewerUserId)}
             opponents={game.players.filter((o) => o.seat !== p.seat)}
           />
@@ -117,17 +124,53 @@ export function GameBoard({
  * Decide the rotation in degrees for the seat at the given index.
  *
  * Online: never rotate — the viewer holds their own device upright.
- * Local: rotate panels that sit on the far side of the table relative to a
- *   shared phone. 2-player = top half flipped; 4-player = top row flipped.
- *   3-player = both top panels flipped, bottom upright.
+ * Local: rotation depends on chosen layout. `default` rotates the panels
+ * on the far side of a shared phone so they read upright when passed.
+ * `same` and `row` are no-rotation variants — useful when everyone's
+ * looking at the device from the same side, or on a tablet held landscape.
  */
-function seatRotation(seatIndex: number, total: number, shared: boolean): number {
+function seatRotation(
+  seatIndex: number,
+  total: number,
+  shared: boolean,
+  layout: GameLayout
+): number {
   if (!shared) return 0;
+  if (layout === 'same' || layout === 'row') return 0;
+  // Default per-count rotations: top-row seats get flipped 180°.
   if (total === 2) return seatIndex === 0 ? 180 : 0;
   if (total === 3) return seatIndex < 2 ? 180 : 0;
   if (total === 4) return seatIndex < 2 ? 180 : 0;
+  if (total === 5) return seatIndex < 4 ? 180 : 0;
+  if (total === 6) return seatIndex < 3 ? 180 : 0;
   return 0;
 }
+
+/**
+ * Layouts available for a given player count. The default layout is always
+ * first. Layout availability is per-count because `row` only really makes
+ * sense for 3+ players (2-player stacked vs side is already auto by
+ * orientation media query).
+ */
+const LAYOUTS_FOR_COUNT: Record<number, GameLayout[]> = {
+  2: ['default', 'same'],
+  3: ['default', 'same', 'row'],
+  4: ['default', 'same', 'row'],
+  5: ['default', 'same', 'row'],
+  6: ['default', 'same', 'row'],
+};
+
+const LAYOUT_LABEL: Record<GameLayout, string> = {
+  default: 'Pod',
+  same: 'Same side',
+  row: 'Row',
+};
+
+const LAYOUT_HINT: Record<GameLayout, string> = {
+  default: 'Players sit around the device; panels on the far side are flipped.',
+  same: 'Everyone reads the screen from the same side.',
+  row: 'Single horizontal row — best for landscape tablets.',
+};
 
 // ── Player panel ───────────────────────────────────────────────────────────
 
@@ -148,38 +191,123 @@ function PlayerPanel({
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [seatMenuOpen, setSeatMenuOpen] = useState(false);
+  const [keypadOpen, setKeypadOpen] = useState(false);
+  const [lethalFlash, setLethalFlash] = useState(false);
   const disabled = !canEdit || player.eliminated || game.status === 'finished';
 
   const colorKey = player.panelColorKey
     ? player.panelColorKey.toLowerCase()
     : identityKey(player.colorIdentity);
 
-  // Pressing the tap zones: a single tap = ±1, a long press starts a repeater
-  // that fires every 130ms. Releasing (or leaving the zone) stops the repeat.
+  const { display: animatedLife, popKey } = useAnimatedNumber(player.life);
+  const { chips, push: pushDelta } = useFloatingDelta();
+  const panelRef = useRef<HTMLElement | null>(null);
+  const lastPointerRef = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
+
+  // Track the most recent pointer location (in panel-local %) so floating
+  // delta chips spawn under the user's finger.
+  const recordPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = panelRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      // Coordinates are in panel-local screen space — but the panel may be
+      // rotated 180°. CSS transforms don't affect getBoundingClientRect's
+      // axis-aligned box, so for a 180° rotation we flip the offset so the
+      // chip lands under the user's actual finger.
+      let x = ((clientX - rect.left) / rect.width) * 100;
+      let y = ((clientY - rect.top) / rect.height) * 100;
+      if (rotation === 180) {
+        x = 100 - x;
+        y = 100 - y;
+      }
+      lastPointerRef.current = { x, y };
+    },
+    [rotation]
+  );
+
+  // Detect "lethal" transitions and flash. Watches life, poison, and
+  // commander damage so a poison/cmdr drawer tick also triggers the flash.
+  const prevLethalRef = useRef<boolean>(false);
+  useEffect(() => {
+    const isLethal =
+      player.life <= 0 ||
+      (game.poisonEnabled && player.poison >= 10) ||
+      (game.commanderDamageEnabled && Object.values(player.commanderDamage).some((v) => v >= 21));
+    if (isLethal && !prevLethalRef.current && !player.eliminated) {
+      setLethalFlash(true);
+      haptics.lethal();
+      const t = setTimeout(() => setLethalFlash(false), 320);
+      prevLethalRef.current = true;
+      return () => clearTimeout(t);
+    }
+    if (!isLethal) prevLethalRef.current = false;
+  }, [
+    player.life,
+    player.poison,
+    player.commanderDamage,
+    player.eliminated,
+    game.poisonEnabled,
+    game.commanderDamageEnabled,
+  ]);
+
   const adjust = useCallback(
     (delta: number) => {
       if (disabled) return;
       dispatch({ type: 'life', seat: player.seat, delta, actorSeat: player.seat });
+      pushDelta(delta, lastPointerRef.current.x, lastPointerRef.current.y);
+      haptics.tap();
     },
-    [disabled, dispatch, player.seat]
+    [disabled, dispatch, player.seat, pushDelta]
   );
 
   const tapHandlers = useTapAndHold({
     onTap: (delta: number) => adjust(delta),
     onHoldTick: (delta: number) => adjust(delta),
+    onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
+    onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
+    onSwipeUp: () => {
+      if (!canEdit) return;
+      if (game.commanderDamageEnabled || game.poisonEnabled) setDrawerOpen(true);
+      else setSeatMenuOpen(true);
+    },
+    onSwipeDown: () => {
+      setDrawerOpen(false);
+      setSeatMenuOpen(false);
+    },
+    rotation,
     disabled,
   });
 
   return (
     <section
+      ref={panelRef}
       className={`player-panel pp-color-${colorKey} ${player.eliminated ? 'is-eliminated' : ''} ${
         game.winnerSeat === player.seat ? 'is-winner' : ''
-      } ${canEdit ? 'is-mine' : ''}`}
-      style={{ transform: `rotate(${rotation}deg)` }}
+      } ${canEdit ? 'is-mine' : ''} ${lethalFlash ? 'is-lethal-flash' : ''}`}
+      // Rotation is expressed as a CSS variable so layouts can override it
+      // at specific breakpoints (e.g. 5p portrait rotates 4 panels, but 5p
+      // landscape only rotates 3). JS sets a sensible default; CSS wins
+      // when a media query overrides --pp-rot for a given seat.
+      style={{ ['--pp-rot' as never]: `${rotation}deg` }}
+      data-seat={player.seat}
       aria-label={`${player.name}: ${player.life} life`}
     >
       <div className="player-panel-tapzone is-left" {...tapHandlers(-1)} aria-label="-1 life" />
       <div className="player-panel-tapzone is-right" {...tapHandlers(1)} aria-label="+1 life" />
+
+      <div className="player-panel-floats" aria-hidden="true">
+        {chips.map((c) => (
+          <span
+            key={c.id}
+            className={`floating-delta ${c.value > 0 ? 'is-positive' : 'is-negative'}`}
+            style={{ left: `${c.x}%`, top: `${c.y}%` }}
+          >
+            {c.value > 0 ? `+${c.value}` : `−${Math.abs(c.value)}`}
+          </span>
+        ))}
+      </div>
 
       <div className="player-panel-content" aria-hidden="false">
         <header className="player-panel-head">
@@ -218,9 +346,23 @@ function PlayerPanel({
           >
             −5
           </button>
-          <div className="player-panel-life" aria-live="polite">
-            {player.life}
-          </div>
+          <button
+            type="button"
+            className="player-panel-life player-panel-life-btn"
+            aria-label={`Set life — currently ${player.life}`}
+            aria-live="polite"
+            disabled={!canEdit || game.status === 'finished'}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!canEdit || game.status === 'finished') return;
+              setKeypadOpen(true);
+            }}
+          >
+            <span key={popKey} className="player-panel-life-num is-pop">
+              {animatedLife}
+            </span>
+          </button>
           <button
             type="button"
             className="player-panel-step-btn"
@@ -279,6 +421,23 @@ function PlayerPanel({
       {player.eliminated && game.winnerSeat !== player.seat && (
         <div className="player-panel-eliminated-tag">Out</div>
       )}
+
+      {keypadOpen && (
+        <LifeKeypad
+          playerName={player.name}
+          currentLife={player.life}
+          onConfirm={(value) => {
+            dispatch({
+              type: 'set-life',
+              seat: player.seat,
+              value,
+              actorSeat: player.seat,
+            });
+            setKeypadOpen(false);
+          }}
+          onClose={() => setKeypadOpen(false)}
+        />
+      )}
     </section>
   );
 }
@@ -288,8 +447,17 @@ function PlayerPanel({
 interface TapAndHoldOpts {
   onTap: (arg: number) => void;
   onHoldTick: (arg: number) => void;
+  onPointerStart?: (e: React.PointerEvent) => void;
+  onPointerMove?: (e: React.PointerEvent) => void;
+  onSwipeUp?: () => void;
+  onSwipeDown?: () => void;
+  /** Panel rotation in degrees; affects swipe direction interpretation. */
+  rotation?: number;
   disabled: boolean;
 }
+
+const SWIPE_THRESHOLD_PX = 40;
+const SWIPE_AXIS_RATIO = 1.5;
 
 /**
  * Hook that returns a getHandlers(arg) factory which produces the pointer
@@ -297,13 +465,29 @@ interface TapAndHoldOpts {
  * a long press (>=350ms) starts a repeater that fires `onHoldTick(arg)` every
  * 130ms until pointer-up or pointer-leave.
  *
+ * Also detects vertical swipes: if the pointer moves >40px vertically (and
+ * predominantly vertically) before lift, the hold timer is cancelled and
+ * onSwipeUp/onSwipeDown fires instead of a tap or repeater. For 180°-rotated
+ * panels, screen-space "down" is panel-local "up", so we invert.
+ *
  * Using pointer events (not touch/mouse separately) lets the same handler
  * cover mouse, touch, and pen with no synthetic-click double-fire.
  */
-function useTapAndHold({ onTap, onHoldTick, disabled }: TapAndHoldOpts) {
+function useTapAndHold({
+  onTap,
+  onHoldTick,
+  onPointerStart,
+  onPointerMove,
+  onSwipeUp,
+  onSwipeDown,
+  rotation = 0,
+  disabled,
+}: TapAndHoldOpts) {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const repeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const heldRef = useRef(false);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const swipedRef = useRef(false);
 
   const clear = () => {
     if (holdTimer.current) clearTimeout(holdTimer.current);
@@ -316,11 +500,19 @@ function useTapAndHold({ onTap, onHoldTick, disabled }: TapAndHoldOpts) {
 
   return (arg: number) => ({
     onPointerDown: (e: React.PointerEvent) => {
-      if (disabled) return;
-      // Capture the pointer so a drag off the element still fires pointerup
-      // on this same node (otherwise the repeater can leak).
+      if (disabled) {
+        // Still record start so a swipe-up (e.g. open seat menu while
+        // eliminated) can fire. But don't arm tap/hold.
+        startRef.current = { x: e.clientX, y: e.clientY };
+        swipedRef.current = false;
+        onPointerStart?.(e);
+        return;
+      }
       (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
       heldRef.current = false;
+      swipedRef.current = false;
+      startRef.current = { x: e.clientX, y: e.clientY };
+      onPointerStart?.(e);
       clear();
       holdTimer.current = setTimeout(() => {
         heldRef.current = true;
@@ -328,15 +520,40 @@ function useTapAndHold({ onTap, onHoldTick, disabled }: TapAndHoldOpts) {
         repeatTimer.current = setInterval(() => onHoldTick(arg), 130);
       }, 350);
     },
+    onPointerMove: (e: React.PointerEvent) => {
+      onPointerMove?.(e);
+      const s = startRef.current;
+      if (!s || swipedRef.current) return;
+      const dx = e.clientX - s.x;
+      const dy = e.clientY - s.y;
+      if (Math.abs(dy) >= SWIPE_THRESHOLD_PX && Math.abs(dy) > Math.abs(dx) * SWIPE_AXIS_RATIO) {
+        // Crossed the swipe threshold — cancel any pending tap/hold.
+        swipedRef.current = true;
+        clear();
+        const isScreenDown = dy > 0;
+        // Panel rotated 180° → screen-down is panel-up.
+        const isPanelUp = rotation === 180 ? isScreenDown : !isScreenDown;
+        if (isPanelUp) onSwipeUp?.();
+        else onSwipeDown?.();
+      }
+    },
     onPointerUp: (e: React.PointerEvent) => {
-      if (disabled) return;
       (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
       const wasHeld = heldRef.current;
+      const wasSwipe = swipedRef.current;
       clear();
-      if (!wasHeld) onTap(arg);
+      startRef.current = null;
+      if (disabled) return;
+      if (!wasHeld && !wasSwipe) onTap(arg);
     },
-    onPointerCancel: () => clear(),
-    onPointerLeave: () => clear(),
+    onPointerCancel: () => {
+      clear();
+      startRef.current = null;
+    },
+    onPointerLeave: () => {
+      clear();
+      startRef.current = null;
+    },
   });
 }
 
@@ -610,6 +827,14 @@ function GameMenu({
             {game.commanderDamageEnabled && <span>Commander damage</span>}
             {game.poisonEnabled && <span>Poison</span>}
           </div>
+          {canControlAll && game.status !== 'finished' && (
+            <LayoutPicker
+              total={game.players.length}
+              current={(game.layout as GameLayout | undefined) ?? 'default'}
+              shared={game.mode === 'local'}
+              onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
+            />
+          )}
           {onMinimize && game.status !== 'finished' && (
             <button
               type="button"
@@ -669,6 +894,86 @@ function GameMenu({
           <EventLog game={game} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Layout picker (board arrangement) ────────────────────────────────────
+
+function LayoutPicker({
+  total,
+  current,
+  shared,
+  onPick,
+}: {
+  total: number;
+  current: GameLayout;
+  shared: boolean;
+  onPick: (layout: GameLayout) => void;
+}) {
+  const options = LAYOUTS_FOR_COUNT[Math.min(Math.max(total, 2), 6)] ?? ['default'];
+  if (options.length < 2) return null;
+  return (
+    <div className="layout-picker" role="group" aria-label="Board layout">
+      <span className="seat-menu-label">Board layout</span>
+      <div className="layout-picker-grid">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            className={`layout-option ${current === opt ? 'is-selected' : ''}`}
+            aria-pressed={current === opt}
+            onClick={() => onPick(opt)}
+            title={LAYOUT_HINT[opt]}
+          >
+            <LayoutPreview layout={opt} total={total} shared={shared} />
+            <span className="layout-option-label">{LAYOUT_LABEL[opt]}</span>
+          </button>
+        ))}
+      </div>
+      <span className="layout-option-hint">{LAYOUT_HINT[current]}</span>
+    </div>
+  );
+}
+
+/**
+ * Tiny SVG-free preview of a layout — uses the same grid + rotation rules
+ * the real board uses, so the thumbnail is always in sync. A small bar at
+ * the top or bottom of each cell indicates which way the panel "reads."
+ */
+function LayoutPreview({
+  layout,
+  total,
+  shared,
+}: {
+  layout: GameLayout;
+  total: number;
+  shared: boolean;
+}) {
+  const cells = Array.from({ length: total }, (_, i) => i);
+  const cols = layout === 'row' ? total : total >= 5 ? 2 : total >= 3 ? 2 : 1;
+  const rows = layout === 'row' ? 1 : Math.ceil(total / cols);
+  return (
+    <div
+      className="layout-option-preview"
+      style={{
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gridTemplateRows: `repeat(${rows}, 1fr)`,
+      }}
+      aria-hidden="true"
+    >
+      {cells.map((i) => {
+        const flipped = seatRotation(i, total, shared, layout) === 180;
+        // 5p default preview: bottom cell spans full width.
+        const isBottomSpan = layout !== 'row' && total === 5 && i === 4;
+        return (
+          <span
+            key={i}
+            className={`layout-option-cell ${flipped ? 'is-flipped' : ''}`}
+            style={isBottomSpan ? { gridColumn: '1 / -1' } : undefined}
+          />
+        );
+      })}
     </div>
   );
 }
