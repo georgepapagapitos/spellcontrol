@@ -447,9 +447,64 @@ body:has(.game-board) .modal-backdrop {
   grid-template-rows: 1fr 1fr;
 }
 
+/* ── 5 players ──
+ *   default (portrait): 2 + 2 + 1 — the bottom row is a single full-width
+ *   panel (asymmetric on purpose; a true upright 5-way isn't possible and
+ *   2+2+1 keeps the host upright while the four others form two facing
+ *   pairs across the phone's long axis).
+ *   landscape: 3 across the top + 2 across the bottom.
+ */
+.game-board-5 .game-board-grid {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+}
+
+.game-board-5 .game-board-grid > :nth-child(5) {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .game-board-5 .game-board-grid {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: 1fr 1fr;
+  }
+  .game-board-5 .game-board-grid > :nth-child(1),
+  .game-board-5 .game-board-grid > :nth-child(2),
+  .game-board-5 .game-board-grid > :nth-child(3) {
+    grid-column: span 2;
+  }
+  .game-board-5 .game-board-grid > :nth-child(4),
+  .game-board-5 .game-board-grid > :nth-child(5) {
+    grid-column: span 3;
+  }
+  /* 5p landscape: top row of 3 rotated, bottom row of 2 upright. Overrides
+     the portrait default of rotating the first four. */
+  .game-board-5[data-shared] .game-board-grid > .player-panel:nth-child(4) {
+    --pp-rot: 0deg;
+  }
+}
+
+/* ── 6 players ── 2 × 3 (top row of 3 rotated, bottom row upright) */
+.game-board-6 .game-board-grid {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  /* Narrow phones: 3 columns get cramped — fall back to 2×3. */
+  .game-board-6 .game-board-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, 1fr);
+  }
+}
+
 /* ── Player panel ─────────────────────────────────────────────────────── */
 
 .player-panel {
+  /* CSS-controlled rotation. JS sets --pp-rot as a default per seat-count;
+     breakpoint overrides below can rewrite it for specific layouts
+     (e.g. 5-player landscape rotates 3 panels, not 4). */
+  transform: rotate(var(--pp-rot, 0deg));
   position: relative;
   overflow: hidden;
   display: flex;
@@ -650,6 +705,45 @@ body:has(.game-board) .modal-backdrop {
 .game-board-4 .player-panel-life,
 .game-board-3 .player-panel-life {
   font-size: clamp(2.8rem, 11vmin, 7rem);
+}
+
+.game-board-5 .player-panel-life,
+.game-board-6 .player-panel-life {
+  font-size: clamp(2.2rem, 8.5vmin, 5.4rem);
+}
+
+/* On very large desktop monitors we can push the life numeral much bigger;
+   the default 9rem ceiling looks small at >1600px width. */
+@media (min-width: 1600px) {
+  .game-board-2 .player-panel-life {
+    font-size: clamp(4rem, 18vmin, 13rem);
+  }
+  .game-board-3 .player-panel-life,
+  .game-board-4 .player-panel-life {
+    font-size: clamp(3.2rem, 13vmin, 9rem);
+  }
+  .game-board-5 .player-panel-life,
+  .game-board-6 .player-panel-life {
+    font-size: clamp(2.6rem, 10vmin, 7rem);
+  }
+}
+
+/* Shrink the ±5 chip buttons on dense boards so they don't eat into the
+   life numeral on phones at 5/6 players. */
+.game-board-5 .player-panel-step-btn,
+.game-board-6 .player-panel-step-btn {
+  padding: 0.22rem 0.45rem;
+  font-size: var(--text-xs);
+  min-width: 1.9rem;
+}
+
+@media (min-width: 600px) {
+  .game-board-5 .player-panel-step-btn,
+  .game-board-6 .player-panel-step-btn {
+    padding: 0.3rem 0.65rem;
+    font-size: var(--text-sm);
+    min-width: 2.4rem;
+  }
 }
 
 .is-eliminated .player-panel-life {
@@ -1408,4 +1502,477 @@ body:has(.game-board) .modal-backdrop {
   color: var(--text3);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+}
+
+/* ── Polish: animated life, floating deltas, lethal flash, winner pulse ── */
+
+/* Life number sits inside a button (tap to open the keypad). The button
+   resets its own styling so the big numeral renders identically to the old
+   plain div. */
+.player-panel-life-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  pointer-events: auto;
+}
+
+.player-panel-life-num {
+  display: inline-block;
+  transform-origin: center;
+}
+
+.player-panel-life-num.is-pop {
+  animation: pp-pop 180ms ease-out;
+}
+
+@keyframes pp-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Smoother elimination: extend filter+opacity to a transition. The
+   `.is-eliminated` rule above already uses `transition: filter 200ms`,
+   so we strengthen it here with a slightly longer duration and an
+   opacity hint. */
+.player-panel {
+  transition:
+    filter 380ms ease,
+    opacity 380ms ease,
+    transform 200ms ease;
+}
+
+/* Lethal flash — applied for ~320ms when life crosses any lethal threshold
+   (life ≤ 0, poison ≥ 10, any commander damage ≥ 21). Pure visual; cleared
+   by a setTimeout in the component. */
+.player-panel.is-lethal-flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(220, 38, 38, 0.45);
+  pointer-events: none;
+  z-index: 3;
+  animation: pp-lethal-flash 320ms ease-out forwards;
+}
+
+@keyframes pp-lethal-flash {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Gentle winner pulse — breathes the inset gold glow we already apply. */
+.player-panel.is-winner {
+  animation: pp-winner-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pp-winner-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px var(--pp-accent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px var(--pp-accent),
+      inset 0 0 32px rgba(255, 224, 122, 0.45);
+  }
+}
+
+/* Floating delta chips — anchored at the tap position, drift up + fade. */
+.player-panel-floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+
+.floating-delta {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: clamp(1.4rem, 5vmin, 2.4rem);
+  font-weight: 700;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: pp-float-fade 700ms ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.floating-delta.is-positive {
+  color: var(--pp-accent);
+}
+
+.floating-delta.is-negative {
+  color: #ff7a7a;
+}
+
+@keyframes pp-float-fade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.85);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -150%) scale(1);
+  }
+}
+
+/* ── Life keypad modal ── */
+
+.life-keypad-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: pp-fade-in 160ms ease-out;
+}
+
+.life-keypad {
+  background: var(--bg2, #1c2330);
+  color: var(--text, #fff);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  width: min(360px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: pp-scale-in 160ms ease-out;
+}
+
+@keyframes pp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pp-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.life-keypad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.life-keypad-title {
+  font-size: var(--text-sm);
+  color: var(--text2, rgba(255, 255, 255, 0.7));
+}
+
+.life-keypad-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  width: 1.9rem;
+  height: 1.9rem;
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.life-keypad-display {
+  font-family: var(--font-mono);
+  font-size: clamp(2.5rem, 12vmin, 4rem);
+  font-weight: 700;
+  text-align: center;
+  padding: 0.5rem 0;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.life-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.life-keypad-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.9rem 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg, 1.25rem);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.life-keypad-btn:hover,
+.life-keypad-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.life-keypad-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.life-keypad-btn.is-action {
+  background: rgba(255, 255, 255, 0.04);
+  font-size: var(--text-md);
+}
+
+.life-keypad-confirm {
+  background: var(--accent, #3b82f6);
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.85rem 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.life-keypad-confirm:hover {
+  filter: brightness(1.1);
+}
+
+/* ── Pointer-capable affordances (desktop mouse, trackpads) ──
+   Gated by `(hover: hover)` so touch devices don't sticky-hover after a
+   tap. */
+@media (hover: hover) {
+  .player-panel-tapzone {
+    transition: background 120ms ease;
+  }
+  .player-panel-tapzone.is-left:hover {
+    background: linear-gradient(to right, rgba(255, 122, 122, 0.12), transparent);
+  }
+  .player-panel-tapzone.is-right:hover {
+    background: linear-gradient(to left, rgba(180, 240, 200, 0.12), transparent);
+  }
+  .player-panel-life-btn:not(:disabled):hover .player-panel-life-num {
+    text-shadow:
+      0 2px 12px rgba(0, 0, 0, 0.5),
+      0 0 24px rgba(255, 255, 255, 0.25);
+  }
+  .player-panel-life-btn:not(:disabled) {
+    cursor: pointer;
+  }
+  .player-panel-step-btn:not(:disabled):hover {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  .player-panel-drawer-btn:hover {
+    filter: brightness(1.15);
+  }
+}
+
+/* ── Layout variants ──
+   `default` is the per-count grid + rotation defined above. `same` keeps
+   the grid but suppresses all rotation. `row` flattens to a single
+   horizontal row regardless of player count. */
+
+.game-board.layout-same .player-panel,
+.game-board.layout-row .player-panel {
+  --pp-rot: 0deg !important;
+}
+
+.game-board.layout-row .game-board-grid {
+  grid-template-columns: repeat(var(--row-seats, 4), 1fr) !important;
+  grid-template-rows: 1fr !important;
+}
+
+.game-board.layout-row.game-board-2 .game-board-grid {
+  --row-seats: 2;
+}
+.game-board.layout-row.game-board-3 .game-board-grid {
+  --row-seats: 3;
+}
+.game-board.layout-row.game-board-4 .game-board-grid {
+  --row-seats: 4;
+}
+.game-board.layout-row.game-board-5 .game-board-grid {
+  --row-seats: 5;
+}
+.game-board.layout-row.game-board-6 .game-board-grid {
+  --row-seats: 6;
+}
+
+/* Reset any per-child overrides (e.g. the 5p `:nth-child(5)` full-width
+   rule) so the row layout truly is a single line. */
+.game-board.layout-row .game-board-grid > .player-panel {
+  grid-column: auto !important;
+  grid-row: auto !important;
+}
+
+/* Row layout on phones with 5-6 panels would be unusably narrow — fall
+   back to the default grid when the viewport can't fit a row comfortably.
+   `same` keeps its grid at all sizes. */
+@media (max-width: 700px) {
+  .game-board.layout-row.game-board-5 .game-board-grid,
+  .game-board.layout-row.game-board-6 .game-board-grid {
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: repeat(3, 1fr) !important;
+  }
+  .game-board.layout-row.game-board-5 .game-board-grid > :nth-child(5),
+  .game-board.layout-row.game-board-6 .game-board-grid > :nth-child(5),
+  .game-board.layout-row.game-board-6 .game-board-grid > :nth-child(6) {
+    grid-column: auto !important;
+  }
+}
+
+/* When `row` shrinks panels horizontally below their portrait min-width,
+   life font also wants to be smaller. */
+.game-board.layout-row.game-board-5 .player-panel-life,
+.game-board.layout-row.game-board-6 .player-panel-life {
+  font-size: clamp(1.8rem, 6vmin, 4.4rem);
+}
+
+/* ── Layout picker UI ── */
+
+.layout-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.layout-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.layout-option {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text, #fff);
+  border-radius: 10px;
+  padding: 0.6rem 0.5rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.layout-option:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.layout-option.is-selected {
+  border-color: var(--warn-text, #ffe07a);
+  background: rgba(255, 224, 122, 0.08);
+}
+
+.layout-option-preview {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 2px;
+  max-width: 64px;
+}
+
+.layout-option-cell {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 2px;
+  position: relative;
+}
+
+.layout-option-cell.is-flipped::before {
+  content: '';
+  position: absolute;
+  top: 12%;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 1px;
+}
+
+.layout-option-cell:not(.is-flipped)::before {
+  content: '';
+  position: absolute;
+  bottom: 12%;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 1px;
+}
+
+.layout-option-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.layout-option-hint {
+  font-size: var(--text-xs);
+  color: var(--text3, rgba(255, 255, 255, 0.55));
+  line-height: 1.25;
+}
+
+/* Respect reduced-motion users — kill all decorative animations but keep
+   the lethal flash (it conveys important info) and shorten it. */
+@media (prefers-reduced-motion: reduce) {
+  .player-panel-life-num.is-pop,
+  .player-panel.is-winner,
+  .floating-delta,
+  .life-keypad,
+  .life-keypad-backdrop {
+    animation: none !important;
+  }
+  .player-panel {
+    transition: none;
+  }
+  .floating-delta {
+    /* Still show the chip so feedback isn't lost — just don't animate it.
+       It will be removed by the lifetime sweep. */
+    opacity: 0.9;
+    transform: translate(-50%, -120%);
+  }
+  .player-panel.is-lethal-flash::after {
+    animation-duration: 180ms;
+  }
 }
