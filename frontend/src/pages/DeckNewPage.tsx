@@ -355,7 +355,10 @@ function saveGeneratedDeck(
   const claimed = new Map<string, AllocationInfo>(buildAllocationMap(existingDecks));
 
   const allocateFor = (card: ScryfallCard): string | null => {
-    const pick = pickCollectionCopy(card.name, collection, claimed);
+    // Pass card.id as the preferred printing so generated-deck allocation
+    // respects the printing the builder chose. Without this, allocation
+    // falls back to "cheapest same-name" and ignores intent.
+    const pick = pickCollectionCopy(card.name, collection, claimed, card.id);
     if (!pick) return null;
     claimed.set(pick.copyId, {
       deckId: '__pending__',
