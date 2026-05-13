@@ -107,7 +107,9 @@ export function SelectMenu<T extends string | number>({
     // Close if the trigger scrolls out of view (e.g. modal scroll).
     // Delayed by one frame so focus-triggered micro-scrolls from the opening
     // click don't immediately close the panel.
-    const onScroll = () => {
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target && panelRef.current && panelRef.current.contains(target)) return;
       setOpen(false);
     };
     document.addEventListener('mousedown', close);
