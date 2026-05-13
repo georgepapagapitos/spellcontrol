@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getDb } from './db';
 import { users } from './db/schema';
 
-const COOKIE_NAME = 'binder_session';
+const COOKIE_NAME = 'spellcontrol_session';
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export interface AuthedUser {

@@ -21,7 +21,7 @@
  */
 import { Pool } from 'pg';
 
-const DEFAULT_URL = 'postgres://mtguser:mtgpassword@localhost:5432/mtgbinder';
+const DEFAULT_URL = 'postgres://mtguser:mtgpassword@localhost:5432/spellcontrol';
 
 function redact(url: string): string {
   return url.replace(/(:\/\/[^:]+):[^@]+@/, '$1:****@');
