@@ -74,9 +74,8 @@ describe('sliceResolvedDeckImport', () => {
       row({ name: 'Plains', quantity: 2, scryfallId: 'sf-plains' }),
       row({ name: 'Sol Ring', quantity: 1, scryfallId: 'sf-sol-ring' }),
     ];
-    const resolved = expandResolved(
-      [...commanderRows, ...companionRows, ...deckRows],
-      (r) => card(r.scryfallId!, r.name)
+    const resolved = expandResolved([...commanderRows, ...companionRows, ...deckRows], (r) =>
+      card(r.scryfallId!, r.name)
     );
 
     const out = sliceResolvedDeckImport(commanderRows, companionRows, deckRows, resolved);
@@ -105,12 +104,7 @@ describe('sliceResolvedDeckImport', () => {
 
     expect(out.commander).toBeNull();
     expect(out.cards).toHaveLength(2);
-    expect(out.unresolvedNames).toEqual([
-      'Atraxa',
-      'Missing Card',
-      'Missing Card',
-      'Missing Card',
-    ]);
+    expect(out.unresolvedNames).toEqual(['Atraxa', 'Missing Card', 'Missing Card', 'Missing Card']);
   });
 
   it('throws if the resolved array length does not match total quantity', () => {
