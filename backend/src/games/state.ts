@@ -31,6 +31,8 @@ export interface GamePlayer {
   deckName: string | null;
   /** Commander name (display only). */
   commander: string | null;
+  /** Commander color identity (W/U/B/R/G); drives the panel color tint. */
+  colorIdentity: string[];
   life: number;
   poison: number;
   /** Commander damage taken from each opponent seat. */
@@ -97,7 +99,12 @@ export type GameAction =
   | {
       type: 'update-player';
       seat: number;
-      patch: Partial<Pick<GamePlayer, 'name' | 'deckId' | 'deckName' | 'commander' | 'connected'>>;
+      patch: Partial<
+        Pick<
+          GamePlayer,
+          'name' | 'deckId' | 'deckName' | 'commander' | 'colorIdentity' | 'connected'
+        >
+      >;
       ts?: number;
     }
   | { type: 'life'; seat: number; delta: number; actorSeat: number | null; ts?: number }
@@ -238,6 +245,7 @@ export function makePlayer(input: {
   deckId?: string | null;
   deckName?: string | null;
   commander?: string | null;
+  colorIdentity?: string[];
   startingLife: number;
   isHost?: boolean;
   connected?: boolean;
@@ -250,6 +258,7 @@ export function makePlayer(input: {
     deckId: input.deckId ?? null,
     deckName: input.deckName ?? null,
     commander: input.commander ?? null,
+    colorIdentity: input.colorIdentity ?? [],
     life: input.startingLife,
     poison: 0,
     commanderDamage: {},

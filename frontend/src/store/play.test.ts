@@ -23,8 +23,8 @@ describe('usePlayStore — local game flow', () => {
       commanderDamageEnabled: true,
       poisonEnabled: false,
       players: [
-        { name: 'Alice', deckId: null, deckName: null, commander: null },
-        { name: 'Bob', deckId: 'd1', deckName: 'Bob deck', commander: 'X' },
+        { name: 'Alice', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'Bob', deckId: 'd1', deckName: 'Bob deck', commander: 'X', colorIdentity: ['U'] },
       ],
     });
     const local = usePlayStore.getState().local!;
@@ -42,8 +42,8 @@ describe('usePlayStore — local game flow', () => {
       commanderDamageEnabled: false,
       poisonEnabled: false,
       players: [
-        { name: 'A', deckId: null, deckName: null, commander: null },
-        { name: 'B', deckId: null, deckName: null, commander: null },
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
       ],
     });
     usePlayStore.getState().dispatchLocal({ type: 'life', seat: 0, delta: -5, actorSeat: 0 });
@@ -58,8 +58,8 @@ describe('usePlayStore — local game flow', () => {
       commanderDamageEnabled: false,
       poisonEnabled: false,
       players: [
-        { name: 'A', deckId: 'da', deckName: 'A deck', commander: null },
-        { name: 'B', deckId: 'db', deckName: 'B deck', commander: null },
+        { name: 'A', deckId: 'da', deckName: 'A deck', commander: null, colorIdentity: [] },
+        { name: 'B', deckId: 'db', deckName: 'B deck', commander: null, colorIdentity: [] },
       ],
     });
     usePlayStore.getState().endLocal(0);
@@ -77,8 +77,8 @@ describe('usePlayStore — local game flow', () => {
       commanderDamageEnabled: false,
       poisonEnabled: false,
       players: [
-        { name: 'A', deckId: null, deckName: null, commander: null },
-        { name: 'B', deckId: null, deckName: null, commander: null },
+        { name: 'A', deckId: null, deckName: null, commander: null, colorIdentity: [] },
+        { name: 'B', deckId: null, deckName: null, commander: null, colorIdentity: [] },
       ],
     });
     usePlayStore.getState().dispatchLocal({ type: 'life', seat: 1, delta: -40, actorSeat: 0 });

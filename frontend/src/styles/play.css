@@ -1,11 +1,14 @@
 /* ── Play page ─────────────────────────────────────────────────────────────
  *
- * Local games rotate seat panels so each player reads upright when sitting
- * around a shared device. Online games never rotate — the viewer is always
- * looking at their own screen.
+ * The active GameBoard is a fullscreen fixed overlay (z-index ≥ overlay) so
+ * it eats the app shell — header, mobile tab bar, footer — and gives the
+ * player the entire viewport for life-counter primary actions. The setup
+ * form and history view remain in the normal page flow.
  *
- * All colors flow through theme tokens (--accent / --surface / --text /
- * --err-* / --warn-*) so the page reskins automatically per guild theme.
+ * Colors flow through theme tokens for app chrome, and Magic-canonical
+ * palette values for per-player panels (W/U/B/R/G/M/C). Those palette
+ * values are intentionally *not* themed by the guild selector — color
+ * identity is part of the game's information, not part of UI theming.
  */
 
 .play-page {
@@ -192,412 +195,823 @@
   color: var(--on-accent);
 }
 
-/* ── Board layout ────────────────────────────────────────────────────────── */
+/* ── Active game: fullscreen board ─────────────────────────────────────── */
 
-.play-board {
+.game-board {
+  position: fixed;
+  inset: 0;
+  /* dvh keeps the board glued to the visible viewport as iOS Safari's URL
+     bar animates in and out. Fall back to vh on browsers without dvh. */
+  height: 100vh;
+  height: 100dvh;
+  z-index: var(--z-overlay);
+  background: #07090d;
+  color: #f4f6fa;
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  overflow: hidden;
+  /* Disable text selection so taps never accidentally highlight a player name
+     instead of registering as a life change. */
+  user-select: none;
+  -webkit-user-select: none;
+  /* Avoid the iOS Safari double-tap zoom on the tap zones. */
+  touch-action: manipulation;
+  /* Honor the iPhone safe areas so corner panels don't tuck under the
+     home-indicator bar or the camera notch. */
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
 }
 
-.play-code-banner {
-  background: var(--accent-light);
-  color: var(--text);
-  border: 0.5px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 0.75rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.play-code-label {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text2);
-}
-
-.play-code-value {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  letter-spacing: 0.3em;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.play-code-hint {
-  font-size: var(--text-sm);
-  color: var(--text2);
+.game-board-grid {
   flex: 1;
-  min-width: 200px;
-}
-
-.play-board-error {
-  background: var(--err-bg);
-  color: var(--err-text);
-  border: 0.5px solid var(--err-border);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
-  font-size: var(--text-sm);
-}
-
-.play-seats {
   display: grid;
-  gap: 0.75rem;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
-.play-seats-2 {
+/* ── 2 players ──
+ *   default (portrait): top/bottom stacked
+ *   landscape OR wide:  side-by-side
+ */
+.game-board-2 .game-board-grid {
   grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr;
 }
 
-.play-seats-3 {
-  grid-template-columns: 1fr 1fr;
-}
-
-.play-seats-3 > :nth-child(3) {
-  grid-column: 1 / -1;
-}
-
-.play-seats-4 {
-  grid-template-columns: 1fr 1fr;
-}
-
-@media (min-width: 720px) {
-  .play-seats-2 {
+@media (min-width: 700px) and (orientation: landscape), (min-width: 1024px) {
+  .game-board-2 .game-board-grid {
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
   }
 }
 
-/* ── Seat panel ──────────────────────────────────────────────────────────── */
+/* ── 3 players ──
+ *   default (portrait): 2 on top, 1 full-width below
+ *   landscape:          3 side-by-side
+ */
+.game-board-3 .game-board-grid {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
 
-.play-seat {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 0.9rem;
+.game-board-3 .game-board-grid > :nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .game-board-3 .game-board-grid {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr;
+  }
+  .game-board-3 .game-board-grid > :nth-child(3) {
+    grid-column: auto;
+  }
+}
+
+/* ── 4 players ── always 2×2 */
+.game-board-4 .game-board-grid {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* ── Player panel ─────────────────────────────────────────────────────── */
+
+.player-panel {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  /* Rotation transform set inline per seat. transform-origin defaults to
-     center which is what we want — the panel spins in place. */
+  justify-content: center;
+  align-items: stretch;
+  /* Per-color tinted gradient + dark base. Each color set below overrides
+     these two variables; the rest is inherited. */
+  --pp-tint: rgba(120, 130, 150, 0.45);
+  --pp-tint-strong: rgba(120, 130, 150, 0.85);
+  background:
+    radial-gradient(circle at 50% 30%, var(--pp-tint) 0%, transparent 70%),
+    linear-gradient(180deg, #0d1018 0%, #07090d 100%);
   transition:
-    transform 200ms ease,
-    box-shadow 200ms ease;
+    filter 200ms ease,
+    transform 200ms ease;
 }
 
-.play-seat.is-mine {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-light);
+.player-panel.is-eliminated {
+  filter: grayscale(0.9) brightness(0.55);
 }
 
-.play-seat.is-eliminated {
-  opacity: 0.55;
-  background: var(--surface2);
+.player-panel.is-winner {
+  --pp-tint-strong: rgba(232, 200, 120, 1);
+  --pp-tint: rgba(232, 200, 120, 0.7);
+  box-shadow: inset 0 0 0 3px var(--pp-tint-strong);
 }
 
-.play-seat.is-winner {
-  border-color: var(--warn-border);
-  background: linear-gradient(180deg, var(--warn-bg) 0%, var(--surface) 60%);
+.player-panel.is-mine::before {
+  /* A faint dashed marker on the outside edge to remind "this is your seat"
+     in online games. Doesn't fight the color tint. */
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  pointer-events: none;
 }
 
-.play-seat-head {
+.player-panel-content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 0.5rem 0.65rem 0.65rem;
+  pointer-events: none;
+  min-height: 0;
+}
+
+@media (min-width: 600px) {
+  .player-panel-content {
+    padding: 0.75rem 0.9rem 0.9rem;
+  }
+}
+
+/* The two tap zones cover the panel. They sit *under* the content layer
+   z-index-wise but pointer-events: none on the content lets taps pass
+   through to the zones except for interactive controls (buttons etc.,
+   which restore pointer-events). */
+.player-panel-tapzone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.player-panel-tapzone.is-left {
+  left: 0;
+}
+
+.player-panel-tapzone.is-right {
+  right: 0;
+}
+
+.player-panel-tapzone:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Re-enable interactivity on actual controls inside the content layer. */
+.player-panel-content button,
+.player-panel-content input,
+.player-panel-content form,
+.player-panel-drawer,
+.seat-menu {
+  pointer-events: auto;
+}
+
+.player-panel-head {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
-.play-seat-name {
-  font-size: var(--text-md);
+.player-panel-name {
+  font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: rgba(255, 255, 255, 0.95);
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  /* Long names truncate so the menu button always stays on-screen. */
+  max-width: calc(100% - 2.5rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.play-seat-host {
+@media (min-width: 600px) {
+  .player-panel-name {
+    font-size: var(--text-md);
+  }
+}
+
+.player-panel-host {
   color: var(--warn-text);
-  font-size: var(--text-sm);
 }
 
-.play-seat-offline {
+.player-panel-offline {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: rgba(255, 255, 255, 0.55);
   font-weight: 400;
 }
 
-.play-seat-deck {
-  font-size: var(--text-sm);
-  color: var(--text2);
-}
-
-.play-seat-commander {
-  font-size: var(--text-xs);
-  color: var(--text3);
-  font-style: italic;
-}
-
-.play-seat-life-row {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.play-seat-life {
-  font-family: var(--font-mono);
-  font-size: clamp(2.4rem, 8vw, 3.6rem);
-  font-weight: 600;
-  text-align: center;
-  color: var(--text);
+.player-panel-menu-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  width: 1.7rem;
+  height: 1.7rem;
+  font-size: 1rem;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.is-eliminated .play-seat-life {
+@media (min-width: 600px) {
+  .player-panel-menu-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: 1.1rem;
+  }
+}
+
+.player-panel-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.player-panel-life-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+}
+
+@media (min-width: 600px) {
+  .player-panel-life-wrap {
+    gap: 1rem;
+  }
+}
+
+.player-panel-life {
+  /* Scale to the smaller viewport dimension so 4-player splits don't render
+     a tiny number on a wide screen or a giant one on a narrow screen. The
+     1-player case (lobby) will use the upper bound. */
+  font-size: clamp(3.2rem, 14vmin, 9rem);
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.02em;
+  pointer-events: none;
+}
+
+/* Tighter life font when 4 panels share the screen — each panel is half by
+   half the viewport, so we want a number that doesn't crowd the ±5 buttons
+   on a small phone. */
+.game-board-4 .player-panel-life,
+.game-board-3 .player-panel-life {
+  font-size: clamp(2.8rem, 11vmin, 7rem);
+}
+
+.is-eliminated .player-panel-life {
   text-decoration: line-through;
 }
 
-.is-winner .play-seat-life {
-  color: var(--warn-text);
+.is-winner .player-panel-life {
+  color: var(--pp-tint-strong);
 }
 
-.play-life-btn {
-  background: var(--surface2);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  padding: 0.6rem 0.75rem;
-  font-size: var(--text-md);
-  min-width: 2.5rem;
-  font-weight: 600;
+.player-panel-step-btn {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  min-width: 2.4rem;
 }
 
-.play-life-btn:hover:not(:disabled) {
-  background: var(--accent-light);
-  border-color: var(--accent);
+@media (min-width: 600px) {
+  .player-panel-step-btn {
+    padding: 0.4rem 0.9rem;
+    font-size: var(--text-md);
+    min-width: 3rem;
+  }
 }
 
-.play-life-btn:disabled {
-  opacity: 0.4;
+.player-panel-step-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.play-life-btn--big {
-  font-size: var(--text-lg);
+.player-panel-step-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.6);
 }
 
-.play-seat-counters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.play-counter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  background: var(--surface2);
-  border: 0.5px solid var(--border);
-  border-radius: 999px;
-  padding: 0.15rem 0.5rem;
-  font-size: var(--text-sm);
-}
-
-.play-counter-label {
-  color: var(--text2);
-  margin-right: 0.2rem;
-}
-
-.play-counter-btn {
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-size: var(--text-md);
-  min-width: 1.6rem;
-  padding: 0.1rem 0.3rem;
-  line-height: 1;
-}
-
-.play-counter-btn:disabled {
-  opacity: 0.4;
-}
-
-.play-counter-value {
-  font-family: var(--font-mono);
-  min-width: 1.5rem;
-  text-align: center;
-}
-
-.play-counter-toggle {
-  background: transparent;
-  border: 0.5px solid var(--border);
-  color: var(--text2);
-  border-radius: 999px;
-  padding: 0.2rem 0.6rem;
-  font-size: var(--text-xs);
-}
-
-.play-cmd-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.4rem;
-}
-
-.play-cmd-cell {
-  background: var(--surface2);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.5rem;
+.player-panel-foot {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  align-items: center;
+  text-align: center;
 }
 
-.play-cmd-cell.is-lethal {
-  border-color: var(--err-border);
-  background: var(--err-bg);
-  color: var(--err-text);
-}
-
-.play-cmd-cell-from {
+.player-panel-deck {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.play-cmd-cell.is-lethal .play-cmd-cell-from {
-  color: var(--err-text);
+.player-panel-commander {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.play-cmd-cell-controls {
+@media (min-width: 600px) {
+  .player-panel-deck {
+    font-size: var(--text-sm);
+  }
+}
+
+/* In tight 3/4-player layouts on small screens, fold the deck/commander info
+   out of the way so the life number stays the headline. */
+@media (max-width: 480px) {
+  .game-board-3 .player-panel-deck,
+  .game-board-4 .player-panel-deck,
+  .game-board-3 .player-panel-commander,
+  .game-board-4 .player-panel-commander {
+    display: none;
+  }
+}
+
+/* Short viewports (landscape phones): hide commander subtitle so the life
+   number still owns the panel. */
+@media (max-height: 480px) {
+  .player-panel-commander {
+    display: none;
+  }
+  .player-panel-content {
+    padding: 0.4rem 0.55rem 0.5rem;
+  }
+}
+
+.player-panel-drawer-btn {
+  margin-top: 0.3rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: var(--text-xs);
+}
+
+.player-panel-winner-tag,
+.player-panel-eliminated-tag {
+  position: absolute;
+  top: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--pp-tint-strong);
+  border: 1px solid var(--pp-tint-strong);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.player-panel-eliminated-tag {
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Counters drawer ───────────────────────────────────────────────────── */
+
+.player-panel-drawer {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 4;
+  background: rgba(7, 9, 13, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 60%;
+  overflow-y: auto;
+}
+
+.player-panel-drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.player-panel-drawer-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+}
+
+.player-panel-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.counter-row {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-}
-
-.play-cmd-cell-value {
-  flex: 1;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: var(--text-md);
-}
-
-.play-seat-eliminate {
-  align-self: flex-start;
-  background: transparent;
-  border: 0.5px solid var(--border);
-  color: var(--text2);
-  border-radius: 999px;
-  padding: 0.3rem 0.8rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
   font-size: var(--text-sm);
 }
 
-.play-seat-eliminate:hover {
-  border-color: var(--err-border);
-  color: var(--err-text);
+.counter-row.is-lethal {
+  border-color: rgba(240, 168, 168, 0.65);
+  background: rgba(58, 29, 31, 0.55);
 }
 
-.is-eliminated .play-seat-eliminate {
-  border-color: var(--accent);
-  color: var(--accent);
+.counter-row-label {
+  color: rgba(255, 255, 255, 0.85);
 }
 
-/* ── Toolbar + log ───────────────────────────────────────────────────────── */
-
-.play-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.play-toolbar-meta {
+.counter-row-controls {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  flex-wrap: wrap;
-  font-size: var(--text-sm);
-  color: var(--text2);
 }
 
-.play-toolbar-format {
+.counter-row-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  border-radius: 999px;
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1rem;
+}
+
+.counter-row-btn:disabled {
+  opacity: 0.3;
+}
+
+.counter-row-value {
+  font-family: var(--font-mono);
+  min-width: 1.5rem;
+  text-align: center;
+  color: #fff;
+}
+
+/* ── Seat menu (popover inside a panel) ─────────────────────────────────── */
+
+.seat-menu {
+  position: absolute;
+  top: 3rem;
+  right: 0.7rem;
+  z-index: 5;
+  background: #14181f;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(18rem, 80vw);
+  box-shadow: var(--shadow-modal);
+}
+
+.seat-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.seat-menu-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+}
+
+.seat-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.seat-menu-label {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.seat-menu-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.seat-menu-row input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 0.3rem 0.5rem;
+  font-family: var(--font-mono);
+}
+
+.seat-menu-action {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.6rem;
+  font-size: var(--text-sm);
+}
+
+.seat-menu-action:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Center game menu ──────────────────────────────────────────────────── */
+
+.game-board-menu-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: #14181f;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 50%;
+  box-shadow: var(--shadow-modal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  /* Prevent any pointer events from leaking through to the tap zones
+     positioned beneath. */
+  touch-action: manipulation;
+}
+
+@media (min-width: 600px) {
+  .game-board-menu-btn {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+}
+
+.game-board-menu-btn:hover {
+  background: #1c222d;
+}
+
+.game-board-banner {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.game-board-error {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: var(--err-bg);
+  color: var(--err-text);
+  border: 1px solid var(--err-border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.75rem;
+  font-size: var(--text-sm);
+}
+
+.game-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.game-menu {
+  background: #14181f;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  width: min(30rem, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.game-menu-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+}
+
+.game-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.game-menu-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.7);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.game-menu-format {
   text-transform: capitalize;
-  color: var(--text);
+  color: #fff;
   font-weight: 500;
 }
 
-.play-toolbar-dot {
-  color: var(--text3);
+.game-menu-action {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.75rem;
+  font-size: var(--text-base);
+  text-align: left;
 }
 
-.play-toolbar-actions {
-  display: inline-flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+.game-menu-action:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
-.pill-btn-danger {
+.game-menu-action--danger {
   background: var(--err-bg);
   color: var(--err-text);
   border-color: var(--err-border);
 }
 
-.play-log {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
+.game-menu-log {
+  margin-top: 0.4rem;
 }
 
-.play-log summary {
+.game-menu-log summary {
   cursor: pointer;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: rgba(255, 255, 255, 0.65);
 }
 
-.play-log-list {
+.game-menu-log-list {
   list-style: none;
   margin: 0.5rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  max-height: 240px;
+  max-height: 220px;
   overflow-y: auto;
   font-size: var(--text-sm);
 }
 
-.play-log-item {
+.game-menu-log-item {
   display: flex;
   gap: 0.5rem;
-  color: var(--text2);
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.play-log-item time {
-  color: var(--text3);
+.game-menu-log-item time {
+  color: rgba(255, 255, 255, 0.45);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   min-width: 4.5rem;
 }
 
-.play-log-item.kind-end,
-.play-log-item.kind-start {
-  color: var(--accent);
+.game-menu-log-item.kind-end,
+.game-menu-log-item.kind-start {
+  color: #cbd5e1;
   font-weight: 500;
 }
 
-.play-log-item.kind-eliminate {
-  color: var(--err-text);
+.game-menu-log-item.kind-eliminate {
+  color: #f0a8a8;
 }
 
-/* ── History ─────────────────────────────────────────────────────────────── */
+/* ── Color palettes per player ─────────────────────────────────────────── */
+
+.pp-color-w {
+  --pp-tint: rgba(229, 215, 173, 0.55);
+  --pp-tint-strong: rgba(229, 215, 173, 1);
+}
+
+.pp-color-u {
+  --pp-tint: rgba(58, 133, 204, 0.55);
+  --pp-tint-strong: rgba(58, 133, 204, 1);
+}
+
+.pp-color-b {
+  --pp-tint: rgba(80, 60, 110, 0.7);
+  --pp-tint-strong: rgba(150, 110, 200, 1);
+}
+
+.pp-color-r {
+  --pp-tint: rgba(216, 68, 42, 0.55);
+  --pp-tint-strong: rgba(216, 68, 42, 1);
+}
+
+.pp-color-g {
+  --pp-tint: rgba(76, 163, 82, 0.55);
+  --pp-tint-strong: rgba(76, 163, 82, 1);
+}
+
+.pp-color-m {
+  --pp-tint: rgba(212, 168, 56, 0.55);
+  --pp-tint-strong: rgba(212, 168, 56, 1);
+}
+
+.pp-color-c {
+  --pp-tint: rgba(168, 176, 188, 0.4);
+  --pp-tint-strong: rgba(168, 176, 188, 0.9);
+}
+
+/* ── Code banner (host's join code) ─────────────────────────────────────── */
+
+.play-code-banner {
+  background: rgba(20, 24, 31, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-modal);
+}
+
+.play-code-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.play-code-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  letter-spacing: 0.3em;
+  color: #fff;
+  font-weight: 600;
+}
+
+.play-code-hint {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: var(--text-xs);
+}
+
+/* ── History view (setup-tab and history-tab share the page chrome) ────── */
 
 .play-history {
   display: flex;

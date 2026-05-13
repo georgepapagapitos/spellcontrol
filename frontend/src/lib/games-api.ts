@@ -14,6 +14,7 @@ export interface CreateGameInput {
   hostDeckId?: string | null;
   hostDeckName?: string | null;
   hostCommander?: string | null;
+  hostColorIdentity?: string[];
 }
 
 export async function createGame(input: CreateGameInput): Promise<GameState> {
@@ -37,6 +38,7 @@ export interface JoinGameInput {
   deckId?: string | null;
   deckName?: string | null;
   commander?: string | null;
+  colorIdentity?: string[];
 }
 
 export async function joinGame(code: string, input: JoinGameInput): Promise<GameState> {

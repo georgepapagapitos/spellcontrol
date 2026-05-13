@@ -61,6 +61,18 @@ async function generateUniqueCode(): Promise<string> {
   throw new Error('Could not allocate a unique game code.');
 }
 
+const VALID_COLORS = new Set(['W', 'U', 'B', 'R', 'G']);
+function sanitizeColorIdentity(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== 'string') continue;
+    const up = v.toUpperCase();
+    if (VALID_COLORS.has(up) && !out.includes(up)) out.push(up);
+  }
+  return out;
+}
+
 function isParticipant(state: GameState, userId: string): boolean {
   if (state.hostUserId === userId) return true;
   return state.players.some((p) => p.userId === userId);
@@ -94,6 +106,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     hostDeckId?: unknown;
     hostDeckName?: unknown;
     hostCommander?: unknown;
+    hostColorIdentity?: unknown;
   };
 
   const format =
@@ -130,6 +143,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     deckId: typeof body.hostDeckId === 'string' ? body.hostDeckId : null,
     deckName: typeof body.hostDeckName === 'string' ? body.hostDeckName : null,
     commander: typeof body.hostCommander === 'string' ? body.hostCommander : null,
+    colorIdentity: sanitizeColorIdentity(body.hostColorIdentity),
     startingLife,
     isHost: true,
   });
@@ -180,6 +194,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     deckId?: unknown;
     deckName?: unknown;
     commander?: unknown;
+    colorIdentity?: unknown;
   };
   const name =
     typeof body.name === 'string' && body.name.trim().length > 0
@@ -206,6 +221,10 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
         deckId: typeof body.deckId === 'string' ? body.deckId : existing.deckId,
         deckName: typeof body.deckName === 'string' ? body.deckName : existing.deckName,
         commander: typeof body.commander === 'string' ? body.commander : existing.commander,
+        colorIdentity:
+          body.colorIdentity !== undefined
+            ? sanitizeColorIdentity(body.colorIdentity)
+            : existing.colorIdentity,
       },
     });
     const updated = await db
@@ -231,6 +250,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
     deckId: typeof body.deckId === 'string' ? body.deckId : null,
     deckName: typeof body.deckName === 'string' ? body.deckName : null,
     commander: typeof body.commander === 'string' ? body.commander : null,
+    colorIdentity: sanitizeColorIdentity(body.colorIdentity),
     startingLife: current.startingLife,
     isHost: false,
   });

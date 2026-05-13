@@ -310,6 +310,7 @@ function LocalSetup({
                     deckId: deck?.id ?? null,
                     deckName: deck?.name ?? null,
                     commander: deck?.commander?.name ?? null,
+                    colorIdentity: deck?.commander?.color_identity ?? [],
                   })
                 }
               />
@@ -325,7 +326,7 @@ function LocalSetup({
 }
 
 function blankPlayer(name: string): LocalGameSetup['players'][number] {
-  return { name, deckId: null, deckName: null, commander: null };
+  return { name, deckId: null, deckName: null, commander: null, colorIdentity: [] };
 }
 
 function DeckPicker({
@@ -371,10 +372,17 @@ function OnlineSetup({
     hostDeckId: string | null;
     hostDeckName: string | null;
     hostCommander: string | null;
+    hostColorIdentity: string[];
   }) => void;
   onJoin: (
     code: string,
-    opts: { name: string; deckId: string | null; deckName: string | null; commander: string | null }
+    opts: {
+      name: string;
+      deckId: string | null;
+      deckName: string | null;
+      commander: string | null;
+      colorIdentity: string[];
+    }
   ) => void;
   defaultName: string;
 }) {
@@ -428,6 +436,7 @@ function OnlineSetup({
               commanderDamageEnabled,
               poisonEnabled,
               hostName: name || defaultName,
+              hostColorIdentity: deck?.commander?.color_identity ?? [],
               hostDeckId: deck?.id ?? null,
               hostDeckName: deck?.name ?? null,
               hostCommander: deck?.commander?.name ?? null,
@@ -498,6 +507,7 @@ function OnlineSetup({
               deckId: deck?.id ?? null,
               deckName: deck?.name ?? null,
               commander: deck?.commander?.name ?? null,
+              colorIdentity: deck?.commander?.color_identity ?? [],
             });
           }}
         >

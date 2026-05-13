@@ -40,6 +40,7 @@ export interface LocalGameSetup {
     deckId: string | null;
     deckName: string | null;
     commander: string | null;
+    colorIdentity: string[];
   }>;
 }
 
@@ -125,6 +126,7 @@ export const usePlayStore = create<PlayState>()(
             deckId: p.deckId,
             deckName: p.deckName,
             commander: p.commander,
+            colorIdentity: p.colorIdentity,
             startingLife: setup.startingLife,
             isHost: i === 0,
           })
@@ -318,11 +320,27 @@ export const usePlayStore = create<PlayState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+        if (!state) return;
+        state.hydrated = true;
+        // If we had an online game in flight (refresh, dropped wifi, accidental
+        // tab close), seed the module-level polling identity from the persisted
+        // snapshot. The PlayPage mount effect calls startPolling() + an
+        // immediate refreshOnline(), which reconciles with the server — a 200
+        // adopts the live state, a 404 clears it.
+        if (state.online) {
+          serverCode = state.online.code;
+          // Leave serverVersion at 0 so the first refreshOnline after a reload
+          // *always* adopts the server's authoritative state. The persisted
+          // version may be optimistic (advanced locally for an action that
+          // never reached the server before the refresh).
+          serverVersion = 0;
+        }
       },
-      // Don't persist the live online subscription or polling flags — they're
-      // re-established on demand.
-      partialize: (s) => ({ local: s.local, history: s.history }),
+      // Persist the active online game so a refresh or brief disconnect drops
+      // the user back into their seat instead of the setup form. The server
+      // is still the source of truth on next poll; persisted state is just a
+      // hint that we *were* in a game.
+      partialize: (s) => ({ local: s.local, online: s.online, history: s.history }),
     }
   )
 );
