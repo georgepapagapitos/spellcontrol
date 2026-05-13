@@ -7627,7 +7627,7 @@ hr {
 }
 .admin-sub {
   color: var(--muted, #888);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   margin: 0.25rem 0;
 }
 .admin-sub code {
@@ -7649,7 +7649,7 @@ hr {
   color: inherit;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 .admin-tab:hover {
   background: var(--surface2);
@@ -7663,16 +7663,16 @@ hr {
 }
 .admin-section h2 {
   margin: 0 0 0.5rem;
-  font-size: 1.05rem;
+  font-size: var(--text-md);
 }
 .admin-section h3 {
   margin: 1.25rem 0 0.35rem;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 .admin-table th,
 .admin-table td {
@@ -7691,7 +7691,7 @@ hr {
 }
 .admin-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--muted, #888);
 }
 .admin-err {
@@ -7710,7 +7710,7 @@ hr {
   border: 1px solid var(--warn-border);
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 .admin-deck-layout {
   display: grid;
@@ -7755,17 +7755,17 @@ hr {
 }
 .admin-deck-name {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
 }
 .admin-deck-meta {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--muted, #888);
 }
 .admin-claim-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 .admin-search {
   width: 100%;

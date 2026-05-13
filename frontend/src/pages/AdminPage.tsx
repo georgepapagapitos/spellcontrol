@@ -612,8 +612,9 @@ function StorageTab({
   onClearCards: () => void;
   onClearBinders: () => void;
 }) {
-  const [lsKeys, setLsKeys] = useState<{ key: string; bytes: number }[]>([]);
-  useEffect(() => {
+  // Snapshot localStorage once at mount. Admin page is short-lived; no need
+  // to re-read on every render or watch for storage events.
+  const lsKeys = useMemo(() => {
     const out: { key: string; bytes: number }[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -622,7 +623,7 @@ function StorageTab({
       out.push({ key: k, bytes: v.length });
     }
     out.sort((a, b) => b.bytes - a.bytes);
-    setLsKeys(out);
+    return out;
   }, []);
 
   return (
