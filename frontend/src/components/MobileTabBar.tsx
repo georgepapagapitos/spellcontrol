@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { usePlayStore } from '../store/play';
 
 export function MobileTabBar() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
   const deckCount = useDecksStore((s) => s.decks.length);
+  const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -64,6 +66,9 @@ export function MobileTabBar() {
       >
         <span className="mobile-tab-bar-glyph">
           <PlayIcon />
+          {hasActiveGame && (
+            <span className="mobile-tab-bar-game-dot" aria-label="game in progress" />
+          )}
         </span>
         <span className="mobile-tab-bar-label">Play</span>
       </NavLink>

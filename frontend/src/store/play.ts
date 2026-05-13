@@ -56,6 +56,16 @@ interface PlayState {
   onlineError: string | null;
   /** Whether the online poll loop is running. */
   onlinePolling: boolean;
+  /**
+   * When false the active game (local OR online) is minimized — the
+   * fullscreen board is hidden so the user can navigate the rest of the
+   * app, but the underlying game state is kept intact and is resumable.
+   */
+  boardVisible: boolean;
+
+  // ── Board visibility ────────────────────────────────────────────────────
+  hideBoard(): void;
+  showBoard(): void;
 
   // ── Local game ──────────────────────────────────────────────────────────
   startLocal(setup: LocalGameSetup): void;
@@ -114,6 +124,10 @@ export const usePlayStore = create<PlayState>()(
       hydrated: false,
       onlineError: null,
       onlinePolling: false,
+      boardVisible: true,
+
+      hideBoard: () => set({ boardVisible: false }),
+      showBoard: () => set({ boardVisible: true }),
 
       // ── Local ─────────────────────────────────────────────────────────────
       startLocal: (setup) => {
@@ -143,7 +157,7 @@ export const usePlayStore = create<PlayState>()(
           players,
         });
         const started = applyAction(game, { type: 'start' });
-        set({ local: started });
+        set({ local: started, boardVisible: true });
       },
 
       dispatchLocal: (action) => {
@@ -162,14 +176,14 @@ export const usePlayStore = create<PlayState>()(
         recordIfFinished(next, set);
       },
 
-      discardLocal: () => set({ local: null }),
+      discardLocal: () => set({ local: null, boardVisible: true }),
 
       // ── Online ────────────────────────────────────────────────────────────
       hostOnline: async (input) => {
         const game = await apiCreateGame(input);
         serverVersion = game.version;
         serverCode = game.code;
-        set({ online: game, onlineError: null });
+        set({ online: game, onlineError: null, boardVisible: true });
         get().startPolling();
         return game;
       },
@@ -178,7 +192,7 @@ export const usePlayStore = create<PlayState>()(
         const game = await apiJoinGame(code.toUpperCase(), input);
         serverVersion = game.version;
         serverCode = game.code;
-        set({ online: game, onlineError: null });
+        set({ online: game, onlineError: null, boardVisible: true });
         get().startPolling();
         return game;
       },
@@ -284,7 +298,7 @@ export const usePlayStore = create<PlayState>()(
         pendingActions = [];
         serverCode = null;
         serverVersion = 0;
-        set({ online: null, onlineError: null });
+        set({ online: null, onlineError: null, boardVisible: true });
       },
 
       clearOnline: () => {
@@ -292,7 +306,7 @@ export const usePlayStore = create<PlayState>()(
         pendingActions = [];
         serverCode = null;
         serverVersion = 0;
-        set({ online: null, onlineError: null });
+        set({ online: null, onlineError: null, boardVisible: true });
       },
 
       startPolling: () => {
@@ -340,7 +354,12 @@ export const usePlayStore = create<PlayState>()(
       // the user back into their seat instead of the setup form. The server
       // is still the source of truth on next poll; persisted state is just a
       // hint that we *were* in a game.
-      partialize: (s) => ({ local: s.local, online: s.online, history: s.history }),
+      partialize: (s) => ({
+        local: s.local,
+        online: s.online,
+        history: s.history,
+        boardVisible: s.boardVisible,
+      }),
     }
   )
 );

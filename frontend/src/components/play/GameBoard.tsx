@@ -13,7 +13,9 @@ interface Props {
   banner?: React.ReactNode;
   /** Error to show inline. */
   errorMessage?: string | null;
-  /** Close + reset to setup (local discard, online leave). */
+  /** Hide the board overlay while keeping the game intact (resumable). */
+  onMinimize?: () => void;
+  /** Destroy the game (local discard / online leave-and-end). */
   onLeave?: () => void;
   /** Confirm-end-game flow trigger. */
   onEnd?: () => void;
@@ -39,6 +41,7 @@ export function GameBoard({
   viewerUserId,
   banner,
   errorMessage,
+  onMinimize,
   onLeave,
   onEnd,
 }: Props) {
@@ -100,6 +103,7 @@ export function GameBoard({
           game={game}
           canControlAll={canControlAll}
           onClose={() => setMenuOpen(false)}
+          onMinimize={onMinimize}
           onLeave={onLeave}
           onEnd={onEnd}
           dispatch={dispatch}
@@ -524,6 +528,7 @@ function GameMenu({
   canControlAll,
   dispatch,
   onClose,
+  onMinimize,
   onLeave,
   onEnd,
 }: {
@@ -531,6 +536,7 @@ function GameMenu({
   canControlAll: boolean;
   dispatch: (a: GameAction) => void;
   onClose: () => void;
+  onMinimize?: () => void;
   onLeave?: () => void;
   onEnd?: () => void;
 }) {
@@ -550,6 +556,19 @@ function GameMenu({
             {game.commanderDamageEnabled && <span>Commander damage</span>}
             {game.poisonEnabled && <span>Poison</span>}
           </div>
+          {onMinimize && game.status !== 'finished' && (
+            <button
+              type="button"
+              className="game-menu-action game-menu-action--primary"
+              onClick={() => {
+                onMinimize();
+                onClose();
+              }}
+            >
+              Minimize
+              <span className="game-menu-action-hint">Keep the game running — come back later</span>
+            </button>
+          )}
           {game.status !== 'finished' && (
             <>
               <button
@@ -561,6 +580,7 @@ function GameMenu({
                 }}
               >
                 End game
+                <span className="game-menu-action-hint">Pick a winner, save to history</span>
               </button>
               {canControlAll && (
                 <button
@@ -572,6 +592,7 @@ function GameMenu({
                   }}
                 >
                   Reset
+                  <span className="game-menu-action-hint">Back to starting life, same seats</span>
                 </button>
               )}
             </>
@@ -585,7 +606,10 @@ function GameMenu({
                 onClose();
               }}
             >
-              {game.status === 'finished' ? 'Close' : 'Leave game'}
+              {game.status === 'finished' ? 'Close' : 'Discard game'}
+              {game.status !== 'finished' && (
+                <span className="game-menu-action-hint">Throw this game away</span>
+              )}
             </button>
           )}
           <EventLog game={game} />

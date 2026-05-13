@@ -195,6 +195,86 @@
   color: var(--on-accent);
 }
 
+/* ── Active-game indicators in app chrome ──────────────────────────────── */
+
+.site-nav-game-dot,
+.mobile-tab-bar-game-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--warn-text);
+  display: inline-block;
+  box-shadow: 0 0 6px var(--warn-text);
+  animation: play-pulse 1.8s ease-in-out infinite;
+}
+
+.site-nav-game-dot {
+  margin-left: 0.35rem;
+}
+
+/* Sits on the upper-right of the heart icon in the mobile bar. */
+.mobile-tab-bar-game-dot {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+}
+
+@keyframes play-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ── Resume banner ─────────────────────────────────────────────────────── */
+
+.play-resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+}
+
+.play-resume-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.play-resume-banner-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.play-resume-banner-status {
+  font-weight: 400;
+  color: var(--text2);
+  text-transform: capitalize;
+}
+
+.play-resume-banner-players {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.play-resume-banner-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
 /* End-game winner picker — radio buttons styled as chips inside the
  * existing ConfirmDialog frame. */
 .play-end-winners {
@@ -919,11 +999,14 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .game-menu-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius);
-  padding: 0.55rem 0.75rem;
+  padding: 0.6rem 0.8rem;
   font-size: var(--text-base);
   text-align: left;
 }
@@ -932,10 +1015,26 @@ body:has(.game-board) .modal-backdrop {
   background: rgba(255, 255, 255, 0.16);
 }
 
+.game-menu-action--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.game-menu-action--primary:hover {
+  background: var(--accent-hover);
+}
+
 .game-menu-action--danger {
   background: var(--err-bg);
   color: var(--err-text);
   border-color: var(--err-border);
+}
+
+.game-menu-action-hint {
+  font-size: var(--text-xs);
+  opacity: 0.75;
+  font-weight: 400;
 }
 
 .game-menu-log {

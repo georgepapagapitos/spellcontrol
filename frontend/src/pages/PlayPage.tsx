@@ -32,6 +32,7 @@ export function PlayPage() {
   const online = usePlayStore((s) => s.online);
   const history = usePlayStore((s) => s.history);
   const onlineError = usePlayStore((s) => s.onlineError);
+  const boardVisible = usePlayStore((s) => s.boardVisible);
 
   const startLocal = usePlayStore((s) => s.startLocal);
   const dispatchLocal = usePlayStore((s) => s.dispatchLocal);
@@ -43,6 +44,9 @@ export function PlayPage() {
   const dispatchOnline = usePlayStore((s) => s.dispatchOnline);
   const leaveOnline = usePlayStore((s) => s.leaveOnline);
   const refreshOnline = usePlayStore((s) => s.refreshOnline);
+
+  const hideBoard = usePlayStore((s) => s.hideBoard);
+  const showBoard = usePlayStore((s) => s.showBoard);
 
   const initialTab = (params.get('tab') as Tab) || (local ? 'local' : online ? 'online' : 'local');
   const [tab, setTabRaw] = useState<Tab>(initialTab);
@@ -104,28 +108,43 @@ export function PlayPage() {
 
       {tab === 'local' && (
         <>
-          {local ? (
+          {local && boardVisible ? (
             <GameBoard
               game={local}
               dispatch={dispatchLocal}
               canControlAll
+              onMinimize={hideBoard}
               onEnd={() => setPendingEnd('local')}
               onLeave={() => setPendingDiscard(true)}
             />
           ) : (
-            <LocalSetup decks={decks} onStart={(setup) => startLocal(setup)} />
+            <>
+              {local && (
+                <ResumeBanner
+                  game={local}
+                  onResume={showBoard}
+                  onDiscard={() => setPendingDiscard(true)}
+                />
+              )}
+              <LocalSetup
+                decks={decks}
+                onStart={(setup) => startLocal(setup)}
+                hasActive={!!local}
+              />
+            </>
           )}
         </>
       )}
 
       {tab === 'online' && (
         <>
-          {online ? (
+          {online && boardVisible ? (
             <GameBoard
               game={online}
               dispatch={(action) => void dispatchOnline(action)}
               canControlAll={user?.id === online.hostUserId}
               viewerUserId={user?.id ?? null}
+              onMinimize={hideBoard}
               onEnd={() => setPendingEnd('online')}
               onLeave={() => void leaveOnline()}
               errorMessage={onlineError}
@@ -140,12 +159,22 @@ export function PlayPage() {
               }
             />
           ) : (
-            <OnlineSetup
-              decks={decks}
-              onHost={(opts) => void hostOnline(opts)}
-              onJoin={(code, opts) => void joinOnline(code, opts)}
-              defaultName={user?.username ?? ''}
-            />
+            <>
+              {online && (
+                <ResumeBanner
+                  game={online}
+                  onResume={showBoard}
+                  onDiscard={() => void leaveOnline()}
+                />
+              )}
+              <OnlineSetup
+                decks={decks}
+                onHost={(opts) => void hostOnline(opts)}
+                onJoin={(code, opts) => void joinOnline(code, opts)}
+                defaultName={user?.username ?? ''}
+                hasActive={!!online}
+              />
+            </>
           )}
         </>
       )}
@@ -186,9 +215,11 @@ export function PlayPage() {
 function LocalSetup({
   decks,
   onStart,
+  hasActive,
 }: {
   decks: Deck[];
   onStart: (setup: LocalGameSetup) => void;
+  hasActive: boolean;
 }) {
   const [format, setFormat] = useState<GameFormat>('commander');
   const formatCfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
@@ -228,9 +259,12 @@ function LocalSetup({
         });
       }}
     >
-      <h2 className="play-setup-title">New local game</h2>
+      <h2 className="play-setup-title">
+        {hasActive ? 'Start a different game' : 'New local game'}
+      </h2>
       <p className="play-setup-help">
         Shared device. Pass the phone, tap your own life buttons, log a winner at the end.
+        {hasActive && ' Starting a new game will discard the one you have minimized.'}
       </p>
       <div className="play-setup-grid">
         <label className="play-field">
@@ -353,6 +387,7 @@ function OnlineSetup({
   onHost,
   onJoin,
   defaultName,
+  hasActive,
 }: {
   decks: Deck[];
   onHost: (opts: {
@@ -377,6 +412,7 @@ function OnlineSetup({
     }
   ) => void;
   defaultName: string;
+  hasActive: boolean;
 }) {
   const [mode, setMode] = useState<'host' | 'join'>('host');
   const [format, setFormat] = useState<GameFormat>('commander');
@@ -435,10 +471,13 @@ function OnlineSetup({
             });
           }}
         >
-          <h2 className="play-setup-title">Host a game</h2>
+          <h2 className="play-setup-title">
+            {hasActive ? 'Host a different game' : 'Host a game'}
+          </h2>
           <p className="play-setup-help">
             You will get a 4-character code. Share it with friends so they can join from their own
             devices.
+            {hasActive && ' Hosting a new game will leave the one you have minimized.'}
           </p>
           <div className="play-setup-grid">
             <label className="play-field">
@@ -634,6 +673,41 @@ function HistoryTab({ history, userId }: { history: GameRecord[]; userId: string
         </ul>
       </section>
     </div>
+  );
+}
+
+/**
+ * Banner shown on the Play tab when there's an active game but the board is
+ * minimized. Lets the user resume into the fullscreen view or discard.
+ */
+function ResumeBanner({
+  game,
+  onResume,
+  onDiscard,
+}: {
+  game: { players: GamePlayer[]; status: string; mode: 'local' | 'online'; code: string };
+  onResume: () => void;
+  onDiscard: () => void;
+}) {
+  const summary = game.players.map((p) => p.name).join(' · ');
+  return (
+    <section className="play-resume-banner" aria-label="Active game">
+      <div className="play-resume-banner-body">
+        <span className="play-resume-banner-label">
+          {game.mode === 'online' ? `Online game ${game.code}` : 'Local game'}
+          <span className="play-resume-banner-status"> · {game.status}</span>
+        </span>
+        <span className="play-resume-banner-players">{summary}</span>
+      </div>
+      <div className="play-resume-banner-actions">
+        <button type="button" className="pill-btn pill-btn-primary" onClick={onResume}>
+          Resume
+        </button>
+        <button type="button" className="pill-btn" onClick={onDiscard}>
+          Discard
+        </button>
+      </div>
+    </section>
   );
 }
 

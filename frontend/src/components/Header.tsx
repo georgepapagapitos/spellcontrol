@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { usePlayStore } from '../store/play';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const binderCount = useCollectionStore((s) => s.binders.length);
   const deckCount = useDecksStore((s) => s.decks.length);
+  const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -54,6 +56,7 @@ export function Header() {
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
             <span>Play</span>
+            {hasActiveGame && <span className="site-nav-game-dot" aria-label="game in progress" />}
           </NavLink>
         </nav>
         <nav className="site-nav">
