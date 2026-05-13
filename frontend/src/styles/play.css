@@ -370,140 +370,40 @@ body:has(.game-board) .modal-backdrop {
 .game-board {
   position: fixed;
   inset: 0;
-  /* dvh keeps the board glued to the visible viewport as iOS Safari's URL
-     bar animates in and out. Fall back to vh on browsers without dvh. */
   height: 100vh;
   height: 100dvh;
   z-index: var(--z-overlay);
-  background: #07090d;
+  /* Soft canvas behind the rounded panels — picks up the app's surface
+     tone (lighter in light themes, deep navy in dark themes) so the board
+     blends with the rest of the app instead of a flat-black slate. */
+  background: var(--bg, #0c0f17);
   color: #f4f6fa;
   display: flex;
   overflow: hidden;
-  /* Disable text selection so taps never accidentally highlight a player name
-     instead of registering as a life change. */
   user-select: none;
   -webkit-user-select: none;
-  /* Avoid the iOS Safari double-tap zoom on the tap zones. */
   touch-action: manipulation;
-  /* Honor the iPhone safe areas so corner panels don't tuck under the
-     home-indicator bar or the camera notch. */
-  padding-top: env(safe-area-inset-top, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
-  padding-left: env(safe-area-inset-left, 0);
-  padding-right: env(safe-area-inset-right, 0);
+  padding: calc(env(safe-area-inset-top, 0) + 8px) calc(env(safe-area-inset-right, 0) + 8px)
+    calc(env(safe-area-inset-bottom, 0) + 8px) calc(env(safe-area-inset-left, 0) + 8px);
 }
 
 .game-board-grid {
   flex: 1;
   display: grid;
-  gap: 3px;
+  /* Larger gap so the new panel border-radius is visible between cells
+     and the slate-canvas shows through as breathing room. */
+  gap: 8px;
   width: 100%;
   height: 100%;
   min-height: 0;
-}
-
-/* ── 2 players ──
- *   default (portrait): top/bottom stacked
- *   landscape OR wide:  side-by-side
- */
-.game-board-2 .game-board-grid {
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-@media (min-width: 700px) and (orientation: landscape), (min-width: 1024px) {
-  .game-board-2 .game-board-grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
-  }
-}
-
-/* ── 3 players ──
- *   default (portrait): 2 on top, 1 full-width below
- *   landscape:          3 side-by-side
- */
-.game-board-3 .game-board-grid {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-.game-board-3 .game-board-grid > :nth-child(3) {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 900px) and (orientation: landscape) {
-  .game-board-3 .game-board-grid {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 1fr;
-  }
-  .game-board-3 .game-board-grid > :nth-child(3) {
-    grid-column: auto;
-  }
-}
-
-/* ── 4 players ── always 2×2 */
-.game-board-4 .game-board-grid {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-/* ── 5 players ──
- *   default (portrait): 2 + 2 + 1 — the bottom row is a single full-width
- *   panel (asymmetric on purpose; a true upright 5-way isn't possible and
- *   2+2+1 keeps the host upright while the four others form two facing
- *   pairs across the phone's long axis).
- *   landscape: 3 across the top + 2 across the bottom.
- */
-.game-board-5 .game-board-grid {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
-}
-
-.game-board-5 .game-board-grid > :nth-child(5) {
-  grid-column: 1 / -1;
-}
-
-@media (min-width: 900px) and (orientation: landscape) {
-  .game-board-5 .game-board-grid {
-    grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: 1fr 1fr;
-  }
-  .game-board-5 .game-board-grid > :nth-child(1),
-  .game-board-5 .game-board-grid > :nth-child(2),
-  .game-board-5 .game-board-grid > :nth-child(3) {
-    grid-column: span 2;
-  }
-  .game-board-5 .game-board-grid > :nth-child(4),
-  .game-board-5 .game-board-grid > :nth-child(5) {
-    grid-column: span 3;
-  }
-  /* 5p landscape: top row of 3 rotated, bottom row of 2 upright. Overrides
-     the portrait default of rotating the first four. */
-  .game-board-5[data-shared] .game-board-grid > .player-panel:nth-child(4) {
-    --pp-rot: 0deg;
-  }
-}
-
-/* ── 6 players ── 2 × 3 (top row of 3 rotated, bottom row upright) */
-.game-board-6 .game-board-grid {
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-@media (max-width: 600px) and (orientation: portrait) {
-  /* Narrow phones: 3 columns get cramped — fall back to 2×3. */
-  .game-board-6 .game-board-grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(3, 1fr);
-  }
+  /* The actual grid template and each panel's grid-column / grid-row are
+     set inline by GameBoard.tsx (reading from the BoardLayout registry)
+     so changing the registry never needs a CSS edit. */
 }
 
 /* ── Player panel ─────────────────────────────────────────────────────── */
 
 .player-panel {
-  /* CSS-controlled rotation. JS sets --pp-rot as a default per seat-count;
-     breakpoint overrides below can rewrite it for specific layouts
-     (e.g. 5-player landscape rotates 3 panels, not 4). */
   transform: rotate(var(--pp-rot, 0deg));
   position: relative;
   overflow: hidden;
@@ -511,22 +411,26 @@ body:has(.game-board) .modal-backdrop {
   flex-direction: column;
   justify-content: center;
   align-items: stretch;
-  /* Per-color playmat tones. Each color block below sets --pp-base
-     (the bottom-right deep tone), --pp-edge (the top-left brighter tone
-     used in the radial spotlight), and --pp-accent (the saturated
-     glow used by winner highlight and host star). Backgrounds layer a
-     soft radial highlight over a diagonal gradient so panels feel like
-     a playmat rather than a flat block. */
+  /* Rounded corners matched to the rest of the app's --radius-lg (12px).
+     Subtle drop shadow so the panel reads as a soft card rather than a
+     sharp slate block. */
+  border-radius: var(--radius-lg, 12px);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  /* Per-color playmat tones. --pp-base = bottom-right deep, --pp-edge =
+     top-left highlight, --pp-accent = saturated glow used for the winner
+     ring and host star. */
   --pp-base: #2a3340;
   --pp-edge: #4a5566;
   --pp-accent: #b6c5dc;
   background:
-    radial-gradient(ellipse at 30% 0%, var(--pp-edge) 0%, transparent 60%),
+    radial-gradient(ellipse at 30% 0%, var(--pp-edge) 0%, transparent 65%),
     linear-gradient(
-      140deg,
-      color-mix(in srgb, var(--pp-base) 92%, white 8%) 0%,
-      var(--pp-base) 65%,
-      color-mix(in srgb, var(--pp-base) 70%, black 30%) 100%
+      150deg,
+      color-mix(in srgb, var(--pp-base) 88%, white 12%) 0%,
+      var(--pp-base) 60%,
+      color-mix(in srgb, var(--pp-base) 78%, black 22%) 100%
     );
   transition:
     filter 200ms ease,
@@ -538,23 +442,70 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .player-panel.is-winner {
-  /* Override to a victory-gold regardless of the player's color so the
-     winner pops at a glance. */
   --pp-base: #7a5e14;
   --pp-edge: #c9a23a;
   --pp-accent: #ffe07a;
-  box-shadow: inset 0 0 0 3px var(--pp-accent);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 2px var(--pp-accent);
 }
 
 .player-panel.is-mine::before {
-  /* A faint dashed marker on the outside edge to remind "this is your seat"
-     in online games. Doesn't fight the color tint. */
+  /* Subtle inset highlight to mark "this is your seat" in online games.
+     Softer than the previous dashed rectangle. */
   content: '';
   position: absolute;
-  inset: 4px;
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.28);
   pointer-events: none;
+}
+
+/* Empty-cell placeholder. Used for layouts that intentionally leave a slot
+   open (e.g. 5p in a 3×2 grid). Same shape as a player panel but reads as
+   "no player here" via a much dimmer palette. */
+.player-panel.is-empty {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  cursor: default;
+}
+
+/* When an empty cell hosts the global menu button, give it a chip in the
+   center with the menu icon + label so the affordance is unmistakable.
+   Hover affordances make it discoverable on desktop. */
+.player-panel.is-empty.is-menu {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+}
+
+.empty-panel-menu-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius, 8px);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: var(--text-sm);
+  letter-spacing: 0.02em;
+}
+
+.player-panel.is-empty.is-menu:hover .empty-panel-menu-chip {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.empty-panel-menu-label {
+  font-weight: 600;
 }
 
 .player-panel-content {
@@ -1075,34 +1026,39 @@ body:has(.game-board) .modal-backdrop {
   letter-spacing: 0.02em;
 }
 
-/* ── Center game menu ──────────────────────────────────────────────────── */
+/* ── Game menu button (fallback for layouts without an empty cell) ────── */
 
+/* When the active layout exposes an empty grid cell (5p layouts), the
+   global menu lives inside that cell via .player-panel.is-empty.is-menu.
+   For 2p/3p/4p/6p layouts every cell is occupied — this floating button
+   handles those cases. It sits in the safe-area corner outside the panel
+   grid (the .game-board has 8px padding around the grid), so it doesn't
+   overlap any panel content. */
 .game-board-menu-btn {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  right: calc(env(safe-area-inset-right, 0) + 4px);
+  bottom: calc(env(safe-area-inset-bottom, 0) + 4px);
   z-index: 10;
-  background: #14181f;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(20, 24, 31, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
-  width: 2.8rem;
-  height: 2.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: 50%;
-  box-shadow: var(--shadow-modal);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  /* Prevent any pointer events from leaking through to the tap zones
-     positioned beneath. */
   touch-action: manipulation;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 @media (min-width: 600px) {
   .game-board-menu-btn {
-    width: 3.2rem;
-    height: 3.2rem;
+    width: 2.6rem;
+    height: 2.6rem;
   }
 }
 
@@ -1801,65 +1757,10 @@ body:has(.game-board) .modal-backdrop {
   }
 }
 
-/* ── Layout variants ──
-   `default` is the per-count grid + rotation defined above. `same` keeps
-   the grid but suppresses all rotation. `row` flattens to a single
-   horizontal row regardless of player count. */
-
-.game-board.layout-same .player-panel,
-.game-board.layout-row .player-panel {
-  --pp-rot: 0deg !important;
-}
-
-.game-board.layout-row .game-board-grid {
-  grid-template-columns: repeat(var(--row-seats, 4), 1fr) !important;
-  grid-template-rows: 1fr !important;
-}
-
-.game-board.layout-row.game-board-2 .game-board-grid {
-  --row-seats: 2;
-}
-.game-board.layout-row.game-board-3 .game-board-grid {
-  --row-seats: 3;
-}
-.game-board.layout-row.game-board-4 .game-board-grid {
-  --row-seats: 4;
-}
-.game-board.layout-row.game-board-5 .game-board-grid {
-  --row-seats: 5;
-}
-.game-board.layout-row.game-board-6 .game-board-grid {
-  --row-seats: 6;
-}
-
-/* Reset any per-child overrides (e.g. the 5p `:nth-child(5)` full-width
-   rule) so the row layout truly is a single line. */
-.game-board.layout-row .game-board-grid > .player-panel {
-  grid-column: auto !important;
-  grid-row: auto !important;
-}
-
-/* Row layout on phones with 5-6 panels would be unusably narrow — fall
-   back to the default grid when the viewport can't fit a row comfortably.
-   `same` keeps its grid at all sizes. */
-@media (max-width: 700px) {
-  .game-board.layout-row.game-board-5 .game-board-grid,
-  .game-board.layout-row.game-board-6 .game-board-grid {
-    grid-template-columns: 1fr 1fr !important;
-    grid-template-rows: repeat(3, 1fr) !important;
-  }
-  .game-board.layout-row.game-board-5 .game-board-grid > :nth-child(5),
-  .game-board.layout-row.game-board-6 .game-board-grid > :nth-child(5),
-  .game-board.layout-row.game-board-6 .game-board-grid > :nth-child(6) {
-    grid-column: auto !important;
-  }
-}
-
-/* When `row` shrinks panels horizontally below their portrait min-width,
-   life font also wants to be smaller. */
-.game-board.layout-row.game-board-5 .player-panel-life,
-.game-board.layout-row.game-board-6 .player-panel-life {
-  font-size: clamp(1.8rem, 6vmin, 4.4rem);
+/* The `line` layout (4p, single horizontal row) gets a denser life font
+   since each panel is much narrower than a 2x2 cell. */
+.game-board.layout-line .player-panel-life {
+  font-size: clamp(2rem, 7vmin, 5rem);
 }
 
 /* ── Layout picker UI ── */
