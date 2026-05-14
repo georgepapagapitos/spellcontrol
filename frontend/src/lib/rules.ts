@@ -1,17 +1,13 @@
-import type { BinderFilter, BinderFilterGroup, EnrichedCard, NegatableChip } from '../types';
+import type { BinderFilter, BinderFilterGroup, ChipExpression, EnrichedCard } from '../types';
 import { getColorKey } from './colors';
 
 /**
- * A chip list split into IS/IS-NOT halves with values pre-trimmed and
- * pre-lowercased so the per-card matcher does no string work itself.
- */
-interface CompiledChips {
-  is: string[];
-  not: string[];
-}
-
-/**
  * Pre-processed filter ready for the per-card matching hot path.
+ *
+ * Every chip-bearing field compiles down to a `CompiledExpression`
+ * regardless of whether it was authored as legacy `NegatableChip[]` or
+ * the richer `ChipExpression`. The unified shape means the per-card
+ * matcher only has one code path. See `compileChipField`.
  *
  * Materializing a binder runs `cardMatchesFilter` once per (card × binder).
  * For a 10k-card collection × 10 binders × ~5 chip lists per filter, the
@@ -20,15 +16,15 @@ interface CompiledChips {
  * comparisons.
  */
 interface CompiledFilter {
-  legalities?: CompiledChips;
-  colors?: CompiledChips;
-  rarities?: CompiledChips;
-  typeChips?: CompiledChips;
-  oracleChips?: CompiledChips;
-  finishes?: CompiledChips;
-  layouts?: CompiledChips;
-  treatments?: CompiledChips;
-  borderColors?: CompiledChips;
+  legalities?: CompiledExpression;
+  colors?: CompiledExpression;
+  rarities?: CompiledExpression;
+  typeChips?: CompiledExpression;
+  oracleChips?: CompiledExpression;
+  finishes?: CompiledExpression;
+  layouts?: CompiledExpression;
+  treatments?: CompiledExpression;
+  borderColors?: CompiledExpression;
   setCodesLower?: string[];
   nameContainsLower?: string;
   manaCostNormalized?: string;
@@ -39,31 +35,17 @@ interface CompiledFilter {
   edhrecRankMax?: number;
 }
 
-function compileChips(chips: NegatableChip[] | undefined): CompiledChips | undefined {
-  if (!chips) return undefined;
-  const is: string[] = [];
-  const not: string[] = [];
-  for (const c of chips) {
-    const v = c.value.trim().toLowerCase();
-    if (!v) continue;
-    if (c.negate) not.push(v);
-    else is.push(v);
-  }
-  if (is.length === 0 && not.length === 0) return undefined;
-  return { is, not };
-}
-
 export function compileFilter(filter: BinderFilter): CompiledFilter {
   const out: CompiledFilter = {};
-  out.legalities = compileChips(filter.legalities);
-  out.colors = compileChips(filter.colors);
-  out.rarities = compileChips(filter.rarities);
-  out.typeChips = compileChips(filter.typeChips);
-  out.oracleChips = compileChips(filter.oracleChips);
-  out.finishes = compileChips(filter.finishes);
-  out.layouts = compileChips(filter.layouts);
-  out.treatments = compileChips(filter.treatments);
-  out.borderColors = compileChips(filter.borderColors);
+  out.legalities = compileExpression(filter.legalities);
+  out.colors = compileExpression(filter.colors);
+  out.rarities = compileExpression(filter.rarities);
+  out.typeChips = compileExpression(filter.typeChips);
+  out.oracleChips = compileExpression(filter.oracleChips);
+  out.finishes = compileExpression(filter.finishes);
+  out.layouts = compileExpression(filter.layouts);
+  out.treatments = compileExpression(filter.treatments);
+  out.borderColors = compileExpression(filter.borderColors);
 
   if (filter.setCodes && filter.setCodes.length > 0) {
     out.setCodesLower = filter.setCodes.map((s) => s.toLowerCase());
@@ -89,9 +71,9 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
  * All filter fields AND together; absent fields impose no constraint.
  */
 export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): boolean {
-  if (f.legalities && !legalityMatches(card.legalities, f.legalities)) return false;
+  if (f.legalities && !legalityMatchesExpression(card.legalities, f.legalities)) return false;
 
-  if (f.rarities && !exactMatches(card.rarity, f.rarities)) return false;
+  if (f.rarities && !exactMatchesExpression(card.rarity, f.rarities)) return false;
 
   if (f.priceMin !== undefined && card.purchasePrice < f.priceMin) return false;
   if (f.priceMax !== undefined && card.purchasePrice > f.priceMax) return false;
@@ -101,11 +83,11 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
     // '?' = unknown color (no Scryfall data). A filter with any IS chip rejects
     // unknown; an IS-NOT-only filter passes since '?' equals nothing.
     const value = key === '?' ? '' : key;
-    if (!exactMatches(value, f.colors)) return false;
+    if (!exactMatchesExpression(value, f.colors)) return false;
   }
 
-  if (f.typeChips && !substringMatches(card.typeLine, f.typeChips)) return false;
-  if (f.oracleChips && !substringMatches(card.oracleText, f.oracleChips)) return false;
+  if (f.typeChips && !substringMatchesExpression(card.typeLine, f.typeChips)) return false;
+  if (f.oracleChips && !substringMatchesExpression(card.oracleText, f.oracleChips)) return false;
 
   if (f.cmcMin !== undefined && (card.cmc ?? 0) < f.cmcMin) return false;
   if (f.cmcMax !== undefined && (card.cmc ?? 0) > f.cmcMax) return false;
@@ -129,19 +111,19 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
     // a printing comes in — for most modern basics that's both nonfoil and
     // foil, which would make "Finishes IS foil" match every nonfoil basic.
     const owned = card.finish ?? (card.foil ? 'foil' : 'nonfoil');
-    if (!setMatches([owned], f.finishes)) return false;
+    if (!setMatchesExpression([owned], f.finishes)) return false;
   }
 
-  if (f.layouts && !exactMatches(card.layout, f.layouts)) return false;
+  if (f.layouts && !exactMatchesExpression(card.layout, f.layouts)) return false;
 
   if (f.edhrecRankMax !== undefined) {
     if (card.edhrecRank === undefined) return false;
     if (card.edhrecRank > f.edhrecRankMax) return false;
   }
 
-  if (f.treatments && !setMatches(effectiveTreatments(card), f.treatments)) return false;
+  if (f.treatments && !setMatchesExpression(effectiveTreatments(card), f.treatments)) return false;
 
-  if (f.borderColors && !exactMatches(card.borderColor, f.borderColors)) return false;
+  if (f.borderColors && !exactMatchesExpression(card.borderColor, f.borderColors)) return false;
 
   return true;
 }
@@ -172,63 +154,31 @@ export function cardMatchesAnyGroup(card: EnrichedCard, compiled: CompiledFilter
 }
 
 /**
- * IS / IS NOT chip semantics for a free-text haystack (substring match):
- *   - At least one IS chip must substring-match the haystack (or no IS chips exist).
- *   - No IS NOT chip may substring-match the haystack.
- * Empty/missing haystack: IS chips never match (so any IS chip → fail);
- * IS NOT chips can never match either, so they're trivially satisfied.
+ * Legality-specific matcher: each chip names a format, and IS means
+ * "card is legal in that format". Within an AND-group, every IS chip
+ * must be legal and no IS NOT chip may be legal. Across groups: any
+ * group passing means the expression passes (same OR-of-groups
+ * semantics as the other expression matchers).
+ *
+ * Legacy `[IS standard, IS modern]` compiled to two groups (one per
+ * positive) which yields "legal in standard OR legal in modern", the
+ * historical behavior. Authoring `IS standard AND IS modern` as a new
+ * expression yields "legal in both" — what the user actually asked for.
  */
-function substringMatches(haystack: string | undefined, chips: CompiledChips): boolean {
-  const hay = (haystack || '').toLowerCase();
-  if (chips.is.length > 0 && !chips.is.some((v) => hay.includes(v))) return false;
-  for (const v of chips.not) {
-    if (hay.includes(v)) return false;
-  }
-  return true;
-}
-
-/**
- * Exact-match variant — used for controlled-vocabulary single-valued fields
- * (rarity, color key, layout, border color). Comparison is case-insensitive.
- */
-function exactMatches(value: string | undefined, chips: CompiledChips): boolean {
-  const v = (value || '').toLowerCase();
-  if (chips.is.length > 0 && !chips.is.includes(v)) return false;
-  if (chips.not.includes(v)) return false;
-  return true;
-}
-
-/**
- * Set-membership variant — for fields where the card has a SET of values
- * (finishes, treatments). IS = card's set contains the chip; IS NOT = it doesn't.
- */
-function setMatches(cardValues: string[], chips: CompiledChips): boolean {
-  // Lower-case scan in place; cardValues is small (typically 1-3 items) so we
-  // skip building an actual Set.
-  const lowered = cardValues.map((v) => v.toLowerCase());
-  if (chips.is.length > 0 && !chips.is.some((v) => lowered.includes(v))) return false;
-  for (const v of chips.not) {
-    if (lowered.includes(v)) return false;
-  }
-  return true;
-}
-
-/**
- * Legality-specific matcher: each chip names a format, and IS means "card is legal in that format".
- * Multiple IS chips therefore AND together (legal in every format named).
- */
-function legalityMatches(
+function legalityMatchesExpression(
   legalities: Record<string, string> | undefined,
-  chips: CompiledChips
+  expr: CompiledExpression
 ): boolean {
   const legs = legalities || {};
-  for (const v of chips.is) {
-    if (legs[v] !== 'legal') return false;
-  }
-  for (const v of chips.not) {
-    if (legs[v] === 'legal') return false;
-  }
-  return true;
+  return expr.groups.some((g) => {
+    for (const want of g.is) {
+      if (legs[want] !== 'legal') return false;
+    }
+    for (const reject of g.not) {
+      if (legs[reject] === 'legal') return false;
+    }
+    return true;
+  });
 }
 
 /**
@@ -253,19 +203,16 @@ export function areAllGroupsEmpty(groups: BinderFilterGroup[]): boolean {
 
 /** True if a filter has no constraints (matches every card). */
 export function isFilterEmpty(filter: BinderFilter): boolean {
-  const chipFieldEmpty = (chips?: NegatableChip[]) =>
-    !chips || chips.filter((c) => c.value.trim()).length === 0;
-
   return (
-    chipFieldEmpty(filter.legalities) &&
-    chipFieldEmpty(filter.colors) &&
-    chipFieldEmpty(filter.rarities) &&
-    chipFieldEmpty(filter.typeChips) &&
-    chipFieldEmpty(filter.oracleChips) &&
-    chipFieldEmpty(filter.finishes) &&
-    chipFieldEmpty(filter.layouts) &&
-    chipFieldEmpty(filter.treatments) &&
-    chipFieldEmpty(filter.borderColors) &&
+    isExpressionEmpty(filter.legalities) &&
+    isExpressionEmpty(filter.colors) &&
+    isExpressionEmpty(filter.rarities) &&
+    isExpressionEmpty(filter.typeChips) &&
+    isExpressionEmpty(filter.oracleChips) &&
+    isExpressionEmpty(filter.finishes) &&
+    isExpressionEmpty(filter.layouts) &&
+    isExpressionEmpty(filter.treatments) &&
+    isExpressionEmpty(filter.borderColors) &&
     filter.priceMin === undefined &&
     filter.priceMax === undefined &&
     filter.cmcMin === undefined &&
@@ -275,4 +222,131 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     (!filter.setCodes || filter.setCodes.length === 0) &&
     filter.edhrecRankMax === undefined
   );
+}
+
+/**
+ * ─── ChipExpression evaluator ─────────────────────────────────────────────
+ *
+ * Compile-once / match-many evaluator for the richer `ChipExpression` shape
+ * (chips with explicit AND/OR joiners). AND binds tighter than OR — i.e.
+ * `a OR b AND c` reads as `a OR (b AND c)`. We split the flat chip list into
+ * AND-groups at every OR joiner, then the expression matches iff any AND-group
+ * matches in full.
+ *
+ * Coexists with the legacy `NegatableChip[]` path (compileChips +
+ * substringMatches / exactMatches). Old fields keep the old code path
+ * untouched; new fields opt into this richer model.
+ */
+
+/** Pre-processed AND-group for the per-card hot path — string work happens once. */
+interface CompiledExpressionGroup {
+  is: string[];
+  not: string[];
+}
+
+export interface CompiledExpression {
+  groups: CompiledExpressionGroup[];
+}
+
+/**
+ * True if the expression has no real constraints. Used at field level to skip
+ * matching entirely (mirrors the empty-chip-array short-circuit elsewhere).
+ */
+export function isExpressionEmpty(expr: ChipExpression | undefined): boolean {
+  if (!expr) return true;
+  return expr.chips.filter((c) => c.value.trim()).length === 0;
+}
+
+/**
+ * Compile a `ChipExpression` into AND-groups. Returns `undefined` if the
+ * expression is empty so callers can fall through with no work.
+ *
+ * Splits on OR joiners (with AND-tighter precedence). Joiners array is
+ * tolerant of malformed input: short → pads with AND, long → ignores extras.
+ */
+export function compileExpression(
+  expr: ChipExpression | undefined
+): CompiledExpression | undefined {
+  if (!expr || expr.chips.length === 0) return undefined;
+  const groups: CompiledExpressionGroup[] = [{ is: [], not: [] }];
+  for (let i = 0; i < expr.chips.length; i++) {
+    const c = expr.chips[i];
+    const v = c.value.trim().toLowerCase();
+    if (v) {
+      const g = groups[groups.length - 1];
+      if (c.negate) g.not.push(v);
+      else g.is.push(v);
+    }
+    // Joiner between this chip and the next. If absent, defaults to AND
+    // (same group). OR starts a new group.
+    if (i < expr.chips.length - 1) {
+      const joiner = expr.joiners[i] ?? 'AND';
+      if (joiner === 'OR') groups.push({ is: [], not: [] });
+    }
+  }
+  // Drop empty trailing groups left by all-blank chips.
+  const real = groups.filter((g) => g.is.length > 0 || g.not.length > 0);
+  if (real.length === 0) return undefined;
+  return { groups: real };
+}
+
+/**
+ * Substring evaluator for free-text haystacks (typeline / oracle text).
+ * Within an AND-group, every `is` substring must appear and no `not` substring
+ * may appear. Expression matches iff any AND-group matches.
+ *
+ * Mirrors `substringMatches` for the legacy shape — same per-group semantics,
+ * just extended across multiple OR'd groups.
+ */
+export function substringMatchesExpression(
+  haystack: string | undefined,
+  expr: CompiledExpression
+): boolean {
+  const hay = (haystack || '').toLowerCase();
+  return expr.groups.some((g) => {
+    for (const v of g.is) if (!hay.includes(v)) return false;
+    for (const v of g.not) if (hay.includes(v)) return false;
+    return true;
+  });
+}
+
+/**
+ * Exact-match evaluator for single-valued controlled-vocabulary fields
+ * (rarity, color key, layout, border color). Same group semantics as
+ * substring, just on `===` instead of `includes`.
+ *
+ * Caveat: AND'ing multiple positive `is` values in one group on a
+ * single-valued field is unsatisfiable (a card has one rarity, not two),
+ * so authors are expected to use OR for those — the evaluator doesn't try
+ * to "fix" that.
+ */
+export function exactMatchesExpression(
+  value: string | undefined,
+  expr: CompiledExpression
+): boolean {
+  const v = (value || '').toLowerCase();
+  return expr.groups.some((g) => {
+    for (const want of g.is) if (want !== v) return false;
+    for (const reject of g.not) if (reject === v) return false;
+    return true;
+  });
+}
+
+/**
+ * Set-membership evaluator — for fields where the card has a *set* of values
+ * (finishes, treatments, etc.). Within a group: every `is` must be present in
+ * the card's set, no `not` may be present. Any group matches → expression
+ * matches.
+ */
+export function setMatchesExpression(
+  cardSet: Set<string> | string[] | undefined,
+  expr: CompiledExpression
+): boolean {
+  const set =
+    cardSet instanceof Set ? cardSet : new Set((cardSet ?? []).map((s) => s.toLowerCase()));
+  return expr.groups.some((g) => {
+    for (const want of g.is) if (!set.has(want)) return false;
+    for (const reject of g.not) if (set.has(reject)) return false;
+    return true;
+  });
 }
