@@ -1,6 +1,12 @@
 import { AlignJustify, BarChart3, LayoutGrid, List as ListIconLucide } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { EnrichedCard, MaterializedBinder, SortField, SortDir } from '../types';
+import type {
+  ChipExpression,
+  EnrichedCard,
+  MaterializedBinder,
+  SortField,
+  SortDir,
+} from '../types';
 import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
@@ -12,15 +18,22 @@ import { BinderBadge } from './BinderBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
-import { FilterPopover } from './FilterPopover';
-import { SetFilterPicker } from './SetFilterPicker';
 import { SelectMenu } from './SelectMenu';
+import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { sortCards, printingKey, type SortContext } from '../lib/sorting';
-import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
+import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
+import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
+import {
+  compileExpression,
+  exactMatchesExpression,
+  isExpressionEmpty,
+  setMatchesExpression,
+  substringMatchesExpression,
+} from '../lib/rules';
 
 interface Props {
   cards: EnrichedCard[];
@@ -67,18 +80,6 @@ type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
-
-const TYPE_LABELS: Record<string, string> = {
-  creature: 'Creature',
-  instant: 'Instant',
-  sorcery: 'Sorcery',
-  artifact: 'Artifact',
-  enchantment: 'Enchantment',
-  land: 'Land',
-  planeswalker: 'Planeswalker',
-  battle: 'Battle',
-  other: 'Other',
-};
 
 const COLOR_FILTERS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -157,14 +158,66 @@ export function CardListTable({
       /* ignore */
     }
   };
-  const [binderFilter, setBinderFilter] = useState<string>('all');
+  const [binderExpr, setBinderExpr] = useState<ChipExpression>({
+    chips: [],
+    joiners: [],
+  });
   // Default ON: a collection reads as "what printings do I own and how
   // many?" — the rolled-up qty pill matches that mental model. Power
   // users who want to see every physical copy individually can toggle.
   const [groupPrintings, setGroupPrintings] = useState(true);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [rarityFilter, setRarityFilter] = useState<string>('all');
+  const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>({
+    chips: [],
+    joiners: [],
+  });
+  const [typesExpr, setTypesExpr] = useState<ChipExpression>({
+    chips: [],
+    joiners: [],
+  });
+  const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>({
+    chips: [],
+    joiners: [],
+  });
+  const [subtypeSuggestions, setSubtypeSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch the full Scryfall type catalog for subtype autocomplete.
+    // Supertypes and primary Types are closed enums (rendered as
+    // dropdowns), so only the subtype row needs suggestions. We strip
+    // known supertypes/types from the catalog and merge in tokens from
+    // the user's actual collection so unusual entries (custom or fan
+    // sets) still surface.
+    const supertypeSet = new Set<string>(SUPERTYPES);
+    const typeSet = new Set<string>(TYPES);
+    const collectionSubtypeTokens = new Set<string>();
+    for (const c of cards) {
+      const { subtypes } = parseTypeLine(c.typeLine);
+      for (const s of subtypes) collectionSubtypeTokens.add(s);
+    }
+    fetchTypeSuggestions().then((catalog) => {
+      // Dedupe by lowercase key but prefer the version that has any
+      // capitals — the Scryfall catalog supplies canonical casing
+      // ("Angel") while parseTypeLine lowercases collection tokens
+      // ("angel"). Without this the autocomplete shows both spellings.
+      const byLower = new Map<string, string>();
+      for (const t of [...catalog, ...collectionSubtypeTokens]) {
+        const key = t.toLowerCase();
+        if (supertypeSet.has(key) || typeSet.has(key)) continue;
+        const existing = byLower.get(key);
+        if (!existing || (existing === key && t !== key)) {
+          byLower.set(key, t);
+        }
+      }
+      const merged = [...byLower.values()].sort((a, b) => a.localeCompare(b));
+      setSubtypeSuggestions(merged);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [rarityExpr, setRarityExpr] = useState<ChipExpression>({
+    chips: [],
+    joiners: [],
+  });
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [page, setPage] = useState(1);
@@ -284,15 +337,13 @@ export function CardListTable({
     return [...grouped.values()];
   }, [cards, cardToBinder, groupPrintings]);
 
-  // Type counts (over the current rows, ignoring filters) for the chip row.
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const r of rows) {
-      const t = getCardType(r.card);
-      counts[t] = (counts[t] ?? 0) + 1;
-    }
-    return counts;
-  }, [rows]);
+  // Compile the type-line expressions once per change; the per-row loop
+  // below just checks the compiled groups against the parsed typeline.
+  const compiledSupertype = useMemo(() => compileExpression(supertypeExpr), [supertypeExpr]);
+  const compiledTypes = useMemo(() => compileExpression(typesExpr), [typesExpr]);
+  const compiledSubtype = useMemo(() => compileExpression(subtypeExpr), [subtypeExpr]);
+  const compiledRarity = useMemo(() => compileExpression(rarityExpr), [rarityExpr]);
+  const compiledBinder = useMemo(() => compileExpression(binderExpr), [binderExpr]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -304,12 +355,9 @@ export function CardListTable({
         !(r.card.typeLine || '').toLowerCase().includes(q)
       )
         return false;
-      if (binderFilter === 'all') {
-        // pass
-      } else if (binderFilter === '__uncategorized') {
-        if (r.binderName !== null) return false;
-      } else if (r.binderName !== binderFilter) {
-        return false;
+      if (compiledBinder) {
+        const bname = r.binderName ?? '__uncategorized';
+        if (!exactMatchesExpression(bname, compiledBinder)) return false;
       }
       if (colorFilter.size > 0) {
         const k = getColorKey(r.card);
@@ -322,13 +370,39 @@ export function CardListTable({
           (k !== 'C' && colorFilter.has(k));
         if (!matches) return false;
       }
-      if (typeFilter !== 'all' && getCardType(r.card) !== typeFilter) return false;
-      if (rarityFilter !== 'all' && (r.card.rarity || '').toLowerCase() !== rarityFilter)
-        return false;
+      if (compiledSupertype || compiledTypes || compiledSubtype) {
+        const parsed = parseTypeLine(r.card.typeLine);
+        if (compiledSupertype) {
+          if (!setMatchesExpression(parsed.supertypes, compiledSupertype)) return false;
+        }
+        if (compiledTypes) {
+          if (!setMatchesExpression(parsed.types, compiledTypes)) return false;
+        }
+        if (compiledSubtype) {
+          // Substring against the joined subtype text — lets multi-word
+          // chips like "Equipment" still match within a longer subtype
+          // list like "Artifact — Equipment Vehicle".
+          const joined = parsed.subtypes.join(' ');
+          if (!substringMatchesExpression(joined, compiledSubtype)) return false;
+        }
+      }
+      if (compiledRarity) {
+        if (!exactMatchesExpression(r.card.rarity, compiledRarity)) return false;
+      }
       if (setFilter.size > 0 && !setFilter.has((r.card.setCode || '').toUpperCase())) return false;
       return true;
     });
-  }, [rows, debouncedSearch, binderFilter, colorFilter, typeFilter, rarityFilter, setFilter]);
+  }, [
+    rows,
+    debouncedSearch,
+    compiledBinder,
+    colorFilter,
+    compiledSupertype,
+    compiledTypes,
+    compiledSubtype,
+    compiledRarity,
+    setFilter,
+  ]);
 
   const sorted = useMemo(() => {
     const field: SortField = SORT_KEY_TO_FIELD[sortKey];
@@ -355,10 +429,12 @@ export function CardListTable({
   // Reset to page 1 whenever filters / sort / view / page size change the result set boundaries.
   const [prevFilters, setPrevFilters] = useState({
     debouncedSearch,
-    binderFilter,
+    binderExpr,
     colorFilter,
-    typeFilter,
-    rarityFilter,
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    rarityExpr,
     setFilter,
     sortKey,
     sortDir,
@@ -367,10 +443,12 @@ export function CardListTable({
   });
   if (
     prevFilters.debouncedSearch !== debouncedSearch ||
-    prevFilters.binderFilter !== binderFilter ||
+    prevFilters.binderExpr !== binderExpr ||
     prevFilters.colorFilter !== colorFilter ||
-    prevFilters.typeFilter !== typeFilter ||
-    prevFilters.rarityFilter !== rarityFilter ||
+    prevFilters.supertypeExpr !== supertypeExpr ||
+    prevFilters.typesExpr !== typesExpr ||
+    prevFilters.subtypeExpr !== subtypeExpr ||
+    prevFilters.rarityExpr !== rarityExpr ||
     prevFilters.setFilter !== setFilter ||
     prevFilters.sortKey !== sortKey ||
     prevFilters.sortDir !== sortDir ||
@@ -379,10 +457,12 @@ export function CardListTable({
   ) {
     setPrevFilters({
       debouncedSearch,
-      binderFilter,
+      binderExpr,
       colorFilter,
-      typeFilter,
-      rarityFilter,
+      supertypeExpr,
+      typesExpr,
+      subtypeExpr,
+      rarityExpr,
       setFilter,
       sortKey,
       sortDir,
@@ -474,16 +554,17 @@ export function CardListTable({
     setEditingCard(null);
   };
 
-  const toggleColor = (c: string) => {
-    setColorFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(c)) next.delete(c);
-      else next.add(c);
-      return next;
-    });
-  };
-
-  const orderedTypes = TYPE_ORDER.filter((t) => (typeCounts[t] ?? 0) > 0);
+  // Count active filter *groups*, not individual chips — five colors
+  // selected is still one filter group, so the badge stays glanceable.
+  const activeFilterCount =
+    (!isExpressionEmpty(supertypeExpr) ? 1 : 0) +
+    (!isExpressionEmpty(typesExpr) ? 1 : 0) +
+    (!isExpressionEmpty(subtypeExpr) ? 1 : 0) +
+    (colorFilter.size > 0 ? 1 : 0) +
+    (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
+    (!isExpressionEmpty(binderExpr) ? 1 : 0) +
+    (setFilter.size > 0 ? 1 : 0) +
+    (groupPrintings ? 0 : 1);
 
   const collectionCardCount = cards.length;
   const collectionValue = useMemo(
@@ -493,123 +574,70 @@ export function CardListTable({
 
   return (
     <div className="card-list">
-      <div className="collection-toolbar">
-        {/* Search + totals + stats + view toggle — primary row. Search is the
-            highest-frequency control across the table, so it leads. */}
-        <div className="collection-toolbar-row">
-          <SearchPill
-            value={search}
-            onChange={setSearch}
-            placeholder="Search"
-            ariaLabel="Search cards"
-            inputId="collection-search"
-            trailing={
-              <FilterPopover
-                ariaLabel="Collection options"
-                toggles={[
-                  {
-                    key: 'group-printings',
-                    label: 'Group printings',
-                    value: groupPrintings,
-                    onChange: setGroupPrintings,
-                    defaultValue: true,
-                  },
-                ]}
-              />
-            }
-          />
-          <div className="collection-toolbar-totals" aria-label="Collection totals">
-            <span className="collection-toolbar-totals-num">
-              {collectionCardCount.toLocaleString()}
-            </span>
-            <span className="collection-toolbar-totals-unit">cards</span>
-            <span className="collection-toolbar-totals-sep">·</span>
-            <span className="collection-toolbar-totals-num">${collectionValue.toFixed(0)}</span>
-          </div>
-          {onOpenStats && (
-            <button
-              type="button"
-              className="collection-toolbar-stats-btn"
-              onClick={onOpenStats}
-              aria-label="Open collection breakdown"
-              title="Breakdown"
-            >
-              <BarChart3 width={14} height={14} strokeWidth={2} aria-hidden />
-              <span className="collection-toolbar-stats-label">Stats</span>
-            </button>
-          )}
-        </div>
-
-        {/* Type chips — most diagnostic filter, sit just below search. */}
-        <div className="collection-type-chips" role="group" aria-label="Filter by type">
-          {orderedTypes.map((t) => {
-            const active = typeFilter === t;
-            return (
-              <button
-                key={t}
-                type="button"
-                className={`collection-type-chip${active ? ' is-active' : ''}`}
-                onClick={() => setTypeFilter(active ? 'all' : t)}
-                aria-pressed={active}
-              >
-                <i className={`ms ms-${typeIcon(t)} chip-type-icon`} aria-hidden />
-                <span>
-                  {TYPE_LABELS[t] ?? t} {typeCounts[t]}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Narrow-further row — color chips + dropdowns share one line. */}
-        <div className="collection-filter-row">
-          <div className="color-filter-row" role="group" aria-label="Filter by color">
-            {COLOR_FILTERS.map((c) => {
-              const active = colorFilter.has(c.key);
-              return (
-                <button
-                  key={c.key}
-                  type="button"
-                  className={`color-filter-btn${active ? ' is-active' : ''}`}
-                  onClick={() => toggleColor(c.key)}
-                  aria-label={c.label}
-                  aria-pressed={active}
-                  title={c.label}
-                >
-                  <i
-                    className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
-                    aria-hidden
-                  />
-                </button>
-              );
-            })}
-          </div>
-          <SelectMenu
-            ariaLabel="Filter by rarity"
-            value={rarityFilter}
-            onChange={setRarityFilter}
-            options={[
-              { value: 'all', label: 'All Rarities' },
-              ...RARITIES.map((r) => ({
-                value: r,
-                label: r.charAt(0).toUpperCase() + r.slice(1),
-              })),
-            ]}
-          />
-          {!hideBinderFilter && (
-            <SelectMenu
-              ariaLabel="Filter by binder"
-              value={binderFilter}
-              onChange={setBinderFilter}
-              options={[
-                { value: 'all', label: 'All binders' },
-                ...binders.map((b) => ({ value: b.def.name, label: b.def.name })),
-                { value: '__uncategorized', label: 'Uncategorized' },
-              ]}
+      {/* Sticky search row — pinned to the top of the list scroll.
+          Search + filter icon only; totals and Stats sit in the
+          secondary row below so this bar stays compact across every
+          breakpoint. */}
+      <div className="collection-toolbar-row">
+        <SearchPill
+          value={search}
+          onChange={setSearch}
+          placeholder="Search"
+          ariaLabel="Search cards"
+          inputId="collection-search"
+          trailing={
+            <CollectionFiltersDialog
+              supertypeExpr={supertypeExpr}
+              setSupertypeExpr={setSupertypeExpr}
+              typesExpr={typesExpr}
+              setTypesExpr={setTypesExpr}
+              subtypeExpr={subtypeExpr}
+              setSubtypeExpr={setSubtypeExpr}
+              subtypeSuggestions={subtypeSuggestions}
+              colorFilter={colorFilter}
+              setColorFilter={setColorFilter}
+              colorOptions={COLOR_FILTERS}
+              rarityExpr={rarityExpr}
+              setRarityExpr={setRarityExpr}
+              rarities={RARITIES}
+              binderExpr={binderExpr}
+              setBinderExpr={setBinderExpr}
+              binders={binders}
+              hideBinderFilter={hideBinderFilter}
+              setFilter={setFilter}
+              setSetFilter={setSetFilter}
+              setMap={setMap}
+              groupPrintings={groupPrintings}
+              setGroupPrintings={setGroupPrintings}
+              activeCount={activeFilterCount}
             />
-          )}
-          <SetFilterPicker setMap={setMap} value={setFilter} onChange={setSetFilter} />
+          }
+        />
+      </div>
+
+      {/* Secondary toolbar row — totals + Stats. Scrolls away with the
+          list so the sticky search above stays minimal. */}
+      <div className="collection-toolbar-meta">
+        <div className="collection-toolbar-totals" aria-label="Collection totals">
+          <span className="collection-toolbar-totals-num">
+            {collectionCardCount.toLocaleString()}
+          </span>
+          <span className="collection-toolbar-totals-unit">cards</span>
+          <span className="collection-toolbar-totals-sep">·</span>
+          <span className="collection-toolbar-totals-num">${collectionValue.toFixed(0)}</span>
         </div>
+        {onOpenStats && (
+          <button
+            type="button"
+            className="collection-toolbar-stats-btn"
+            onClick={onOpenStats}
+            aria-label="Open collection breakdown"
+            title="Breakdown"
+          >
+            <BarChart3 width={14} height={14} strokeWidth={2} aria-hidden />
+            <span className="collection-toolbar-stats-label">Stats</span>
+          </button>
+        )}
       </div>
 
       <div className="card-list-summary-line">
@@ -909,28 +937,4 @@ function pageRange(page: number, total: number): Array<number | '…'> {
   if (end < total - 1) out.push('…');
   out.push(total);
   return out;
-}
-
-/** mana-font icon names for our internal type buckets. */
-function typeIcon(t: string): string {
-  switch (t) {
-    case 'creature':
-      return 'creature';
-    case 'instant':
-      return 'instant';
-    case 'sorcery':
-      return 'sorcery';
-    case 'artifact':
-      return 'artifact';
-    case 'enchantment':
-      return 'enchantment';
-    case 'land':
-      return 'land';
-    case 'planeswalker':
-      return 'planeswalker';
-    case 'battle':
-      return 'battle';
-    default:
-      return 'multiple';
-  }
 }

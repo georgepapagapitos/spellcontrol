@@ -196,40 +196,55 @@ export interface NegatableChip {
 }
 
 /**
+ * Flat chip-expression with explicit joiners between chips. Powers the
+ * Manabox-style "Creature AND Land OR Sorcery" filter rows.
+ *
+ * `joiners[i]` connects `chips[i]` to `chips[i+1]`; length is exactly
+ * `chips.length - 1` (no leading joiner on the first chip). The
+ * evaluator (`compileExpression` in lib/rules) walks the chips with
+ * **AND binding tighter than OR** — i.e. `a OR b AND c` reads as
+ * `a OR (b AND c)`, matching standard boolean precedence.
+ *
+ * Coexists with the legacy `NegatableChip[]` shape; old fields keep
+ * the old evaluator, new fields opt into this richer model.
+ */
+export interface ChipExpression {
+  chips: NegatableChip[];
+  joiners: ('AND' | 'OR')[];
+}
+
+/**
  * Single filter set per binder. All fields AND together; empty fields impose no constraint.
  */
 export interface BinderFilter {
-  /**
-   * Legality chips with IS / IS NOT semantics. IS = card legal in that format;
-   * IS NOT = card not legal in that format. Multiple IS chips: card must be legal in ALL of them.
-   */
-  legalities?: NegatableChip[];
-  colors?: NegatableChip[];
-  /** Rarity chips with IS / IS NOT semantics. Exact match (no substring). */
-  rarities?: NegatableChip[];
+  /** Legality chips. Within an AND-group: every IS must be legal, no IS NOT may be. */
+  legalities?: ChipExpression;
+  colors?: ChipExpression;
+  /** Rarity chips. Exact match (no substring). */
+  rarities?: ChipExpression;
   cmcMin?: number;
   cmcMax?: number;
   /** Exact match on mana cost string e.g. "{2}{G}{W}" (case-insensitive, whitespace-trimmed). */
   manaCost?: string;
-  /** Type-line chips with IS / IS NOT semantics. Substring match. */
-  typeChips?: NegatableChip[];
-  /** Oracle-text chips with IS / IS NOT semantics. Substring match. */
-  oracleChips?: NegatableChip[];
+  /** Type-line chips. Substring match. */
+  typeChips?: ChipExpression;
+  /** Oracle-text chips. Substring match. */
+  oracleChips?: ChipExpression;
   setCodes?: string[];
   priceMin?: number;
   priceMax?: number;
-  /** Finish chips with IS / IS NOT semantics. Tests against the card's available finishes set. */
-  finishes?: NegatableChip[];
-  /** Layout chips with IS / IS NOT semantics. Exact match. */
-  layouts?: NegatableChip[];
+  /** Finish chips. Tests against the card's available finishes set. */
+  finishes?: ChipExpression;
+  /** Layout chips. Exact match. */
+  layouts?: ChipExpression;
   /** Substring match on card name (case-insensitive). */
   nameContains?: string;
   /** EDHREC popularity threshold. Card matches if its edhrec_rank ≤ this number. */
   edhrecRankMax?: number;
-  /** Treatment chips with IS / IS NOT semantics. 'fullart' is special-cased. */
-  treatments?: NegatableChip[];
-  /** Border chips with IS / IS NOT semantics. Exact match on borderColor. */
-  borderColors?: NegatableChip[];
+  /** Treatment chips. 'fullart' is special-cased. */
+  treatments?: ChipExpression;
+  /** Border chips. Exact match on borderColor. */
+  borderColors?: ChipExpression;
 }
 
 /**

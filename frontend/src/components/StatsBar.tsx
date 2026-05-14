@@ -116,14 +116,16 @@ export function StatsBar({ open, onClose }: Props) {
   const uniqueTotal = uniqueCards.length;
   const denom = Math.max(1, uniqueTotal);
 
+  // True if any rule references the post-v1 filter fields (legalities /
+  // oracle / layouts / finishes / manaCost).
   const usesNewFilters = binderDefs.some((b) =>
     (b.filterGroups || []).some((g) => {
       const f = g.filter || {};
       return (
-        (f.legalities && f.legalities.length > 0) ||
-        (f.oracleChips && f.oracleChips.length > 0) ||
-        (f.layouts && f.layouts.length > 0) ||
-        (f.finishes && f.finishes.length > 0) ||
+        (f.legalities?.chips.length ?? 0) > 0 ||
+        (f.oracleChips?.chips.length ?? 0) > 0 ||
+        (f.layouts?.chips.length ?? 0) > 0 ||
+        (f.finishes?.chips.length ?? 0) > 0 ||
         f.manaCost
       );
     })

@@ -43,8 +43,14 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
       filterGroups: [
         {
           filter: {
-            typeChips: [{ value: 'legendary creature', negate: false }],
-            legalities: [{ value: 'commander', negate: false }],
+            typeChips: {
+              chips: [{ value: 'legendary creature', negate: false }],
+              joiners: [],
+            },
+            legalities: {
+              chips: [{ value: 'commander', negate: false }],
+              joiners: [],
+            },
           },
         },
       ],
@@ -66,11 +72,16 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
       filterGroups: [
         {
           filter: {
-            oracleChips: [
-              { value: 'destroy target', negate: false },
-              { value: 'exile target', negate: false },
-              { value: 'counter target spell', negate: false },
-            ],
+            // "destroy target OR exile target OR counter target spell" —
+            // any one substring matches.
+            oracleChips: {
+              chips: [
+                { value: 'destroy target', negate: false },
+                { value: 'exile target', negate: false },
+                { value: 'counter target spell', negate: false },
+              ],
+              joiners: ['OR', 'OR'],
+            },
           },
         },
       ],
@@ -93,8 +104,14 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
       filterGroups: [
         {
           filter: {
-            typeChips: [{ value: 'artifact', negate: false }],
-            oracleChips: [{ value: 'add', negate: false }],
+            typeChips: {
+              chips: [{ value: 'artifact', negate: false }],
+              joiners: [],
+            },
+            oracleChips: {
+              chips: [{ value: 'add', negate: false }],
+              joiners: [],
+            },
           },
         },
       ],
