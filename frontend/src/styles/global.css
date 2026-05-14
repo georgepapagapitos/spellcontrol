@@ -4793,6 +4793,8 @@ hr {
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   /* Always reserved so single-faced and transform cards take the same
      vertical space — flipping between them must not shift the panel. */
   min-height: 2.85rem;
