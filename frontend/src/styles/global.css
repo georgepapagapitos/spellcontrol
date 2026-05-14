@@ -8179,6 +8179,17 @@ hr {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Pin to the *small viewport* so the layout doesn't shift when the
+     mobile URL bar expands/collapses. `100svh` is the floor; `100dvh` would
+     stretch as the URL bar collapses and is jumpy on iOS Safari. Plain
+     `100vh` (used in older builds) was the bug — it includes the URL bar
+     area and overflows when it's visible, which is why the camera looked
+     "zoomed in" and the page scrolled. */
+  height: 100vh;
+  height: 100svh;
+  /* Block touchmove from leaking through to the body. */
+  overscroll-behavior: contain;
+  touch-action: none;
   /* Honor iOS notch / Android nav bar. */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -8207,8 +8218,10 @@ hr {
 .scanner-viewfinder {
   position: relative;
   /* 5:7 aspect ratio matches an MTG card. min(86vw,…) keeps the box visible
-     on small phones; max-width caps it on tablets/desktop. */
-  width: min(86vw, calc((100vh - 240px) * 5 / 7), 420px);
+     on small phones; max-width caps it on tablets/desktop. Uses 100svh
+     (small viewport) so the box doesn't change size as the URL bar shows
+     and hides on mobile. */
+  width: min(86vw, calc((100svh - 240px) * 5 / 7), 420px);
   aspect-ratio: 5 / 7;
   border-radius: 14px;
   box-shadow:
