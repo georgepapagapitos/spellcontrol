@@ -74,8 +74,10 @@ export function PlayPage() {
 
   return (
     <div className="play-page">
-      <header className="play-page-header">
-        <h1>Play</h1>
+      <header className="binder-hero play-page-hero">
+        <div className="play-page-hero-text">
+          <h1 className="binder-hero-name">Play</h1>
+        </div>
         <nav className="play-tabs" role="tablist">
           <button
             role="tab"

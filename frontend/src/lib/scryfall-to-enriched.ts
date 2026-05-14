@@ -30,6 +30,7 @@ export function scryfallToEnrichedCard(scryfall: ScryfallCard): EnrichedCard {
     sourceFormat: 'manual',
     finish: 'nonfoil',
     foil: false,
+    oracleId: scryfall.oracle_id,
     cmc: scryfall.cmc,
     typeLine: scryfall.type_line ?? firstFace?.type_line,
     colorIdentity: scryfall.color_identity,
