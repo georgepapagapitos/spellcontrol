@@ -1107,19 +1107,19 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .player-panel-life-wrap > .player-panel-step-btn:first-child {
-  left: 1rem;
+  left: 1.75rem;
 }
 
 .player-panel-life-wrap > .player-panel-step-btn:last-child {
-  right: 1rem;
+  right: 1.75rem;
 }
 
 @media (min-width: 600px) {
   .player-panel-life-wrap > .player-panel-step-btn:first-child {
-    left: 1.5rem;
+    left: 2.5rem;
   }
   .player-panel-life-wrap > .player-panel-step-btn:last-child {
-    right: 1.5rem;
+    right: 2.5rem;
   }
 }
 
@@ -1132,7 +1132,7 @@ body:has(.game-board) .modal-backdrop {
 .player-panel-life {
   /* Life numeral dominates the panel — sized to fill, with step buttons
      pushed to the outer edges so they read as accents, not equals. */
-  font-size: clamp(6rem, 28vmin, 18rem);
+  font-size: clamp(7.5rem, 34vmin, 20rem);
   font-weight: 900;
   line-height: 0.9;
   color: #fff;
@@ -1150,12 +1150,12 @@ body:has(.game-board) .modal-backdrop {
    on a small phone. */
 .game-board-4 .player-panel-life,
 .game-board-3 .player-panel-life {
-  font-size: clamp(4.5rem, 20vmin, 12rem);
+  font-size: clamp(5.5rem, 24vmin, 13rem);
 }
 
 .game-board-5 .player-panel-life,
 .game-board-6 .player-panel-life {
-  font-size: clamp(3.5rem, 14vmin, 8rem);
+  font-size: clamp(4.25rem, 17vmin, 9rem);
 }
 
 @media (min-width: 1600px) {
@@ -1180,20 +1180,22 @@ body:has(.game-board) .modal-backdrop {
   color: var(--pp-accent);
 }
 
-/* Step buttons read as subtle accents flanking the headline life numeral,
-   not as competing pill chips. They use the panel's own deeper tone so they
-   blend into the color rather than slap a dark chip on top of it. */
+/* Step buttons mirror the life numeral — same color, same glow, sized to
+   read as bold ± companions to the number rather than tucked-away accents. */
 .player-panel-step-btn {
   background: transparent;
   border: none;
-  color: rgba(0, 0, 0, 0.35);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #fff;
+  text-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.55),
+    0 0 28px rgba(0, 0, 0, 0.25);
   border-radius: 999px;
-  padding: 0.25rem 0.55rem;
-  font-size: var(--text-md);
-  font-weight: 700;
+  padding: 0.1rem 0.6rem;
+  font-size: clamp(2.5rem, 10vmin, 6rem);
+  line-height: 0.9;
+  font-weight: 900;
   font-family: var(--font-mono);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   flex: 0 0 auto;
   transition:
     color 120ms ease,
@@ -1201,25 +1203,43 @@ body:has(.game-board) .modal-backdrop {
     transform 80ms ease;
 }
 
-@media (min-width: 600px) {
-  .player-panel-step-btn {
-    padding: 0.3rem 0.7rem;
-    font-size: var(--text-lg);
+/* Scale step buttons down alongside the life numeral in tighter layouts. */
+.game-board-4 .player-panel-step-btn,
+.game-board-3 .player-panel-step-btn {
+  font-size: clamp(2rem, 7.5vmin, 4.5rem);
+}
+
+.game-board-5 .player-panel-step-btn,
+.game-board-6 .player-panel-step-btn {
+  font-size: clamp(1.6rem, 5.5vmin, 3.2rem);
+}
+
+@media (min-width: 1600px) {
+  .game-board-2 .player-panel-step-btn {
+    font-size: clamp(3rem, 11vmin, 7.5rem);
+  }
+  .game-board-3 .player-panel-step-btn,
+  .game-board-4 .player-panel-step-btn {
+    font-size: clamp(2.25rem, 8.5vmin, 5.5rem);
+  }
+  .game-board-5 .player-panel-step-btn,
+  .game-board-6 .player-panel-step-btn {
+    font-size: clamp(1.75rem, 6vmin, 4rem);
   }
 }
 
 .player-panel-step-btn:disabled {
-  opacity: 0.25;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .player-panel-step-btn:hover:not(:disabled) {
-  color: rgba(0, 0, 0, 0.6);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--pp-accent, #fff);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .player-panel-step-btn:active:not(:disabled) {
-  transform: scale(0.92);
+  transform: translateY(-50%) scale(0.92);
 }
 
 @media (max-height: 480px) {
@@ -1966,49 +1986,252 @@ body:has(.game-board) .modal-backdrop {
   color: var(--on-accent);
 }
 
-.game-menu-log {
-  margin-top: 0.4rem;
+/* ── Game history (timeline + life chart) ───────────────────────────────── */
+
+.game-history-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.game-menu-log summary {
-  cursor: pointer;
+.game-history-title {
+  margin: 0;
   font-size: var(--text-sm);
-  color: rgba(255, 255, 255, 0.65);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text2);
 }
 
-.game-menu-log-list {
+.game-history-count {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-history-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.5rem;
+  padding: 0.2rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.game-history-tab {
+  flex: 1;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  font-size: var(--text-sm);
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.game-history-tab:hover {
+  color: var(--text);
+}
+
+.game-history-tab.is-active {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+
+.game-history-empty {
+  margin: 0.5rem 0;
+  font-size: var(--text-sm);
+  color: var(--text3);
+  text-align: center;
+}
+
+.game-history-timeline {
   list-style: none;
-  margin: 0.5rem 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  max-height: 220px;
+  gap: 0.35rem;
+  max-height: 260px;
   overflow-y: auto;
   font-size: var(--text-sm);
 }
 
-.game-menu-log-item {
+.timeline-row {
   display: flex;
+  align-items: flex-start;
   gap: 0.5rem;
-  color: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0.1rem;
+  color: var(--text);
 }
 
-.game-menu-log-item time {
-  color: rgba(255, 255, 255, 0.45);
+.timeline-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.4rem;
+  border-radius: 999px;
+  background: var(--border2, var(--border));
+}
+
+.timeline-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.timeline-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.25;
+}
+
+.timeline-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.timeline-action {
+  color: var(--text2);
+}
+
+.timeline-source {
+  color: var(--text3);
+  font-size: var(--text-xs);
+}
+
+.timeline-delta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.4rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--text-xs);
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+
+.timeline-delta.is-up {
+  background: var(--ok-bg, rgba(31, 155, 92, 0.12));
+  color: var(--ok-text, #1d7a4a);
+  border-color: var(--ok-border, rgba(31, 155, 92, 0.4));
+}
+
+.timeline-delta.is-down {
+  background: var(--err-bg, rgba(200, 51, 43, 0.1));
+  color: var(--err-text, #b03228);
+  border-color: var(--err-border, rgba(200, 51, 43, 0.4));
+}
+
+.timeline-time {
+  color: var(--text3);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  min-width: 4.5rem;
 }
 
-.game-menu-log-item.kind-end,
-.game-menu-log-item.kind-start {
-  color: #cbd5e1;
-  font-weight: 500;
+.timeline-count {
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
-.game-menu-log-item.kind-eliminate {
-  color: #f0a8a8;
+.timeline-row.kind-start,
+.timeline-row.kind-end,
+.timeline-row.kind-reset {
+  color: var(--text);
+}
+
+.timeline-row.kind-start .timeline-action,
+.timeline-row.kind-end .timeline-action,
+.timeline-row.kind-reset .timeline-action {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.timeline-row.kind-eliminate .timeline-action {
+  color: var(--err-text, #b03228);
+}
+
+/* Life chart */
+
+.game-history-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.life-chart-svg {
+  width: 100%;
+  height: 140px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+}
+
+.life-chart-baseline {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.life-chart-zero {
+  stroke: var(--err-border, rgba(200, 51, 43, 0.5));
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.life-chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.25rem 0.5rem;
+  font-size: var(--text-xs);
+}
+
+.life-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text2);
+  min-width: 0;
+}
+
+.life-chart-swatch {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+}
+
+.life-chart-legend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.life-chart-legend-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
 }
 
 /* ── Color palettes per player ─────────────────────────────────────────── */
@@ -2373,16 +2596,28 @@ body:has(.game-board) .modal-backdrop {
   overflow: hidden;
 }
 
-.floating-delta {
-  position: absolute;
-  transform: translate(-50%, -50%);
+/* Running-burst count — rendered inside each step button, beside the
+   existing + or − glyph so the glyph carries the sign and the small
+   number carries the magnitude. Font scales off the button's font-size
+   so it stays proportional across all layouts. */
+.player-panel-step-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.04em;
+}
+
+.player-panel-step-glyph {
+  display: inline-block;
+}
+
+.player-panel-step-count {
   font-family: var(--font-mono);
-  font-size: clamp(1.4rem, 5vmin, 2.4rem);
-  font-weight: 700;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
-  animation: pp-float-fade 700ms ease-out forwards;
-  will-change: transform, opacity;
+  /* Sits at ~85% of the button glyph — same family/weight, just slightly
+     smaller so the +/− still reads as the primary character. */
+  font-size: calc(0.85em);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .floating-delta.is-positive {
@@ -2393,19 +2628,8 @@ body:has(.game-board) .modal-backdrop {
   color: #ff7a7a;
 }
 
-@keyframes pp-float-fade {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -30%) scale(0.85);
-  }
-  18% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -150%) scale(1);
-  }
+.floating-delta.is-zero {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* ── Life keypad modal ── */
