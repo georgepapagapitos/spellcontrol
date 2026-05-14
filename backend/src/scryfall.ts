@@ -4,6 +4,7 @@ import type { ImportRow } from './parsers/types';
 
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
 const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
+const SCRYFALL_NAMED_URL = 'https://api.scryfall.com/cards/named';
 const BATCH_SIZE = 75;
 /** Scryfall asks for 50–100ms between requests, but tightens this under sustained load. */
 const REQUEST_DELAY_MS = 250;
@@ -380,4 +381,49 @@ function identifierMatchesCard(identifier: Identifier, card: ScryfallCard): bool
   }
 
   return true;
+}
+
+/**
+ * Identifies a card from imperfect input (OCR output, partial name, typo).
+ * Wraps Scryfall's `/cards/named?fuzzy=` endpoint, which is purpose-built for
+ * "human-imperfect" name input. Returns the matched card or null on no match.
+ */
+export async function identifyCardByName(query: string): Promise<ScryfallCard | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  const url = `${SCRYFALL_NAMED_URL}?${new URLSearchParams({ fuzzy: trimmed })}`;
+  let backoff = MIN_BACKOFF_MS;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+      });
+      if (response.ok) {
+        return (await response.json()) as ScryfallCard;
+      }
+      // 404 = no match. Scryfall also returns 404 for ambiguous matches.
+      if (response.status === 404) return null;
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const wait = retryAfter
+          ? Math.min(MAX_BACKOFF_MS, parseRetryAfter(retryAfter))
+          : Math.min(MAX_BACKOFF_MS, backoff);
+        if (attempt === MAX_RETRIES) return null;
+        await sleep(wait);
+        backoff *= 2;
+        continue;
+      }
+      return null;
+    } catch (err) {
+      if (attempt === MAX_RETRIES) {
+        console.error('[scryfall] identify network error:', err);
+        return null;
+      }
+      await sleep(backoff);
+      backoff *= 2;
+    }
+  }
+  return null;
 }
