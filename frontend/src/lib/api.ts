@@ -97,6 +97,20 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
   return handleResponse<DeckImportResponse>(response);
 }
 
+/**
+ * Identifies a card from imperfect text (typically OCR output from the in-browser
+ * card scanner). Returns null when Scryfall can't find a confident match.
+ */
+export async function identifyCard(query: string): Promise<ScryfallCard | null> {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const response = await fetchWithTimeout(`/api/cards/identify?q=${encodeURIComponent(trimmed)}`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<{ card: ScryfallCard | null }>(response);
+  return data.card;
+}
+
 /** Fetch all printings of a card by name. */
 export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
   const encoded = encodeURIComponent(cardName);
