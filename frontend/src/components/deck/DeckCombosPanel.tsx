@@ -42,11 +42,17 @@ type Tab = 'inDeck' | 'oneAway';
 const COLLAPSED_STORAGE_KEY = 'spellcontrol-combos-panel-collapsed';
 
 function readCollapsedPref(): boolean {
-  if (typeof window === 'undefined') return false;
+  // Default to collapsed when no preference is stored. The panel is opt-in
+  // discovery — most deck-page loads don't need to render the full combo
+  // list, and the always-visible header summary already shows the at-a-
+  // glance counts. Users who toggle it open will see their preference
+  // persist via the writeCollapsedPref call.
+  if (typeof window === 'undefined') return true;
   try {
-    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === '1';
+    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    return raw === null ? true : raw === '1';
   } catch {
-    return false;
+    return true;
   }
 }
 

@@ -42,11 +42,16 @@ const HAND_SIZE = 7;
 const COLLAPSED_STORAGE_KEY = 'spellcontrol-test-hand-panel-collapsed';
 
 function readCollapsedPref(): boolean {
-  if (typeof window === 'undefined') return false;
+  // Default to collapsed when no preference is stored. Test-hand is opt-in
+  // — most users don't need a fresh hand on every deck-page load. The
+  // header summary already shows total cards / land count for at-a-glance
+  // sanity. Users who toggle it open get their preference persisted.
+  if (typeof window === 'undefined') return true;
   try {
-    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === '1';
+    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    return raw === null ? true : raw === '1';
   } catch {
-    return false;
+    return true;
   }
 }
 
