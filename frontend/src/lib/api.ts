@@ -104,10 +104,9 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
 export async function identifyCard(query: string): Promise<ScryfallCard | null> {
   const trimmed = query.trim();
   if (!trimmed) return null;
-  const response = await fetchWithTimeout(
-    `/api/cards/identify?q=${encodeURIComponent(trimmed)}`,
-    { method: 'GET' }
-  );
+  const response = await fetchWithTimeout(`/api/cards/identify?q=${encodeURIComponent(trimmed)}`, {
+    method: 'GET',
+  });
   const data = await handleResponse<{ card: ScryfallCard | null }>(response);
   return data.card;
 }

@@ -417,7 +417,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
               onClick={handleConfirm}
               disabled={queue.length === 0}
             >
-              {queue.length === 0 ? 'Add cards' : `Add ${queue.length} card${queue.length === 1 ? '' : 's'}`}
+              {queue.length === 0
+                ? 'Add cards'
+                : `Add ${queue.length} card${queue.length === 1 ? '' : 's'}`}
             </button>
           </div>
         </div>

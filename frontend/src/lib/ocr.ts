@@ -32,8 +32,7 @@ async function getWorker(): Promise<Worker> {
       tessedit_pageseg_mode: '7' as unknown as never,
       // Card title fonts only use these characters. Restricting the charset
       // dramatically reduces OCR errors (no more "0" vs "O" confusion).
-      tessedit_char_whitelist:
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '-,/",
+      tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '-,/",
     });
     return worker;
   })();

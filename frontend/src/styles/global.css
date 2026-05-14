@@ -8196,8 +8196,7 @@ hr {
   display: grid;
   place-items: center;
   /* Soft vignette so the viewfinder pops without obscuring the live feed. */
-  background:
-    radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.45) 80%);
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.45) 80%);
   pointer-events: none;
 }
 
@@ -8268,23 +8267,29 @@ hr {
   left: 6%;
   right: 6%;
   height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(120, 200, 255, 0.85),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, rgba(120, 200, 255, 0.85), transparent);
   box-shadow: 0 0 12px rgba(120, 200, 255, 0.55);
   border-radius: 2px;
   animation: scanner-sweep 1.6s ease-in-out infinite;
 }
 @keyframes scanner-sweep {
-  0% { top: 6%; opacity: 0.3; }
-  50% { opacity: 1; }
-  100% { top: 94%; opacity: 0.3; }
+  0% {
+    top: 6%;
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 94%;
+    opacity: 0.3;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .scanner-scanline { animation: none; top: 50%; }
+  .scanner-scanline {
+    animation: none;
+    top: 50%;
+  }
 }
 
 /* Topbar: close, status pill, torch. */
@@ -8323,10 +8328,16 @@ hr {
   backdrop-filter: blur(6px);
   color: #fff;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
 }
-.scanner-icon-btn:hover { background: rgba(255, 255, 255, 0.15); }
-.scanner-icon-btn:active { transform: scale(0.95); }
+.scanner-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.scanner-icon-btn:active {
+  transform: scale(0.95);
+}
 .scanner-icon-btn.active {
   background: #fde68a;
   color: #1a1a1a;
@@ -8347,8 +8358,14 @@ hr {
   animation: scanner-hint-in 0.18s ease-out;
 }
 @keyframes scanner-hint-in {
-  from { opacity: 0; transform: translate(-50%, -6px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .scanner-error {
@@ -8364,7 +8381,10 @@ hr {
   background: rgba(0, 0, 0, 0.85);
   text-align: center;
 }
-.scanner-error p { max-width: 28ch; line-height: 1.4; }
+.scanner-error p {
+  max-width: 28ch;
+  line-height: 1.4;
+}
 
 /* Bottom controls: queue strip + capture button + done. */
 .scanner-controls {
@@ -8385,7 +8405,9 @@ hr {
   padding: 0.25rem 0;
   scrollbar-width: none;
 }
-.scanner-queue::-webkit-scrollbar { display: none; }
+.scanner-queue::-webkit-scrollbar {
+  display: none;
+}
 
 .scanner-queue-item {
   position: relative;
@@ -8399,10 +8421,21 @@ hr {
   animation: scanner-pop-in 0.22s ease-out;
 }
 @keyframes scanner-pop-in {
-  from { opacity: 0; transform: scale(0.7); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.scanner-queue-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner-queue-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .scanner-queue-fallback {
   width: 100%;
   height: 100%;
@@ -8430,7 +8463,9 @@ hr {
   cursor: pointer;
   padding: 0;
 }
-.scanner-queue-remove:hover { background: rgba(220, 38, 38, 0.85); }
+.scanner-queue-remove:hover {
+  background: rgba(220, 38, 38, 0.85);
+}
 
 .scanner-action-row {
   display: grid;
@@ -8448,7 +8483,9 @@ hr {
   cursor: pointer;
   user-select: none;
 }
-.scanner-auto-toggle input { accent-color: #38bdf8; }
+.scanner-auto-toggle input {
+  accent-color: #38bdf8;
+}
 
 .scanner-capture {
   width: 72px;
@@ -8457,24 +8494,44 @@ hr {
   background: #fff;
   color: #111;
   border: 4px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.55),
+    0 8px 24px rgba(0, 0, 0, 0.5);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.15s ease;
+  transition:
+    transform 0.1s ease,
+    background 0.15s ease;
   justify-self: center;
 }
-.scanner-capture:hover { background: #f1f5f9; }
-.scanner-capture:active { transform: scale(0.94); }
-.scanner-capture:disabled { opacity: 0.6; cursor: default; }
+.scanner-capture:hover {
+  background: #f1f5f9;
+}
+.scanner-capture:active {
+  transform: scale(0.94);
+}
+.scanner-capture:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .scanner-capture.busy {
   background: #fde68a;
   animation: scanner-pulse 0.9s ease-in-out infinite;
 }
 @keyframes scanner-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(253, 230, 138, 0.7); }
-  50%      { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 12px rgba(253, 230, 138, 0); }
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.55),
+      0 0 0 0 rgba(253, 230, 138, 0.7);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.55),
+      0 0 0 12px rgba(253, 230, 138, 0);
+  }
 }
 
 .scanner-secondary-actions {
@@ -8488,7 +8545,14 @@ hr {
 }
 
 @media (max-width: 480px) {
-  .scanner-action-row { grid-template-columns: auto 1fr auto; }
-  .scanner-auto-toggle span { display: none; }
-  .scanner-done { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .scanner-action-row {
+    grid-template-columns: auto 1fr auto;
+  }
+  .scanner-auto-toggle span {
+    display: none;
+  }
+  .scanner-done {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }
