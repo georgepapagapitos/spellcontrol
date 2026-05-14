@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",
     "build": "tsc",
+    "phash:ingest": "tsx scripts/build-phash-db.ts",
     "start": "node dist/server.js",
     "clean": "rm -rf dist",
     "test": "vitest run",
@@ -46,6 +47,7 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^15.15.0",
     "prettier": "^3.8.3",
+    "sharp": "^0.34.5",
     "supertest": "^7.2.2",
     "tsx": "^4.19.1",
     "typescript": "^6.0.3",

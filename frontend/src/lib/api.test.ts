@@ -7,6 +7,7 @@ import {
   fetchPrintings,
   getSetMap,
   identifyCard,
+  identifyCardByHash,
 } from './api';
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -157,6 +158,33 @@ describe('identifyCard', () => {
   it('returns null when Scryfall cannot match', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ card: null }));
     expect(await identifyCard('gibberish')).toBeNull();
+  });
+});
+
+describe('identifyCardByHash', () => {
+  it('posts the hash and returns the result body', async () => {
+    const card = { id: 'abc', name: 'Sol Ring' };
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(jsonResponse({ card, distance: 4, storeSize: 90000 }));
+    const out = await identifyCardByHash('00ffabcd12345678');
+    expect(out.card).toEqual(card);
+    expect(out.distance).toBe(4);
+    expect(out.storeSize).toBe(90000);
+
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/cards/identify-hash');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ hash: '00ffabcd12345678' }));
+  });
+
+  it('passes through null when the server has no match', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ card: null, distance: -1, storeSize: 0 })
+    );
+    const out = await identifyCardByHash('00ffabcd12345678');
+    expect(out.card).toBeNull();
+    expect(out.storeSize).toBe(0);
   });
 });
 
