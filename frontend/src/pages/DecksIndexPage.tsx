@@ -8,10 +8,15 @@ import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { Deck } from '../store/decks';
 import type { ScryfallCard } from '../deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
+import {
+  effectiveDeckColors,
+  deckColorFrequency,
+  validateDeck,
+  countFlaggedCards,
+} from '../lib/deck-validation';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
@@ -265,22 +270,72 @@ export function DecksIndexPage() {
             const art =
               deck.commander?.image_uris?.art_crop ??
               deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
-            const colorIdentity = (deck.commander?.color_identity ?? [])
-              .slice()
-              .sort(
-                (a, b) =>
-                  COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
-                  COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
+            const colors = effectiveDeckColors(deck);
+            // For non-commander decks sort by how often each color shows up in
+            // the cards; commander decks fall through to WUBRG order since
+            // every color in the identity is "equally used" from a pip
+            // perspective.
+            const freq = deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
+            const colorIdentity = Array.from(colors).sort((a, b) => {
+              if (freq) {
+                const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
+                if (diff !== 0) return diff;
+              }
+              return (
+                COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
+                COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
               );
+            });
             const themes = deck.generationContext?.selectedThemes ?? [];
+            const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
+            const issues = formatCfg
+              ? validateDeck(deck.cards, deck.sideboard, formatCfg, {
+                  commander: deck.commander,
+                  partnerCommander: deck.partnerCommander,
+                })
+              : [];
+            const flaggedCount = countFlaggedCards(issues);
             return (
-              <li key={deck.id} className="decks-index-card">
+              <li
+                key={deck.id}
+                className="decks-index-card"
+                style={{ borderLeftColor: deck.color, borderLeftWidth: 3 }}
+              >
                 <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
                   {view !== 'compact' && art && (
                     <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
                   )}
                   <div className="decks-index-card-body">
-                    <div className="decks-index-card-name">{deck.name}</div>
+                    <div className="decks-index-card-name">
+                      <span>{deck.name}</span>
+                      {flaggedCount > 0 && (
+                        <span
+                          className="decks-index-card-issues"
+                          title={`${flaggedCount} card${
+                            flaggedCount === 1 ? '' : 's'
+                          } flagged in ${formatCfg?.label ?? deck.format}:\n${issues
+                            .slice(0, 5)
+                            .map((i) => `• ${i.cardName}: ${i.detail}`)
+                            .join(
+                              '\n'
+                            )}${issues.length > 5 ? `\n…and ${issues.length - 5} more` : ''}`}
+                          aria-label={`${flaggedCount} card${
+                            flaggedCount === 1 ? '' : 's'
+                          } flagged`}
+                        >
+                          <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden>
+                            <path
+                              d="M8 1.5l7 12.5H1L8 1.5zM8 6v4M8 12.25v.25"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
                     <div className="decks-index-card-meta">
                       {colorIdentity.length > 0 && (
                         <span className="decks-index-card-pips" aria-label="Color identity">
@@ -340,9 +395,6 @@ function DeckCardMenu({
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  // Locks page scroll while the sheet is open on mobile (no-op on desktop
-  // where the menu is a normal dropdown).
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -381,50 +433,36 @@ function DeckCardMenu({
         </svg>
       </button>
       {open && (
-        <>
-          {/* Mobile-only scrim. On desktop the dropdown reads as a normal
-              popover; on phone it becomes a full-width bottom sheet. */}
-          <div
-            className="decks-index-card-menu-backdrop"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setOpen(false);
-            }}
-            aria-hidden
-          />
-          <div className="decks-index-card-menu-panel" role="menu">
-            <div className="decks-index-card-menu-handle" aria-hidden />
-            {canRegenerate && (
-              <button
-                type="button"
-                role="menuitem"
-                className="decks-index-card-menu-item"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpen(false);
-                  onRegenerate();
-                }}
-              >
-                Re-generate
-              </button>
-            )}
+        <div className="decks-index-card-menu-panel" role="menu">
+          {canRegenerate && (
             <button
               type="button"
               role="menuitem"
-              className="decks-index-card-menu-item decks-index-card-menu-item--danger"
+              className="decks-index-card-menu-item"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setOpen(false);
-                onDelete();
+                onRegenerate();
               }}
             >
-              Delete
+              Re-generate
             </button>
-          </div>
-        </>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="decks-index-card-menu-item decks-index-card-menu-item--danger"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            Delete
+          </button>
+        </div>
       )}
     </div>
   );

@@ -16,6 +16,8 @@ import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
 import { SortDirArrow } from './SortDirArrow';
+import { ColorPicker } from './ColorPicker';
+import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -92,26 +94,10 @@ const BORDER_OPTIONS: { key: BorderColor; label: string }[] = [
   { key: 'silver', label: 'Silver' },
   { key: 'gold', label: 'Gold' },
 ];
-const PRESET_COLORS: { hex: string; name: string }[] = [
-  { hex: '#7a8a70', name: 'Sage' },
-  { hex: '#3878c0', name: 'Blue' },
-  { hex: '#7060a0', name: 'Purple' },
-  { hex: '#d05030', name: 'Red' },
-  { hex: '#409040', name: 'Green' },
-  { hex: '#c89820', name: 'Gold' },
-  { hex: '#909090', name: 'Gray' },
-  { hex: '#a08040', name: 'Brown' },
-  { hex: '#c878a8', name: 'Pink' },
-];
-
 const DEFAULT_EDHREC_TOP_N = 100;
 
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
-
-function pickRandomPresetColor() {
-  return PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)].hex;
-}
 
 export function BinderEditor() {
   const editingBinder = useCollectionStore((s) => s.editingBinder);
@@ -515,47 +501,7 @@ export function BinderEditor() {
             <div className="editor-row">
               <div className="field">
                 <label>Tab color</label>
-                <div className="color-picker">
-                  {PRESET_COLORS.map((c) => (
-                    <button
-                      key={c.hex}
-                      type="button"
-                      className={`color-swatch${color === c.hex ? ' selected' : ''}`}
-                      style={{ background: c.hex }}
-                      onClick={() => setColor(c.hex)}
-                      title={c.name}
-                      aria-label={c.name}
-                    />
-                  ))}
-                  <label
-                    className={`color-swatch color-swatch-custom${
-                      !PRESET_COLORS.some((c) => c.hex === color) ? ' selected' : ''
-                    }`}
-                    title="Custom color"
-                    aria-label="Custom color"
-                    style={
-                      !PRESET_COLORS.some((c) => c.hex === color)
-                        ? { background: color }
-                        : undefined
-                    }
-                  >
-                    <svg
-                      className="color-swatch-custom-icon"
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
-                  </label>
-                </div>
+                <ColorPicker value={color} onChange={setColor} ariaLabel="Tab color" />
               </div>
             </div>
           </section>

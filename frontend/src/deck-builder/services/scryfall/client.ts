@@ -129,10 +129,12 @@ export async function searchCards(
     order?: 'edhrec' | 'cmc' | 'name';
     page?: number;
     skipFormatFilter?: boolean;
+    skipColorFilter?: boolean;
   } = {}
 ): Promise<ScryfallSearchResponse> {
-  const { order = 'edhrec', page = 1, skipFormatFilter = false } = options;
-  const colorFilter = colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
+  const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
+  const colorFilter =
+    !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
   const formatFilter = skipFormatFilter ? '' : 'f:commander';
   // Wrap query in parentheses so color filter applies to entire query (including OR clauses)
   const fullQuery = `${colorFilter} (${query}) ${formatFilter}`;
