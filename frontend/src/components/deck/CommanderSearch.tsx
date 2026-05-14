@@ -228,9 +228,34 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // picks a commander.
   const visibleTop = useMemo(() => {
     const base = topCommanders.filter((c) => !c.name.includes('//'));
-    if (ownedOnly) return base.filter((c) => ownedNames.has(c.name));
-    return base;
-  }, [topCommanders, ownedOnly, ownedNames]);
+    if (!ownedOnly) return base;
+
+    const owned = base.filter((c) => ownedNames.has(c.name));
+    const MIN = 10;
+    if (owned.length >= MIN) return owned;
+
+    // Pad with the user's other owned legends so the empty-query state isn't
+    // sparse just because their owned legends rarely overlap with EDHREC's top
+    // list. Respect the same exact-match color filter Surprise-me uses.
+    const seen = new Set(owned.map((c) => c.name));
+    const fillerSource = collectionLegends.filter((c) => {
+      if (seen.has(c.name)) return false;
+      if (colorFilter.size === 0) return true;
+      const ci = c.colorIdentity ?? [];
+      if (ci.length !== colorFilter.size) return false;
+      return ci.every((color) => colorFilter.has(color));
+    });
+
+    const filler: EDHRECTopCommander[] = fillerSource.slice(0, MIN - owned.length).map((c, i) => ({
+      rank: owned.length + i + 1,
+      name: c.name,
+      sanitized: c.scryfallId ?? c.name,
+      colorIdentity: c.colorIdentity ?? [],
+      numDecks: 0,
+    }));
+
+    return [...owned, ...filler];
+  }, [topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
 
   // ── Selection handlers ────────────────────────────────────────────────
   const selectCard = (card: ScryfallCard) => {

@@ -47,6 +47,7 @@ function baseDeck(overrides: Partial<Deck> = {}): Deck {
     cards: [],
     sideboard: [],
     generationContext: null,
+    color: '#7a8a70',
     createdAt: 0,
     updatedAt: 0,
     ...overrides,

@@ -62,6 +62,56 @@ export function deckColorIdentity(
   return out;
 }
 
+/**
+ * Effective color identity for any deck. For commander formats this is the
+ * commanders' color identity. For non-commander formats it's the union of
+ * color_identity across the mainboard and sideboard.
+ */
+export function effectiveDeckColors(deck: {
+  commander: ScryfallCard | null;
+  partnerCommander: ScryfallCard | null;
+  cards: DeckCard[];
+  sideboard?: DeckCard[];
+}): Set<string> {
+  if (deck.commander || deck.partnerCommander) {
+    return deckColorIdentity(deck.commander, deck.partnerCommander);
+  }
+  const out = new Set<string>();
+  for (const dc of deck.cards) {
+    for (const c of dc.card.color_identity ?? []) out.add(c);
+  }
+  for (const dc of deck.sideboard ?? []) {
+    for (const c of dc.card.color_identity ?? []) out.add(c);
+  }
+  return out;
+}
+
+/**
+ * Per-color usage count across mainboard + sideboard, counting each card
+ * once per color it contributes. Commander(s) excluded since they don't
+ * meaningfully reflect usage frequency. Use this to order color pips by
+ * how much each color shows up in the deck.
+ */
+export function deckColorFrequency(deck: {
+  cards: DeckCard[];
+  sideboard?: DeckCard[];
+}): Map<string, number> {
+  const counts = new Map<string, number>();
+  const tally = (dc: DeckCard) => {
+    for (const c of dc.card.color_identity ?? []) {
+      counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+  };
+  for (const dc of deck.cards) tally(dc);
+  for (const dc of deck.sideboard ?? []) tally(dc);
+  return counts;
+}
+
+/** Unique card-name count across legality issues — for summary badges. */
+export function countFlaggedCards(issues: LegalityIssue[]): number {
+  return new Set(issues.map((i) => i.cardName)).size;
+}
+
 export function validateDeck(
   cards: DeckCard[],
   sideboard: DeckCard[],

@@ -5,6 +5,9 @@ import {
   fitsColorIdentity,
   deckColorIdentity,
   validateDeck,
+  effectiveDeckColors,
+  deckColorFrequency,
+  countFlaggedCards,
 } from './deck-validation';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '../deck-builder/types';
@@ -193,5 +196,91 @@ describe('validateDeck', () => {
     // commander format but no commander passed in — should not error
     const issues = validateDeck([slot(c, 'a')], [], commander);
     expect(issues.some((i) => i.issue === 'color-identity')).toBe(false);
+  });
+});
+
+describe('effectiveDeckColors', () => {
+  it('returns commander color identity for commander decks', () => {
+    const cmdr = card({ name: 'Atraxa', color_identity: ['W', 'U', 'B', 'G'] });
+    const colors = effectiveDeckColors({
+      commander: cmdr,
+      partnerCommander: null,
+      cards: [slot(card({ color_identity: ['R'] }), 'a')],
+    });
+    expect([...colors].sort()).toEqual(['B', 'G', 'U', 'W']);
+  });
+
+  it('unions commander + partner color identity', () => {
+    const a = card({ name: 'A', color_identity: ['W'] });
+    const b = card({ name: 'B', color_identity: ['U'] });
+    const colors = effectiveDeckColors({
+      commander: a,
+      partnerCommander: b,
+      cards: [],
+    });
+    expect([...colors].sort()).toEqual(['U', 'W']);
+  });
+
+  it('aggregates from mainboard + sideboard when no commander', () => {
+    const colors = effectiveDeckColors({
+      commander: null,
+      partnerCommander: null,
+      cards: [slot(card({ color_identity: ['R'] }), 'a'), slot(card({ color_identity: [] }), 'b')],
+      sideboard: [slot(card({ color_identity: ['G'] }), 'c')],
+    });
+    expect([...colors].sort()).toEqual(['G', 'R']);
+  });
+
+  it('returns empty set when no commander and no card colors', () => {
+    const colors = effectiveDeckColors({
+      commander: null,
+      partnerCommander: null,
+      cards: [slot(card({ color_identity: [] }), 'a')],
+    });
+    expect(colors.size).toBe(0);
+  });
+});
+
+describe('deckColorFrequency', () => {
+  it('counts each color contribution across mainboard and sideboard', () => {
+    const freq = deckColorFrequency({
+      cards: [
+        slot(card({ color_identity: ['R'] }), 'a'),
+        slot(card({ color_identity: ['R', 'G'] }), 'b'),
+        slot(card({ color_identity: ['G'] }), 'c'),
+      ],
+      sideboard: [slot(card({ color_identity: ['R'] }), 'd')],
+    });
+    expect(freq.get('R')).toBe(3);
+    expect(freq.get('G')).toBe(2);
+  });
+
+  it('returns an empty map for colorless decks', () => {
+    const freq = deckColorFrequency({
+      cards: [slot(card({ color_identity: [] }), 'a')],
+    });
+    expect(freq.size).toBe(0);
+  });
+
+  it('treats missing sideboard as empty', () => {
+    const freq = deckColorFrequency({
+      cards: [slot(card({ color_identity: ['B'] }), 'a')],
+    });
+    expect(freq.get('B')).toBe(1);
+  });
+});
+
+describe('countFlaggedCards', () => {
+  it('counts unique card names across issues, regardless of issue type', () => {
+    const count = countFlaggedCards([
+      { slotId: 's1', cardName: 'A', issue: 'not-legal', detail: '' },
+      { slotId: 's2', cardName: 'A', issue: 'color-identity', detail: '' },
+      { slotId: 's3', cardName: 'B', issue: 'over-copy-limit', detail: '' },
+    ]);
+    expect(count).toBe(2);
+  });
+
+  it('returns 0 for no issues', () => {
+    expect(countFlaggedCards([])).toBe(0);
   });
 });

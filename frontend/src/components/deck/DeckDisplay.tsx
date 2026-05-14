@@ -2,7 +2,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { validateDeck as runValidation, type LegalityIssue } from '../../lib/deck-validation';
+import {
+  validateDeck as runValidation,
+  countFlaggedCards,
+  type LegalityIssue,
+} from '../../lib/deck-validation';
 import type { DeckCard } from '../../store/decks';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -276,6 +280,10 @@ export interface DeckDisplayProps {
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   /** When provided, each row gets an "Edit printing" option in its menu. */
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
+  /** When provided, eligible rows get a "Make commander" option in their menu. */
+  onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
+  /** Predicate that gates the "Make commander" menu item per card. */
+  canMakeCommander?: (card: ScryfallCard) => boolean;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /**
@@ -518,6 +526,8 @@ export function DeckDisplay({
   onMoveToMainboard,
   onSetQty,
   onEditCard,
+  onMakeCommander,
+  canMakeCommander,
   collectionByCopyId,
   exportOpen: exportOpenProp,
   onExportOpenChange,
@@ -678,14 +688,7 @@ export function DeckDisplay({
     return map;
   }, [legalityIssues]);
 
-  const flaggedCardCount = useMemo(() => {
-    const names = new Set(
-      legalityIssues
-        .filter((i) => i.issue === 'not-legal' || i.issue === 'color-identity')
-        .map((i) => i.cardName)
-    );
-    return names.size;
-  }, [legalityIssues]);
+  const flaggedCardCount = useMemo(() => countFlaggedCards(legalityIssues), [legalityIssues]);
 
   const visibleGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -886,6 +889,8 @@ export function DeckDisplay({
                     onMoveToSideboard={
                       formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
                     }
+                    onMakeCommander={onMakeCommander}
+                    canMakeCommander={canMakeCommander}
                   />
                 ))}
 
@@ -909,6 +914,8 @@ export function DeckDisplay({
                         onEditCard={onEditCard}
                         legalityBySlot={legalityBySlot}
                         onMoveToMainboard={onMoveToMainboard}
+                        onMakeCommander={onMakeCommander}
+                        canMakeCommander={canMakeCommander}
                       />
                     ))}
                     {sideboard.length === 0 && (
@@ -1665,6 +1672,8 @@ function CategorySection({
   legalityBySlot,
   onMoveToSideboard,
   onMoveToMainboard,
+  onMakeCommander,
+  canMakeCommander,
 }: {
   title: string;
   iconClass: string;
@@ -1678,6 +1687,8 @@ function CategorySection({
   legalityBySlot?: Map<string, LegalityIssue>;
   onMoveToSideboard?: (slotId: string) => void;
   onMoveToMainboard?: (slotId: string) => void;
+  onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
+  canMakeCommander?: (card: ScryfallCard) => boolean;
 }) {
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
@@ -1715,6 +1726,8 @@ function CategorySection({
                   ? 'Move to mainboard'
                   : undefined
             }
+            onMakeCommander={onMakeCommander}
+            canMakeCommander={canMakeCommander}
           />
         ))}
       </ul>
@@ -1733,6 +1746,8 @@ function DeckCardRow({
   legalityIssue,
   onMoveToZone,
   moveLabel,
+  onMakeCommander,
+  canMakeCommander,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -1744,6 +1759,8 @@ function DeckCardRow({
   legalityIssue?: LegalityIssue;
   onMoveToZone?: (slotId: string) => void;
   moveLabel?: string;
+  onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
+  canMakeCommander?: (card: ScryfallCard) => boolean;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -1973,6 +1990,20 @@ function DeckCardRow({
                 }}
               >
                 {moveLabel}
+              </button>
+            )}
+            {onMakeCommander && canMakeCommander?.(row.card) && row.slotIds.length > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onMakeCommander(row.slotIds[0], row.card);
+                }}
+              >
+                Make commander
               </button>
             )}
           </div>
