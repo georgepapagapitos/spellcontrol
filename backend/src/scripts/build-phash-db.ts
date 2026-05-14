@@ -228,18 +228,71 @@ async function main(): Promise<void> {
     for (const e of probe) existingIds.add(e.scryfallId);
   }
 
-  // First pass: decide which cards to fetch (skips digital-only, missing
-  // images, and already-hashed ids). Pulling URLs into memory keeps the
-  // worker pool simple — at ~90k strings × ~150 chars this is ~14 MB.
-  const queue: Array<{ card: BulkCard; url: string }> = [];
+  // Stream-process in micro-batches so peak memory is bounded by BATCH_SIZE
+  // rather than the full ~90k queue. The previous implementation
+  // materialized every card-url pair before any hashing began, which OOM'd
+  // on memory-constrained hosts (the production container has 256 MB).
+  // With BATCH_SIZE=200 we hold at most ~200 minimal task descriptors plus
+  // `concurrency` in-flight image buffers at any time.
+  const BATCH_SIZE = 200;
+  interface Task {
+    scryfallId: string;
+    name: string;
+    setCode: string;
+    collectorNumber: string;
+    url: string;
+  }
+  let batch: Task[] = [];
+  let pendingWrites: Array<Task & { hash: Uint8Array }> = [];
   let scanned = 0;
+  let queued = 0;
+  let hashed = 0;
+  let failed = 0;
   let skippedExisting = 0;
   let skippedNoImage = 0;
+  const startedAt = Date.now();
+
+  const flushBatch = async (): Promise<void> => {
+    if (batch.length === 0) return;
+    const current = batch;
+    batch = [];
+    await runPool(current, args.concurrency, async (task) => {
+      try {
+        const hash = await hashImageUrl(task.url);
+        if (hash.length !== HASH_BYTES) throw new Error('bad hash length');
+        pendingWrites.push({ ...task, hash });
+        hashed++;
+        if (hashed % 1000 === 0) {
+          const elapsed = (Date.now() - startedAt) / 1000;
+          const rate = hashed / Math.max(1, elapsed);
+          console.log(
+            `[ingest] hashed ${hashed}/${queued} (${rate.toFixed(1)}/s) failed=${failed}`
+          );
+        }
+      } catch (err) {
+        failed++;
+        if (failed < 20) console.warn(`[ingest] hash failed for ${task.name}:`, err);
+      }
+    });
+    if (pendingWrites.length > 0) {
+      store.upsertMany(
+        pendingWrites.map((p) => ({
+          scryfallId: p.scryfallId,
+          name: p.name,
+          setCode: p.setCode,
+          collectorNumber: p.collectorNumber,
+          hash: p.hash,
+        }))
+      );
+      pendingWrites = [];
+    }
+  };
+
   for await (const card of streamBulkCards(manifest.download_uri)) {
     scanned++;
     if (scanned % 5000 === 0) {
       console.log(
-        `[ingest] scanned ${scanned} entries, queued ${queue.length}, ` +
+        `[ingest] scanned ${scanned} entries, queued ${queued} hashed ${hashed} ` +
           `skipped ${skippedExisting} existing + ${skippedNoImage} no-image`
       );
     }
@@ -254,55 +307,18 @@ async function main(): Promise<void> {
       skippedNoImage++;
       continue;
     }
-    queue.push({ card, url });
-    if (args.limit !== null && queue.length >= args.limit) break;
+    batch.push({
+      scryfallId: card.id,
+      name: card.name,
+      setCode: (card.set || '').toUpperCase(),
+      collectorNumber: card.collector_number || '',
+      url,
+    });
+    queued++;
+    if (batch.length >= BATCH_SIZE) await flushBatch();
+    if (args.limit !== null && queued >= args.limit) break;
   }
-  console.log(`[ingest] queue ready: ${queue.length} cards to hash`);
-
-  // Second pass: hash with bounded concurrency and batched writes.
-  let hashed = 0;
-  let failed = 0;
-  let pending: Array<{
-    scryfallId: string;
-    name: string;
-    setCode: string;
-    collectorNumber: string;
-    hash: Uint8Array;
-  }> = [];
-  const flush = () => {
-    if (pending.length === 0) return;
-    store.upsertMany(pending);
-    pending = [];
-  };
-  const startedAt = Date.now();
-
-  await runPool(queue, args.concurrency, async ({ card, url }) => {
-    try {
-      const hash = await hashImageUrl(url);
-      if (hash.length !== HASH_BYTES) throw new Error('bad hash length');
-      pending.push({
-        scryfallId: card.id,
-        name: card.name,
-        setCode: (card.set || '').toUpperCase(),
-        collectorNumber: card.collector_number || '',
-        hash,
-      });
-      hashed++;
-      if (pending.length >= 500) flush();
-      if (hashed % 1000 === 0) {
-        const elapsed = (Date.now() - startedAt) / 1000;
-        const rate = hashed / Math.max(1, elapsed);
-        console.log(
-          `[ingest] hashed ${hashed}/${queue.length} (${rate.toFixed(1)}/s) failed=${failed}`
-        );
-      }
-    } catch (err) {
-      failed++;
-      if (failed < 20) console.warn(`[ingest] hash failed for ${card.name}:`, err);
-    }
-  });
-  flush();
-  store.reloadIntoMemory();
+  await flushBatch();
 
   console.log(
     `[ingest] done: +${hashed} hashed, ${failed} failed, store now has ${store.size()} entries`
