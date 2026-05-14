@@ -53,6 +53,10 @@ export default defineConfig(async () => {
           // Pure type / table declarations; v8 reports them as 0% even
           // though they have no executable code in the build output.
           'src/db/schema.ts',
+          // One-off ingest tool, exercised by running it against real
+          // Scryfall bulk data + image CDN. Its building blocks (phash
+          // math, phash-store search/upsert) are unit-tested separately.
+          'src/scripts/**',
         ],
         // Coverage thresholds are only enforced when the DB-backed tests
         // can run — otherwise auth/sync/games route coverage is structurally
