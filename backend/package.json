@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "tsx watch --env-file .env src/server.ts",
     "build": "tsc",
+    "phash:ingest": "tsx src/scripts/build-phash-db.ts",
+    "phash:ingest:prod": "node dist/scripts/build-phash-db.js",
     "start": "node dist/server.js",
     "clean": "rm -rf dist",
     "test": "vitest run",
@@ -27,7 +29,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

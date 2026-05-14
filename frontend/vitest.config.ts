@@ -9,6 +9,11 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/lib/**'],
+      // ocr.ts is a thin wrapper around tesseract.js that requires a real
+      // browser worker + WASM runtime. Unit tests can't exercise it
+      // meaningfully — its behaviour is verified by integration use of the
+      // scanner UI.
+      exclude: ['src/lib/ocr.ts'],
       thresholds: {
         statements: 80,
         branches: 80,
