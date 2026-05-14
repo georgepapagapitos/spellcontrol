@@ -44,6 +44,17 @@ const ART_CROP = { x: 0.07, y: 0.12, w: 0.86, h: 0.42 };
 /** Auto-scan cadence in ms. Slow enough to let the user reposition cards. */
 const AUTO_SCAN_INTERVAL = 1400;
 
+/**
+ * Temporarily disable the pHash fast path while we empirically validate
+ * whether the OCR fallback alone is good enough. Recent on-phone testing
+ * showed dHash distances of 10–14 against the freshly re-ingested DB —
+ * inside our match threshold, but consistently returning the wrong card.
+ * Skipping pHash routes every scan through OCR so we can see what that
+ * path alone is producing. Flip to `true` (or remove this gate) to bring
+ * pHash back.
+ */
+const PHASH_ENABLED = false;
+
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -408,7 +419,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // ── Phase 1: pHash fast path ─────────────────────────────────────────
       let resolved: { card: ScryfallCard; via: 'phash' | 'ocr'; raw: string } | null = null;
 
-      if (phashAvailableRef.current !== false) {
+      if (PHASH_ENABLED && phashAvailableRef.current !== false) {
         try {
           // Hash from a modest-resolution art crop. The dHash algorithm
           // downsamples to 9x8 internally — there's no benefit to handing
