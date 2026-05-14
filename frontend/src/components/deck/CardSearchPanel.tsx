@@ -5,7 +5,14 @@ import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
+import { useToastsStore } from '../../store/toasts';
 import type { EnrichedCard } from '../../types';
+
+function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
+  if (commanderCI.length === 0) return false;
+  const set = new Set(commanderCI);
+  return (cardCI ?? []).some((c) => !set.has(c));
+}
 
 export interface AddCardChoice {
   card: ScryfallCard;
@@ -323,6 +330,8 @@ function ScryfallResults({
   const [error, setError] = useState<string | null>(null);
   const debounce = useRef<number | null>(null);
 
+  const pushToast = useToastsStore((s) => s.push);
+
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
   const ownedNames = useMemo(() => new Set(collection.map((c) => c.name)), [collection]);
 
@@ -345,7 +354,10 @@ function ScryfallResults({
       setLoading(true);
       setError(null);
       try {
-        const resp = await searchCards(q, colorIdentity);
+        // Skip the color-identity filter so off-color cards still appear —
+        // they're tagged in the row UI and an add-time warning lets the user
+        // know they're outside the deck's color identity.
+        const resp = await searchCards(q, colorIdentity, { skipColorFilter: true });
         if (!cancelled) setResults(resp.data.slice(0, 60));
       } catch (e) {
         if (!cancelled) {
@@ -370,6 +382,12 @@ function ScryfallResults({
     const claim = owned ? pickCollectionCopy(c.name, collection, allocations, c.id) : null;
     onAdd({ card: c, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
+    if (isOffColor(c.color_identity, colorIdentity)) {
+      pushToast({
+        message: `${c.name} is outside your commander's color identity`,
+        tone: 'warn',
+      });
+    }
   };
 
   useEffect(() => {
@@ -396,19 +414,26 @@ function ScryfallResults({
         const inDeck = existingCardCounts.get(c.name) ?? 0;
         const owned = ownedNames.has(c.name);
         const active = i === activeIndex;
+        const offColor = isOffColor(c.color_identity, colorIdentity);
         return (
           <li
             key={c.id}
             id={`card-search-result-${i}`}
             role="option"
             aria-selected={active}
-            className={`card-search-row${active ? ' active' : ''}`}
+            className={`card-search-row${active ? ' active' : ''}${offColor ? ' is-off-color' : ''}`}
             onMouseEnter={() => onActiveChange(i)}
           >
             <button
               type="button"
               className="card-search-add"
-              aria-label={inDeck > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+              aria-label={
+                offColor
+                  ? `Add ${c.name} (off-color)`
+                  : inDeck > 0
+                    ? `Add another ${c.name}`
+                    : `Add ${c.name}`
+              }
               onClick={() => addAtIndex(i)}
             >
               +
@@ -416,6 +441,14 @@ function ScryfallResults({
             <span className="card-search-name">{c.name}</span>
             {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
             <span className="card-search-meta">
+              {offColor && (
+                <span
+                  className="card-search-badge card-search-badge--warn"
+                  title="Outside your commander's color identity"
+                >
+                  Off-color
+                </span>
+              )}
               {owned ? 'owned' : 'not owned'}
               {inDeck > 0 && (
                 <>

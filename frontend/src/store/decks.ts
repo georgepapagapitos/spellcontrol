@@ -4,6 +4,7 @@ import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
 import { markDestructive } from '../lib/sync-intent';
+import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
 
 /**
@@ -63,6 +64,8 @@ export interface Deck {
   cardDrawSubtypeCounts?: Record<string, number>;
   bracketEstimation?: BracketEstimation;
   deckGrade?: { letter: string; headline: string };
+  /** User-chosen accent color (hex). Defaults to a random preset on create. */
+  color: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -81,6 +84,7 @@ interface DecksState {
     sideboard?: DeckCard[];
     commanderAllocatedCopyId?: string | null;
     partnerCommanderAllocatedCopyId?: string | null;
+    color?: string;
     generationContext?: Deck['generationContext'];
     roleCounts?: Record<string, number>;
     rampSubtypeCounts?: Record<string, number>;
@@ -158,6 +162,7 @@ export const useDecksStore = create<DecksState>()(
           cardDrawSubtypeCounts: input.cardDrawSubtypeCounts,
           bracketEstimation: input.bracketEstimation,
           deckGrade: input.deckGrade,
+          color: input.color ?? pickRandomPresetColor(),
           createdAt: now,
           updatedAt: now,
         };
@@ -600,7 +605,7 @@ export const useDecksStore = create<DecksState>()(
     }),
     {
       name: 'mtg-decks',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
@@ -649,6 +654,12 @@ export const useDecksStore = create<DecksState>()(
             ...d,
             format: d.format ?? 'commander',
             sideboard: d.sideboard ?? [],
+          }));
+        }
+        if (fromVersion < 4 && Array.isArray(state.decks)) {
+          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => ({
+            ...d,
+            color: typeof d.color === 'string' ? d.color : pickRandomPresetColor(),
           }));
         }
         return state as never;

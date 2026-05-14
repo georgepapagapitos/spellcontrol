@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
+import { ProgressBar } from '../ProgressBar';
 import { importDeckText, importDeckFile } from '../../lib/api';
 import { useDecksStore, newDeckCard } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
@@ -10,6 +11,7 @@ import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
+import { isValidCommander } from '../../lib/commanders';
 
 interface Props {
   onClose: () => void;
@@ -17,21 +19,7 @@ interface Props {
   format?: DeckFormat;
 }
 
-type Step = 'input' | 'commander' | 'importing';
-
-function isValidCommander(card: ScryfallCard): boolean {
-  const typeLine = (card.type_line ?? card.card_faces?.[0]?.type_line ?? '').toLowerCase();
-  const oracleText = (
-    card.oracle_text ??
-    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
-    ''
-  ).toLowerCase();
-  const isLegendaryCreature = typeLine.includes('legendary') && typeLine.includes('creature');
-  const canBeCommander = oracleText.includes('can be your commander');
-  if (!isLegendaryCreature && !canBeCommander) return false;
-  const legality = card.legalities?.commander;
-  return legality === 'legal' || legality === 'restricted';
-}
+type Step = 'input' | 'importing' | 'review';
 
 function splitImportZones(cards: ScryfallCard[]): {
   mainboard: ScryfallCard[];
@@ -49,6 +37,23 @@ function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
   });
 }
 
+function normalizeFormat(detected: string | undefined | null): DeckFormat | null {
+  if (!detected) return null;
+  const slug = detected.toLowerCase();
+  return (Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[]).find((f) => f === slug) ?? null;
+}
+
+const PASTE_PLACEHOLDERS: Record<DeckFormat, string> = {
+  commander:
+    'Commander\n1 Korvold, Fae-Cursed King\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n1 Cultivate\n...',
+  brawl:
+    'Commander\n1 Chulane, Teller of Tales\n\nDeck\n1 Arcane Signet\n1 Cultivate\n1 Llanowar Elves\n...',
+  standard:
+    'Deck\n4 Lightning Strike\n4 Monastery Swiftspear\n20 Mountain\n...\n\nSideboard\n3 Roiling Vortex\n...',
+  pauper:
+    'Deck\n4 Lightning Bolt\n4 Brainstorm\n4 Ponder\n18 Island\n...\n\nSideboard\n2 Pyroblast\n...',
+};
+
 export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' }: Props) {
   const navigate = useNavigate();
   const decks = useDecksStore((s) => s.decks);
@@ -59,26 +64,31 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const [step, setStep] = useState<Step>('input');
   const [pasteText, setPasteText] = useState('');
+  const [deckName, setDeckName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingResult, setPendingResult] = useState<DeckImportResponse | null>(null);
+  const [pendingCommander, setPendingCommander] = useState<ScryfallCard | null>(null);
   const [showCommanderSearch, setShowCommanderSearch] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
 
   const commanderCandidates = useMemo(
     () => dedupeByName(pendingResult?.cards.filter(isValidCommander) ?? []),
     [pendingResult]
   );
 
+  const detectedFormat = useMemo(
+    () => normalizeFormat(pendingResult?.detectedFormat),
+    [pendingResult]
+  );
+  const formatMismatch = detectedFormat !== null && detectedFormat !== selectedFormat;
+
   const allocateCards = useCallback(
     (cardList: ScryfallCard[]) => {
       const claimed = new Map<string, AllocationInfo>(buildAllocationMap(decks));
       return cardList.map((card) => {
-        // Pass card.id as the preferred printing so the initial allocation
-        // respects the imported deck's specific printings. Without this,
-        // basic lands (and any multi-printing card) bind to "any same-name
-        // copy" and the binder overlay highlights the wrong physical card
-        // until the next remap fixes it.
         const pick = pickCollectionCopy(card.name, collectionCards, claimed, card.id);
         if (pick) {
           claimed.set(pick.copyId, {
@@ -94,7 +104,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   );
 
   const finalizeDeck = useCallback(
-    (result: DeckImportResponse, commander: ScryfallCard) => {
+    (result: DeckImportResponse, commander: ScryfallCard, name: string) => {
       const mainCards = result.cards.filter((c) => c.name !== commander.name);
       const cards = allocateCards(mainCards);
       const commanderPick = pickCollectionCopy(
@@ -105,6 +115,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       );
 
       const id = createDeck({
+        name: name.trim() || undefined,
         format: selectedFormat,
         source: 'manual',
         commander,
@@ -119,12 +130,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   );
 
   const finalizeWithoutCommander = useCallback(
-    (result: DeckImportResponse) => {
+    (result: DeckImportResponse, name: string) => {
       const { mainboard, sideboard } = splitImportZones(result.cards);
       const cards = allocateCards(mainboard);
       const sideboardCards = allocateCards(sideboard);
 
       const id = createDeck({
+        name: name.trim() || undefined,
         format: selectedFormat,
         source: 'manual',
         commander: null,
@@ -140,24 +152,44 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
   const handleImportResult = useCallback(
     (result: DeckImportResponse) => {
-      if (!formatConfig.hasCommander) {
-        finalizeWithoutCommander(result);
+      const hasWarnings =
+        result.unresolvedNames.length > 0 ||
+        (normalizeFormat(result.detectedFormat) !== null &&
+          normalizeFormat(result.detectedFormat) !== selectedFormat);
+
+      // Resolve commander if format calls for one.
+      let commander: ScryfallCard | null = null;
+      let needsCommanderChoice = false;
+      if (formatConfig.hasCommander) {
+        if (result.commander) {
+          commander = result.commander;
+        } else {
+          const candidates = dedupeByName(result.cards.filter(isValidCommander));
+          if (candidates.length === 1) {
+            commander = candidates[0];
+          } else {
+            needsCommanderChoice = true;
+          }
+        }
+      }
+
+      // Fast path: nothing to review, finalize immediately.
+      if (!needsCommanderChoice && !hasWarnings) {
+        if (formatConfig.hasCommander && commander) {
+          finalizeDeck(result, commander, deckName);
+        } else {
+          finalizeWithoutCommander(result, deckName);
+        }
         return;
       }
-      if (result.commander) {
-        finalizeDeck(result, result.commander);
-        return;
-      }
-      const candidates = dedupeByName(result.cards.filter(isValidCommander));
-      if (candidates.length === 1) {
-        finalizeDeck(result, candidates[0]);
-        return;
-      }
+
       setPendingResult(result);
-      setStep('commander');
+      setPendingCommander(commander);
+      setShowCommanderSearch(false);
+      setStep('review');
       setIsLoading(false);
     },
-    [finalizeDeck, finalizeWithoutCommander, formatConfig]
+    [finalizeDeck, finalizeWithoutCommander, formatConfig, selectedFormat, deckName]
   );
 
   const handlePasteImport = useCallback(async () => {
@@ -178,11 +210,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     }
   }, [pasteText, isLoading, handleImportResult]);
 
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (!file || isLoading) return;
+  const importFile = useCallback(
+    async (file: File) => {
+      if (isLoading) return;
       setError(null);
       setIsLoading(true);
       setStep('importing');
@@ -200,13 +230,81 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     [isLoading, handleImportResult]
   );
 
-  const handleCommanderSelect = useCallback(
-    (card: ScryfallCard | null) => {
-      if (!card || !pendingResult) return;
-      finalizeDeck(pendingResult, card);
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (!file) return;
+      void importFile(file);
     },
-    [pendingResult, finalizeDeck]
+    [importFile]
   );
+
+  const handleDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      if (isLoading || step !== 'input') return;
+      if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+      e.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDragging(true);
+    },
+    [isLoading, step]
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (isLoading || step !== 'input') return;
+      if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    },
+    [isLoading, step]
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragging(false);
+      if (isLoading || step !== 'input') return;
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+      void importFile(file);
+    },
+    [importFile, isLoading, step]
+  );
+
+  const handleCommanderSelect = useCallback((card: ScryfallCard | null) => {
+    setPendingCommander(card);
+    setShowCommanderSearch(false);
+  }, []);
+
+  const handleConfirmReview = useCallback(() => {
+    if (!pendingResult) return;
+    if (formatConfig.hasCommander) {
+      if (!pendingCommander) return;
+      finalizeDeck(pendingResult, pendingCommander, deckName);
+    } else {
+      finalizeWithoutCommander(pendingResult, deckName);
+    }
+  }, [
+    pendingResult,
+    pendingCommander,
+    formatConfig.hasCommander,
+    finalizeDeck,
+    finalizeWithoutCommander,
+    deckName,
+  ]);
+
+  const canConfirm = !!pendingResult && (!formatConfig.hasCommander || pendingCommander !== null);
+
+  const reviewTitle = step === 'review' ? 'Review import' : 'Import deck';
 
   return (
     <Modal
@@ -216,7 +314,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       dismissable={!isLoading}
     >
       <div className="modal-header">
-        <h2 id="import-deck-title">{step === 'commander' ? 'Select commander' : 'Import deck'}</h2>
+        <h2 id="import-deck-title">{reviewTitle}</h2>
         <button
           type="button"
           className="modal-close"
@@ -228,7 +326,19 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         </button>
       </div>
 
-      <div className="modal-body">
+      <div
+        className={`modal-body${isDragging ? ' import-deck-dragover' : ''}`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="import-deck-drop-overlay" aria-hidden="true">
+            <div className="import-deck-drop-message">Drop file to import</div>
+          </div>
+        )}
+
         {error && (
           <div className="error-banner">
             <span>{error}</span>
@@ -262,9 +372,25 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 })}
               </div>
             </div>
+            <label className="import-deck-name">
+              <span className="import-deck-name-label">Deck name (optional)</span>
+              <input
+                type="text"
+                className="import-deck-name-input"
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                placeholder={
+                  formatConfig.hasCommander
+                    ? 'Auto-named from commander if blank'
+                    : 'Defaults to "Untitled deck"'
+                }
+                disabled={isLoading}
+                maxLength={120}
+              />
+            </label>
             <p className="import-deck-hint">
-              Paste a deck list below or upload an export file. Supports MTGA, ManaBox, Moxfield,
-              Archidekt, and plain text formats.
+              Paste a deck list below, drop a file anywhere on this dialog, or click Upload.
+              Supports MTGA, ManaBox, Moxfield, Archidekt, and plain text formats.
               {formatConfig.hasCommander
                 ? ' If the list includes a "Commander" section header, it will be detected automatically.'
                 : ''}
@@ -273,9 +399,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
               className="paste-textarea import-textarea"
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder={
-                'Commander\n1 Korvold, Fae-Cursed King\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n1 Cultivate\n...'
-              }
+              placeholder={PASTE_PLACEHOLDERS[selectedFormat]}
               disabled={isLoading}
               autoFocus
             />
@@ -290,58 +414,125 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           </>
         )}
 
-        {step === 'commander' && pendingResult && (
+        {step === 'review' && pendingResult && (
           <>
-            <p className="import-deck-hint">
-              No commander section was found in the import ({pendingResult.cardCount} cards parsed).{' '}
-              {commanderCandidates.length > 0 && !showCommanderSearch
-                ? 'Select a commander from the imported cards.'
-                : 'Search for a commander to lead this deck.'}
-            </p>
-            {commanderCandidates.length > 0 && !showCommanderSearch && (
-              <>
-                <ul className="import-deck-commander-list">
-                  {commanderCandidates.map((card) => (
-                    <li key={card.id}>
-                      <button
-                        type="button"
-                        className="import-deck-commander-option"
-                        onClick={() => handleCommanderSelect(card)}
-                      >
-                        <img
-                          className="import-deck-commander-art"
-                          src={getCardImageUrl(card, 'small')}
-                          alt=""
-                          aria-hidden="true"
-                        />
-                        <div className="import-deck-commander-info">
-                          <span className="import-deck-commander-name">{card.name}</span>
-                          <span className="import-deck-commander-type">
-                            {card.type_line ?? card.card_faces?.[0]?.type_line}
-                          </span>
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+            <div className="import-deck-review-summary">
+              <span>
+                Parsed <strong>{pendingResult.cardCount}</strong> card
+                {pendingResult.cardCount === 1 ? '' : 's'}
+              </span>
+              {detectedFormat && (
+                <span className="import-deck-review-tag">
+                  Detected: {DECK_FORMAT_CONFIGS[detectedFormat].label}
+                </span>
+              )}
+            </div>
+
+            {formatMismatch && detectedFormat && (
+              <div className="import-deck-warning">
+                The file looks like a <strong>{DECK_FORMAT_CONFIGS[detectedFormat].label}</strong>{' '}
+                list, but you selected <strong>{formatConfig.label}</strong>.{' '}
                 <button
                   type="button"
-                  className="btn-link import-deck-search-link"
-                  onClick={() => setShowCommanderSearch(true)}
+                  className="btn-link"
+                  onClick={() => setSelectedFormat(detectedFormat)}
                 >
-                  Search for a different commander
+                  Switch to {DECK_FORMAT_CONFIGS[detectedFormat].label}
                 </button>
-              </>
+              </div>
             )}
-            {(showCommanderSearch || commanderCandidates.length === 0) && (
-              <CommanderSearch value={null} onSelect={handleCommanderSelect} />
+
+            {pendingResult.unresolvedNames.length > 0 && (
+              <div className="import-deck-warning">
+                <div className="import-deck-warning-title">
+                  {pendingResult.unresolvedNames.length} card
+                  {pendingResult.unresolvedNames.length === 1 ? '' : 's'} couldn't be matched and
+                  will be skipped:
+                </div>
+                <ul className="import-deck-unresolved-list">
+                  {pendingResult.unresolvedNames.slice(0, 12).map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                  {pendingResult.unresolvedNames.length > 12 && (
+                    <li className="import-deck-unresolved-more">
+                      …and {pendingResult.unresolvedNames.length - 12} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {formatConfig.hasCommander && (
+              <div className="import-deck-commander-section">
+                <div className="import-deck-section-title">Commander</div>
+                {pendingCommander && !showCommanderSearch ? (
+                  <div className="import-deck-commander-selected">
+                    <img
+                      className="import-deck-commander-art"
+                      src={getCardImageUrl(pendingCommander, 'small')}
+                      alt=""
+                      aria-hidden="true"
+                    />
+                    <div className="import-deck-commander-info">
+                      <span className="import-deck-commander-name">{pendingCommander.name}</span>
+                      <span className="import-deck-commander-type">
+                        {pendingCommander.type_line ?? pendingCommander.card_faces?.[0]?.type_line}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => setShowCommanderSearch(true)}
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : commanderCandidates.length > 0 && !showCommanderSearch ? (
+                  <>
+                    <p className="import-deck-hint">Select a commander from the imported cards.</p>
+                    <ul className="import-deck-commander-list">
+                      {commanderCandidates.map((card) => (
+                        <li key={card.id}>
+                          <button
+                            type="button"
+                            className="import-deck-commander-option"
+                            onClick={() => setPendingCommander(card)}
+                          >
+                            <img
+                              className="import-deck-commander-art"
+                              src={getCardImageUrl(card, 'small')}
+                              alt=""
+                              aria-hidden="true"
+                            />
+                            <div className="import-deck-commander-info">
+                              <span className="import-deck-commander-name">{card.name}</span>
+                              <span className="import-deck-commander-type">
+                                {card.type_line ?? card.card_faces?.[0]?.type_line}
+                              </span>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className="btn-link import-deck-search-link"
+                      onClick={() => setShowCommanderSearch(true)}
+                    >
+                      Search for a different commander
+                    </button>
+                  </>
+                ) : (
+                  <CommanderSearch value={null} onSelect={handleCommanderSelect} />
+                )}
+              </div>
             )}
           </>
         )}
 
         {step === 'importing' && (
-          <div className="import-deck-loading" role="status" aria-live="polite">
-            <p>Importing and resolving cards...</p>
+          <div className="import-deck-loading">
+            <ProgressBar indeterminate message="Importing and resolving cards…" />
           </div>
         )}
       </div>
@@ -367,10 +558,18 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         </div>
       )}
 
-      {step === 'commander' && (
+      {step === 'review' && (
         <div className="modal-footer">
           <button type="button" className="btn" onClick={() => setStep('input')}>
             Back
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleConfirmReview}
+            disabled={!canConfirm}
+          >
+            Create deck
           </button>
         </div>
       )}

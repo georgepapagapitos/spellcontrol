@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
+import { ProgressBar } from '../components/ProgressBar';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { ThemePicker } from '../components/deck/ThemePicker';
@@ -309,15 +310,11 @@ export function DeckNewPage() {
               commander so you can pick every card by hand.
             </p>
             {progress && (
-              <div className="deck-builder-progress" role="status" aria-live="polite">
-                <div className="deck-builder-progress-bar">
-                  <div
-                    className="deck-builder-progress-fill"
-                    style={{ width: `${Math.max(2, progress.percent)}%` }}
-                  />
-                </div>
-                <div className="deck-builder-progress-msg">{progress.message}</div>
-              </div>
+              <ProgressBar
+                className="deck-builder-progress"
+                percent={progress.percent}
+                message={progress.message}
+              />
             )}
             {error && <div className="error-banner deck-builder-error">{error}</div>}
           </section>
