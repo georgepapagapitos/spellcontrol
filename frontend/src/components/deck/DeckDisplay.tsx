@@ -587,13 +587,16 @@ export function DeckDisplay({
   };
   // Stats panel open/closed state — persisted to localStorage so the user's
   // preference survives reloads, mirroring the Combos / Test Hand panels.
+  // Defaults to closed when no preference is stored: the header summary
+  // ("X.XX avg CMC") gives the at-a-glance signal; expanding is opt-in for
+  // when the user wants curve / colors / mana / roles detail.
   const [statsOpen, setStatsOpen] = useState(() => {
-    if (typeof window === 'undefined') return true;
+    if (typeof window === 'undefined') return false;
     try {
       const raw = window.localStorage.getItem('spellcontrol-deck-stats-open');
-      return raw === null ? true : raw === '1';
+      return raw === null ? false : raw === '1';
     } catch {
-      return true;
+      return false;
     }
   });
   useEffect(() => {
