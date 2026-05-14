@@ -8200,14 +8200,35 @@ hr {
   inset: 0;
   width: 100%;
   height: 100%;
-  /* `cover` lets the video fill the viewport; some cropping happens when
-     the camera hands back a landscape stream into a portrait viewport,
-     but with `zoom: min` applied via applyConstraints (in CardScanner.tsx)
-     it stays close to a 1× field of view. The earlier experiment with
-     `contain` showed enormous black bars whenever the device returned a
-     landscape-only stream, which is much worse UX than a small crop. */
   object-fit: cover;
   background: #000;
+}
+
+/* Rotation path: Android browsers (and some Safari builds) ignore our
+   portrait resolution constraint and hand back a 1920×1080 landscape
+   stream regardless. Letting `object-fit: cover` deal with that on its
+   own crops out ~70% of the sensor's horizontal field of view, which
+   reads as "way too zoomed in". Rotating the video element 90° CW makes
+   the landscape stream fit a portrait viewport with minimal cropping;
+   the CardScanner capture code accompanies this by rotating its source
+   rect in the matching direction so OCR/pHash still see upright text.
+   The element's box is sized using viewport units swapped from normal
+   (width = 100vh) so the rotated rectangle ends up matching the screen. */
+.scanner-video.is-rotated {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100vh;
+  height: 100vw;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+/* Modern browsers: use the small-viewport units so URL bar reveals don't
+   nudge the rotated video around. */
+@supports (height: 100svh) {
+  .scanner-video.is-rotated {
+    width: 100svh;
+    height: 100svw;
+  }
 }
 
 .scanner-overlay {
