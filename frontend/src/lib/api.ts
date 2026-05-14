@@ -98,6 +98,26 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
 }
 
 /**
+ * Identifies a card by perceptual-hash match against the server's pre-built
+ * art-hash DB. Returns null when there's no confident nearest neighbour
+ * (e.g. the user is framing a non-card, or the server hasn't ingested its
+ * hash DB yet — `storeSize` lets the caller distinguish the latter).
+ */
+export interface IdentifyByHashResult {
+  card: ScryfallCard | null;
+  distance: number;
+  storeSize: number;
+}
+export async function identifyCardByHash(hashHex: string): Promise<IdentifyByHashResult> {
+  const response = await fetchWithTimeout('/api/cards/identify-hash', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hash: hashHex }),
+  });
+  return handleResponse<IdentifyByHashResult>(response);
+}
+
+/**
  * Identifies a card from imperfect text (typically OCR output from the in-browser
  * card scanner). Returns null when Scryfall can't find a confident match.
  */
