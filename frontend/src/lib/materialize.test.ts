@@ -70,7 +70,7 @@ describe('materializeBinders', () => {
     const rareCard = makeCard({ rarity: 'rare' });
     const commonCard = makeCard({ rarity: 'common' });
     const binder = makeBinder({
-      filter: { rarities: [{ value: 'rare', negate: false }] },
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
       position: 0,
     });
 
@@ -89,7 +89,7 @@ describe('materializeBinders', () => {
     const rareBinder = makeBinder({
       id: 'rare',
       position: 1,
-      filter: { rarities: [{ value: 'rare', negate: false }] },
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
     });
 
     const { binders } = materializeBinders([card], [highValueBinder, rareBinder], defaultOpts);
@@ -104,7 +104,7 @@ describe('materializeBinders', () => {
     const rareBinder = makeBinder({
       id: 'rare',
       position: 0,
-      filter: { rarities: [{ value: 'rare', negate: false }] },
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
     });
     const highValueBinder = makeBinder({ id: 'high', position: 1, filter: { priceMin: 5 } });
 
@@ -118,7 +118,9 @@ describe('materializeBinders', () => {
 
   it('places cards in uncategorized when they match no binder', () => {
     const card = makeCard({ rarity: 'common' });
-    const binder = makeBinder({ filter: { rarities: [{ value: 'rare', negate: false }] } });
+    const binder = makeBinder({
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    });
 
     const { uncategorized } = materializeBinders([card], [binder], defaultOpts);
     expect(uncategorized.totalCards).toBe(1);
@@ -295,10 +297,13 @@ describe('materializeBinders', () => {
           {
             name: 'Commons over $0.70',
             filter: {
-              rarities: [
-                { value: 'common', negate: false },
-                { value: 'uncommon', negate: false },
-              ],
+              rarities: {
+                chips: [
+                  { value: 'common', negate: false },
+                  { value: 'uncommon', negate: false },
+                ],
+                joiners: ['OR'],
+              },
               priceMin: 0.7,
             },
           },
@@ -334,7 +339,7 @@ describe('materializeBinders', () => {
       const rareCard = makeCard({ rarity: 'rare', name: 'Pinned Rare' });
       const commonCard = makeCard({ rarity: 'rare', name: 'Unpinned Rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         mode: 'manual',
         pinnedCopyIds: [rareCard.copyId],
       });
@@ -350,12 +355,12 @@ describe('materializeBinders', () => {
     it('manual binder does not steal rule matches from downstream binders', () => {
       const card = makeCard({ rarity: 'rare' });
       const manualBinder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         mode: 'manual',
         position: 0,
       });
       const rulesBinder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         position: 1,
       });
       const { binders } = materializeBinders([card], [manualBinder, rulesBinder], defaultOpts);
@@ -378,7 +383,7 @@ describe('materializeBinders', () => {
     it('switching back to rules restores normal routing', () => {
       const card = makeCard({ rarity: 'rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         mode: 'rules',
       });
       const { binders } = materializeBinders([card], [binder], defaultOpts);
@@ -388,7 +393,7 @@ describe('materializeBinders', () => {
     it('undefined mode defaults to rules behavior', () => {
       const card = makeCard({ rarity: 'rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
       });
       expect(binder.mode).toBeUndefined();
       const { binders } = materializeBinders([card], [binder], defaultOpts);
@@ -400,7 +405,7 @@ describe('materializeBinders', () => {
     it('keeps allocated cards visible when hideDeckAllocated is undefined (default)', () => {
       const card = makeCard({ rarity: 'rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
       });
       const { binders, uncategorized } = materializeBinders([card], [binder], {
         ...defaultOpts,
@@ -413,7 +418,7 @@ describe('materializeBinders', () => {
     it('drops allocated rule-matched cards entirely when hideDeckAllocated is false', () => {
       const card = makeCard({ rarity: 'rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         hideDeckAllocated: false,
       });
       const { binders, uncategorized } = materializeBinders([card], [binder], {
@@ -444,7 +449,7 @@ describe('materializeBinders', () => {
     it('allocated card returns once un-allocated', () => {
       const card = makeCard({ rarity: 'rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         hideDeckAllocated: false,
       });
       const { binders } = materializeBinders([card], [binder], {
@@ -459,13 +464,13 @@ describe('materializeBinders', () => {
       const hideBinder = makeBinder({
         id: 'hide',
         position: 0,
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         hideDeckAllocated: false,
       });
       const fallback = makeBinder({
         id: 'fallback',
         position: 1,
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
       });
       const { binders, uncategorized } = materializeBinders([card], [hideBinder, fallback], {
         ...defaultOpts,
@@ -480,7 +485,7 @@ describe('materializeBinders', () => {
       const allocatedCard = makeCard({ rarity: 'rare' });
       const freeCard = makeCard({ rarity: 'rare' });
       const binder = makeBinder({
-        filter: { rarities: [{ value: 'rare', negate: false }] },
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
         hideDeckAllocated: false,
       });
       const { binders } = materializeBinders([allocatedCard, freeCard], [binder], {

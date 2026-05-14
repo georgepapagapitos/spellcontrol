@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
@@ -15,6 +15,7 @@ import { SortValueOrderEditor } from './SortValueOrderEditor';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
+import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { SortDirArrow } from './SortDirArrow';
 import { ColorPicker } from './ColorPicker';
 import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
@@ -23,6 +24,7 @@ import type {
   BinderFilterGroup,
   BinderInput,
   BorderColor,
+  ChipExpression,
   ColorChoice,
   EnrichedCard,
   Finish,
@@ -37,6 +39,8 @@ import type {
 } from '../types';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
+
+const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 const COLORS: { key: ColorChoice; label: string }[] = [
   { key: 'W', label: 'White' },
   { key: 'U', label: 'Blue' },
@@ -870,9 +874,18 @@ function FilterGroupList({
       ))}
 
       <div className="filter-group-footer">
-        <button type="button" className="btn btn-add-group" onClick={onAdd}>
-          + Add OR group
+        <button
+          type="button"
+          className="btn btn-add-group"
+          onClick={onAdd}
+          title="Add a whole alternative rule that OR's against everything above. Use this when you want entirely different combinations of fields — e.g. (Mythic creatures) OR (Rare instants). For OR within a single field, use the AND/OR pill between chips."
+        >
+          + Add OR rule
         </button>
+        <span className="filter-group-help" aria-hidden>
+          Use OR rules for whole alternative patterns. Within a single field, the{' '}
+          <strong>AND</strong>/<strong>OR</strong> pill between chips already handles per-field OR.
+        </span>
         {groups.length > 1 && (
           <span className="filter-group-total" aria-live="polite">
             Matches <strong>{total.toLocaleString()}</strong> {total === 1 ? 'card' : 'cards'} total
@@ -996,10 +1009,11 @@ function FilterGroupFields({
       {/* Legalities */}
       <div className="rule-row">
         <span className="rule-label">Legalities</span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={FORMATS.map((f) => ({ value: f, label: f }))}
-          chips={filter.legalities || []}
+          value={filter.legalities ?? EMPTY_EXPR}
           onChange={(next) => patch({ legalities: next })}
+          defaultJoiner="OR"
           placeholder="Add format..."
         />
       </div>
@@ -1007,10 +1021,11 @@ function FilterGroupFields({
       {/* Colors */}
       <div className="rule-row">
         <span className="rule-label">Color identity</span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={COLORS.map((c) => ({ value: c.key, label: c.label }))}
-          chips={filter.colors || []}
+          value={filter.colors ?? EMPTY_EXPR}
           onChange={(next) => patch({ colors: next })}
+          defaultJoiner="OR"
           placeholder="Add color..."
         />
       </div>
@@ -1018,10 +1033,11 @@ function FilterGroupFields({
       {/* Rarity */}
       <div className="rule-row">
         <span className="rule-label">Rarity</span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={RARITIES.map((r) => ({ value: r, label: r }))}
-          chips={filter.rarities || []}
+          value={filter.rarities ?? EMPTY_EXPR}
           onChange={(next) => patch({ rarities: next })}
+          defaultJoiner="OR"
           placeholder="Add rarity..."
         />
       </div>
@@ -1062,11 +1078,12 @@ function FilterGroupFields({
         >
           Type line <span className="tooltip-marker">ⓘ</span>
         </span>
-        <ChipBuilder
-          chips={filter.typeChips || []}
+        <ChipExpressionBuilder
+          value={filter.typeChips ?? EMPTY_EXPR}
           onChange={(next) => patch({ typeChips: next })}
-          placeholder="e.g. creature, angel, legendary"
           suggestions={typeSuggestions}
+          defaultJoiner="OR"
+          placeholder="e.g. creature, angel, legendary"
         />
       </div>
 
@@ -1078,11 +1095,12 @@ function FilterGroupFields({
         >
           Oracle text <span className="tooltip-marker">ⓘ</span>
         </span>
-        <ChipBuilder
-          chips={filter.oracleChips || []}
+        <ChipExpressionBuilder
+          value={filter.oracleChips ?? EMPTY_EXPR}
           onChange={(next) => patch({ oracleChips: next })}
-          placeholder="e.g. flying, draw a card"
           suggestions={oracleSuggestions}
+          defaultJoiner="OR"
+          placeholder="e.g. flying, draw a card"
         />
       </div>
 
@@ -1111,10 +1129,11 @@ function FilterGroupFields({
       {/* Finishes */}
       <div className="rule-row">
         <span className="rule-label">Finishes</span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={FINISHES.map((f) => ({ value: f.key, label: f.label }))}
-          chips={filter.finishes || []}
+          value={filter.finishes ?? EMPTY_EXPR}
           onChange={(next) => patch({ finishes: next })}
+          defaultJoiner="OR"
           placeholder="Add finish..."
         />
       </div>
@@ -1122,10 +1141,11 @@ function FilterGroupFields({
       {/* Layout */}
       <div className="rule-row">
         <span className="rule-label">Layout</span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
-          chips={filter.layouts || []}
+          value={filter.layouts ?? EMPTY_EXPR}
           onChange={(next) => patch({ layouts: next })}
+          defaultJoiner="OR"
           placeholder="Add layout..."
         />
       </div>
@@ -1149,10 +1169,11 @@ function FilterGroupFields({
         >
           Treatment <span className="tooltip-marker">ⓘ</span>
         </span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={TREATMENT_OPTIONS.map((t) => ({ value: t.key, label: t.label }))}
-          chips={filter.treatments || []}
+          value={filter.treatments ?? EMPTY_EXPR}
           onChange={(next) => patch({ treatments: next })}
+          defaultJoiner="OR"
           placeholder="Add treatment..."
         />
       </div>
@@ -1160,10 +1181,11 @@ function FilterGroupFields({
       {/* Border */}
       <div className="rule-row">
         <span className="rule-label">Border</span>
-        <EnumChipBuilder
+        <ChipExpressionBuilder
           options={BORDER_OPTIONS.map((b) => ({ value: b.key, label: b.label }))}
-          chips={filter.borderColors || []}
+          value={filter.borderColors ?? EMPTY_EXPR}
           onChange={(next) => patch({ borderColors: next })}
+          defaultJoiner="OR"
           placeholder="Add border..."
         />
       </div>
@@ -1220,9 +1242,9 @@ function FilterGroupFields({
  */
 function autoSummary(f: BinderFilter): string {
   const parts: string[] = [];
-  const chipNames = (chips: NegatableChip[] | undefined, max = 2) => {
-    if (!chips || chips.length === 0) return null;
-    const is = chips.filter((c) => !c.negate).map((c) => c.value);
+  const chipNames = (expr: ChipExpression | undefined, max = 2) => {
+    if (!expr || expr.chips.length === 0) return null;
+    const is = expr.chips.filter((c) => !c.negate).map((c) => c.value);
     if (is.length === 0) return null;
     if (is.length <= max) return is.join(', ');
     return `${is.slice(0, max).join(', ')} +${is.length - max}`;
@@ -1265,9 +1287,10 @@ function autoSummary(f: BinderFilter): string {
   return parts.slice(0, 4).join(' · ');
 }
 
-/** Deep-clone the chip arrays of a filter (so duplication doesn't share mutable refs). */
+/** Deep-clone the chip fields of a filter (so duplication doesn't share mutable refs). */
 function cloneChips(f: BinderFilter): Partial<BinderFilter> {
-  const dup = (chips?: NegatableChip[]) => chips?.map((c) => ({ ...c }));
+  const dup = (expr?: ChipExpression): ChipExpression | undefined =>
+    expr ? { chips: expr.chips.map((c) => ({ ...c })), joiners: [...expr.joiners] } : undefined;
   return {
     legalities: dup(f.legalities),
     colors: dup(f.colors),
@@ -1283,207 +1306,6 @@ function cloneChips(f: BinderFilter): Partial<BinderFilter> {
 }
 
 /* ─────────────────────────── small components ─────────────────────────── */
-
-/** ManaBox-style chip builder: type a value, hit Enter to add. Each chip toggles IS / IS NOT and has an X. */
-const MAX_SUGGESTIONS = 8;
-
-function ChipBuilder({
-  chips,
-  onChange,
-  placeholder,
-  suggestions = [],
-}: {
-  chips: NegatableChip[];
-  onChange: (next: NegatableChip[]) => void;
-  placeholder?: string;
-  suggestions?: string[];
-}) {
-  const [draft, setDraft] = useState('');
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const listRef = useRef<HTMLUListElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const taken = useMemo(() => new Set(chips.map((c) => c.value.toLowerCase())), [chips]);
-
-  const filtered = useMemo(() => {
-    const q = draft.trim().toLowerCase();
-    if (!q) return [];
-    return suggestions
-      .filter((s) => s.toLowerCase().includes(q) && !taken.has(s.toLowerCase()))
-      .slice(0, MAX_SUGGESTIONS);
-  }, [draft, suggestions, taken]);
-
-  const open = filtered.length > 0;
-
-  const commit = useCallback(
-    (value?: string) => {
-      const v = (value ?? draft).trim();
-      if (!v) return;
-      if (chips.some((c) => c.value.toLowerCase() === v.toLowerCase())) {
-        setDraft('');
-        setActiveIdx(-1);
-        return;
-      }
-      onChange([...chips, { value: v, negate: false }]);
-      setDraft('');
-      setActiveIdx(-1);
-    },
-    [draft, chips, onChange]
-  );
-
-  return (
-    <div className="chip-builder-wrap">
-      <div className="chip-builder-inner">
-        {chips.map((c, i) => (
-          <span
-            key={i}
-            className={`chip-builder-chip ${c.negate ? 'is-not' : 'is'}`}
-            title="Click IS / IS NOT to toggle"
-          >
-            <button
-              type="button"
-              className="chip-builder-toggle"
-              onClick={() =>
-                onChange(chips.map((x, j) => (j === i ? { ...x, negate: !x.negate } : x)))
-              }
-            >
-              {c.negate ? 'IS NOT' : 'IS'}
-            </button>
-            <span className="chip-builder-value">{c.value}</span>
-            <button
-              type="button"
-              className="chip-builder-remove"
-              aria-label="Remove"
-              onClick={() => onChange(chips.filter((_, j) => j !== i))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        <div className="chip-builder-input-wrap">
-          <input
-            ref={inputRef}
-            type="text"
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              setActiveIdx(-1);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                setActiveIdx((i) => Math.max(i - 1, -1));
-              } else if (e.key === 'Enter') {
-                e.preventDefault();
-                commit(activeIdx >= 0 ? filtered[activeIdx] : undefined);
-              } else if (e.key === 'Escape') {
-                setDraft('');
-                setActiveIdx(-1);
-              } else if (e.key === 'Backspace' && draft === '' && chips.length > 0) {
-                onChange(chips.slice(0, -1));
-              }
-            }}
-            onBlur={() => {
-              // Delay so click on suggestion fires first
-              setTimeout(() => {
-                commit();
-              }, 120);
-            }}
-            placeholder={placeholder}
-            autoComplete="off"
-            aria-autocomplete="list"
-            aria-expanded={open}
-            aria-activedescendant={activeIdx >= 0 ? `chip-suggest-${activeIdx}` : undefined}
-          />
-          {open && (
-            <ul ref={listRef} className="chip-suggest-list" role="listbox">
-              {filtered.map((s, i) => (
-                <li
-                  key={s}
-                  id={`chip-suggest-${i}`}
-                  role="option"
-                  aria-selected={i === activeIdx}
-                  className={`chip-suggest-item${i === activeIdx ? ' active' : ''}`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    commit(s);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Dropdown-driven chip builder for controlled-vocabulary fields (e.g. rarity).
- * Picking from the dropdown adds an IS chip; click the IS / IS NOT pill to flip; X to remove.
- * Already-selected values disappear from the dropdown.
- */
-function EnumChipBuilder({
-  options,
-  chips,
-  onChange,
-  placeholder,
-}: {
-  options: { value: string; label: string }[];
-  chips: NegatableChip[];
-  onChange: (next: NegatableChip[]) => void;
-  placeholder?: string;
-}) {
-  const taken = new Set(chips.map((c) => c.value.toLowerCase()));
-  const available = options.filter((o) => !taken.has(o.value.toLowerCase()));
-  const labelFor = (val: string) =>
-    options.find((o) => o.value.toLowerCase() === val.toLowerCase())?.label ?? val;
-
-  return (
-    <div className="chip-builder-wrap">
-      {chips.map((c, i) => (
-        <span
-          key={i}
-          className={`chip-builder-chip ${c.negate ? 'is-not' : 'is'}`}
-          title="Click IS / IS NOT to toggle"
-        >
-          <button
-            type="button"
-            className="chip-builder-toggle"
-            onClick={() =>
-              onChange(chips.map((x, j) => (j === i ? { ...x, negate: !x.negate } : x)))
-            }
-          >
-            {c.negate ? 'IS NOT' : 'IS'}
-          </button>
-          <span className="chip-builder-value">{labelFor(c.value)}</span>
-          <button
-            type="button"
-            className="chip-builder-remove"
-            aria-label="Remove"
-            onClick={() => onChange(chips.filter((_, j) => j !== i))}
-          >
-            ×
-          </button>
-        </span>
-      ))}
-      <SelectMenu
-        value=""
-        options={available.map((o) => ({ value: o.value, label: o.label }))}
-        onChange={(v) => onChange([...chips, { value: v, negate: false }])}
-        placeholder={available.length === 0 ? 'all added' : (placeholder ?? 'add...')}
-        ariaLabel={placeholder ?? 'add'}
-        disabled={available.length === 0}
-      />
-    </div>
-  );
-}
 
 /** Multi-select dropdown for set codes. Selected sets render as removable chips. */
 function SetMultiSelect({
@@ -1674,21 +1496,39 @@ function validateRanges(f: BinderFilter): string | null {
 /** Strip empty strings/arrays/undefineds and chips with blank values. */
 function cleanFilter(f: BinderFilter): BinderFilter {
   const out: BinderFilter = {};
-  const cleanChips = (chips?: NegatableChip[]) => {
-    const kept = (chips || [])
-      .filter((c) => c.value.trim())
-      .map((c) => ({ value: c.value.trim(), negate: c.negate }));
-    return kept.length ? kept : undefined;
+  /**
+   * Strip blank-value chips, dropping the field entirely when nothing's
+   * left. Joiners stay in lockstep with surviving chips: joiners[i]
+   * connects chips[i]→chips[i+1], so when chip i is removed we drop
+   * joiner i (the one *after* it) — preserving the leading-no-joiner
+   * invariant.
+   */
+  const cleanField = (expr?: ChipExpression): ChipExpression | undefined => {
+    if (!expr) return undefined;
+    const keepIdx: number[] = [];
+    const keptChips: NegatableChip[] = [];
+    expr.chips.forEach((c, i) => {
+      if (c.value.trim()) {
+        keepIdx.push(i);
+        keptChips.push({ value: c.value.trim(), negate: c.negate });
+      }
+    });
+    if (keptChips.length === 0) return undefined;
+    const keptJoiners: ('AND' | 'OR')[] = [];
+    for (let k = 0; k < keepIdx.length - 1; k++) {
+      keptJoiners.push(expr.joiners[keepIdx[k]] ?? 'AND');
+    }
+    return { chips: keptChips, joiners: keptJoiners };
   };
-  if (cleanChips(f.legalities)) out.legalities = cleanChips(f.legalities);
-  if (cleanChips(f.colors)) out.colors = cleanChips(f.colors);
-  if (cleanChips(f.rarities)) out.rarities = cleanChips(f.rarities);
-  if (cleanChips(f.typeChips)) out.typeChips = cleanChips(f.typeChips);
-  if (cleanChips(f.oracleChips)) out.oracleChips = cleanChips(f.oracleChips);
-  if (cleanChips(f.finishes)) out.finishes = cleanChips(f.finishes);
-  if (cleanChips(f.layouts)) out.layouts = cleanChips(f.layouts);
-  if (cleanChips(f.treatments)) out.treatments = cleanChips(f.treatments);
-  if (cleanChips(f.borderColors)) out.borderColors = cleanChips(f.borderColors);
+  if (cleanField(f.legalities)) out.legalities = cleanField(f.legalities);
+  if (cleanField(f.colors)) out.colors = cleanField(f.colors);
+  if (cleanField(f.rarities)) out.rarities = cleanField(f.rarities);
+  if (cleanField(f.typeChips)) out.typeChips = cleanField(f.typeChips);
+  if (cleanField(f.oracleChips)) out.oracleChips = cleanField(f.oracleChips);
+  if (cleanField(f.finishes)) out.finishes = cleanField(f.finishes);
+  if (cleanField(f.layouts)) out.layouts = cleanField(f.layouts);
+  if (cleanField(f.treatments)) out.treatments = cleanField(f.treatments);
+  if (cleanField(f.borderColors)) out.borderColors = cleanField(f.borderColors);
 
   if (f.cmcMin !== undefined && !isNaN(f.cmcMin)) out.cmcMin = f.cmcMin;
   if (f.cmcMax !== undefined && !isNaN(f.cmcMax)) out.cmcMax = f.cmcMax;
