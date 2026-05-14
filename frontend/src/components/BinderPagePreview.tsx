@@ -29,6 +29,8 @@ interface Props {
    */
   resolveCard: (card: EnrichedCard) => InnerCardScope | null;
   onClose: () => void;
+  /** Forwarded to the inner CardPreview's Edit button. */
+  onEditCard?: (card: EnrichedCard) => void;
 }
 
 export function BinderPagePreview({
@@ -39,6 +41,7 @@ export function BinderPagePreview({
   binderName,
   resolveCard,
   onClose,
+  onEditCard,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -287,6 +290,14 @@ export function BinderPagePreview({
           totalPages={innerCard.totalPages}
           onIndexChange={(i) => setInnerCard((prev) => (prev ? { ...prev, index: i } : prev))}
           onClose={() => setInnerCard(null)}
+          onEdit={
+            onEditCard
+              ? (c) => {
+                  setInnerCard(null);
+                  onEditCard(c);
+                }
+              : undefined
+          }
         />
       )}
     </>
