@@ -13,6 +13,20 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('timeout + abort handling', () => {
+  it('throws a friendly error when the request is aborted (timeout)', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+    );
+    await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/timed out/i);
+  });
+
+  it('throws a friendly error when the network is unreachable', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/not responding/i);
+  });
+});
+
 describe('matchCombos', () => {
   it('POSTs the request body and returns the parsed match buckets', async () => {
     const empty = { inDeck: [], oneAway: [], almostInCollection: [] };
