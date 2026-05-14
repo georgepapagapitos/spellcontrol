@@ -4069,15 +4069,72 @@ hr {
   color: var(--on-accent, var(--surface));
 }
 
-.color-swatch-custom input[type='color'] {
-  position: absolute;
-  inset: 0;
+.color-picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.color-picker-custom-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.color-picker-custom-panel .react-colorful {
   width: 100%;
-  height: 100%;
-  opacity: 0;
+  height: 160px;
+}
+
+.color-picker-custom-panel .react-colorful__saturation,
+.color-picker-custom-panel .react-colorful__hue {
+  border-radius: var(--radius);
+}
+
+.color-picker-custom-panel .react-colorful__hue {
+  height: 14px;
+  margin-top: 8px;
+}
+
+.color-picker-custom-panel .react-colorful__pointer {
+  width: 16px;
+  height: 16px;
+}
+
+.color-picker-hex-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+}
+
+.color-picker-hex-row:focus-within {
+  border-color: var(--accent);
+}
+
+.color-picker-hex-hash {
+  color: var(--text3);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+}
+
+.color-picker-hex-input {
+  flex: 1;
+  background: transparent;
   border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   padding: 0;
-  cursor: pointer;
+  min-width: 0;
 }
 
 /* ── Rule groups (OR-able) ──────────────────────────────────────────────── */
@@ -8086,4 +8143,53 @@ hr {
 }
 .admin-footer-note {
   margin-top: 2rem;
+}
+
+/* ── ProgressBar ─────────────────────────────────────────────────────── */
+.progress-bar {
+  width: 100%;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+.progress-bar-fill-indeterminate {
+  width: 40% !important;
+  border-radius: 999px;
+  animation: progress-bar-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes progress-bar-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.progress-bar-msg {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  margin-top: 0.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar-fill-indeterminate {
+    animation: none;
+    transform: translateX(75%);
+  }
 }
