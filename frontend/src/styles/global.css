@@ -8200,58 +8200,33 @@ hr {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* Honest preview: show the entire camera feed at its true aspect ratio.
+     The viewfinder is positioned in JS to live *inside* the visible
+     video band, so the cover-cropping we used to do (which magnified
+     the feed and hid most of the sensor) is no longer useful. The
+     letterbox space outside the video is plain black — explicitly not
+     a UI element. */
+  object-fit: contain;
   background: #000;
-}
-
-/* Rotation path: Android browsers (and some Safari builds) ignore our
-   portrait resolution constraint and hand back a 1920×1080 landscape
-   stream regardless. Letting `object-fit: cover` deal with that on its
-   own crops out ~70% of the sensor's horizontal field of view, which
-   reads as "way too zoomed in". Rotating the video element 90° CW makes
-   the landscape stream fit a portrait viewport with minimal cropping;
-   the CardScanner capture code accompanies this by rotating its source
-   rect in the matching direction so OCR/pHash still see upright text.
-   The element's box is sized using viewport units swapped from normal
-   (width = 100vh) so the rotated rectangle ends up matching the screen. */
-.scanner-video.is-rotated {
-  inset: auto;
-  top: 50%;
-  left: 50%;
-  width: 100vh;
-  height: 100vw;
-  transform: translate(-50%, -50%) rotate(90deg);
-}
-/* Modern browsers: use the small-viewport units so URL bar reveals don't
-   nudge the rotated video around. */
-@supports (height: 100svh) {
-  .scanner-video.is-rotated {
-    width: 100svh;
-    height: 100svw;
-  }
 }
 
 .scanner-overlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  /* Soft vignette so the viewfinder pops without obscuring the live feed. */
-  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.45) 80%);
   pointer-events: none;
+  /* No centering / vignette here anymore — the viewfinder positions
+     itself in JS relative to the actually-visible video rect, so the
+     overlay is a transparent passthrough. We still keep it around so
+     children (viewfinder, scanline) stay above the video element. */
 }
 
 .scanner-viewfinder {
-  position: relative;
-  /* 5:7 aspect ratio matches an MTG card. min(86vw,…) keeps the box visible
-     on small phones; max-width caps it on tablets/desktop. Uses 100svh
-     (small viewport) so the box doesn't change size as the URL bar shows
-     and hides on mobile. */
-  width: min(86vw, calc((100svh - 240px) * 5 / 7), 420px);
-  aspect-ratio: 5 / 7;
+  /* Dimensions + position are set as inline styles from JS (see
+     viewfinderRect in CardScanner.tsx). Only purely visual properties
+     live here. */
   border-radius: 14px;
   box-shadow:
-    0 0 0 9999px rgba(0, 0, 0, 0.35),
+    0 0 0 9999px rgba(0, 0, 0, 0.28),
     0 0 32px rgba(255, 255, 255, 0.06) inset;
 }
 
