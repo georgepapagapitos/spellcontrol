@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
-import { eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 import { getDb } from '../db';
 import { combos, comboCards } from '../db/schema';
@@ -10,6 +11,78 @@ export const combosRouter: Router = Router();
 
 const MAX_OWNED_IDS = 10_000;
 const MAX_DECK_IDS = 500;
+
+/**
+ * Hard cap on how many candidate combos we materialize per request. With a
+ * large collection (5000+ unique oracle ids) the naive "load every combo
+ * touching any owned card" pulls 30k+ rows of metadata + ~100k card rows
+ * into memory — easily 50MB+ of allocation in a 256MB container, on top of
+ * the phash store and node baseline. That's been crashing the backend mid-
+ * request and returning 502s through nginx.
+ *
+ * 2000 most-popular candidates covers virtually every combo a player would
+ * actually care about (Spellbook's long tail is dominated by combos with
+ * 1-10 deck registrations). Bounded memory; bounded latency.
+ */
+const MAX_CANDIDATE_COMBOS = 2000;
+
+/**
+ * Server-side LRU cache for /match responses. The result is a deterministic
+ * function of (ownedOracleIds, deckOracleIds, format) plus the dataset
+ * version (only changes nightly when ingest runs). The cache key is the
+ * SHA-256 of the normalized inputs; entries live for an hour. First request
+ * hits Postgres; subsequent identical requests hit memory in microseconds.
+ *
+ * 64 entries × ~50 KB per response = ~3 MB cap on cache memory.
+ */
+interface CacheEntry {
+  body: unknown;
+  expiresAt: number;
+}
+const matchCache = new Map<string, CacheEntry>();
+const MATCH_CACHE_TTL_MS = 60 * 60 * 1000;
+const MATCH_CACHE_LIMIT = 64;
+
+function rememberMatch(key: string, body: unknown): void {
+  if (matchCache.size >= MATCH_CACHE_LIMIT) {
+    const oldest = matchCache.keys().next().value;
+    if (oldest) matchCache.delete(oldest);
+  }
+  matchCache.set(key, { body, expiresAt: Date.now() + MATCH_CACHE_TTL_MS });
+}
+
+function readMatchCache(key: string): unknown | null {
+  const entry = matchCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) {
+    matchCache.delete(key);
+    return null;
+  }
+  // Re-insert at the end so this entry is now the most-recently-used.
+  matchCache.delete(key);
+  matchCache.set(key, entry);
+  return entry.body;
+}
+
+function matchCacheKey(
+  owned: string[],
+  deck: string[] | undefined,
+  format: string | undefined
+): string {
+  const h = createHash('sha256');
+  h.update(format ?? '');
+  h.update('|');
+  // Sort so order doesn't fragment cache hits.
+  for (const id of [...owned].sort()) h.update(id + ',');
+  h.update('|');
+  if (deck) for (const id of [...deck].sort()) h.update(id + ',');
+  return h.digest('hex');
+}
+
+/** Reset hook for tests. */
+export function __resetMatchCacheForTesting(): void {
+  matchCache.clear();
+}
 
 function adminUsernames(): Set<string> {
   const raw = process.env.ADMIN_USERNAMES ?? '';
@@ -36,30 +109,45 @@ function asStringArray(value: unknown, max: number): string[] | null {
 }
 
 /**
- * Loads every combo that contains at least one of the supplied oracle ids,
- * along with its full card list. The oracle index makes the first hop
- * trivial; the second `inArray(combos.id, ids)` pulls the metadata for those
- * combos in one round-trip.
+ * Loads candidate combos that touch at least one of the supplied oracle
+ * ids. Capped at MAX_CANDIDATE_COMBOS (most-popular first) so a request
+ * from a user with thousands of owned oracle ids can't try to materialize
+ * every combo in the dataset and OOM the container.
+ *
+ * The oracle index handles the first hop fast. We then join against the
+ * combos table to take the top-N by popularity, then fetch the card list
+ * for just those N. Two round-trips total (vs. three in the naive shape).
  */
 async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInput[]> {
   if (oracleIds.length === 0) return [];
   const db = getDb();
 
+  // Hop 1: combo ids whose card list intersects the seed set.
   const matchingComboIds = await db
     .selectDistinct({ comboId: comboCards.comboId })
     .from(comboCards)
     .where(inArray(comboCards.oracleId, oracleIds));
-  const ids = matchingComboIds.map((r) => r.comboId);
-  if (ids.length === 0) return [];
+  const allCandidateIds = matchingComboIds.map((r) => r.comboId);
+  if (allCandidateIds.length === 0) return [];
 
-  const [comboRows, cardRows] = await Promise.all([
-    db.select().from(combos).where(inArray(combos.id, ids)),
-    db
-      .select()
-      .from(comboCards)
-      .where(inArray(comboCards.comboId, ids))
-      .orderBy(comboCards.position),
-  ]);
+  // Hop 2: take the top-N candidate combos by popularity. Avoids
+  // materializing 30k+ combo rows when the user has a huge collection.
+  const comboRows = await db
+    .select()
+    .from(combos)
+    .where(inArray(combos.id, allCandidateIds))
+    .orderBy(desc(combos.popularity))
+    .limit(MAX_CANDIDATE_COMBOS);
+  if (comboRows.length === 0) return [];
+  const ids = comboRows.map((r) => r.id);
+
+  // Hop 3: load ONLY the cards belonging to the surviving candidates. With
+  // N=2000 combos × ~3 cards each, this is ~6000 rows — tiny.
+  const cardRows = await db
+    .select()
+    .from(comboCards)
+    .where(inArray(comboCards.comboId, ids))
+    .orderBy(comboCards.position);
 
   const cardsByCombo = new Map<string, ComboInput['cards']>();
   for (const r of cardRows) {
@@ -101,6 +189,19 @@ combosRouter.post('/match', requireAuth, async (req: Request, res: Response) => 
   }
   const format = typeof body.format === 'string' ? body.format : undefined;
 
+  // Cache hit? — match results are deterministic given (inputs + dataset).
+  // The dataset only changes on the nightly ingest, so the only invalidator
+  // is TTL expiry. Saves the entire query + JS bucketing on identical
+  // subsequent requests (e.g. the user reloading the page or switching
+  // between decks with the same collection).
+  const cacheKey = matchCacheKey(ownedOracleIds, deckOracleIds ?? undefined, format);
+  const cached = readMatchCache(cacheKey);
+  if (cached) {
+    res.set('X-Combos-Cache', 'hit');
+    res.json(cached);
+    return;
+  }
+
   // Only fetch combos that touch at least one card the user has present
   // (deck ∪ collection). The seeded set is what `matchCombos` then buckets.
   const seedIds = new Set<string>(ownedOracleIds);
@@ -114,6 +215,8 @@ combosRouter.post('/match', requireAuth, async (req: Request, res: Response) => 
     format,
   });
 
+  rememberMatch(cacheKey, result);
+  res.set('X-Combos-Cache', 'miss');
   res.json(result);
 });
 
