@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -33,6 +33,10 @@ import { useDecksStore } from '../../store/decks';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { CardPreview } from '../CardPreview';
+
+export interface DeckTestHandPanelHandle {
+  reveal(): void;
+}
 
 interface Props {
   deckId: string;
@@ -143,180 +147,195 @@ function makeSlot(card: ScryfallCard): HandSlot {
   return { id: `slot-${slotCounter}`, card };
 }
 
-export function DeckTestHandPanel({ deckId }: Props) {
-  const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
+export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
+  function DeckTestHandPanel({ deckId }, ref) {
+    const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
 
-  const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
-  useEffect(() => writeCollapsedPref(collapsed), [collapsed]);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
+    useEffect(() => writeCollapsedPref(collapsed), [collapsed]);
 
-  // The library — every card slot in the mainboard, using the EXACT
-  // ScryfallCard the user chose for that slot (so printings/sets/art are
-  // preserved through the shuffle). `deck.cards` is already one entry per
-  // physical slot — duplicates like 4× Sol Ring appear four times, basics
-  // appear once per copy. Excludes:
-  //   - commander / partner commander (start in the command zone, never the
-  //     library)
-  //   - sideboard (never in the library during a game)
-  const library = useMemo(() => {
-    if (!deck) return [] as ScryfallCard[];
-    return deck.cards.map((c) => c.card);
-  }, [deck]);
+    useImperativeHandle(ref, () => ({
+      reveal: () => {
+        setCollapsed(false);
+        window.requestAnimationFrame(() => {
+          containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+      },
+    }));
 
-  const totalCards = library.length;
-  const landCount = useMemo(() => library.filter(isLand).length, [library]);
-  const avgLandsInOpeningHand =
-    totalCards > 0 ? ((landCount / totalCards) * HAND_SIZE).toFixed(2) : '0.00';
+    // The library — every card slot in the mainboard, using the EXACT
+    // ScryfallCard the user chose for that slot (so printings/sets/art are
+    // preserved through the shuffle). `deck.cards` is already one entry per
+    // physical slot — duplicates like 4× Sol Ring appear four times, basics
+    // appear once per copy. Excludes:
+    //   - commander / partner commander (start in the command zone, never the
+    //     library)
+    //   - sideboard (never in the library during a game)
+    const library = useMemo(() => {
+      if (!deck) return [] as ScryfallCard[];
+      return deck.cards.map((c) => c.card);
+    }, [deck]);
 
-  const [hand, setHand] = useState<HandSlot[]>([]);
-  const [pile, setPile] = useState<ScryfallCard[]>([]);
-  // Render-phase reset: deal on first mount AND whenever the deck shape
-  // changes. Sentinel ensures the first render mismatches the real key so
-  // the user always sees an opening hand without clicking Deal.
-  const dealKey = `${deckId}:${totalCards}`;
-  const [trackedDealKey, setTrackedDealKey] = useState<string>('__uninitialized__');
-  if (trackedDealKey !== dealKey) {
-    setTrackedDealKey(dealKey);
-    const shuffled = shuffle(library);
-    setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
-    setPile(shuffled.slice(HAND_SIZE));
-  }
+    const totalCards = library.length;
+    const landCount = useMemo(() => library.filter(isLand).length, [library]);
+    const avgLandsInOpeningHand =
+      totalCards > 0 ? ((landCount / totalCards) * HAND_SIZE).toFixed(2) : '0.00';
 
-  // The most-recently-drawn slot id. Only this card plays the slide-in
-  // entrance — initial-deal cards just appear, and reorders never animate
-  // opacity. That mirrors the reference and avoids the spurious fade-in we
-  // saw whenever any animation property mutated during a reorder.
-  const [drawnSlotId, setDrawnSlotId] = useState<string | null>(null);
+    const [hand, setHand] = useState<HandSlot[]>([]);
+    const [pile, setPile] = useState<ScryfallCard[]>([]);
+    // Render-phase reset: deal on first mount AND whenever the deck shape
+    // changes. Sentinel ensures the first render mismatches the real key so
+    // the user always sees an opening hand without clicking Deal.
+    const dealKey = `${deckId}:${totalCards}`;
+    const [trackedDealKey, setTrackedDealKey] = useState<string>('__uninitialized__');
+    if (trackedDealKey !== dealKey) {
+      setTrackedDealKey(dealKey);
+      const shuffled = shuffle(library);
+      setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
+      setPile(shuffled.slice(HAND_SIZE));
+    }
 
-  const handleDeal = () => {
-    const shuffled = shuffle(library);
-    setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
-    setPile(shuffled.slice(HAND_SIZE));
-    setDrawnSlotId(null);
-  };
+    // The most-recently-drawn slot id. Only this card plays the slide-in
+    // entrance — initial-deal cards just appear, and reorders never animate
+    // opacity. That mirrors the reference and avoids the spurious fade-in we
+    // saw whenever any animation property mutated during a reorder.
+    const [drawnSlotId, setDrawnSlotId] = useState<string | null>(null);
 
-  const handleDraw = () => {
-    setPile((p) => {
-      if (p.length === 0) return p;
-      const [next, ...rest] = p;
-      const slot = makeSlot(next);
-      setHand((h) => [...h, slot]);
-      setDrawnSlotId(slot.id);
-      return rest;
-    });
-  };
+    const handleDeal = () => {
+      const shuffled = shuffle(library);
+      setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
+      setPile(shuffled.slice(HAND_SIZE));
+      setDrawnSlotId(null);
+    };
 
-  // ── Drag-reorder via @dnd-kit ──────────────────────────────────────────
-  // PointerSensor's `distance: 6` activation constraint distinguishes clicks
-  // (open preview) from drags (reorder). KeyboardSensor enables Tab → Space
-  // → Arrows reordering for free, with screen-reader announcements.
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+    const handleDraw = () => {
+      setPile((p) => {
+        if (p.length === 0) return p;
+        const [next, ...rest] = p;
+        const slot = makeSlot(next);
+        setHand((h) => [...h, slot]);
+        setDrawnSlotId(slot.id);
+        return rest;
+      });
+    };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setHand((prev) => {
-      const oldIndex = prev.findIndex((s) => s.id === active.id);
-      const newIndex = prev.findIndex((s) => s.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(prev, oldIndex, newIndex);
-    });
-  };
+    // ── Drag-reorder via @dnd-kit ──────────────────────────────────────────
+    // PointerSensor's `distance: 6` activation constraint distinguishes clicks
+    // (open preview) from drags (reorder). KeyboardSensor enables Tab → Space
+    // → Arrows reordering for free, with screen-reader announcements.
+    const sensors = useSensors(
+      useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+      useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
-  // ── Preview wiring ──────────────────────────────────────────────────
-  // CardPreview wants EnrichedCard[]; convert lazily and feed the full hand
-  // so prev/next swipes through every card.
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const previewCards = useMemo(() => hand.map((slot) => scryfallToEnrichedCard(slot.card)), [hand]);
-  const previewSectionLabels = useMemo(() => hand.map(() => 'Test hand'), [hand]);
-  const previewPageNumbers = useMemo(() => hand.map(() => 1), [hand]);
+    const handleDragEnd = (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      setHand((prev) => {
+        const oldIndex = prev.findIndex((s) => s.id === active.id);
+        const newIndex = prev.findIndex((s) => s.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    };
 
-  // Dynamic overlap so 8+ cards (after Draw) still fit. Mirrors the
-  // reference's formula: grows ~0.35rem per extra card, capped so the cards
-  // never reverse direction.
-  const overlapRem =
-    hand.length <= HAND_SIZE ? 1.5 : Math.min(1.5 + (hand.length - HAND_SIZE) * 0.35, 5.5);
+    // ── Preview wiring ──────────────────────────────────────────────────
+    // CardPreview wants EnrichedCard[]; convert lazily and feed the full hand
+    // so prev/next swipes through every card.
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+    const previewCards = useMemo(
+      () => hand.map((slot) => scryfallToEnrichedCard(slot.card)),
+      [hand]
+    );
+    const previewSectionLabels = useMemo(() => hand.map(() => 'Test hand'), [hand]);
+    const previewPageNumbers = useMemo(() => hand.map(() => 1), [hand]);
 
-  const canDraw = pile.length > 0;
-  const empty = totalCards === 0;
-  const breakdown = useMemo(() => summarizeHand(hand), [hand]);
+    // Dynamic overlap so 8+ cards (after Draw) still fit. Mirrors the
+    // reference's formula: grows ~0.35rem per extra card, capped so the cards
+    // never reverse direction.
+    const overlapRem =
+      hand.length <= HAND_SIZE ? 1.5 : Math.min(1.5 + (hand.length - HAND_SIZE) * 0.35, 5.5);
 
-  // "Keepable" heuristic. Treats ramp (mana dorks + rocks + cost reducers)
-  // as land-equivalent because they functionally accelerate your mana the
-  // same way an extra land does — a hand of "1 land + 2 mana rocks + a real
-  // play" is a clear keep, but the naive "2-4 lands" rule would mulligan it.
-  //
-  // Three rules, all must hold:
-  //   1. We're looking at a full 7-card hand (post-Draw counts don't fire a
-  //      verdict — those would always look keepable).
-  //   2. Effective mana sources (lands + ramp) is 2-4: not screwed, not
-  //      flooded.
-  //   3. At least one playable spell at CMC ≤ 3 — something to do in the
-  //      first three turns.
-  const effectiveLands = breakdown.lands + breakdown.ramp;
-  const isKeepable =
-    hand.length >= HAND_SIZE &&
-    effectiveLands >= 2 &&
-    effectiveLands <= 4 &&
-    hand.some((s) => !isLand(s.card) && cardCmc(s.card) <= 3);
+    const canDraw = pile.length > 0;
+    const empty = totalCards === 0;
+    const breakdown = useMemo(() => summarizeHand(hand), [hand]);
 
-  const slotIds = useMemo(() => hand.map((s) => s.id), [hand]);
+    // "Keepable" heuristic. Treats ramp (mana dorks + rocks + cost reducers)
+    // as land-equivalent because they functionally accelerate your mana the
+    // same way an extra land does — a hand of "1 land + 2 mana rocks + a real
+    // play" is a clear keep, but the naive "2-4 lands" rule would mulligan it.
+    //
+    // Three rules, all must hold:
+    //   1. We're looking at a full 7-card hand (post-Draw counts don't fire a
+    //      verdict — those would always look keepable).
+    //   2. Effective mana sources (lands + ramp) is 2-4: not screwed, not
+    //      flooded.
+    //   3. At least one playable spell at CMC ≤ 3 — something to do in the
+    //      first three turns.
+    const effectiveLands = breakdown.lands + breakdown.ramp;
+    const isKeepable =
+      hand.length >= HAND_SIZE &&
+      effectiveLands >= 2 &&
+      effectiveLands <= 4 &&
+      hand.some((s) => !isLand(s.card) && cardCmc(s.card) <= 3);
 
-  return (
-    <div
-      className={`deck-test-hand-panel${collapsed ? ' is-collapsed' : ''}`}
-      role="region"
-      aria-label="Test hand"
-    >
-      <button
-        type="button"
-        className="deck-test-hand-header"
-        aria-expanded={!collapsed}
-        aria-controls="deck-test-hand-body"
-        onClick={() => setCollapsed((c) => !c)}
-        title={collapsed ? 'Expand test hand' : 'Collapse test hand'}
+    const slotIds = useMemo(() => hand.map((s) => s.id), [hand]);
+
+    return (
+      <div
+        ref={containerRef}
+        className={`deck-test-hand-panel${collapsed ? ' is-collapsed' : ''}`}
+        role="region"
+        aria-label="Test hand"
       >
-        <Hand width={16} height={16} aria-hidden />
-        <span className="deck-test-hand-title">Test hand</span>
-        <span className="deck-test-hand-header-summary" aria-hidden>
+        <button
+          type="button"
+          className="deck-test-hand-header"
+          aria-expanded={!collapsed}
+          aria-controls="deck-test-hand-body"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand test hand' : 'Collapse test hand'}
+        >
+          <Hand width={16} height={16} aria-hidden />
+          <span className="deck-test-hand-title">Test hand</span>
+          <span className="deck-test-hand-header-summary" aria-hidden>
+            {empty ? (
+              <span className="deck-test-hand-header-empty">Empty deck</span>
+            ) : (
+              <>
+                <span>{totalCards} cards</span>
+                <span>
+                  {landCount} {landCount === 1 ? 'land' : 'lands'}
+                </span>
+              </>
+            )}
+          </span>
+          <span className="deck-test-hand-header-chevron" aria-hidden>
+            {collapsed ? (
+              <ChevronDown width={16} height={16} />
+            ) : (
+              <ChevronUp width={16} height={16} />
+            )}
+          </span>
+        </button>
+
+        <div
+          id="deck-test-hand-body"
+          className="deck-test-hand-body"
+          hidden={collapsed}
+          aria-hidden={collapsed}
+        >
           {empty ? (
-            <span className="deck-test-hand-header-empty">Empty deck</span>
+            <p className="deck-test-hand-empty">Add cards to the deck to draw a test hand.</p>
           ) : (
             <>
-              <span>{totalCards} cards</span>
-              <span>
-                {landCount} {landCount === 1 ? 'land' : 'lands'}
-              </span>
-            </>
-          )}
-        </span>
-        <span className="deck-test-hand-header-chevron" aria-hidden>
-          {collapsed ? (
-            <ChevronDown width={16} height={16} />
-          ) : (
-            <ChevronUp width={16} height={16} />
-          )}
-        </span>
-      </button>
-
-      <div
-        id="deck-test-hand-body"
-        className="deck-test-hand-body"
-        hidden={collapsed}
-        aria-hidden={collapsed}
-      >
-        {empty ? (
-          <p className="deck-test-hand-empty">Add cards to the deck to draw a test hand.</p>
-        ) : (
-          <>
-            <div className="deck-test-hand-fan-scroll">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-                /* Constrain drag to the row's horizontal axis. Vertical
+              <div className="deck-test-hand-fan-scroll">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                  /* Constrain drag to the row's horizontal axis. Vertical
                    movement would visually break the fan layout (cards
                    could lift out of the row's flow), and we already have
                    the lift-on-drag visual baked in via CSS — the user
@@ -324,120 +343,121 @@ export function DeckTestHandPanel({ deckId }: Props) {
                    the dragged card from leaving the panel, which is
                    especially important for the rightward overflow case
                    after Draw. */
-                modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
-              >
-                <SortableContext items={slotIds} strategy={horizontalListSortingStrategy}>
-                  <ul
-                    className="deck-test-hand-fan"
-                    role="list"
-                    aria-label="Opening hand — drag to reorder, click to preview"
-                    /* The container compensates for every card's left-pull
+                  modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
+                >
+                  <SortableContext items={slotIds} strategy={horizontalListSortingStrategy}>
+                    <ul
+                      className="deck-test-hand-fan"
+                      role="list"
+                      aria-label="Opening hand — drag to reorder, click to preview"
+                      /* The container compensates for every card's left-pull
                        overlap so the first card lands flush with the panel.
                        Keeping the per-card margin uniform (vs. zeroing it on
                        index 0) means a card never visually jumps when it
                        crosses the index-0 boundary during a drag. */
-                    style={{ paddingLeft: `${overlapRem}rem` }}
-                  >
-                    {hand.map((slot, i) => (
-                      <SortableCard
-                        key={slot.id}
-                        slot={slot}
-                        index={i}
-                        overlapRem={overlapRem}
-                        isNewlyDrawn={slot.id === drawnSlotId}
-                        onPreview={() => setPreviewIndex(i)}
-                      />
-                    ))}
-                  </ul>
-                </SortableContext>
-              </DndContext>
-            </div>
+                      style={{ paddingLeft: `${overlapRem}rem` }}
+                    >
+                      {hand.map((slot, i) => (
+                        <SortableCard
+                          key={slot.id}
+                          slot={slot}
+                          index={i}
+                          overlapRem={overlapRem}
+                          isNewlyDrawn={slot.id === drawnSlotId}
+                          onPreview={() => setPreviewIndex(i)}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </DndContext>
+              </div>
 
-            <div className="deck-test-hand-actions">
-              <button
-                type="button"
-                className="deck-test-hand-action"
-                onClick={handleDraw}
-                disabled={!canDraw}
-                title={canDraw ? 'Draw one more card from the library' : 'Library is empty'}
-              >
-                <Plus width={14} height={14} aria-hidden /> Draw
-              </button>
-              <button
-                type="button"
-                className="deck-test-hand-action is-primary"
-                onClick={handleDeal}
-                title="Reshuffle and deal a fresh opening hand"
-              >
-                <Shuffle width={14} height={14} aria-hidden /> Deal another hand
-              </button>
-            </div>
-
-            <ul className="deck-test-hand-chips" aria-label="Hand breakdown">
-              <li className="deck-test-hand-chip">
-                <Mountain width={12} height={12} aria-hidden />
-                <strong>{breakdown.lands}</strong>{' '}
-                <span className="deck-test-hand-chip-label">
-                  {breakdown.lands === 1 ? 'land' : 'lands'}
-                </span>
-              </li>
-              <li className="deck-test-hand-chip">
-                <Sparkles width={12} height={12} aria-hidden />
-                <strong>{breakdown.ramp}</strong>{' '}
-                <span className="deck-test-hand-chip-label">ramp</span>
-              </li>
-              <li className="deck-test-hand-chip">
-                <Sword width={12} height={12} aria-hidden />
-                <strong>{breakdown.removal}</strong>{' '}
-                <span className="deck-test-hand-chip-label">removal</span>
-              </li>
-              <li className="deck-test-hand-chip">
-                <BookOpen width={12} height={12} aria-hidden />
-                <strong>{breakdown.cardDraw}</strong>{' '}
-                <span className="deck-test-hand-chip-label">draw</span>
-              </li>
-              {Number.isFinite(breakdown.avgSpellCmc) && (
-                <li className="deck-test-hand-chip">
-                  <span className="deck-test-hand-chip-cmc-icon" aria-hidden>
-                    {'{'}
-                    {breakdown.avgSpellCmc.toFixed(1)}
-                    {'}'}
-                  </span>
-                  <span className="deck-test-hand-chip-label">avg spell</span>
-                </li>
-              )}
-              {hand.length >= HAND_SIZE && (
-                <li
-                  className={`deck-test-hand-chip is-verdict ${isKeepable ? 'is-keepable' : 'is-mulligan'}`}
+              <div className="deck-test-hand-actions">
+                <button
+                  type="button"
+                  className="deck-test-hand-action"
+                  onClick={handleDraw}
+                  disabled={!canDraw}
+                  title={canDraw ? 'Draw one more card from the library' : 'Library is empty'}
                 >
-                  <strong>{isKeepable ? 'Keepable' : 'Mulligan?'}</strong>
+                  <Plus width={14} height={14} aria-hidden /> Draw
+                </button>
+                <button
+                  type="button"
+                  className="deck-test-hand-action is-primary"
+                  onClick={handleDeal}
+                  title="Reshuffle and deal a fresh opening hand"
+                >
+                  <Shuffle width={14} height={14} aria-hidden /> Deal another hand
+                </button>
+              </div>
+
+              <ul className="deck-test-hand-chips" aria-label="Hand breakdown">
+                <li className="deck-test-hand-chip">
+                  <Mountain width={12} height={12} aria-hidden />
+                  <strong>{breakdown.lands}</strong>{' '}
+                  <span className="deck-test-hand-chip-label">
+                    {breakdown.lands === 1 ? 'land' : 'lands'}
+                  </span>
                 </li>
-              )}
-            </ul>
-            <p className="deck-test-hand-stat-secondary">
-              Avg lands in opening hand: <strong>{avgLandsInOpeningHand}</strong>
-              {hand.length > HAND_SIZE && <> · After {hand.length - HAND_SIZE} draws</>}
-            </p>
-          </>
+                <li className="deck-test-hand-chip">
+                  <Sparkles width={12} height={12} aria-hidden />
+                  <strong>{breakdown.ramp}</strong>{' '}
+                  <span className="deck-test-hand-chip-label">ramp</span>
+                </li>
+                <li className="deck-test-hand-chip">
+                  <Sword width={12} height={12} aria-hidden />
+                  <strong>{breakdown.removal}</strong>{' '}
+                  <span className="deck-test-hand-chip-label">removal</span>
+                </li>
+                <li className="deck-test-hand-chip">
+                  <BookOpen width={12} height={12} aria-hidden />
+                  <strong>{breakdown.cardDraw}</strong>{' '}
+                  <span className="deck-test-hand-chip-label">draw</span>
+                </li>
+                {Number.isFinite(breakdown.avgSpellCmc) && (
+                  <li className="deck-test-hand-chip">
+                    <span className="deck-test-hand-chip-cmc-icon" aria-hidden>
+                      {'{'}
+                      {breakdown.avgSpellCmc.toFixed(1)}
+                      {'}'}
+                    </span>
+                    <span className="deck-test-hand-chip-label">avg spell</span>
+                  </li>
+                )}
+                {hand.length >= HAND_SIZE && (
+                  <li
+                    className={`deck-test-hand-chip is-verdict ${isKeepable ? 'is-keepable' : 'is-mulligan'}`}
+                  >
+                    <strong>{isKeepable ? 'Keepable' : 'Mulligan?'}</strong>
+                  </li>
+                )}
+              </ul>
+              <p className="deck-test-hand-stat-secondary">
+                Avg lands in opening hand: <strong>{avgLandsInOpeningHand}</strong>
+                {hand.length > HAND_SIZE && <> · After {hand.length - HAND_SIZE} draws</>}
+              </p>
+            </>
+          )}
+        </div>
+
+        {previewIndex !== null && previewCards[previewIndex] && (
+          <CardPreview
+            cards={previewCards}
+            index={previewIndex}
+            binderName="Test hand"
+            sectionLabels={previewSectionLabels}
+            pageNumbers={previewPageNumbers}
+            totalPages={1}
+            currentDeckId={deckId}
+            onIndexChange={setPreviewIndex}
+            onClose={() => setPreviewIndex(null)}
+          />
         )}
       </div>
-
-      {previewIndex !== null && previewCards[previewIndex] && (
-        <CardPreview
-          cards={previewCards}
-          index={previewIndex}
-          binderName="Test hand"
-          sectionLabels={previewSectionLabels}
-          pageNumbers={previewPageNumbers}
-          totalPages={1}
-          currentDeckId={deckId}
-          onIndexChange={setPreviewIndex}
-          onClose={() => setPreviewIndex(null)}
-        />
-      )}
-    </div>
-  );
-}
+    );
+  }
+);
 
 interface SortableCardProps {
   slot: HandSlot;
