@@ -7,18 +7,37 @@ export interface MatchRequest {
   format?: string;
 }
 
+/** Timeout for combo API calls. Long enough to absorb a slow Postgres query
+ * with a big collection on a small VPS, short enough that a hung backend
+ * doesn't leave the user staring at an infinite spinner. */
+const TIMEOUT_MS = 30_000;
+
+async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal }).catch((err) => {
+      if (err && (err as Error).name === 'AbortError') {
+        throw new Error('Combos request timed out — the server is taking too long. Try again.');
+      }
+      throw new Error('The server is not responding. Try again in a moment.');
+    });
+    return await handleResponse<T>(response);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse> {
-  const response = await fetch('/api/combos/match', {
+  return fetchJson<ComboMatchResponse>('/api/combos/match', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   });
-  return handleResponse<ComboMatchResponse>(response);
 }
 
 export async function getCombo(id: string): Promise<ComboDetail> {
-  const response = await fetch(`/api/combos/${encodeURIComponent(id)}`, { method: 'GET' });
-  return handleResponse<ComboDetail>(response);
+  return fetchJson<ComboDetail>(`/api/combos/${encodeURIComponent(id)}`, { method: 'GET' });
 }
 
 /**
@@ -28,11 +47,10 @@ export async function getCombo(id: string): Promise<ComboDetail> {
  */
 export async function fetchOracleIds(scryfallIds: string[]): Promise<Record<string, string>> {
   if (scryfallIds.length === 0) return {};
-  const response = await fetch('/api/cards/oracle-ids', {
+  const data = await fetchJson<{ oracleIds: Record<string, string> }>('/api/cards/oracle-ids', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scryfallIds }),
   });
-  const data = await handleResponse<{ oracleIds: Record<string, string> }>(response);
   return data.oracleIds;
 }
