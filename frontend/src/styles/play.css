@@ -1236,11 +1236,6 @@ body:has(.game-board) .modal-backdrop {
   cursor: not-allowed;
 }
 
-.player-panel-step-btn:hover:not(:disabled) {
-  color: var(--pp-accent, #fff);
-  background: rgba(255, 255, 255, 0.08);
-}
-
 .player-panel-step-btn:active:not(:disabled) {
   transform: translateY(-50%) scale(0.92);
 }
@@ -2792,28 +2787,12 @@ body:has(.game-board) .modal-backdrop {
 
 /* ── Pointer-capable affordances (desktop mouse, trackpads) ──
    Gated by `(hover: hover)` so touch devices don't sticky-hover after a
-   tap. */
+   tap. We intentionally omit hover effects on the tap zones and step
+   buttons themselves — the cursor change + active feedback is enough,
+   and the gradient/glow read as accidental glare on a colored seat. */
 @media (hover: hover) {
-  .player-panel-tapzone {
-    transition: background 120ms ease;
-  }
-  .player-panel-tapzone.is-left:hover {
-    background: linear-gradient(to right, rgba(255, 122, 122, 0.12), transparent);
-  }
-  .player-panel-tapzone.is-right:hover {
-    background: linear-gradient(to left, rgba(180, 240, 200, 0.12), transparent);
-  }
-  .player-panel-life-btn:not(:disabled):hover .player-panel-life-num {
-    text-shadow:
-      0 2px 12px rgba(0, 0, 0, 0.5),
-      0 0 24px rgba(255, 255, 255, 0.25);
-  }
   .player-panel-life-btn:not(:disabled) {
     cursor: pointer;
-  }
-  .player-panel-step-btn:not(:disabled):hover {
-    color: rgba(0, 0, 0, 0.7);
-    background: rgba(255, 255, 255, 0.12);
   }
   .player-panel-drawer-btn:hover {
     filter: brightness(1.15);
