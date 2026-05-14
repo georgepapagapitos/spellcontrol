@@ -8,6 +8,7 @@ import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
 import { LifeKeypad } from './LifeKeypad';
+import { GameHistory } from './GameHistory';
 import { ViewModeToggle } from '../ViewModeToggle';
 
 interface Props {
@@ -170,7 +171,12 @@ function PlayerPanel({
   const [seatMenuOpen, setSeatMenuOpen] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [lethalFlash, setLethalFlash] = useState(false);
-  const disabled = !canEdit || player.eliminated || game.status === 'finished';
+  // Life taps are blocked while any panel overlay is open (seat menu /
+  // counters drawer) — otherwise a stray tap on the panel underneath the
+  // overlay would change life unexpectedly while the user is picking a
+  // color, opening counters, etc.
+  const disabled =
+    !canEdit || player.eliminated || game.status === 'finished' || seatMenuOpen || drawerOpen;
 
   // Three-tier color resolution:
   //   explicit override → MTG color identity → seat-palette fallback.
@@ -323,18 +329,6 @@ function PlayerPanel({
           </>
         )}
 
-        <div className="player-panel-floats" aria-hidden="true">
-          {chips.map((c) => (
-            <span
-              key={c.id}
-              className={`floating-delta ${c.value > 0 ? 'is-positive' : 'is-negative'}`}
-              style={{ left: `${c.x}%`, top: `${c.y}%` }}
-            >
-              {c.value > 0 ? `+${c.value}` : `−${Math.abs(c.value)}`}
-            </span>
-          ))}
-        </div>
-
         <div className="player-panel-content" aria-hidden="false">
           <div className="player-panel-corner is-tl">
             <div className="player-panel-name" title={player.name}>
@@ -372,15 +366,20 @@ function PlayerPanel({
             <button
               type="button"
               className="player-panel-step-btn"
-              aria-label="-5 life"
+              aria-label="-1 life"
               disabled={disabled}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                adjust(-5);
+                adjust(-1);
               }}
             >
-              −5
+              <span className="player-panel-step-glyph">−</span>
+              {chips.length > 0 && chips[chips.length - 1].value < 0 && (
+                <span className="player-panel-step-count">
+                  {Math.abs(chips[chips.length - 1].value)}
+                </span>
+              )}
             </button>
             <button
               type="button"
@@ -402,15 +401,18 @@ function PlayerPanel({
             <button
               type="button"
               className="player-panel-step-btn"
-              aria-label="+5 life"
+              aria-label="+1 life"
               disabled={disabled}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                adjust(5);
+                adjust(1);
               }}
             >
-              +5
+              <span className="player-panel-step-glyph">+</span>
+              {chips.length > 0 && chips[chips.length - 1].value > 0 && (
+                <span className="player-panel-step-count">{chips[chips.length - 1].value}</span>
+              )}
             </button>
           </div>
 
@@ -929,6 +931,8 @@ function GameMenu({
             </section>
           )}
 
+          <GameHistory game={game} />
+
           <section className="game-menu-section">
             <div className="game-menu-actions">
               {onMinimize && !isFinished && (
@@ -983,8 +987,6 @@ function GameMenu({
               )}
             </div>
           </section>
-
-          <EventLog game={game} />
         </div>
       </div>
     </div>
@@ -1187,62 +1189,6 @@ function LayoutPreview({
       ))}
     </div>
   );
-}
-
-function EventLog({ game }: { game: GameState }) {
-  const events = useMemo(() => game.events.slice(-30).reverse(), [game.events]);
-  return (
-    <details className="game-menu-log">
-      <summary>Event log ({game.events.length})</summary>
-      <ol className="game-menu-log-list">
-        {events.map((ev) => (
-          <li key={ev.id} className={`game-menu-log-item kind-${ev.kind}`}>
-            <time>{new Date(ev.ts).toLocaleTimeString()}</time>
-            <span>{describeEvent(ev, game)}</span>
-          </li>
-        ))}
-      </ol>
-    </details>
-  );
-}
-
-function describeEvent(ev: GameState['events'][number], game: GameState): string {
-  const seatName = (seat: number | null | undefined): string => {
-    if (seat == null) return '';
-    return game.players.find((p) => p.seat === seat)?.name ?? `seat ${seat}`;
-  };
-  switch (ev.kind) {
-    case 'life':
-      return `${seatName(ev.targetSeat)} life ${ev.delta && ev.delta > 0 ? '+' : ''}${ev.delta}`;
-    case 'set-life':
-      return `${seatName(ev.targetSeat)} life set to ${ev.delta}`;
-    case 'poison':
-      return `${seatName(ev.targetSeat)} poison ${ev.delta && ev.delta > 0 ? '+' : ''}${ev.delta}`;
-    case 'cmd-dmg':
-      return `${seatName(ev.targetSeat)} cmd dmg ${
-        ev.delta && ev.delta > 0 ? '+' : ''
-      }${ev.delta} from ${seatName(ev.fromSeat)}`;
-    case 'eliminate':
-      return `${seatName(ev.targetSeat)} eliminated${ev.message === 'auto' ? ' (auto)' : ''}`;
-    case 'revive':
-      return `${seatName(ev.targetSeat)} revived`;
-    case 'start':
-      return 'Game started';
-    case 'end':
-      return ev.targetSeat != null ? `Game ended — ${seatName(ev.targetSeat)} wins` : 'Game ended';
-    case 'reset':
-      return 'Game reset';
-    case 'join':
-      return `${ev.message ?? seatName(ev.targetSeat)} joined`;
-    case 'leave':
-      return `${ev.message ?? seatName(ev.targetSeat)} left`;
-    case 'note':
-      return ev.message ?? '';
-    case 'settings':
-      return 'Settings changed';
-    default:
-      return ev.kind;
-  }
 }
 
 // ── Color identity → CSS modifier ───────────────────────────────────────────
