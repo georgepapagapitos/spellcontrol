@@ -8200,14 +8200,13 @@ hr {
   inset: 0;
   width: 100%;
   height: 100%;
-  /* `contain` shows the raw camera feed at its true aspect ratio, with
-     letterbox fill where the stream's aspect doesn't match the viewport.
-     The previous `cover` setting was the source of the "way too zoomed
-     in" complaint: a portrait viewport plus a near-landscape stream
-     meant cover-cropping wiped out 60–75% of what the sensor was
-     actually producing. With `contain` the preview matches what the
-     phone's native camera app would show. */
-  object-fit: contain;
+  /* `cover` lets the video fill the viewport; some cropping happens when
+     the camera hands back a landscape stream into a portrait viewport,
+     but with `zoom: min` applied via applyConstraints (in CardScanner.tsx)
+     it stays close to a 1× field of view. The earlier experiment with
+     `contain` showed enormous black bars whenever the device returned a
+     landscape-only stream, which is much worse UX than a small crop. */
+  object-fit: cover;
   background: #000;
 }
 
