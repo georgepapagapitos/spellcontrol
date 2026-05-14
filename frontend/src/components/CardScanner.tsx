@@ -131,6 +131,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         focusMode?: string[];
         exposureMode?: string[];
         whiteBalanceMode?: string[];
+        zoom?: { min: number; max: number; step?: number };
       };
       setTorchSupported(Boolean(caps.torch));
       const tuneConstraints: MediaTrackConstraintSet[] = [];
@@ -149,11 +150,32 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           whiteBalanceMode: string;
         });
       }
+      // Force the widest possible field of view. Many phone browsers (iOS
+      // Safari especially) hand the rear camera back at the system's
+      // default zoom — which on multi-lens phones is often 2× — and
+      // `object-fit: cover` then magnifies on top of that. Pinning to
+      // the reported minimum (typically 1.0) is the single biggest
+      // improvement to "way too zoomed in" complaints.
+      if (caps.zoom && typeof caps.zoom.min === 'number') {
+        tuneConstraints.push({ zoom: caps.zoom.min } as MediaTrackConstraintSet & {
+          zoom: number;
+        });
+      }
       if (tuneConstraints.length > 0) {
         await track
           .applyConstraints({ advanced: tuneConstraints })
           .catch((e) => console.warn('[scanner] could not tune camera:', e));
       }
+      // Surface what we actually got — invaluable when diagnosing "looks
+      // weird on device X" reports without needing remote debugging.
+      const settings = (track?.getSettings?.() ?? {}) as MediaTrackSettings & {
+        zoom?: number;
+        focusMode?: string;
+      };
+      console.log(
+        `[scanner] camera: ${settings.width}×${settings.height}` +
+          ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`
+      );
       setStatus('ready');
       warmOcr();
     } catch (err) {
