@@ -4410,8 +4410,11 @@ hr {
 
 /* AND / OR joiner pill between two chips in a ChipExpressionBuilder.
    Smaller than the IS/IS NOT pill so chips stay the dominant visual
-   element. Coloring distinguishes intersection (AND) from union (OR)
-   at a glance, matching the convention in Manabox. */
+   element. Both variants follow the active guild theme:
+   - AND is tinted with the theme accent (filled, the "primary" operator)
+   - OR sits in the muted surface palette (the "default" operator)
+   Distinguishable at a glance without painting in two fixed hues that
+   clash with warm themes (boros / rakdos / izzet). */
 .chip-joiner {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -4421,21 +4424,19 @@ hr {
   border: 0.5px solid transparent;
   border-radius: 999px;
   cursor: pointer;
-  background: var(--surface2);
-  color: var(--text2);
   line-height: 1;
 }
 
 .chip-joiner.and {
-  background: rgba(80, 130, 200, 0.18);
-  border-color: rgba(80, 130, 200, 0.4);
-  color: rgb(140, 175, 230);
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .chip-joiner.or {
-  background: rgba(220, 160, 70, 0.18);
-  border-color: rgba(220, 160, 70, 0.4);
-  color: rgb(230, 185, 110);
+  background: var(--surface2);
+  border-color: var(--border);
+  color: var(--text3);
 }
 
 .chip-joiner:hover,
