@@ -8,14 +8,12 @@
  *   tsx --env-file .env src/scripts/ingest-combos.ts
  */
 import { closeDb } from '../db';
-import { fetchSpellbookBulk, ingestCombos } from '../combos/ingest';
+import { ingestCombos, streamSpellbookVariants } from '../combos/ingest';
 
 async function main(): Promise<void> {
-  console.log('[ingest-combos] fetching Spellbook bulk variants...');
-  const variants = await fetchSpellbookBulk();
-  console.log(`[ingest-combos] fetched ${variants.length} variants, writing to db...`);
+  console.log('[ingest-combos] streaming Spellbook bulk variants into db...');
   const start = Date.now();
-  const result = await ingestCombos(variants);
+  const result = await ingestCombos(streamSpellbookVariants());
   const elapsed = Date.now() - start;
   console.log(
     `[ingest-combos] done in ${elapsed}ms — wrote ${result.written}, skipped ${result.skipped} (run ${result.runId})`

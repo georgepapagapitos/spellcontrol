@@ -168,6 +168,36 @@ d('ingestCombos (db)', () => {
     expect(cards.rows).toHaveLength(1);
   });
 
+  it('accepts an AsyncIterable source (streaming path) and inserts in batches', async () => {
+    // Far more variants than FLUSH_AT (500) to exercise multiple flushes
+    // within a single transaction.
+    const TOTAL = 1200;
+    async function* gen(): AsyncIterable<unknown> {
+      for (let i = 0; i < TOTAL; i++) {
+        yield {
+          id: `streamed-${i}`,
+          identity: '',
+          uses: [{ card: { name: `Card ${i}`, oracleId: `oracle-${i}` } }],
+          produces: [{ feature: { name: 'Infinite ETB' } }],
+          legalities: { commander: true },
+          popularity: i,
+        };
+      }
+    }
+
+    const result = await ingestCombos(gen());
+    expect(result.written).toBe(TOTAL);
+
+    const combos = await pool.query(
+      "SELECT count(*)::int AS n FROM combos WHERE id LIKE 'streamed-%'"
+    );
+    expect(combos.rows[0].n).toBe(TOTAL);
+    const cards = await pool.query(
+      "SELECT count(*)::int AS n FROM combo_cards WHERE combo_id LIKE 'streamed-%'"
+    );
+    expect(cards.rows[0].n).toBe(TOTAL);
+  });
+
   it('skips variants with no oracle ids and records the run', async () => {
     const variants = [
       {
