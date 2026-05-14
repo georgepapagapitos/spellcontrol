@@ -129,9 +129,11 @@ export function parseVariant(raw: unknown): ParsedCombo | null {
     identity: typeof v.identity === 'string' ? v.identity.toLowerCase() : '',
     produces,
     prerequisites: parsePrerequisites(v),
-    description: typeof v.description === 'string' && v.description.length > 0 ? v.description : null,
+    description:
+      typeof v.description === 'string' && v.description.length > 0 ? v.description : null,
     manaNeeded: typeof v.manaNeeded === 'string' && v.manaNeeded.length > 0 ? v.manaNeeded : null,
-    popularity: typeof v.popularity === 'number' && Number.isFinite(v.popularity) ? v.popularity : 0,
+    popularity:
+      typeof v.popularity === 'number' && Number.isFinite(v.popularity) ? v.popularity : 0,
     legalities,
     cardCount: cards.length,
     bracket: typeof v.bracket === 'number' ? v.bracket : null,

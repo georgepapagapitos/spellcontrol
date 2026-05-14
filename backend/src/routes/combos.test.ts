@@ -48,10 +48,30 @@ async function seedCombos(): Promise<void> {
     },
   ]);
   await db.insert(comboCards).values([
-    { comboId: 'combo-thoracle', oracleId: 'oracle-thassa', cardName: "Thassa's Oracle", position: 0 },
-    { comboId: 'combo-thoracle', oracleId: 'oracle-consult', cardName: 'Demonic Consultation', position: 1 },
-    { comboId: 'combo-labman', oracleId: 'oracle-thassa', cardName: "Thassa's Oracle", position: 0 },
-    { comboId: 'combo-labman', oracleId: 'oracle-labman', cardName: 'Laboratory Maniac', position: 1 },
+    {
+      comboId: 'combo-thoracle',
+      oracleId: 'oracle-thassa',
+      cardName: "Thassa's Oracle",
+      position: 0,
+    },
+    {
+      comboId: 'combo-thoracle',
+      oracleId: 'oracle-consult',
+      cardName: 'Demonic Consultation',
+      position: 1,
+    },
+    {
+      comboId: 'combo-labman',
+      oracleId: 'oracle-thassa',
+      cardName: "Thassa's Oracle",
+      position: 0,
+    },
+    {
+      comboId: 'combo-labman',
+      oracleId: 'oracle-labman',
+      cardName: 'Laboratory Maniac',
+      position: 1,
+    },
   ]);
 }
 

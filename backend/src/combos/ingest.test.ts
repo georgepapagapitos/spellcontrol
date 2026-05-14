@@ -24,7 +24,10 @@ describe('parseVariant', () => {
         { card: { name: "Thassa's Oracle", oracleId: 'abc' } },
         { card: { name: 'Demonic Consultation', oracleId: 'def' } },
       ],
-      produces: [{ feature: { name: 'Win the game' } }, { feature: { name: 'Exile your library' } }],
+      produces: [
+        { feature: { name: 'Win the game' } },
+        { feature: { name: 'Exile your library' } },
+      ],
       legalities: { commander: true, modern: false, vintage: 'restricted' },
       popularity: 12345,
       manaNeeded: '{U}{B}',
@@ -37,7 +40,11 @@ describe('parseVariant', () => {
     expect(parsed!.identity).toBe('ub');
     expect(parsed!.cards).toHaveLength(2);
     expect(parsed!.produces).toEqual(['Win the game', 'Exile your library']);
-    expect(parsed!.legalities).toEqual({ commander: 'legal', modern: 'not_legal', vintage: 'restricted' });
+    expect(parsed!.legalities).toEqual({
+      commander: 'legal',
+      modern: 'not_legal',
+      vintage: 'restricted',
+    });
     expect(parsed!.popularity).toBe(12345);
     expect(parsed!.cardCount).toBe(2);
     expect(parsed!.prerequisites?.easy).toContain('You have 2 mana');
@@ -124,7 +131,10 @@ d('ingestCombos (db)', () => {
       {
         id: 'c1',
         identity: 'U',
-        uses: [{ card: { name: 'Card A', oracleId: 'a' } }, { card: { name: 'Card B', oracleId: 'b' } }],
+        uses: [
+          { card: { name: 'Card A', oracleId: 'a' } },
+          { card: { name: 'Card B', oracleId: 'b' } },
+        ],
         produces: [{ feature: { name: 'Infinite mana' } }],
         legalities: { commander: true },
         popularity: 100,
@@ -160,13 +170,27 @@ d('ingestCombos (db)', () => {
 
   it('skips variants with no oracle ids and records the run', async () => {
     const variants = [
-      { id: 'has', identity: '', uses: [{ card: { name: 'A', oracleId: 'oa' } }], produces: [], legalities: {}, popularity: 0 },
-      { id: 'noOracle', identity: '', uses: [{ card: { name: 'A' } }], produces: [], legalities: {}, popularity: 0 },
+      {
+        id: 'has',
+        identity: '',
+        uses: [{ card: { name: 'A', oracleId: 'oa' } }],
+        produces: [],
+        legalities: {},
+        popularity: 0,
+      },
+      {
+        id: 'noOracle',
+        identity: '',
+        uses: [{ card: { name: 'A' } }],
+        produces: [],
+        legalities: {},
+        popularity: 0,
+      },
     ];
     const result = await ingestCombos(variants);
     expect(result.written).toBe(1);
     expect(result.skipped).toBe(1);
-    const runs = await pool.query("SELECT * FROM combo_ingest_runs WHERE id = $1", [result.runId]);
+    const runs = await pool.query('SELECT * FROM combo_ingest_runs WHERE id = $1', [result.runId]);
     expect(runs.rows[0].finished_at).not.toBeNull();
     expect(runs.rows[0].error).toBeNull();
   });
