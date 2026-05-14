@@ -192,9 +192,6 @@ export function BindersIndexPage() {
           <p className="binder-hero-meta">
             {binders.length.toLocaleString()} {binders.length === 1 ? 'binder' : 'binders'}
           </p>
-          <p className="binders-index-subtitle">
-            Each binder is a saved set of rules that catches matching cards from your collection.
-          </p>
         </div>
         <div className="binders-index-actions">
           {binders.length > 0 && (

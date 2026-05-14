@@ -6,6 +6,13 @@ export interface EnrichedCard {
    */
   copyId: string;
   name: string;
+  /**
+   * Scryfall oracle_id — printing-agnostic card identity. Stable across reprints
+   * and used as the join key against the combo dataset (Commander Spellbook).
+   * Optional because cards saved before this field existed won't have one;
+   * sync.ts backfills via /api/cards/oracle-ids on first hydration.
+   */
+  oracleId?: string;
   setCode: string;
   setName: string;
   collectorNumber: string;
