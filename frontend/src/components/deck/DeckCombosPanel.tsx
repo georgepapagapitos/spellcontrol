@@ -345,11 +345,16 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
     : null;
 
   const steps = useMemo(() => splitSteps(combo.description), [combo.description]);
+  // One unified collapsible covering Prerequisites + Steps + Results so the
+  // user toggles all three together. Closed by default — the always-visible
+  // header (cards, popularity, produces summary) is enough at-a-glance.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const hasDetails =
     !!combo.prerequisites?.easy ||
     !!combo.prerequisites?.notable ||
     !!combo.manaNeeded ||
-    steps.length > 0;
+    steps.length > 0 ||
+    combo.produces.length > 0;
 
   // Combo title — full card names joined. Truncated via CSS so long combos
   // don't overflow the card; the full string is exposed via title for hover.
@@ -418,57 +423,77 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
         })}
       </ul>
 
-      {(hasDetails || combo.produces.length > 0) && (
-        <div className="deck-combos-detail">
-          {(combo.prerequisites?.easy || combo.prerequisites?.notable || combo.manaNeeded) && (
-            <DetailSection
-              icon={<ListChecks width={13} height={13} aria-hidden />}
-              title="Prerequisites"
-              collapsible
-            >
-              {combo.manaNeeded && (
-                <p className="deck-combos-mana-needed">
-                  <span className="deck-combos-detail-label">Mana needed</span>
-                  <MagicText text={combo.manaNeeded} />
-                </p>
+      {hasDetails && (
+        <>
+          <button
+            type="button"
+            className="deck-combos-details-toggle"
+            aria-expanded={detailsOpen}
+            aria-controls={`combo-details-${combo.id}`}
+            onClick={() => setDetailsOpen((v) => !v)}
+          >
+            {detailsOpen ? (
+              <ChevronDown width={13} height={13} aria-hidden />
+            ) : (
+              <ChevronRight width={13} height={13} aria-hidden />
+            )}
+            {detailsOpen ? 'Hide details' : 'Show details'}
+          </button>
+          {detailsOpen && (
+            <div id={`combo-details-${combo.id}`} className="deck-combos-detail">
+              {(combo.prerequisites?.easy || combo.prerequisites?.notable || combo.manaNeeded) && (
+                <DetailSection
+                  icon={<ListChecks width={13} height={13} aria-hidden />}
+                  title="Prerequisites"
+                >
+                  {combo.manaNeeded && (
+                    <p className="deck-combos-mana-needed">
+                      <span className="deck-combos-detail-label">Mana needed</span>
+                      <MagicText text={combo.manaNeeded} />
+                    </p>
+                  )}
+                  {combo.prerequisites?.easy && <BulletList text={combo.prerequisites.easy} />}
+                  {combo.prerequisites?.notable && (
+                    <BulletList text={combo.prerequisites.notable} muted />
+                  )}
+                </DetailSection>
               )}
-              {combo.prerequisites?.easy && <BulletList text={combo.prerequisites.easy} />}
-              {combo.prerequisites?.notable && (
-                <BulletList text={combo.prerequisites.notable} muted />
+
+              {steps.length > 0 && (
+                <DetailSection
+                  icon={<Footprints width={13} height={13} aria-hidden />}
+                  title="Steps"
+                >
+                  <ol className="deck-combos-steps">
+                    {steps.map((step, i) => (
+                      <li key={i}>
+                        <MagicText text={step} />
+                      </li>
+                    ))}
+                  </ol>
+                </DetailSection>
               )}
-            </DetailSection>
-          )}
 
-          {steps.length > 0 && (
-            <DetailSection icon={<Footprints width={13} height={13} aria-hidden />} title="Steps">
-              <ol className="deck-combos-steps">
-                {steps.map((step, i) => (
-                  <li key={i}>
-                    <MagicText text={step} />
-                  </li>
-                ))}
-              </ol>
-            </DetailSection>
+              {combo.produces.length > 0 && (
+                <DetailSection
+                  icon={<InfinityIcon width={13} height={13} aria-hidden />}
+                  title="Results"
+                >
+                  <ul className="deck-combos-results">
+                    {combo.produces.map((p, i) => (
+                      <li key={i}>
+                        <span className="deck-combos-infinity" aria-hidden>
+                          ∞
+                        </span>
+                        <MagicText text={p} />
+                      </li>
+                    ))}
+                  </ul>
+                </DetailSection>
+              )}
+            </div>
           )}
-
-          {combo.produces.length > 0 && (
-            <DetailSection
-              icon={<InfinityIcon width={13} height={13} aria-hidden />}
-              title="Results"
-            >
-              <ul className="deck-combos-results">
-                {combo.produces.map((p, i) => (
-                  <li key={i}>
-                    <span className="deck-combos-infinity" aria-hidden>
-                      ∞
-                    </span>
-                    <MagicText text={p} />
-                  </li>
-                ))}
-              </ul>
-            </DetailSection>
-          )}
-        </div>
+        </>
       )}
 
       {tab === 'oneAway' && missingCardName && (
@@ -488,43 +513,21 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
 function DetailSection({
   icon,
   title,
-  collapsible = false,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
-  /** When true, the section starts collapsed and the title becomes a toggle. */
-  collapsible?: boolean;
   children: React.ReactNode;
 }) {
-  // Prerequisites collapse by default — they're verbose and most users want to
-  // skim Steps/Results first. Steps and Results are non-collapsible because
-  // they're the primary value of opening a combo's detail view.
-  const [open, setOpen] = useState(false);
-  if (!collapsible) {
-    return (
-      <section className="deck-combos-detail-section">
-        <h4 className="deck-combos-detail-title">
-          {icon} {title}
-        </h4>
-        {children}
-      </section>
-    );
-  }
+  // The collapse lives one level up — the whole detail panel (Prereqs +
+  // Steps + Results) toggles together via a single "Show details" button.
+  // Each individual section is just a heading + body.
   return (
     <section className="deck-combos-detail-section">
-      <button
-        type="button"
-        className="deck-combos-detail-title is-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
+      <h4 className="deck-combos-detail-title">
         {icon} {title}
-        <span className="deck-combos-detail-toggle-icon" aria-hidden>
-          {open ? <ChevronDown width={12} height={12} /> : <ChevronRight width={12} height={12} />}
-        </span>
-      </button>
-      {open && children}
+      </h4>
+      {children}
     </section>
   );
 }
