@@ -1,3 +1,4 @@
+import { MoreVertical } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
@@ -583,11 +584,7 @@ function DeckEditorOverflowMenu({
         aria-label="Deck actions"
         onClick={() => setOpen((v) => !v)}
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden>
-          <circle cx="12" cy="5" r="1.7" />
-          <circle cx="12" cy="12" r="1.7" />
-          <circle cx="12" cy="19" r="1.7" />
-        </svg>
+        <MoreVertical width={20} height={20} strokeWidth={2.2} aria-hidden />
       </button>
       {open && (
         <>

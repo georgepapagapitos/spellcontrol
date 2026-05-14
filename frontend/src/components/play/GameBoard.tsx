@@ -1,3 +1,4 @@
+import { MoreHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameAction, GameLayout, GamePlayer, GameState } from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
@@ -127,7 +128,7 @@ export function GameBoard({
           setMenuOpen(true);
         }}
       >
-        <MenuIcon />
+        <MoreHorizontal width={22} height={22} strokeWidth={2} aria-hidden />
       </button>
 
       {errorMessage && <div className="game-board-error">{errorMessage}</div>}
@@ -1215,23 +1216,4 @@ function EmptyPanel({ cell }: { cell: EmptyCell }) {
     gridRow: cell.rowSpan ? `${cell.row} / span ${cell.rowSpan}` : `${cell.row}`,
   };
   return <div className="player-panel is-empty" style={style} aria-hidden="true" />;
-}
-
-function MenuIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="22"
-      height="22"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="5" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-      <circle cx="19" cy="12" r="1.5" fill="currentColor" />
-    </svg>
-  );
 }
