@@ -232,3 +232,130 @@ describe('sortCards', () => {
     expect(original).toEqual(copy);
   });
 });
+
+describe('treatment + finish sorts', () => {
+  const showcase = makeCard({ name: 'Aa', frameEffects: ['showcase'] });
+  const extended = makeCard({ name: 'Bb', frameEffects: ['extendedart'] });
+  const borderless = makeCard({ name: 'Cc', borderColor: 'borderless' });
+  const promo = makeCard({ name: 'Dd', promoTypes: ['textured'] });
+  const regular = makeCard({ name: 'Ee' });
+
+  it('treatment default order: special → regular', () => {
+    const cards = [regular, promo, borderless, extended, showcase];
+    const out = sortCards(cards, [{ field: 'treatment', dir: 'asc' }]);
+    expect(out.map((c) => c.name)).toEqual(['Aa', 'Bb', 'Cc', 'Dd', 'Ee']);
+  });
+
+  it('treatment desc reverses the order', () => {
+    const cards = [showcase, extended, borderless, promo, regular];
+    const out = sortCards(cards, [{ field: 'treatment', dir: 'desc' }]);
+    expect(out.map((c) => c.name)).toEqual(['Ee', 'Dd', 'Cc', 'Bb', 'Aa']);
+  });
+
+  it('treatment respects custom value order from SortContext', () => {
+    const cards = [showcase, regular, borderless];
+    const out = sortCards(cards, [{ field: 'treatment', dir: 'asc' }], {
+      valueOrders: { treatment: ['regular', 'borderless', 'showcase'] },
+    });
+    expect(out.map((c) => c.name)).toEqual(['Ee', 'Cc', 'Aa']);
+  });
+
+  it('finish default order: foil → nonfoil → etched', () => {
+    const foil = makeCard({ name: 'F', finish: 'foil', foil: true });
+    const nonfoil = makeCard({ name: 'N', finish: 'nonfoil' });
+    const etched = makeCard({ name: 'E', finish: 'etched', foil: true });
+    const out = sortCards([etched, nonfoil, foil], [{ field: 'finish', dir: 'asc' }]);
+    expect(out.map((c) => c.name)).toEqual(['F', 'N', 'E']);
+  });
+
+  it('cardSortValue returns numeric rank for treatment/finish', () => {
+    expect(cardSortValue(showcase, 'treatment')).toBe(0);
+    expect(cardSortValue(regular, 'treatment')).toBe(4);
+    const foilCard = makeCard({ finish: 'foil', foil: true });
+    expect(cardSortValue(foilCard, 'finish')).toBe(0);
+  });
+});
+
+describe('helpers around treatment/finish ordering', () => {
+  it('describeSortOrder returns null for self-evident fields', async () => {
+    const { describeSortOrder } = await import('./sorting');
+    expect(describeSortOrder('name', 'asc')).toBeNull();
+    expect(describeSortOrder('price', 'desc')).toBeNull();
+  });
+
+  it('describeSortOrder spells out treatment order, reversed for desc', async () => {
+    const { describeSortOrder } = await import('./sorting');
+    const asc = describeSortOrder('treatment', 'asc');
+    expect(asc).toBe('Showcase → Extended art → Borderless → Promo → Regular');
+    const desc = describeSortOrder('treatment', 'desc');
+    expect(desc).toBe('Regular → Promo → Borderless → Extended art → Showcase');
+  });
+
+  it('describeSortOrder respects value-order overrides', async () => {
+    const { describeSortOrder } = await import('./sorting');
+    const out = describeSortOrder('finish', 'asc', { finish: ['etched', 'foil', 'nonfoil'] });
+    expect(out).toBe('Etched → Foil → Non-foil');
+  });
+
+  it('isValueOrderCustomized: undefined and default both read as non-customized', async () => {
+    const { isValueOrderCustomized } = await import('./sorting');
+    expect(isValueOrderCustomized('treatment', undefined)).toBe(false);
+    expect(isValueOrderCustomized('treatment', [])).toBe(false);
+    expect(
+      isValueOrderCustomized('treatment', [
+        'showcase',
+        'extendedart',
+        'borderless',
+        'promo',
+        'regular',
+      ])
+    ).toBe(false);
+  });
+
+  it('isValueOrderCustomized: any reordering reads as customized', async () => {
+    const { isValueOrderCustomized } = await import('./sorting');
+    expect(isValueOrderCustomized('finish', ['nonfoil', 'foil', 'etched'])).toBe(true);
+  });
+
+  it('resolveValueOrder appends missing default keys at the end', async () => {
+    const { resolveValueOrder } = await import('./sorting');
+    expect(resolveValueOrder('finish', ['etched'])).toEqual(['etched', 'foil', 'nonfoil']);
+  });
+
+  it('getImplicitTiebreakers skips fields already in the chain', async () => {
+    const { getImplicitTiebreakers } = await import('./sorting');
+    const extras = getImplicitTiebreakers([{ field: 'treatment', dir: 'desc' }]);
+    expect(extras.map((e) => e.field)).toEqual(['finish', 'name']);
+  });
+
+  it('getDisplaySorts hides default implicit tie-breakers but keeps customized ones', async () => {
+    const { getDisplaySorts } = await import('./sorting');
+    const effective = [
+      { field: 'color' as const, dir: 'asc' as const },
+      { field: 'treatment' as const, dir: 'asc' as const },
+      { field: 'finish' as const, dir: 'asc' as const },
+      { field: 'name' as const, dir: 'asc' as const },
+    ];
+    const explicit = [{ field: 'color' as const, dir: 'asc' as const }];
+
+    expect(getDisplaySorts(effective, explicit).map((s) => s.field)).toEqual(['color']);
+    expect(
+      getDisplaySorts(effective, explicit, {
+        treatment: ['regular', 'showcase', 'extendedart', 'borderless', 'promo'],
+      }).map((s) => s.field)
+    ).toEqual(['color', 'treatment']);
+  });
+
+  it('getDisplaySorts always keeps explicit user choices, including name', async () => {
+    const { getDisplaySorts } = await import('./sorting');
+    const explicit = [
+      { field: 'name' as const, dir: 'desc' as const },
+      { field: 'treatment' as const, dir: 'asc' as const },
+    ];
+    const effective = [...explicit, { field: 'finish' as const, dir: 'asc' as const }];
+    const fields = getDisplaySorts(effective, explicit).map((s) => s.field);
+    expect(fields).toContain('name');
+    expect(fields).toContain('treatment');
+    expect(fields).not.toContain('finish');
+  });
+});
