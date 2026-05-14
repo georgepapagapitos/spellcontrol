@@ -2152,7 +2152,7 @@ input.toolbar-search-input {
   background: transparent;
   border: 0;
   color: var(--text);
-  font-size: 1.5rem;
+  font-size: var(--text-xl);
   line-height: 1;
   cursor: pointer;
   border-radius: var(--radius);

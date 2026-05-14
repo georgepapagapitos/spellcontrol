@@ -545,11 +545,17 @@ function DeckEditorOverflowMenu({
   const wrapperRef = useRef<HTMLDivElement>(null);
   useLockBodyScroll(open);
 
+  // Closing the sheet resets the sub-view so reopening lands on the action
+  // list. Done as a render-phase reset to keep setState out of useEffect
+  // (cascading-render lint).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open && view !== 'menu') setView('menu');
+  }
+
   useEffect(() => {
-    if (!open) {
-      setView('menu');
-      return;
-    }
+    if (!open) return;
     const close = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
     };

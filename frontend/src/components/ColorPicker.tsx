@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { PRESET_COLORS } from '../lib/preset-colors';
 
@@ -12,10 +12,14 @@ interface Props {
 export function ColorPicker({ value, onChange, ariaLabel }: Props) {
   const isCustom = !PRESET_COLORS.some((c) => c.hex === value);
   const [showCustom, setShowCustom] = useState(isCustom);
-
-  useEffect(() => {
+  // Sync the panel open when the value transitions to an off-preset hex (e.g.
+  // the parent loads a saved custom color). Done as a render-phase compare to
+  // avoid the cascading-render lint of doing setState inside useEffect.
+  const [prevIsCustom, setPrevIsCustom] = useState(isCustom);
+  if (isCustom !== prevIsCustom) {
+    setPrevIsCustom(isCustom);
     if (isCustom) setShowCustom(true);
-  }, [isCustom]);
+  }
 
   return (
     <div className="color-picker-wrapper">
