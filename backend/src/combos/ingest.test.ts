@@ -1,11 +1,108 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import crypto from 'crypto';
 import * as schema from '../db/schema';
 import { setDbForTesting, closeDb } from '../db';
-import { ingestCombos, parseVariant } from './ingest';
+import { ingestCombos, parseVariant, streamSpellbookVariants } from './ingest';
 import { dbTestsEnabled, testDatabaseUrl } from '../test-helpers';
+
+/** Builds a minimal Response-shaped object whose `body` is a WHATWG
+ * ReadableStream emitting `bodyText`. Lets us drive `streamSpellbookVariants`
+ * end-to-end without hitting the network. */
+function jsonStreamResponse(
+  bodyText: string,
+  init: { ok?: boolean; status?: number } = {}
+): Response {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(bodyText));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    status: init.status ?? 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('streamSpellbookVariants', () => {
+  it('streams variants out of a `{variants: [...]}` payload', async () => {
+    const body = JSON.stringify({
+      variants: [
+        { id: 'a', uses: [{ card: { name: 'A', oracleId: 'oa' } }] },
+        { id: 'b', uses: [{ card: { name: 'B', oracleId: 'ob' } }] },
+        { id: 'c', uses: [{ card: { name: 'C', oracleId: 'oc' } }] },
+      ],
+      schemaVersion: 'v3',
+    });
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonStreamResponse(body));
+
+    const seen: unknown[] = [];
+    for await (const v of streamSpellbookVariants()) seen.push(v);
+
+    expect(seen).toHaveLength(3);
+    expect((seen[0] as { id: string }).id).toBe('a');
+    expect((seen[2] as { id: string }).id).toBe('c');
+  });
+
+  it('streams variants out of a top-level `[...]` payload', async () => {
+    const body = JSON.stringify([
+      { id: 'x', uses: [{ card: { name: 'X', oracleId: 'ox' } }] },
+      { id: 'y', uses: [{ card: { name: 'Y', oracleId: 'oy' } }] },
+    ]);
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonStreamResponse(body));
+
+    const seen: unknown[] = [];
+    for await (const v of streamSpellbookVariants()) seen.push(v);
+
+    expect(seen.map((v) => (v as { id: string }).id)).toEqual(['x', 'y']);
+  });
+
+  it('tolerates leading whitespace before the JSON content', async () => {
+    const body = '   \n\t  ' + JSON.stringify({ variants: [{ id: 'p' }] });
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonStreamResponse(body));
+
+    const seen: unknown[] = [];
+    for await (const v of streamSpellbookVariants()) seen.push(v);
+
+    expect(seen).toHaveLength(1);
+  });
+
+  it('throws when the upstream response is not OK', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('upstream error', { status: 502 }));
+    await expect(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of streamSpellbookVariants()) break;
+    }).rejects.toThrow(/HTTP 502/);
+  });
+
+  it('throws when the payload is neither an array nor an object', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonStreamResponse('"a string"'));
+    await expect(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of streamSpellbookVariants()) break;
+    }).rejects.toThrow(/shape unrecognized/);
+  });
+
+  it('yields nothing when the variants key holds a scalar value', async () => {
+    // Spec is `{variants: [...]}`; if Spellbook ever returned a scalar at
+    // that key the under-key streamer should bail without yielding instead
+    // of crashing.
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonStreamResponse(JSON.stringify({ variants: 'oops' }))
+    );
+
+    const seen: unknown[] = [];
+    for await (const v of streamSpellbookVariants()) seen.push(v);
+
+    expect(seen).toHaveLength(0);
+  });
+});
 
 describe('parseVariant', () => {
   it('returns null when id is missing', () => {
