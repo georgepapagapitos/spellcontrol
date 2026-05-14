@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -119,7 +120,18 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                   )}
                   {isAdded ? (
                     <span className="add-to-binder-added" aria-live="polite">
-                      <CheckIcon /> {currentBinderId ? 'Moved' : 'Added'}
+                      <Check
+                        width={12}
+                        height={12}
+                        strokeWidth={2}
+                        aria-hidden
+                        style={{
+                          display: 'inline',
+                          verticalAlign: 'middle',
+                          marginRight: '0.2rem',
+                        }}
+                      />{' '}
+                      {currentBinderId ? 'Moved' : 'Added'}
                     </span>
                   ) : isCurrent ? (
                     <span className="add-to-binder-current" aria-label="Already in this binder">
@@ -151,24 +163,5 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
         </div>
       </div>
     </div>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.2rem' }}
-    >
-      <path d="M3 8l4 4 6-6" />
-    </svg>
   );
 }

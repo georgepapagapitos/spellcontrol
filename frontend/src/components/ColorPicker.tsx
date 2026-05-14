@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { PRESET_COLORS } from '../lib/preset-colors';
@@ -49,20 +50,13 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
           aria-label="Custom color"
           title="Custom color"
         >
-          <svg
+          <Plus
             className="color-swatch-custom-icon"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            width={14}
+            height={14}
+            strokeWidth={2}
             aria-hidden
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+          />
         </button>
       </div>
       {showCustom && (

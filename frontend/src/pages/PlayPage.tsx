@@ -6,6 +6,7 @@ import { aggregateDeckRecords, usePlayStore, type LocalGameSetup } from '../stor
 import { GameBoard } from '../components/play/GameBoard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
+import { SelectMenu } from '../components/SelectMenu';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
 type Tab = 'local' | 'online' | 'history';
@@ -293,16 +294,15 @@ function LocalSetup({
       </header>
 
       <section className="play-setup-row">
-        <label className="play-field play-field-inline">
+        <div className="play-field play-field-inline">
           <span>Format</span>
-          <select value={format} onChange={(e) => applyFormat(e.target.value as GameFormat)}>
-            {FORMAT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <SelectMenu<GameFormat>
+            ariaLabel="Format"
+            value={format}
+            onChange={applyFormat}
+            options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+          />
+        </div>
 
         <div className="play-field play-field-inline">
           <span id="starting-life-label">Starting life</span>
@@ -518,6 +518,8 @@ function blankPlayer(name: string): LocalGameSetup['players'][number] {
   return { name, deckId: null, deckName: null, commander: null, colorIdentity: [] };
 }
 
+const DECK_PICKER_NONE = '__none__';
+
 function DeckPicker({
   decks,
   value,
@@ -528,18 +530,20 @@ function DeckPicker({
   onChange: (deck: Deck | null) => void;
 }) {
   return (
-    <select
-      value={value ?? ''}
-      onChange={(e) => onChange(decks.find((d) => d.id === e.target.value) ?? null)}
-    >
-      <option value="">— None —</option>
-      {decks.map((d) => (
-        <option key={d.id} value={d.id}>
-          {d.name}
-          {d.commander ? ` · ${d.commander.name}` : ''}
-        </option>
-      ))}
-    </select>
+    <SelectMenu<string>
+      ariaLabel="Deck"
+      value={value ?? DECK_PICKER_NONE}
+      onChange={(next) =>
+        onChange(next === DECK_PICKER_NONE ? null : (decks.find((d) => d.id === next) ?? null))
+      }
+      options={[
+        { value: DECK_PICKER_NONE, label: '— None —' },
+        ...decks.map((d) => ({
+          value: d.id,
+          label: d.commander ? `${d.name} · ${d.commander.name}` : d.name,
+        })),
+      ]}
+    />
   );
 }
 
@@ -634,60 +638,82 @@ function OnlineSetup({
             });
           }}
         >
-          <h2 className="play-setup-title">
-            {hasActive ? 'Host a different game' : 'Host a game'}
-          </h2>
-          <p className="play-setup-help">
-            You will get a 4-character code. Share it with friends so they can join from their own
-            devices.
-            {hasActive && ' Hosting a new game will leave the one you have minimized.'}
-          </p>
-          <div className="play-setup-grid">
-            <label className="play-field">
+          <header className="play-setup-header">
+            <h2 className="play-setup-title">
+              {hasActive ? 'Host a different game' : 'Host a game'}
+            </h2>
+            <p className="play-setup-help">
+              You will get a 4-character code. Share it with friends so they can join from their own
+              devices.
+              {hasActive && ' Hosting a new game will leave the one you have minimized.'}
+            </p>
+          </header>
+
+          <section className="play-setup-row">
+            <div className="play-field play-field-inline">
               <span>Format</span>
-              <select value={format} onChange={(e) => applyFormat(e.target.value as GameFormat)}>
-                {FORMAT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="play-field">
-              <span>Starting life</span>
-              <input
-                type="number"
+              <SelectMenu<GameFormat>
+                ariaLabel="Format"
+                value={format}
+                onChange={applyFormat}
+                options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+              />
+            </div>
+            <div className="play-field play-field-inline">
+              <span id="online-host-life-label">Starting life</span>
+              <Stepper
+                value={startingLife}
                 min={1}
                 max={200}
-                value={startingLife}
-                onChange={(e) => setStartingLife(Number(e.target.value) || 0)}
+                step={5}
+                ariaLabelledBy="online-host-life-label"
+                onChange={setStartingLife}
               />
-            </label>
-            <label className="play-field play-field-checkbox">
-              <input
-                type="checkbox"
-                checked={commanderDamageEnabled}
-                onChange={(e) => setCmdDmg(e.target.checked)}
-              />
-              <span>Commander damage</span>
-            </label>
-            <label className="play-field play-field-checkbox">
-              <input
-                type="checkbox"
-                checked={poisonEnabled}
-                onChange={(e) => setPoison(e.target.checked)}
-              />
-              <span>Poison</span>
-            </label>
-            <label className="play-field">
-              <span>Your name</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
-            </label>
-            <label className="play-field">
-              <span>Your deck</span>
-              <DeckPicker decks={decks} value={deck?.id ?? null} onChange={setDeck} />
-            </label>
-          </div>
+            </div>
+          </section>
+
+          <section className="play-setup-rules" aria-label="Game rules">
+            <RulePill
+              on={commanderDamageEnabled}
+              onChange={setCmdDmg}
+              label="Commander damage"
+              hint="Lose at 21 combat damage from a single commander."
+            />
+            <RulePill
+              on={poisonEnabled}
+              onChange={setPoison}
+              label="Poison counters"
+              hint="Lose at 10 poison counters."
+            />
+          </section>
+
+          <section className="play-setup-roster" aria-label="You">
+            <header className="play-setup-roster-head">
+              <h3 className="play-setup-section-title">You</h3>
+            </header>
+            <ul className="play-setup-roster-list">
+              <li className="play-setup-seat">
+                <span className="play-setup-seat-num" aria-hidden="true">
+                  1
+                </span>
+                <input
+                  className="play-setup-seat-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={40}
+                  aria-label="Your name"
+                  placeholder={defaultName}
+                />
+                <SeatDeck
+                  decks={decks}
+                  value={deck?.id ?? null}
+                  deckName={deck?.name ?? null}
+                  onChange={setDeck}
+                />
+              </li>
+            </ul>
+          </section>
+
           <button type="submit" className="pill-btn pill-btn-primary play-setup-start">
             Create game
           </button>
@@ -705,11 +731,18 @@ function OnlineSetup({
             });
           }}
         >
-          <h2 className="play-setup-title">Join a game</h2>
-          <div className="play-setup-grid">
-            <label className="play-field">
+          <header className="play-setup-header">
+            <h2 className="play-setup-title">Join a game</h2>
+            <p className="play-setup-help">
+              Enter the 4-character code shared by the host, then pick your name and deck.
+            </p>
+          </header>
+
+          <section className="play-setup-row">
+            <label className="play-field play-field-inline">
               <span>Join code</span>
               <input
+                className="play-join-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 6))}
                 placeholder="ABCD"
@@ -717,18 +750,37 @@ function OnlineSetup({
                 inputMode="text"
                 autoCapitalize="characters"
                 spellCheck={false}
-                style={{ textTransform: 'uppercase', letterSpacing: '0.2em' }}
               />
             </label>
-            <label className="play-field">
-              <span>Your name</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
-            </label>
-            <label className="play-field">
-              <span>Your deck</span>
-              <DeckPicker decks={decks} value={deck?.id ?? null} onChange={setDeck} />
-            </label>
-          </div>
+          </section>
+
+          <section className="play-setup-roster" aria-label="You">
+            <header className="play-setup-roster-head">
+              <h3 className="play-setup-section-title">You</h3>
+            </header>
+            <ul className="play-setup-roster-list">
+              <li className="play-setup-seat">
+                <span className="play-setup-seat-num" aria-hidden="true">
+                  1
+                </span>
+                <input
+                  className="play-setup-seat-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={40}
+                  aria-label="Your name"
+                  placeholder={defaultName}
+                />
+                <SeatDeck
+                  decks={decks}
+                  value={deck?.id ?? null}
+                  deckName={deck?.name ?? null}
+                  onChange={setDeck}
+                />
+              </li>
+            </ul>
+          </section>
+
           <button
             type="submit"
             className="pill-btn pill-btn-primary play-setup-start"
