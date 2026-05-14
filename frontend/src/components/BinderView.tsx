@@ -108,7 +108,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
         totalPages={active.totalPages}
         sections={active.sections}
         pocketSize={active.effectivePocketSize}
-        sorts={active.effectiveSorts}
+        sorts={active.displaySorts}
         viewToggle={viewToggle}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}

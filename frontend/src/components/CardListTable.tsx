@@ -13,6 +13,7 @@ import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { FilterPopover } from './FilterPopover';
 import { SelectMenu } from './SelectMenu';
+import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { sortCards, printingKey, type SortContext } from '../lib/sorting';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
@@ -998,34 +999,6 @@ function StatsIcon() {
       <path d="M4 20V10" />
       <path d="M12 20V4" />
       <path d="M20 20v-7" />
-    </svg>
-  );
-}
-
-function SortDirArrow({ dir }: { dir: 'asc' | 'desc' }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {dir === 'asc' ? (
-        <>
-          <path d="M12 4v16" />
-          <path d="m6 10 6-6 6 6" />
-        </>
-      ) : (
-        <>
-          <path d="M12 4v16" />
-          <path d="m6 14 6 6 6-6" />
-        </>
-      )}
     </svg>
   );
 }

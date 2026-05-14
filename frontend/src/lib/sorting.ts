@@ -7,6 +7,9 @@ export interface SortContext {
   setMap?: SetMap;
   /** Count of physical copies sharing each printing key, keyed by `printingKey(card)`. */
   qtyByPrintingKey?: Map<string, number>;
+  /** Per-field custom value orderings. Each entry is the canonical-key list in
+   *  user-preferred order. Missing fields fall back to the built-in default. */
+  valueOrders?: Partial<Record<SortField, string[]>>;
 }
 
 export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir }[] = [
@@ -21,7 +24,97 @@ export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir
   { value: 'type', label: 'Type', defaultDir: 'asc' },
   { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
   { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
+  { value: 'treatment', label: 'Treatment', defaultDir: 'asc' },
+  { value: 'finish', label: 'Finish', defaultDir: 'asc' },
 ];
+
+/**
+ * Treatment + finish are categorical sorts whose value-to-rank mapping is
+ * configurable per-binder. The defaults below are "special → regular" for
+ * treatment and "foil → non-foil → etched" for finish.
+ */
+
+export type TreatmentKey = 'showcase' | 'extendedart' | 'borderless' | 'promo' | 'regular';
+export type FinishKey = 'foil' | 'nonfoil' | 'etched';
+
+export const TREATMENT_KEYS: TreatmentKey[] = [
+  'showcase',
+  'extendedart',
+  'borderless',
+  'promo',
+  'regular',
+];
+export const FINISH_KEYS: FinishKey[] = ['foil', 'nonfoil', 'etched'];
+
+const TREATMENT_LABELS: Record<TreatmentKey, string> = {
+  showcase: 'Showcase',
+  extendedart: 'Extended art',
+  borderless: 'Borderless',
+  promo: 'Promo',
+  regular: 'Regular',
+};
+const FINISH_LABELS: Record<FinishKey, string> = {
+  foil: 'Foil',
+  nonfoil: 'Non-foil',
+  etched: 'Etched',
+};
+
+export function getTreatmentKey(card: EnrichedCard): TreatmentKey {
+  const frame = card.frameEffects ?? [];
+  if (frame.includes('showcase')) return 'showcase';
+  if (frame.includes('extendedart')) return 'extendedart';
+  if (card.borderColor === 'borderless') return 'borderless';
+  if ((card.promoTypes?.length ?? 0) > 0) return 'promo';
+  return 'regular';
+}
+
+export function getFinishKey(card: EnrichedCard): FinishKey {
+  const f = card.finish ?? (card.foil ? 'foil' : 'nonfoil');
+  return (FINISH_KEYS as string[]).includes(f) ? (f as FinishKey) : 'nonfoil';
+}
+
+/** Sort fields whose value ordering can be customized per binder. */
+export const CUSTOMIZABLE_VALUE_ORDER_FIELDS: SortField[] = ['treatment', 'finish'];
+
+export function getDefaultValueOrder(field: SortField): string[] {
+  if (field === 'treatment') return [...TREATMENT_KEYS];
+  if (field === 'finish') return [...FINISH_KEYS];
+  return [];
+}
+
+export function getValueLabel(field: SortField, key: string): string {
+  if (field === 'treatment') return TREATMENT_LABELS[key as TreatmentKey] ?? key;
+  if (field === 'finish') return FINISH_LABELS[key as FinishKey] ?? key;
+  return key;
+}
+
+/**
+ * Resolve the effective ordering for a field, merging any user override with
+ * the default. Keys in the override appear first in their chosen order;
+ * any default keys missing from the override are appended at the end so
+ * additions to the default list don't silently disappear from a user's binder.
+ */
+export function resolveValueOrder(field: SortField, override: string[] | undefined): string[] {
+  const defaults = getDefaultValueOrder(field);
+  if (!override?.length) return defaults;
+  const seen = new Set(override);
+  return [...override.filter((k) => defaults.includes(k)), ...defaults.filter((k) => !seen.has(k))];
+}
+
+function rankFromOrder(order: string[], key: string): number {
+  const i = order.indexOf(key);
+  return i === -1 ? order.length : i;
+}
+
+export function treatmentRank(card: EnrichedCard, ctx?: SortContext): number {
+  const order = resolveValueOrder('treatment', ctx?.valueOrders?.treatment);
+  return rankFromOrder(order, getTreatmentKey(card));
+}
+
+export function finishRank(card: EnrichedCard, ctx?: SortContext): number {
+  const order = resolveValueOrder('finish', ctx?.valueOrders?.finish);
+  return rankFromOrder(order, getFinishKey(card));
+}
 
 /** Key used to group physical copies of the same printing (scryfallId + finish). */
 export function printingKey(card: EnrichedCard): string {
@@ -84,6 +177,10 @@ export function cardSortValue(
     }
     case 'quantity':
       return ctx?.qtyByPrintingKey?.get(printingKey(card)) ?? 1;
+    case 'treatment':
+      return treatmentRank(card, ctx);
+    case 'finish':
+      return finishRank(card, ctx);
     default:
       return 0;
   }
@@ -113,6 +210,72 @@ export const NEW_BINDER_DEFAULT_SORTS: SortEntry[] = [{ field: 'color', dir: 'as
 
 /** Maximum number of sort fields a binder can chain. */
 export const MAX_SORTS = 3;
+
+/**
+ * Fields applied as implicit tie-breakers after the user's explicit sort chain.
+ * They run in order and are skipped per-field if already present in the chain.
+ */
+export const IMPLICIT_TIEBREAKER_FIELDS: SortField[] = ['treatment', 'finish', 'name'];
+
+/**
+ * Human-readable resolved order for fields whose direction is non-obvious.
+ * Returns null for fields where ascending/descending is self-explanatory
+ * (e.g. name, price, cmc). Honors any binder-level value-order override.
+ */
+export function describeSortOrder(
+  field: SortField,
+  dir: SortDir,
+  valueOrders?: Partial<Record<SortField, string[]>>
+): string | null {
+  if (!CUSTOMIZABLE_VALUE_ORDER_FIELDS.includes(field)) return null;
+  const order = resolveValueOrder(field, valueOrders?.[field]);
+  const labels = order.map((k) => getValueLabel(field, k));
+  const ordered = dir === 'desc' ? [...labels].reverse() : labels;
+  return ordered.join(' → ');
+}
+
+/** True when the user has reordered the values for this field away from the default. */
+export function isValueOrderCustomized(field: SortField, override: string[] | undefined): boolean {
+  if (!override?.length) return false;
+  const defaults = getDefaultValueOrder(field);
+  if (!defaults.length) return false;
+  const resolved = resolveValueOrder(field, override);
+  return resolved.length !== defaults.length || resolved.some((k, i) => k !== defaults[i]);
+}
+
+/**
+ * Filter the effective sort chain down to what's worth displaying in a
+ * breadcrumb. Implicit tie-breakers at their default value-order are hidden
+ * to keep the label focused on the user's own rules. Explicit sorts (those
+ * present in the user's chain) are always shown, even when they happen to
+ * match a tie-breaker field.
+ */
+export function getDisplaySorts(
+  effectiveSorts: SortEntry[],
+  explicitSorts: SortEntry[],
+  valueOrders?: Partial<Record<SortField, string[]>>
+): SortEntry[] {
+  const explicitFields = new Set(
+    explicitSorts.filter((s) => s && s.field !== 'none').map((s) => s.field)
+  );
+  return effectiveSorts.filter((s) => {
+    if (s.field === 'none') return false;
+    if (explicitFields.has(s.field)) return true;
+    if (s.field === 'name') return false;
+    if (s.field === 'treatment' || s.field === 'finish') {
+      return isValueOrderCustomized(s.field, valueOrders?.[s.field]);
+    }
+    return false;
+  });
+}
+
+/** Returns the implicit tie-breaker entries that would be appended to a chain. */
+export function getImplicitTiebreakers(sorts: SortEntry[]): SortEntry[] {
+  const active = sorts.filter((s) => s && s.field !== 'none');
+  return IMPLICIT_TIEBREAKER_FIELDS.filter((f) => !active.some((s) => s.field === f)).map(
+    (field) => ({ field, dir: 'asc' as const })
+  );
+}
 
 const SORT_LABEL: Record<SortField, string> = SORT_FIELDS.reduce(
   (acc, f) => ({ ...acc, [f.value]: f.label }),
