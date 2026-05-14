@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { __resetMatchCacheForTesting } from './combos';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
@@ -87,6 +88,10 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
+beforeEach(() => {
+  __resetMatchCacheForTesting();
+});
+
 d('POST /api/combos/match', () => {
   it('returns 401 without auth', async () => {
     const res = await request(app).post('/api/combos/match').send({ ownedOracleIds: [] });
@@ -130,6 +135,47 @@ d('POST /api/combos/match', () => {
       });
     expect(res.status).toBe(200);
     expect(res.body.inDeck).toEqual([]);
+  });
+
+  it('serves identical subsequent requests from the in-memory cache', async () => {
+    const cookie = await registerAndGetCookie('combos_henry');
+    const body = {
+      ownedOracleIds: ['oracle-thassa', 'oracle-consult', 'oracle-labman'],
+      deckOracleIds: ['oracle-thassa', 'oracle-consult'],
+    };
+
+    const first = await request(app).post('/api/combos/match').set('Cookie', cookie).send(body);
+    expect(first.status).toBe(200);
+    expect(first.headers['x-combos-cache']).toBe('miss');
+
+    const second = await request(app).post('/api/combos/match').set('Cookie', cookie).send(body);
+    expect(second.status).toBe(200);
+    expect(second.headers['x-combos-cache']).toBe('hit');
+    // Body must be identical to the first response.
+    expect(second.body).toEqual(first.body);
+  });
+
+  it('cache key normalizes oracle-id order — same set in different order is one cache entry', async () => {
+    const cookie = await registerAndGetCookie('combos_ivy');
+
+    const a = await request(app)
+      .post('/api/combos/match')
+      .set('Cookie', cookie)
+      .send({
+        ownedOracleIds: ['oracle-thassa', 'oracle-consult', 'oracle-labman'],
+        deckOracleIds: ['oracle-thassa', 'oracle-consult'],
+      });
+    expect(a.headers['x-combos-cache']).toBe('miss');
+
+    const b = await request(app)
+      .post('/api/combos/match')
+      .set('Cookie', cookie)
+      .send({
+        // Same ids, different order — should still hit the same cache entry.
+        ownedOracleIds: ['oracle-labman', 'oracle-thassa', 'oracle-consult'],
+        deckOracleIds: ['oracle-consult', 'oracle-thassa'],
+      });
+    expect(b.headers['x-combos-cache']).toBe('hit');
   });
 
   it('returns empty buckets for an empty collection', async () => {
