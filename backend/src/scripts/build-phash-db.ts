@@ -23,10 +23,16 @@
  *
  * Usage
  * -----
- *   tsx scripts/build-phash-db.ts                  # full default_cards run
- *   tsx scripts/build-phash-db.ts --unique-art     # smaller unique-artwork dump
- *   tsx scripts/build-phash-db.ts --limit=500      # quick smoke test
- *   tsx scripts/build-phash-db.ts --concurrency=8  # tune throughput
+ *   # Local (dev)
+ *   npm run phash:ingest                      # full default_cards run
+ *   npm run phash:ingest -- --unique-art      # smaller unique-artwork dump
+ *   npm run phash:ingest -- --limit=500       # quick smoke test
+ *   npm run phash:ingest -- --concurrency=8   # tune throughput
+ *
+ *   # Production (inside the docker container — writes to /data/phash.db
+ *   # via the PHASH_DB_PATH env baked into the image)
+ *   docker compose exec backend npm run phash:ingest:prod
+ *   docker compose exec backend npm run phash:ingest:prod -- --limit=500
  *
  * Be courteous to Scryfall: keep concurrency modest (default 6). Their image
  * CDN doesn't have the same 50–100ms request floor as the JSON API, but
@@ -35,8 +41,8 @@
 
 import path from 'path';
 import sharp from 'sharp';
-import { PhashStore } from '../src/phash-store';
-import { dHashFromLuminance, HASH_BYTES } from '../src/phash';
+import { PhashStore } from '../phash-store';
+import { dHashFromLuminance, HASH_BYTES } from '../phash';
 
 interface ScryfallBulk {
   type: string;
@@ -66,11 +72,16 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
+  // Honor PHASH_DB_PATH so the container's /data volume is used in prod
+  // without callers needing to pass --db. Mirrors what the server does for
+  // its scryfall cache path.
+  const defaultDb =
+    process.env.PHASH_DB_PATH || path.join(__dirname, '..', '..', 'data', 'phash.db');
   const out: Args = {
     bulkType: 'default_cards',
     limit: null,
     concurrency: 6,
-    dbPath: path.join(__dirname, '..', 'data', 'phash.db'),
+    dbPath: defaultDb,
   };
   for (const arg of argv) {
     if (arg === '--unique-art' || arg === '--unique-artwork') out.bulkType = 'unique_artwork';
@@ -251,7 +262,13 @@ async function main(): Promise<void> {
   // Second pass: hash with bounded concurrency and batched writes.
   let hashed = 0;
   let failed = 0;
-  let pending: Array<{ scryfallId: string; name: string; setCode: string; collectorNumber: string; hash: Uint8Array }> = [];
+  let pending: Array<{
+    scryfallId: string;
+    name: string;
+    setCode: string;
+    collectorNumber: string;
+    hash: Uint8Array;
+  }> = [];
   const flush = () => {
     if (pending.length === 0) return;
     store.upsertMany(pending);
