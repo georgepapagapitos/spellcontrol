@@ -1639,8 +1639,10 @@ input[type='search'] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.8rem;
-  height: 1.8rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  line-height: 0;
   border-radius: 999px;
   border: 0;
   background: transparent;
@@ -1649,6 +1651,12 @@ input[type='search'] {
   transition:
     background 0.12s,
     color 0.12s;
+}
+
+.filter-popover-btn > svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
 }
 
 .filter-popover-btn:hover,
@@ -1681,13 +1689,32 @@ input[type='search'] {
   top: calc(100% + 6px);
   right: 0;
   z-index: var(--z-popover);
-  min-width: 16rem;
+  width: max-content;
+  min-width: min(16rem, calc(100vw - 2rem));
   max-width: min(20rem, calc(100vw - 2rem));
   background: var(--surface);
   border: 0.5px solid var(--border2);
   border-radius: var(--radius);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
   padding: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  /* Let the panel resolve against the search-pill ancestor (which is the
+     nearest positioned element once .filter-popover stops being one) so
+     it spans the full pill width instead of overflowing past the left
+     edge of the viewport. */
+  .filter-popover {
+    position: static;
+  }
+
+  .filter-popover-panel {
+    left: 0;
+    right: 0;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+  }
 }
 
 .filter-popover-row {
@@ -6066,6 +6093,154 @@ hr {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.85rem;
+}
+
+.set-filter-picker {
+  position: relative;
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  max-width: 24rem;
+}
+
+.set-filter-pill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.9rem;
+  padding: 0.15rem 0.45rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  cursor: text;
+  transition: border-color 0.12s;
+}
+
+.set-filter-pill:focus-within {
+  border-color: var(--accent);
+}
+
+.set-filter-pill > input {
+  flex: 1 1 5rem;
+  min-width: 4rem;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-sm);
+  padding: 0.15rem 0.25rem;
+}
+
+.set-filter-pill > input::placeholder {
+  color: var(--text3);
+}
+
+.set-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.15rem 0.1rem 0.45rem;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  max-width: 100%;
+}
+
+.set-filter-chip-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  object-fit: contain;
+  filter: brightness(0.6);
+}
+
+.set-filter-chip-label {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.set-filter-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.set-filter-chip-x:hover,
+.set-filter-chip-x:focus-visible {
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  outline: none;
+}
+
+.set-filter-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover);
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.set-filter-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.set-filter-result.is-highlight {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.set-filter-result-icon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: brightness(0.6);
+}
+
+.set-filter-result.is-highlight .set-filter-result-icon {
+  filter: none;
+}
+
+.set-filter-result-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-filter-result-meta {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  flex-shrink: 0;
 }
 
 .color-filter-row {
