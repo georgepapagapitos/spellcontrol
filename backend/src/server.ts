@@ -10,7 +10,7 @@ import { closeDb, ensureSchema } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
-import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
+import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { sliceResolvedDeckImport } from './deck-import';
@@ -247,6 +247,37 @@ app.get(
       console.error('[printings] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({ error: `Failed to fetch printings: ${message}` });
+    }
+  }
+);
+
+/**
+ * Identifies a single card from an imperfect name (OCR output, partial input).
+ * Used by the in-browser card scanner — the frontend OCRs the card's title
+ * region with Tesseract and posts the result here for fuzzy resolution.
+ *
+ * Query: `?q=arcane+signet` (raw OCR text is fine; Scryfall's fuzzy matcher
+ * tolerates typos, missing apostrophes, partial names, etc.).
+ *
+ * Response: { card: ScryfallCard | null }. A null `card` means no confident
+ * match — the caller should treat that as "try again" rather than an error.
+ */
+app.get(
+  '/api/cards/identify',
+  rateLimit({ windowMs: 60_000, max: 120 }),
+  async (req: Request, res: Response) => {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q : '';
+      if (!q.trim()) {
+        return res.status(400).json({ error: 'Query parameter "q" is required.' });
+      }
+      const card = await identifyCardByName(q);
+      if (card) cache.setMany([card]);
+      res.json({ card });
+    } catch (err) {
+      console.error('[identify] error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({ error: `Identify failed: ${message}` });
     }
   }
 );
