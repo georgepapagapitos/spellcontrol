@@ -6,7 +6,18 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { useToastsStore } from '../../store/toasts';
-import type { EnrichedCard } from '../../types';
+import { useSetMap } from '../../lib/api';
+import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
+import { parseTypeLine, SUPERTYPES, TYPES } from '../../lib/card-types';
+import {
+  compileExpression,
+  exactMatchesExpression,
+  isExpressionEmpty,
+  setMatchesExpression,
+  substringMatchesExpression,
+} from '../../lib/rules';
+import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import type { ChipExpression, EnrichedCard } from '../../types';
 
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
   if (commanderCI.length === 0) return false;
@@ -40,6 +51,20 @@ interface Props {
 
 type Mode = 'collection' | 'scryfall';
 
+const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
+
+// Local copy of the same enum vocabularies the collection page uses.
+// Kept local so this component isn't load-coupled to that page.
+const COLOR_FILTERS: Array<{ key: string; label: string }> = [
+  { key: 'W', label: 'White' },
+  { key: 'U', label: 'Blue' },
+  { key: 'B', label: 'Black' },
+  { key: 'R', label: 'Red' },
+  { key: 'G', label: 'Green' },
+  { key: 'C', label: 'Colorless' },
+];
+const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
+
 export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function CardSearchPanel(
   { deckId, commanderColorIdentity, existingCardCounts, onAdd, onClose },
   ref
@@ -50,6 +75,59 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Chip-expression filter state — applies only in the Collection tab.
+  // Scryfall already has its own query DSL, so we don't shoehorn this
+  // there. Each section mirrors the collection page so the muscle memory
+  // is identical; Binder + Group-printings are intentionally omitted
+  // (no binder concept here, no per-printing rows).
+  const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [typesExpr, setTypesExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
+  const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
+  const [subtypeSuggestions, setSubtypeSuggestions] = useState<string[]>([]);
+  const setMap = useSetMap();
+
+  // Same subtype-suggestion fetch the collection page does — Scryfall
+  // catalog minus known supertypes/types, deduped case-insensitively.
+  const collection = useCollectionStore((s) => s.cards);
+  useEffect(() => {
+    const supertypeSet = new Set<string>(SUPERTYPES);
+    const typeSet = new Set<string>(TYPES);
+    const collectionSubtypeTokens = new Set<string>();
+    for (const c of collection) {
+      const { subtypes } = parseTypeLine(c.typeLine);
+      for (const s of subtypes) collectionSubtypeTokens.add(s);
+    }
+    fetchTypeSuggestions().then((catalog) => {
+      const byLower = new Map<string, string>();
+      for (const t of [...catalog, ...collectionSubtypeTokens]) {
+        const key = t.toLowerCase();
+        if (supertypeSet.has(key) || typeSet.has(key)) continue;
+        const existing = byLower.get(key);
+        if (!existing || (existing === key && t !== key)) byLower.set(key, t);
+      }
+      setSubtypeSuggestions([...byLower.values()].sort((a, b) => a.localeCompare(b)));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const activeFilterCount =
+    (!isExpressionEmpty(supertypeExpr) ? 1 : 0) +
+    (!isExpressionEmpty(typesExpr) ? 1 : 0) +
+    (!isExpressionEmpty(subtypeExpr) ? 1 : 0) +
+    (colorFilter.size > 0 ? 1 : 0) +
+    (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
+    (setFilter.size > 0 ? 1 : 0);
+
+  // Pre-compile the chip expressions once per change so the per-card
+  // loop in CollectionResults doesn't redo string work.
+  const compiledSupertype = useMemo(() => compileExpression(supertypeExpr), [supertypeExpr]);
+  const compiledTypes = useMemo(() => compileExpression(typesExpr), [typesExpr]);
+  const compiledSubtype = useMemo(() => compileExpression(subtypeExpr), [subtypeExpr]);
+  const compiledRarity = useMemo(() => compileExpression(rarityExpr), [rarityExpr]);
   // The two result lists publish their currently-visible cards here so the
   // panel-level "Enter to add the first result" handler is independent of
   // which tab is active.
@@ -133,18 +211,43 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         </button>
       </div>
 
-      <input
-        ref={inputRef}
-        type="search"
-        className="card-search-input"
-        placeholder={mode === 'collection' ? 'Search your collection…' : 'Search all of Scryfall…'}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={handleKeyDown}
-        aria-label={mode === 'collection' ? 'Search your collection' : 'Search Scryfall'}
-        aria-controls="card-search-results"
-        aria-activedescendant={visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined}
-      />
+      <div className="card-search-input-row">
+        <input
+          ref={inputRef}
+          type="search"
+          className="card-search-input"
+          placeholder={
+            mode === 'collection' ? 'Search your collection…' : 'Search all of Scryfall…'
+          }
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          aria-label={mode === 'collection' ? 'Search your collection' : 'Search Scryfall'}
+          aria-controls="card-search-results"
+          aria-activedescendant={visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined}
+        />
+        {mode === 'collection' && (
+          <CollectionFiltersDialog
+            supertypeExpr={supertypeExpr}
+            setSupertypeExpr={setSupertypeExpr}
+            typesExpr={typesExpr}
+            setTypesExpr={setTypesExpr}
+            subtypeExpr={subtypeExpr}
+            setSubtypeExpr={setSubtypeExpr}
+            subtypeSuggestions={subtypeSuggestions}
+            colorFilter={colorFilter}
+            setColorFilter={setColorFilter}
+            colorOptions={COLOR_FILTERS}
+            rarityExpr={rarityExpr}
+            setRarityExpr={setRarityExpr}
+            rarities={RARITIES}
+            setFilter={setFilter}
+            setSetFilter={setSetFilter}
+            setMap={setMap}
+            activeCount={activeFilterCount}
+          />
+        )}
+      </div>
       <p className="card-search-hint" aria-hidden>
         ↑ ↓ to navigate · Enter to add · Esc to close
       </p>
@@ -164,6 +267,12 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             addCurrentRef.current = addAt;
             setVisibleCount(cards.length);
           }}
+          compiledSupertype={compiledSupertype}
+          compiledTypes={compiledTypes}
+          compiledSubtype={compiledSubtype}
+          compiledRarity={compiledRarity}
+          colorFilter={colorFilter}
+          setFilter={setFilter}
         />
       ) : (
         <ScryfallResults
@@ -202,6 +311,18 @@ interface ResultsProps {
   publishVisible: (cards: ScryfallCard[], addAt: (index: number) => Promise<void> | void) => void;
 }
 
+interface CollectionResultsProps extends ResultsProps {
+  // Optional pre-compiled chip expressions + the color/set sets.
+  // CollectionResults applies them to the substring/CI-filtered list.
+  // Absent for the Scryfall tab — only the Collection tab routes them in.
+  compiledSupertype: ReturnType<typeof compileExpression>;
+  compiledTypes: ReturnType<typeof compileExpression>;
+  compiledSubtype: ReturnType<typeof compileExpression>;
+  compiledRarity: ReturnType<typeof compileExpression>;
+  colorFilter: Set<string>;
+  setFilter: Set<string>;
+}
+
 // ── Collection results ───────────────────────────────────────────────────
 function CollectionResults({
   deckId: _deckId,
@@ -213,7 +334,13 @@ function CollectionResults({
   onAdd,
   onAnnounce,
   publishVisible,
-}: ResultsProps) {
+  compiledSupertype,
+  compiledTypes,
+  compiledSubtype,
+  compiledRarity,
+  colorFilter,
+  setFilter,
+}: CollectionResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
@@ -228,13 +355,49 @@ function CollectionResults({
       const legality = c.legalities?.commander;
       if (legality && legality !== 'legal' && legality !== 'restricted') continue;
       if (q && !c.name.toLowerCase().includes(q)) continue;
+
+      // User-authored chip-expression filters from the filter dialog.
+      // Color filter additionally narrows the commander-CI-constrained
+      // set; e.g. a Naya commander + "blue" chip yields zero matches
+      // (correct — Naya can't run blue cards anyway).
+      if (colorFilter.size > 0) {
+        const k = (ci.length === 0 ? 'C' : ci[0]) as string;
+        const matches =
+          (k === 'C' && colorFilter.has('C')) ||
+          ci.some((kk) => colorFilter.has(kk)) ||
+          (k !== 'C' && colorFilter.has(k));
+        if (!matches) continue;
+      }
+      if (compiledSupertype || compiledTypes || compiledSubtype) {
+        const parsed = parseTypeLine(c.typeLine);
+        if (compiledSupertype && !setMatchesExpression(parsed.supertypes, compiledSupertype))
+          continue;
+        if (compiledTypes && !setMatchesExpression(parsed.types, compiledTypes)) continue;
+        if (compiledSubtype) {
+          const joined = parsed.subtypes.join(' ');
+          if (!substringMatchesExpression(joined, compiledSubtype)) continue;
+        }
+      }
+      if (compiledRarity && !exactMatchesExpression(c.rarity, compiledRarity)) continue;
+      if (setFilter.size > 0 && !setFilter.has((c.setCode || '').toUpperCase())) continue;
+
       if (seenNames.has(c.name)) continue;
       seenNames.add(c.name);
       out.push(c);
     }
     out.sort((a, b) => a.name.localeCompare(b.name));
     return out.slice(0, 200);
-  }, [collection, colorIdentity, query]);
+  }, [
+    collection,
+    colorIdentity,
+    query,
+    compiledSupertype,
+    compiledTypes,
+    compiledSubtype,
+    compiledRarity,
+    colorFilter,
+    setFilter,
+  ]);
 
   const addAtIndex = async (index: number) => {
     const c = filtered[index];
