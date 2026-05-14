@@ -3693,7 +3693,16 @@ input.toolbar-search-input {
   border: 1.5px solid var(--border2);
   border-top-color: var(--accent);
   animation: deck-combos-spin 0.7s linear infinite;
-  margin-left: auto;
+  /* Slot is ALWAYS rendered (visibility toggled, not display) so the
+     trailing wrapper's width never changes between loading and idle.
+     Without this the summary column shrinks by the spinner's width every
+     time a request fires, shifting the rest of the header sideways. */
+  flex: 0 0 auto;
+}
+
+.deck-combos-spinner.is-idle {
+  visibility: hidden;
+  animation: none;
 }
 
 @keyframes deck-combos-spin {
