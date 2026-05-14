@@ -7,6 +7,7 @@ import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import { Modal } from './Modal';
 import { CardScanner } from './CardScanner';
+import { useCanScan } from '../lib/use-can-scan';
 
 interface PendingImport {
   /** Runs the actual import call. */
@@ -29,6 +30,7 @@ export function UploadPanel() {
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const canScan = useCanScan();
 
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
@@ -225,16 +227,18 @@ export function UploadPanel() {
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">
-              <button
-                type="button"
-                className="btn import-upload-btn"
-                onClick={() => setScannerOpen(true)}
-                disabled={isLoading}
-                title="Scan physical cards with your device camera"
-              >
-                <Camera width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Scan cards</span>
-              </button>
+              {canScan && (
+                <button
+                  type="button"
+                  className="btn import-upload-btn"
+                  onClick={() => setScannerOpen(true)}
+                  disabled={isLoading}
+                  title="Scan physical cards with your device camera"
+                >
+                  <Camera width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  <span>Scan cards</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="btn import-upload-btn"
