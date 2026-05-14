@@ -4,7 +4,7 @@ import { requireAuth } from '../auth';
 import { getDb } from '../db';
 import { combos, comboCards } from '../db/schema';
 import { matchCombos, type ComboInput } from '../combos/match';
-import { fetchSpellbookBulk, ingestCombos } from '../combos/ingest';
+import { ingestCombos, streamSpellbookVariants } from '../combos/ingest';
 
 export const combosRouter: Router = Router();
 
@@ -159,8 +159,7 @@ combosRouter.post('/admin/refresh', requireAuth, async (req: Request, res: Respo
     return res.status(403).json({ error: 'Admin access required.' });
   }
   try {
-    const variants = await fetchSpellbookBulk();
-    const result = await ingestCombos(variants);
+    const result = await ingestCombos(streamSpellbookVariants());
     res.json(result);
   } catch (err) {
     console.error('[combos] admin refresh failed:', err);
