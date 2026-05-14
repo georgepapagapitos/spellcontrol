@@ -214,10 +214,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
             shrink by the spinner's width every time a request fired,
             shifting the layout. */}
         <span className="deck-combos-header-trailing" aria-hidden>
-          <span
-            className={`deck-combos-spinner${loading ? '' : ' is-idle'}`}
-            aria-hidden
-          />
+          <span className={`deck-combos-spinner${loading ? '' : ' is-idle'}`} aria-hidden />
           <span className="deck-combos-header-chevron">
             {collapsed ? (
               <ChevronDown width={16} height={16} />
