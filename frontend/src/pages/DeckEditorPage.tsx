@@ -8,6 +8,9 @@ import { CardEditDialog, type PrintingSelection } from '../components/CardEditDi
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { BackLink } from '../components/BackLink';
+import { ColorPicker } from '../components/ColorPicker';
+import { Modal } from '../components/Modal';
+import { isValidCommander } from '../lib/commanders';
 import { useToastsStore } from '../store/toasts';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -25,6 +28,7 @@ export function DeckEditorPage() {
   const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
   const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
   const moveBetweenZones = useDecksStore((s) => s.moveBetweenZones);
+  const setCommander = useDecksStore((s) => s.setCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const collectionCards = useCollectionStore((s) => s.cards);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
@@ -36,6 +40,14 @@ export function DeckEditorPage() {
   );
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const [makeCommanderTarget, setMakeCommanderTarget] = useState<{
+    slotId: string;
+    card: ScryfallCard;
+    zone: 'main' | 'side';
+    allocatedCopyId: string | null;
+  } | null>(null);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Hoisted so the mobile action sheet can open Export without rendering
@@ -82,6 +94,24 @@ export function DeckEditorPage() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
+
+  useEffect(() => {
+    if (!colorPickerOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setColorPickerOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setColorPickerOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [colorPickerOpen]);
 
   if (!id) return <Navigate to="/decks" replace />;
   if (!deck) {
@@ -146,6 +176,50 @@ export function DeckEditorPage() {
 
   const handleMoveToMainboard = (slotId: string) => {
     moveBetweenZones(deck.id, slotId, 'side');
+  };
+
+  const handleMakeCommanderClick = (slotId: string, card: ScryfallCard) => {
+    const mainSlot = deck.cards.find((c) => c.slotId === slotId);
+    const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.slotId === slotId);
+    const slot = mainSlot ?? sideSlot;
+    if (!slot) return;
+    const target = {
+      slotId,
+      card,
+      zone: (mainSlot ? 'main' : 'side') as 'main' | 'side',
+      allocatedCopyId: slot.allocatedCopyId,
+    };
+    // No current commander → just set it directly, no dialog needed.
+    if (!deck.commander) {
+      if (target.zone === 'main') removeCard(deck.id, slotId);
+      else removeSideboardCard(deck.id, slotId);
+      setCommander(deck.id, card, target.allocatedCopyId);
+      pushToast({ message: `${card.name} is now the commander`, tone: 'success' });
+      return;
+    }
+    setMakeCommanderTarget(target);
+  };
+
+  const handleConfirmMakeCommander = (keepOldInDeck: boolean) => {
+    const target = makeCommanderTarget;
+    if (!target) return;
+    const oldCommander = deck.commander;
+    const oldAllocated = deck.commanderAllocatedCopyId;
+    setMakeCommanderTarget(null);
+
+    if (target.zone === 'main') removeCard(deck.id, target.slotId);
+    else removeSideboardCard(deck.id, target.slotId);
+
+    if (keepOldInDeck && oldCommander) {
+      addCard(deck.id, oldCommander, oldAllocated);
+    }
+    setCommander(deck.id, target.card, target.allocatedCopyId);
+    pushToast({
+      message: `${target.card.name} is now the commander${
+        keepOldInDeck && oldCommander ? ` · ${oldCommander.name} moved to the deck` : ''
+      }`,
+      tone: 'success',
+    });
   };
 
   // Click-to-edit qty handler: diffs the desired count against the live
@@ -223,7 +297,7 @@ export function DeckEditorPage() {
     <div className="deck-editor-page">
       <BackLink to="/decks" label="All decks" />
       <header className="deck-editor-header">
-        <div className="deck-editor-hero">
+        <div className="deck-editor-hero" style={{ borderLeftColor: deck.color }}>
           {renaming ? (
             <input
               autoFocus
@@ -258,6 +332,32 @@ export function DeckEditorPage() {
           </p>
         </div>
         <div className="deck-editor-actions">
+          <div className="deck-editor-color" ref={colorPickerRef}>
+            <button
+              type="button"
+              className="btn deck-editor-color-btn"
+              onClick={() => setColorPickerOpen((v) => !v)}
+              aria-haspopup="dialog"
+              aria-expanded={colorPickerOpen}
+              title="Deck color"
+            >
+              <span
+                className="deck-editor-color-dot"
+                style={{ background: deck.color }}
+                aria-hidden
+              />
+              Color
+            </button>
+            {colorPickerOpen && (
+              <div className="deck-editor-color-popover" role="dialog" aria-label="Deck color">
+                <ColorPicker
+                  value={deck.color}
+                  onChange={(hex) => updateDeck(deck.id, { color: hex })}
+                  ariaLabel="Deck color"
+                />
+              </div>
+            )}
+          </div>
           <button
             type="button"
             className="btn"
@@ -292,6 +392,8 @@ export function DeckEditorPage() {
           onDuplicate={handleDuplicate}
           onDelete={() => setConfirmDelete(true)}
           onExport={() => setExportOpen(true)}
+          color={deck.color}
+          onColorChange={(hex) => updateDeck(deck.id, { color: hex })}
         />
       </header>
 
@@ -313,6 +415,8 @@ export function DeckEditorPage() {
             onMoveToMainboard={handleMoveToMainboard}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
+            onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
+            canMakeCommander={formatConfig?.hasCommander ? isValidCommander : undefined}
             collectionByCopyId={collectionById}
             roleCounts={deck.roleCounts}
             rampSubtypeCounts={deck.rampSubtypeCounts}
@@ -385,6 +489,34 @@ export function DeckEditorPage() {
         />
       )}
 
+      {makeCommanderTarget && deck.commander && (
+        <Modal onClose={() => setMakeCommanderTarget(null)} labelledBy="make-commander-title">
+          <h2 id="make-commander-title" className="choice-dialog-title">
+            Make {makeCommanderTarget.card.name} the commander?
+          </h2>
+          <p className="choice-dialog-body">
+            <strong>{deck.commander.name}</strong> is currently the commander. What should happen to
+            it?
+          </p>
+          <div className="choice-dialog-actions">
+            <button type="button" className="btn" onClick={() => setMakeCommanderTarget(null)}>
+              Cancel
+            </button>
+            <button type="button" className="btn" onClick={() => handleConfirmMakeCommander(false)}>
+              Remove from deck
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => handleConfirmMakeCommander(true)}
+              autoFocus
+            >
+              Keep in deck
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
     </div>
@@ -397,24 +529,35 @@ function DeckEditorOverflowMenu({
   onDuplicate,
   onDelete,
   onExport,
+  color,
+  onColorChange,
 }: {
   isAddPanelOpen: boolean;
   onToggleAddPanel: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
+  color: string;
+  onColorChange: (hex: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<'menu' | 'color'>('menu');
   const wrapperRef = useRef<HTMLDivElement>(null);
   useLockBodyScroll(open);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setView('menu');
+      return;
+    }
     const close = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        if (view === 'color') setView('menu');
+        else setOpen(false);
+      }
     };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
@@ -422,7 +565,7 @@ function DeckEditorOverflowMenu({
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, view]);
 
   return (
     <div className="deck-editor-overflow" ref={wrapperRef}>
@@ -449,50 +592,83 @@ function DeckEditorOverflowMenu({
           />
           <div className="deck-editor-overflow-panel" role="menu">
             <div className="deck-editor-overflow-handle" aria-hidden />
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onToggleAddPanel();
-              }}
-            >
-              {isAddPanelOpen ? 'Hide cards panel' : 'Add cards'}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onDuplicate();
-              }}
-            >
-              Duplicate
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onExport();
-              }}
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item deck-editor-overflow-item--danger"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-            >
-              Delete
-            </button>
+            {view === 'menu' && (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-editor-overflow-item"
+                  onClick={() => {
+                    setOpen(false);
+                    onToggleAddPanel();
+                  }}
+                >
+                  {isAddPanelOpen ? 'Hide cards panel' : 'Add cards'}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-editor-overflow-item"
+                  onClick={() => setView('color')}
+                >
+                  <span
+                    className="deck-editor-overflow-color-dot"
+                    style={{ background: color }}
+                    aria-hidden
+                  />
+                  Color
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-editor-overflow-item"
+                  onClick={() => {
+                    setOpen(false);
+                    onDuplicate();
+                  }}
+                >
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-editor-overflow-item"
+                  onClick={() => {
+                    setOpen(false);
+                    onExport();
+                  }}
+                >
+                  Export
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-editor-overflow-item deck-editor-overflow-item--danger"
+                  onClick={() => {
+                    setOpen(false);
+                    onDelete();
+                  }}
+                >
+                  Delete
+                </button>
+              </>
+            )}
+            {view === 'color' && (
+              <div className="deck-editor-overflow-subview">
+                <div className="deck-editor-overflow-subview-header">
+                  <button
+                    type="button"
+                    className="deck-editor-overflow-back"
+                    onClick={() => setView('menu')}
+                    aria-label="Back"
+                  >
+                    ‹
+                  </button>
+                  <span className="deck-editor-overflow-subview-title">Deck color</span>
+                </div>
+                <ColorPicker value={color} onChange={onColorChange} ariaLabel="Deck color" />
+              </div>
+            )}
           </div>
         </>
       )}
