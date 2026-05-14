@@ -208,13 +208,17 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
             <span className="deck-combos-header-empty">No matches</span>
           )}
         </span>
-        {loading && <span className="deck-combos-spinner" aria-hidden />}
-        <span className="deck-combos-header-chevron" aria-hidden>
-          {collapsed ? (
-            <ChevronDown width={16} height={16} />
-          ) : (
-            <ChevronUp width={16} height={16} />
-          )}
+        {/* Spinner + chevron live in one trailing slot so the spinner
+            appearing/disappearing never shifts the chevron's position. */}
+        <span className="deck-combos-header-trailing" aria-hidden>
+          {loading && <span className="deck-combos-spinner" />}
+          <span className="deck-combos-header-chevron">
+            {collapsed ? (
+              <ChevronDown width={16} height={16} />
+            ) : (
+              <ChevronUp width={16} height={16} />
+            )}
+          </span>
         </span>
       </button>
 

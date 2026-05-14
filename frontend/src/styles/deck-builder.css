@@ -3651,13 +3651,24 @@ input.toolbar-search-input {
   font-style: italic;
 }
 
+/* Trailing slot — the 4th grid column. Holds spinner (when loading) AND the
+   chevron together so the spinner toggling never re-flows the chevron's x
+   position. The chevron itself is always-rendered; only the spinner appears
+   conditionally beside it. */
+.deck-combos-header-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .deck-combos-header-chevron {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text3);
   flex: 0 0 auto;
-  margin-left: auto;
 }
 
 .deck-combos-header:hover .deck-combos-header-chevron {
