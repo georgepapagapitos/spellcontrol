@@ -8691,6 +8691,14 @@ hr {
   font-weight: 500;
   color: rgba(255, 255, 255, 0.85);
   pointer-events: none;
+  max-width: calc(100% - 1.5rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Stack a second debug badge below the first. */
+.scanner-debug-second {
+  top: 6.75rem;
 }
 
 .scanner-hint {
