@@ -106,7 +106,9 @@ export type SortField =
   | 'price'
   | 'edhrec'
   | 'collectorNumber'
-  | 'quantity';
+  | 'quantity'
+  | 'treatment'
+  | 'finish';
 
 export type SortDir = 'asc' | 'desc';
 
@@ -281,6 +283,10 @@ export interface BinderDef {
    *  Pin/exclusion/manualOrder metadata is preserved — cards return when the
    *  deck releases them. Undefined/true = current behavior (include them). */
   hideDeckAllocated?: boolean;
+  /** Per-field custom orderings for sort values (e.g. treatment, finish).
+   *  Each entry is the canonical key list in user-preferred order. Fields not
+   *  present fall back to the built-in default order. */
+  sortValueOrders?: Partial<Record<SortField, string[]>>;
   createdAt: number;
   updatedAt: number;
 }
@@ -326,8 +332,12 @@ export interface BinderSection {
 export interface MaterializedBinder {
   def: BinderDef;
   effectivePocketSize: PocketSize;
-  /** Sort chain actually applied (includes the implicit Name tiebreaker if added). */
+  /** Sort chain actually applied (includes implicit tie-breakers). */
   effectiveSorts: SortEntry[];
+  /** Sort chain suitable for breadcrumb display — implicit tie-breakers at
+   *  their default value-order are stripped so the label reflects the user's
+   *  intent without clutter. */
+  displaySorts: SortEntry[];
   sections: BinderSection[];
   totalCards: number;
   totalPages: number;
@@ -339,4 +349,5 @@ export interface UncategorizedBucket {
   totalPages: number;
   effectivePocketSize: PocketSize;
   effectiveSorts: SortEntry[];
+  displaySorts: SortEntry[];
 }

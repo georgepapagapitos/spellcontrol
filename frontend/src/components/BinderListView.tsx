@@ -95,9 +95,9 @@ export function BinderListView({
   // header so the binder's grouping/ordering hierarchy is visible at a
   // glance — same affordance the page-grid view exposes.
   const sortBreadcrumb = useMemo(() => {
-    const active = binder.effectiveSorts.filter((s) => s && s.field !== 'none');
+    const active = binder.displaySorts.filter((s) => s && s.field !== 'none');
     return active.map(sortEntryLabel);
-  }, [binder.effectiveSorts]);
+  }, [binder.displaySorts]);
 
   // Flat page list for "Browse pages" — opens the BinderPagePreview at
   // the first page; same carousel the grid view uses.
