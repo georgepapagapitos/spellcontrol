@@ -1,3 +1,11 @@
+import {
+  AlignJustify,
+  LayoutGrid,
+  List as ListIconLucide,
+  ListChecks,
+  Pencil,
+  Plus,
+} from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { AddCardSheet } from '../components/AddCardSheet';
@@ -152,9 +160,21 @@ export function BinderPage() {
       value={view}
       onChange={setView}
       options={[
-        { value: 'pages', label: 'Pages view', icon: <PagesViewIcon /> },
-        { value: 'list', label: 'List view (with thumbnails)', icon: <ListViewIcon /> },
-        { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+        {
+          value: 'pages',
+          label: 'Pages view',
+          icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
+          value: 'list',
+          label: 'List view (with thumbnails)',
+          icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
+          value: 'compact',
+          label: 'Compact list (text only)',
+          icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
       ]}
     />
   );
@@ -206,7 +226,7 @@ export function BinderPage() {
               onClick={() => setAddCardSheetOpen(true)}
               disabled={!activeId}
             >
-              <AddCardIcon />
+              <Plus width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Add card</span>
             </button>
             <button
@@ -216,7 +236,7 @@ export function BinderPage() {
               onClick={() => setCardEditorOpen(true)}
               disabled={!activeId}
             >
-              <EditCardsIcon />
+              <ListChecks width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Edit cards</span>
             </button>
             <button
@@ -226,7 +246,7 @@ export function BinderPage() {
               onClick={() => activeId && setEditingBinder(activeId)}
               disabled={!activeId}
             >
-              <PencilIcon />
+              <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Edit binder</span>
             </button>
           </div>
@@ -321,125 +341,5 @@ export function BinderPage() {
       )}
       {confirmDialog}
     </>
-  );
-}
-
-function AddCardIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M8 3v10M3 8h10" />
-    </svg>
-  );
-}
-
-function EditCardsIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M2 4h12M2 8h8M2 12h6" />
-      <path d="M12 10l1.5 1.5L16 9" />
-    </svg>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z" />
-    </svg>
-  );
-}
-
-function PagesViewIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function ListViewIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M8 6h13" />
-      <path d="M8 12h13" />
-      <path d="M8 18h13" />
-      <circle cx="4" cy="6" r="0.5" />
-      <circle cx="4" cy="12" r="0.5" />
-      <circle cx="4" cy="18" r="0.5" />
-    </svg>
-  );
-}
-
-function CompactListIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 6h18" />
-      <path d="M3 10h18" />
-      <path d="M3 14h18" />
-      <path d="M3 18h18" />
-    </svg>
   );
 }

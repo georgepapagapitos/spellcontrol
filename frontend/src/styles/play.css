@@ -81,17 +81,21 @@
 
 /* ── Setup forms ─────────────────────────────────────────────────────────── */
 
+.play-setup,
+.play-setup form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* Prevent the whole panel from growing wider than the page column when
+     a long deck name in a child input tries to expand its track. */
+  min-width: 0;
+}
+
 .play-setup {
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  /* Prevent the whole panel from growing wider than the page column when
-     a long deck name in a child <select> tries to expand its track. */
-  min-width: 0;
   overflow-x: clip;
 }
 
@@ -138,26 +142,22 @@
   accent-color: var(--accent);
 }
 
-/* Text-like inputs and selects fill their cell; checkboxes / radios stay
+/* Text-like inputs fill their cell; checkboxes / radios stay
    their natural size and live in the flex-row layout next to the label. */
-.play-field input:not([type='checkbox']):not([type='radio']),
-.play-field select {
+.play-field input:not([type='checkbox']):not([type='radio']) {
   background: var(--surface2);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.5rem 0.6rem;
   color: var(--text);
   font-size: var(--text-base);
-  /* The default <select> intrinsic width = the widest option. With user
-     deck names that can be very long; clamp to 100% of the cell. */
   width: 100%;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-.play-field input:focus,
-.play-field select:focus {
+.play-field input:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -214,7 +214,9 @@
 }
 
 .play-setup-start {
-  align-self: flex-start;
+  align-self: stretch;
+  justify-content: center;
+  padding-block: 0.6rem;
 }
 
 /* ── Local setup: redesigned ─────────────────────────────────────────────
@@ -246,11 +248,6 @@
   font-weight: 600;
   color: var(--text2);
   white-space: nowrap;
-}
-
-.play-field-inline select {
-  width: auto !important;
-  min-width: 9rem;
 }
 
 /* Numeric stepper (− value +) — used for starting life. */
@@ -572,6 +569,12 @@
 .play-online-mode.is-active {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.play-join-code {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Active-game indicators in app chrome ──────────────────────────────── */
@@ -1231,11 +1234,6 @@ body:has(.game-board) .modal-backdrop {
 .player-panel-step-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-}
-
-.player-panel-step-btn:hover:not(:disabled) {
-  color: var(--pp-accent, #fff);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .player-panel-step-btn:active:not(:disabled) {
@@ -2789,28 +2787,12 @@ body:has(.game-board) .modal-backdrop {
 
 /* ── Pointer-capable affordances (desktop mouse, trackpads) ──
    Gated by `(hover: hover)` so touch devices don't sticky-hover after a
-   tap. */
+   tap. We intentionally omit hover effects on the tap zones and step
+   buttons themselves — the cursor change + active feedback is enough,
+   and the gradient/glow read as accidental glare on a colored seat. */
 @media (hover: hover) {
-  .player-panel-tapzone {
-    transition: background 120ms ease;
-  }
-  .player-panel-tapzone.is-left:hover {
-    background: linear-gradient(to right, rgba(255, 122, 122, 0.12), transparent);
-  }
-  .player-panel-tapzone.is-right:hover {
-    background: linear-gradient(to left, rgba(180, 240, 200, 0.12), transparent);
-  }
-  .player-panel-life-btn:not(:disabled):hover .player-panel-life-num {
-    text-shadow:
-      0 2px 12px rgba(0, 0, 0, 0.5),
-      0 0 24px rgba(255, 255, 255, 0.25);
-  }
   .player-panel-life-btn:not(:disabled) {
     cursor: pointer;
-  }
-  .player-panel-step-btn:not(:disabled):hover {
-    color: rgba(0, 0, 0, 0.7);
-    background: rgba(255, 255, 255, 0.12);
   }
   .player-panel-drawer-btn:hover {
     filter: brightness(1.15);

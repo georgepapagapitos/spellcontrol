@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
@@ -199,19 +200,7 @@ export function BinderPagePreview({
                 disabled={selected === 0}
                 aria-label="Previous page"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M15 6l-6 6 6 6" />
-                </svg>
+                <ChevronLeft width={20} height={20} strokeWidth={2.4} aria-hidden />
               </button>
               <button
                 type="button"
@@ -229,19 +218,7 @@ export function BinderPagePreview({
                 disabled={selected === pages.length - 1}
                 aria-label="Next page"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
+                <ChevronRight width={20} height={20} strokeWidth={2.4} aria-hidden />
               </button>
             </>
           )}
@@ -380,18 +357,7 @@ function Cell({
           onClick={(e) => e.stopPropagation()}
           aria-label={`Open deck ${allocation.deckName}`}
         >
-          <svg
-            width="9"
-            height="9"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
-            <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
-            <rect x="6" y="0" width="9" height="11" rx="1.5" />
-          </svg>
+          <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
         </Link>
       )}
     </button>

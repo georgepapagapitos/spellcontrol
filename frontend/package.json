@@ -25,6 +25,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "idb": "^8.0.0",
+    "lucide-react": "^1.14.0",
     "mana-font": "^1.18.0",
     "react": "^18.3.1",
     "react-colorful": "^5.7.0",
