@@ -1,9 +1,18 @@
 import crypto from 'crypto';
+import { Readable, Transform } from 'node:stream';
+import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { sql } from 'drizzle-orm';
+import jsonParser from 'stream-json';
+import streamArray from 'stream-json/streamers/stream-array.js';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
 
 const SPELLBOOK_BULK_URL = 'https://json.commanderspellbook.com/variants.json';
+
+/** How many parsed combos to buffer before flushing to Postgres. Bounds peak
+ * memory: ~500 combos × (combo row + ~3 card rows) ≈ a few MB regardless of
+ * how big the upstream dataset gets. */
+const FLUSH_AT = 500;
 
 /**
  * Subset of the Spellbook bulk variant shape we read. The actual feed has many
@@ -51,11 +60,21 @@ export interface IngestResult {
   runId: string;
 }
 
-interface BulkPayload {
-  variants?: unknown;
-}
-
-export async function fetchSpellbookBulk(): Promise<unknown[]> {
+/**
+ * Streams the Spellbook bulk variants endpoint, yielding one raw variant at
+ * a time. The previous implementation did `await response.json()` which
+ * materialized the entire ~100 MB payload into V8 heap, peaking at several
+ * hundred MB and OOM-killing small containers. Streaming bounds peak memory
+ * to a few MB regardless of dataset size.
+ *
+ * Handles both top-level shapes the upstream endpoint has used:
+ *   - `{ variants: [...] }` (current modern shape)
+ *   - `[...]` (legacy / fallback)
+ *
+ * The detection is done by looking at the first non-whitespace byte of the
+ * response stream.
+ */
+export async function* streamSpellbookVariants(): AsyncIterable<unknown> {
   const response = await fetch(SPELLBOOK_BULK_URL, {
     headers: {
       Accept: 'application/json',
@@ -65,10 +84,149 @@ export async function fetchSpellbookBulk(): Promise<unknown[]> {
   if (!response.ok) {
     throw new Error(`Spellbook bulk fetch failed: HTTP ${response.status}`);
   }
-  const payload = (await response.json()) as BulkPayload | unknown[];
-  if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload.variants)) return payload.variants;
-  throw new Error('Spellbook bulk payload shape unrecognized');
+  if (!response.body) {
+    throw new Error('Spellbook bulk fetch returned no body');
+  }
+
+  // Convert WHATWG ReadableStream → Node Readable so stream-json can pipe it.
+  const nodeStream = Readable.fromWeb(response.body as unknown as WebReadableStream<Uint8Array>);
+
+  // Peek the first non-whitespace byte to choose the right pipeline. We use a
+  // small buffer because the JSON's leading byte is reliably within the first
+  // few bytes (anything else is whitespace).
+  const first = await peekFirstNonWhitespace(nodeStream);
+  if (first === null) {
+    throw new Error('Spellbook bulk response was empty');
+  }
+
+  if (first === '[') {
+    // Top-level array — stream each element directly. `withParserAsStream`
+    // gives us a Duplex that combines `parser()` and `streamArray()` and
+    // emits `{key, value}` per array element.
+    const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
+    for await (const item of pipeline as AsyncIterable<{ key: number; value: unknown }>) {
+      yield item.value;
+    }
+    return;
+  }
+
+  if (first === '{') {
+    // `{variants: [...]}` — feed the parsed token stream through a small
+    // hand-rolled pick that only forwards tokens once we're inside the
+    // `variants` array, then hands those to streamArray. Keeps streaming
+    // semantics for the (currently dominant) object-shape payload.
+    yield* streamArrayUnderKey(nodeStream, 'variants');
+    return;
+  }
+
+  throw new Error(`Spellbook bulk payload shape unrecognized (first byte: ${first})`);
+}
+
+/**
+ * For a JSON payload like `{ variants: [...], otherStuff: ... }`, streams
+ * the elements of the array at the named top-level key without buffering
+ * the array in memory. Implemented as: parse → forward only the tokens
+ * that fall inside the target array → streamArray.
+ */
+async function* streamArrayUnderKey(nodeStream: Readable, key: string): AsyncIterable<unknown> {
+  const tokens = nodeStream.pipe(jsonParser());
+
+  // Forward tokens only while we're inside the target value's subtree. We
+  // start tracking nesting depth from the moment `keyValue: <key>` is seen
+  // (the next token is the start of the value); we stop forwarding when
+  // depth returns to 0.
+  let inside = false;
+  let depth = 0;
+  let nextValueIsTarget = false;
+
+  const filter = new Transform({
+    objectMode: true,
+    transform(chunk: { name: string; value?: unknown }, _enc, cb) {
+      if (!inside) {
+        if (chunk.name === 'keyValue' && chunk.value === key) {
+          nextValueIsTarget = true;
+        } else if (
+          nextValueIsTarget &&
+          (chunk.name === 'startArray' || chunk.name === 'startObject')
+        ) {
+          inside = true;
+          depth = 1;
+          nextValueIsTarget = false;
+          this.push(chunk);
+        } else if (nextValueIsTarget) {
+          // Scalar value at the target key — not an array, abort.
+          nextValueIsTarget = false;
+        }
+        cb();
+        return;
+      }
+      this.push(chunk);
+      if (chunk.name === 'startArray' || chunk.name === 'startObject') depth++;
+      else if (chunk.name === 'endArray' || chunk.name === 'endObject') {
+        depth--;
+        if (depth === 0) {
+          inside = false;
+          this.push(null); // signal end downstream
+        }
+      }
+      cb();
+    },
+  });
+
+  const pipeline = tokens.pipe(filter).pipe(streamArray.asStream());
+  for await (const item of pipeline as AsyncIterable<{ key: number; value: unknown }>) {
+    yield item.value;
+  }
+}
+
+/** Reads the first non-whitespace byte from a Node Readable, then unshifts
+ * it back so the downstream pipeline still sees the full payload. */
+async function peekFirstNonWhitespace(stream: Readable): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    let collected = Buffer.alloc(0);
+    const onReadable = () => {
+      const chunk: Buffer | null = stream.read();
+      if (chunk === null) return;
+      collected = Buffer.concat([collected, chunk]);
+      // Walk for first non-whitespace byte.
+      for (let i = 0; i < collected.length; i++) {
+        const ch = String.fromCharCode(collected[i]);
+        if (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') continue;
+        // Found it — push the buffered bytes back so the downstream pipeline
+        // sees the complete JSON, then resolve.
+        stream.removeListener('readable', onReadable);
+        stream.removeListener('error', onError);
+        stream.unshift(collected);
+        resolve(ch);
+        return;
+      }
+      // All whitespace so far; keep reading.
+    };
+    const onError = (err: Error) => {
+      stream.removeListener('readable', onReadable);
+      reject(err);
+    };
+    const onEnd = () => {
+      stream.removeListener('readable', onReadable);
+      stream.removeListener('error', onError);
+      resolve(null);
+    };
+    stream.on('readable', onReadable);
+    stream.once('error', onError);
+    stream.once('end', onEnd);
+  });
+}
+
+/**
+ * Back-compat wrapper for callers that still want an array. Drains the
+ * stream into memory — DO NOT use this for the production scheduler
+ * (defeats the streaming win). Kept for tests and any future caller that
+ * legitimately wants the full collection in memory.
+ */
+export async function fetchSpellbookBulk(): Promise<unknown[]> {
+  const out: unknown[] = [];
+  for await (const v of streamSpellbookVariants()) out.push(v);
+  return out;
 }
 
 /**
@@ -172,14 +330,33 @@ function parsePrerequisites(v: SpellbookVariant): ParsedPrerequisites | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/** Adapter: any plain Iterable becomes an AsyncIterable. Lets ingestCombos
+ * accept either a streamed source (production) or a literal array (tests). */
+async function* asAsync<T>(items: Iterable<T> | AsyncIterable<T>): AsyncIterable<T> {
+  if (Symbol.asyncIterator in Object(items)) {
+    yield* items as AsyncIterable<T>;
+    return;
+  }
+  for (const item of items as Iterable<T>) yield item;
+}
+
 /**
  * Replaces the combo dataset wholesale. Idempotent — running twice yields the
- * same final state. We delete-then-insert per combo to keep the comboCards
- * rows in sync without computing diffs (the dataset is small enough — ~85k
- * combos × ~3 cards average — that this runs in a few seconds against
- * Postgres on a laptop).
+ * same final state.
+ *
+ * Streams the source iterable, parses one variant at a time, and flushes
+ * every FLUSH_AT combos to Postgres inside one transaction. Peak memory is
+ * bounded by FLUSH_AT (a few MB) regardless of how many variants come
+ * through — historically a single `await response.json()` would balloon to
+ * 200+ MB and OOM small containers.
+ *
+ * The transaction wraps a TRUNCATE + chunked inserts. Either the whole
+ * replacement commits or the previous dataset stays intact; reads racing the
+ * commit see either pre- or post-state, never a partial dataset.
  */
-export async function ingestCombos(rawVariants: unknown[]): Promise<IngestResult> {
+export async function ingestCombos(
+  source: Iterable<unknown> | AsyncIterable<unknown>
+): Promise<IngestResult> {
   const runId = crypto.randomUUID();
   const startedAt = Date.now();
   const db = getDb();
@@ -198,28 +375,17 @@ export async function ingestCombos(rawVariants: unknown[]): Promise<IngestResult
   let lastError: string | null = null;
 
   try {
-    const parsed: ParsedCombo[] = [];
-    for (const raw of rawVariants) {
-      const p = parseVariant(raw);
-      if (p) parsed.push(p);
-      else skipped++;
-    }
-
-    // Wrap in a transaction so a partial failure doesn't leave a half-written
-    // dataset on disk. Chunk the upserts so the parameter limit (~65k) holds.
     await db.transaction(async (tx) => {
-      // Wipe-and-replace is the simplest correctness model. The combos table
-      // is read-only relative to user data — no foreign keys point in — so
-      // truncating mid-run is safe; reads racing the swap will see either
-      // pre-state or post-state, never partial.
       await tx.execute(sql`TRUNCATE TABLE combo_cards`);
       await tx.execute(sql`TRUNCATE TABLE combos CASCADE`);
 
-      const COMBO_CHUNK = 500;
-      for (let i = 0; i < parsed.length; i += COMBO_CHUNK) {
-        const slice = parsed.slice(i, i + COMBO_CHUNK);
+      let queue: ParsedCombo[] = [];
+
+      const flush = async () => {
+        if (queue.length === 0) return;
+        // Insert combos first so the FK from combo_cards has a target.
         await tx.insert(combos).values(
-          slice.map((p) => ({
+          queue.map((p) => ({
             id: p.id,
             identity: p.identity,
             produces: p.produces,
@@ -233,32 +399,44 @@ export async function ingestCombos(rawVariants: unknown[]): Promise<IngestResult
             updatedAt: startedAt,
           }))
         );
-      }
-
-      const cardRows: Array<{
-        comboId: string;
-        oracleId: string;
-        cardName: string;
-        quantity: number;
-        position: number;
-      }> = [];
-      for (const p of parsed) {
-        for (const c of p.cards) {
-          cardRows.push({
-            comboId: p.id,
-            oracleId: c.oracleId,
-            cardName: c.cardName,
-            quantity: c.quantity,
-            position: c.position,
-          });
+        const cardRows: Array<{
+          comboId: string;
+          oracleId: string;
+          cardName: string;
+          quantity: number;
+          position: number;
+        }> = [];
+        for (const p of queue) {
+          for (const c of p.cards) {
+            cardRows.push({
+              comboId: p.id,
+              oracleId: c.oracleId,
+              cardName: c.cardName,
+              quantity: c.quantity,
+              position: c.position,
+            });
+          }
         }
-      }
-      const CARD_CHUNK = 2000;
-      for (let i = 0; i < cardRows.length; i += CARD_CHUNK) {
-        await tx.insert(comboCards).values(cardRows.slice(i, i + CARD_CHUNK));
-      }
+        if (cardRows.length > 0) {
+          // The card-rows-per-flush count is bounded (FLUSH_AT × max ~10
+          // cards) so we can insert in one go without hitting Postgres's
+          // 65535-parameter ceiling. ~5000 rows × 4 cols = 20000 params.
+          await tx.insert(comboCards).values(cardRows);
+        }
+        written += queue.length;
+        queue = [];
+      };
 
-      written = parsed.length;
+      for await (const raw of asAsync(source)) {
+        const parsed = parseVariant(raw);
+        if (!parsed) {
+          skipped++;
+          continue;
+        }
+        queue.push(parsed);
+        if (queue.length >= FLUSH_AT) await flush();
+      }
+      await flush();
     });
   } catch (err) {
     lastError = err instanceof Error ? err.message : String(err);
@@ -278,14 +456,13 @@ export async function ingestCombos(rawVariants: unknown[]): Promise<IngestResult
 }
 
 /**
- * Fire-and-forget background refresh: pull the bulk feed and ingest. Logs
+ * Fire-and-forget background refresh: stream the bulk feed and ingest. Logs
  * outcomes; the caller (a setInterval in server.ts) doesn't await success.
  */
 export async function runScheduledIngest(): Promise<void> {
   try {
     console.log('[combos] starting scheduled ingest');
-    const variants = await fetchSpellbookBulk();
-    const result = await ingestCombos(variants);
+    const result = await ingestCombos(streamSpellbookVariants());
     console.log(
       `[combos] scheduled ingest done — wrote ${result.written}, skipped ${result.skipped}`
     );
