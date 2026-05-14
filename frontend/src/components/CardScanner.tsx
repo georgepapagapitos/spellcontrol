@@ -80,6 +80,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    */
   const [cameraInfo, setCameraInfo] = useState<string | null>(null);
   /**
+   * Diagnostic line for the most recent identification attempt. Shows pHash
+   * distance / OCR text so we can see *why* a scan succeeded or failed
+   * without having to read the queue thumbnails. Useful while tuning the
+   * scan pipeline; we can decide later whether to keep it.
+   */
+  const [lastAttempt, setLastAttempt] = useState<string | null>(null);
+  /**
    * The viewfinder is sized in JS to live INSIDE the visible camera area.
    * Earlier iterations sized it as a percentage of the viewport, which on
    * phones (where the camera feed gets letterboxed) meant the framing box
@@ -432,9 +439,15 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           phashAvailableRef.current = result.storeSize > 0;
           if (result.card) {
             resolved = { card: result.card, via: 'phash', raw: `phash d=${result.distance}` };
+            setLastAttempt(`phash d=${result.distance} → ${truncate(result.card.name, 24)}`);
+          } else {
+            setLastAttempt(
+              `phash no match (closest d=${result.distance}, store=${result.storeSize})`
+            );
           }
         } catch (err) {
           console.warn('[scanner] phash path failed, falling back to OCR:', err);
+          setLastAttempt('phash error — see console');
         }
       }
 
@@ -475,19 +488,23 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         const { text, confidence } = await recognizeText(canvas);
         if (!text || text.length < 2) {
           if (!autoMode) showHint('No card detected — hold steady and try again.');
+          setLastAttempt('ocr empty');
           return;
         }
         if (confidence < 35) {
           if (!autoMode) showHint('Low confidence — improve lighting or angle.');
+          setLastAttempt(`ocr low confidence (${Math.round(confidence)})`);
           return;
         }
 
         const card = await identifyCard(text);
         if (!card) {
           if (!autoMode) showHint(`Couldn't match "${truncate(text, 40)}".`);
+          setLastAttempt(`ocr no match: "${truncate(text, 24)}"`);
           return;
         }
         resolved = { card, via: 'ocr', raw: text };
+        setLastAttempt(`ocr "${truncate(text, 16)}" → ${truncate(card.name, 24)}`);
       }
 
       // Dedupe: the same card scanned twice in a row almost always means the
@@ -628,6 +645,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       {hint && <div className="scanner-hint">{hint}</div>}
 
       {cameraInfo && <div className="scanner-debug">cam: {cameraInfo}</div>}
+      {lastAttempt && <div className="scanner-debug scanner-debug-second">last: {lastAttempt}</div>}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">

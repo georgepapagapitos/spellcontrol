@@ -28,6 +28,10 @@
  *   npm run phash:ingest -- --unique-art      # smaller unique-artwork dump
  *   npm run phash:ingest -- --limit=500       # quick smoke test
  *   npm run phash:ingest -- --concurrency=8   # tune throughput
+ *   npm run phash:ingest -- --force           # ignore existing hashes,
+ *                                             # re-hash from scratch
+ *                                             # (needed after any source-
+ *                                             # image or algorithm change)
  *
  *   # Production (inside the docker container — writes to /data/phash.db
  *   # via the PHASH_DB_PATH env baked into the image)
@@ -63,8 +67,8 @@ interface BulkCard {
   digital?: boolean;
   layout?: string;
   image_status?: string;
-  image_uris?: { art_crop?: string; normal?: string };
-  card_faces?: Array<{ image_uris?: { art_crop?: string; normal?: string } }>;
+  image_uris?: { art_crop?: string; normal?: string; large?: string };
+  card_faces?: Array<{ image_uris?: { art_crop?: string; normal?: string; large?: string } }>;
 }
 
 interface Args {
@@ -72,6 +76,14 @@ interface Args {
   limit: number | null;
   concurrency: number;
   dbPath: string;
+  /**
+   * Re-hash every card from scratch, even if a hash for that scryfall_id
+   * is already in the DB. Needed after any change to the hash algorithm or
+   * the source image (e.g. when we switched from `art_crop` to the full
+   * card image with a fractional crop). Without this the resume-skip
+   * logic would happily preserve the old, mismatched hashes forever.
+   */
+  force: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -85,9 +97,11 @@ function parseArgs(argv: string[]): Args {
     limit: null,
     concurrency: 6,
     dbPath: defaultDb,
+    force: false,
   };
   for (const arg of argv) {
     if (arg === '--unique-art' || arg === '--unique-artwork') out.bulkType = 'unique_artwork';
+    else if (arg === '--force') out.force = true;
     else if (arg.startsWith('--limit=')) out.limit = parseInt(arg.slice('--limit='.length), 10);
     else if (arg.startsWith('--concurrency=')) {
       out.concurrency = Math.max(1, parseInt(arg.slice('--concurrency='.length), 10));
@@ -233,21 +247,43 @@ async function* streamBulkCardsFromFile(filePath: string): AsyncGenerator<BulkCa
   }
 }
 
-function pickArtCropUrl(card: BulkCard): string | null {
+/**
+ * Use the FULL CARD image (`image_uris.normal`), not Scryfall's `art_crop`.
+ *
+ * Earlier ingests used `art_crop`, which is only the painting — no border,
+ * no title bar, no type line, and aspect ratio ~8:5. The client, by
+ * contrast, hashes a `cardW × cardH × ART_CROP` rectangle inside the
+ * full card it just captured, including a sliver of the title bar and
+ * type line. Those two hashes are computed on *different framings of the
+ * same card* and don't fall within our Hamming-distance threshold.
+ *
+ * Switching the ingest to the full card image and cropping with the same
+ * fractional rectangle the client uses (see CLIENT_ART_CROP below) makes
+ * the two sides hash bit-for-bit comparable content. This is the
+ * difference between "every card wrong" and "matches at distance ~6".
+ */
+function pickFullCardUrl(card: BulkCard): string | null {
   return (
-    card.image_uris?.art_crop ||
-    card.card_faces?.[0]?.image_uris?.art_crop ||
     card.image_uris?.normal ||
     card.card_faces?.[0]?.image_uris?.normal ||
+    card.image_uris?.large ||
+    card.card_faces?.[0]?.image_uris?.large ||
     null
   );
 }
 
 /**
- * Downloads `url` and returns a dHash computed from its 9x8 grayscale
- * resampling. Uses sharp's default cubic resampler — small differences vs
- * the browser canvas resampler are absorbed by the Hamming-distance
- * threshold at match time.
+ * Must match `ART_CROP` in frontend/src/components/CardScanner.tsx. If you
+ * change one without changing the other you'll silently invalidate the
+ * entire hash DB.
+ */
+const CLIENT_ART_CROP = { x: 0.07, y: 0.12, w: 0.86, h: 0.42 };
+
+/**
+ * Downloads `url` and returns a dHash computed from the same sub-rectangle
+ * of the card image that the client samples at scan time. Uses sharp's
+ * default cubic resampler — small differences vs the browser canvas
+ * resampler are absorbed by the Hamming-distance threshold at match time.
  *
  * Retries a small number of times on transient fetch/decode failures. The
  * CDN occasionally serves a 5xx or drops a connection mid-image; without
@@ -263,8 +299,22 @@ async function hashImageUrl(url: string): Promise<Uint8Array> {
       });
       if (!res.ok) throw new Error(`image fetch failed: HTTP ${res.status}`);
       const buf = Buffer.from(await res.arrayBuffer());
-      const raw = await sharp(buf)
-        .removeAlpha()
+
+      // Inspect dimensions so we can apply the client's fractional crop
+      // before resampling. sharp's `extract` operates in absolute pixels.
+      const pipeline = sharp(buf).removeAlpha();
+      const meta = await pipeline.clone().metadata();
+      const w = meta.width ?? 0;
+      const h = meta.height ?? 0;
+      if (w <= 0 || h <= 0) throw new Error('image has zero dimensions');
+
+      const cropLeft = Math.max(0, Math.round(w * CLIENT_ART_CROP.x));
+      const cropTop = Math.max(0, Math.round(h * CLIENT_ART_CROP.y));
+      const cropW = Math.min(w - cropLeft, Math.round(w * CLIENT_ART_CROP.w));
+      const cropH = Math.min(h - cropTop, Math.round(h * CLIENT_ART_CROP.h));
+
+      const raw = await pipeline
+        .extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH })
         .grayscale()
         .resize(9, 8, { fit: 'fill', kernel: 'cubic' })
         .raw()
@@ -320,10 +370,14 @@ async function main(): Promise<void> {
   await downloadBulkToCache(manifest, cachePath);
 
   const existingIds = new Set<string>();
-  // Pull existing IDs once so resume-skip is O(1) per card.
-  {
+  // Pull existing IDs once so resume-skip is O(1) per card. `--force`
+  // intentionally leaves the set empty: every card gets re-hashed and the
+  // INSERT … ON CONFLICT clause in PhashStore overwrites the old row.
+  if (!args.force) {
     const probe = (store as unknown as { entries: Array<{ scryfallId: string }> }).entries;
     for (const e of probe) existingIds.add(e.scryfallId);
+  } else {
+    console.log('[ingest] --force: re-hashing every card, no resume-skip');
   }
 
   // Stream-process in micro-batches so peak memory is bounded by BATCH_SIZE
@@ -400,7 +454,7 @@ async function main(): Promise<void> {
       skippedExisting++;
       continue;
     }
-    const url = pickArtCropUrl(card);
+    const url = pickFullCardUrl(card);
     if (!url) {
       skippedNoImage++;
       continue;
