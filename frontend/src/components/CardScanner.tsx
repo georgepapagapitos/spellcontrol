@@ -46,6 +46,8 @@ const AUTO_SCAN_INTERVAL = 1400;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const viewfinderRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   /** Off-screen canvas reused for every capture — avoids per-frame allocation. */
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -77,6 +79,22 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * non-starter for most testers.
    */
   const [cameraInfo, setCameraInfo] = useState<string | null>(null);
+  /**
+   * The viewfinder is sized in JS to live INSIDE the visible camera area.
+   * Earlier iterations sized it as a percentage of the viewport, which on
+   * phones (where the camera feed gets letterboxed) meant the framing box
+   * extended way past the actual visible video. Now we compute the
+   * displayed video rectangle from the stream's aspect ratio and the
+   * container size, then place a 5:7 card-shaped box centred inside it.
+   * The same rectangle is used directly as the capture region (see
+   * captureAndIdentify) so what you see is exactly what gets cropped.
+   */
+  const [viewfinderRect, setViewfinderRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   useLockBodyScroll();
 
@@ -222,6 +240,85 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  /**
+   * Keep the on-screen viewfinder sized to live inside the *visible*
+   * camera area. With `object-fit: contain` the video gets letterboxed
+   * when the stream aspect doesn't match the container — we want the
+   * framing rectangle to fit inside the visible video band, not the
+   * whole viewport.
+   *
+   * The math is plain "contain-fit": video either fills width or fills
+   * height of the container, whichever produces a fully-visible image.
+   * Once we know the displayed rect we drop a 5:7 portrait box centred
+   * inside it at ~78% of the smaller axis.
+   */
+  useEffect(() => {
+    const video = videoRef.current;
+    const root = rootRef.current;
+    if (!video || !root) return;
+
+    const recompute = () => {
+      const vW = video.videoWidth;
+      const vH = video.videoHeight;
+      if (!vW || !vH) return;
+      const cW = root.clientWidth;
+      const cH = root.clientHeight;
+      if (!cW || !cH) return;
+
+      const videoAspect = vW / vH;
+      const containerAspect = cW / cH;
+      let dispW: number;
+      let dispH: number;
+      let dispX: number;
+      let dispY: number;
+      if (videoAspect > containerAspect) {
+        // Video is relatively wider: fill width, letterbox top/bottom.
+        dispW = cW;
+        dispH = cW / videoAspect;
+        dispX = 0;
+        dispY = (cH - dispH) / 2;
+      } else {
+        // Video is relatively taller: fill height, letterbox sides.
+        dispH = cH;
+        dispW = cH * videoAspect;
+        dispX = (cW - dispW) / 2;
+        dispY = 0;
+      }
+
+      // 5:7 portrait card. Cap to ~78% of the smaller axis of the visible
+      // video — leaves enough margin for the user to recognise the box
+      // and to see their fingers framing the card.
+      const FILL = 0.78;
+      let vfW: number;
+      let vfH: number;
+      const dispAspect = dispW / dispH;
+      if (dispAspect > CARD_ASPECT) {
+        vfH = dispH * FILL;
+        vfW = vfH * CARD_ASPECT;
+      } else {
+        vfW = dispW * FILL;
+        vfH = vfW / CARD_ASPECT;
+      }
+      setViewfinderRect({
+        left: dispX + (dispW - vfW) / 2,
+        top: dispY + (dispH - vfH) / 2,
+        width: vfW,
+        height: vfH,
+      });
+    };
+
+    const onMeta = () => recompute();
+    video.addEventListener('loadedmetadata', onMeta);
+    const ro = new ResizeObserver(() => recompute());
+    ro.observe(root);
+    recompute();
+
+    return () => {
+      video.removeEventListener('loadedmetadata', onMeta);
+      ro.disconnect();
+    };
+  }, []);
+
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0];
     if (!track) return;
@@ -258,22 +355,45 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     busyRef.current = true;
     setStatus('scanning');
     try {
+      // Crop region in *raw video* coords = the on-screen viewfinder
+      // rectangle, scaled by the video's pixel-to-screen factor. Because
+      // we render with `object-fit: contain`, there's no cropping in the
+      // display pipeline — the mapping is a pure linear scale. This
+      // guarantees the cropped pixels are exactly what the user saw
+      // inside the viewfinder box.
+      const root = rootRef.current;
+      const viewfinder = viewfinderRef.current;
+      if (!root || !viewfinder || !viewfinderRect) {
+        return;
+      }
       const vw = video.videoWidth;
       const vh = video.videoHeight;
-      // The viewfinder shows a card-shaped (5:7) rect centred in the frame.
-      // Reproject those viewfinder-relative percentages onto the raw video
-      // coordinate space so we crop the same region the user is framing.
-      let cardW: number;
-      let cardH: number;
-      if (vw / vh > CARD_ASPECT) {
-        cardH = vh * 0.84;
-        cardW = cardH * CARD_ASPECT;
+      // Recompute the displayed video rect inline; cheap and avoids a
+      // separate ref. Keeps capture independent of layout-effect timing.
+      const cW = root.clientWidth;
+      const cH = root.clientHeight;
+      const videoAspect = vw / vh;
+      const containerAspect = cW / cH;
+      let dispW: number;
+      let dispH: number;
+      let dispX: number;
+      let dispY: number;
+      if (videoAspect > containerAspect) {
+        dispW = cW;
+        dispH = cW / videoAspect;
+        dispX = 0;
+        dispY = (cH - dispH) / 2;
       } else {
-        cardW = vw * 0.84;
-        cardH = cardW / CARD_ASPECT;
+        dispH = cH;
+        dispW = cH * videoAspect;
+        dispX = (cW - dispW) / 2;
+        dispY = 0;
       }
-      const cardX = (vw - cardW) / 2;
-      const cardY = (vh - cardH) / 2;
+      const scale = vw / dispW;
+      const cardX = (viewfinderRect.left - dispX) * scale;
+      const cardY = (viewfinderRect.top - dispY) * scale;
+      const cardW = viewfinderRect.width * scale;
+      const cardH = viewfinderRect.height * scale;
 
       if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
       const canvas = captureCanvasRef.current;
@@ -394,7 +514,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       busyRef.current = false;
       setStatus('ready');
     }
-  }, [autoMode, showHint]);
+  }, [autoMode, showHint, viewfinderRect]);
 
   // Auto-scan loop. When the user enables auto mode, fire captureAndIdentify
   // on a steady interval. The `busyRef` guard inside the function prevents
@@ -438,11 +558,31 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   };
 
   return (
-    <div className="scanner-root" role="dialog" aria-label="Card scanner" aria-modal="true">
+    <div
+      ref={rootRef}
+      className="scanner-root"
+      role="dialog"
+      aria-label="Card scanner"
+      aria-modal="true"
+    >
       <video ref={videoRef} className="scanner-video" playsInline muted />
 
       <div className="scanner-overlay" aria-hidden="true">
-        <div className="scanner-viewfinder">
+        <div
+          ref={viewfinderRef}
+          className="scanner-viewfinder"
+          style={
+            viewfinderRect
+              ? {
+                  position: 'absolute',
+                  left: `${viewfinderRect.left}px`,
+                  top: `${viewfinderRect.top}px`,
+                  width: `${viewfinderRect.width}px`,
+                  height: `${viewfinderRect.height}px`,
+                }
+              : { display: 'none' }
+          }
+        >
           <div className="scanner-viewfinder-corner tl" />
           <div className="scanner-viewfinder-corner tr" />
           <div className="scanner-viewfinder-corner bl" />
