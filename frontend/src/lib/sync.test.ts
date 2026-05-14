@@ -154,9 +154,7 @@ describe('startSync', () => {
 
   it('keeps the original cards when the oracle-id backfill request rejects', async () => {
     useCollectionStore.setState({
-      cards: [
-        { copyId: 'c1', name: 'Old', scryfallId: 'sf-1', sourceFormat: 'manual' } as never,
-      ],
+      cards: [{ copyId: 'c1', name: 'Old', scryfallId: 'sf-1', sourceFormat: 'manual' } as never],
     });
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
       collection: null,
