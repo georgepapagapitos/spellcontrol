@@ -728,7 +728,7 @@ export const useCollectionStore = create<CollectionState>()(
     }),
     {
       name: 'spellcontrol',
-      version: 14,
+      version: 15,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         binders: s.binders,
@@ -741,6 +741,12 @@ export const useCollectionStore = create<CollectionState>()(
        * v6 introduces OR-groups: `filter` becomes `filterGroups`, an array of
        * `{ name?, filter }`. We wrap the existing single filter as a one-group
        * list so behavior is preserved exactly.
+       *
+       * v15 swaps every chip field on BinderFilter from `NegatableChip[]` to
+       * `ChipExpression { chips, joiners }`. The new evaluator only handles
+       * the new shape and would crash reading `.chips.length` on a legacy
+       * array. We just drop binders — no UI for re-authoring lossy chip
+       * sets in-place, and re-creating a rule is fast.
        */
       migrate: (persistedState, fromVersion) => {
         const state = persistedState as Record<string, unknown> | undefined;
@@ -825,6 +831,14 @@ export const useCollectionStore = create<CollectionState>()(
               sorts: sorts.map((s) => (s.field === 'set' ? { ...s, field: 'setReleaseDate' } : s)),
             };
           });
+        }
+        // v14→v15: every chip field on BinderFilter shifted from
+        // `NegatableChip[]` to `ChipExpression { chips, joiners }`. Reading
+        // `.chips.length` on a legacy array would crash the new evaluator,
+        // and there's no faithful auto-conversion for mixed IS / IS NOT
+        // chips. Wipe and have the user re-author — fast and lossless.
+        if (fromVersion < 15) {
+          state.binders = [];
         }
         return state as never;
       },
