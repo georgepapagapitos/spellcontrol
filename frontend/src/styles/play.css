@@ -17,24 +17,9 @@
   gap: 1rem;
 }
 
-/* Play hero — uses the shared `.binder-hero` chrome (accent left-border,
-   serif `.binder-hero-name` title) so the page header matches Collection /
-   Binders / Decks. The variant adds the right-aligned tab nav. */
-.play-page-hero {
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.play-page-hero-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-  flex: 1 1 240px;
-}
+/* Play hero — layout (row-with-actions) and text-flex rules live in
+   global.css alongside .collection-hero / .decks-index-hero /
+   .binders-index-hero so every page header shares one definition. */
 
 .play-tabs {
   display: inline-flex;

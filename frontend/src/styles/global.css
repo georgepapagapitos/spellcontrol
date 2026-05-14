@@ -1259,6 +1259,7 @@ input[type='search'] {
 .collection-hero,
 .decks-index-hero,
 .binders-index-hero,
+.play-page-hero,
 .binder-hero--with-actions {
   flex-direction: row;
   align-items: flex-end;
@@ -1270,6 +1271,7 @@ input[type='search'] {
 .collection-hero-text,
 .decks-index-hero-text,
 .binders-index-hero-text,
+.play-page-hero-text,
 .binder-hero-text {
   display: flex;
   flex-direction: column;
