@@ -8200,9 +8200,15 @@ hr {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  /* Mirroring the user-facing camera looks more natural; environment camera
-     should not mirror — keep as-is. */
+  /* `contain` shows the raw camera feed at its true aspect ratio, with
+     letterbox fill where the stream's aspect doesn't match the viewport.
+     The previous `cover` setting was the source of the "way too zoomed
+     in" complaint: a portrait viewport plus a near-landscape stream
+     meant cover-cropping wiped out 60–75% of what the sensor was
+     actually producing. With `contain` the preview matches what the
+     phone's native camera app would show. */
+  object-fit: contain;
+  background: #000;
 }
 
 .scanner-overlay {
