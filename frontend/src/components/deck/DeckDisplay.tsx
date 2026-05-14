@@ -1,6 +1,8 @@
 import {
+  BarChart3,
   CircleAlert,
   ChevronDown,
+  ChevronUp,
   Eye,
   FileText,
   LayoutGrid,
@@ -583,9 +585,25 @@ export function DeckDisplay({
       /* ignore */
     }
   };
-  // Stats panel collapses on tablet/mobile via the toggle in its header.
-  // On desktop the sidebar overrides the [hidden] body and toggle in CSS.
-  const [statsOpen, setStatsOpen] = useState(true);
+  // Stats panel open/closed state — persisted to localStorage so the user's
+  // preference survives reloads, mirroring the Combos / Test Hand panels.
+  const [statsOpen, setStatsOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const raw = window.localStorage.getItem('spellcontrol-deck-stats-open');
+      return raw === null ? true : raw === '1';
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('spellcontrol-deck-stats-open', statsOpen ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [statsOpen]);
 
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
@@ -1992,10 +2010,11 @@ function DeckStatistics({
   return (
     <section className="deck-stats" data-open={open || undefined}>
       <button type="button" className="deck-stats-header" onClick={onToggle} aria-expanded={open}>
+        <BarChart3 width={16} height={16} aria-hidden />
         <span className="deck-stats-title">Statistics</span>
         <span className="deck-stats-meta">{averageCmc.toFixed(2)} avg CMC</span>
         <span className="deck-stats-caret" aria-hidden>
-          {open ? '▾' : '▸'}
+          {open ? <ChevronUp width={16} height={16} /> : <ChevronDown width={16} height={16} />}
         </span>
       </button>
       <div className="deck-stats-grid" hidden={!open}>

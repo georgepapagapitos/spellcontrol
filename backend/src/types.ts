@@ -4,6 +4,8 @@
  */
 export interface ScryfallCard {
   id: string;
+  /** Printing-agnostic card identity. Stable across reprints; the join key for combo data. */
+  oracle_id?: string;
   name: string;
   mana_cost?: string;
   /** Null for some multi-face layouts (e.g. reversible_card). Fall back to card_faces[0]. */
@@ -79,6 +81,8 @@ export interface EnrichedCard {
   copyId: string;
   // From the import row
   name: string;
+  /** Scryfall oracle_id — printing-agnostic identity, used as the join key for combo data. */
+  oracleId?: string;
   setCode: string;
   setName: string;
   collectorNumber: string;

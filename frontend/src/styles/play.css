@@ -17,19 +17,9 @@
   gap: 1rem;
 }
 
-.play-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.play-page-header h1 {
-  font-size: var(--text-xl);
-  font-weight: 600;
-  margin: 0;
-}
+/* Play hero — layout (row-with-actions) and text-flex rules live in
+   global.css alongside .collection-hero / .decks-index-hero /
+   .binders-index-hero so every page header shares one definition. */
 
 .play-tabs {
   display: inline-flex;

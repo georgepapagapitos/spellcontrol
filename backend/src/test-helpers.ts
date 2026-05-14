@@ -8,6 +8,7 @@ import { setDbForTesting, closeDb } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
+import { combosRouter } from './routes/combos';
 
 /**
  * Default connection string for the local dev Postgres (docker-compose.dev.yml
@@ -87,6 +88,36 @@ export async function createTestEnv(): Promise<TestEnv> {
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     );
+    CREATE TABLE combos (
+      id TEXT PRIMARY KEY,
+      identity TEXT NOT NULL,
+      produces JSONB NOT NULL,
+      prerequisites JSONB,
+      description TEXT,
+      mana_needed TEXT,
+      popularity INTEGER NOT NULL DEFAULT 0,
+      legalities JSONB NOT NULL,
+      card_count INTEGER NOT NULL,
+      bracket INTEGER,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE TABLE combo_cards (
+      combo_id TEXT NOT NULL REFERENCES combos(id) ON DELETE CASCADE,
+      oracle_id TEXT NOT NULL,
+      card_name TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (combo_id, oracle_id)
+    );
+    CREATE INDEX combo_cards_oracle_idx ON combo_cards(oracle_id);
+    CREATE TABLE combo_ingest_runs (
+      id TEXT PRIMARY KEY,
+      started_at BIGINT NOT NULL,
+      finished_at BIGINT,
+      combos_written INTEGER,
+      source TEXT NOT NULL,
+      error TEXT
+    );
   `);
 
   const db = drizzle(pool, { schema });
@@ -98,6 +129,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/auth', authRouter);
   app.use('/api/sync', syncRouter);
   app.use('/api/games', gamesRouter);
+  app.use('/api/combos', combosRouter);
 
   return {
     app,
