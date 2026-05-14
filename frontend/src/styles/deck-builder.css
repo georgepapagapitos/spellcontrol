@@ -3460,12 +3460,11 @@ input.toolbar-search-input {
 .deck-test-hand-card-art-fallback {
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent 0 4px,
-      color-mix(in srgb, var(--text3) 18%, transparent) 4px 5px
-    );
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--text3) 18%, transparent) 4px 5px
+  );
 }
 
 /* Pill action buttons — bigger touch target than .btn-sm, centered under the
@@ -3988,12 +3987,11 @@ input.toolbar-search-input {
 .deck-combos-card-art-fallback {
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      transparent 0 4px,
-      color-mix(in srgb, var(--text3) 18%, transparent) 4px 5px
-    );
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--text3) 18%, transparent) 4px 5px
+  );
 }
 
 .deck-combos-card-tile.missing .deck-combos-card-art {

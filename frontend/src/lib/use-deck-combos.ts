@@ -32,11 +32,7 @@ const CACHE_LIMIT = 32;
 function buildKey(deck: string[], owned: string[], format: string | undefined): string {
   // Sort so order doesn't fragment the cache. Inputs aren't huge for any one
   // deck, so a join is fine.
-  return [
-    format ?? '',
-    [...deck].sort().join(','),
-    [...owned].sort().join(','),
-  ].join('|');
+  return [format ?? '', [...deck].sort().join(','), [...owned].sort().join(',')].join('|');
 }
 
 function rememberCache(key: string, value: ComboMatchResponse): void {

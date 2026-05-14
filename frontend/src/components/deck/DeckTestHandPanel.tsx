@@ -224,10 +224,7 @@ export function DeckTestHandPanel({ deckId }: Props) {
   // CardPreview wants EnrichedCard[]; convert lazily and feed the full hand
   // so prev/next swipes through every card.
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const previewCards = useMemo(
-    () => hand.map((slot) => scryfallToEnrichedCard(slot.card)),
-    [hand]
-  );
+  const previewCards = useMemo(() => hand.map((slot) => scryfallToEnrichedCard(slot.card)), [hand]);
   const previewSectionLabels = useMemo(() => hand.map(() => 'Test hand'), [hand]);
   const previewPageNumbers = useMemo(() => hand.map(() => 1), [hand]);
 
@@ -235,9 +232,7 @@ export function DeckTestHandPanel({ deckId }: Props) {
   // reference's formula: grows ~0.35rem per extra card, capped so the cards
   // never reverse direction.
   const overlapRem =
-    hand.length <= HAND_SIZE
-      ? 1.5
-      : Math.min(1.5 + (hand.length - HAND_SIZE) * 0.35, 5.5);
+    hand.length <= HAND_SIZE ? 1.5 : Math.min(1.5 + (hand.length - HAND_SIZE) * 0.35, 5.5);
 
   const canDraw = pile.length > 0;
   const empty = totalCards === 0;
@@ -293,7 +288,11 @@ export function DeckTestHandPanel({ deckId }: Props) {
           )}
         </span>
         <span className="deck-test-hand-header-chevron" aria-hidden>
-          {collapsed ? <ChevronDown width={16} height={16} /> : <ChevronUp width={16} height={16} />}
+          {collapsed ? (
+            <ChevronDown width={16} height={16} />
+          ) : (
+            <ChevronUp width={16} height={16} />
+          )}
         </span>
       </button>
 
@@ -412,9 +411,7 @@ export function DeckTestHandPanel({ deckId }: Props) {
             </ul>
             <p className="deck-test-hand-stat-secondary">
               Avg lands in opening hand: <strong>{avgLandsInOpeningHand}</strong>
-              {hand.length > HAND_SIZE && (
-                <> · After {hand.length - HAND_SIZE} draws</>
-              )}
+              {hand.length > HAND_SIZE && <> · After {hand.length - HAND_SIZE} draws</>}
             </p>
           </>
         )}
@@ -476,9 +473,7 @@ function SortableCard({ slot, index, overlapRem, isNewlyDrawn, onPreview }: Sort
       {...attributes}
       {...listeners}
     >
-      <span
-        className={`deck-test-hand-card-art${isNewlyDrawn ? ' is-newly-drawn' : ''}`}
-      >
+      <span className={`deck-test-hand-card-art${isNewlyDrawn ? ' is-newly-drawn' : ''}`}>
         {url ? (
           <img src={url} alt={slot.card.name} loading="lazy" decoding="async" draggable={false} />
         ) : (

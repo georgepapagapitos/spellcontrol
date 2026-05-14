@@ -210,7 +210,11 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
         </span>
         {loading && <span className="deck-combos-spinner" aria-hidden />}
         <span className="deck-combos-header-chevron" aria-hidden>
-          {collapsed ? <ChevronDown width={16} height={16} /> : <ChevronUp width={16} height={16} />}
+          {collapsed ? (
+            <ChevronDown width={16} height={16} />
+          ) : (
+            <ChevronUp width={16} height={16} />
+          )}
         </span>
       </button>
 
@@ -222,87 +226,87 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
         hidden={collapsed}
         aria-hidden={collapsed}
       >
-      <div className="deck-combos-tabs" role="tablist" aria-label="Combo bucket">
-        <button
-          ref={firstButtonRef}
-          type="button"
-          role="tab"
-          aria-selected={tab === 'inDeck'}
-          className={`deck-combos-tab${tab === 'inDeck' ? ' active' : ''}`}
-          onClick={() => setTab('inDeck')}
-        >
-          In deck
-          <span className="deck-combos-tab-count" aria-label={`${inDeckCount} combos`}>
-            {inDeckCount}
-          </span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'oneAway'}
-          className={`deck-combos-tab${tab === 'oneAway' ? ' active' : ''}`}
-          onClick={() => setTab('oneAway')}
-        >
-          One card away
-          <span className="deck-combos-tab-count" aria-label={`${oneAwayCount} combos`}>
-            {oneAwayCount}
-          </span>
-        </button>
-      </div>
-
-      {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
-
-      {!error && matches.length === 0 && !loading && (
-        <div className="deck-combos-empty">
-          {tab === 'inDeck' ? (
-            !deckHasOracleIds ? (
-              <p>
-                This deck&rsquo;s cards don&rsquo;t have combo data yet. If you imported it
-                before the combo update, re-import or wait for background sync.
-              </p>
-            ) : (
-              <>
-                <p>No complete combos in this deck.</p>
-                {deckEntered && oneAwayCount > 0 && (
-                  <p className="deck-combos-empty-secondary">
-                    {oneAwayCount === 1
-                      ? '1 combo is one card away — check the next tab.'
-                      : `${oneAwayCount} combos are one card away — check the next tab.`}
-                  </p>
-                )}
-                {deckEntered && oneAwayCount === 0 && (
-                  <p className="deck-combos-empty-secondary">
-                    Spellbook curates a few thousand documented combos — many casual decks
-                    (precons especially) genuinely have none.
-                  </p>
-                )}
-              </>
-            )
-          ) : ownedOracleIds.length === 0 ? (
-            <p>Import cards to your collection to surface near-miss combos.</p>
-          ) : (
-            <p>No combos one card away — try expanding your collection.</p>
-          )}
+        <div className="deck-combos-tabs" role="tablist" aria-label="Combo bucket">
+          <button
+            ref={firstButtonRef}
+            type="button"
+            role="tab"
+            aria-selected={tab === 'inDeck'}
+            className={`deck-combos-tab${tab === 'inDeck' ? ' active' : ''}`}
+            onClick={() => setTab('inDeck')}
+          >
+            In deck
+            <span className="deck-combos-tab-count" aria-label={`${inDeckCount} combos`}>
+              {inDeckCount}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'oneAway'}
+            className={`deck-combos-tab${tab === 'oneAway' ? ' active' : ''}`}
+            onClick={() => setTab('oneAway')}
+          >
+            One card away
+            <span className="deck-combos-tab-count" aria-label={`${oneAwayCount} combos`}>
+              {oneAwayCount}
+            </span>
+          </button>
         </div>
-      )}
 
-      {!error && matches.length > 0 && (
-        <ul className="deck-combos-list" role="list">
-          {matches.map((match) => (
-            <ComboRow
-              key={match.combo.id}
-              match={match}
-              tab={tab}
-              cardImageIndex={cardImageIndex}
-              onAddMissing={() => void handleAddMissing(match)}
-            />
-          ))}
-        </ul>
-      )}
+        {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
 
-      <div className="sr-only" role="status" aria-live="polite">
-        {announce}
-      </div>
+        {!error && matches.length === 0 && !loading && (
+          <div className="deck-combos-empty">
+            {tab === 'inDeck' ? (
+              !deckHasOracleIds ? (
+                <p>
+                  This deck&rsquo;s cards don&rsquo;t have combo data yet. If you imported it before
+                  the combo update, re-import or wait for background sync.
+                </p>
+              ) : (
+                <>
+                  <p>No complete combos in this deck.</p>
+                  {deckEntered && oneAwayCount > 0 && (
+                    <p className="deck-combos-empty-secondary">
+                      {oneAwayCount === 1
+                        ? '1 combo is one card away — check the next tab.'
+                        : `${oneAwayCount} combos are one card away — check the next tab.`}
+                    </p>
+                  )}
+                  {deckEntered && oneAwayCount === 0 && (
+                    <p className="deck-combos-empty-secondary">
+                      Spellbook curates a few thousand documented combos — many casual decks
+                      (precons especially) genuinely have none.
+                    </p>
+                  )}
+                </>
+              )
+            ) : ownedOracleIds.length === 0 ? (
+              <p>Import cards to your collection to surface near-miss combos.</p>
+            ) : (
+              <p>No combos one card away — try expanding your collection.</p>
+            )}
+          </div>
+        )}
+
+        {!error && matches.length > 0 && (
+          <ul className="deck-combos-list" role="list">
+            {matches.map((match) => (
+              <ComboRow
+                key={match.combo.id}
+                match={match}
+                tab={tab}
+                cardImageIndex={cardImageIndex}
+                onAddMissing={() => void handleAddMissing(match)}
+              />
+            ))}
+          </ul>
+        )}
+
+        <div className="sr-only" role="status" aria-live="polite">
+          {announce}
+        </div>
       </div>
     </div>
   );
@@ -368,10 +372,7 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
             cardImageIndex.byOracle.get(c.oracleId) ??
             cardImageIndex.byName.get(c.cardName.toLowerCase());
           return (
-            <li
-              key={c.oracleId}
-              className={`deck-combos-card-tile${isMissing ? ' missing' : ''}`}
-            >
+            <li key={c.oracleId} className={`deck-combos-card-tile${isMissing ? ' missing' : ''}`}>
               {/* Plus separator between cards. Visual rather than semantic
                   (the list itself communicates the "and" to assistive tech). */}
               {i > 0 && (
@@ -381,17 +382,15 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
               )}
               <span className="deck-combos-card-art">
                 {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt={c.cardName}
-                    loading="lazy"
-                    decoding="async"
-                  />
+                  <img src={imageUrl} alt={c.cardName} loading="lazy" decoding="async" />
                 ) : (
                   <span className="deck-combos-card-art-fallback" aria-hidden />
                 )}
                 {isMissing && (
-                  <span className="deck-combos-card-overlay" aria-label={`${c.cardName} is missing`}>
+                  <span
+                    className="deck-combos-card-overlay"
+                    aria-label={`${c.cardName} is missing`}
+                  >
                     Missing
                   </span>
                 )}
@@ -440,7 +439,10 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
           )}
 
           {combo.produces.length > 0 && (
-            <DetailSection icon={<InfinityIcon width={13} height={13} aria-hidden />} title="Results">
+            <DetailSection
+              icon={<InfinityIcon width={13} height={13} aria-hidden />}
+              title="Results"
+            >
               <ul className="deck-combos-results">
                 {combo.produces.map((p, i) => (
                   <li key={i}>
@@ -539,7 +541,10 @@ function ColorIdentityPips({ identity }: { identity: string }) {
     return <i className="ms ms-c ms-cost deck-combos-pip" aria-label="Colorless" />;
   }
   return (
-    <span className="deck-combos-pips" aria-label={`Color identity: ${colors.join('').toUpperCase()}`}>
+    <span
+      className="deck-combos-pips"
+      aria-label={`Color identity: ${colors.join('').toUpperCase()}`}
+    >
       {colors.map((c) => (
         <i key={c} className={`ms ms-${c} ms-cost deck-combos-pip`} aria-hidden />
       ))}

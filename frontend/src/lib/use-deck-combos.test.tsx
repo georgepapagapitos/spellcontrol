@@ -41,7 +41,27 @@ describe('useDeckCombos', () => {
   });
 
   it('serves repeated queries from the cache without a new request', async () => {
-    const data = { ...empty, inDeck: [{ combo: { id: 'x', identity: '', produces: [], prerequisites: null, description: null, manaNeeded: null, popularity: 0, cardCount: 0, cards: [], bracket: null }, presentOracleIds: [], missingOracleIds: [] }] };
+    const data = {
+      ...empty,
+      inDeck: [
+        {
+          combo: {
+            id: 'x',
+            identity: '',
+            produces: [],
+            prerequisites: null,
+            description: null,
+            manaNeeded: null,
+            popularity: 0,
+            cardCount: 0,
+            cards: [],
+            bracket: null,
+          },
+          presentOracleIds: [],
+          missingOracleIds: [],
+        },
+      ],
+    };
     vi.mocked(matchCombos).mockResolvedValue(data);
 
     const { rerender } = renderHook(
@@ -70,7 +90,9 @@ describe('useDeckCombos', () => {
 
   it('does nothing when disabled', async () => {
     vi.mocked(matchCombos).mockResolvedValue(empty);
-    renderHook(() => useDeckCombos({ deckOracleIds: ['a'], ownedOracleIds: ['a'], enabled: false }));
+    renderHook(() =>
+      useDeckCombos({ deckOracleIds: ['a'], ownedOracleIds: ['a'], enabled: false })
+    );
     await act(async () => {
       vi.advanceTimersByTime(500);
     });
