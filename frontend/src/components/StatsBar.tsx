@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -162,19 +163,7 @@ export function StatsBar({ open, onClose }: Props) {
                 onClick={onClose}
                 aria-label="Close breakdown"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
+                <X width={20} height={20} strokeWidth={1.8} aria-hidden />
               </button>
             </header>
 

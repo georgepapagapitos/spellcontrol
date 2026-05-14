@@ -1,3 +1,4 @@
+import { ListFilter, ListFilterPlus } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface FilterToggle {
@@ -65,7 +66,11 @@ export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
         title={ariaLabel}
         onClick={() => setOpen((v) => !v)}
       >
-        <FilterIcon />
+        {anyActive ? (
+          <ListFilterPlus width={16} height={16} strokeWidth={2} aria-hidden />
+        ) : (
+          <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
+        )}
       </button>
       {open && (
         <div className="filter-popover-panel" role="menu">
@@ -85,25 +90,5 @@ export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
         </div>
       )}
     </div>
-  );
-}
-
-function FilterIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 5h18" />
-      <path d="M6 12h12" />
-      <path d="M10 19h4" />
-    </svg>
   );
 }

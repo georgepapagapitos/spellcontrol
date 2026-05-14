@@ -1,3 +1,4 @@
+import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchCommanders, getCardByName } from '@/deck-builder/services/scryfall/client';
 import {
@@ -607,24 +608,13 @@ export function CommanderSearch({ value, onSelect }: Props) {
                 randomLoading || searchLoading || (ownedOnly && collectionLegends.length === 0)
               }
             >
-              <svg
+              <Shuffle
                 className="commander-surprise-icon"
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                width={14}
+                height={14}
+                strokeWidth={2}
                 aria-hidden
-              >
-                <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22" />
-                <path d="m18 2 4 4-4 4" />
-                <path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2" />
-                <path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8" />
-                <path d="m18 14 4 4-4 4" />
-              </svg>
+              />
               {randomLoading ? 'Picking…' : 'Random'}
             </button>
           </div>

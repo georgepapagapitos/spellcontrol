@@ -1,3 +1,4 @@
+import { GripVertical } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
@@ -408,7 +409,7 @@ function SortableCardRow({ card }: { card: EnrichedCard }) {
         {...attributes}
         {...listeners}
       >
-        <GripIcon />
+        <GripVertical width={14} height={14} strokeWidth={1.6} aria-hidden />
       </button>
       <span className={`binder-card-editor-status-dot rarity-${card.rarity}`} aria-hidden />
       <span className="binder-card-editor-name">{card.name}</span>
@@ -417,18 +418,5 @@ function SortableCardRow({ card }: { card: EnrichedCard }) {
         {card.foil ? <span className="binder-card-editor-foil"> foil</span> : null}
       </span>
     </li>
-  );
-}
-
-function GripIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-      <circle cx="5" cy="4" r="1.2" />
-      <circle cx="11" cy="4" r="1.2" />
-      <circle cx="5" cy="8" r="1.2" />
-      <circle cx="11" cy="8" r="1.2" />
-      <circle cx="5" cy="12" r="1.2" />
-      <circle cx="11" cy="12" r="1.2" />
-    </svg>
   );
 }

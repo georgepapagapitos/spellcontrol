@@ -1,3 +1,13 @@
+import {
+  CircleAlert,
+  ChevronDown,
+  Eye,
+  FileText,
+  LayoutGrid,
+  List as ListIconLucide,
+  MoreVertical,
+  Search,
+} from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
@@ -19,6 +29,7 @@ import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/brac
 import { cardMatchesRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { SelectMenu } from '../SelectMenu';
+import { SortDirArrow } from '../SortDirArrow';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 const CLASSIFY_PRIORITY = [
@@ -861,9 +872,7 @@ export function DeckDisplay({
 
         {flaggedCardCount > 0 && (
           <div className="deck-legality-banner">
-            <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden>
-              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 11a1 1 0 110 2 1 1 0 010-2zm1-3a1 1 0 01-2 0V6a1 1 0 112 0v4z" />
-            </svg>
+            <CircleAlert width={16} height={16} strokeWidth={2} aria-hidden />
             {flaggedCardCount} {flaggedCardCount === 1 ? 'card' : 'cards'} flagged in{' '}
             {formatConfig.label}
           </div>
@@ -1193,28 +1202,13 @@ function DeckToolbar({
           options={SORT_ORDER.map((m) => ({ value: m, label: SORT_LABEL[m] }))}
           onChange={onToggleSort}
           closeOnSelect={false}
-          leadingIcon={<SortDirIcon dir={sortDir} />}
-          renderItemPrefix={(_opt, active) => (active ? <SortDirIcon dir={sortDir} /> : null)}
+          leadingIcon={<SortDirArrow dir={sortDir} />}
+          renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
         />
 
         <ToolbarPopover
           label="Show"
-          icon={
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          }
+          icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
         >
           {() => (
             <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
@@ -1239,21 +1233,13 @@ function DeckToolbar({
         </ToolbarPopover>
 
         <div className="toolbar-search">
-          <svg
+          <Search
             className="toolbar-search-icon"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            width={14}
+            height={14}
+            strokeWidth={2}
             aria-hidden
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
+          />
           <input
             type="search"
             className="toolbar-search-input"
@@ -1271,26 +1257,6 @@ function DeckToolbar({
         </button>
       </div>
     </header>
-  );
-}
-
-// ── Sort direction arrow ────────────────────────────────────────────────
-function SortDirIcon({ dir }: { dir: 'asc' | 'desc' }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M12 4v16" />
-      {dir === 'asc' ? <path d="m6 10 6-6 6 6" /> : <path d="m6 14 6 6 6-6" />}
-    </svg>
   );
 }
 
@@ -1416,19 +1382,7 @@ function ToolbarPopover({
       >
         {icon}
         {label && <span className="toolbar-pill-label">{label}</span>}
-        <svg
-          viewBox="0 0 24 24"
-          width="12"
-          height="12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
       </button>
       {panel}
     </div>
@@ -1451,90 +1405,33 @@ function DeckViewModeToggle({
       value={value}
       onChange={onChange}
       options={[
-        { value: 'grid', label: 'Grid view', icon: <DeckGridIcon /> },
-        { value: 'list', label: 'List view', icon: <DeckListIcon /> },
-        { value: 'text', label: 'Text view', icon: <DeckTextIcon /> },
+        {
+          value: 'grid',
+          label: 'Grid view',
+          icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
+          value: 'list',
+          label: 'List view',
+          icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
+          value: 'text',
+          label: 'Text view',
+          icon: <FileText width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
       ]}
     />
   );
 }
 
-function DeckGridIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function DeckListIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M8 6h13" />
-      <path d="M8 12h13" />
-      <path d="M8 18h13" />
-      <circle cx="4" cy="6" r="0.5" />
-      <circle cx="4" cy="12" r="0.5" />
-      <circle cx="4" cy="18" r="0.5" />
-    </svg>
-  );
-}
-
-function DeckTextIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6" />
-      <path d="M8 13h8" />
-      <path d="M8 17h6" />
-    </svg>
-  );
-}
-
-// ── Legality badge (red ! disc) ─────────────────────────────────────────
-// Shared by list and grid view. The icon itself is theme-colored; the
-// caller sets size and position through the passed className.
+// ── Legality badge ──────────────────────────────────────────────────────
+// Shared by list and grid view. Theme-colored; caller sets size/position
+// via className.
 function LegalityBadge({ issue, className }: { issue: LegalityIssue; className: string }) {
   return (
     <span className={className} role="img" aria-label={issue.detail} title={issue.detail}>
-      <svg viewBox="0 0 20 20" width="100%" height="100%" aria-hidden>
-        <circle cx="10" cy="10" r="9" fill="currentColor" />
-        <rect x="9" y="4.5" width="2" height="7" rx="1" fill="#fff" />
-        <circle cx="10" cy="14.5" r="1.1" fill="#fff" />
-      </svg>
+      <CircleAlert width="100%" height="100%" strokeWidth={2.2} aria-hidden />
     </span>
   );
 }
@@ -1911,22 +1808,13 @@ function DeckCardRow({
             setMenuOpen((v) => !v);
           }}
         >
-          <svg
+          <MoreVertical
             className="deck-row-menu-icon"
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            width={14}
+            height={14}
+            strokeWidth={2}
             aria-hidden
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="12" cy="5" r="1" />
-            <circle cx="12" cy="19" r="1" />
-          </svg>
+          />
         </button>
         {menuOpen && (
           <div role="menu" className="deck-row-menu-popover">

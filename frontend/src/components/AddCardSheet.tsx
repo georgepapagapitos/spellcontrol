@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from './ManaCost';
@@ -179,7 +180,11 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
                       aria-label={`Add ${c.name}`}
                       onClick={() => handleAdd(c)}
                     >
-                      {justAdded ? <CheckMark /> : '+'}
+                      {justAdded ? (
+                        <Check width={10} height={10} strokeWidth={2.5} aria-hidden />
+                      ) : (
+                        '+'
+                      )}
                     </button>
                     <span className="card-search-name">{c.name}</span>
                     {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
@@ -201,23 +206,5 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
         </div>
       </div>
     </div>
-  );
-}
-
-function CheckMark() {
-  return (
-    <svg
-      width="10"
-      height="10"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 8l4 4 6-6" />
-    </svg>
   );
 }

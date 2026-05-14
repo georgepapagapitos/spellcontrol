@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight, ExternalLink, Layers, Pencil, RefreshCw } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
@@ -328,7 +329,7 @@ export function CardPreview({
               aria-label={flipped[current.scryfallId] ? 'Show front face' : 'Show back face'}
               title={flipped[current.scryfallId] ? 'Show front face' : 'Show back face'}
             >
-              <FlipIcon />
+              <RefreshCw width={20} height={20} strokeWidth={2} aria-hidden />
               <span>Flip</span>
             </button>
           )}
@@ -343,7 +344,7 @@ export function CardPreview({
               aria-label="Edit printing"
               title="Edit printing"
             >
-              <EditIcon />
+              <Pencil width={18} height={18} strokeWidth={2} aria-hidden />
               <span>Edit</span>
             </button>
           )}
@@ -407,7 +408,13 @@ export function CardPreview({
                 className="card-preview-ext-link"
               >
                 Scryfall
-                <ExternalLinkIcon />
+                <ExternalLink
+                  width={12}
+                  height={12}
+                  strokeWidth={2.4}
+                  aria-hidden
+                  className="card-preview-ext-link-icon"
+                />
               </a>
               <a
                 href={`https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`}
@@ -416,7 +423,13 @@ export function CardPreview({
                 className="card-preview-ext-link"
               >
                 TCGPlayer
-                <ExternalLinkIcon />
+                <ExternalLink
+                  width={12}
+                  height={12}
+                  strokeWidth={2.4}
+                  aria-hidden
+                  className="card-preview-ext-link-icon"
+                />
               </a>
             </div>
             <div className="card-preview-counter">
@@ -453,19 +466,13 @@ function DeckChip({
         aria-label={expanded ? 'Hide deck name' : 'Show deck name'}
         aria-expanded={expanded}
       >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 16 16"
-          fill="currentColor"
-          aria-hidden="true"
-          focusable="false"
+        <Layers
           className="card-preview-deck-chip-icon"
-        >
-          <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
-          <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
-          <rect x="6" y="0" width="9" height="11" rx="1.5" />
-        </svg>
+          width={13}
+          height={13}
+          strokeWidth={2}
+          aria-hidden
+        />
       </button>
       <Link
         to={`/decks/${deckId}`}
@@ -506,7 +513,7 @@ function CarouselNav({
         disabled={atStart}
         aria-label="Previous"
       >
-        <ChevronIcon direction="left" />
+        <ChevronLeft width={20} height={20} strokeWidth={2.4} aria-hidden />
       </button>
       <button
         type="button"
@@ -518,87 +525,8 @@ function CarouselNav({
         disabled={atEnd}
         aria-label="Next"
       >
-        <ChevronIcon direction="right" />
+        <ChevronRight width={20} height={20} strokeWidth={2.4} aria-hidden />
       </button>
     </>
-  );
-}
-
-function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {direction === 'left' ? <path d="M15 6l-6 6 6 6" /> : <path d="M9 6l6 6-6 6" />}
-    </svg>
-  );
-}
-
-function ExternalLinkIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="card-preview-ext-link-icon"
-    >
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-      <polyline points="15 3 21 3 21 9" />
-      <line x1="10" y1="14" x2="21" y2="3" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
-  );
-}
-
-function FlipIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-      <path d="M3 21v-5h5" />
-    </svg>
   );
 }

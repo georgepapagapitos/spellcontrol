@@ -1,3 +1,4 @@
+import { MoreVertical, Notebook, Pencil } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AddToBinderSheet } from './AddToBinderSheet';
 import type { EnrichedCard } from '../types';
@@ -47,7 +48,7 @@ export function CardRowMenu({ card, onEditCard, currentBinder }: Props) {
             setMenuOpen((v) => !v);
           }}
         >
-          <DotsIcon />
+          <MoreVertical width={14} height={14} strokeWidth={2} aria-hidden />
         </button>
         {menuOpen && (
           <div role="menu" className="deck-row-menu-popover">
@@ -73,7 +74,7 @@ export function CardRowMenu({ card, onEditCard, currentBinder }: Props) {
                 onEditCard();
               }}
             >
-              <EditIcon />
+              <Pencil width={12} height={12} strokeWidth={1.6} aria-hidden />
               Edit card
             </button>
             <button
@@ -86,7 +87,7 @@ export function CardRowMenu({ card, onEditCard, currentBinder }: Props) {
                 setBinderSheetOpen(true);
               }}
             >
-              <BinderIcon />
+              <Notebook width={12} height={12} strokeWidth={1.6} aria-hidden />
               {currentBinder ? 'Move to binder' : 'Add to binder'}
             </button>
           </div>
@@ -101,62 +102,5 @@ export function CardRowMenu({ card, onEditCard, currentBinder }: Props) {
         />
       )}
     </>
-  );
-}
-
-function DotsIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="12" cy="5" r="1" />
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="12" cy="19" r="1" />
-    </svg>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z" />
-    </svg>
-  );
-}
-
-function BinderIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <path d="M6 2v12" />
-    </svg>
   );
 }

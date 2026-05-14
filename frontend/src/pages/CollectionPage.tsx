@@ -1,3 +1,4 @@
+import { Download, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
@@ -69,7 +70,7 @@ export function CollectionPage() {
                 aria-haspopup="dialog"
                 onClick={() => setAddCardOpen(true)}
               >
-                <PlusIcon />
+                <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                 <span>Add card</span>
               </button>
               <button
@@ -78,7 +79,7 @@ export function CollectionPage() {
                 aria-haspopup="dialog"
                 onClick={() => setImportSheetOpen(true)}
               >
-                <ImportIcon />
+                <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
                 <span>Import cards</span>
               </button>
             </div>
@@ -95,41 +96,5 @@ export function CollectionPage() {
         </>
       )}
     </>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      aria-hidden
-    >
-      <path d="M8 3v10M3 8h10" />
-    </svg>
-  );
-}
-
-function ImportIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M8 2v8M5 7l3 3 3-3" />
-      <path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" />
-    </svg>
   );
 }

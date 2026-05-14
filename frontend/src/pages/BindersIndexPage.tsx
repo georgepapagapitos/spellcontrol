@@ -1,3 +1,4 @@
+import { AlignJustify, LayoutGrid, List as ListIconLucide, MoreVertical } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
@@ -7,6 +8,7 @@ import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { importText } from '../lib/api';
@@ -234,9 +236,21 @@ export function BindersIndexPage() {
             value={view}
             onChange={setView}
             options={[
-              { value: 'grid', label: 'Grid view', icon: <GridIcon /> },
-              { value: 'list', label: 'List view', icon: <ListIcon /> },
-              { value: 'compact', label: 'Compact list (text only)', icon: <CompactListIcon /> },
+              {
+                value: 'grid',
+                label: 'Grid view',
+                icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
+              {
+                value: 'list',
+                label: 'List view',
+                icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
+              {
+                value: 'compact',
+                label: 'Compact list (text only)',
+                icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
             ]}
           />
         </div>
@@ -500,11 +514,7 @@ function BinderCardMenu({
           setOpen((v) => !v);
         }}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
-          <circle cx="12" cy="5" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="12" cy="19" r="1.6" />
-        </svg>
+        <MoreVertical width={18} height={18} strokeWidth={2.2} aria-hidden />
       </button>
       {open && (
         <>
@@ -581,98 +591,5 @@ function BinderCardMenu({
         </>
       )}
     </div>
-  );
-}
-
-function GridIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
-
-function ListIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M8 6h13" />
-      <path d="M8 12h13" />
-      <path d="M8 18h13" />
-      <circle cx="4" cy="6" r="0.5" />
-      <circle cx="4" cy="12" r="0.5" />
-      <circle cx="4" cy="18" r="0.5" />
-    </svg>
-  );
-}
-
-function CompactListIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 6h18" />
-      <path d="M3 10h18" />
-      <path d="M3 14h18" />
-      <path d="M3 18h18" />
-    </svg>
-  );
-}
-
-function SortDirArrow({ dir }: { dir: SortDir }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {dir === 'asc' ? (
-        <>
-          <path d="M12 4v16" />
-          <path d="m6 10 6-6 6 6" />
-        </>
-      ) : (
-        <>
-          <path d="M12 4v16" />
-          <path d="m6 14 6 6 6-6" />
-        </>
-      )}
-    </svg>
   );
 }

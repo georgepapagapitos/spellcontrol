@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -208,27 +209,9 @@ export function SelectMenu<T extends string | number>({
         ) : placeholder ? (
           <span className="toolbar-pill-value toolbar-pill-placeholder">{placeholder}</span>
         ) : null}
-        <ChevronDown />
+        <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
       </button>
       {panel}
     </div>
-  );
-}
-
-function ChevronDown() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="12"
-      height="12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
   );
 }

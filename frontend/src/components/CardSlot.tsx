@@ -1,3 +1,4 @@
+import { Layers } from 'lucide-react';
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
@@ -197,7 +198,7 @@ export function CardSlot({ card, showImage }: Props) {
             onClick={(e) => e.stopPropagation()}
             aria-label={`Open deck ${allocation.deckName}`}
           >
-            <DeckIcon />
+            <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
           </Link>
         )}
         {groupedQty > 1 && (
@@ -254,7 +255,7 @@ export function CardSlot({ card, showImage }: Props) {
                   title={`In deck: ${allocation.deckName}`}
                   aria-hidden="true"
                 >
-                  <DeckIcon size={14} />
+                  <Layers width={14} height={14} strokeWidth={2.2} aria-hidden />
                 </span>
               )}
             </div>
@@ -271,23 +272,4 @@ export function CardSlot({ card, showImage }: Props) {
 function getSlotClass(card: EnrichedCard): string {
   if (isLand(card)) return 'land';
   return card.rarity.toLowerCase() || 'common';
-}
-
-// Small stack-of-cards glyph used by the corner "in a deck" badge. Solid
-// fill so it stays legible against the slot art behind it.
-function DeckIcon({ size = 9 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
-      <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
-      <rect x="6" y="0" width="9" height="11" rx="1.5" />
-    </svg>
-  );
 }

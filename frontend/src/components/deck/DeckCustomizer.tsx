@@ -1,3 +1,4 @@
+import { Check, ChevronDown, RotateCcw, Save } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type {
   BudgetOption,
@@ -63,20 +64,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
           onClick={handleResetAll}
           title="Reset all customization to defaults"
         >
-          <svg
-            viewBox="0 0 24 24"
-            width="12"
-            height="12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M3 12a9 9 0 1 0 3-6.7" />
-            <path d="M3 4v5h5" />
-          </svg>
+          <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
           Reset
         </button>
       </header>
@@ -95,20 +83,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
                 onClick={handleResetLands}
                 title={`Reset to EDHREC suggestion (${suggestion.landCount} / ${suggestion.nonBasicLandCount})`}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="12"
-                  height="12"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M3 12a9 9 0 1 0 3-6.7" />
-                  <path d="M3 4v5h5" />
-                </svg>
+                <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
                 Reset
               </button>
             )}
@@ -203,20 +178,7 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
           onChange={(e) => update({ collectionMode: e.target.checked })}
         />
         <span className="collection-group-icon" aria-hidden>
-          <svg
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
+          <Save width={20} height={20} strokeWidth={2} />
         </span>
         <span className="collection-group-text">
           <span className="collection-group-title">Build from my collection</span>
@@ -257,19 +219,7 @@ function CollapsibleGroup({
         onClick={() => setOpen((v) => !v)}
       >
         <span className="deck-customizer-group-title">{title}</span>
-        <svg
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
       </button>
       {open && <div className="deck-customizer-group-body">{children}</div>}
     </div>
@@ -888,19 +838,7 @@ function RangeSlider({
               className="deck-customizer-slider-suggested"
               aria-label="Matches EDHREC suggestion"
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="12"
-                height="12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+              <Check width={12} height={12} strokeWidth={3} aria-hidden />
               suggested
             </span>
           )}

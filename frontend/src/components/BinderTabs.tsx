@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp, Download, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
@@ -111,7 +112,7 @@ export function BinderTabs({ binders }: Props) {
         disabled={binders.length === 0}
         title="Export this binder, all binders, or the full collection"
       >
-        <DownloadIcon />
+        <Download width={14} height={14} strokeWidth={1.6} aria-hidden />
         <span>Export</span>
       </button>
 
@@ -122,7 +123,7 @@ export function BinderTabs({ binders }: Props) {
           onClick={handleDeleteAll}
           title="Delete every binder (cards are unaffected — they fall back to Uncategorized)"
         >
-          <TrashIcon />
+          <Trash2 width={14} height={14} strokeWidth={1.6} aria-hidden />
           <span>Delete all</span>
         </button>
       )}
@@ -190,11 +191,7 @@ function BinderOverflowMenu({
         aria-label="Binder actions"
         onClick={() => setOpen((v) => !v)}
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden>
-          <circle cx="5" cy="12" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="19" cy="12" r="1.6" />
-        </svg>
+        <MoreHorizontal width={18} height={18} strokeWidth={2.2} aria-hidden />
       </button>
       {open && (
         <>
@@ -214,7 +211,7 @@ function BinderOverflowMenu({
                 onMoveUp();
               }}
             >
-              <ChevronUpIcon />
+              <ChevronUp width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Move up</span>
             </button>
             <button
@@ -227,7 +224,7 @@ function BinderOverflowMenu({
                 onMoveDown();
               }}
             >
-              <ChevronDownIcon />
+              <ChevronDown width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Move down</span>
             </button>
             <button
@@ -239,7 +236,7 @@ function BinderOverflowMenu({
                 onEdit();
               }}
             >
-              <PencilIcon />
+              <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Edit binder</span>
             </button>
             <button
@@ -251,91 +248,12 @@ function BinderOverflowMenu({
                 onDelete();
               }}
             >
-              <CloseIcon />
+              <X width={14} height={14} strokeWidth={1.8} aria-hidden />
               <span>Delete binder</span>
             </button>
           </div>
         </>
       )}
     </div>
-  );
-}
-
-function ChevronUpIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M3.5 10l4.5-4.5L12.5 10"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M3.5 6l4.5 4.5L12.5 6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M11.3 2.7l2 2L5 13H3v-2l8.3-8.3z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M3 4h10M6.5 4V2.5h3V4M5 4l.6 8.5a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9L11 4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function DownloadIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M8 3v8M8 11l-3-3M8 11l3-3"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M3 13h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }

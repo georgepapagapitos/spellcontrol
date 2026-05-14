@@ -1,3 +1,4 @@
+import { Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { AllocationInfo } from '../lib/allocations';
 
@@ -33,7 +34,7 @@ export function DeckBadge({ allocations }: Props) {
         aria-label={label}
         onClick={(e) => e.stopPropagation()}
       >
-        <DeckIcon />
+        <Layers width={11} height={11} strokeWidth={2} aria-hidden />
       </Link>
     );
   }
@@ -44,27 +45,10 @@ export function DeckBadge({ allocations }: Props) {
       title={label}
       aria-label={label}
     >
-      <DeckIcon />
+      <Layers width={11} height={11} strokeWidth={2} aria-hidden />
       <span className="card-list-deck-badge-count" aria-hidden>
         {decks.length}
       </span>
     </span>
-  );
-}
-
-function DeckIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect x="1" y="4" width="9" height="11" rx="1.5" opacity="0.55" />
-      <rect x="3.5" y="2" width="9" height="11" rx="1.5" opacity="0.8" />
-      <rect x="6" y="0" width="9" height="11" rx="1.5" />
-    </svg>
   );
 }
