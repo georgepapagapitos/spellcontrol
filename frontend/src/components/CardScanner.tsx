@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, Flashlight, FlashlightOff, RotateCcw, ScanLine, Trash2, X } from 'lucide-react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { identifyCard } from '../lib/api';
+import { identifyCard, identifyCardByHash } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
+import { dHashFromCanvas, hashToHex } from '../lib/phash';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 interface Props {
@@ -31,6 +32,15 @@ const CARD_ASPECT = 5 / 7;
  * frames — the band is wide enough to tolerate small misalignment.
  */
 const TITLE_CROP = { x: 0.07, y: 0.038, w: 0.66, h: 0.075 };
+/**
+ * Art window inside a standard MTG card frame. These ranges are matched to
+ * Scryfall's `image_uris.art_crop` framing, which is what the backend hashed
+ * during ingest — keeping client and server crops aligned makes the dHash
+ * comparison meaningful. Tuned against modern, modern-foil, old, retro, and
+ * showcase frames; full-art / borderless cards still match because dHash on
+ * a slightly larger window is dominated by the artwork itself.
+ */
+const ART_CROP = { x: 0.07, y: 0.12, w: 0.86, h: 0.42 };
 /** Auto-scan cadence in ms. Slow enough to let the user reposition cards. */
 const AUTO_SCAN_INTERVAL = 1400;
 
@@ -44,6 +54,14 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const busyRef = useRef(false);
   /** Last successfully identified card id — used to dedupe back-to-back identical scans. */
   const lastIdRef = useRef<string | null>(null);
+  /**
+   * Cached pHash store size from the server. Becomes definitive after the
+   * first /api/cards/identify-hash call; while undefined we still try the
+   * pHash path (it's cheap if the store is empty — server returns null fast).
+   * If we ever observe storeSize === 0 we stop attempting pHash for the rest
+   * of the session and go straight to OCR.
+   */
+  const phashAvailableRef = useRef<boolean | null>(null);
 
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -147,9 +165,19 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   }, [torchOn, showHint]);
 
   /**
-   * Captures a single frame, crops to the card's title strip, OCRs it, and
-   * resolves the card via Scryfall's fuzzy endpoint. Pushes the result into
-   * the queue on success and provides feedback on failure.
+   * Captures a single frame and tries two identification paths in order:
+   *
+   *   1. **pHash fast path** — crop to the card's art window, compute a 64-bit
+   *      dHash, and ask the server for the nearest neighbour in its pre-built
+   *      hash DB. Works on any language, robust to soft focus, no Tesseract
+   *      cold-start. This is what makes the scanner feel instantaneous.
+   *
+   *   2. **OCR fallback** — if pHash either returns no confident match or the
+   *      server's hash store is empty (DB not yet ingested), crop to the
+   *      title strip, OCR it with Tesseract, and resolve via Scryfall's
+   *      fuzzy name endpoint. This is what made the scanner work on day 1
+   *      and still rescues edge cases (alt-art previews, novel cards added
+   *      to Scryfall since the last ingest, etc.).
    */
   const captureAndIdentify = useCallback(async () => {
     if (busyRef.current) return;
@@ -161,12 +189,11 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       // The viewfinder shows a card-shaped (5:7) rect centred in the frame.
-      // We need to crop the same region from the video, then take the title
-      // band from inside that crop.
+      // Reproject those viewfinder-relative percentages onto the raw video
+      // coordinate space so we crop the same region the user is framing.
       let cardW: number;
       let cardH: number;
       if (vw / vh > CARD_ASPECT) {
-        // Video is wider than the card — height-constrained.
         cardH = vh * 0.84;
         cardW = cardH * CARD_ASPECT;
       } else {
@@ -175,71 +202,117 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       }
       const cardX = (vw - cardW) / 2;
       const cardY = (vh - cardH) / 2;
-      const titleX = cardX + cardW * TITLE_CROP.x;
-      const titleY = cardY + cardH * TITLE_CROP.y;
-      const titleW = cardW * TITLE_CROP.w;
-      const titleH = cardH * TITLE_CROP.h;
 
-      // Render the title strip at 3x scale — Tesseract is much happier with
-      // larger inputs, and modern phones produce frames that are slightly
-      // soft when cropped tightly.
-      const SCALE = 3;
       if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
       const canvas = captureCanvasRef.current;
-      canvas.width = Math.round(titleW * SCALE);
-      canvas.height = Math.round(titleH * SCALE);
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) throw new Error('Could not get canvas context.');
-      ctx.drawImage(video, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
 
-      // Light preprocessing: convert to grayscale and boost contrast around a
-      // computed midpoint. This is a cheap stand-in for adaptive thresholding
-      // and meaningfully improves OCR on warm/yellow card frames.
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = img.data;
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        data[i] = data[i + 1] = data[i + 2] = g;
-        sum += g;
-      }
-      const mean = sum / (data.length / 4);
-      // Push pixels away from the mean to amplify the title-text edges.
-      for (let i = 0; i < data.length; i += 4) {
-        const v = data[i];
-        const boosted = Math.max(0, Math.min(255, (v - mean) * 1.8 + mean));
-        data[i] = data[i + 1] = data[i + 2] = boosted;
-      }
-      ctx.putImageData(img, 0, 0);
+      // ── Phase 1: pHash fast path ─────────────────────────────────────────
+      let resolved: { card: ScryfallCard; via: 'phash' | 'ocr'; raw: string } | null = null;
 
-      const { text, confidence } = await recognizeText(canvas);
-      if (!text || text.length < 2) {
-        if (!autoMode) showHint('No text detected — hold steady and try again.');
-        return;
-      }
-      if (confidence < 35) {
-        if (!autoMode) showHint('Low confidence — improve lighting or angle.');
-        return;
+      if (phashAvailableRef.current !== false) {
+        try {
+          // Hash from a modest-resolution art crop. The dHash algorithm
+          // downsamples to 9x8 internally — there's no benefit to handing
+          // it a huge canvas, and a 320px source plays nicely with phone
+          // camera noise.
+          const artW = Math.round(cardW * ART_CROP.w);
+          const artH = Math.round(cardH * ART_CROP.h);
+          const targetW = Math.min(320, artW);
+          const targetH = Math.round((targetW * artH) / artW);
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) throw new Error('Could not get canvas context.');
+          ctx.drawImage(
+            video,
+            cardX + cardW * ART_CROP.x,
+            cardY + cardH * ART_CROP.y,
+            artW,
+            artH,
+            0,
+            0,
+            targetW,
+            targetH
+          );
+          const hash = dHashFromCanvas(canvas);
+          const hashHex = hashToHex(hash);
+          const result = await identifyCardByHash(hashHex);
+          phashAvailableRef.current = result.storeSize > 0;
+          if (result.card) {
+            resolved = { card: result.card, via: 'phash', raw: `phash d=${result.distance}` };
+          }
+        } catch (err) {
+          console.warn('[scanner] phash path failed, falling back to OCR:', err);
+        }
       }
 
-      const card = await identifyCard(text);
-      if (!card) {
-        if (!autoMode) showHint(`Couldn't match "${truncate(text, 40)}".`);
-        return;
+      // ── Phase 2: OCR fallback ────────────────────────────────────────────
+      if (!resolved) {
+        const titleX = cardX + cardW * TITLE_CROP.x;
+        const titleY = cardY + cardH * TITLE_CROP.y;
+        const titleW = cardW * TITLE_CROP.w;
+        const titleH = cardH * TITLE_CROP.h;
+        // 3x scale because Tesseract is happier with bigger inputs and
+        // tight phone-camera crops are often a bit soft.
+        const SCALE = 3;
+        canvas.width = Math.round(titleW * SCALE);
+        canvas.height = Math.round(titleH * SCALE);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Could not get canvas context.');
+        ctx.drawImage(video, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
+
+        // Light preprocessing: grayscale + contrast boost around the mean.
+        // A cheap stand-in for adaptive thresholding that meaningfully
+        // improves OCR on warm/yellow card frames.
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = img.data;
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          data[i] = data[i + 1] = data[i + 2] = g;
+          sum += g;
+        }
+        const mean = sum / (data.length / 4);
+        for (let i = 0; i < data.length; i += 4) {
+          const v = data[i];
+          const boosted = Math.max(0, Math.min(255, (v - mean) * 1.8 + mean));
+          data[i] = data[i + 1] = data[i + 2] = boosted;
+        }
+        ctx.putImageData(img, 0, 0);
+
+        const { text, confidence } = await recognizeText(canvas);
+        if (!text || text.length < 2) {
+          if (!autoMode) showHint('No card detected — hold steady and try again.');
+          return;
+        }
+        if (confidence < 35) {
+          if (!autoMode) showHint('Low confidence — improve lighting or angle.');
+          return;
+        }
+
+        const card = await identifyCard(text);
+        if (!card) {
+          if (!autoMode) showHint(`Couldn't match "${truncate(text, 40)}".`);
+          return;
+        }
+        resolved = { card, via: 'ocr', raw: text };
       }
 
       // Dedupe: the same card scanned twice in a row almost always means the
       // user is still framing the same physical card. Skip silently in auto
       // mode; in manual mode the user explicitly tapped, so treat each tap
       // as adding another copy.
-      if (autoMode && lastIdRef.current === card.id) return;
-      lastIdRef.current = card.id;
+      if (autoMode && lastIdRef.current === resolved.card.id) return;
+      lastIdRef.current = resolved.card.id;
 
       setQueue((prev) => [
         ...prev,
-        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, card, rawText: text },
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          card: resolved.card,
+          rawText: `${resolved.via}: ${resolved.raw}`,
+        },
       ]);
-      // Audible + haptic feedback so the user can keep eyes on the cards.
       playBeep();
       if (navigator.vibrate) navigator.vibrate(40);
     } catch (err) {

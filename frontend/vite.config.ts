@@ -11,6 +11,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // The coverage HTML report (written by `npm run test:coverage`) sits
+    // inside the watched tree and triggers a "page reload" log line for
+    // every file under it. Ignore it so dev logs stay quiet.
+    watch: {
+      ignored: ['**/coverage/**'],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3737',
