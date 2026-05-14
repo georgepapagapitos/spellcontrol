@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface Props {
@@ -39,7 +40,7 @@ export function SearchPill({
 }: Props) {
   return (
     <div className={`search-pill${className ? ` ${className}` : ''}`}>
-      <SearchIcon />
+      <Search className="search-pill-icon" width={16} height={16} strokeWidth={2} aria-hidden />
       <input
         id={inputId}
         type="search"
@@ -61,25 +62,5 @@ export function SearchPill({
       )}
       {trailing}
     </div>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      className="search-pill-icon"
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
   );
 }

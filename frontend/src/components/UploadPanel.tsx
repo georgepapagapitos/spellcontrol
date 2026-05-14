@@ -1,3 +1,4 @@
+import { RotateCcw, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
@@ -349,7 +350,7 @@ export function UploadPanel() {
                   disabled={isLoading}
                   title="Remove the selected imports and all cards they added"
                 >
-                  <ClearIcon />
+                  <Trash2 width={14} height={14} strokeWidth={1.6} aria-hidden />
                   <span>Delete selected ({selectedHistoryIds.size})</span>
                 </button>
               ) : (
@@ -361,7 +362,7 @@ export function UploadPanel() {
                     disabled={isLoading}
                     title="Restore from a previously exported backup (replaces current data)"
                   >
-                    <RestoreIcon />
+                    <RotateCcw width={14} height={14} strokeWidth={1.6} aria-hidden />
                     <span>Restore</span>
                   </button>
                   <button
@@ -371,7 +372,7 @@ export function UploadPanel() {
                     disabled={isLoading}
                     title="Clear all cards from your collection"
                   >
-                    <ClearIcon />
+                    <Trash2 width={14} height={14} strokeWidth={1.6} aria-hidden />
                     <span>Clear all</span>
                   </button>
                 </>
@@ -601,40 +602,6 @@ function prettyImportName(name: string, format: string): string {
     default:
       return 'Pasted list';
   }
-}
-
-function ClearIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M3 4h10M6.5 4V2.5h3V4M5 4l.6 8.5a1 1 0 0 0 1 .9h2.8a1 1 0 0 0 1-.9L11 4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function RestoreIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M3 8a5 5 0 1 1 1.5 3.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M3 4v3.5h3.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 function formatRelative(timestamp: number): string {

@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useEffect } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -37,19 +38,7 @@ export function ImportSheet() {
             onClick={() => setOpen(false)}
             aria-label="Close"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
+            <X width={20} height={20} strokeWidth={1.8} aria-hidden />
           </button>
         </div>
         <div className="import-sheet-body">
