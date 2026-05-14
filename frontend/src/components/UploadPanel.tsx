@@ -1,4 +1,4 @@
-import { RotateCcw, Trash2 } from 'lucide-react';
+import { Camera, RotateCcw, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
@@ -6,6 +6,7 @@ import type { UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import { Modal } from './Modal';
+import { CardScanner } from './CardScanner';
 
 interface PendingImport {
   /** Runs the actual import call. */
@@ -27,6 +28,7 @@ export function UploadPanel() {
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
@@ -226,6 +228,16 @@ export function UploadPanel() {
               <button
                 type="button"
                 className="btn import-upload-btn"
+                onClick={() => setScannerOpen(true)}
+                disabled={isLoading}
+                title="Scan physical cards with your device camera"
+              >
+                <Camera width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Scan cards</span>
+              </button>
+              <button
+                type="button"
+                className="btn import-upload-btn"
                 onClick={handlePickFile}
                 disabled={isLoading}
                 title="Upload a CSV/TSV file (ManaBox, Archidekt, Moxfield, Deckbox, etc.)"
@@ -403,6 +415,20 @@ export function UploadPanel() {
             ×
           </button>
         </div>
+      )}
+
+      {scannerOpen && (
+        <CardScanner
+          onClose={() => setScannerOpen(false)}
+          onConfirm={(text, count) => {
+            setScannerOpen(false);
+            queueImport({
+              fn: () => importText(text),
+              label: 'scanned-cards',
+              preview: `${count} scanned card${count === 1 ? '' : 's'}`,
+            });
+          }}
+        />
       )}
 
       {pendingImport && (
@@ -583,6 +609,7 @@ function ImportModeDialog({
  * the detected text format ("Pasted MTGA list", "Pasted Moxfield CSV", etc).
  */
 function prettyImportName(name: string, format: string): string {
+  if (name === 'scanned-cards') return 'Scanned cards';
   if (name !== 'pasted-list') return name;
   switch ((format || '').toLowerCase()) {
     case 'mtga':
