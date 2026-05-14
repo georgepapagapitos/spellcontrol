@@ -28,7 +28,16 @@ import { COLOR_INFO } from '../../lib/colors';
 import { classifyAllocation, type AllocationStatus } from '../../lib/allocations';
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { cardMatchesRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import {
+  cardMatchesRole,
+  getCardRole,
+  getRampSubtype,
+  getRemovalSubtype,
+  getBoardwipeSubtype,
+  getCardDrawSubtype,
+  hasMultipleRoles,
+  type RoleKey,
+} from '@/deck-builder/services/tagger/client';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
@@ -106,11 +115,16 @@ function multiRoleTitle(card: ScryfallCard): string {
 }
 
 type RoleBadge = { label: string; title: string; tone: string };
+// Manually-built decks don't go through the generator/enricher, so the
+// deckRole/*Subtype fields on the card are typically empty. Fall back to
+// the bundled tagger so badges show up the same way for both flows.
 function getRoleBadge(card: ScryfallCard): RoleBadge | null {
-  if (!card.deckRole) return null;
-  switch (card.deckRole) {
-    case 'ramp':
-      switch (card.rampSubtype) {
+  const role = card.deckRole ?? getCardRole(card.name);
+  if (!role) return null;
+  switch (role) {
+    case 'ramp': {
+      const sub = card.rampSubtype ?? getRampSubtype(card.name);
+      switch (sub) {
         case 'mana-producer':
           return { label: 'MP', title: 'Mana Producer', tone: 'mana-producer' };
         case 'mana-rock':
@@ -120,8 +134,10 @@ function getRoleBadge(card: ScryfallCard): RoleBadge | null {
         default:
           return { label: 'RA', title: 'Ramp', tone: 'ramp' };
       }
-    case 'removal':
-      switch (card.removalSubtype) {
+    }
+    case 'removal': {
+      const sub = card.removalSubtype ?? getRemovalSubtype(card.name);
+      switch (sub) {
         case 'counterspell':
           return { label: 'CT', title: 'Counterspell', tone: 'counterspell' };
         case 'bounce':
@@ -131,15 +147,19 @@ function getRoleBadge(card: ScryfallCard): RoleBadge | null {
         default:
           return { label: 'RE', title: 'Removal', tone: 'removal' };
       }
-    case 'boardwipe':
-      switch (card.boardwipeSubtype) {
+    }
+    case 'boardwipe': {
+      const sub = card.boardwipeSubtype ?? getBoardwipeSubtype(card.name);
+      switch (sub) {
         case 'bounce-wipe':
           return { label: 'BW', title: 'Bounce Wipe', tone: 'bounce-wipe' };
         default:
           return { label: 'WI', title: 'Board Wipe', tone: 'boardwipe' };
       }
-    case 'cardDraw':
-      switch (card.cardDrawSubtype) {
+    }
+    case 'cardDraw': {
+      const sub = card.cardDrawSubtype ?? getCardDrawSubtype(card.name);
+      switch (sub) {
         case 'tutor':
           return { label: 'TU', title: 'Tutor', tone: 'tutor' };
         case 'wheel':
@@ -151,6 +171,7 @@ function getRoleBadge(card: ScryfallCard): RoleBadge | null {
         default:
           return { label: 'CA', title: 'Card Advantage', tone: 'card-advantage' };
       }
+    }
     default:
       return null;
   }
@@ -1785,7 +1806,7 @@ function DeckCardRow({
       )}
       {showPrefs.roles &&
         (roleBadge ? (
-          row.card.multiRole ? (
+          (row.card.multiRole ?? hasMultipleRoles(row.card.name)) ? (
             <span
               className="deck-row-role-badge deck-row-role-multi"
               title={multiRoleTitle(row.card)}
@@ -2008,7 +2029,59 @@ function DeckStatistics({
     return out;
   }, [allCards]);
 
-  const showRoles = roleCounts !== undefined;
+  // Generated decks pass roleCounts in; manual decks don't — derive them on
+  // the fly from the tagger so the Roles panel works for either flow.
+  const derivedRoles = useMemo(() => {
+    if (roleCounts !== undefined) return null;
+    const r: Record<string, number> = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const rampSub: Record<string, number> = {};
+    const removalSub: Record<string, number> = {};
+    const boardwipeSub: Record<string, number> = {};
+    const drawSub: Record<string, number> = {};
+    for (const c of allCards) {
+      // Match the enricher: don't count lands toward role totals.
+      if ((c.type_line || '').toLowerCase().includes('land')) continue;
+      const role = getCardRole(c.name);
+      if (!role) continue;
+      r[role] = (r[role] || 0) + 1;
+      switch (role) {
+        case 'ramp': {
+          const s = getRampSubtype(c.name);
+          if (s) rampSub[s] = (rampSub[s] || 0) + 1;
+          break;
+        }
+        case 'removal': {
+          const s = getRemovalSubtype(c.name);
+          if (s) removalSub[s] = (removalSub[s] || 0) + 1;
+          break;
+        }
+        case 'boardwipe': {
+          const s = getBoardwipeSubtype(c.name);
+          if (s) boardwipeSub[s] = (boardwipeSub[s] || 0) + 1;
+          break;
+        }
+        case 'cardDraw': {
+          const s = getCardDrawSubtype(c.name);
+          if (s) drawSub[s] = (drawSub[s] || 0) + 1;
+          break;
+        }
+      }
+    }
+    return {
+      roleCounts: r,
+      rampSubtypeCounts: rampSub,
+      removalSubtypeCounts: removalSub,
+      boardwipeSubtypeCounts: boardwipeSub,
+      cardDrawSubtypeCounts: drawSub,
+    };
+  }, [allCards, roleCounts]);
+
+  const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
+  const effectiveRampSub = rampSubtypeCounts ?? derivedRoles?.rampSubtypeCounts;
+  const effectiveRemovalSub = removalSubtypeCounts ?? derivedRoles?.removalSubtypeCounts;
+  const effectiveBoardwipeSub = boardwipeSubtypeCounts ?? derivedRoles?.boardwipeSubtypeCounts;
+  const effectiveDrawSub = cardDrawSubtypeCounts ?? derivedRoles?.cardDrawSubtypeCounts;
+  const showRoles = effectiveRoleCounts !== undefined;
 
   return (
     <section className="deck-stats" data-open={open || undefined}>
@@ -2067,11 +2140,11 @@ function DeckStatistics({
         {showRoles && (
           <Panel title="Roles">
             <RolesPanel
-              roleCounts={roleCounts}
-              rampSubtypeCounts={rampSubtypeCounts}
-              removalSubtypeCounts={removalSubtypeCounts}
-              boardwipeSubtypeCounts={boardwipeSubtypeCounts}
-              cardDrawSubtypeCounts={cardDrawSubtypeCounts}
+              roleCounts={effectiveRoleCounts}
+              rampSubtypeCounts={effectiveRampSub}
+              removalSubtypeCounts={effectiveRemovalSub}
+              boardwipeSubtypeCounts={effectiveBoardwipeSub}
+              cardDrawSubtypeCounts={effectiveDrawSub}
             />
           </Panel>
         )}
