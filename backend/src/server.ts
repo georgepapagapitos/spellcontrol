@@ -10,6 +10,8 @@ import { closeDb, ensureSchema } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
+import { combosRouter } from './routes/combos';
+import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
@@ -41,6 +43,30 @@ app.use(express.json({ limit: '25mb' }));
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/games', gamesRouter);
+app.use('/api/combos', combosRouter);
+
+/**
+ * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
+ * existing Scryfall cache. Lets clients with old EnrichedCards (saved before
+ * we started persisting oracleId) join against the combo dataset without a
+ * full re-import. Capped at 1000 ids per call.
+ */
+app.post('/api/cards/oracle-ids', priceLimiter, (req: Request, res: Response) => {
+  const raw = (req.body && (req.body as { scryfallIds?: unknown }).scryfallIds) as unknown;
+  if (!Array.isArray(raw)) {
+    return res.status(400).json({ error: 'Body must be { scryfallIds: string[] }.' });
+  }
+  const ids = Array.from(
+    new Set(raw.filter((x): x is string => typeof x === 'string' && x.length > 0))
+  ).slice(0, 1000);
+  const cached = cache.getMany(ids);
+  const oracleIds: Record<string, string> = {};
+  for (const id of ids) {
+    const card = cached.get(id);
+    if (card?.oracle_id) oracleIds[id] = card.oracle_id;
+  }
+  res.json({ oracleIds });
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -374,6 +400,7 @@ function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard {
   if (price > 0) base.pricedAt = Date.now();
 
   if (scryfall) {
+    if (scryfall.oracle_id) base.oracleId = scryfall.oracle_id;
     // Some layouts (reversible_card, art_series, etc.) leave top-level type_line/cmc/colors
     // null and put the real data on the faces. Fall back to the first face so binder routing
     // and section grouping see real values for those printings.
@@ -444,6 +471,34 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
   res.status(500).json({ error: 'Something went wrong on the server. Try again in a moment.' });
 });
 
+/**
+ * Kicks off the combo dataset refresh. Skips when a successful run finished
+ * within the last 20h so a redeploy doesn't immediately repull the bulk feed.
+ * Schedules the next attempt 24h out — the dataset is small enough that a
+ * single setInterval is sufficient; no queue or external scheduler needed.
+ */
+function scheduleComboIngest(): void {
+  const TWENTY_HOURS = 20 * 60 * 60 * 1000;
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+  const tick = async () => {
+    try {
+      const lastAt = await lastSuccessfulIngestAt();
+      if (lastAt && Date.now() - lastAt < TWENTY_HOURS) {
+        console.log('[combos] skipping ingest — last successful run was recent');
+      } else {
+        await runScheduledIngest();
+      }
+    } catch (err) {
+      console.error('[combos] schedule tick failed:', err);
+    }
+  };
+
+  // Fire once on boot (gated by lastAt), then every 24h.
+  void tick();
+  setInterval(() => void tick(), TWENTY_FOUR_HOURS);
+}
+
 async function start() {
   await ensureSchema();
   const server = app.listen(PORT, () => {
@@ -451,6 +506,10 @@ async function start() {
     console.log(`[server] cache db: ${DB_PATH}`);
     console.log(`[server] cache stats:`, cache.stats());
   });
+
+  if (process.env.COMBOS_INGEST_DISABLED !== '1') {
+    scheduleComboIngest();
+  }
 
   function shutdown() {
     console.log('\n[server] shutting down...');

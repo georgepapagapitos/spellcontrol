@@ -200,10 +200,6 @@ export function DecksIndexPage() {
           <p className="binder-hero-meta">
             {sorted.length.toLocaleString()} {sorted.length === 1 ? 'deck' : 'decks'}
           </p>
-          <p className="decks-index-subtitle">
-            Saved decks. Build a new one from scratch, generate from EDHREC, or import an existing
-            deck list.
-          </p>
         </div>
         <div className="decks-index-actions">
           <button
@@ -318,7 +314,9 @@ export function DecksIndexPage() {
               <li
                 key={deck.id}
                 className="decks-index-card"
-                style={{ borderLeftColor: deck.color, borderLeftWidth: 3 }}
+                /* `--deck-color` drives both the resting left-border accent
+                   and the full hover-border tint via CSS. */
+                style={{ ['--deck-color' as string]: deck.color }}
               >
                 <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
                   {view !== 'compact' && art && (
