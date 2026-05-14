@@ -12,7 +12,6 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production \
     DB_PATH=/data/scryfall-cache.db \
-    PHASH_DB_PATH=/data/phash.db \
     PORT=3737
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
