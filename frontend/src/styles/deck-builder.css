@@ -3819,6 +3819,11 @@ input.toolbar-search-input {
   gap: 0.5rem;
   max-height: 65vh;
   overflow-y: auto;
+  /* Lock horizontal scrolling. Setting overflow-y: auto otherwise implicitly
+     turns overflow-x into auto too, so a single wide child (long combo
+     title, oversized produce pill) would let the user pan the panel
+     sideways. We never want that — it reads as "this panel is broken". */
+  overflow-x: hidden;
 }
 
 .deck-combos-row {
@@ -4109,48 +4114,33 @@ input.toolbar-search-input {
 
 /* Toggle variant — used for the Prerequisites section so it stays collapsed
    by default. Same visual treatment as the static title, just clickable. */
-button.deck-combos-detail-title.is-toggle {
-  /* Make the toggle obviously interactive — soft surface tint, padding so
-     the click target is comfortable, and a clear hover/focus treatment.
-     Without these the section reads as a static header and users miss
-     that they can expand it. */
-  background: var(--surface2);
-  border: 0;
-  padding: 0.3rem 0.45rem;
-  border-radius: var(--radius);
-  font-family: inherit;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition:
-    background 120ms ease,
-    color 120ms ease;
-}
-
-button.deck-combos-detail-title.is-toggle:hover {
-  background: color-mix(in srgb, var(--accent) 12%, var(--surface2));
-  color: var(--text);
-}
-
-button.deck-combos-detail-title.is-toggle:hover .deck-combos-detail-toggle-icon {
-  color: var(--accent);
-}
-
-button.deck-combos-detail-title.is-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-button.deck-combos-detail-title.is-toggle[aria-expanded='true'] {
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface2));
-}
-
-.deck-combos-detail-toggle-icon {
+/* "Show details" / "Hide details" toggle that opens the unified
+   Prerequisites + Steps + Results panel for one combo row. Reads as an
+   inline link rather than a heavy button — the heading-level chrome
+   already lives on the per-section titles inside the expanded body. */
+.deck-combos-details-toggle {
   display: inline-flex;
   align-items: center;
-  margin-left: auto;
-  color: var(--text2);
-  transition: color 120ms ease;
+  gap: 0.25rem;
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  padding: 0.2rem 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.deck-combos-details-toggle:hover {
+  text-decoration: underline;
+}
+
+.deck-combos-details-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
 }
 
 .deck-combos-detail-label {
