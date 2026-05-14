@@ -93,11 +93,24 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera is not available in this browser.');
       }
+      // Request a portrait-oriented stream. Phone cameras are physically
+      // landscape sensors, but browsers will crop/rotate to match the
+      // requested aspect — without this hint we get a 16:9 landscape feed
+      // that `object-fit: cover` then crops aggressively in portrait
+      // viewports (the "zoomed in" complaint). Asking for 1080×1920 makes
+      // the displayed frame match the screen much more closely.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
+          // Hint that we want close-up focus. Browsers that support these
+          // advanced constraints (Chromium on Android primarily) will pick
+          // continuous autofocus; iOS Safari ignores them silently and we
+          // patch it up below via applyConstraints.
+          advanced: [
+            { focusMode: 'continuous' } as MediaTrackConstraintSet & { focusMode: string },
+          ],
         },
         audio: false,
       });
@@ -106,12 +119,41 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => {});
       }
-      // Torch (flashlight) is only on a subset of devices. Probe capabilities.
+      // Torch (flashlight) is only on a subset of devices. Probe
+      // capabilities, and while we're here flip on continuous AF + auto
+      // exposure / white balance where supported. These dramatically
+      // sharpen the picked-up video on phones held close to a card — the
+      // root cause of the "blurry through the camera" feeling was a fixed
+      // focus distance picked at stream-start time.
       const track = stream.getVideoTracks()[0];
       const caps = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
         torch?: boolean;
+        focusMode?: string[];
+        exposureMode?: string[];
+        whiteBalanceMode?: string[];
       };
       setTorchSupported(Boolean(caps.torch));
+      const tuneConstraints: MediaTrackConstraintSet[] = [];
+      if (caps.focusMode?.includes('continuous')) {
+        tuneConstraints.push({ focusMode: 'continuous' } as MediaTrackConstraintSet & {
+          focusMode: string;
+        });
+      }
+      if (caps.exposureMode?.includes('continuous')) {
+        tuneConstraints.push({ exposureMode: 'continuous' } as MediaTrackConstraintSet & {
+          exposureMode: string;
+        });
+      }
+      if (caps.whiteBalanceMode?.includes('continuous')) {
+        tuneConstraints.push({ whiteBalanceMode: 'continuous' } as MediaTrackConstraintSet & {
+          whiteBalanceMode: string;
+        });
+      }
+      if (tuneConstraints.length > 0) {
+        await track
+          .applyConstraints({ advanced: tuneConstraints })
+          .catch((e) => console.warn('[scanner] could not tune camera:', e));
+      }
       setStatus('ready');
       warmOcr();
     } catch (err) {
