@@ -12,6 +12,7 @@ import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { FilterPopover } from './FilterPopover';
+import { SetFilterPicker } from './SetFilterPicker';
 import { SelectMenu } from './SelectMenu';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -163,6 +164,7 @@ export function CardListTable({
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [rarityFilter, setRarityFilter] = useState<string>('all');
+  const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(25);
@@ -322,9 +324,10 @@ export function CardListTable({
       if (typeFilter !== 'all' && getCardType(r.card) !== typeFilter) return false;
       if (rarityFilter !== 'all' && (r.card.rarity || '').toLowerCase() !== rarityFilter)
         return false;
+      if (setFilter.size > 0 && !setFilter.has((r.card.setCode || '').toUpperCase())) return false;
       return true;
     });
-  }, [rows, debouncedSearch, binderFilter, colorFilter, typeFilter, rarityFilter]);
+  }, [rows, debouncedSearch, binderFilter, colorFilter, typeFilter, rarityFilter, setFilter]);
 
   const sorted = useMemo(() => {
     const field: SortField = SORT_KEY_TO_FIELD[sortKey];
@@ -355,6 +358,7 @@ export function CardListTable({
     colorFilter,
     typeFilter,
     rarityFilter,
+    setFilter,
     sortKey,
     sortDir,
     view,
@@ -366,6 +370,7 @@ export function CardListTable({
     prevFilters.colorFilter !== colorFilter ||
     prevFilters.typeFilter !== typeFilter ||
     prevFilters.rarityFilter !== rarityFilter ||
+    prevFilters.setFilter !== setFilter ||
     prevFilters.sortKey !== sortKey ||
     prevFilters.sortDir !== sortDir ||
     prevFilters.view !== view ||
@@ -377,6 +382,7 @@ export function CardListTable({
       colorFilter,
       typeFilter,
       rarityFilter,
+      setFilter,
       sortKey,
       sortDir,
       view,
@@ -493,7 +499,7 @@ export function CardListTable({
           <SearchPill
             value={search}
             onChange={setSearch}
-            placeholder="Search by name or type..."
+            placeholder="Search"
             ariaLabel="Search cards"
             inputId="collection-search"
             trailing={
@@ -503,7 +509,6 @@ export function CardListTable({
                   {
                     key: 'group-printings',
                     label: 'Group printings',
-                    hint: 'Roll duplicate copies of the same printing into a single row with a qty pill',
                     value: groupPrintings,
                     onChange: setGroupPrintings,
                     defaultValue: true,
@@ -602,6 +607,7 @@ export function CardListTable({
               ]}
             />
           )}
+          <SetFilterPicker setMap={setMap} value={setFilter} onChange={setSetFilter} />
         </div>
       </div>
 

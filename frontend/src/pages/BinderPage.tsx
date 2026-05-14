@@ -244,7 +244,7 @@ export function BinderPage() {
         <SearchPill
           value={search}
           onChange={setSearch}
-          placeholder="Search cards by name..."
+          placeholder="Search"
           ariaLabel="Search cards by name"
           trailing={
             <FilterPopover
@@ -255,7 +255,6 @@ export function BinderPage() {
                       {
                         key: 'show-images',
                         label: 'Show card images',
-                        hint: 'Display card art thumbnails instead of text names in page slots',
                         value: showImages,
                         onChange: setShowImages,
                       },
@@ -264,10 +263,6 @@ export function BinderPage() {
                 {
                   key: 'group-printings',
                   label: 'Group printings',
-                  hint:
-                    view === 'pages'
-                      ? 'Collapse duplicate copies into one slot with a ×N badge'
-                      : 'Roll multiple copies of the same printing into one row',
                   value: groupPrintings,
                   onChange: setGroupPrintings,
                 },
