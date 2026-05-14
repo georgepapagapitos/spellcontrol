@@ -51,10 +51,6 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
     return filtered.slice(0, MAX_RESULTS);
   }, [allSets, query, value]);
 
-  useEffect(() => {
-    setHighlight(0);
-  }, [query, open]);
-
   const addSet = (code: string) => {
     const next = new Set(value);
     next.add(code.toUpperCase());
@@ -79,7 +75,9 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
       e.preventDefault();
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
-      const pick = matches[highlight];
+      // Clamp in case `matches` shrank since the last highlight update.
+      const idx = Math.min(highlight, matches.length - 1);
+      const pick = matches[idx];
       if (pick) {
         e.preventDefault();
         addSet(pick.code);
@@ -134,8 +132,12 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
+            setHighlight(0);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            setHighlight(0);
+          }}
           onKeyDown={onKeyDown}
           placeholder={value.size === 0 ? 'Filter by set…' : ''}
           aria-label="Filter by set"
