@@ -5,6 +5,7 @@ import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -426,34 +427,6 @@ function DeckCardMenu({
         </>
       )}
     </div>
-  );
-}
-
-function SortDirArrow({ dir }: { dir: SortDir }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {dir === 'asc' ? (
-        <>
-          <path d="M12 4v16" />
-          <path d="m6 10 6-6 6 6" />
-        </>
-      ) : (
-        <>
-          <path d="M12 4v16" />
-          <path d="m6 14 6 6 6-6" />
-        </>
-      )}
-    </svg>
   );
 }
 

@@ -2,10 +2,20 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
-import { SORT_FIELDS, NEW_BINDER_DEFAULT_SORTS, MAX_SORTS } from '../lib/sorting';
+import {
+  SORT_FIELDS,
+  NEW_BINDER_DEFAULT_SORTS,
+  MAX_SORTS,
+  getImplicitTiebreakers,
+  sortEntryLabel,
+  describeSortOrder,
+  CUSTOMIZABLE_VALUE_ORDER_FIELDS,
+} from '../lib/sorting';
+import { SortValueOrderEditor } from './SortValueOrderEditor';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
+import { SortDirArrow } from './SortDirArrow';
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -130,6 +140,7 @@ export function BinderEditor() {
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
+  const [sortValueOrders, setSortValueOrders] = useState<Partial<Record<SortField, string[]>>>({});
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [liveMsg, setLiveMsg] = useState('');
@@ -207,6 +218,7 @@ export function BinderEditor() {
         setGroups(existingGroups);
         setRoutingMode(existing.mode ?? 'rules');
         setSorts([...existing.sorts]);
+        setSortValueOrders({ ...(existing.sortValueOrders ?? {}) });
       } else {
         setName('');
         setColor(nextRandomColor);
@@ -217,6 +229,7 @@ export function BinderEditor() {
         setGroups([newGroup()]);
         setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
+        setSortValueOrders({});
       }
       setErrorMsg(null);
       setLiveMsg('');
@@ -324,6 +337,7 @@ export function BinderEditor() {
       color,
       mode: routingMode,
       hideDeckAllocated: showDeckAllocated ? undefined : false,
+      sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
     };
 
     setSaving(true);
@@ -636,73 +650,101 @@ export function BinderEditor() {
                 <h3>Sort within binder</h3>
                 <p className="muted" style={{ marginBottom: '0.5rem' }}>
                   The first sort splits the binder into section headers; later sorts order cards
-                  within each section.
+                  within each section. Up to {MAX_SORTS} rules — treatment, finish, and name are
+                  applied automatically as tie-breakers after yours.
                 </p>
                 <div className="sort-editor-list">
-                  {sorts.map((s, i) => (
-                    <div key={i} className="sort-editor-row">
-                      <span className="sort-editor-num">{i + 1}.</span>
-                      <SortSelect
-                        value={s.field}
-                        onChange={(field) => {
-                          const defaultDir =
-                            SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
-                          setSorts(sorts.map((x, j) => (j === i ? { field, dir: defaultDir } : x)));
-                        }}
-                      />
-                      <div className="tab-actions sort-editor-actions">
-                        <button
-                          type="button"
-                          className="tab-action"
-                          onClick={() =>
+                  {sorts.map((s, i) => {
+                    const orderHint = describeSortOrder(s.field, s.dir, sortValueOrders);
+                    const isCustomizable = CUSTOMIZABLE_VALUE_ORDER_FIELDS.includes(s.field);
+                    return (
+                      <div key={i} className="sort-editor-row">
+                        <span className="sort-editor-num">{i + 1}.</span>
+                        <SelectMenu
+                          ariaLabel={`Sort ${i + 1} field`}
+                          value={s.field}
+                          options={SORT_FIELDS.map((f) => ({ value: f.value, label: f.label }))}
+                          closeOnSelect={false}
+                          leadingIcon={<SortDirArrow dir={s.dir} />}
+                          renderItemPrefix={(_opt, active) =>
+                            active ? <SortDirArrow dir={s.dir} /> : null
+                          }
+                          onChange={(field) => {
                             setSorts(
-                              sorts.map((x, j) =>
-                                j === i ? { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' } : x
-                              )
-                            )
-                          }
-                          title={
-                            s.dir === 'asc'
-                              ? 'Ascending — click to reverse'
-                              : 'Descending — click to reverse'
-                          }
-                          aria-label={s.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
-                        >
-                          {s.dir === 'asc' ? '↑' : '↓'}
-                        </button>
-                        <button
-                          type="button"
-                          className="tab-action"
-                          onClick={() => setSorts(swap(sorts, i, i - 1))}
-                          disabled={i === 0}
-                          title="Move up"
-                          aria-label="Move sort up"
-                        >
-                          ▲
-                        </button>
-                        <button
-                          type="button"
-                          className="tab-action"
-                          onClick={() => setSorts(swap(sorts, i, i + 1))}
-                          disabled={i === sorts.length - 1}
-                          title="Move down"
-                          aria-label="Move sort down"
-                        >
-                          ▼
-                        </button>
-                        <button
-                          type="button"
-                          className="tab-action"
-                          onClick={() => setSorts(sorts.filter((_, j) => j !== i))}
-                          disabled={sorts.length === 1}
-                          title="Remove this sort"
-                          aria-label="Remove sort"
-                        >
-                          ×
-                        </button>
+                              sorts.map((x, j) => {
+                                if (j !== i) return x;
+                                if (x.field === field) {
+                                  return { ...x, dir: x.dir === 'asc' ? 'desc' : 'asc' };
+                                }
+                                const defaultDir =
+                                  SORT_FIELDS.find((f) => f.value === field)?.defaultDir ?? 'asc';
+                                return { field: field as SortField, dir: defaultDir };
+                              })
+                            );
+                          }}
+                        />
+                        <div className="tab-actions sort-editor-actions">
+                          <button
+                            type="button"
+                            className="tab-action"
+                            onClick={() => setSorts(swap(sorts, i, i - 1))}
+                            disabled={i === 0}
+                            title="Move up"
+                            aria-label="Move sort up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            className="tab-action"
+                            onClick={() => setSorts(swap(sorts, i, i + 1))}
+                            disabled={i === sorts.length - 1}
+                            title="Move down"
+                            aria-label="Move sort down"
+                          >
+                            ▼
+                          </button>
+                          <button
+                            type="button"
+                            className="tab-action"
+                            onClick={() => setSorts(sorts.filter((_, j) => j !== i))}
+                            disabled={sorts.length === 1}
+                            title="Remove this sort"
+                            aria-label="Remove sort"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        {isCustomizable ? (
+                          <SortValueOrderEditor
+                            field={s.field}
+                            value={sortValueOrders[s.field]}
+                            onChange={(next) =>
+                              setSortValueOrders((prev) => {
+                                const copy = { ...prev };
+                                if (next === undefined) delete copy[s.field];
+                                else copy[s.field] = next;
+                                return copy;
+                              })
+                            }
+                          />
+                        ) : (
+                          orderHint && (
+                            <p
+                              className="muted sort-editor-order-hint"
+                              style={{
+                                width: '100%',
+                                margin: '0.15rem 0 0 1.75rem',
+                                fontSize: 'var(--text-xs)',
+                              }}
+                            >
+                              {orderHint}
+                            </p>
+                          )
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {sorts.length < MAX_SORTS && (
                     <button
                       type="button"
@@ -713,6 +755,7 @@ export function BinderEditor() {
                     </button>
                   )}
                 </div>
+                <ImplicitTiebreakerHint sorts={sorts} valueOrders={sortValueOrders} />
               </section>
             </>
           )}
@@ -1619,14 +1662,33 @@ function NumberRangeInput({
   );
 }
 
-function SortSelect({ value, onChange }: { value: SortField; onChange: (v: SortField) => void }) {
+function ImplicitTiebreakerHint({
+  sorts,
+  valueOrders,
+}: {
+  sorts: SortEntry[];
+  valueOrders: Partial<Record<SortField, string[]>>;
+}) {
+  const extras = getImplicitTiebreakers(sorts);
+  if (!extras.length) return null;
+  const tooltipLines = [
+    'Applied automatically after your sort rules to keep ordering stable.',
+    'Add any of these to your chain above to flip direction or customize value order.',
+    ...extras
+      .map((e) => {
+        const resolved = describeSortOrder(e.field, e.dir, valueOrders);
+        return resolved ? `• ${sortEntryLabel(e)}: ${resolved}` : null;
+      })
+      .filter((s): s is string => s !== null),
+  ];
   return (
-    <SelectMenu
-      ariaLabel="Sort field"
-      value={value}
-      onChange={(v) => onChange(v as SortField)}
-      options={SORT_FIELDS.map((f) => ({ value: f.value, label: f.label }))}
-    />
+    <p
+      className="muted"
+      style={{ marginTop: '0.5rem', fontSize: '0.85em' }}
+      title={tooltipLines.join('\n')}
+    >
+      Then tie-broken by: {extras.map((e) => sortEntryLabel(e)).join(' → ')}
+    </p>
   );
 }
 
