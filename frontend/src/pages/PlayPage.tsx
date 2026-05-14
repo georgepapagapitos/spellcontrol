@@ -288,11 +288,6 @@ function LocalSetup({
         <h2 className="play-setup-title">
           {hasActive ? 'Start a different game' : 'New local game'}
         </h2>
-        <p className="play-setup-help">
-          Pass the device, tap your own life. The host sets the format and seat count; decks are
-          optional.
-          {hasActive && ' Starting a new game will discard the one you have minimized.'}
-        </p>
       </header>
 
       <section className="play-setup-row">

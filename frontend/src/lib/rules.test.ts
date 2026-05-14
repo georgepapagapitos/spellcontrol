@@ -6,13 +6,33 @@ import {
   compileFilterGroups,
   isFilterEmpty,
 } from './rules';
-import type { EnrichedCard, BinderFilter, NegatableChip } from '../types';
+import type { EnrichedCard, BinderFilter, ChipExpression } from '../types';
 
-function chip(value: string, negate = false): NegatableChip {
-  return { value, negate };
+/**
+ * Test builders for `ChipExpression` — match the legacy chip()/chips()
+ * call sites but emit the new shape:
+ *   chip('R')        → IS R
+ *   chip('R', true)  → IS NOT R
+ *   chips('R', 'B')  → IS R OR IS B
+ *   chipsAnd(...)    → IS A AND IS B    (used for legalities, which
+ *                                         historically required all)
+ */
+function chip(value: string, negate = false): ChipExpression {
+  return { chips: [{ value, negate }], joiners: [] };
 }
-function chips(...values: string[]): NegatableChip[] {
-  return values.map((v) => chip(v));
+function chips(...values: string[]): ChipExpression {
+  if (values.length === 0) return { chips: [], joiners: [] };
+  return {
+    chips: values.map((v) => ({ value: v, negate: false })),
+    joiners: values.slice(1).map(() => 'OR' as const),
+  };
+}
+function chipsAnd(...values: string[]): ChipExpression {
+  if (values.length === 0) return { chips: [], joiners: [] };
+  return {
+    chips: values.map((v) => ({ value: v, negate: false })),
+    joiners: values.slice(1).map(() => 'AND' as const),
+  };
 }
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -43,14 +63,14 @@ describe('cardMatchesFilter', () => {
   });
 
   describe('legalities', () => {
-    it('matches card legal in all selected formats (multiple IS chips AND together)', () => {
+    it('matches card legal in all selected formats (AND chips)', () => {
       const card = makeCard({ legalities: { commander: 'legal', modern: 'legal' } });
-      expect(cardMatchesFilter(card, { legalities: chips('commander', 'modern') })).toBe(true);
+      expect(cardMatchesFilter(card, { legalities: chipsAnd('commander', 'modern') })).toBe(true);
     });
 
-    it('rejects card not legal in one selected format', () => {
+    it('rejects card not legal in one selected AND-joined format', () => {
       const card = makeCard({ legalities: { commander: 'legal', modern: 'banned' } });
-      expect(cardMatchesFilter(card, { legalities: chips('commander', 'modern') })).toBe(false);
+      expect(cardMatchesFilter(card, { legalities: chipsAnd('commander', 'modern') })).toBe(false);
     });
 
     it('rejects card with no legality data when filter is set', () => {
@@ -60,7 +80,7 @@ describe('cardMatchesFilter', () => {
     it('IS NOT excludes cards legal in that format', () => {
       const banned = makeCard({ legalities: { modern: 'banned' } });
       const legal = makeCard({ legalities: { modern: 'legal' } });
-      const filter: BinderFilter = { legalities: [chip('modern', true)] };
+      const filter: BinderFilter = { legalities: chip('modern', true) };
       expect(cardMatchesFilter(banned, filter)).toBe(true);
       expect(cardMatchesFilter(legal, filter)).toBe(false);
     });
@@ -70,29 +90,24 @@ describe('cardMatchesFilter', () => {
     it('IS chip matches the card rarity, case-insensitive', () => {
       expect(
         cardMatchesFilter(makeCard({ rarity: 'Rare' }), {
-          rarities: [{ value: 'rare', negate: false }],
+          rarities: chip('rare'),
         })
       ).toBe(true);
     });
     it('IS chip rejects mismatched rarity', () => {
       expect(
         cardMatchesFilter(makeCard({ rarity: 'common' }), {
-          rarities: [{ value: 'rare', negate: false }],
+          rarities: chip('rare'),
         })
       ).toBe(false);
     });
     it('multiple IS chips OR among themselves', () => {
-      const filter: BinderFilter = {
-        rarities: [
-          { value: 'rare', negate: false },
-          { value: 'mythic', negate: false },
-        ],
-      };
+      const filter: BinderFilter = { rarities: chips('rare', 'mythic') };
       expect(cardMatchesFilter(makeCard({ rarity: 'mythic' }), filter)).toBe(true);
       expect(cardMatchesFilter(makeCard({ rarity: 'common' }), filter)).toBe(false);
     });
     it('IS NOT excludes the chip value', () => {
-      const filter: BinderFilter = { rarities: [{ value: 'common', negate: true }] };
+      const filter: BinderFilter = { rarities: chip('common', true) };
       expect(cardMatchesFilter(makeCard({ rarity: 'rare' }), filter)).toBe(true);
       expect(cardMatchesFilter(makeCard({ rarity: 'common' }), filter)).toBe(false);
     });
@@ -128,7 +143,7 @@ describe('cardMatchesFilter', () => {
     it('IS NOT excludes that color', () => {
       const red = makeCard({ colorIdentity: ['R'] });
       const blue = makeCard({ colorIdentity: ['U'] });
-      const filter: BinderFilter = { colors: [chip('R', true)] };
+      const filter: BinderFilter = { colors: chip('R', true) };
       expect(cardMatchesFilter(red, filter)).toBe(false);
       expect(cardMatchesFilter(blue, filter)).toBe(true);
     });
@@ -138,30 +153,25 @@ describe('cardMatchesFilter', () => {
     const card = makeCard({ typeLine: 'Legendary Creature — Human Wizard' });
 
     it('IS chip alone — substring match', () => {
-      expect(cardMatchesFilter(card, { typeChips: [{ value: 'creature', negate: false }] })).toBe(
-        true
-      );
-      expect(cardMatchesFilter(card, { typeChips: [{ value: 'instant', negate: false }] })).toBe(
-        false
-      );
+      expect(cardMatchesFilter(card, { typeChips: chip('creature') })).toBe(true);
+      expect(cardMatchesFilter(card, { typeChips: chip('instant') })).toBe(false);
     });
 
     it('multiple IS chips — OR among them', () => {
-      const filter: BinderFilter = {
-        typeChips: [
-          { value: 'instant', negate: false },
-          { value: 'creature', negate: false },
-        ],
-      };
+      const filter: BinderFilter = { typeChips: chips('instant', 'creature') };
       expect(cardMatchesFilter(card, filter)).toBe(true);
     });
 
     it('IS NOT chip excludes matching cards', () => {
+      // "creature AND NOT legendary" — only non-legendary creatures pass.
       const filter: BinderFilter = {
-        typeChips: [
-          { value: 'creature', negate: false },
-          { value: 'legendary', negate: true },
-        ],
+        typeChips: {
+          chips: [
+            { value: 'creature', negate: false },
+            { value: 'legendary', negate: true },
+          ],
+          joiners: ['AND'],
+        },
       };
       expect(cardMatchesFilter(card, filter)).toBe(false);
       const nonLegendary = makeCard({ typeLine: 'Creature — Human' });
@@ -169,17 +179,20 @@ describe('cardMatchesFilter', () => {
     });
 
     it('IS NOT alone — accepts cards that lack the substring', () => {
-      const filter: BinderFilter = { typeChips: [{ value: 'creature', negate: true }] };
+      const filter: BinderFilter = { typeChips: chip('creature', true) };
       expect(cardMatchesFilter(makeCard({ typeLine: 'Sorcery' }), filter)).toBe(true);
       expect(cardMatchesFilter(card, filter)).toBe(false);
     });
 
     it('blank chip values are ignored', () => {
       const filter: BinderFilter = {
-        typeChips: [
-          { value: '', negate: false },
-          { value: '   ', negate: true },
-        ],
+        typeChips: {
+          chips: [
+            { value: '', negate: false },
+            { value: '   ', negate: true },
+          ],
+          joiners: ['AND'],
+        },
       };
       expect(cardMatchesFilter(card, filter)).toBe(true);
     });
@@ -188,12 +201,8 @@ describe('cardMatchesFilter', () => {
   describe('oracleChips', () => {
     it('matches oracle text substring', () => {
       const card = makeCard({ oracleText: 'Flying. When this creature dies, draw a card.' });
-      expect(
-        cardMatchesFilter(card, { oracleChips: [{ value: 'draw a card', negate: false }] })
-      ).toBe(true);
-      expect(cardMatchesFilter(card, { oracleChips: [{ value: 'trample', negate: false }] })).toBe(
-        false
-      );
+      expect(cardMatchesFilter(card, { oracleChips: chip('draw a card') })).toBe(true);
+      expect(cardMatchesFilter(card, { oracleChips: chip('trample') })).toBe(false);
     });
   });
 
@@ -241,7 +250,7 @@ describe('cardMatchesFilter', () => {
     });
 
     it('IS NOT foil excludes foil copies', () => {
-      const filter: BinderFilter = { finishes: [chip('foil', true)] };
+      const filter: BinderFilter = { finishes: chip('foil', true) };
       expect(cardMatchesFilter(makeCard({ finish: 'foil', foil: true }), filter)).toBe(false);
       expect(cardMatchesFilter(makeCard({ finish: 'nonfoil', foil: false }), filter)).toBe(true);
     });
@@ -307,7 +316,7 @@ describe('cardMatchesFilter', () => {
   describe('AND across fields', () => {
     it('all set fields must pass', () => {
       const filter: BinderFilter = {
-        rarities: [{ value: 'rare', negate: false }],
+        rarities: chip('rare'),
         priceMin: 5,
       };
       expect(cardMatchesFilter(makeCard({ rarity: 'rare', purchasePrice: 10 }), filter)).toBe(true);
@@ -324,14 +333,14 @@ describe('isFilterEmpty', () => {
     expect(isFilterEmpty({})).toBe(true);
   });
   it('false when any field is set', () => {
-    expect(isFilterEmpty({ rarities: [{ value: 'rare', negate: false }] })).toBe(false);
+    expect(isFilterEmpty({ rarities: chip('rare') })).toBe(false);
     expect(isFilterEmpty({ legalities: chips('standard') })).toBe(false);
-    expect(isFilterEmpty({ typeChips: [{ value: 'creature', negate: false }] })).toBe(false);
+    expect(isFilterEmpty({ typeChips: chip('creature') })).toBe(false);
     expect(isFilterEmpty({ manaCost: '{R}' })).toBe(false);
   });
   it('treats blank chip values as empty', () => {
-    expect(isFilterEmpty({ typeChips: [{ value: '   ', negate: false }] })).toBe(true);
-    expect(isFilterEmpty({ oracleChips: [] })).toBe(true);
+    expect(isFilterEmpty({ typeChips: chip('   ') })).toBe(true);
+    expect(isFilterEmpty({ oracleChips: { chips: [], joiners: [] } })).toBe(true);
   });
   it('treats whitespace-only nameContains and manaCost as empty', () => {
     expect(isFilterEmpty({ nameContains: '   ', manaCost: '   ' })).toBe(true);

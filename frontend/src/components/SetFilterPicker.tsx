@@ -137,6 +137,10 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
           onFocus={() => {
             setOpen(true);
             setHighlight(0);
+            // When the picker lives inside a scroll container (e.g. the
+            // collection filters dialog), nudge ourselves toward the top
+            // so the inline results have room to render below.
+            wrapperRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
           }}
           onKeyDown={onKeyDown}
           placeholder={value.size === 0 ? 'Filter by set…' : ''}

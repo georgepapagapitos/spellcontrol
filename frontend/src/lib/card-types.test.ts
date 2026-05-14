@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCardType, TYPE_ORDER } from './card-types';
+import { getCardType, parseTypeLine, TYPE_ORDER } from './card-types';
 import type { EnrichedCard } from '../types';
 
 function makeCard(typeLine?: string): EnrichedCard {
@@ -92,5 +92,63 @@ describe('TYPE_ORDER', () => {
     expect(TYPE_ORDER).toContain('artifact');
     expect(TYPE_ORDER).toContain('land');
     expect(TYPE_ORDER).toContain('other');
+  });
+});
+
+describe('parseTypeLine', () => {
+  it('returns empty buckets for missing/blank input', () => {
+    expect(parseTypeLine(undefined)).toEqual({ supertypes: [], types: [], subtypes: [] });
+    expect(parseTypeLine('')).toEqual({ supertypes: [], types: [], subtypes: [] });
+    expect(parseTypeLine('   ')).toEqual({ supertypes: [], types: [], subtypes: [] });
+  });
+
+  it('parses a typical legendary creature', () => {
+    expect(parseTypeLine('Legendary Creature — Human Wizard')).toEqual({
+      supertypes: ['legendary'],
+      types: ['creature'],
+      subtypes: ['human', 'wizard'],
+    });
+  });
+
+  it('parses a multi-type card (creature land)', () => {
+    expect(parseTypeLine('Creature Land — Forest Beast')).toEqual({
+      supertypes: [],
+      types: ['creature', 'land'],
+      subtypes: ['forest', 'beast'],
+    });
+  });
+
+  it('parses cards with no subtypes', () => {
+    expect(parseTypeLine('Sorcery')).toEqual({
+      supertypes: [],
+      types: ['sorcery'],
+      subtypes: [],
+    });
+  });
+
+  it('handles multiple supertypes', () => {
+    expect(parseTypeLine('Basic Snow Land — Mountain')).toEqual({
+      supertypes: ['basic', 'snow'],
+      types: ['land'],
+      subtypes: ['mountain'],
+    });
+  });
+
+  it('uses the first face of a multi-face card', () => {
+    expect(parseTypeLine('Land — Swamp // Creature — Zombie')).toEqual({
+      supertypes: [],
+      types: ['land'],
+      subtypes: ['swamp'],
+    });
+  });
+
+  it('drops unrecognized tokens from the left of the dash', () => {
+    // Defensive: a hypothetical malformed line shouldn't crash and won't
+    // pollute the buckets with garbage.
+    expect(parseTypeLine('Foo Creature — Beast')).toEqual({
+      supertypes: [],
+      types: ['creature'],
+      subtypes: ['beast'],
+    });
   });
 });
