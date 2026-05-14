@@ -6,8 +6,6 @@ import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
-import { PhashStore } from './phash-store';
-import { hashFromHex, HASH_BYTES } from './phash';
 import { closeDb, ensureSchema } from './db';
 import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
@@ -23,12 +21,9 @@ import type { DeckImportResponse, EnrichedCard, ScryfallCard, UploadResponse } f
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3737;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryfall-cache.db');
-const PHASH_DB_PATH = process.env.PHASH_DB_PATH || path.join(__dirname, '..', 'data', 'phash.db');
 
 const app = express();
 const cache = new ScryfallCache(DB_PATH);
-const phashStore = new PhashStore(PHASH_DB_PATH);
-console.log(`[phash] loaded ${phashStore.size()} card hashes`);
 
 // Trust the immediate nginx reverse-proxy so express-rate-limit uses the
 // real client IP (from X-Forwarded-For) rather than the proxy's internal IP.
@@ -278,69 +273,6 @@ app.get(
       console.error('[printings] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({ error: `Failed to fetch printings: ${message}` });
-    }
-  }
-);
-
-/**
- * Identifies a card from a perceptual hash computed by the scanner client.
- *
- * Body: { hash: string }  // 16-char hex (8-byte dHash) of the captured art crop
- *
- * Response:
- *   {
- *     card: ScryfallCard | null,   // null when the store is empty or no
- *                                  //   match falls within the distance
- *                                  //   threshold; client should fall back
- *                                  //   to OCR + fuzzy name lookup
- *     distance: number,            // hamming distance of the chosen match
- *     storeSize: number,           // number of hashes in the DB — lets the
- *                                  //   client warn if pHash isn't ingested yet
- *   }
- *
- * The fast path: nearest-neighbour Hamming-distance scan over the in-memory
- * hash table. At ~90k entries this runs in single-digit milliseconds, so
- * there's no need for a BK-tree or LSH index at this scale.
- */
-const MAX_HASH_DISTANCE = 14;
-app.post(
-  '/api/cards/identify-hash',
-  rateLimit({ windowMs: 60_000, max: 240 }),
-  async (req: Request, res: Response) => {
-    try {
-      const rawHash = (req.body as { hash?: unknown } | undefined)?.hash;
-      const parsed = typeof rawHash === 'string' ? hashFromHex(rawHash) : null;
-      if (!parsed) {
-        return res.status(400).json({
-          error: `Body must be { hash: string } where hash is ${HASH_BYTES * 2} hex chars.`,
-        });
-      }
-
-      const storeSize = phashStore.size();
-      if (storeSize === 0) {
-        return res.json({ card: null, distance: -1, storeSize });
-      }
-
-      const [best] = phashStore.search(parsed, 1);
-      if (!best || best.distance > MAX_HASH_DISTANCE) {
-        return res.json({ card: null, distance: best?.distance ?? -1, storeSize });
-      }
-
-      // Round-trip through the existing Scryfall cache so the response is a
-      // full ScryfallCard (images, prices, oracle text, etc.) rather than the
-      // skinny columns stored in phash.db.
-      const cached = cache.getMany([best.entry.scryfallId]).get(best.entry.scryfallId);
-      let card = cached;
-      if (!card) {
-        const fetched = await fetchCardsByIds([best.entry.scryfallId], cache);
-        card = fetched[0];
-      }
-
-      res.json({ card: card ?? null, distance: best.distance, storeSize });
-    } catch (err) {
-      console.error('[identify-hash] error:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      res.status(500).json({ error: `Identify failed: ${message}` });
     }
   }
 );
