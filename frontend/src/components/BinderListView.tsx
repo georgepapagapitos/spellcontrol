@@ -416,6 +416,10 @@ export function BinderListView({
           totalPages={binder.totalPages}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
+          onEdit={(c) => {
+            setPreviewIndex(null);
+            setEditingCard(c);
+          }}
         />
       )}
 
@@ -439,6 +443,10 @@ export function BinderListView({
           binderName={binder.def.name}
           resolveCard={resolveCard}
           onClose={() => setPagesStartIndex(null)}
+          onEditCard={(c) => {
+            setPagesStartIndex(null);
+            setEditingCard(c);
+          }}
         />
       )}
     </>

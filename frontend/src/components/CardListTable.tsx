@@ -648,6 +648,10 @@ export function CardListTable({
           totalPages={0}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
+          onEdit={(c) => {
+            setPreviewIndex(null);
+            setEditingCard(c);
+          }}
         />
       )}
 

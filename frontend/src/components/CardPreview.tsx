@@ -27,6 +27,12 @@ interface Props {
   currentDeckId?: string;
   onIndexChange: (i: number) => void;
   onClose: () => void;
+  /**
+   * When provided, an Edit button is rendered alongside Flip. The parent is
+   * expected to dismiss the carousel and open its own CardEditDialog — we
+   * avoid stacking two scroll-locking modals.
+   */
+  onEdit?: (card: EnrichedCard) => void;
 }
 
 const PRELOAD_RADIUS = 2;
@@ -41,6 +47,7 @@ export function CardPreview({
   currentDeckId,
   onIndexChange,
   onClose,
+  onEdit,
 }: Props) {
   const allocations = useAllocations();
   const trackRef = useRef<HTMLDivElement>(null);
@@ -325,6 +332,21 @@ export function CardPreview({
               <span>Flip</span>
             </button>
           )}
+          {onEdit && (
+            <button
+              type="button"
+              className="card-preview-flip-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(current);
+              }}
+              aria-label="Edit printing"
+              title="Edit printing"
+            >
+              <EditIcon />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
 
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
@@ -537,6 +559,25 @@ function ExternalLinkIcon() {
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
       <polyline points="15 3 21 3 21 9" />
       <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
     </svg>
   );
 }
