@@ -70,6 +70,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  /**
+   * Resolved camera info shown in a small on-screen badge. Lets us diagnose
+   * device-specific behaviour (resolution, zoom, focus mode) without needing
+   * the user to open browser DevTools — phone debugging is otherwise a
+   * non-starter for most testers.
+   */
+  const [cameraInfo, setCameraInfo] = useState<string | null>(null);
 
   useLockBodyScroll();
 
@@ -172,10 +179,11 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         zoom?: number;
         focusMode?: string;
       };
-      console.log(
-        `[scanner] camera: ${settings.width}×${settings.height}` +
-          ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`
-      );
+      const infoLine =
+        `${settings.width}×${settings.height}` +
+        ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`;
+      console.log(`[scanner] camera: ${infoLine}`);
+      setCameraInfo(infoLine);
       setStatus('ready');
       warmOcr();
     } catch (err) {
@@ -478,6 +486,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       </header>
 
       {hint && <div className="scanner-hint">{hint}</div>}
+
+      {cameraInfo && <div className="scanner-debug">cam: {cameraInfo}</div>}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">
