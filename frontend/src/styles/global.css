@@ -3882,13 +3882,15 @@ hr {
 .sort-editor-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1.1rem;
 }
 
 .sort-editor-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  column-gap: 0.5rem;
+  row-gap: 0.3rem;
 }
 
 .sort-editor-num {
@@ -7044,6 +7046,93 @@ hr {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+.sort-value-order-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sort-value-order-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sort-value-order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  font-size: var(--text-sm);
+}
+
+.sort-value-order-chip:active {
+  cursor: grabbing;
+}
+
+.sort-value-order-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sort-value-order-chip.dragging {
+  background: var(--surface3, var(--surface2));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.sort-value-order-num {
+  color: var(--text3);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.sort-value-order-label {
+  flex-shrink: 0;
+}
+
+.sort-value-order-list-action {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sort-value-order-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1;
+  min-height: calc(var(--text-sm) + 0.5rem + 2px);
+}
+
+.sort-value-order-reset:hover {
+  color: var(--text2);
+  border-color: var(--text3);
+}
+
+.sort-value-order-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .binder-card-editor-row {

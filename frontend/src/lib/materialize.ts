@@ -11,7 +11,12 @@ import type {
 } from '../types';
 import { compileFilterGroups, cardMatchesAnyGroup } from './rules';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections';
-import { sortCards, buildQtyByPrintingKey } from './sorting';
+import {
+  sortCards,
+  buildQtyByPrintingKey,
+  getImplicitTiebreakers,
+  getDisplaySorts,
+} from './sorting';
 import type { SetMap } from './api';
 
 interface MaterializeOptions {
@@ -118,6 +123,7 @@ export function materializeBinders(
     const sortCtx = {
       setMap: opts.setMap,
       qtyByPrintingKey: buildQtyByPrintingKey(rawCards),
+      valueOrders: def.sortValueOrders,
     };
     const sections = useManualOrder
       ? buildManualSection(rawCards, effectivePocketSize, isMatch)
@@ -126,6 +132,7 @@ export function materializeBinders(
       def,
       effectivePocketSize,
       effectiveSorts,
+      displaySorts: getDisplaySorts(effectiveSorts, def.sorts, def.sortValueOrders),
       sections,
       totalCards: sections.reduce((s, sec) => s + sec.cards.length, 0),
       totalPages: sections.reduce((s, sec) => s + sec.pages.length, 0),
@@ -155,6 +162,10 @@ export function materializeBinders(
       totalPages: uncategorizedSections.reduce((s, sec) => s + sec.pages.length, 0),
       effectivePocketSize: opts.globalPocketSize ?? DEFAULT_POCKET_SIZE,
       effectiveSorts: uncategorizedSorts,
+      displaySorts: getDisplaySorts(
+        uncategorizedSorts,
+        opts.uncategorizedSorts ?? DEFAULT_UNCATEGORIZED_SORTS
+      ),
     },
   };
 }
@@ -207,14 +218,15 @@ function buildManualSection(
 }
 
 /**
- * Append "name" as a deterministic final tiebreaker so cards that compare equal
- * across all chosen sort fields land in stable alphabetical order instead of
- * import order. Skipped if name is already in the chain.
+ * Append implicit tiebreakers so cards that compare equal across all chosen
+ * sort fields land in a stable, meaningful order. Treatment groups fancy
+ * frames before the plain printing; finish puts foils before non-foils;
+ * name is the final alphabetical fallback. Any field already in the user's
+ * chain is left alone so their explicit choice wins.
  */
 function withImplicitTiebreaker(sorts: SortEntry[]): SortEntry[] {
-  const active = sorts.filter((s) => s && s.field !== 'none');
-  if (active.some((s) => s.field === 'name')) return sorts;
-  return [...sorts, { field: 'name', dir: 'asc' } as SortEntry];
+  const extras = getImplicitTiebreakers(sorts);
+  return extras.length ? [...sorts, ...extras] : sorts;
 }
 
 function buildSections(
