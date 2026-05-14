@@ -208,13 +208,20 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
             <span className="deck-combos-header-empty">No matches</span>
           )}
         </span>
-        {loading && <span className="deck-combos-spinner" aria-hidden />}
-        <span className="deck-combos-header-chevron" aria-hidden>
-          {collapsed ? (
-            <ChevronDown width={16} height={16} />
-          ) : (
-            <ChevronUp width={16} height={16} />
-          )}
+        {/* Spinner slot is ALWAYS rendered (just visibility-hidden when
+            idle) so the trailing wrapper's width never changes between
+            loading + idle states. Without this the summary column would
+            shrink by the spinner's width every time a request fired,
+            shifting the layout. */}
+        <span className="deck-combos-header-trailing" aria-hidden>
+          <span className={`deck-combos-spinner${loading ? '' : ' is-idle'}`} aria-hidden />
+          <span className="deck-combos-header-chevron">
+            {collapsed ? (
+              <ChevronDown width={16} height={16} />
+            ) : (
+              <ChevronUp width={16} height={16} />
+            )}
+          </span>
         </span>
       </button>
 
