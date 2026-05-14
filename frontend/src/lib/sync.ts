@@ -9,9 +9,10 @@ import {
   type StoredCollection,
 } from './local-cards';
 import type { Deck } from '../store/decks';
-import type { BinderDef } from '../types';
+import type { BinderDef, EnrichedCard } from '../types';
 import type { GameRecord } from './game-state';
 import { consumeImmediateFlush } from './sync-intent';
+import { fetchOracleIds } from './api/combos';
 
 /**
  * Sync model: server is the source of truth for authed users.
@@ -453,6 +454,65 @@ export async function startSync(userId?: string): Promise<void> {
 
   syncedState = 'ready';
   emitSynced();
+
+  // Fire-and-forget: cards saved before EnrichedCard.oracleId existed don't
+  // carry one. Backfill from the server's Scryfall cache so the combo panel
+  // can join against the dataset without forcing a re-import. Silent — no
+  // sync push, no UI spinner; combo features just become more accurate as
+  // ids land.
+  void backfillOracleIds().catch((err) => {
+    console.warn('[sync] oracle-id backfill failed:', err);
+  });
+}
+
+const ORACLE_BACKFILL_CHUNK = 1000;
+
+async function backfillOracleIds(): Promise<void> {
+  const cards = useCollectionStore.getState().cards;
+  // Unique scryfallIds whose card lacks an oracleId.
+  const missingIds = new Set<string>();
+  for (const c of cards) {
+    if (!c.oracleId && c.scryfallId) missingIds.add(c.scryfallId);
+  }
+  if (missingIds.size === 0) return;
+
+  const allIds = Array.from(missingIds);
+  const resolved = new Map<string, string>();
+  for (let i = 0; i < allIds.length; i += ORACLE_BACKFILL_CHUNK) {
+    const chunk = allIds.slice(i, i + ORACLE_BACKFILL_CHUNK);
+    try {
+      const map = await fetchOracleIds(chunk);
+      for (const [k, v] of Object.entries(map)) resolved.set(k, v);
+    } catch (err) {
+      console.warn('[sync] oracle-id chunk failed:', err);
+      return;
+    }
+  }
+  if (resolved.size === 0) return;
+
+  // Patch the store silently — flagged so subscribers don't queue a push.
+  isApplyingServer = true;
+  try {
+    const current = useCollectionStore.getState().cards;
+    let changed = 0;
+    const next: EnrichedCard[] = current.map((c) => {
+      if (c.oracleId || !c.scryfallId) return c;
+      const oid = resolved.get(c.scryfallId);
+      if (!oid) return c;
+      changed++;
+      return { ...c, oracleId: oid };
+    });
+    if (changed > 0) {
+      useCollectionStore.setState({ cards: next });
+      // Persist to IndexedDB so the next boot sees the enriched cards
+      // without re-running the backfill.
+      const stored = buildCollection();
+      if (stored) await saveCollection(stored);
+      console.log(`[sync] oracle-id backfill enriched ${changed} cards`);
+    }
+  } finally {
+    isApplyingServer = false;
+  }
 }
 
 /**

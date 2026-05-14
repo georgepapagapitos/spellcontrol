@@ -76,5 +76,52 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS game_sessions_host_idx ON game_sessions(host_user_id);
     CREATE INDEX IF NOT EXISTS game_sessions_updated_idx ON game_sessions(updated_at);
+
+    CREATE TABLE IF NOT EXISTS combos (
+      id TEXT PRIMARY KEY,
+      identity TEXT NOT NULL,
+      produces JSONB NOT NULL,
+      prerequisites JSONB,
+      description TEXT,
+      mana_needed TEXT,
+      popularity INTEGER NOT NULL DEFAULT 0,
+      legalities JSONB NOT NULL,
+      card_count INTEGER NOT NULL,
+      bracket INTEGER,
+      updated_at BIGINT NOT NULL
+    );
+    /* Migrate from the original text-only prerequisites column if it exists. */
+    DO $do$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'combos' AND column_name = 'prerequisites' AND data_type = 'text'
+      ) THEN
+        ALTER TABLE combos ALTER COLUMN prerequisites TYPE JSONB
+          USING CASE WHEN prerequisites IS NULL OR prerequisites = ''
+            THEN NULL
+            ELSE jsonb_build_object('easy', prerequisites)
+          END;
+      END IF;
+    END
+    $do$;
+    CREATE TABLE IF NOT EXISTS combo_cards (
+      combo_id TEXT NOT NULL REFERENCES combos(id) ON DELETE CASCADE,
+      oracle_id TEXT NOT NULL,
+      card_name TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      position INTEGER NOT NULL,
+      PRIMARY KEY (combo_id, oracle_id)
+    );
+    ALTER TABLE combo_cards ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
+    CREATE INDEX IF NOT EXISTS combo_cards_oracle_idx ON combo_cards(oracle_id);
+    CREATE TABLE IF NOT EXISTS combo_ingest_runs (
+      id TEXT PRIMARY KEY,
+      started_at BIGINT NOT NULL,
+      finished_at BIGINT,
+      combos_written INTEGER,
+      source TEXT NOT NULL,
+      error TEXT
+    );
   `);
 }

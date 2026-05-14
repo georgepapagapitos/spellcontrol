@@ -5,6 +5,8 @@ import { useDecksStore } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
+import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
+import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -56,6 +58,7 @@ export function DeckEditorPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
+  const combosPanelRef = useRef<DeckCombosPanelHandle>(null);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -70,6 +73,20 @@ export function DeckEditorPage() {
     return m;
   }, [deck]);
 
+  // Oracle ids of every card in the deck — fed to the combos panel so it can
+  // bucket combos against the deck. `oracle_id` is on ScryfallCard; cards
+  // imported before that field landed may lack it (combos for those rows just
+  // won't surface until the next deck-import).
+  const deckOracleIds = useMemo(() => {
+    if (!deck) return [];
+    const ids = new Set<string>();
+    if (deck.commander?.oracle_id) ids.add(deck.commander.oracle_id);
+    if (deck.partnerCommander?.oracle_id) ids.add(deck.partnerCommander.oracle_id);
+    for (const c of deck.cards) if (c.card.oracle_id) ids.add(c.card.oracle_id);
+    for (const c of deck.sideboard) if (c.card.oracle_id) ids.add(c.card.oracle_id);
+    return Array.from(ids);
+  }, [deck]);
+
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
     const ci = new Set<string>();
@@ -78,19 +95,24 @@ export function DeckEditorPage() {
     return [...ci];
   }, [deck]);
 
-  // `/` shortcut → open the panel and focus the search input. Skipped while
-  // the user is typing into another input/textarea (so `/` still types
-  // literally inside a deck name rename, search box, etc.).
+  // `/` opens the search panel; `c` reveals the combos panel (the panel is
+  // always rendered in the aside; `c` just expands + scrolls + focuses it).
+  // Skipped while the user is typing into another input/textarea so the keys
+  // still type literally inside a rename/search box.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
-      e.preventDefault();
-      setShowAddPanel(true);
-      // Wait a tick so the panel mounts before focusing.
-      window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
+      if (e.key === '/') {
+        e.preventDefault();
+        setShowAddPanel(true);
+        window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        combosPanelRef.current?.reveal();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -374,6 +396,14 @@ export function DeckEditorPage() {
           >
             {showAddPanel ? 'Hide cards panel' : 'Add cards'}
           </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => combosPanelRef.current?.reveal()}
+            title="Jump to combos (press c)"
+          >
+            Combos
+          </button>
           <button type="button" className="btn" onClick={handleDuplicate}>
             Duplicate
           </button>
@@ -390,6 +420,7 @@ export function DeckEditorPage() {
               window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
             }
           }}
+          onJumpToCombos={() => combosPanelRef.current?.reveal()}
           onDuplicate={handleDuplicate}
           onDelete={() => setConfirmDelete(true)}
           onExport={() => setExportOpen(true)}
@@ -429,8 +460,28 @@ export function DeckEditorPage() {
             exportOpen={exportOpen}
             onExportOpenChange={setExportOpen}
           />
+
+          {/*
+            Combos + Test hand live in the main column (under the deck
+            composition + Stats), not in the right rail. Stats has always
+            paired with the deck cards; pulling these into the right rail
+            created visual "two sidebars" noise. Below the deck they get
+            full main-column width, which lets the combo grid auto-fan to
+            2+ columns on wide viewports.
+          */}
+          <DeckCombosPanel
+            ref={combosPanelRef}
+            deckId={deck.id}
+            deckOracleIds={deckOracleIds}
+            format={deck.format}
+            onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+          />
+          <DeckTestHandPanel deckId={deck.id} />
         </main>
 
+        {/* Right rail is reserved for the toggleable Card Search panel only.
+            Hidden entirely when search isn't open so the deck composition
+            gets the full main-column width by default. */}
         {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
           <aside className="deck-editor-aside">
             {formatConfig && formatConfig.sideboardSize > 0 && (
@@ -527,6 +578,7 @@ export function DeckEditorPage() {
 function DeckEditorOverflowMenu({
   isAddPanelOpen,
   onToggleAddPanel,
+  onJumpToCombos,
   onDuplicate,
   onDelete,
   onExport,
@@ -535,6 +587,7 @@ function DeckEditorOverflowMenu({
 }: {
   isAddPanelOpen: boolean;
   onToggleAddPanel: () => void;
+  onJumpToCombos: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
@@ -607,6 +660,17 @@ function DeckEditorOverflowMenu({
                   }}
                 >
                   {isAddPanelOpen ? 'Hide cards panel' : 'Add cards'}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-editor-overflow-item"
+                  onClick={() => {
+                    setOpen(false);
+                    onJumpToCombos();
+                  }}
+                >
+                  Jump to combos
                 </button>
                 <button
                   type="button"

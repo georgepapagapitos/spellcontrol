@@ -1381,30 +1381,79 @@ input.toolbar-search-input {
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem 1.25rem;
+  /* Match the Combos / Test hand panel padding so all three deck-view
+     panels read at the same visual height. */
+  padding: 0.75rem;
 }
 
-.deck-stats-header {
-  display: flex;
-  align-items: baseline;
-  gap: 0.65rem;
+/* All deck-view collapsible panel headers (Statistics / Combos / Test hand)
+   share this look. Mirrors `.deck-section-header` (used for SORCERY,
+   INSTANT, etc.) so every section in the deck view reads as one family:
+   accent-colored icon, serif uppercase title with light count, optional
+   meta on the right, chevron at the far right, separator line below.
+
+   When the panel is collapsed (no body to separate from) we drop the
+   bottom border + margin so the header reads as a clean strip. */
+.deck-stats-header,
+.deck-combos-header,
+.deck-test-hand-header {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
   width: 100%;
   background: transparent;
   border: 0;
-  padding: 0 0 0.6rem 0;
-  margin: 0;
+  border-bottom: 0.5px solid var(--border);
+  padding: 0.25rem 0.1rem 0.55rem;
+  margin: 0 0 0.55rem 0;
   cursor: pointer;
   color: inherit;
   text-align: left;
   font: inherit;
 }
 
+.deck-stats-header:hover .deck-stats-caret,
+.deck-combos-header:hover .deck-combos-header-chevron,
+.deck-test-hand-header:hover .deck-test-hand-header-chevron {
+  color: var(--accent);
+}
+
+.deck-stats-header:focus-visible,
+.deck-combos-header:focus-visible,
+.deck-test-hand-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* Icons (Sparkles for Combos, Hand for Test Hand, the lucide BarChart3 we
+   added for Stats) take the accent color, matching .deck-section-icon. */
+.deck-combos-header > svg:first-child,
+.deck-test-hand-header > svg:first-child,
+.deck-stats-header > svg:first-child {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Collapsed state — no body below, so no separator line. */
+.deck-stats-header[aria-expanded='false'],
+.deck-combos-panel.is-collapsed .deck-combos-header,
+.deck-test-hand-panel.is-collapsed .deck-test-hand-header {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0.25rem;
+}
+
 .deck-stats-title {
+  /* Matches the deck-section-title used for INSTANT / SORCERY etc. so
+     every collapsible section header in the deck view shares one style. */
   font-family: var(--font-serif);
-  font-size: var(--text-lg);
+  font-size: var(--text-sm);
+  font-weight: 700;
   color: var(--text);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .deck-stats-meta {
@@ -1415,8 +1464,10 @@ input.toolbar-search-input {
 }
 
 .deck-stats-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text3);
-  font-size: var(--text-md);
   line-height: 1;
 }
 
@@ -1426,28 +1477,20 @@ input.toolbar-search-input {
   gap: 0.85rem;
 }
 
-/* When the stats panel is rendered in the right-hand sidebar, force a
-   single column so the panels stack vertically and keep it always
-   expanded — the collapsible header is for the stacked tablet layout. */
-.deck-display-sidebar .deck-stats {
-  padding: 0.85rem 1rem 1rem;
+/* The HTML [hidden] attribute is overridden by `.deck-stats-grid { display:
+   grid }` due to specificity tie + author-rule precedence. Re-assert hidden
+   so the body actually disappears when the user collapses the section. */
+.deck-stats-grid[hidden] {
+  display: none;
 }
 
+/* When the stats panel is rendered in the right-hand sidebar we force a
+   single column so the panels stack vertically. The header stays
+   interactive so users can collapse it on desktop too — alignment with the
+   Combos and Test Hand panels in the editor aside, all of which are
+   user-collapsible regardless of viewport. */
 .deck-display-sidebar .deck-stats-grid {
   grid-template-columns: 1fr;
-}
-
-.deck-display-sidebar .deck-stats-grid[hidden] {
-  display: grid !important;
-}
-
-.deck-display-sidebar .deck-stats-header {
-  cursor: default;
-  pointer-events: none;
-}
-
-.deck-display-sidebar .deck-stats-caret {
-  display: none;
 }
 
 .deck-stats-panel {
@@ -1697,7 +1740,9 @@ input.toolbar-search-input {
 .decks-index-page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  /* Match `.binders-index-page` so both index pages share the same
+     vertical rhythm between hero / sort bar / list. */
+  gap: 1rem;
 }
 
 .decks-index-subtitle {
@@ -1802,13 +1847,16 @@ input.toolbar-search-input {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--deck-color, var(--accent));
   border-radius: var(--radius-lg);
   overflow: visible;
   transition: border-color 120ms ease;
 }
 
+/* On hover, every side of the border tints to the deck's chosen color so
+   the card visually "lights up" in its own theme — not the global accent. */
 .decks-index-card:hover {
-  border-color: var(--accent);
+  border-color: var(--deck-color, var(--accent));
 }
 
 .decks-index-card-link {
@@ -3024,10 +3072,28 @@ input.toolbar-search-input {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
+  /* Smooth the column reflow when the side panel toggles so deck cards
+     glide into their new width instead of snapping. */
+  transition: grid-template-columns 180ms ease;
+}
+
+/* The main column stacks deck composition + Combos panel + Test hand panel
+   vertically. Same gap as the page-level layout so panels read as siblings. */
+.deck-editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .deck-editor-layout.with-panel {
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-editor-layout {
+    transition: none;
+  }
 }
 
 .deck-editor-aside {
@@ -3036,6 +3102,12 @@ input.toolbar-search-input {
   align-self: start;
   max-height: calc(100vh - 2rem);
   overflow: auto;
+  /* Stacked panels (card search, combos, test hand) — keep them visually
+     separated with the same spacing the deck-builder-page uses between
+     sections. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 /* ── Card search panel ────────────────────────────────────────────────── */
@@ -3196,6 +3268,976 @@ input.toolbar-search-input {
   background: var(--accent-light);
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+/* ── Deck test-hand panel ────────────────────────────────────────────── */
+.deck-test-hand-panel {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.deck-test-hand-panel.is-collapsed {
+  padding: 0.65rem 0.75rem;
+}
+
+.deck-test-hand-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.deck-test-hand-header-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-test-hand-header-empty {
+  color: var(--text3);
+  font-style: italic;
+}
+
+.deck-test-hand-header-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.deck-test-hand-header:hover .deck-test-hand-header-chevron {
+  color: var(--accent);
+}
+
+.deck-test-hand-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.deck-test-hand-panel.is-collapsed .deck-test-hand-body {
+  display: none;
+}
+
+.deck-test-hand-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text3);
+}
+
+/* Fan layout — cards overlap via negative margin-left, container is centered
+   so the fan reads as a real opening hand. The outer scroll wrapper keeps
+   us tidy at small widths or after Draw if the fan exceeds the panel. */
+.deck-test-hand-fan-scroll {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  /* Headroom for the lift-on-hover (-8px translateY + scale 1.04) and
+     lift-on-drag (-12px translateY + scale 1.06 + accent ring + 14-28px
+     shadow blur). Setting overflow-x: auto implicitly makes overflow-y
+     also clip, so without this padding the top of a lifted card would be
+     cut off. Bottom padding gives the shadow room to land. */
+  padding: 1.5rem 0.5rem 0.75rem;
+  /* Hide the scrollbar visually unless the user actually scrolls — keeps the
+     resting state clean. */
+  scrollbar-width: thin;
+}
+
+.deck-test-hand-fan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  user-select: none;
+  /* touch-action: pan-y lets vertical page-scroll still work while we
+     consume horizontal pointer movement for drag-reorder. */
+  touch-action: pan-y;
+}
+
+.deck-test-hand-card {
+  flex: 0 0 auto;
+  width: clamp(4.5rem, 13vw, 7rem);
+  position: relative;
+  /* The LI's `transform` is OWNED by @dnd-kit (drag offset + sibling slide).
+     Don't put any other transform / animation on the LI itself — they would
+     fight dnd-kit's inline style and the card would appear to stick.
+     Hover and entrance animations live on the inner .deck-test-hand-card-art
+     so they compose cleanly. */
+  cursor: grab;
+}
+
+.deck-test-hand-card:active {
+  cursor: grabbing;
+}
+
+.deck-test-hand-card.is-dragging {
+  cursor: grabbing;
+}
+
+.deck-test-hand-card-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: 0.55rem;
+  overflow: hidden;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  box-shadow: 0 2px 5px color-mix(in srgb, black 35%, transparent);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* Newly-drawn cards (not initial-deal cards) slide in from the right. We
+   animate transform-only — never opacity — so reorders that mutate any
+   animation property can't cause the card to fade out. The opacity stays
+   1 throughout. */
+.deck-test-hand-card-art.is-newly-drawn {
+  animation: deck-test-hand-slide-in 260ms ease-out;
+}
+
+@keyframes deck-test-hand-slide-in {
+  from {
+    transform: translateX(40px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.deck-test-hand-card.is-dragging .deck-test-hand-card-art {
+  transform: translateY(-12px) scale(1.06);
+  box-shadow:
+    0 14px 28px color-mix(in srgb, black 55%, transparent),
+    0 0 0 1px var(--accent);
+  /* No transition while dragging — the lift is sticky for the duration. */
+  transition: none;
+}
+
+.deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
+  transform: translateY(-8px) scale(1.04);
+  box-shadow:
+    0 6px 14px color-mix(in srgb, black 35%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-test-hand-card-art.is-newly-drawn {
+    animation: none;
+  }
+  .deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
+    transform: none;
+  }
+}
+
+.deck-test-hand-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.deck-test-hand-card-art-fallback {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--text3) 18%, transparent) 4px 5px
+  );
+}
+
+/* Pill action buttons — bigger touch target than .btn-sm, centered under the
+   fan so the layout mirrors the reference. */
+.deck-test-hand-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+}
+
+.deck-test-hand-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border2);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+  min-height: 2.25rem;
+}
+
+.deck-test-hand-action:hover:not([disabled]) {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.deck-test-hand-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-test-hand-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deck-test-hand-action.is-primary {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.deck-test-hand-action.is-primary:hover:not([disabled]) {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-color: var(--accent);
+}
+
+/* Hand-breakdown chip row — small pills showing the actually-dealt hand
+   composition (lands, ramp, removal, draw) so players can read it at a
+   glance instead of squinting at the cards. */
+.deck-test-hand-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.deck-test-hand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.deck-test-hand-chip strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.deck-test-hand-chip-label {
+  color: var(--text3);
+  font-size: var(--text-xs);
+}
+
+.deck-test-hand-chip-cmc-icon {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--text-xs);
+}
+
+.deck-test-hand-chip.is-verdict {
+  margin-left: 0.25rem;
+  padding-inline: 0.6rem;
+}
+
+.deck-test-hand-chip.is-keepable {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.deck-test-hand-chip.is-keepable strong {
+  color: var(--accent);
+}
+
+.deck-test-hand-chip.is-mulligan {
+  background: color-mix(in srgb, var(--warn-text, #f0a000) 18%, transparent);
+  border-color: color-mix(in srgb, var(--warn-text, #f0a000) 45%, transparent);
+}
+
+.deck-test-hand-chip.is-mulligan strong {
+  color: var(--warn-text, #f0a000);
+}
+
+.deck-test-hand-stat-secondary {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.deck-test-hand-stat-secondary strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Deck combos panel ───────────────────────────────────────────────── */
+.deck-combos-panel {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.deck-combos-panel.is-collapsed {
+  /* When collapsed the panel becomes a single header strip — no body padding,
+     just the toggle. Saves vertical space without giving up the slot. */
+  padding: 0.65rem 0.75rem;
+}
+
+.deck-combos-title {
+  /* Same chrome as INSTANT / SORCERY section headers so every collapsible
+     header in the deck view reads as one family. */
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.deck-combos-header-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-combos-header-empty {
+  color: var(--text3);
+  font-style: italic;
+}
+
+.deck-combos-header-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.deck-combos-header:hover .deck-combos-header-chevron {
+  color: var(--accent);
+}
+
+.deck-combos-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.deck-combos-panel.is-collapsed .deck-combos-body {
+  display: none;
+}
+
+.deck-combos-spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border2);
+  border-top-color: var(--accent);
+  animation: deck-combos-spin 0.7s linear infinite;
+  margin-left: auto;
+}
+
+@keyframes deck-combos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.deck-combos-tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg);
+  padding: 0.2rem;
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+}
+
+.deck-combos-tab {
+  flex: 1;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.deck-combos-tab.active {
+  background: var(--surface2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.deck-combos-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.05rem;
+  padding: 0 0.3rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: var(--surface2);
+  color: var(--text2);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-combos-tab.active .deck-combos-tab-count {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.deck-combos-empty {
+  font-size: var(--text-sm);
+  color: var(--text3);
+  padding: 0.75rem 0.25rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deck-combos-empty p {
+  margin: 0;
+}
+
+.deck-combos-empty-secondary {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  padding-top: 0.25rem;
+  border-top: 0.5px dashed var(--border2);
+}
+
+.deck-combos-error {
+  color: var(--err-text);
+}
+
+.deck-combos-close-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: 0;
+}
+
+.deck-combos-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  margin: 0;
+  padding: 0.25rem 0.4rem;
+  border: 0.5px dashed var(--border2);
+  border-radius: var(--radius);
+}
+
+.deck-combos-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Auto-fit grid: stays 1-col in the narrow sidebar, fans out to 2+ cols
+     when the panel takes the full page width (stacked on tablet/mobile, or
+     any user-widened layout). Mirrors the reference UI's 2-up combo grid. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 0.5rem;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.deck-combos-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.deck-combos-row:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.deck-combos-row.expanded {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg));
+}
+
+.deck-combos-row-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.deck-combos-row-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.deck-combos-row-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.deck-combos-row-status.is-complete {
+  color: var(--accent);
+}
+
+.deck-combos-row-status.is-near-miss {
+  /* Warning-tinted to match the reference's amber triangle. Falls back to
+     the accent if --warn-text isn't defined in the active theme. */
+  color: var(--warn-text, color-mix(in srgb, var(--accent) 70%, #f0a000));
+}
+
+.deck-combos-row-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.deck-combos-show-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  padding: 0.2rem 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.deck-combos-show-details:hover {
+  text-decoration: underline;
+}
+
+.deck-combos-show-details:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.deck-combos-pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.deck-combos-pip {
+  /* Match the look of the in-row mana symbols. em-scaling intentional. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.95em;
+}
+
+.deck-combos-row-meta {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Full card-image grid — flex row that wraps for 3+ card combos. Each tile
+   takes equal width within the available aside; the aspect ratio holds the
+   Scryfall card shape (488/680) so heights stay aligned.
+
+   --gap is exposed as a custom property so the "+" separator can mirror it
+   exactly and stay perfectly centered between adjacent cards. */
+.deck-combos-card-grid {
+  --gap: 0.6rem;
+
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--gap);
+  /* Center so a wrapped odd-count combo doesn't look offset. */
+  justify-content: center;
+}
+
+.deck-combos-card-tile {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  /* Cap card width so 2-card combos in a wide column don't render at giant
+     sizes; the aspect-ratio frame keeps the proportions natural. */
+  max-width: 6.5rem;
+  display: flex;
+  align-items: stretch;
+}
+
+.deck-combos-plus {
+  position: absolute;
+  /* Anchor the glyph's center at the midpoint of the inter-card gap.
+     Negative offset = half-gap left of this tile's left edge; translate(-50%)
+     then pulls the "+" so its own geometric center sits on that line. */
+  left: calc(var(--gap) / -2);
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* The font's "+" glyph isn't perfectly centered in its em-box (most fonts
+     bias slightly low). A 1-pixel optical nudge upward looks more balanced. */
+  margin-top: -1px;
+  /* Line-height: 1 prevents the inherited body line-height from pushing the
+     glyph off-axis vertically. */
+  line-height: 1;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text3);
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.deck-combos-card-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: 0.55rem;
+  overflow: hidden;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  /* The card art looks slightly washed against the row's tinted background
+     when the row is expanded — a soft shadow re-establishes depth. */
+  box-shadow: 0 1px 2px color-mix(in srgb, black 18%, transparent);
+}
+
+.deck-combos-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.deck-combos-card-art-fallback {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--text3) 18%, transparent) 4px 5px
+  );
+}
+
+.deck-combos-card-tile.missing .deck-combos-card-art {
+  filter: grayscale(0.7) brightness(0.55);
+}
+
+.deck-combos-card-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: color-mix(in srgb, var(--err-text, var(--accent)) 60%, transparent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.deck-combos-card-qty-badge {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  line-height: 1.2;
+}
+
+/* Narrow mobile: pull max-width down further so 2-card combos fit on one
+   line even on small phones. */
+@media (max-width: 600px) {
+  .deck-combos-card-tile {
+    max-width: 5.5rem;
+  }
+}
+
+.deck-combos-produces-summary {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.deck-combos-produces-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  border: 0.5px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.deck-combos-produces-more {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.deck-combos-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.3rem;
+  border-top: 0.5px solid var(--border);
+  margin-top: 0.1rem;
+}
+
+.deck-combos-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.deck-combos-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text2);
+  margin: 0;
+}
+
+/* Toggle variant — used for the Prerequisites section so it stays collapsed
+   by default. Same visual treatment as the static title, just clickable. */
+button.deck-combos-detail-title.is-toggle {
+  /* Make the toggle obviously interactive — soft surface tint, padding so
+     the click target is comfortable, and a clear hover/focus treatment.
+     Without these the section reads as a static header and users miss
+     that they can expand it. */
+  background: var(--surface2);
+  border: 0;
+  padding: 0.3rem 0.45rem;
+  border-radius: var(--radius);
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+button.deck-combos-detail-title.is-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface2));
+  color: var(--text);
+}
+
+button.deck-combos-detail-title.is-toggle:hover .deck-combos-detail-toggle-icon {
+  color: var(--accent);
+}
+
+button.deck-combos-detail-title.is-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button.deck-combos-detail-title.is-toggle[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface2));
+}
+
+.deck-combos-detail-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  color: var(--text2);
+  transition: color 120ms ease;
+}
+
+.deck-combos-detail-label {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  margin-right: 0.35rem;
+}
+
+.deck-combos-mana-needed {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.deck-combos-bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.deck-combos-bullets li {
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.deck-combos-bullets.muted li {
+  color: var(--text2);
+}
+
+.deck-combos-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.deck-combos-steps li {
+  font-size: var(--text-sm);
+  color: var(--text);
+  padding-left: 0.15rem;
+}
+
+.deck-combos-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.deck-combos-results li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.deck-combos-infinity {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: var(--text-md);
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.deck-combos-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  /* Touch target — keep this comfortable on mobile. */
+  min-height: 2.25rem;
+  padding-inline: 0.65rem;
+}
+
+/* Tablet & smaller: panel stacks under the deck (existing rule at 1024px).
+   On true mobile the panel needs full-width breathing room and a tighter
+   internal density so the rich detail still reads. */
+@media (max-width: 600px) {
+  .deck-combos-panel {
+    padding: 0.6rem;
+  }
+
+  .deck-combos-list {
+    /* Don't constrain to viewport-height when stacked — the page scroll
+       takes over so users can read the full list naturally. */
+    max-height: none;
+  }
+
+  .deck-combos-row {
+    padding: 0.6rem 0.65rem;
+  }
+
+  .deck-combos-row-meta {
+    font-size: var(--text-xs);
+  }
+
+  .deck-combos-add {
+    /* Full-width Add button on phones — easier thumb target than aligned-left. */
+    align-self: stretch;
+    justify-content: center;
+  }
 }
 
 /* ── Click-to-edit qty on deck rows ───────────────────────────────────── */
@@ -4095,18 +5137,13 @@ input.deck-row-qty-input.deck-row-qty-missing {
   gap: 1rem;
 }
 
-.binders-index-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.binders-index-hero-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
+/*
+ * `.binders-index-hero` and `.binders-index-hero-text` layout rules live in
+ * global.css alongside `.collection-hero` / `.decks-index-hero` so all index
+ * pages share one row-with-actions definition. Don't redefine here — the
+ * old `align-items: flex-start` was conflicting with the shared rule's
+ * `align-items: flex-end` and made the Binders title sit higher than Decks.
+ */
 
 .binders-index-subtitle {
   margin: 0.35rem 0 0;
@@ -4159,15 +5196,16 @@ input.deck-row-qty-input.deck-row-qty-missing {
   border: 1px solid var(--border);
   border-left: 4px solid var(--binder-color, var(--accent));
   border-radius: var(--radius-lg);
-  transition:
-    border-color 120ms ease,
-    transform 120ms ease;
+  transition: border-color 120ms ease;
 }
 
+/* On hover, every side of the border tints to the binder's chosen color so
+   the card visually "lights up" in its own theme — not the global accent.
+   No transform on hover — that 1px lift was reading as a layout shift
+   between adjacent cards in the list. Border-color alone is enough
+   feedback and matches the Decks index card behavior. */
 .binders-index-card:hover {
-  border-color: var(--accent);
-  border-left-color: var(--binder-color, var(--accent));
-  transform: translateY(-1px);
+  border-color: var(--binder-color, var(--accent));
 }
 
 .binders-index-card-link {
