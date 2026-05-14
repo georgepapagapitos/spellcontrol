@@ -46,7 +46,9 @@ describe('isValidCommander', () => {
   });
 
   it('rejects a legendary creature with no commander legality entry', () => {
-    expect(isValidCommander(card({ legalities: {} }))).toBe(false);
+    // Cast: the type insists on a `commander` key, but we want to exercise
+    // the "missing key" branch which can happen with non-Scryfall data.
+    expect(isValidCommander(card({ legalities: {} as ScryfallCard['legalities'] }))).toBe(false);
   });
 
   it('accepts restricted as a legal commander status', () => {
