@@ -77,16 +77,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * non-starter for most testers.
    */
   const [cameraInfo, setCameraInfo] = useState<string | null>(null);
-  /**
-   * True when the camera is delivering a landscape stream into a portrait
-   * viewport. Most Android Chrome builds ignore our portrait-resolution
-   * request and hand back 1920×1080 regardless; without this rotation the
-   * user only sees the middle ~28% of the sensor (the "too zoomed in"
-   * complaint). When set we rotate the video element 90° CW visually AND
-   * route the capture pipeline through an upright off-screen canvas so
-   * OCR/pHash still see an upright card.
-   */
-  const [needsRotation, setNeedsRotation] = useState(false);
 
   useLockBodyScroll();
 
@@ -189,22 +179,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         zoom?: number;
         focusMode?: string;
       };
-      // Decide whether the displayed video needs a 90° rotation. Most
-      // Android browsers ignore our portrait resolution hint and deliver
-      // a landscape stream; rotating in CSS + crop math lets us treat it
-      // as portrait everywhere downstream.
-      const streamW = settings.width ?? 0;
-      const streamH = settings.height ?? 0;
-      const streamIsLandscape = streamW > streamH;
-      const viewportIsPortrait =
-        typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
-      const rotate = streamIsLandscape && viewportIsPortrait;
-      setNeedsRotation(rotate);
-
       const infoLine =
-        `${streamW}×${streamH}` +
-        ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}` +
-        (rotate ? ' rot=90' : '');
+        `${settings.width}×${settings.height}` +
+        ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`;
       console.log(`[scanner] camera: ${infoLine}`);
       setCameraInfo(infoLine);
       setStatus('ready');
@@ -281,77 +258,25 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     busyRef.current = true;
     setStatus('scanning');
     try {
-      const rawW = video.videoWidth;
-      const rawH = video.videoHeight;
-      // Compute the upright (portrait) card dimensions in *display* terms —
-      // i.e. as if we were sampling from a portrait stream. When the raw
-      // stream is landscape we route the capture through an upright
-      // intermediate canvas (built below) so downstream code can always
-      // pretend it's working with a properly-oriented video frame.
-      const uprightW = needsRotation ? rawH : rawW;
-      const uprightH = needsRotation ? rawW : rawH;
-
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      // The viewfinder shows a card-shaped (5:7) rect centred in the frame.
+      // Reproject those viewfinder-relative percentages onto the raw video
+      // coordinate space so we crop the same region the user is framing.
       let cardW: number;
       let cardH: number;
-      if (uprightW / uprightH > CARD_ASPECT) {
-        cardH = uprightH * 0.84;
+      if (vw / vh > CARD_ASPECT) {
+        cardH = vh * 0.84;
         cardW = cardH * CARD_ASPECT;
       } else {
-        cardW = uprightW * 0.84;
+        cardW = vw * 0.84;
         cardH = cardW / CARD_ASPECT;
       }
-      const cardX = (uprightW - cardW) / 2;
-      const cardY = (uprightH - cardH) / 2;
+      const cardX = (vw - cardW) / 2;
+      const cardY = (vh - cardH) / 2;
 
       if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
       const canvas = captureCanvasRef.current;
-
-      /**
-       * Draws a sub-rect of the upright card into `canvas` at the requested
-       * pixel size, transparently handling stream rotation. When the raw
-       * stream is portrait we drawImage straight from the video. When it's
-       * landscape we rotate 90° CW while drawing so the destination canvas
-       * always ends up with an upright card image, regardless of how the
-       * sensor was oriented.
-       */
-      const drawCardRegion = (
-        relX: number,
-        relY: number,
-        relW: number,
-        relH: number,
-        dstW: number,
-        dstH: number
-      ): CanvasRenderingContext2D => {
-        canvas.width = dstW;
-        canvas.height = dstH;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) throw new Error('Could not get canvas context.');
-        // Sub-rect in upright (post-rotation) coordinates.
-        const upX = cardX + cardW * relX;
-        const upY = cardY + cardH * relY;
-        const upW = cardW * relW;
-        const upH = cardH * relH;
-        if (!needsRotation) {
-          ctx.drawImage(video, upX, upY, upW, upH, 0, 0, dstW, dstH);
-          return ctx;
-        }
-        // Map the upright sub-rect back into raw video coords. For a 90°
-        // CW display rotation:
-        //   raw_x = upright_y
-        //   raw_y = rawH - upright_x - upright_w
-        const srcX = upY;
-        const srcY = rawH - upX - upW;
-        const srcW = upH;
-        const srcH = upW;
-        // Draw the (landscape) source rect into the (portrait) destination
-        // while rotating 90° CW so the card ends up upright.
-        ctx.save();
-        ctx.translate(dstW, 0);
-        ctx.rotate(Math.PI / 2);
-        ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, dstH, dstW);
-        ctx.restore();
-        return ctx;
-      };
 
       // ── Phase 1: pHash fast path ─────────────────────────────────────────
       let resolved: { card: ScryfallCard; via: 'phash' | 'ocr'; raw: string } | null = null;
@@ -366,7 +291,21 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           const artH = Math.round(cardH * ART_CROP.h);
           const targetW = Math.min(320, artW);
           const targetH = Math.round((targetW * artH) / artW);
-          drawCardRegion(ART_CROP.x, ART_CROP.y, ART_CROP.w, ART_CROP.h, targetW, targetH);
+          canvas.width = targetW;
+          canvas.height = targetH;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) throw new Error('Could not get canvas context.');
+          ctx.drawImage(
+            video,
+            cardX + cardW * ART_CROP.x,
+            cardY + cardH * ART_CROP.y,
+            artW,
+            artH,
+            0,
+            0,
+            targetW,
+            targetH
+          );
           const hash = dHashFromCanvas(canvas);
           const hashHex = hashToHex(hash);
           const result = await identifyCardByHash(hashHex);
@@ -381,21 +320,18 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       // ── Phase 2: OCR fallback ────────────────────────────────────────────
       if (!resolved) {
+        const titleX = cardX + cardW * TITLE_CROP.x;
+        const titleY = cardY + cardH * TITLE_CROP.y;
         const titleW = cardW * TITLE_CROP.w;
         const titleH = cardH * TITLE_CROP.h;
         // 3x scale because Tesseract is happier with bigger inputs and
         // tight phone-camera crops are often a bit soft.
         const SCALE = 3;
-        const dstW = Math.round(titleW * SCALE);
-        const dstH = Math.round(titleH * SCALE);
-        const ctx = drawCardRegion(
-          TITLE_CROP.x,
-          TITLE_CROP.y,
-          TITLE_CROP.w,
-          TITLE_CROP.h,
-          dstW,
-          dstH
-        );
+        canvas.width = Math.round(titleW * SCALE);
+        canvas.height = Math.round(titleH * SCALE);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Could not get canvas context.');
+        ctx.drawImage(video, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
 
         // Light preprocessing: grayscale + contrast boost around the mean.
         // A cheap stand-in for adaptive thresholding that meaningfully
@@ -458,7 +394,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       busyRef.current = false;
       setStatus('ready');
     }
-  }, [autoMode, showHint, needsRotation]);
+  }, [autoMode, showHint]);
 
   // Auto-scan loop. When the user enables auto mode, fire captureAndIdentify
   // on a steady interval. The `busyRef` guard inside the function prevents
@@ -503,12 +439,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   return (
     <div className="scanner-root" role="dialog" aria-label="Card scanner" aria-modal="true">
-      <video
-        ref={videoRef}
-        className={`scanner-video${needsRotation ? ' is-rotated' : ''}`}
-        playsInline
-        muted
-      />
+      <video ref={videoRef} className="scanner-video" playsInline muted />
 
       <div className="scanner-overlay" aria-hidden="true">
         <div className="scanner-viewfinder">
