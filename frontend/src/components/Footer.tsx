@@ -12,7 +12,7 @@ export function Footer() {
         <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
           Scryfall
         </a>
-        . Stored locally in your browser. <Link to="/admin">Debug</Link>
+        . <Link to="/admin">Debug</Link>
       </p>
     </footer>
   );
