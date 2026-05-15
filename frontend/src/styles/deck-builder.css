@@ -1431,6 +1431,14 @@ input.toolbar-search-input {
   cursor: not-allowed;
 }
 
+.deck-row-menu-item--danger {
+  color: var(--danger, #b94545);
+}
+
+.deck-row-menu-item--danger:hover:not(:disabled) {
+  background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+}
+
 .deck-row-role-multi-dot {
   width: 0.55rem;
   height: 0.55rem;
@@ -1589,14 +1597,15 @@ input.toolbar-search-input {
 }
 
 .deck-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.85rem;
+  /* Masonry-style columns: panels hug their own content and pack tightly
+     with even gaps. A row grid can't do this — it either stretches short
+     panels to the tallest sibling (dead whitespace) or, with
+     align-items:start, leaves big gaps where a short panel sits in a tall
+     row. Same pattern as .deck-card-list. */
+  columns: 220px;
+  column-gap: 0.85rem;
 }
 
-/* The HTML [hidden] attribute is overridden by `.deck-stats-grid { display:
-   grid }` due to specificity tie + author-rule precedence. Re-assert hidden
-   so the body actually disappears when the user collapses the section. */
 .deck-stats-grid[hidden] {
   display: none;
 }
@@ -1607,7 +1616,7 @@ input.toolbar-search-input {
    Combos and Test Hand panels in the editor aside, all of which are
    user-collapsible regardless of viewport. */
 .deck-display-sidebar .deck-stats-grid {
-  grid-template-columns: 1fr;
+  columns: 1;
 }
 
 .deck-stats-panel {
@@ -1615,6 +1624,10 @@ input.toolbar-search-input {
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem 0.875rem;
+  /* Keep a panel from splitting across columns and give every panel the
+     same vertical rhythm (column-gap only handles horizontal spacing). */
+  break-inside: avoid;
+  margin-bottom: 0.85rem;
 }
 
 .deck-stats-panel-title {
@@ -1635,7 +1648,9 @@ input.toolbar-search-input {
   display: flex;
   align-items: flex-end;
   gap: 0.3rem;
-  height: 96px;
+  /* Scale with viewport height so the curve uses more vertical space on
+     taller screens, with a sensible floor/ceiling. */
+  height: clamp(120px, 26vh, 300px);
   padding: 0.25rem 0 0;
 }
 
@@ -5086,7 +5101,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
   }
 
   .deck-display-sidebar .deck-stats-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    columns: 220px;
   }
 
   .deck-editor-layout.with-panel {
@@ -5162,7 +5177,9 @@ input.deck-row-qty-input.deck-row-qty-missing {
     column-count: 1;
     column-width: auto;
   }
-  .deck-stats-grid,
+  .deck-stats-grid {
+    columns: 1;
+  }
   .decks-index-list {
     grid-template-columns: 1fr;
   }
@@ -5192,7 +5209,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
   }
 
   .deck-curve {
-    height: 80px;
+    height: clamp(110px, 30vh, 220px);
   }
 }
 

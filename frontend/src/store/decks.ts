@@ -66,6 +66,14 @@ export interface Deck {
   cardDrawSubtypeCounts?: Record<string, number>;
   bracketEstimation?: BracketEstimation;
   deckGrade?: { letter: string; headline: string };
+  /**
+   * Hash of the inputs (commander + mainboard card names) the persisted
+   * deckGrade/bracketEstimation were last computed from. Only set for manual
+   * commander decks, where grade/bracket are computed live and recomputed when
+   * this signature changes. Absent on generated decks (their grade/bracket is
+   * a frozen generation snapshot).
+   */
+  gradeBracketSignature?: string;
   /** Mean EDHREC salt score across non-land cards. Snapshotted at generation. */
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
@@ -98,6 +106,7 @@ interface DecksState {
     cardDrawSubtypeCounts?: Record<string, number>;
     bracketEstimation?: BracketEstimation;
     deckGrade?: { letter: string; headline: string };
+    gradeBracketSignature?: string;
     averageSalt?: number;
     saltiestCards?: Array<{ name: string; salt: number }>;
   }): string;
@@ -171,6 +180,7 @@ export const useDecksStore = create<DecksState>()(
           cardDrawSubtypeCounts: input.cardDrawSubtypeCounts,
           bracketEstimation: input.bracketEstimation,
           deckGrade: input.deckGrade,
+          gradeBracketSignature: input.gradeBracketSignature,
           averageSalt: input.averageSalt,
           saltiestCards: input.saltiestCards,
           color: input.color ?? pickRandomPresetColor(),
