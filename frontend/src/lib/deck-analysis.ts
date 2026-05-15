@@ -301,7 +301,7 @@ export function analyzeDeck(input: DeckAnalysisInput, taggerReady: boolean): Dec
 export function getRoleDeficits(analysis: DeckAnalysisResult): (RoleKey | 'lands')[] {
   return analysis.roles
     .filter((r) => r.status === 'low' && r.key !== 'lands')
-    .sort((a, b) => a.range[0] - a.count - (b.range[0] - b.count))
+    .sort((a, b) => b.range[0] - b.count - (a.range[0] - a.count))
     .map((r) => r.key);
 }
 
