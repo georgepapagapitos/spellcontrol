@@ -32,6 +32,8 @@ interface Props {
   onClose: () => void;
   /** Forwarded to the inner CardPreview's Edit button. */
   onEditCard?: (card: EnrichedCard) => void;
+  /** Group-printings qty by copyId — forwarded to inner CardPreview's ×N tag. */
+  qtyByCopyId?: Map<string, number>;
 }
 
 export function BinderPagePreview({
@@ -43,6 +45,7 @@ export function BinderPagePreview({
   resolveCard,
   onClose,
   onEditCard,
+  qtyByCopyId,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -265,6 +268,15 @@ export function BinderPagePreview({
           sectionLabels={innerCard.sectionLabels}
           pageNumbers={innerCard.pageNumbers}
           totalPages={innerCard.totalPages}
+          getStackAllocations={(i) => {
+            const c = innerCard.cards[i];
+            const a = c ? allocations.get(c.copyId) : null;
+            return a ? [a] : [];
+          }}
+          getStackQty={(i) => {
+            const c = innerCard.cards[i];
+            return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
+          }}
           onIndexChange={(i) => setInnerCard((prev) => (prev ? { ...prev, index: i } : prev))}
           onClose={() => setInnerCard(null)}
           onEdit={
@@ -353,6 +365,7 @@ function Cell({
         <Link
           to={`/decks/${allocation.deckId}`}
           className="slot-deck-badge"
+          style={{ '--deck-color': allocation.deckColor || 'var(--accent)' } as React.CSSProperties}
           title={`In deck: ${allocation.deckName}`}
           onClick={(e) => e.stopPropagation()}
           aria-label={`Open deck ${allocation.deckName}`}

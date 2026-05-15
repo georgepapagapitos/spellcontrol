@@ -406,7 +406,13 @@ export async function startSync(userId?: string): Promise<void> {
       /* ignore */
     }
     if (owner && owner !== userId) {
-      await wipeLocal();
+      // A wipe failure must not skip hydrateFromCache below — otherwise the
+      // `hydrating` flag never clears and the UI is stuck on a loading state.
+      try {
+        await wipeLocal();
+      } catch (err) {
+        console.warn('[sync] wipeLocal failed during startSync:', err);
+      }
     }
     try {
       localStorage.setItem(OWNER_KEY, userId);
