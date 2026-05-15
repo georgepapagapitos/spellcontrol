@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
+import { isBasicLandName, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
 import { markDestructive } from '../lib/sync-intent';
 import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
@@ -66,6 +66,9 @@ export interface Deck {
   cardDrawSubtypeCounts?: Record<string, number>;
   bracketEstimation?: BracketEstimation;
   deckGrade?: { letter: string; headline: string };
+  /** Mean EDHREC salt score across non-land cards. Snapshotted at generation. */
+  averageSalt?: number;
+  saltiestCards?: Array<{ name: string; salt: number }>;
   /** User-chosen accent color (hex). Defaults to a random preset on create. */
   color: string;
   createdAt: number;
@@ -95,11 +98,15 @@ interface DecksState {
     cardDrawSubtypeCounts?: Record<string, number>;
     bracketEstimation?: BracketEstimation;
     deckGrade?: { letter: string; headline: string };
+    averageSalt?: number;
+    saltiestCards?: Array<{ name: string; salt: number }>;
   }): string;
 
   updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>): void;
   renameDeck(id: string, name: string): void;
   deleteDeck(id: string): void;
+  /** Delete every deck. Used by the admin "Wipe all decks" button. */
+  deleteAllDecks(): void;
   /** Deep-clone a deck. Allocations reset — the original still claims those copies. */
   duplicateDeck(id: string): string | null;
 
@@ -164,6 +171,8 @@ export const useDecksStore = create<DecksState>()(
           cardDrawSubtypeCounts: input.cardDrawSubtypeCounts,
           bracketEstimation: input.bracketEstimation,
           deckGrade: input.deckGrade,
+          averageSalt: input.averageSalt,
+          saltiestCards: input.saltiestCards,
           color: input.color ?? pickRandomPresetColor(),
           createdAt: now,
           updatedAt: now,
@@ -185,6 +194,11 @@ export const useDecksStore = create<DecksState>()(
       deleteDeck: (id) => {
         markDestructive();
         set((s) => ({ decks: s.decks.filter((d) => d.id !== id) }));
+      },
+
+      deleteAllDecks: () => {
+        markDestructive();
+        set({ decks: [] });
       },
 
       duplicateDeck: (id) => {
@@ -500,8 +514,14 @@ export const useDecksStore = create<DecksState>()(
           const needsPick: SlotRef[] = [];
           for (const slot of slots) {
             const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
+            // Basic lands are fungible — any printing satisfies the slot's
+            // preference, so the current binding is "OK" regardless of
+            // scryfallId. Without this, every basic-land slot churns to
+            // whatever printing pass 2 happens to find first.
             const printingOk =
-              !slot.scryfallId || (current ? current.scryfallId === slot.scryfallId : false);
+              !slot.scryfallId ||
+              isBasicLandName(slot.cardName) ||
+              (current ? current.scryfallId === slot.scryfallId : false);
             if (
               slot.currentCopyId &&
               current &&
@@ -522,7 +542,9 @@ export const useDecksStore = create<DecksState>()(
           // pre-fix randomness left slots on whatever Plains was cheap.
           const stillNeedsPick: SlotRef[] = [];
           for (const slot of needsPick) {
-            if (!slot.scryfallId) {
+            // No preferred printing or basic land → skip the printing-match
+            // upgrade and let pass 3/4 distribute across whatever's free.
+            if (!slot.scryfallId || isBasicLandName(slot.cardName)) {
               stillNeedsPick.push(slot);
               continue;
             }

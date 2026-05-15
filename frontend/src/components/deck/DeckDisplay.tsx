@@ -1,15 +1,21 @@
 import {
   BarChart3,
+  Check,
   CircleAlert,
   ChevronDown,
   ChevronUp,
+  Clipboard,
+  Download,
   Eye,
   FileText,
+  Layers,
   LayoutGrid,
   List as ListIconLucide,
   MoreVertical,
   Search,
+  X,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
@@ -23,10 +29,17 @@ import {
 import type { DeckCard } from '../../store/decks';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
+import { Modal } from '../Modal';
 import { CardPreview } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { COLOR_INFO } from '../../lib/colors';
-import { classifyAllocation, type AllocationStatus } from '../../lib/allocations';
+import {
+  buildAllocationMap,
+  classifyAllocation,
+  type AllocationInfo,
+  type AllocationStatus,
+} from '../../lib/allocations';
+import { useDecksStore } from '../../store/decks';
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import {
@@ -297,6 +310,9 @@ export interface DeckDisplayProps {
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
   deckGrade?: { letter: string; headline: string };
+  /** Mean EDHREC salt score across non-land cards (generated decks only). */
+  averageSalt?: number;
+  saltiestCards?: Array<{ name: string; salt: number }>;
   /** Role counts from the generator (only present on generated decks). */
   roleCounts?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
@@ -351,6 +367,10 @@ interface Row {
   unownedQty: number;
   /** Number of slots in this row whose allocatedCopyId no longer exists in the collection. */
   orphanQty: number;
+  /** Number of slots in this row where the user owns a copy by name but every copy is allocated to another deck. */
+  claimedElsewhereQty: number;
+  /** First deck claiming a copy of this card (for the badge link/color). Only set when claimedElsewhereQty > 0. */
+  claimedBy?: AllocationInfo;
   /**
    * Front-face image to display for this row. Prefers the user's owned
    * printing (via `allocatedCopyId` → collection EnrichedCard) so the
@@ -364,6 +384,15 @@ interface Row {
   finishes?: string[];
   promoTypes?: string[];
   frameEffects?: string[];
+  /**
+   * Set / collector number / set name from the owned printing when an
+   * allocated copy exists, otherwise from the deck slot's stored card.
+   * Used so the carousel and detail panes show metadata that matches the
+   * displayed image — no more "image is M20 but the chip says HOB".
+   */
+  setCode: string;
+  setName?: string;
+  collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
 }
@@ -386,19 +415,40 @@ function colorKeyOf(card: ScryfallCard): string {
   return 'M';
 }
 
+interface CrossDeckCtx {
+  copiesByName?: Map<string, EnrichedCard[]>;
+  otherDeckAllocations?: Map<string, AllocationInfo>;
+}
+
 function buildRows(
   cards: DeckDisplayCard[],
   currency: CurrencyCode,
-  collectionById: Map<string, EnrichedCard> | undefined
+  collectionById: Map<string, EnrichedCard> | undefined,
+  crossDeck?: CrossDeckCtx
 ): Row[] {
   const map = new Map<string, Row>();
   // Tracks whether a row's image was sourced from an owned printing — if so,
   // we don't downgrade it to a deck-stored fallback later.
   const ownedImage = new Set<string>();
+  const classify = (dc: DeckDisplayCard): AllocationStatus =>
+    classifyAllocation(dc.allocatedCopyId ?? null, collectionById, {
+      cardName: dc.card.name,
+      copiesByName: crossDeck?.copiesByName,
+      allocations: crossDeck?.otherDeckAllocations,
+    });
+  const claimedByFor = (cardName: string): AllocationInfo | undefined => {
+    const copies = crossDeck?.copiesByName?.get(cardName.toLowerCase());
+    if (!copies || !crossDeck?.otherDeckAllocations) return undefined;
+    for (const c of copies) {
+      const info = crossDeck.otherDeckAllocations.get(c.copyId);
+      if (info) return info;
+    }
+    return undefined;
+  };
   for (const dc of cards) {
     const card = dc.card;
     const existing = map.get(card.name);
-    const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionById);
+    const status = classify(dc);
     const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
     if (existing) {
       existing.qty += 1;
@@ -407,7 +457,11 @@ function buildRows(
       if (dc.slotId) existing.slotIds.push(dc.slotId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
+      else if (status === 'claimed-elsewhere') existing.claimedElsewhereQty += 1;
       else existing.unownedQty += 1;
+      if (status === 'claimed-elsewhere' && !existing.claimedBy) {
+        existing.claimedBy = claimedByFor(card.name);
+      }
       // Severity: orphan > unowned > allocated. Keep the most-noteworthy.
       if (statusSeverity(status) > statusSeverity(existing.status)) {
         existing.status = status;
@@ -423,6 +477,9 @@ function buildRows(
         existing.finishes = owned.finishes;
         existing.promoTypes = owned.promoTypes;
         existing.frameEffects = owned.frameEffects;
+        existing.setCode = owned.setCode || existing.setCode;
+        existing.setName = owned.setName || existing.setName;
+        existing.collectorNumber = owned.collectorNumber || existing.collectorNumber;
         ownedImage.add(card.name);
       }
       continue;
@@ -441,6 +498,8 @@ function buildRows(
       allocatedQty: status === 'allocated' ? 1 : 0,
       unownedQty: status === 'unowned' ? 1 : 0,
       orphanQty: status === 'orphan' ? 1 : 0,
+      claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
+      claimedBy: status === 'claimed-elsewhere' ? claimedByFor(card.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
       foil: owned?.foil ?? false,
@@ -448,30 +507,40 @@ function buildRows(
       finishes: owned?.finishes,
       promoTypes: owned?.promoTypes,
       frameEffects: owned?.frameEffects,
+      setCode: owned?.setCode || card.set || '',
+      setName: owned?.setName || card.set_name,
+      collectorNumber: owned?.collectorNumber || card.collector_number || '',
     });
   }
   return [...map.values()];
 }
 
 function statusSeverity(s: AllocationStatus): number {
-  return s === 'orphan' ? 2 : s === 'unowned' ? 1 : 0;
+  return s === 'orphan' ? 3 : s === 'unowned' ? 2 : s === 'claimed-elsewhere' ? 1 : 0;
 }
 
 // Plain-language description of how this row's slots map to owned copies.
 // Used as the screen-reader label and hover title for the qty pill, so the
 // allocation truth is conveyed even when no warning glyph is shown.
 function allocationSummary(row: Row): string {
-  const missing = row.unownedQty + row.orphanQty;
+  const missing = row.unownedQty + row.orphanQty + row.claimedElsewhereQty;
   if (missing === 0) {
     return row.qty === 1 ? 'From your collection' : `All ${row.qty} copies from your collection`;
   }
   if (row.allocatedQty === 0) {
-    return row.orphanQty > 0
-      ? 'The collection copy this slot was assigned to is no longer present'
-      : 'Not in your collection';
+    if (row.orphanQty > 0)
+      return 'The collection copy this slot was assigned to is no longer present';
+    if (row.unownedQty > 0) return 'Not in your collection';
+    return row.claimedBy
+      ? `Owned, but currently in deck: ${row.claimedBy.deckName}`
+      : 'Owned, but currently in another deck';
   }
-  const orphanNote = row.orphanQty > 0 ? ` (${row.orphanQty} no longer in collection)` : '';
-  return `${row.allocatedQty} of ${row.qty} from your collection${orphanNote}`;
+  const parts: string[] = [];
+  if (row.claimedElsewhereQty > 0) parts.push(`${row.claimedElsewhereQty} in another deck`);
+  if (row.orphanQty > 0) parts.push(`${row.orphanQty} no longer in collection`);
+  if (row.unownedQty > 0) parts.push(`${row.unownedQty} not in collection`);
+  const note = parts.length > 0 ? ` (${parts.join('; ')})` : '';
+  return `${row.allocatedQty} of ${row.qty} from your collection${note}`;
 }
 
 function allocationAriaLabel(row: Row, opts: { editable: boolean }): string {
@@ -491,15 +560,43 @@ function allocationTitle(row: Row, opts: { editable: boolean }): string {
 // row is fully allocated; surfaces a precise "M of N owned" count when only
 // some slots are bound to a real collection copy. Orphans get their own
 // tone so a stale-allocation row is distinguishable from a never-owned one.
+// When the user owns the card but every copy is allocated to a different
+// deck, we surface the same "deck badge" (Layers icon + deck color) used
+// in the Collection grid so the row reads "in another deck" — never
+// "unowned" for a card that's already in the binder.
 function AllocationChip({ row }: { row: Row }) {
-  const missing = row.unownedQty + row.orphanQty;
+  const missing = row.unownedQty + row.orphanQty + row.claimedElsewhereQty;
   if (missing === 0) return null;
-  const tone = row.orphanQty > 0 ? 'orphan' : 'unowned';
+  // "Claimed elsewhere" gets the deck-link badge — when there's no genuinely
+  // unowned/orphan slot mixed in, the chip is purely a navigation affordance.
+  if (row.claimedElsewhereQty > 0 && row.unownedQty === 0 && row.orphanQty === 0 && row.claimedBy) {
+    const info = row.claimedBy;
+    const title =
+      row.claimedElsewhereQty === row.qty
+        ? `In deck: ${info.deckName}`
+        : `${row.claimedElsewhereQty} of ${row.qty} in deck: ${info.deckName}`;
+    return (
+      <Link
+        to={`/decks/${info.deckId}`}
+        className="deck-row-alloc-badge"
+        style={{ ['--deck-color']: info.deckColor || 'var(--accent)' } as React.CSSProperties}
+        title={title}
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
+        <span className="deck-row-alloc-badge-label">{info.deckName}</span>
+      </Link>
+    );
+  }
+  const tone = row.orphanQty > 0 ? 'orphan' : row.unownedQty > 0 ? 'unowned' : 'claimed-elsewhere';
   const label =
     row.allocatedQty === 0
       ? row.orphanQty > 0
         ? 'orphan'
-        : 'unowned'
+        : row.unownedQty > 0
+          ? 'unowned'
+          : 'in another deck'
       : `${row.allocatedQty} of ${row.qty} owned`;
   return (
     <span
@@ -560,6 +657,8 @@ export function DeckDisplay({
   sideboard = [],
   bracketEstimation,
   deckGrade,
+  averageSalt,
+  saltiestCards,
   roleCounts,
   rampSubtypeCounts,
   removalSubtypeCounts,
@@ -656,6 +755,35 @@ export function DeckDisplay({
     return () => mql.removeEventListener('change', update);
   }, []);
 
+  // Cross-deck context: lets us distinguish "you don't own this card" from
+  // "you own it, but a different deck has the copy claimed". We exclude the
+  // current deck's own allocations so a slot in *this* deck doesn't count
+  // as "claimed elsewhere" against itself.
+  const allDecks = useDecksStore((s) => s.decks);
+  const crossDeck: CrossDeckCtx = useMemo(() => {
+    if (!collectionByCopyId) return {};
+    const copiesByName = new Map<string, EnrichedCard[]>();
+    for (const copy of collectionByCopyId.values()) {
+      const key = copy.name.toLowerCase();
+      const list = copiesByName.get(key);
+      if (list) list.push(copy);
+      else copiesByName.set(key, [copy]);
+    }
+    const others = deckId ? allDecks.filter((d) => d.id !== deckId) : allDecks;
+    const otherDeckAllocations = buildAllocationMap(others);
+    return { copiesByName, otherDeckAllocations };
+  }, [collectionByCopyId, allDecks, deckId]);
+
+  const claimedByForName = (cardName: string): AllocationInfo | undefined => {
+    const copies = crossDeck.copiesByName?.get(cardName.toLowerCase());
+    if (!copies || !crossDeck.otherDeckAllocations) return undefined;
+    for (const c of copies) {
+      const info = crossDeck.otherDeckAllocations.get(c.copyId);
+      if (info) return info;
+    }
+    return undefined;
+  };
+
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
   const commanderRows: Row[] = useMemo(() => {
@@ -664,7 +792,12 @@ export function DeckDisplay({
       const owned = allocatedCopyId ? collectionByCopyId?.get(allocatedCopyId) : undefined;
       const status: AllocationStatus = classifyAllocation(
         allocatedCopyId ?? null,
-        collectionByCopyId
+        collectionByCopyId,
+        {
+          cardName: c.name,
+          copiesByName: crossDeck.copiesByName,
+          allocations: crossDeck.otherDeckAllocations,
+        }
       );
       rows.push({
         name: c.name,
@@ -679,6 +812,8 @@ export function DeckDisplay({
         allocatedQty: status === 'allocated' ? 1 : 0,
         unownedQty: status === 'unowned' ? 1 : 0,
         orphanQty: status === 'orphan' ? 1 : 0,
+        claimedElsewhereQty: status === 'claimed-elsewhere' ? 1 : 0,
+        claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
         imageNormal: owned?.imageNormal ?? frontFaceImage(c),
         imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
         foil: owned?.foil ?? false,
@@ -686,6 +821,9 @@ export function DeckDisplay({
         finishes: owned?.finishes,
         promoTypes: owned?.promoTypes,
         frameEffects: owned?.frameEffects,
+        setCode: owned?.setCode || c.set || '',
+        setName: owned?.setName || c.set_name,
+        collectorNumber: owned?.collectorNumber || c.collector_number || '',
       });
     };
     if (commander) push(commander, commanderAllocatedCopyId);
@@ -697,11 +835,12 @@ export function DeckDisplay({
     commanderAllocatedCopyId,
     partnerCommanderAllocatedCopyId,
     collectionByCopyId,
+    crossDeck,
   ]);
 
   // Non-commander rows grouped by canonical type.
   const groups = useMemo(() => {
-    const rows = buildRows(cards, currency, collectionByCopyId);
+    const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
     const buckets = new Map<TypeGroup, Row[]>();
     for (const row of rows) {
       const t = classifyType(row.card);
@@ -718,12 +857,12 @@ export function DeckDisplay({
       if (r && r.length > 0) ordered.push({ title: t, icon: TYPE_ICON[t], rows: r });
     }
     return ordered;
-  }, [cards, commanderRows, collectionByCopyId]);
+  }, [cards, commanderRows, collectionByCopyId, crossDeck]);
 
   // Sideboard rows grouped by canonical type.
   const sideboardGroups = useMemo(() => {
     if (sideboard.length === 0) return [];
-    const rows = buildRows(sideboard, currency, collectionByCopyId);
+    const rows = buildRows(sideboard, currency, collectionByCopyId, crossDeck);
     const buckets = new Map<TypeGroup, Row[]>();
     for (const row of rows) {
       const t = classifyType(row.card);
@@ -737,7 +876,7 @@ export function DeckDisplay({
       if (r && r.length > 0) ordered.push({ title: t, icon: TYPE_ICON[t], rows: r });
     }
     return ordered;
-  }, [sideboard, collectionByCopyId]);
+  }, [sideboard, collectionByCopyId, crossDeck]);
 
   // Legality issues for the current format.
   const legalityIssues = useMemo(() => {
@@ -852,8 +991,27 @@ export function DeckDisplay({
   }, [allCards]);
 
   const exportText = useMemo(
-    () => buildExport(commander, partnerCommander, cards, exportFormat, sideboard),
-    [commander, partnerCommander, cards, exportFormat, sideboard]
+    () =>
+      buildExport(
+        commander,
+        partnerCommander,
+        cards,
+        exportFormat,
+        sideboard,
+        collectionByCopyId,
+        commanderAllocatedCopyId,
+        partnerCommanderAllocatedCopyId
+      ),
+    [
+      commander,
+      partnerCommander,
+      cards,
+      exportFormat,
+      sideboard,
+      collectionByCopyId,
+      commanderAllocatedCopyId,
+      partnerCommanderAllocatedCopyId,
+    ]
   );
   // If the parent passes both props, treat it as a controlled component
   // (their boolean wins). Otherwise fall back to internal state — keeps
@@ -898,6 +1056,9 @@ export function DeckDisplay({
             finishes: row.finishes,
             promoTypes: row.promoTypes,
             frameEffects: row.frameEffects,
+            setCode: row.setCode,
+            setName: row.setName,
+            collectorNumber: row.collectorNumber,
           })
         );
         labels.push(g.title);
@@ -1045,6 +1206,8 @@ export function DeckDisplay({
             boardwipeSubtypeCounts={boardwipeSubtypeCounts}
             cardDrawSubtypeCounts={cardDrawSubtypeCounts}
             averageCmc={averageCmc}
+            averageSalt={averageSalt}
+            saltiestCards={saltiestCards}
             open={isStatsAlwaysOpen || statsOpen}
             onToggle={isStatsAlwaysOpen ? undefined : () => setStatsOpen((v) => !v)}
           />
@@ -1094,64 +1257,71 @@ function ExportDialog({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const lineCount = useMemo(() => text.split('\n').filter(Boolean).length, [text]);
   const handleCopyClick = () => {
     onCopy();
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal export-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Export deck"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h2>Export deck</h2>
-          <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <div className="modal-body export-dialog-body">
-          <div className="export-dialog-actions">
-            <button type="button" className="export-dialog-action" onClick={handleCopyClick}>
-              <span className="export-dialog-action-label">{copied ? 'Copied!' : 'Copy'}</span>
-            </button>
-            <button type="button" className="export-dialog-action" onClick={onDownload}>
-              <span className="export-dialog-action-label">Download</span>
-            </button>
-          </div>
-          <div className="export-dialog-format">
-            <SelectMenu
-              label="Format"
-              ariaLabel="Export format"
-              value={format}
-              onChange={(v) => onFormatChange(v as ExportFormat)}
-              options={(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => ({
-                value: f,
-                label: EXPORT_FORMAT_LABEL[f],
-              }))}
-            />
-          </div>
-          <textarea
-            className="export-dialog-preview"
-            value={text}
-            readOnly
-            spellCheck={false}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-        </div>
+    <Modal onClose={onClose} className="modal export-dialog" labelledBy="export-deck-title">
+      <div className="export-dialog-header">
+        <h2 id="export-deck-title" className="export-dialog-title">
+          Export deck
+        </h2>
+        <button type="button" className="export-dialog-close" aria-label="Close" onClick={onClose}>
+          <X width={18} height={18} strokeWidth={2} aria-hidden />
+        </button>
       </div>
-    </div>
+      <div className="export-dialog-body">
+        <div className="export-dialog-controls">
+          <SelectMenu
+            label="Format"
+            ariaLabel="Export format"
+            value={format}
+            onChange={(v) => onFormatChange(v as ExportFormat)}
+            options={(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => ({
+              value: f,
+              label: EXPORT_FORMAT_LABEL[f],
+            }))}
+          />
+          <span className="export-dialog-meta">
+            {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+          </span>
+          <div className="export-dialog-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={onDownload}
+              aria-label="Download as text file"
+            >
+              <Download width={14} height={14} strokeWidth={2} aria-hidden />
+              <span>Download</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleCopyClick}
+              aria-label="Copy to clipboard"
+            >
+              {copied ? (
+                <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
+              ) : (
+                <Clipboard width={14} height={14} strokeWidth={2} aria-hidden />
+              )}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+        </div>
+        <textarea
+          className="export-dialog-preview"
+          value={text}
+          readOnly
+          spellCheck={false}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      </div>
+    </Modal>
   );
 }
 
@@ -1165,6 +1335,9 @@ interface EnrichedOverrides {
   finishes?: string[];
   promoTypes?: string[];
   frameEffects?: string[];
+  setCode?: string;
+  setName?: string;
+  collectorNumber?: string;
 }
 
 function scryfallToEnriched(
@@ -1185,9 +1358,9 @@ function scryfallToEnriched(
   return {
     copyId: crypto.randomUUID(),
     name: card.name,
-    setCode: card.set,
-    setName: card.set_name,
-    collectorNumber: card.collector_number ?? '',
+    setCode: overrides?.setCode ?? card.set,
+    setName: overrides?.setName ?? card.set_name,
+    collectorNumber: overrides?.collectorNumber ?? card.collector_number ?? '',
     rarity: card.rarity,
     scryfallId: card.id,
     purchasePrice: Number.isFinite(price) ? price : 0,
@@ -2003,6 +2176,8 @@ function DeckStatistics({
   boardwipeSubtypeCounts,
   cardDrawSubtypeCounts,
   averageCmc,
+  averageSalt,
+  saltiestCards,
   open,
   onToggle,
 }: {
@@ -2019,6 +2194,8 @@ function DeckStatistics({
   boardwipeSubtypeCounts?: Record<string, number>;
   cardDrawSubtypeCounts?: Record<string, number>;
   averageCmc: number;
+  averageSalt?: number;
+  saltiestCards?: Array<{ name: string; salt: number }>;
   open: boolean;
   /** Omit to render an always-open header with no caret / click handler. */
   onToggle?: () => void;
@@ -2140,10 +2317,6 @@ function DeckStatistics({
         <button type="button" className="deck-stats-header" onClick={onToggle} aria-expanded={open}>
           <BarChart3 width={16} height={16} aria-hidden />
           <span className="deck-stats-title">Statistics</span>
-          <span className="deck-stats-meta">
-            {totalCards} {totalCards === 1 ? 'card' : 'cards'} · avg CMC {averageCmc.toFixed(2)} ·{' '}
-            {fmtMoney(totalPrice, currency)}
-          </span>
           <span className="deck-stats-caret" aria-hidden>
             {open ? <ChevronUp width={16} height={16} /> : <ChevronDown width={16} height={16} />}
           </span>
@@ -2152,13 +2325,55 @@ function DeckStatistics({
         <div className="deck-stats-header deck-stats-header--static">
           <BarChart3 width={16} height={16} aria-hidden />
           <span className="deck-stats-title">Statistics</span>
-          <span className="deck-stats-meta">
-            {totalCards} {totalCards === 1 ? 'card' : 'cards'} · avg CMC {averageCmc.toFixed(2)} ·{' '}
-            {fmtMoney(totalPrice, currency)}
-          </span>
         </div>
       )}
       <div className="deck-stats-grid" hidden={!open}>
+        <Panel title="Overview">
+          <ul className="deck-overview-list">
+            <li className="deck-overview-row">
+              <span className="deck-overview-label">Cards</span>
+              <span className="deck-overview-value">{totalCards}</span>
+            </li>
+            <li className="deck-overview-row">
+              <span className="deck-overview-label">Avg CMC</span>
+              <span className="deck-overview-value">{averageCmc.toFixed(2)}</span>
+            </li>
+            {typeof averageSalt === 'number' && (
+              <li className="deck-overview-row">
+                <span className="deck-overview-label">Avg salt</span>
+                <span className="deck-overview-value">{averageSalt.toFixed(2)}</span>
+              </li>
+            )}
+            <li className="deck-overview-row">
+              <span className="deck-overview-label">Total price</span>
+              <span className="deck-overview-value">{fmtMoney(totalPrice, currency)}</span>
+            </li>
+          </ul>
+        </Panel>
+        {saltiestCards && saltiestCards.length > 0 && (
+          <Panel title="Saltiest cards">
+            <ul className="deck-saltiest-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {saltiestCards.map((c) => (
+                <li
+                  key={c.name}
+                  className="deck-saltiest-row"
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}
+                >
+                  <span className="deck-saltiest-name">{c.name}</span>
+                  <span className="deck-saltiest-score" style={{ opacity: 0.7 }}>
+                    {c.salt.toFixed(2)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p
+              className="deck-saltiest-hint"
+              style={{ fontSize: '0.85em', opacity: 0.6, marginTop: 8 }}
+            >
+              EDHREC salt score (higher = more polarizing).
+            </p>
+          </Panel>
+        )}
         <Panel title="Mana curve">
           <div className="deck-curve">
             {cmcKeys.map((cmc) => {
@@ -2407,38 +2622,118 @@ function RolesPanel({
 }
 
 // ── Export decklist ───────────────────────────────────────────────────────
-function formatLine(card: ScryfallCard, qty: number, format: ExportFormat): string {
+type PrintingFinish = 'nonfoil' | 'foil' | 'etched';
+
+interface ExportEntry {
+  name: string;
+  set: string;
+  collectorNumber: string;
+  qty: number;
+  finish: PrintingFinish;
+  language?: string;
+}
+
+function formatLine(entry: ExportEntry, format: ExportFormat): string {
+  const { name, qty, finish, language } = entry;
+  const set = entry.set.toUpperCase();
+  const num = entry.collectorNumber;
+  const lang = language && language !== 'en' ? language.toUpperCase() : '';
   switch (format) {
     case 'mtga': {
-      const set = (card.set || '').toUpperCase();
-      const num = card.collector_number ?? '';
-      if (set && num) return `${qty} ${card.name} (${set}) ${num}`;
-      return `${qty} ${card.name}`;
+      // Arena syntax doesn't carry foil; printings still distinguished by set+cn.
+      if (set && num) return `${qty} ${name} (${set}) ${num}`;
+      return `${qty} ${name}`;
     }
     case 'moxfield': {
-      const set = (card.set || '').toUpperCase();
-      const num = card.collector_number ?? '';
-      if (set && num) return `${qty} ${card.name} (${set}) ${num}`;
-      if (set) return `${qty} ${card.name} (${set})`;
-      return `${qty} ${card.name}`;
+      // Moxfield: `1 Sol Ring (CMR) 472 *F*` / `*E*` for etched.
+      const finishTag = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *E*' : '';
+      if (set && num) return `${qty} ${name} (${set}) ${num}${finishTag}`;
+      if (set) return `${qty} ${name} (${set})${finishTag}`;
+      return `${qty} ${name}${finishTag}`;
     }
     case 'plain':
-    default:
-      return `${qty} ${card.name}`;
+    default: {
+      // Plain text: human-readable. Always identify printing when known.
+      const parts: string[] = [`${qty} ${name}`];
+      if (set && num) parts.push(`(${set}) ${num}`);
+      else if (set) parts.push(`(${set})`);
+      if (finish === 'foil') parts.push('[Foil]');
+      else if (finish === 'etched') parts.push('[Etched]');
+      if (lang) parts.push(`[${lang}]`);
+      return parts.join(' ');
+    }
   }
 }
 
-function groupAndSort(cards: DeckDisplayCard[]): { card: ScryfallCard; qty: number }[] {
-  const grouped = new Map<string, { card: ScryfallCard; qty: number }>();
+function entryKey(
+  e: Pick<ExportEntry, 'name' | 'set' | 'collectorNumber' | 'finish' | 'language'>
+): string {
+  return [e.name, e.set, e.collectorNumber, e.finish, e.language ?? ''].join('|');
+}
+
+/**
+ * Resolve the effective printing for a deck slot. When the slot has an
+ * allocated physical copy, the copy's set/collector_number/finish/language
+ * win — that's the actual card the user owns and will pull from their box.
+ * The slot's stored `card` is only used as a fallback when no copy is
+ * allocated (or when the lookup fails).
+ */
+function resolvePrinting(
+  card: ScryfallCard,
+  allocatedCopyId: string | null | undefined,
+  collectionByCopyId?: Map<string, EnrichedCard>
+): {
+  name: string;
+  set: string;
+  collectorNumber: string;
+  finish: PrintingFinish;
+  language?: string;
+} {
+  if (allocatedCopyId && collectionByCopyId) {
+    const copy = collectionByCopyId.get(allocatedCopyId);
+    if (copy) {
+      const finish = (copy.finish ?? (copy.foil ? 'foil' : 'nonfoil')) as PrintingFinish;
+      return {
+        name: copy.name || card.name,
+        set: copy.setCode || card.set || '',
+        collectorNumber: copy.collectorNumber || card.collector_number || '',
+        finish,
+        language: copy.language,
+      };
+    }
+  }
+  return {
+    name: card.name,
+    set: card.set || '',
+    collectorNumber: card.collector_number || '',
+    finish: 'nonfoil',
+  };
+}
+
+function groupAndSort(
+  cards: DeckDisplayCard[],
+  collectionByCopyId?: Map<string, EnrichedCard>
+): ExportEntry[] {
+  const grouped = new Map<string, ExportEntry>();
   for (const dc of cards) {
-    const existing = grouped.get(dc.card.name);
+    const printing = resolvePrinting(dc.card, dc.allocatedCopyId, collectionByCopyId);
+    const key = entryKey(printing);
+    const existing = grouped.get(key);
     if (existing) {
       existing.qty += 1;
     } else {
-      grouped.set(dc.card.name, { card: dc.card, qty: 1 });
+      grouped.set(key, { ...printing, qty: 1 });
     }
   }
-  return [...grouped.values()].sort((a, b) => a.card.name.localeCompare(b.card.name));
+  return [...grouped.values()].sort((a, b) => {
+    const n = a.name.localeCompare(b.name);
+    if (n !== 0) return n;
+    const s = a.set.localeCompare(b.set);
+    if (s !== 0) return s;
+    const cn = a.collectorNumber.localeCompare(b.collectorNumber);
+    if (cn !== 0) return cn;
+    return a.finish.localeCompare(b.finish);
+  });
 }
 
 function buildExport(
@@ -2446,29 +2741,36 @@ function buildExport(
   partner: ScryfallCard | null | undefined,
   cards: DeckDisplayCard[],
   format: ExportFormat,
-  sideboardCards: DeckDisplayCard[] = []
+  sideboardCards: DeckDisplayCard[] = [],
+  collectionByCopyId?: Map<string, EnrichedCard>,
+  commanderAllocatedCopyId?: string | null,
+  partnerAllocatedCopyId?: string | null
 ): string {
   const lines: string[] = [];
+  const cmdEntry = (card: ScryfallCard, copyId: string | null | undefined): ExportEntry => {
+    const printing = resolvePrinting(card, copyId ?? null, collectionByCopyId);
+    return { ...printing, qty: 1 };
+  };
   if (format === 'mtga' && (commander || partner)) {
     lines.push('Commander');
-    if (commander) lines.push(formatLine(commander, 1, format));
-    if (partner) lines.push(formatLine(partner, 1, format));
+    if (commander) lines.push(formatLine(cmdEntry(commander, commanderAllocatedCopyId), format));
+    if (partner) lines.push(formatLine(cmdEntry(partner, partnerAllocatedCopyId), format));
     lines.push('');
     lines.push('Deck');
   } else {
-    if (commander) lines.push(formatLine(commander, 1, format));
-    if (partner) lines.push(formatLine(partner, 1, format));
+    if (commander) lines.push(formatLine(cmdEntry(commander, commanderAllocatedCopyId), format));
+    if (partner) lines.push(formatLine(cmdEntry(partner, partnerAllocatedCopyId), format));
   }
 
-  for (const { card, qty } of groupAndSort(cards)) {
-    lines.push(formatLine(card, qty, format));
+  for (const entry of groupAndSort(cards, collectionByCopyId)) {
+    lines.push(formatLine(entry, format));
   }
 
   if (sideboardCards.length > 0) {
     lines.push('');
     lines.push('Sideboard');
-    for (const { card, qty } of groupAndSort(sideboardCards)) {
-      lines.push(formatLine(card, qty, format));
+    for (const entry of groupAndSort(sideboardCards, collectionByCopyId)) {
+      lines.push(formatLine(entry, format));
     }
   }
   return lines.join('\n');
