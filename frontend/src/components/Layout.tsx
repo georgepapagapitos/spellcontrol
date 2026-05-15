@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
 import { Footer } from './Footer';
@@ -10,12 +11,24 @@ export function Layout() {
   // It loads IndexedDB cards into the store before any push, so Layout no
   // longer needs to call hydrateCards manually.
 
-  // Flex-column shell pinned to 100dvh: header on top (desktop), main fills
-  // the middle and is the scroll container, mobile tab bar locks to the
-  // bottom as a regular flex child. Doing the layout this way (instead of
-  // floating the tab bar with position: fixed) means the bar can't drift,
-  // grow, or detach during browser-chrome animations — the whole shell
-  // resizes together with the dynamic viewport.
+  // The document itself is the scroll container so useWindowVirtualizer
+  // and native pull-to-refresh work. The desktop header pins via
+  // position: sticky and the mobile tab bar via position: fixed —
+  // .app-main has a matching bottom padding on mobile so the last row
+  // isn't trapped under the bar.
+
+  // Reset scroll on forward navigations (PUSH/REPLACE) so e.g. landing
+  // on a freshly generated deck starts at the top. Back/forward (POP)
+  // keeps the prior scroll so returning to a list view feels natural.
+  // In-page hash links (#section) are exempt.
+  const { pathname, hash } = useLocation();
+  const navType = useNavigationType();
+  useEffect(() => {
+    if (navType === 'POP') return;
+    if (hash) return;
+    window.scrollTo(0, 0);
+  }, [pathname, hash, navType]);
+
   return (
     <div className="app-shell">
       <Header />
