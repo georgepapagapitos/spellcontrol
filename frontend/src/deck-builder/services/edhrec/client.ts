@@ -870,6 +870,35 @@ export function clearCommanderCache(): void {
   commanderCache.clear();
 }
 
+// --- Salt index ---
+// EDHREC's cardlist payloads don't carry per-card salt scores, but the
+// `top/salt.json` page exposes the top-100 saltiest cards with a `label` like
+// "Salt Score: 3.06\n16316 decks". We parse that into a name → salt map and
+// cache it for the session. Cards not in the top-100 are treated as ~0 salt.
+
+let saltIndexPromise: Promise<Map<string, number>> | null = null;
+
+export function fetchSaltIndex(): Promise<Map<string, number>> {
+  if (saltIndexPromise) return saltIndexPromise;
+  saltIndexPromise = (async () => {
+    try {
+      const raw = await edhrecFetch<RawEDHRECResponse>('/pages/top/salt.json');
+      const cardviews = raw.container?.json_dict?.cardlists?.[0]?.cardviews ?? [];
+      const out = new Map<string, number>();
+      for (const c of cardviews as Array<{ name: string; label?: string }>) {
+        const m = /Salt Score:\s*([\d.]+)/.exec(c.label ?? '');
+        if (m) out.set(c.name, parseFloat(m[1]));
+      }
+      return out;
+    } catch (err) {
+      console.warn('[EDHREC] Failed to fetch salt index:', err);
+      saltIndexPromise = null; // allow retry next time
+      return new Map<string, number>();
+    }
+  })();
+  return saltIndexPromise;
+}
+
 // --- Top commanders (fetched live from EDHREC) ---
 
 const WUBRG = 'WUBRG';

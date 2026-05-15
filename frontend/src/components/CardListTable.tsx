@@ -1,4 +1,4 @@
-import { AlignJustify, BarChart3, LayoutGrid, List as ListIconLucide } from 'lucide-react';
+import { AlignJustify, LayoutGrid, List as ListIconLucide } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import type {
@@ -12,6 +12,9 @@ import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { RemoveCopiesDialog } from './RemoveCopiesDialog';
+import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
+import { useToastsStore } from '../store/toasts';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
@@ -23,6 +26,7 @@ import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
+import { classifyFoil } from '../lib/foil-style';
 import { sortCards, printingKey, type SortContext } from '../lib/sorting';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
@@ -47,12 +51,6 @@ interface Props {
    * the user "filter by binder" inside that view would just be confusing.
    */
   hideBinderFilter?: boolean;
-  /**
-   * Opens the collection breakdown drawer (Colors / Types / Rarity).
-   * When omitted, the Stats button in the sticky toolbar is hidden —
-   * binder-scoped views don't have a breakdown drawer of their own.
-   */
-  onOpenStats?: () => void;
 }
 
 interface Row {
@@ -155,13 +153,7 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
   return 0;
 }
 
-export function CardListTable({
-  cards,
-  binders,
-  setMap,
-  hideBinderFilter = false,
-  onOpenStats,
-}: Props) {
+export function CardListTable({ cards, binders, setMap, hideBinderFilter = false }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -192,6 +184,22 @@ export function CardListTable({
       /* ignore */
     }
   };
+  // On narrow viewports the document is too narrow for 3× to render
+  // visibly larger than 2×, so the option is hidden and any persisted
+  // 3× selection is clamped to 2× for layout purposes (without
+  // overwriting the stored preference, so it returns when the user
+  // resizes back up).
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsNarrow(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const effectiveGridSize: GridSize = isNarrow && gridSize === '3x' ? '2x' : gridSize;
   const [binderExpr, setBinderExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -486,7 +494,7 @@ export function CardListTable({
     if (!el || view !== 'grid') return;
     const measure = () => {
       const w = el.clientWidth;
-      const sizeConfig = GRID_SIZE_MIN_COL[gridSize];
+      const sizeConfig = GRID_SIZE_MIN_COL[effectiveGridSize];
       const minCol = w <= 1024 ? sizeConfig.mobile : sizeConfig.desktop;
       const gap = w <= 1024 ? 8 : 10;
       setGridCols(Math.max(1, Math.floor((w + gap) / (minCol + gap))));
@@ -495,7 +503,7 @@ export function CardListTable({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [view, gridSize]);
+  }, [view, effectiveGridSize]);
 
   const gridRowCount = view === 'grid' ? Math.ceil(sorted.length / gridCols) : 0;
   const GRID_GAP = 10;
@@ -518,9 +526,6 @@ export function CardListTable({
     estimateSize: estimateGridRowHeight,
     overscan: 8,
   });
-
-  const totalRowCount = rows.length;
-  const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   const editingQty = useMemo(() => {
@@ -615,6 +620,66 @@ export function CardListTable({
     setEditingCard(null);
   };
 
+  const pushToast = useToastsStore((s) => s.push);
+  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+  // For stacked rows (qty > 1, grouped view), the user picks how many to drop.
+  const [deletingRow, setDeletingRow] = useState<{
+    card: EnrichedCard;
+    key: string;
+    total: number;
+  } | null>(null);
+
+  // Restore by appending the exact removed copies (copyIds preserved) to the
+  // current collection — replaceAllCards re-runs remapAllocations so any deck
+  // that lost a binding rebinds.
+  const applyRemoval = useCallback(
+    (removed: EnrichedCard[]) => {
+      if (removed.length === 0) return;
+      const removedIds = new Set(removed.map((c) => c.copyId));
+      replaceAllCards(allCards.filter((c) => !removedIds.has(c.copyId)));
+      pushToast({
+        message: `Removed ${removed.length} ${removed.length === 1 ? 'copy' : 'copies'} of ${removed[0].name}`,
+        tone: 'info',
+        actionLabel: 'Undo',
+        onAction: () => replaceAllCards([...useCollectionStore.getState().cards, ...removed]),
+      });
+    },
+    [allCards, replaceAllCards, pushToast]
+  );
+
+  const handleDeleteRow = useCallback(
+    (row: Row) => {
+      // Ungrouped view: a row is one physical copy — remove exactly it.
+      if (!groupPrintings) {
+        applyRemoval([row.card]);
+        return;
+      }
+      const key = printingFinishKey(row.card);
+      const total = allCards.filter((c) => printingFinishKey(c) === key).length;
+      if (total <= 1) {
+        applyRemoval(removeCopiesOfPrinting(allCards, key, 1, allocatedCopyIds).removed);
+        return;
+      }
+      setDeletingRow({ card: row.card, key, total });
+    },
+    [groupPrintings, allCards, allocatedCopyIds, applyRemoval]
+  );
+
+  const confirmDeleteCount = useCallback(
+    (count: number) => {
+      if (!deletingRow) return;
+      const { removed } = removeCopiesOfPrinting(
+        allCards,
+        deletingRow.key,
+        count,
+        allocatedCopyIds
+      );
+      applyRemoval(removed);
+      setDeletingRow(null);
+    },
+    [deletingRow, allCards, allocatedCopyIds, applyRemoval]
+  );
+
   // Count active filter *groups*, not individual chips — five colors
   // selected is still one filter group, so the badge stays glanceable.
   const activeFilterCount =
@@ -626,12 +691,6 @@ export function CardListTable({
     (!isExpressionEmpty(binderExpr) ? 1 : 0) +
     (setFilter.size > 0 ? 1 : 0) +
     (groupPrintings ? 0 : 1);
-
-  const collectionCardCount = cards.length;
-  const collectionValue = useMemo(
-    () => cards.reduce((sum, c) => sum + c.purchasePrice, 0),
-    [cards]
-  );
 
   return (
     <div className="card-list">
@@ -676,42 +735,7 @@ export function CardListTable({
         />
       </div>
 
-      {/* Secondary toolbar row — totals + Stats. Scrolls away with the
-          list so the sticky search above stays minimal. */}
-      <div className="collection-toolbar-meta">
-        <div className="collection-toolbar-totals" aria-label="Collection totals">
-          <span className="collection-toolbar-totals-num">
-            {collectionCardCount.toLocaleString()}
-          </span>
-          <span className="collection-toolbar-totals-unit">cards</span>
-          <span className="collection-toolbar-totals-sep">·</span>
-          <span className="collection-toolbar-totals-num">${collectionValue.toFixed(0)}</span>
-        </div>
-        {onOpenStats && (
-          <button
-            type="button"
-            className="collection-toolbar-stats-btn"
-            onClick={onOpenStats}
-            aria-label="Open collection breakdown"
-            title="Breakdown"
-          >
-            <BarChart3 width={14} height={14} strokeWidth={2} aria-hidden />
-            <span className="collection-toolbar-stats-label">Stats</span>
-          </button>
-        )}
-      </div>
-
       <div className="card-list-summary-line">
-        {/* Counts here describe what's currently visible (after filters /
-            search), not the whole collection — the sticky toolbar above
-            owns the canonical totals. Announced to AT so screen readers
-            stay in sync with visual filtering. */}
-        <span aria-live="polite" aria-atomic="true">
-          {sorted.length === totalRowCount
-            ? `${sorted.length.toLocaleString()} ${sorted.length === 1 ? 'printing' : 'printings'}`
-            : `${sorted.length.toLocaleString()} of ${totalRowCount.toLocaleString()} printings`}
-          {' · '}${totalValue.toFixed(0)}
-        </span>
         <div className="card-list-summary-actions">
           <SelectMenu
             ariaLabel="Sort"
@@ -725,13 +749,20 @@ export function CardListTable({
           {view === 'grid' && (
             <ViewModeToggle<GridSize>
               ariaLabel="Card size"
-              value={gridSize}
+              value={effectiveGridSize}
               onChange={setGridSize}
-              options={[
-                { value: '1x', label: 'Small cards', icon: <span>1×</span> },
-                { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
-                { value: '3x', label: 'Large cards', icon: <span>3×</span> },
-              ]}
+              options={
+                isNarrow
+                  ? [
+                      { value: '1x', label: 'Small cards', icon: <span>1×</span> },
+                      { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
+                    ]
+                  : [
+                      { value: '1x', label: 'Small cards', icon: <span>1×</span> },
+                      { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
+                      { value: '3x', label: 'Large cards', icon: <span>3×</span> },
+                    ]
+              }
             />
           )}
           <ViewModeToggle<ViewMode>
@@ -764,11 +795,12 @@ export function CardListTable({
           cards={sorted.map((r) => r.card)}
           index={previewIndex}
           binderName="Collection"
-          sectionLabels={sorted.map((r) => r.binderName ?? 'Uncategorized')}
+          sectionLabels={sorted.map((r) => (r.binders.length === 0 ? 'Uncategorized' : ''))}
           pageNumbers={sorted.map(() => 0)}
           totalPages={0}
           getStackBinders={(i) => sorted[i]?.binders ?? []}
           getStackAllocations={(i) => (sorted[i] ? allocationsFor(sorted[i].card) : [])}
+          getStackQty={(i) => sorted[i]?.qty ?? 1}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
@@ -815,12 +847,14 @@ export function CardListTable({
               >
                 {rowItems.map((r, colIdx) => {
                   const idx = startIdx + colIdx;
+                  const foilStyle = classifyFoil(r.card);
+                  const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   return (
                     <div
                       key={r.key}
                       role="button"
                       tabIndex={0}
-                      className={`collection-grid-item${r.card.foil ? ' is-foil' : ''} grid-${gridSize}`}
+                      className={`collection-grid-item grid-${effectiveGridSize}${foilClass}`}
                       onClick={() => setPreviewIndex(idx)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -839,6 +873,12 @@ export function CardListTable({
                         />
                       ) : (
                         <div className="collection-grid-placeholder">{r.card.name}</div>
+                      )}
+                      {r.card.foil && (
+                        <>
+                          <div className="card-preview-foil-shine" aria-hidden="true" />
+                          <div className="card-preview-foil-glare" aria-hidden="true" />
+                        </>
                       )}
                       {r.qty > 1 && (
                         <span className="collection-grid-qty">
@@ -927,6 +967,7 @@ export function CardListTable({
                     <CardRowMenu
                       card={r.card}
                       onEditCard={() => setEditingCard(r.card)}
+                      onDelete={() => handleDeleteRow(r)}
                       currentBinder={
                         r.binderId && r.binderName
                           ? { id: r.binderId, name: r.binderName, color: r.binderColor }
@@ -977,6 +1018,15 @@ export function CardListTable({
           quantity={editingQty}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
+        />
+      )}
+
+      {deletingRow && (
+        <RemoveCopiesDialog
+          cardName={deletingRow.card.name}
+          total={deletingRow.total}
+          onConfirm={confirmDeleteCount}
+          onCancel={() => setDeletingRow(null)}
         />
       )}
     </div>

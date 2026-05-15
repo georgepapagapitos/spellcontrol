@@ -16,10 +16,16 @@ export const DECK_FORMAT_CONFIGS: Record<DeckFormat, DeckFormatConfig> = {
   commander: {
     format: 'commander',
     label: 'Commander',
-    description: '99 cards + commander',
+    description: '99 cards + commander, optional sideboard',
     deckSize: 100,
     mainboardSize: 99,
-    sideboardSize: 0,
+    /* Commander has no official sideboard cap, but kitchen-table /
+       bracket-style groups commonly run swap piles. Infinity opens the
+       sideboard UI without claiming an arbitrary limit (the header
+       reads "Sideboard (N)" instead of "Sideboard (N/10)"). Card
+       validation already counts copies across main + side, so the
+       singleton rule still holds across the combined deck. */
+    sideboardSize: Number.POSITIVE_INFINITY,
     defaultLands: 37,
     landRange: [32, 42],
     hasCommander: true,
@@ -31,10 +37,12 @@ export const DECK_FORMAT_CONFIGS: Record<DeckFormat, DeckFormatConfig> = {
   brawl: {
     format: 'brawl',
     label: 'Brawl',
-    description: '59 cards + commander',
+    description: '59 cards + commander, optional sideboard',
     deckSize: 60,
     mainboardSize: 59,
-    sideboardSize: 0,
+    /* Same treatment as Commander — no enforced limit; the UI renders
+       "Sideboard (N)" without a max. */
+    sideboardSize: Number.POSITIVE_INFINITY,
     defaultLands: 23,
     landRange: [19, 27],
     hasCommander: true,
