@@ -1,4 +1,4 @@
-import { MoreVertical } from 'lucide-react';
+import { Hand, MoreVertical, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
@@ -6,7 +6,11 @@ import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
-import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
+import {
+  DeckTestHandPanel,
+  type DeckTestHandPanelHandle,
+} from '../components/deck/DeckTestHandPanel';
+import { useDeckCombos } from '../lib/use-deck-combos';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -59,6 +63,7 @@ export function DeckEditorPage() {
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
   const combosPanelRef = useRef<DeckCombosPanelHandle>(null);
+  const testHandPanelRef = useRef<DeckTestHandPanelHandle>(null);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -86,6 +91,14 @@ export function DeckEditorPage() {
     for (const c of deck.sideboard) if (c.card.oracle_id) ids.add(c.card.oracle_id);
     return Array.from(ids);
   }, [deck]);
+
+  const ownedOracleIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const c of collectionCards) if (c.oracleId) ids.add(c.oracleId);
+    return Array.from(ids);
+  }, [collectionCards]);
+
+  const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
 
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
@@ -308,12 +321,14 @@ export function DeckEditorPage() {
     slotId: c.slotId,
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
+    addedAt: c.addedAt,
   }));
 
   const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
     slotId: c.slotId,
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
+    addedAt: c.addedAt,
   }));
 
   return (
@@ -429,6 +444,17 @@ export function DeckEditorPage() {
         />
       </header>
 
+      <DeckFeatureStrip
+        cardCount={deck.cards.length}
+        hasCommander={!!formatConfig?.hasCommander}
+        commanderCount={(deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0)}
+        bracket={deck.bracketEstimation?.bracket}
+        comboCount={comboData.data?.inDeck.length ?? null}
+        comboLoading={comboData.loading}
+        onShowCombos={() => combosPanelRef.current?.reveal()}
+        onShowTestHand={() => testHandPanelRef.current?.reveal()}
+      />
+
       <div className={`deck-editor-layout${showAddPanel ? ' with-panel' : ''}`}>
         <main className="deck-editor-main">
           <DeckDisplay
@@ -476,7 +502,7 @@ export function DeckEditorPage() {
             format={deck.format}
             onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
           />
-          <DeckTestHandPanel deckId={deck.id} />
+          <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
         </main>
 
         {/* Right rail is reserved for the toggleable Card Search panel only.
@@ -571,6 +597,58 @@ export function DeckEditorPage() {
 
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
+    </div>
+  );
+}
+
+function DeckFeatureStrip({
+  cardCount,
+  hasCommander,
+  commanderCount,
+  bracket,
+  comboCount,
+  comboLoading,
+  onShowCombos,
+  onShowTestHand,
+}: {
+  cardCount: number;
+  hasCommander: boolean;
+  commanderCount: number;
+  bracket: number | undefined;
+  comboCount: number | null;
+  comboLoading: boolean;
+  onShowCombos: () => void;
+  onShowTestHand: () => void;
+}) {
+  const cardLabel = hasCommander
+    ? commanderCount > 0
+      ? `${cardCount} + ${commanderCount === 1 ? 'commander' : `${commanderCount} commanders`}`
+      : `${cardCount} cards`
+    : `${cardCount} ${cardCount === 1 ? 'card' : 'cards'}`;
+
+  return (
+    <div className="deck-feature-strip" aria-label="Deck features">
+      <span className="deck-feature-chip">{cardLabel}</span>
+      {bracket != null && <span className="deck-feature-chip">Bracket {bracket}</span>}
+      <button
+        type="button"
+        className="deck-feature-chip deck-feature-chip--action"
+        onClick={onShowCombos}
+        title="Jump to combos (press C)"
+      >
+        <Sparkles width={13} height={13} aria-hidden />
+        {comboLoading ? '…' : comboCount === null ? '—' : comboCount}{' '}
+        {comboCount === 1 ? 'combo' : 'combos'}
+      </button>
+      <button
+        type="button"
+        className="deck-feature-chip deck-feature-chip--action"
+        onClick={onShowTestHand}
+        title="Open test hand"
+      >
+        <Hand width={13} height={13} aria-hidden />
+        Test hand
+      </button>
     </div>
   );
 }
