@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('api', () => {
   it('importText posts JSON and returns the parsed body', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         cards: [],
         totalRows: 0,
@@ -43,7 +43,7 @@ describe('api', () => {
   });
 
   it('importFile posts FormData', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         cards: [],
         totalRows: 0,
@@ -61,7 +61,7 @@ describe('api', () => {
   });
 
   it('importDeckText posts JSON to /api/import-deck', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         commander: null,
         companion: null,
@@ -76,7 +76,7 @@ describe('api', () => {
   });
 
   it('importDeckFile posts FormData to /api/import-deck', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         commander: null,
         companion: null,
@@ -93,7 +93,7 @@ describe('api', () => {
 
   it('fetchPrintings encodes the card name', async () => {
     const fetchSpy = vi
-      .spyOn(global, 'fetch')
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ printings: [{ id: 'a', name: 'Sol Ring' }] }));
     const out = await fetchPrintings("Atraxa, Praetors' Voice");
     expect(out).toHaveLength(1);
@@ -102,7 +102,7 @@ describe('api', () => {
   });
 
   it('surfaces structured server errors', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: 'Boom' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
@@ -112,17 +112,17 @@ describe('api', () => {
   });
 
   it('surfaces short non-JSON error bodies', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('plain failure', { status: 500 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('plain failure', { status: 500 }));
     await expect(importText('x')).rejects.toThrow(/plain failure/);
   });
 
   it('falls back to a generic message for long error bodies', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('x'.repeat(500), { status: 500 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('x'.repeat(500), { status: 500 }));
     await expect(importText('x')).rejects.toThrow(/HTTP 500/);
   });
 
   it('reports timeouts as a friendly message', async () => {
-    vi.spyOn(global, 'fetch').mockImplementation(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
       const err = new Error('aborted');
       err.name = 'AbortError';
       return Promise.reject(err);
@@ -131,14 +131,14 @@ describe('api', () => {
   });
 
   it('reports unreachable server as a friendly message', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('failed to fetch'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('failed to fetch'));
     await expect(importText('x')).rejects.toThrow(/not responding/);
   });
 });
 
 describe('identifyCard', () => {
   it('returns null for empty input without calling fetch', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     expect(await identifyCard('')).toBeNull();
     expect(await identifyCard('   ')).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe('identifyCard', () => {
 
   it('encodes the query and returns the resolved card', async () => {
     const card = { id: 'abc', name: 'Sol Ring' };
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ card }));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ card }));
     const out = await identifyCard("Atraxa, Praetors' Voice");
     expect(out).toEqual(card);
     const url = fetchSpy.mock.calls[0][0] as string;
@@ -155,7 +155,7 @@ describe('identifyCard', () => {
   });
 
   it('returns null when Scryfall cannot match', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ card: null }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ card: null }));
     expect(await identifyCard('gibberish')).toBeNull();
   });
 });
@@ -170,7 +170,7 @@ describe('getSetMap', () => {
         releasedAt: '2020-11-20',
       },
     };
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ sets }));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ sets }));
     const a = await getSetMap();
     const b = await getSetMap();
     expect(a).toBe(b);

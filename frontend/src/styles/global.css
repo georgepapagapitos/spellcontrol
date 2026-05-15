@@ -4881,6 +4881,14 @@ hr {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.3);
   pointer-events: none;
+  /* Only show on touch devices where swipe-down-to-dismiss works. */
+  display: none;
+}
+
+@media (hover: none) {
+  .card-preview-grabber {
+    display: block;
+  }
 }
 
 @keyframes fade-in {
@@ -5308,9 +5316,38 @@ hr {
   --foil-strength: 0.5;
 }
 
+/* Touch-only devices: no cursor interaction to drive --active, so the foil
+   would be invisible. Instead we run a gentle ambient drift that slowly moves
+   the rainbow across the card like turning a foil in the light. The glare
+   gets a soft fixed glow at center rather than tracking a nonexistent cursor. */
+@media (hover: none) {
+  .card-preview-foil-shine {
+    opacity: var(--foil-strength, 0.35);
+    animation: foil-drift 8s ease-in-out infinite alternate;
+  }
+  .card-preview-foil-glare {
+    opacity: 0.25;
+    background-image: radial-gradient(
+      ellipse 70% 70% at 50% 50%,
+      rgba(255, 255, 255, 0.3) 0%,
+      transparent 70%
+    );
+  }
+}
+
+@keyframes foil-drift {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card-preview-foil-shine {
     background-position: 50% 50%;
+    animation: none;
   }
   .card-preview-image-frame {
     transform: scale(var(--slide-scale, 1));

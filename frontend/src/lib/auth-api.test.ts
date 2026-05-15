@@ -16,7 +16,7 @@ beforeEach(() => {
 describe('register', () => {
   it('posts username + password and returns the user', async () => {
     const fetchSpy = vi
-      .spyOn(global, 'fetch')
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ user: { id: 'u1', username: 'alice' } }, { status: 201 }));
     const u = await register('alice', 'correct horse battery');
     expect(u).toEqual({ id: 'u1', username: 'alice' });
@@ -27,14 +27,16 @@ describe('register', () => {
   });
 
   it('throws with the server-provided error message on failure', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ error: 'taken' }, { status: 409 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'taken' }, { status: 409 })
+    );
     await expect(register('alice', 'pw1234567890')).rejects.toThrow(/taken/);
   });
 });
 
 describe('login', () => {
   it('returns the user on success', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ user: { id: 'u2', username: 'bob' } })
     );
     const u = await login('bob', 'correct horse battery');
@@ -44,7 +46,7 @@ describe('login', () => {
 
 describe('logout', () => {
   it('POSTs to /api/auth/logout', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ ok: true }));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ ok: true }));
     await logout();
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/auth/logout',
@@ -55,14 +57,14 @@ describe('logout', () => {
 
 describe('fetchMe', () => {
   it('returns null on 401', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('', { status: 401, headers: { 'Content-Type': 'application/json' } })
     );
     expect(await fetchMe()).toBeNull();
   });
 
   it('returns the user on 200', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ user: { id: 'u3', username: 'cory' } })
     );
     expect(await fetchMe()).toEqual({ id: 'u3', username: 'cory' });
@@ -71,7 +73,7 @@ describe('fetchMe', () => {
 
 describe('fetchSync', () => {
   it('returns the snapshot', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ collection: null, binders: [], decks: [], version: 0, updatedAt: 1 })
     );
     const snap = await fetchSync();
@@ -81,14 +83,14 @@ describe('fetchSync', () => {
 
 describe('putSync', () => {
   it('returns version + updatedAt on 200', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse({ version: 5, updatedAt: 100 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ version: 5, updatedAt: 100 }));
     const r = await putSync({ collection: null, binders: [], decks: [], baseVersion: 4 });
     expect(r).toEqual({ version: 5, updatedAt: 100 });
   });
 
   it('throws with status 409 and current snapshot on conflict', async () => {
     const current = { collection: null, binders: [], decks: [], version: 7, updatedAt: 200 };
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'conflict', current }, { status: 409 })
     );
     let caught: unknown;

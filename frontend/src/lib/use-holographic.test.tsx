@@ -29,10 +29,10 @@ beforeEach(() => {
     return rafCallbacks.length;
   });
   vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
-  // Default: hover-capable env
+  // Default: hover-capable env — (hover: hover) returns true
   vi.spyOn(window, 'matchMedia').mockReturnValue({
-    matches: false,
-    media: '',
+    matches: true,
+    media: '(hover: hover)',
     onchange: null,
     addListener: () => {},
     removeListener: () => {},
@@ -100,10 +100,11 @@ describe('useHolographic', () => {
     expect(el.style.getPropertyValue('--mx')).toBe('');
   });
 
-  it('uses tap-to-peek on touch-only devices', () => {
+  it('skips tilt on touch-only devices', () => {
+    // (hover: hover) returns false on touch-only devices
     vi.spyOn(window, 'matchMedia').mockReturnValue({
-      matches: true,
-      media: '(hover: none)',
+      matches: false,
+      media: '(hover: hover)',
       onchange: null,
       addListener: () => {},
       removeListener: () => {},
@@ -114,17 +115,12 @@ describe('useHolographic', () => {
     const { result } = renderHook(() => useHolographic(true));
     const el = makeEl();
     act(() => result.current(el));
-    // Tap (no movement) — should trigger a peek.
-    const touchStart = new Event('touchstart') as TouchEvent;
-    Object.defineProperty(touchStart, 'touches', { value: [{ clientX: 50, clientY: 50 }] });
-    const touchEnd = new Event('touchend') as TouchEvent;
-    Object.defineProperty(touchEnd, 'changedTouches', { value: [{ clientX: 50, clientY: 50 }] });
+    // Mouse events should have no effect — no listeners attached.
     act(() => {
-      el.dispatchEvent(touchStart);
-      el.dispatchEvent(touchEnd);
+      el.dispatchEvent(new MouseEvent('mousemove', { clientX: 75, clientY: 25 }));
       flushRaf();
     });
-    expect(el.style.getPropertyValue('--active')).not.toBe('');
+    expect(el.style.getPropertyValue('--active')).toBe('');
   });
 
   it('suppresses tilt while shouldSuppressTilt returns true', () => {

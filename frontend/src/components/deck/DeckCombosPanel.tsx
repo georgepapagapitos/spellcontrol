@@ -1,4 +1,12 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -17,7 +25,10 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { useDeckCombos } from '../../lib/use-deck-combos';
-import type { ComboMatch } from '../../types/combos';
+import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import type { EnrichedCard } from '../../types';
+import type { ComboMatch, ComboCardRef } from '../../types/combos';
+import { CardPreview } from '../CardPreview';
 import { MagicText } from './MagicText';
 
 export interface DeckCombosPanelHandle {
@@ -38,6 +49,7 @@ interface Props {
 }
 
 type Tab = 'inDeck' | 'oneAway';
+type OwnershipFilter = 'all' | 'owned' | 'notOwned';
 
 const COLLAPSED_STORAGE_KEY = 'spellcontrol-combos-panel-collapsed';
 
@@ -73,11 +85,13 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   const decks = useDecksStore((s) => s.decks);
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
 
-  const ownedOracleIds = useMemo(() => {
+  const ownedOracleIdSet = useMemo(() => {
     const ids = new Set<string>();
     for (const c of collection) if (c.oracleId) ids.add(c.oracleId);
-    return Array.from(ids);
+    return ids;
   }, [collection]);
+
+  const ownedOracleIds = useMemo(() => Array.from(ownedOracleIdSet), [ownedOracleIdSet]);
 
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === _deckId) ?? null);
 
@@ -127,6 +141,79 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     return { byOracle, byName };
   }, [collection, deck]);
 
+  // Index that resolves combo card refs to full EnrichedCard objects for the
+  // carousel preview. Priority: collection copy (richest metadata — shows
+  // ownership, price, foil status) → deck ScryfallCard → null (will fetch
+  // on demand from Scryfall API when the thumbnail is tapped).
+  const cardIndex = useMemo(() => {
+    const byOracle = new Map<string, EnrichedCard>();
+    const byName = new Map<string, EnrichedCard>();
+    // Collection cards are already EnrichedCard — best source.
+    for (const c of collection) {
+      if (c.oracleId && !byOracle.has(c.oracleId)) byOracle.set(c.oracleId, c);
+      if (c.name) {
+        const key = c.name.toLowerCase();
+        if (!byName.has(key)) byName.set(key, c);
+      }
+    }
+    // Deck's Scryfall payloads converted to EnrichedCard as fallback.
+    if (deck) {
+      const indexScryfall = (card: ScryfallCard | null) => {
+        if (!card) return;
+        const oid = card.oracle_id;
+        const name = card.name;
+        if (oid && byOracle.has(oid)) return;
+        if (name && byName.has(name.toLowerCase())) return;
+        const enriched = scryfallToEnrichedCard(card);
+        if (oid) byOracle.set(oid, enriched);
+        if (name) byName.set(name.toLowerCase(), enriched);
+      };
+      indexScryfall(deck.commander);
+      indexScryfall(deck.partnerCommander);
+      for (const c of deck.cards) indexScryfall(c.card);
+      for (const c of deck.sideboard) indexScryfall(c.card);
+    }
+    return { byOracle, byName };
+  }, [collection, deck]);
+
+  // ── Combo card preview state ────────────────────────────────────────────
+  const [previewCards, setPreviewCards] = useState<EnrichedCard[] | null>(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewComboTitle, setPreviewComboTitle] = useState('');
+
+  const resolveComboCard = useCallback(
+    (ref: ComboCardRef): EnrichedCard | null =>
+      cardIndex.byOracle.get(ref.oracleId) ??
+      cardIndex.byName.get(ref.cardName.toLowerCase()) ??
+      null,
+    [cardIndex]
+  );
+
+  const openComboPreview = useCallback(
+    async (combo: ComboCardRef[], tappedIndex: number) => {
+      // Try local resolution first; fall back to Scryfall fetch for any gaps.
+      const resolved: EnrichedCard[] = [];
+      for (const ref of combo) {
+        let card = resolveComboCard(ref);
+        if (!card) {
+          try {
+            const scryfall = await getCardByName(ref.cardName);
+            if (scryfall) card = scryfallToEnrichedCard(scryfall);
+          } catch {
+            /* leave null — skip this card in the carousel */
+          }
+        }
+        if (card) resolved.push(card);
+      }
+      if (resolved.length === 0) return;
+      // Clamp the tapped index in case a card couldn't be resolved.
+      setPreviewCards(resolved);
+      setPreviewIndex(Math.min(tappedIndex, resolved.length - 1));
+      setPreviewComboTitle(combo.map((c) => c.cardName).join(' + '));
+    },
+    [resolveComboCard]
+  );
+
   const [tab, setTab] = useState<Tab>('inDeck');
   const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
   const [announce, setAnnounce] = useState('');
@@ -158,9 +245,37 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     },
   }));
 
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>('all');
+
   const inDeckCount = data?.inDeck.length ?? 0;
   const oneAwayCount = data?.oneAway.length ?? 0;
-  const matches = (tab === 'inDeck' ? data?.inDeck : data?.oneAway) ?? [];
+
+  // Split one-away combos by ownership for filter counts + filtering.
+  const oneAwayOwned = useMemo(
+    () =>
+      (data?.oneAway ?? []).filter((m) => {
+        const missingId = m.missingOracleIds[0];
+        return missingId && ownedOracleIdSet.has(missingId);
+      }),
+    [data?.oneAway, ownedOracleIdSet]
+  );
+  const oneAwayNotOwned = useMemo(
+    () =>
+      (data?.oneAway ?? []).filter((m) => {
+        const missingId = m.missingOracleIds[0];
+        return missingId && !ownedOracleIdSet.has(missingId);
+      }),
+    [data?.oneAway, ownedOracleIdSet]
+  );
+
+  const filteredOneAway =
+    ownershipFilter === 'owned'
+      ? oneAwayOwned
+      : ownershipFilter === 'notOwned'
+        ? oneAwayNotOwned
+        : (data?.oneAway ?? []);
+
+  const matches = tab === 'inDeck' ? (data?.inDeck ?? []) : filteredOneAway;
 
   // Did this deck contribute *any* oracle ids at all? If a deck was imported
   // before EnrichedCard.oracleId existed and the backfill hasn't reached it
@@ -267,6 +382,39 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           </button>
         </div>
 
+        {tab === 'oneAway' && oneAwayCount > 0 && (
+          <div
+            className="deck-combos-ownership-filter"
+            role="group"
+            aria-label="Filter by ownership"
+          >
+            <button
+              type="button"
+              className={`deck-combos-filter-pill${ownershipFilter === 'all' ? ' active' : ''}`}
+              onClick={() => setOwnershipFilter('all')}
+            >
+              All
+              <span className="deck-combos-filter-count">{oneAwayCount}</span>
+            </button>
+            <button
+              type="button"
+              className={`deck-combos-filter-pill${ownershipFilter === 'owned' ? ' active' : ''}`}
+              onClick={() => setOwnershipFilter('owned')}
+            >
+              Owned
+              <span className="deck-combos-filter-count">{oneAwayOwned.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`deck-combos-filter-pill${ownershipFilter === 'notOwned' ? ' active' : ''}`}
+              onClick={() => setOwnershipFilter('notOwned')}
+            >
+              Not owned
+              <span className="deck-combos-filter-count">{oneAwayNotOwned.length}</span>
+            </button>
+          </div>
+        )}
+
         {error && <p className="deck-combos-empty deck-combos-error">{error}</p>}
 
         {!error && matches.length === 0 && !loading && (
@@ -311,7 +459,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 match={match}
                 tab={tab}
                 cardImageIndex={cardImageIndex}
+                ownedOracleIds={ownedOracleIdSet}
                 onAddMissing={() => void handleAddMissing(match)}
+                onCardTap={(cardIndex) => void openComboPreview(match.combo.cards, cardIndex)}
               />
             ))}
           </ul>
@@ -321,6 +471,20 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
           {announce}
         </div>
       </div>
+
+      {previewCards && previewCards.length > 0 && (
+        <CardPreview
+          cards={previewCards}
+          index={previewIndex}
+          binderName={previewComboTitle}
+          sectionLabels={previewCards.map(() => 'Combo')}
+          pageNumbers={previewCards.map(() => 0)}
+          totalPages={1}
+          currentDeckId={_deckId}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewCards(null)}
+        />
+      )}
     </div>
   );
 });
@@ -330,14 +494,36 @@ interface CardImageIndex {
   byName: Map<string, string>;
 }
 
+/** Resolve a combo card's thumbnail image. Prefers locally-cached images
+ *  from the collection or deck; falls back to Scryfall's named-card image
+ *  endpoint which returns a CDN-cached redirect — no JS API call needed. */
+function resolveComboCardImage(oracleId: string, cardName: string, index: CardImageIndex): string {
+  return (
+    index.byOracle.get(oracleId) ??
+    index.byName.get(cardName.toLowerCase()) ??
+    `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&format=image&version=normal`
+  );
+}
+
 interface ComboRowProps {
   match: ComboMatch;
   tab: Tab;
   cardImageIndex: CardImageIndex;
+  /** Oracle IDs of cards the user owns in their collection. */
+  ownedOracleIds: Set<string>;
   onAddMissing: () => void;
+  /** Called when a card thumbnail is tapped. Index is position within the combo's cards array. */
+  onCardTap: (cardIndex: number) => void;
 }
 
-function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
+function ComboRow({
+  match,
+  tab,
+  cardImageIndex,
+  ownedOracleIds,
+  onAddMissing,
+  onCardTap,
+}: ComboRowProps) {
   const { combo } = match;
   const missingOracleId = match.missingOracleIds[0] ?? null;
   const missingCardName = missingOracleId
@@ -386,11 +572,11 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
       <ul className="deck-combos-card-grid" role="list">
         {combo.cards.map((c, i) => {
           const isMissing = c.oracleId === missingOracleId;
-          const imageUrl =
-            cardImageIndex.byOracle.get(c.oracleId) ??
-            cardImageIndex.byName.get(c.cardName.toLowerCase());
+          const isOwned = isMissing && ownedOracleIds.has(c.oracleId);
+          const tileClass = isMissing ? (isOwned ? ' missing owned' : ' missing') : '';
+          const imageUrl = resolveComboCardImage(c.oracleId, c.cardName, cardImageIndex);
           return (
-            <li key={c.oracleId} className={`deck-combos-card-tile${isMissing ? ' missing' : ''}`}>
+            <li key={c.oracleId} className={`deck-combos-card-tile${tileClass}`}>
               {/* Plus separator between cards. Visual rather than semantic
                   (the list itself communicates the "and" to assistive tech). */}
               {i > 0 && (
@@ -398,7 +584,12 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
                   +
                 </span>
               )}
-              <span className="deck-combos-card-art">
+              <button
+                type="button"
+                className="deck-combos-card-art"
+                onClick={() => onCardTap(i)}
+                aria-label={`Preview ${c.cardName}`}
+              >
                 {imageUrl ? (
                   <img src={imageUrl} alt={c.cardName} loading="lazy" decoding="async" />
                 ) : (
@@ -406,10 +597,12 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
                 )}
                 {isMissing && (
                   <span
-                    className="deck-combos-card-overlay"
-                    aria-label={`${c.cardName} is missing`}
+                    className={`deck-combos-card-overlay${isOwned ? ' is-owned' : ''}`}
+                    aria-label={
+                      isOwned ? `${c.cardName} — owned in collection` : `${c.cardName} — not owned`
+                    }
                   >
-                    Missing
+                    {isOwned ? 'Owned' : 'Not owned'}
                   </span>
                 )}
                 {c.quantity > 1 && (
@@ -417,7 +610,7 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
                     ×{c.quantity}
                   </span>
                 )}
-              </span>
+              </button>
             </li>
           );
         })}

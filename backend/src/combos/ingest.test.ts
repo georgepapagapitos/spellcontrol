@@ -76,7 +76,6 @@ describe('streamSpellbookVariants', () => {
   it('throws when the upstream response is not OK', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response('upstream error', { status: 502 }));
     await expect(async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for await (const _ of streamSpellbookVariants()) break;
     }).rejects.toThrow(/HTTP 502/);
   });
@@ -84,7 +83,6 @@ describe('streamSpellbookVariants', () => {
   it('throws when the payload is neither an array nor an object', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(jsonStreamResponse('"a string"'));
     await expect(async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for await (const _ of streamSpellbookVariants()) break;
     }).rejects.toThrow(/shape unrecognized/);
   });
