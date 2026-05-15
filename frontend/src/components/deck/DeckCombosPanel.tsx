@@ -423,6 +423,26 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
         })}
       </ul>
 
+      {combo.produces.length > 0 && (
+        <div className="deck-combos-produces" aria-label="Results">
+          {combo.produces.slice(0, 3).map((p, i) => {
+            const isInfinite = p.toLowerCase().startsWith('infinite ');
+            const label = isInfinite ? p.slice(9) : p;
+            return (
+              <span key={i} className="deck-combos-produce-chip" title={p}>
+                {isInfinite && <span aria-hidden>∞ </span>}
+                {label}
+              </span>
+            );
+          })}
+          {combo.produces.length > 3 && (
+            <span className="deck-combos-produce-chip deck-combos-produce-chip--more">
+              +{combo.produces.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
       {hasDetails && (
         <>
           <button
@@ -499,11 +519,11 @@ function ComboRow({ match, tab, cardImageIndex, onAddMissing }: ComboRowProps) {
       {tab === 'oneAway' && missingCardName && (
         <button
           type="button"
-          className="deck-combos-add btn btn-sm btn-primary"
+          className="deck-combos-add"
           onClick={onAddMissing}
           aria-label={`Add ${missingCardName} to complete this combo`}
         >
-          <Plus width={14} height={14} aria-hidden /> Add {missingCardName}
+          <Plus width={11} height={11} aria-hidden /> Add {missingCardName}
         </button>
       )}
     </li>
