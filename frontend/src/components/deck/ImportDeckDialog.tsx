@@ -94,6 +94,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           claimed.set(pick.copyId, {
             deckId: '__pending__',
             deckName: '__pending__',
+            deckColor: '',
             cardName: card.name,
           });
         }

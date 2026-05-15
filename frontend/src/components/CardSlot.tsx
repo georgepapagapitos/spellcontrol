@@ -195,6 +195,9 @@ export function CardSlot({ card, showImage }: Props) {
           <Link
             to={`/decks/${allocation.deckId}`}
             className="slot-deck-badge"
+            style={
+              { '--deck-color': allocation.deckColor || 'var(--accent)' } as React.CSSProperties
+            }
             title={`In deck: ${allocation.deckName}`}
             onClick={(e) => e.stopPropagation()}
             aria-label={`Open deck ${allocation.deckName}`}
@@ -253,6 +256,11 @@ export function CardSlot({ card, showImage }: Props) {
               {allocation && (
                 <span
                   className="slot-deck-badge tooltip-deck-badge"
+                  style={
+                    {
+                      '--deck-color': allocation.deckColor || 'var(--accent)',
+                    } as React.CSSProperties
+                  }
                   title={`In deck: ${allocation.deckName}`}
                   aria-hidden="true"
                 >
