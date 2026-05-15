@@ -42,6 +42,7 @@ import {
   fetchPartnerThemeData,
   fetchAverageDeckMultiCopies,
   fetchCommanderCombos,
+  fetchSaltIndex,
 } from '@/deck-builder/services/edhrec/client';
 import { calculateTypeTargets, calculateCurveTargets, hasCurveRoom } from './curveUtils';
 import {
@@ -57,13 +58,12 @@ import {
   isTapland,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { estimateBracket } from './bracketEstimator';
+import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
 import {
-  analyzeDeck,
-  getDeckSummaryData,
-  scoreRecommendation,
-  type ScoringContext,
-} from './deckAnalyzer';
+  computeGradeAndBracket,
+  buildInclusionIndex,
+  lookupInclusion,
+} from './commanderDeckAnalysis';
 import { getDynamicRoleTargets, estimatePacingFromStats } from './roleTargets';
 import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
@@ -2306,6 +2306,68 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
   }
 
+  // ── Salt tolerance: filter or boost based on EDHREC salt scores ──
+  // EDHREC's cardlist payloads don't carry per-card salt, so we fetch the
+  // top-100 saltiest cards from `top/salt.json` and use that as the index.
+  // Cards not in the index are treated as ~0 salt (not salty enough to matter).
+  let saltIndex: Map<string, number> = new Map();
+  if (edhrecData) {
+    const saltTolerance = customization.saltTolerance ?? 2;
+    if (saltTolerance !== 2) {
+      saltIndex = await fetchSaltIndex();
+      const mustInclude = new Set(customization.mustIncludeCards ?? []);
+      // 0 = unsalted (strict), 1 = low (moderate), 3 = extra (no filter, boost)
+      const saltCap = saltTolerance === 0 ? 0.75 : saltTolerance === 1 ? 2.0 : Infinity;
+      const saltFor = (name: string): number | undefined => {
+        const direct = saltIndex.get(name);
+        if (direct !== undefined) return direct;
+        if (name.includes(' // ')) return saltIndex.get(name.split(' // ')[0]);
+        return undefined;
+      };
+      const filterFn = (card: EDHRECCard): boolean => {
+        if (mustInclude.has(card.name)) return true;
+        const salt = saltFor(card.name);
+        if (salt === undefined) return true;
+        return salt <= saltCap;
+      };
+      let trimmed = 0;
+      const filterList = (list: EDHRECCard[]): EDHRECCard[] => {
+        const next = list.filter(filterFn);
+        trimmed += list.length - next.length;
+        return next;
+      };
+      if (saltTolerance === 3) {
+        // Embrace salt: bump inclusion of salty cards so they sort higher.
+        // Bump scales with how salty the card is (cap at +60 for very salty).
+        for (const list of Object.values(edhrecData.cardlists)) {
+          for (const card of list) {
+            const salt = saltFor(card.name);
+            if (salt !== undefined && salt > 1.0) {
+              card.inclusion = (card.inclusion ?? 0) + Math.min(60, salt * 20);
+            }
+          }
+        }
+        console.log('[DeckGen] Salt tolerance "extra": boosting high-salt cards');
+      } else {
+        edhrecData.cardlists.creatures = filterList(edhrecData.cardlists.creatures);
+        edhrecData.cardlists.instants = filterList(edhrecData.cardlists.instants);
+        edhrecData.cardlists.sorceries = filterList(edhrecData.cardlists.sorceries);
+        edhrecData.cardlists.artifacts = filterList(edhrecData.cardlists.artifacts);
+        edhrecData.cardlists.enchantments = filterList(edhrecData.cardlists.enchantments);
+        edhrecData.cardlists.planeswalkers = filterList(edhrecData.cardlists.planeswalkers);
+        edhrecData.cardlists.lands = filterList(edhrecData.cardlists.lands);
+        edhrecData.cardlists.allNonLand = filterList(edhrecData.cardlists.allNonLand);
+        console.log(
+          `[DeckGen] Salt tolerance "${saltTolerance}" (cap ${saltCap}): trimmed ${trimmed} card slots`
+        );
+      }
+    } else {
+      // Default path: still load salt index so stats can show avg salt.
+      // Fire-and-forget — we'll resolve before the stats step anyway.
+      saltIndex = await fetchSaltIndex();
+    }
+  }
+
   // Build hyper focus boost map if enabled (runs with cached or fresh data)
   if (edhrecData && customization.hyperFocus && selectedThemesWithSlugs.length >= 1) {
     const baseCardNames = new Set<string>();
@@ -4136,6 +4198,31 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Calculate stats
   const stats = calculateStats(categories);
 
+  // Compute salt stats from the salt index (top-100 saltiest from EDHREC).
+  // We load it here as well if it wasn't already (e.g. saltTolerance === 'any').
+  if (!saltIndex.size) saltIndex = await fetchSaltIndex();
+  if (saltIndex.size > 0) {
+    const nonLandCards = Object.values(categories)
+      .flat()
+      .filter((c) => !getFrontFaceTypeLine(c).toLowerCase().includes('land'));
+
+    const saltyCards: Array<{ name: string; salt: number }> = [];
+    let saltSum = 0;
+    for (const card of nonLandCards) {
+      const key = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
+      const salt = saltIndex.get(card.name) ?? saltIndex.get(key) ?? 0;
+      saltSum += salt;
+      if (salt > 0) saltyCards.push({ name: card.name, salt });
+    }
+    if (nonLandCards.length > 0) {
+      stats.averageSalt = Math.round((saltSum / nonLandCards.length) * 100) / 100;
+      stats.saltiestCards = saltyCards
+        .sort((a, b) => b.salt - a.salt)
+        .slice(0, 5)
+        .map((c) => ({ name: c.name, salt: Math.round(c.salt * 100) / 100 }));
+    }
+  }
+
   // Get the theme names that were actually used
   const usedThemes =
     selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs.map((t) => t.name) : undefined;
@@ -4687,28 +4774,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   let deckScore: number | undefined;
   let cardInclusionMap: Record<string, number> | undefined;
   if (edhrecData) {
-    // Index all EDHREC cards by name for O(1) lookup
-    const inclusionIndex = new Map<string, number>();
-    for (const c of edhrecData.cardlists.allNonLand) {
-      inclusionIndex.set(c.name, c.inclusion);
-    }
-    for (const c of edhrecData.cardlists.lands) {
-      if (!BASIC_LAND_NAMES.has(c.name)) {
-        inclusionIndex.set(c.name, c.inclusion);
-      }
-    }
+    const inclusionIndex = buildInclusionIndex(edhrecData);
 
     const inclMap: Record<string, number> = {};
     let score = 0;
     for (const cards of Object.values(categories)) {
       for (const card of cards) {
         if (BASIC_LAND_NAMES.has(card.name)) continue;
-        // Try full name first, then front-face for DFCs
-        let incl = inclusionIndex.get(card.name);
-        if (incl === undefined && card.name.includes(' // ')) {
-          incl = inclusionIndex.get(card.name.split(' // ')[0]);
-        }
-        const val = incl ?? 0;
+        const val = lookupInclusion(inclusionIndex, card.name) ?? 0;
         inclMap[card.name] = val;
         score += val;
       }
@@ -4718,10 +4791,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       for (const cards of Object.values(swapCandidates)) {
         for (const card of cards) {
           if (inclMap[card.name] !== undefined) continue;
-          let incl = inclusionIndex.get(card.name);
-          if (incl === undefined && card.name.includes(' // ')) {
-            incl = inclusionIndex.get(card.name.split(' // ')[0]);
-          }
+          const incl = lookupInclusion(inclusionIndex, card.name);
           if (incl !== undefined) inclMap[card.name] = incl;
         }
       }
@@ -4897,20 +4967,27 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     console.log(`[DeckGen] Relevancy map: ${Object.keys(relMap).length} cards scored`);
   }
 
-  // ── Bracket estimation ──
+  // ── Grade + bracket ──
   const allDeckCardNames = Object.values(categories)
     .flat()
     .map((c) => c.name);
   if (commander) allDeckCardNames.push(commander.name);
   if (partnerCommander) allDeckCardNames.push(partnerCommander.name);
-  const bracketEstimation = estimateBracket(
-    allDeckCardNames,
+  const { bracketEstimation, deckGrade } = computeGradeAndBracket({
+    allCardNames: allDeckCardNames,
     detectedCombos,
-    stats.averageCmc,
+    averageCmc: stats.averageCmc,
     deckScore,
-    roleTargets ? currentRoleCounts : undefined,
-    gameChangerNames
-  );
+    bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
+    gameChangerNames,
+    allCards: Object.values(categories).flat(),
+    roleCounts: currentRoleCounts,
+    roleTargets,
+    edhrecData,
+    deckSize: format,
+    cardInclusionMap,
+    colorIdentity: context.colorIdentity,
+  });
   console.log(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
@@ -4985,24 +5062,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     detectedPacing,
     bracketEstimation,
     gameChangerNames: [...gameChangerNames],
-    deckGrade: (() => {
-      if (!edhrecData || !roleTargets) return undefined;
-      try {
-        const allCards = Object.values(categories).flat();
-        const analysis = analyzeDeck(
-          edhrecData,
-          allCards,
-          currentRoleCounts,
-          roleTargets,
-          format,
-          cardInclusionMap,
-          context.colorIdentity
-        );
-        const summary = getDeckSummaryData(analysis);
-        return { letter: summary.gradeLetter, headline: summary.headline };
-      } catch {
-        return undefined;
-      }
-    })(),
+    deckGrade,
   };
 }
