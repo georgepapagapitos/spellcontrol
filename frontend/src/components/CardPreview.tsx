@@ -1,4 +1,12 @@
-import { ChevronLeft, ChevronRight, ExternalLink, Pencil, RefreshCw } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Layers,
+  Notebook,
+  Pencil,
+  RefreshCw,
+} from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
@@ -35,6 +43,12 @@ interface Props {
    */
   getStackAllocations?: (i: number) => AllocationInfo[];
   /**
+   * Grouped-row quantity for the card at index `i` (collection grid uses
+   * this when rows roll up multiple copies of the same printing). Returning
+   * <= 1 suppresses the quantity tag.
+   */
+  getStackQty?: (i: number) => number;
+  /**
    * Deck the preview is being opened from, if any. When the current card is
    * allocated to this same deck, we suppress the "In deck" chip — repeating
    * the deck name back to the user inside that deck's editor is just noise.
@@ -62,6 +76,7 @@ export function CardPreview({
   currentDeckId,
   getStackBinders,
   getStackAllocations,
+  getStackQty,
   onIndexChange,
   onClose,
   onEdit,
@@ -428,43 +443,48 @@ export function CardPreview({
                   deckById.set(a.deckId, a);
                 }
                 const uniqueDecks = [...deckById.values()];
+                const sectionLabel = sectionLabels[selected] ?? '';
 
-                const hasAny = uniqueBinders.length > 0 || uniqueDecks.length > 0;
-                if (!hasAny) {
-                  return sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : '';
-                }
                 return (
                   <>
+                    {sectionLabel && ` · ${sectionLabel}`}
                     {uniqueBinders.length > 0 && ' · '}
                     {uniqueBinders.map((b, i) => (
                       <span key={`b-${b.id}`}>
-                        {i > 0 && ', '}
+                        {i > 0 && ' · '}
                         <Link
                           to={`/binders/${b.id}`}
-                          className="card-preview-context-link"
+                          className="card-preview-context-pill card-preview-context-pill--binder"
                           style={
                             {
-                              '--binder-color': b.color || 'var(--accent)',
+                              '--pill-color': b.color || 'var(--accent)',
                             } as React.CSSProperties
                           }
                           onClick={onClose}
                           title={`Open binder ${b.name}`}
                         >
-                          {b.name}
+                          <Notebook width={11} height={11} strokeWidth={2.2} aria-hidden />
+                          <span>{b.name}</span>
                         </Link>
                       </span>
                     ))}
                     {uniqueDecks.length > 0 && ' · '}
                     {uniqueDecks.map((d, i) => (
                       <span key={`d-${d.deckId}`}>
-                        {i > 0 && ', '}
+                        {i > 0 && ' · '}
                         <Link
                           to={`/decks/${d.deckId}`}
-                          className="card-preview-context-link card-preview-context-link--deck"
+                          className="card-preview-context-pill card-preview-context-pill--deck"
+                          style={
+                            {
+                              '--pill-color': d.deckColor || 'var(--accent)',
+                            } as React.CSSProperties
+                          }
                           onClick={onClose}
                           title={`Open deck ${d.deckName}`}
                         >
-                          {d.deckName}
+                          <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
+                          <span>{d.deckName}</span>
                         </Link>
                       </span>
                     ))}
@@ -480,6 +500,18 @@ export function CardPreview({
               </span>
               {current.foil && <span className="card-preview-foil">foil</span>}
               {' · '}${current.purchasePrice.toFixed(2)}
+              {(() => {
+                const qty = getStackQty?.(selected) ?? 1;
+                return qty > 1 ? (
+                  <span className="card-preview-qty" aria-label={`${qty} copies`}>
+                    {' · '}
+                    <span className="card-preview-qty-x" aria-hidden>
+                      ×
+                    </span>
+                    {qty}
+                  </span>
+                ) : null;
+              })()}
             </div>
             <div className="card-preview-set">
               {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (

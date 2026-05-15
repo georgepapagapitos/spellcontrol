@@ -16,6 +16,7 @@ import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { BinderPagePreview } from './BinderPagePreview';
 import { Legend } from './Legend';
 import { useConfirm } from '../lib/use-confirm';
+import { useAllocations } from '../lib/allocations';
 
 function pickPrice(card: ScryfallCard, foil: boolean): number {
   const p = card.prices;
@@ -164,6 +165,7 @@ function SectionList({
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  const allocations = useAllocations();
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const editingQty = useMemo(() => {
@@ -376,6 +378,15 @@ function SectionList({
           sectionLabels={preview.sectionLabels}
           pageNumbers={preview.pageNumbers}
           totalPages={preview.totalPages}
+          getStackAllocations={(i) => {
+            const c = preview.cards[i];
+            const a = c ? allocations.get(c.copyId) : null;
+            return a ? [a] : [];
+          }}
+          getStackQty={(i) => {
+            const c = preview.cards[i];
+            return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
+          }}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
           onClose={() => setPreview(null)}
           onEdit={(c) => {
@@ -392,6 +403,7 @@ function SectionList({
           pocketSize={pocketSize}
           binderName={binderName}
           resolveCard={resolveCard}
+          qtyByCopyId={qtyByCopyId}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);
