@@ -15,14 +15,14 @@ beforeEach(() => {
 
 describe('timeout + abort handling', () => {
   it('throws a friendly error when the request is aborted (timeout)', async () => {
-    vi.spyOn(global, 'fetch').mockImplementation(() =>
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
       Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))
     );
     await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/timed out/i);
   });
 
   it('throws a friendly error when the network is unreachable', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
     await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/not responding/i);
   });
 });
@@ -30,7 +30,7 @@ describe('timeout + abort handling', () => {
 describe('matchCombos', () => {
   it('POSTs the request body and returns the parsed match buckets', async () => {
     const empty = { inDeck: [], oneAway: [], almostInCollection: [] };
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(empty));
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(empty));
 
     const result = await matchCombos({
       ownedOracleIds: ['a', 'b'],
@@ -55,7 +55,7 @@ describe('matchCombos', () => {
   });
 
   it('throws on a non-OK response with the server-provided error message', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'Authentication required.' }, { status: 401 })
     );
     await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/Authentication required/);
@@ -65,7 +65,7 @@ describe('matchCombos', () => {
 describe('getCombo', () => {
   it('GETs /api/combos/:id with URL-encoded id and returns the body', async () => {
     const fetchSpy = vi
-      .spyOn(global, 'fetch')
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ id: 'combo with space' }));
 
     await getCombo('combo with space');
@@ -77,7 +77,7 @@ describe('getCombo', () => {
   });
 
   it('throws on 404', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'Combo not found.' }, { status: 404 })
     );
     await expect(getCombo('nope')).rejects.toThrow(/Combo not found/);
@@ -86,7 +86,7 @@ describe('getCombo', () => {
 
 describe('fetchOracleIds', () => {
   it('returns an empty map without calling fetch when given no ids', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const result = await fetchOracleIds([]);
     expect(result).toEqual({});
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -94,7 +94,7 @@ describe('fetchOracleIds', () => {
 
   it('POSTs the scryfallIds list and returns the resolved oracleIds map', async () => {
     const fetchSpy = vi
-      .spyOn(global, 'fetch')
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ oracleIds: { abc: 'oracle-1' } }));
 
     const result = await fetchOracleIds(['abc', 'def']);
@@ -105,7 +105,7 @@ describe('fetchOracleIds', () => {
   });
 
   it('throws on a non-OK response', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'Body must be { scryfallIds: string[] }.' }, { status: 400 })
     );
     await expect(fetchOracleIds(['x'])).rejects.toThrow(/scryfallIds/);
