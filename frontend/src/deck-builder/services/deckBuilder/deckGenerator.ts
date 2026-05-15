@@ -58,13 +58,12 @@ import {
   isTapland,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { estimateBracket } from './bracketEstimator';
+import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
 import {
-  analyzeDeck,
-  getDeckSummaryData,
-  scoreRecommendation,
-  type ScoringContext,
-} from './deckAnalyzer';
+  computeGradeAndBracket,
+  buildInclusionIndex,
+  lookupInclusion,
+} from './commanderDeckAnalysis';
 import { getDynamicRoleTargets, estimatePacingFromStats } from './roleTargets';
 import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
@@ -4775,28 +4774,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   let deckScore: number | undefined;
   let cardInclusionMap: Record<string, number> | undefined;
   if (edhrecData) {
-    // Index all EDHREC cards by name for O(1) lookup
-    const inclusionIndex = new Map<string, number>();
-    for (const c of edhrecData.cardlists.allNonLand) {
-      inclusionIndex.set(c.name, c.inclusion);
-    }
-    for (const c of edhrecData.cardlists.lands) {
-      if (!BASIC_LAND_NAMES.has(c.name)) {
-        inclusionIndex.set(c.name, c.inclusion);
-      }
-    }
+    const inclusionIndex = buildInclusionIndex(edhrecData);
 
     const inclMap: Record<string, number> = {};
     let score = 0;
     for (const cards of Object.values(categories)) {
       for (const card of cards) {
         if (BASIC_LAND_NAMES.has(card.name)) continue;
-        // Try full name first, then front-face for DFCs
-        let incl = inclusionIndex.get(card.name);
-        if (incl === undefined && card.name.includes(' // ')) {
-          incl = inclusionIndex.get(card.name.split(' // ')[0]);
-        }
-        const val = incl ?? 0;
+        const val = lookupInclusion(inclusionIndex, card.name) ?? 0;
         inclMap[card.name] = val;
         score += val;
       }
@@ -4806,10 +4791,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       for (const cards of Object.values(swapCandidates)) {
         for (const card of cards) {
           if (inclMap[card.name] !== undefined) continue;
-          let incl = inclusionIndex.get(card.name);
-          if (incl === undefined && card.name.includes(' // ')) {
-            incl = inclusionIndex.get(card.name.split(' // ')[0]);
-          }
+          const incl = lookupInclusion(inclusionIndex, card.name);
           if (incl !== undefined) inclMap[card.name] = incl;
         }
       }
@@ -4985,20 +4967,27 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     console.log(`[DeckGen] Relevancy map: ${Object.keys(relMap).length} cards scored`);
   }
 
-  // ── Bracket estimation ──
+  // ── Grade + bracket ──
   const allDeckCardNames = Object.values(categories)
     .flat()
     .map((c) => c.name);
   if (commander) allDeckCardNames.push(commander.name);
   if (partnerCommander) allDeckCardNames.push(partnerCommander.name);
-  const bracketEstimation = estimateBracket(
-    allDeckCardNames,
+  const { bracketEstimation, deckGrade } = computeGradeAndBracket({
+    allCardNames: allDeckCardNames,
     detectedCombos,
-    stats.averageCmc,
+    averageCmc: stats.averageCmc,
     deckScore,
-    roleTargets ? currentRoleCounts : undefined,
-    gameChangerNames
-  );
+    bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
+    gameChangerNames,
+    allCards: Object.values(categories).flat(),
+    roleCounts: currentRoleCounts,
+    roleTargets,
+    edhrecData,
+    deckSize: format,
+    cardInclusionMap,
+    colorIdentity: context.colorIdentity,
+  });
   console.log(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
@@ -5073,24 +5062,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     detectedPacing,
     bracketEstimation,
     gameChangerNames: [...gameChangerNames],
-    deckGrade: (() => {
-      if (!edhrecData || !roleTargets) return undefined;
-      try {
-        const allCards = Object.values(categories).flat();
-        const analysis = analyzeDeck(
-          edhrecData,
-          allCards,
-          currentRoleCounts,
-          roleTargets,
-          format,
-          cardInclusionMap,
-          context.colorIdentity
-        );
-        const summary = getDeckSummaryData(analysis);
-        return { letter: summary.gradeLetter, headline: summary.headline };
-      } catch {
-        return undefined;
-      }
-    })(),
+    deckGrade,
   };
 }

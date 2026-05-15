@@ -15,6 +15,7 @@ import {
   type DeckTestHandPanelHandle,
 } from '../components/deck/DeckTestHandPanel';
 import { useDeckCombos } from '../lib/use-deck-combos';
+import { useManualCommanderAnalysis } from '../lib/use-manual-commander-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -112,6 +113,17 @@ export function DeckEditorPage() {
     for (const c of deck.partnerCommander?.color_identity ?? []) ci.add(c);
     return [...ci];
   }, [deck]);
+
+  // Keep grade/bracket live for manually-built commander decks (generated
+  // decks already snapshot these at generation time).
+  useManualCommanderAnalysis({
+    deck,
+    comboData: comboData.data,
+    mainboardSize: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
+    hasCommander: deck ? DECK_FORMAT_CONFIGS[deck.format].hasCommander : false,
+    colorIdentity: commanderColorIdentity,
+    updateDeck,
+  });
 
   // `/` opens the search panel; `c` reveals the combos panel (the panel is
   // always rendered in the aside; `c` just expands + scrolls + focuses it).
