@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -774,15 +774,18 @@ export function DeckDisplay({
     return { copiesByName, otherDeckAllocations };
   }, [collectionByCopyId, allDecks, deckId]);
 
-  const claimedByForName = (cardName: string): AllocationInfo | undefined => {
-    const copies = crossDeck.copiesByName?.get(cardName.toLowerCase());
-    if (!copies || !crossDeck.otherDeckAllocations) return undefined;
-    for (const c of copies) {
-      const info = crossDeck.otherDeckAllocations.get(c.copyId);
-      if (info) return info;
-    }
-    return undefined;
-  };
+  const claimedByForName = useCallback(
+    (cardName: string): AllocationInfo | undefined => {
+      const copies = crossDeck.copiesByName?.get(cardName.toLowerCase());
+      if (!copies || !crossDeck.otherDeckAllocations) return undefined;
+      for (const c of copies) {
+        const info = crossDeck.otherDeckAllocations.get(c.copyId);
+        if (info) return info;
+      }
+      return undefined;
+    },
+    [crossDeck]
+  );
 
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
@@ -836,6 +839,7 @@ export function DeckDisplay({
     partnerCommanderAllocatedCopyId,
     collectionByCopyId,
     crossDeck,
+    claimedByForName,
   ]);
 
   // Non-commander rows grouped by canonical type.
@@ -1087,10 +1091,6 @@ export function DeckDisplay({
       <div className="deck-display">
         <DeckToolbar
           title={title}
-          missingCount={missing.count}
-          missingPrice={missing.price}
-          deckGrade={deckGrade}
-          currency={currency}
           sort={sort}
           sortDir={sortDir}
           onToggleSort={onToggleSort}
@@ -1208,6 +1208,9 @@ export function DeckDisplay({
             averageCmc={averageCmc}
             averageSalt={averageSalt}
             saltiestCards={saltiestCards}
+            deckGrade={deckGrade}
+            missingCount={missing.count}
+            missingPrice={missing.price}
             open={isStatsAlwaysOpen || statsOpen}
             onToggle={isStatsAlwaysOpen ? undefined : () => setStatsOpen((v) => !v)}
           />
@@ -1386,10 +1389,6 @@ function scryfallToEnriched(
 // ── Toolbar ───────────────────────────────────────────────────────────────
 interface ToolbarProps {
   title: string;
-  missingCount: number;
-  missingPrice: number;
-  deckGrade?: { letter: string; headline: string };
-  currency: CurrencyCode;
   sort: SortMode;
   sortDir: 'asc' | 'desc';
   onToggleSort: (s: SortMode) => void;
@@ -1419,10 +1418,6 @@ const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
 
 function DeckToolbar({
   title,
-  missingCount,
-  missingPrice,
-  deckGrade,
-  currency,
   sort,
   sortDir,
   onToggleSort,
@@ -1438,21 +1433,9 @@ function DeckToolbar({
     <header className="deck-toolbar">
       <div className="deck-toolbar-summary">
         <span className="deck-toolbar-title">{title}</span>
-        {(deckGrade || missingCount > 0) && (
-          <span className="deck-toolbar-meta">
-            {/* Card count / avg CMC / total value moved to the Statistics
-                panel header (and the desktop hero) so this row only
-                surfaces deck-quality signal (grade) and the
-                gap-to-collection chip when there is one. */}
-            {deckGrade ? `Grade ${deckGrade.letter}` : ''}
-            {deckGrade && missingCount > 0 ? ' · ' : ''}
-            {missingCount > 0 && (
-              <span className="deck-toolbar-missing">
-                {missingCount} missing ({fmtMoney(missingPrice, currency)})
-              </span>
-            )}
-          </span>
-        )}
+        {/* Grade and missing-cards count live in the Statistics → Overview
+            panel now, so the toolbar stays focused on the deck title +
+            controls. */}
       </div>
       <div className="deck-toolbar-controls">
         <SelectMenu
@@ -2178,6 +2161,9 @@ function DeckStatistics({
   averageCmc,
   averageSalt,
   saltiestCards,
+  deckGrade,
+  missingCount,
+  missingPrice,
   open,
   onToggle,
 }: {
@@ -2196,6 +2182,9 @@ function DeckStatistics({
   averageCmc: number;
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
+  deckGrade?: { letter: string; headline: string };
+  missingCount: number;
+  missingPrice: number;
   open: boolean;
   /** Omit to render an always-open header with no caret / click handler. */
   onToggle?: () => void;
@@ -2330,6 +2319,14 @@ function DeckStatistics({
       <div className="deck-stats-grid" hidden={!open}>
         <Panel title="Overview">
           <ul className="deck-overview-list">
+            {deckGrade && (
+              <li className="deck-overview-row">
+                <span className="deck-overview-label">Grade</span>
+                <span className="deck-overview-value" title={deckGrade.headline}>
+                  {deckGrade.letter}
+                </span>
+              </li>
+            )}
             <li className="deck-overview-row">
               <span className="deck-overview-label">Cards</span>
               <span className="deck-overview-value">{totalCards}</span>
@@ -2348,6 +2345,14 @@ function DeckStatistics({
               <span className="deck-overview-label">Total price</span>
               <span className="deck-overview-value">{fmtMoney(totalPrice, currency)}</span>
             </li>
+            {missingCount > 0 && (
+              <li className="deck-overview-row">
+                <span className="deck-overview-label">Missing</span>
+                <span className="deck-overview-value">
+                  {missingCount} ({fmtMoney(missingPrice, currency)})
+                </span>
+              </li>
+            )}
           </ul>
         </Panel>
         {saltiestCards && saltiestCards.length > 0 && (

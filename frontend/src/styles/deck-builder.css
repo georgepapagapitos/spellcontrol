@@ -1472,9 +1472,9 @@ input.toolbar-search-input {
 .deck-combos-header,
 .deck-test-hand-header {
   display: grid;
-  /* minmax(0, 1fr) on the meta column so a long stats string
-     ("100 cards · avg CMC 2.92 · $333.24") doesn't expand the header
-     past the panel on narrow viewports. */
+  /* Combos / test-hand keep the 4-col layout (icon · title · summary ·
+     trailing). The stats header overrides this below — it only has 3
+     children since the meta moved into the Overview panel. */
   grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
@@ -1488,6 +1488,13 @@ input.toolbar-search-input {
   color: inherit;
   text-align: left;
   font: inherit;
+}
+
+/* Stats header has only icon · title · caret (meta moved into the
+   Overview panel). Title takes the slack so the caret stays pinned to
+   the panel's right edge on every breakpoint. */
+.deck-stats-header {
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 .deck-stats-header:hover .deck-stats-caret,
@@ -1527,7 +1534,8 @@ input.toolbar-search-input {
    no cursor pointer / hover affordance. */
 .deck-stats-header--static {
   cursor: default;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  /* Desktop: no caret, no meta — just icon · title. */
+  grid-template-columns: auto minmax(0, 1fr);
 }
 
 .deck-stats-header--static:hover .deck-stats-caret {
