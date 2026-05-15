@@ -100,7 +100,7 @@ describe('pickCollectionCopy', () => {
 
   it('skips copies that are already allocated', () => {
     const claimed = new Map<string, AllocationInfo>();
-    claimed.set('a', { deckId: 'd1', deckName: 'X', cardName: 'Sol Ring' });
+    claimed.set('a', { deckId: 'd1', deckName: 'X', deckColor: '#000', cardName: 'Sol Ring' });
     const a = card({ copyId: 'a', purchasePrice: 1 });
     const b = card({ copyId: 'b', purchasePrice: 5 });
     expect(pickCollectionCopy('Sol Ring', [a, b], claimed)?.copyId).toBe('b');
@@ -133,7 +133,7 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
 
   it('returns null when all candidates are allocated even with a preference', () => {
     const claimed = new Map<string, AllocationInfo>();
-    claimed.set('a', { deckId: 'd1', deckName: 'X', cardName: 'Sol Ring' });
+    claimed.set('a', { deckId: 'd1', deckName: 'X', deckColor: '#000', cardName: 'Sol Ring' });
     const a = card({ copyId: 'a', scryfallId: 'sf-ONE' });
     expect(pickCollectionCopy('Sol Ring', [a], claimed, 'sf-ONE')).toBeNull();
   });
@@ -178,21 +178,71 @@ describe('findSuboptimalPrintings', () => {
     const d = deck({
       id: 'd1',
       name: 'A',
+      cards: [slot('Sol Ring', 'sf-pref', 'wrong-copy')],
+    });
+    const collection: EnrichedCard[] = [
+      card({ copyId: 'wrong-copy', name: 'Sol Ring', scryfallId: 'sf-other', setCode: 'C20' }),
+      card({ copyId: 'right-copy', name: 'Sol Ring', scryfallId: 'sf-pref', setCode: 'CMR' }),
+    ];
+    const out = findSuboptimalPrintings([d], collection);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      deckName: 'A',
+      cardName: 'Sol Ring',
+      preferredScryfallId: 'sf-pref',
+      allocatedCopyId: 'wrong-copy',
+      allocatedSet: 'C20',
+    });
+  });
+
+  it('ignores basic lands — their printing is fungible', () => {
+    const d = deck({
+      id: 'd1',
+      name: 'A',
       cards: [slot('Plains', 'sf-pref', 'wrong-copy')],
     });
     const collection: EnrichedCard[] = [
       card({ copyId: 'wrong-copy', name: 'Plains', scryfallId: 'sf-other', setCode: 'M20' }),
       card({ copyId: 'right-copy', name: 'Plains', scryfallId: 'sf-pref', setCode: 'ECL' }),
     ];
+    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+  });
+
+  it('marks preferredFree=true when a free copy of the preferred printing exists', () => {
+    const d = deck({
+      id: 'd1',
+      name: 'A',
+      cards: [slot('Sol Ring', 'sf-pref', 'wrong-copy')],
+    });
+    const collection: EnrichedCard[] = [
+      card({ copyId: 'wrong-copy', name: 'Sol Ring', scryfallId: 'sf-other', setCode: 'C20' }),
+      card({ copyId: 'free-pref', name: 'Sol Ring', scryfallId: 'sf-pref', setCode: 'CMR' }),
+    ];
     const out = findSuboptimalPrintings([d], collection);
     expect(out).toHaveLength(1);
-    expect(out[0]).toMatchObject({
-      deckName: 'A',
-      cardName: 'Plains',
-      preferredScryfallId: 'sf-pref',
-      allocatedCopyId: 'wrong-copy',
-      allocatedSet: 'M20',
+    expect(out[0].preferredFree).toBe(true);
+  });
+
+  it('marks preferredFree=false when the preferred copy is claimed by another deck', () => {
+    const d1 = deck({
+      id: 'd1',
+      name: 'A',
+      cards: [slot('Sol Ring', 'sf-pref', 'wrong-copy')],
     });
+    // Another deck already holds the only preferred-printing copy.
+    const d2 = deck({
+      id: 'd2',
+      name: 'B',
+      cards: [slot('Sol Ring', 'sf-pref', 'pref-copy')],
+    });
+    const collection: EnrichedCard[] = [
+      card({ copyId: 'wrong-copy', name: 'Sol Ring', scryfallId: 'sf-other', setCode: 'C20' }),
+      card({ copyId: 'pref-copy', name: 'Sol Ring', scryfallId: 'sf-pref', setCode: 'CMR' }),
+    ];
+    const out = findSuboptimalPrintings([d1, d2], collection);
+    const d1Row = out.find((r) => r.deckId === 'd1');
+    expect(d1Row).toBeDefined();
+    expect(d1Row!.preferredFree).toBe(false);
   });
 
   it('does not report when the slot is already on the preferred printing', () => {
