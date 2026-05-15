@@ -13,7 +13,7 @@ beforeEach(() => {
 describe('fetchTypeSuggestions', () => {
   it('flattens, dedupes and sorts catalog responses', async () => {
     const calls: string[] = [];
-    vi.spyOn(global, 'fetch').mockImplementation((url) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
       calls.push(String(url));
       return Promise.resolve(
         new Response(JSON.stringify({ data: ['Beta', 'alpha', 'beta'] }), { status: 200 })
@@ -30,13 +30,13 @@ describe('fetchTypeSuggestions', () => {
   });
 
   it('returns empty array entries on fetch errors', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'));
     const { fetchTypeSuggestions } = await freshModule();
     expect(await fetchTypeSuggestions()).toEqual([]);
   });
 
   it('drops non-OK catalog responses', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('nope', { status: 500 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 500 }));
     const { fetchTypeSuggestions } = await freshModule();
     expect(await fetchTypeSuggestions()).toEqual([]);
   });
@@ -44,7 +44,7 @@ describe('fetchTypeSuggestions', () => {
 
 describe('fetchOracleSuggestions', () => {
   it('always includes the bundled common-phrase list', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: [] }), { status: 200 })
     );
     const { fetchOracleSuggestions } = await freshModule();
@@ -55,7 +55,7 @@ describe('fetchOracleSuggestions', () => {
 
   it('caches catalog responses across calls', async () => {
     let fetchCount = 0;
-    vi.spyOn(global, 'fetch').mockImplementation(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
       fetchCount += 1;
       return Promise.resolve(new Response(JSON.stringify({ data: ['flying'] }), { status: 200 }));
     });

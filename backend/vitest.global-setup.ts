@@ -67,10 +67,9 @@ export default async function setup(): Promise<() => Promise<void>> {
     if (reachable) {
       process.env.RUN_DB_TESTS = '1';
       process.env.TEST_DATABASE_URL = url;
-      // eslint-disable-next-line no-console
+
       console.log(`[vitest] DB tests auto-enabled — reached ${redact(url)}`);
     } else {
-      // eslint-disable-next-line no-console
       console.log(
         `[vitest] DB tests skipped — couldn't reach ${redact(url)}. ` +
           `Start the dev container ('npm run db:up' from the repo root) or ` +
@@ -86,11 +85,9 @@ export default async function setup(): Promise<() => Promise<void>> {
     try {
       const dropped = await dropLeakedSchemas(url);
       if (dropped.length > 0) {
-        // eslint-disable-next-line no-console
         console.log(`[vitest] cleaned ${dropped.length} leaked schema(s) from a prior run`);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn('[vitest] pre-test schema sweep failed:', err);
     }
   }
@@ -101,11 +98,9 @@ export default async function setup(): Promise<() => Promise<void>> {
     try {
       const dropped = await dropLeakedSchemas(url);
       if (dropped.length > 0) {
-        // eslint-disable-next-line no-console
         console.log(`[vitest] post-run: dropped ${dropped.length} leaked schema(s)`);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn('[vitest] post-test schema sweep failed:', err);
     }
   };

@@ -246,16 +246,18 @@ export function CardPreview({
                 }}
                 key={`${c.scryfallId}-${i}`}
                 onClick={(e) => {
-                  // Tap a peeking neighbor to advance to it. Active slide
-                  // clicks are absorbed so the backdrop close handler
-                  // doesn't fire when the user simply clicks the card.
                   e.stopPropagation();
                   if (i !== selected) {
+                    // Tap a peeking neighbor to advance to it.
                     slideRefs.current[i]?.scrollIntoView({
                       inline: 'center',
                       block: 'nearest',
                       behavior: 'smooth',
                     });
+                  } else {
+                    // Tap the active card to close — matches the natural
+                    // "tap to dismiss" expectation on mobile and desktop alike.
+                    onClose();
                   }
                 }}
               >

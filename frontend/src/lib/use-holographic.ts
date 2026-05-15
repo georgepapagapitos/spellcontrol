@@ -126,66 +126,24 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       ensureLoop();
     };
 
-    // Touch-only devices get a tap-to-peek interaction instead of continuous
-    // tracking — continuous touchmove would fight the carousel's swipe-to-
-    // navigate and swipe-to-dismiss gestures. A tap (touch that lifts within
-    // 8px of where it landed, matching the carousel's axis-lock threshold)
-    // tilts the card toward the tap point and eases back after a moment.
-    const isTouchOnly = typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
+    // Only attach tilt on devices with a pointer — continuous mousemove gives
+    // a satisfying parallax effect with zero UX cost. On touch-only devices
+    // we skip entirely: the old tap-to-peek interaction consumed the tap and
+    // prevented the natural "tap to close" behavior users expect.
+    const hasPointer = typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
 
     const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
 
-    let tapStart: { x: number; y: number } | null = null;
-    let resetTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    const TAP_MOVE_THRESHOLD_PX = 8;
-    const TAP_HOLD_MS = 700;
-
-    const onTouchStart = (e: TouchEvent) => {
-      const t = e.touches[0];
-      if (!t) return;
-      tapStart = { x: t.clientX, y: t.clientY };
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const start = tapStart;
-      tapStart = null;
-      if (!start) return;
-      const t = e.changedTouches[0];
-      if (!t) return;
-      // If the finger moved more than the threshold, it was a swipe — let
-      // the carousel handle it and don't peek.
-      if (
-        Math.abs(t.clientX - start.x) > TAP_MOVE_THRESHOLD_PX ||
-        Math.abs(t.clientY - start.y) > TAP_MOVE_THRESHOLD_PX
-      ) {
-        return;
-      }
-      onMove(start.x, start.y);
-      if (resetTimeoutId != null) clearTimeout(resetTimeoutId);
-      resetTimeoutId = setTimeout(reset, TAP_HOLD_MS);
-    };
-    const onTouchCancel = () => {
-      tapStart = null;
-    };
-
-    if (isTouchOnly) {
-      el.addEventListener('touchstart', onTouchStart, { passive: true });
-      el.addEventListener('touchend', onTouchEnd);
-      el.addEventListener('touchcancel', onTouchCancel);
-    } else {
+    if (hasPointer) {
       el.addEventListener('mousemove', onMouseMove);
       el.addEventListener('mouseleave', reset);
     }
 
     return () => {
-      if (isTouchOnly) {
-        el.removeEventListener('touchstart', onTouchStart);
-        el.removeEventListener('touchend', onTouchEnd);
-        el.removeEventListener('touchcancel', onTouchCancel);
-      } else {
+      if (hasPointer) {
         el.removeEventListener('mousemove', onMouseMove);
         el.removeEventListener('mouseleave', reset);
       }
-      if (resetTimeoutId != null) clearTimeout(resetTimeoutId);
       if (rafId != null) cancelAnimationFrame(rafId);
       // Clear vars so the slide returns to flat instantly on prop change.
       el.style.removeProperty('--rx');
