@@ -569,10 +569,36 @@
 }
 
 /* ── Deck display ─────────────────────────────────────────────────────── */
+/* On desktop, the stats panel parks in a right-hand column that spans
+   the full deck height; on tablet/mobile it reorders above the toolbar
+   so the user sees the deck summary first, then the search controls,
+   then the composition. Grid template areas drive both layouts off a
+   single grid declaration. */
 .deck-display {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    'toolbar stats'
+    'banner  stats'
+    'body    stats';
+  column-gap: 1.25rem;
+  row-gap: 1rem;
+}
+
+.deck-display > .deck-toolbar {
+  grid-area: toolbar;
+}
+
+.deck-display > .deck-legality-banner {
+  grid-area: banner;
+}
+
+.deck-display > .deck-display-body {
+  grid-area: body;
+}
+
+.deck-display > .deck-display-sidebar {
+  grid-area: stats;
 }
 
 /* Toolbar — title + meta on left, sort/search/actions on right. */
@@ -1003,14 +1029,11 @@ input.toolbar-search-input {
   min-width: 0;
 }
 
-/* Two-pane body: card list on the left, statistics sidebar on the right.
-   Collapses to a stacked single column on tablet/mobile via the
-   responsive blocks below. */
+/* The body now holds only the deck composition (the sidebar is a
+   sibling at the `.deck-display` grid level). Kept as a block so any
+   future additions inside the main column reflow naturally. */
 .deck-display-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 1.25rem;
-  align-items: start;
+  display: block;
 }
 
 .deck-display-sidebar {
@@ -1112,6 +1135,13 @@ input.toolbar-search-input {
 
 .deck-row-name {
   flex: 1 1 auto;
+  /* Without min-width: 0, a flex item defaults to min-content — long
+     card names (e.g. "Hangarback, Carving Knight") couldn't shrink,
+     which pushed the whole row wider than the panel and bled past the
+     viewport on narrow phones. Pairing it with overflow-wrap: anywhere
+     lets unbreakable strings wrap rather than overflowing. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .deck-row-foil {
@@ -1398,7 +1428,10 @@ input.toolbar-search-input {
 .deck-combos-header,
 .deck-test-hand-header {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  /* minmax(0, 1fr) on the meta column so a long stats string
+     ("100 cards · avg CMC 2.92 · $333.24") doesn't expand the header
+     past the panel on narrow viewports. */
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
   width: 100%;
@@ -1445,6 +1478,18 @@ input.toolbar-search-input {
   padding-bottom: 0.25rem;
 }
 
+/* Static variant (desktop): the panel is permanently open and there's
+   no toggle button — render the header as a plain header strip with
+   no cursor pointer / hover affordance. */
+.deck-stats-header--static {
+  cursor: default;
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.deck-stats-header--static:hover .deck-stats-caret {
+  color: inherit;
+}
+
 .deck-stats-title {
   /* Matches the deck-section-title used for INSTANT / SORCERY etc. so
      every collapsible section header in the deck view shares one style. */
@@ -1458,9 +1503,13 @@ input.toolbar-search-input {
 
 .deck-stats-meta {
   flex: 1;
+  min-width: 0;
   font-size: var(--text-xs);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deck-stats-caret {
@@ -1797,8 +1846,8 @@ input.toolbar-search-input {
   top: 3.25rem;
   z-index: var(--z-panel);
   background: var(--bg);
-  margin: 0 -1rem 0.5rem;
-  padding: 0.75rem 1rem 0.65rem;
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
+  padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
 }
@@ -1811,7 +1860,7 @@ input.toolbar-search-input {
 
 @media (max-width: 600px) {
   .decks-index-search-row {
-    padding: 0.35rem 1rem 0.3rem;
+    padding: 0.35rem var(--page-gutter, 0.5rem) 0.3rem;
     margin-bottom: 0.25rem;
   }
 }
@@ -2166,12 +2215,18 @@ input.toolbar-search-input {
   gap: 1rem;
 }
 
+/* Two-column grid so the title can wrap to multiple lines without ever
+   pushing the action cluster (or the mobile 3-dot overflow) onto its
+   own row. `align-items: start` pins actions to the top of the header
+   so they stay top-right regardless of title height. Only one of
+   `.deck-editor-actions` (desktop) or `.deck-editor-overflow` (mobile)
+   is visible at a time — both compete for the auto column, but the
+   hidden one collapses out of the grid layout. */
 .deck-editor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .deck-editor-titlebar {
@@ -2282,32 +2337,48 @@ input.toolbar-search-input {
   color: var(--text);
 }
 
-.deck-editor-overflow-backdrop {
-  display: none;
-}
-
+/* The bottom-sheet backdrop + drag handle aren't used anymore — the
+   overflow opens as an anchored popover at every breakpoint, matching
+   the binder/deck index card 3-dot menus. The DOM nodes still render
+   for the time being to keep the JSX simple. */
+.deck-editor-overflow-backdrop,
 .deck-editor-overflow-handle {
   display: none;
 }
 
 .deck-editor-overflow-panel {
-  display: none;
+  /* Anchored popover: drops directly below the 3-dot button, right-
+     edge-aligned. Same shape as `.binders-index-card-menu-panel` /
+     `.decks-index-card-menu-panel` so every 3-dot in the app reads as
+     one component. */
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 12rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  gap: 1px;
 }
 
 .deck-editor-overflow-item {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   width: 100%;
   text-align: left;
   font-family: inherit;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--text);
   background: transparent;
   border: 0;
-  padding: 0.85rem 0.75rem;
-  min-height: 3rem;
-  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -2356,13 +2427,36 @@ input.toolbar-search-input {
   font-weight: 600;
 }
 
+/* Shared menu-item hover used by every 3-dot popover in the app —
+   binders index, decks index, and the deck-editor overflow. Single
+   place so the affordance is identical across surfaces, and a clear
+   `--surface2` swap so the focused row is obvious against the
+   `--surface`-backed panel. */
+.binders-index-card-menu-item,
+.decks-index-card-menu-item,
+.deck-editor-overflow-item {
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+
+.binders-index-card-menu-item:hover:not(:disabled),
+.binders-index-card-menu-item:focus-visible,
+.decks-index-card-menu-item:hover,
+.decks-index-card-menu-item:focus-visible,
 .deck-editor-overflow-item:hover,
 .deck-editor-overflow-item:focus-visible {
-  background: var(--accent-light);
+  background: var(--surface2);
+  color: var(--text);
   outline: none;
 }
 
 .deck-editor-overflow-item--danger {
+  color: var(--err-text, #d8442a);
+}
+
+.deck-editor-overflow-item--danger:hover,
+.deck-editor-overflow-item--danger:focus-visible {
   color: var(--err-text, #d8442a);
 }
 
@@ -2427,41 +2521,6 @@ input.toolbar-search-input {
 
   .deck-editor-overflow {
     display: inline-flex;
-  }
-
-  .deck-editor-overflow-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: var(--z-sheet-bg);
-    animation: binder-sheet-fade 160ms ease-out;
-  }
-
-  .deck-editor-overflow-panel {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: var(--z-sheet-fg);
-    background: var(--surface);
-    border-top: 0.5px solid var(--border2);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.22);
-    padding: 0.5rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
-    gap: 2px;
-    animation: binder-sheet-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
-  }
-
-  .deck-editor-overflow-handle {
-    display: block;
-    width: 2.25rem;
-    height: 4px;
-    margin: 0.25rem auto 0.6rem;
-    border-radius: 999px;
-    background: var(--border);
   }
 }
 
@@ -3260,7 +3319,10 @@ input.toolbar-search-input {
 
 .deck-editor-layout {
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, 1fr) so the deck-display inside can shrink below its
+     content's intrinsic min-width — without this the page horizontal-
+     scrolls at ~360px viewport widths. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   /* Smooth the column reflow when the side panel toggles so deck cards
      glide into their new width instead of snapping. */
@@ -4829,16 +4891,60 @@ input.deck-row-qty-input.deck-row-qty-missing {
    Card list keeps two columns at 280px so a generated 100-card deck is
    still browsable without endless vertical scroll. */
 @media (max-width: 1100px) {
-  .deck-display-body {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  /* Stack vertically with the stats panel parked at the top, so the
+     user sees a closed-by-default summary chip (cards · CMC · value)
+     before the search/sort controls and the deck composition. The
+     minmax(0, 1fr) is the load-bearing detail: plain `1fr` resolves
+     to `minmax(auto, 1fr)` which means descendant min-content (long
+     card names, the stats meta string) can force the column wider
+     than the viewport, clipping content on narrow phones. */
+  .deck-display {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'stats'
+      'toolbar'
+      'banner'
+      'body';
   }
 
-  /* Single-column card list at tablet sizes — multi-column makes the rows
-     awkwardly narrow once the stats sidebar drops below. */
+  /* Totals (cards + value) are surfaced by the Statistics panel header
+     once the sidebar collapses above the deck — duplicating them in
+     the hero would be noise. Hide on tablet/mobile only. */
+  .deck-hero-totals {
+    display: none;
+  }
+
+  /* Tablet/mobile: flatten the per-section bordered cards into one
+     continuous panel. Each section keeps its header + rows for
+     organization but loses its own background/border/padding, so the
+     deck composition reads as a single contiguous list (echoing the
+     20q2 deck-generator's layout). Multi-column is also dropped — rows
+     stay full-width for legibility once the stats sidebar drops below. */
   .deck-card-list {
     column-count: 1;
     column-width: auto;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.25rem 0.85rem;
+  }
+
+  .deck-card-list .deck-section {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 0;
+    display: block;
+  }
+
+  /* Thin divider between sections — replaces the inter-card whitespace
+     that the bordered cards used to create. The first section skips
+     the line so the panel doesn't open with a rule. */
+  .deck-card-list .deck-section + .deck-section {
+    border-top: 0.5px solid var(--border);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
   }
 
   .deck-display-sidebar {
@@ -5409,8 +5515,8 @@ input.deck-row-qty-input.deck-row-qty-missing {
   top: 3.25rem;
   z-index: var(--z-panel);
   background: var(--bg);
-  margin: 0 -1rem 0.5rem;
-  padding: 0.75rem 1rem 0.65rem;
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
+  padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
 }
@@ -5423,7 +5529,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
 
 @media (max-width: 600px) {
   .binders-index-search-row {
-    padding: 0.35rem 1rem 0.3rem;
+    padding: 0.35rem var(--page-gutter, 0.5rem) 0.3rem;
     margin-bottom: 0.25rem;
   }
 }
@@ -5514,6 +5620,13 @@ input.deck-row-qty-input.deck-row-qty-missing {
   transition: border-color 120ms ease;
 }
 
+/* Lift the card above its siblings while its 3-dot popover is open so
+   the menu panel paints over the cards that follow it in the list
+   instead of slipping behind them. */
+.binders-index-card:has(.binders-index-card-menu-btn[aria-expanded='true']) {
+  z-index: var(--z-dropdown);
+}
+
 /* On hover, every side of the border tints to the binder's chosen color so
    the card visually "lights up" in its own theme — not the global accent.
    No transform on hover — that 1px lift was reading as a layout shift
@@ -5577,10 +5690,12 @@ input.deck-row-qty-input.deck-row-qty-missing {
 
 .binders-index-list.is-compact .binders-index-card {
   /* Clamp every li to the column width so long binder names ellipsis
-     instead of pushing the row past the right edge. Matches
-     .decks-index-list.is-compact .decks-index-card. */
+     instead of pushing the row past the right edge. `overflow: hidden`
+     used to live here too, but it clipped the absolutely-positioned
+     3-dot menu panel — long names are already truncated inside
+     `.binders-index-card-name` (text-overflow: ellipsis), so the
+     outer clip isn't needed. */
   min-width: 0;
-  overflow: hidden;
 }
 
 .binders-index-list.is-compact .binders-index-card-link {
@@ -5634,10 +5749,24 @@ input.deck-row-qty-input.deck-row-qty-missing {
 }
 
 /* Center the action menu vertically in compact rows (default
-   top: 0.4rem looks anchored to the top of a single-line row). */
+   top: 0.4rem looks anchored to the top of a single-line row). We
+   stretch the wrapper to the full card height and let flex centering
+   handle the button — `top: 50% + translateY` was rounding off-center
+   when the inline content (name baseline) didn't sit at mid-card. */
 .binders-index-list.is-compact .binders-index-card-menu {
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Shrink the 3-dot button in compact rows so its circular hover
+   background doesn't pop past the card's rounded right edge — the
+   default 1.9rem button is taller than the compact row's content. */
+.binders-index-list.is-compact .binders-index-card-menu-btn {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .binders-index-card-menu {
@@ -5729,41 +5858,10 @@ input.deck-row-qty-input.deck-row-qty-missing {
   font-size: var(--text-sm);
 }
 
-/* On mobile the per-card menu becomes a bottom sheet, matching the
-   decks index action sheet. */
-@media (max-width: 640px) {
-  .binders-index-card-menu-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-sheet-bg);
-    background: var(--overlay-sheet);
-  }
-
-  .binders-index-card-menu-panel {
-    position: fixed;
-    inset: auto 0 0 0;
-    top: auto;
-    z-index: var(--z-sheet-fg);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom));
-    box-shadow: var(--shadow-sheet);
-  }
-
-  .binders-index-card-menu-handle {
-    display: block;
-    width: 2.25rem;
-    height: 4px;
-    margin: 0.25rem auto 0.5rem;
-    border-radius: 999px;
-    background: var(--border);
-  }
-
-  .binders-index-card-menu-item {
-    padding: 0.85rem 0.5rem;
-    font-size: var(--text-base);
-  }
-}
+/* No mobile bottom-sheet treatment — the per-card menu uses the same
+   anchored popover at every breakpoint (matches the deck-editor and
+   decks-index 3-dot menus). The backdrop / handle nodes still render
+   in the JSX but stay `display: none` everywhere. */
 
 /* ─── Deck analysis panel ───────────────────────────────────────────────── */
 /* Shares the deck-combos-panel header/body chrome (see DeckCombosPanel) so

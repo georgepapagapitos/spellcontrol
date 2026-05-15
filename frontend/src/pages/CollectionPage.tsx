@@ -73,15 +73,16 @@ export function CollectionPage() {
                   {collectionCardCount.toLocaleString()}{' '}
                   {collectionCardCount === 1 ? 'card' : 'cards'} · ${collectionValue.toFixed(0)}
                 </span>
+                <span aria-hidden> · </span>
                 <button
                   type="button"
-                  className="collection-toolbar-stats-btn"
+                  className="collection-hero-stats-link"
                   onClick={() => setStatsOpen(true)}
                   aria-label="Open collection breakdown"
                   title="Breakdown"
                 >
-                  <BarChart3 width={14} height={14} strokeWidth={2} aria-hidden />
-                  <span className="collection-toolbar-stats-label">Stats</span>
+                  <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
+                  <span>Stats</span>
                 </button>
               </p>
             </div>

@@ -23,9 +23,9 @@ import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
 import { isValidCommander } from '../lib/commanders';
 import { useToastsStore } from '../store/toasts';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { getCardPrice } from '../deck-builder/services/scryfall/client';
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -156,6 +156,29 @@ export function DeckEditorPage() {
       document.removeEventListener('keydown', onKey);
     };
   }, [colorPickerOpen]);
+
+  // Hero totals — mirrors the values surfaced in the Statistics panel
+  // header so the desktop hero reads as a quick at-a-glance summary
+  // before the user scrolls into the deck composition. Sideboard counts
+  // toward the totals; commanders are added on top since they're not
+  // part of `deck.cards`. Computed BEFORE the missing-deck early
+  // return so the hook order stays stable across renders.
+  const heroTotals = useMemo(() => {
+    if (!deck) return { count: 0, value: 0 };
+    const sumPrice = (cards: ScryfallCard[]) =>
+      cards.reduce((sum, c) => {
+        const raw = getCardPrice(c, 'USD');
+        const n = raw ? Number(raw) : NaN;
+        return sum + (Number.isFinite(n) ? n : 0);
+      }, 0);
+    const commanders: ScryfallCard[] = [];
+    if (deck.commander) commanders.push(deck.commander);
+    if (deck.partnerCommander) commanders.push(deck.partnerCommander);
+    const mainCards = deck.cards.map((c) => c.card);
+    const sideCards = deck.sideboard.map((c) => c.card);
+    const allCards = [...commanders, ...mainCards, ...sideCards];
+    return { count: allCards.length, value: sumPrice(allCards) };
+  }, [deck]);
 
   if (!id) return <Navigate to="/decks" replace />;
   if (!deck) {
@@ -376,6 +399,14 @@ export function DeckEditorPage() {
                 {deck.commander.name}
               </>
             )}
+            {/* Desktop-only totals chip — repeated in the Statistics panel
+                header. Hidden on tablet/mobile via .deck-hero-totals
+                where the stats panel already surfaces the same info. */}
+            <span className="deck-hero-totals">
+              {' · '}
+              {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} · $
+              {heroTotals.value.toFixed(2)}
+            </span>
           </p>
         </div>
         <div className="deck-editor-actions">
@@ -420,14 +451,16 @@ export function DeckEditorPage() {
           >
             {showAddPanel ? 'Hide cards panel' : 'Add cards'}
           </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => combosPanelRef.current?.reveal()}
-            title="Jump to combos (press c)"
-          >
-            Combos
-          </button>
+          {formatConfig?.hasCommander && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => combosPanelRef.current?.reveal()}
+              title="Jump to combos (press c)"
+            >
+              Combos
+            </button>
+          )}
           <button type="button" className="btn" onClick={handleDuplicate}>
             Duplicate
           </button>
@@ -445,6 +478,7 @@ export function DeckEditorPage() {
             }
           }}
           onJumpToCombos={() => combosPanelRef.current?.reveal()}
+          showCombos={!!formatConfig?.hasCommander}
           onDuplicate={handleDuplicate}
           onDelete={() => setConfirmDelete(true)}
           onExport={() => setExportOpen(true)}
@@ -454,12 +488,10 @@ export function DeckEditorPage() {
       </header>
 
       <DeckFeatureStrip
-        cardCount={deck.cards.length}
-        hasCommander={!!formatConfig?.hasCommander}
-        commanderCount={(deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0)}
         bracket={deck.bracketEstimation?.bracket}
         comboCount={comboData.data?.inDeck.length ?? null}
         comboLoading={comboData.loading}
+        showCombosAndAnalysis={!!formatConfig?.hasCommander}
         onShowCombos={() => combosPanelRef.current?.reveal()}
         onShowAnalysis={() => analysisPanelRef.current?.reveal()}
         onShowTestHand={() => testHandPanelRef.current?.reveal()}
@@ -504,23 +536,36 @@ export function DeckEditorPage() {
             created visual "two sidebars" noise. Below the deck they get
             full main-column width, which lets the combo grid auto-fan to
             2+ columns on wide viewports.
+
+            Combos and Analysis are gated on `hasCommander` — both panels
+            are built around the singleton / color-identity rules of
+            Commander-family formats (combo bucketing assumes a 99-card
+            deck around a commander; the analysis breakdowns score
+            against bracket-style heuristics). For Standard / Pauper they
+            mostly produce noise, so they're hidden entirely. Test Hand
+            stays for every format — drawing an opening hand is useful
+            for any deck.
           */}
-          <DeckCombosPanel
-            ref={combosPanelRef}
-            deckId={deck.id}
-            deckOracleIds={deckOracleIds}
-            format={deck.format}
-            onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-          />
-          <DeckAnalysisPanel
-            ref={analysisPanelRef}
-            deckId={deck.id}
-            format={deck.format}
-            commander={deck.commander}
-            partnerCommander={deck.partnerCommander}
-            mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-            onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-          />
+          {formatConfig?.hasCommander && (
+            <>
+              <DeckCombosPanel
+                ref={combosPanelRef}
+                deckId={deck.id}
+                deckOracleIds={deckOracleIds}
+                format={deck.format}
+                onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+              />
+              <DeckAnalysisPanel
+                ref={analysisPanelRef}
+                deckId={deck.id}
+                format={deck.format}
+                commander={deck.commander}
+                partnerCommander={deck.partnerCommander}
+                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+              />
+            </>
+          )}
           <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
         </main>
 
@@ -621,55 +666,57 @@ export function DeckEditorPage() {
 }
 
 function DeckFeatureStrip({
-  cardCount,
-  hasCommander,
-  commanderCount,
   bracket,
   comboCount,
   comboLoading,
+  showCombosAndAnalysis,
   onShowCombos,
   onShowAnalysis,
   onShowTestHand,
 }: {
-  cardCount: number;
-  hasCommander: boolean;
-  commanderCount: number;
   bracket: number | undefined;
   comboCount: number | null;
   comboLoading: boolean;
+  /** Whether to render the Combos / Analysis chips at all. Gated to commander-family formats. */
+  showCombosAndAnalysis: boolean;
   onShowCombos: () => void;
   onShowAnalysis: () => void;
   onShowTestHand: () => void;
 }) {
-  const cardLabel = hasCommander
-    ? commanderCount > 0
-      ? `${cardCount} + ${commanderCount === 1 ? 'commander' : `${commanderCount} commanders`}`
-      : `${cardCount} cards`
-    : `${cardCount} ${cardCount === 1 ? 'card' : 'cards'}`;
-
   return (
     <div className="deck-feature-strip" aria-label="Deck features">
-      <span className="deck-feature-chip">{cardLabel}</span>
+      {/* Card count chip removed — the Statistics panel header (and
+          the desktop hero) already surface "{N} cards · avg CMC · $",
+          so repeating it here was just chrome. */}
       {bracket != null && <span className="deck-feature-chip">Bracket {bracket}</span>}
-      <button
-        type="button"
-        className="deck-feature-chip deck-feature-chip--action"
-        onClick={onShowCombos}
-        title="Jump to combos (press C)"
-      >
-        <Sparkles width={13} height={13} aria-hidden />
-        {comboLoading ? '…' : comboCount === null ? '—' : comboCount}{' '}
-        {comboCount === 1 ? 'combo' : 'combos'}
-      </button>
-      <button
-        type="button"
-        className="deck-feature-chip deck-feature-chip--action"
-        onClick={onShowAnalysis}
-        title="Open deck analysis (press A)"
-      >
-        <Gauge width={13} height={13} aria-hidden />
-        Analysis
-      </button>
+      {/* Combos and Analysis chips ride alongside the Combos / Analysis
+          panels — both are gated on `showCombosAndAnalysis` (which the
+          caller derives from `hasCommander`) since they're built around
+          the singleton / commander-color rules of EDH-family formats.
+          Standard / Pauper users see Test hand only. */}
+      {showCombosAndAnalysis && (
+        <>
+          <button
+            type="button"
+            className="deck-feature-chip deck-feature-chip--action"
+            onClick={onShowCombos}
+            title="Jump to combos (press C)"
+          >
+            <Sparkles width={13} height={13} aria-hidden />
+            {comboLoading ? '…' : comboCount === null ? '—' : comboCount}{' '}
+            {comboCount === 1 ? 'combo' : 'combos'}
+          </button>
+          <button
+            type="button"
+            className="deck-feature-chip deck-feature-chip--action"
+            onClick={onShowAnalysis}
+            title="Open deck analysis (press A)"
+          >
+            <Gauge width={13} height={13} aria-hidden />
+            Analysis
+          </button>
+        </>
+      )}
       <button
         type="button"
         className="deck-feature-chip deck-feature-chip--action"
@@ -687,6 +734,7 @@ function DeckEditorOverflowMenu({
   isAddPanelOpen,
   onToggleAddPanel,
   onJumpToCombos,
+  showCombos,
   onDuplicate,
   onDelete,
   onExport,
@@ -696,6 +744,8 @@ function DeckEditorOverflowMenu({
   isAddPanelOpen: boolean;
   onToggleAddPanel: () => void;
   onJumpToCombos: () => void;
+  /** Hide the "Jump to combos" entry when the deck's format has no combos panel. */
+  showCombos: boolean;
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
@@ -705,7 +755,6 @@ function DeckEditorOverflowMenu({
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'menu' | 'color'>('menu');
   const wrapperRef = useRef<HTMLDivElement>(null);
-  useLockBodyScroll(open);
 
   // Closing the sheet resets the sub-view so reopening lands on the action
   // list. Done as a render-phase reset to keep setState out of useEffect
@@ -749,13 +798,7 @@ function DeckEditorOverflowMenu({
       </button>
       {open && (
         <>
-          <div
-            className="deck-editor-overflow-backdrop"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
           <div className="deck-editor-overflow-panel" role="menu">
-            <div className="deck-editor-overflow-handle" aria-hidden />
             {view === 'menu' && (
               <>
                 <button
@@ -769,17 +812,19 @@ function DeckEditorOverflowMenu({
                 >
                   {isAddPanelOpen ? 'Hide cards panel' : 'Add cards'}
                 </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-editor-overflow-item"
-                  onClick={() => {
-                    setOpen(false);
-                    onJumpToCombos();
-                  }}
-                >
-                  Jump to combos
-                </button>
+                {showCombos && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="deck-editor-overflow-item"
+                    onClick={() => {
+                      setOpen(false);
+                      onJumpToCombos();
+                    }}
+                  >
+                    Jump to combos
+                  </button>
+                )}
                 <button
                   type="button"
                   role="menuitem"

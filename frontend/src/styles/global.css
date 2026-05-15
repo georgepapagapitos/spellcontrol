@@ -131,7 +131,22 @@ body {
 .app-main {
   flex: 1 1 auto;
   overflow-x: clip;
-  padding: 0 1rem 2rem;
+  /* Page horizontal gutter is exposed as a custom property so sticky
+     bars / bleed elements (.collection-toolbar-row, the index search
+     rows) can mirror it via negative margins and stay flush with the
+     content edge at every breakpoint. */
+  --page-gutter: 1rem;
+  padding: 0 var(--page-gutter) 2rem;
+}
+
+/* Phones get a tighter gutter — every pixel of side padding eats ~9%
+   of content width at 360px viewports, and most pages already host
+   panels/cards with their own internal padding so the page-level
+   gutter is mostly empty space. */
+@media (max-width: 600px) {
+  .app-main {
+    --page-gutter: 0.5rem;
+  }
 }
 
 button {
@@ -3830,12 +3845,22 @@ hr {
   gap: 1.1rem;
 }
 
+/* Grid layout so the num + dropdown + reorder/remove actions always
+   sit on a single row at every breakpoint — the prior flex-wrap row
+   pushed the action cluster onto its own line under the SelectMenu
+   on phones. The optional 4th child (SortValueOrderEditor or the
+   text-only order hint) spans all three columns on the next row. */
 .sort-editor-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.5rem;
   row-gap: 0.3rem;
+}
+
+.sort-editor-row > .sort-editor-order-hint,
+.sort-editor-row > .sort-value-order-editor {
+  grid-column: 1 / -1;
 }
 
 .sort-editor-num {
@@ -3857,9 +3882,20 @@ hr {
   margin-top: 0.25rem;
 }
 
+/* `.tab-actions` (the base class shared with the binder/tab strips) is
+   styled to attach to a left-hand neighbor — top + right + bottom
+   borders only, with the left side intentionally seamed. The sort
+   editor uses it standalone, so we paint a complete uniform border
+   on every side and let the buttons inside provide their own vertical
+   separators. Avoids the "ledge" effect where the bottom rendered
+   thinner than the top from the mismatched 0.5px stripes. Setting
+   `min-width: 0` lets the grid track shrink the cluster on very
+   narrow viewports so the right edge (and its bottom-right corner)
+   doesn't fall off the dialog. */
 .sort-editor-actions {
+  border: 0.5px solid var(--border2);
   border-radius: var(--radius);
-  border-left: 0.5px solid var(--accent);
+  min-width: 0;
 }
 
 .sort-editor-actions .tab-action {
@@ -6169,8 +6205,8 @@ hr {
   top: 3.25rem;
   z-index: var(--z-panel);
   background: var(--bg);
-  padding: 0.75rem 1rem 0.65rem;
-  margin: 0 -1rem 0.75rem;
+  padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -6188,10 +6224,42 @@ hr {
    h1, mirroring how the binders/decks index shows a count under its hero. */
 .collection-hero-meta {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  align-items: baseline;
+  gap: 0.25rem;
   flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* Subtle text link styled to sit inline with the totals meta — same
+   feel as the dotted-underline binder/deck context links in the card
+   preview, but with the small BarChart3 icon to signal that it opens
+   a drawer rather than navigating. Replaces the standalone Stats pill
+   so the row no longer competes with the hero's primary action pills
+   ("Add card" / "Import cards") for visual weight. */
+.collection-hero-stats-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent) 50%, transparent);
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.collection-hero-stats-link:hover,
+.collection-hero-stats-link:focus-visible {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.collection-hero-stats-link svg {
+  flex-shrink: 0;
 }
 
 /* CollectionFiltersDialog — centered modal triggered by the filter
@@ -8316,6 +8384,12 @@ hr {
 .back-link {
   display: inline-flex;
   align-items: center;
+  /* `align-self: flex-start` so the link hugs its text when it sits
+     inside a flex/grid column (e.g. `.deck-editor-page`). Without it,
+     a flex item with `display: inline-flex` still stretches across the
+     full cross-axis width, and the hover background painted a band
+     across the whole row instead of just the label. */
+  align-self: flex-start;
   gap: 0.35rem;
   margin-bottom: 0.6rem;
   padding: 0.25rem 0.5rem 0.25rem 0.35rem;

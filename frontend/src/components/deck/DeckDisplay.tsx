@@ -640,6 +640,22 @@ export function DeckDisplay({
     }
   }, [statsOpen]);
 
+  // On desktop the sidebar lives in its own right-hand column and there's
+  // no real reason to collapse it — the panel always renders open and
+  // suppresses its toggle affordance. Tablet/mobile retains the
+  // collapsible behavior because the stats sit above the deck where a
+  // permanently-open panel would push the composition down.
+  const [isStatsAlwaysOpen, setIsStatsAlwaysOpen] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1101px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(min-width: 1101px)');
+    const update = () => setIsStatsAlwaysOpen(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+
   // Commander rows are synthetic so they always render first; their slot
   // ids are blank because remove is not allowed on the commander.
   const commanderRows: Row[] = useMemo(() => {
@@ -910,9 +926,6 @@ export function DeckDisplay({
       <div className="deck-display">
         <DeckToolbar
           title={title}
-          totalCards={totalCards}
-          averageCmc={averageCmc}
-          totalPrice={totalPrice}
           missingCount={missing.count}
           missingPrice={missing.price}
           deckGrade={deckGrade}
@@ -971,8 +984,11 @@ export function DeckDisplay({
                 {formatConfig.sideboardSize > 0 && (
                   <div className="deck-sideboard-section">
                     <h3 className="deck-sideboard-header">
-                      Sideboard ({sideboard.reduce((sum, _) => sum + 1, 0)}/
-                      {formatConfig.sideboardSize})
+                      Sideboard ({sideboard.length}
+                      {Number.isFinite(formatConfig.sideboardSize)
+                        ? `/${formatConfig.sideboardSize}`
+                        : ''}
+                      )
                     </h3>
                     {visibleSideboardGroups.map((g) => (
                       <CategorySection
@@ -1008,24 +1024,31 @@ export function DeckDisplay({
             )}
             {viewMode === 'text' && <DeckTextView text={exportText} />}
           </div>
-
-          <aside className="deck-display-sidebar">
-            <DeckStatistics
-              allCards={allCards}
-              manaCurve={manaCurve}
-              manaCurveByColor={manaCurveByColor}
-              bracketEstimation={bracketEstimation}
-              roleCounts={roleCounts}
-              rampSubtypeCounts={rampSubtypeCounts}
-              removalSubtypeCounts={removalSubtypeCounts}
-              boardwipeSubtypeCounts={boardwipeSubtypeCounts}
-              cardDrawSubtypeCounts={cardDrawSubtypeCounts}
-              averageCmc={averageCmc}
-              open={statsOpen}
-              onToggle={() => setStatsOpen((v) => !v)}
-            />
-          </aside>
         </div>
+
+        {/* Pulled out of `.deck-display-body` so the parent grid can park
+            the panel above the toolbar on mobile/tablet (via
+            grid-template-areas) while keeping it pinned to the
+            right-hand column on desktop. */}
+        <aside className="deck-display-sidebar">
+          <DeckStatistics
+            allCards={allCards}
+            totalCards={totalCards}
+            totalPrice={totalPrice}
+            currency={currency}
+            manaCurve={manaCurve}
+            manaCurveByColor={manaCurveByColor}
+            bracketEstimation={bracketEstimation}
+            roleCounts={roleCounts}
+            rampSubtypeCounts={rampSubtypeCounts}
+            removalSubtypeCounts={removalSubtypeCounts}
+            boardwipeSubtypeCounts={boardwipeSubtypeCounts}
+            cardDrawSubtypeCounts={cardDrawSubtypeCounts}
+            averageCmc={averageCmc}
+            open={isStatsAlwaysOpen || statsOpen}
+            onToggle={isStatsAlwaysOpen ? undefined : () => setStatsOpen((v) => !v)}
+          />
+        </aside>
 
         {previewIndex !== null && (
           <CardPreview
@@ -1190,9 +1213,6 @@ function scryfallToEnriched(
 // ── Toolbar ───────────────────────────────────────────────────────────────
 interface ToolbarProps {
   title: string;
-  totalCards: number;
-  averageCmc: number;
-  totalPrice: number;
   missingCount: number;
   missingPrice: number;
   deckGrade?: { letter: string; headline: string };
@@ -1226,9 +1246,6 @@ const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
 
 function DeckToolbar({
   title,
-  totalCards,
-  averageCmc,
-  totalPrice,
   missingCount,
   missingPrice,
   deckGrade,
@@ -1248,18 +1265,21 @@ function DeckToolbar({
     <header className="deck-toolbar">
       <div className="deck-toolbar-summary">
         <span className="deck-toolbar-title">{title}</span>
-        <span className="deck-toolbar-meta">
-          {totalCards} cards · avg CMC {averageCmc.toFixed(2)} · {fmtMoney(totalPrice, currency)}
-          {deckGrade ? ` · grade ${deckGrade.letter}` : ''}
-          {missingCount > 0 && (
-            <>
-              {' · '}
+        {(deckGrade || missingCount > 0) && (
+          <span className="deck-toolbar-meta">
+            {/* Card count / avg CMC / total value moved to the Statistics
+                panel header (and the desktop hero) so this row only
+                surfaces deck-quality signal (grade) and the
+                gap-to-collection chip when there is one. */}
+            {deckGrade ? `Grade ${deckGrade.letter}` : ''}
+            {deckGrade && missingCount > 0 ? ' · ' : ''}
+            {missingCount > 0 && (
               <span className="deck-toolbar-missing">
                 {missingCount} missing ({fmtMoney(missingPrice, currency)})
               </span>
-            </>
-          )}
-        </span>
+            )}
+          </span>
+        )}
       </div>
       <div className="deck-toolbar-controls">
         <SelectMenu
@@ -1971,6 +1991,9 @@ function DeckCardRow({
 // ── Statistics panel ──────────────────────────────────────────────────────
 function DeckStatistics({
   allCards,
+  totalCards,
+  totalPrice,
+  currency,
   manaCurve,
   manaCurveByColor,
   bracketEstimation,
@@ -1984,6 +2007,9 @@ function DeckStatistics({
   onToggle,
 }: {
   allCards: ScryfallCard[];
+  totalCards: number;
+  totalPrice: number;
+  currency: CurrencyCode;
   manaCurve: Record<number, number>;
   manaCurveByColor: Record<number, Record<string, number>>;
   bracketEstimation?: BracketEstimation;
@@ -1994,7 +2020,8 @@ function DeckStatistics({
   cardDrawSubtypeCounts?: Record<string, number>;
   averageCmc: number;
   open: boolean;
-  onToggle: () => void;
+  /** Omit to render an always-open header with no caret / click handler. */
+  onToggle?: () => void;
 }) {
   // Always render the full 0–7+ axis so a near-empty deck (e.g. just a
   // commander) does not produce a single column stretched across the panel.
@@ -2109,14 +2136,28 @@ function DeckStatistics({
 
   return (
     <section className="deck-stats" data-open={open || undefined}>
-      <button type="button" className="deck-stats-header" onClick={onToggle} aria-expanded={open}>
-        <BarChart3 width={16} height={16} aria-hidden />
-        <span className="deck-stats-title">Statistics</span>
-        <span className="deck-stats-meta">{averageCmc.toFixed(2)} avg CMC</span>
-        <span className="deck-stats-caret" aria-hidden>
-          {open ? <ChevronUp width={16} height={16} /> : <ChevronDown width={16} height={16} />}
-        </span>
-      </button>
+      {onToggle ? (
+        <button type="button" className="deck-stats-header" onClick={onToggle} aria-expanded={open}>
+          <BarChart3 width={16} height={16} aria-hidden />
+          <span className="deck-stats-title">Statistics</span>
+          <span className="deck-stats-meta">
+            {totalCards} {totalCards === 1 ? 'card' : 'cards'} · avg CMC {averageCmc.toFixed(2)} ·{' '}
+            {fmtMoney(totalPrice, currency)}
+          </span>
+          <span className="deck-stats-caret" aria-hidden>
+            {open ? <ChevronUp width={16} height={16} /> : <ChevronDown width={16} height={16} />}
+          </span>
+        </button>
+      ) : (
+        <div className="deck-stats-header deck-stats-header--static">
+          <BarChart3 width={16} height={16} aria-hidden />
+          <span className="deck-stats-title">Statistics</span>
+          <span className="deck-stats-meta">
+            {totalCards} {totalCards === 1 ? 'card' : 'cards'} · avg CMC {averageCmc.toFixed(2)} ·{' '}
+            {fmtMoney(totalPrice, currency)}
+          </span>
+        </div>
+      )}
       <div className="deck-stats-grid" hidden={!open}>
         <Panel title="Mana curve">
           <div className="deck-curve">
