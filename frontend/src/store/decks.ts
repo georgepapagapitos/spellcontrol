@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
+import { isBasicLandName, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
 import { markDestructive } from '../lib/sync-intent';
 import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
@@ -66,6 +66,17 @@ export interface Deck {
   cardDrawSubtypeCounts?: Record<string, number>;
   bracketEstimation?: BracketEstimation;
   deckGrade?: { letter: string; headline: string };
+  /**
+   * Hash of the inputs (commander + mainboard card names) the persisted
+   * deckGrade/bracketEstimation were last computed from. Only set for manual
+   * commander decks, where grade/bracket are computed live and recomputed when
+   * this signature changes. Absent on generated decks (their grade/bracket is
+   * a frozen generation snapshot).
+   */
+  gradeBracketSignature?: string;
+  /** Mean EDHREC salt score across non-land cards. Snapshotted at generation. */
+  averageSalt?: number;
+  saltiestCards?: Array<{ name: string; salt: number }>;
   /** User-chosen accent color (hex). Defaults to a random preset on create. */
   color: string;
   createdAt: number;
@@ -95,11 +106,16 @@ interface DecksState {
     cardDrawSubtypeCounts?: Record<string, number>;
     bracketEstimation?: BracketEstimation;
     deckGrade?: { letter: string; headline: string };
+    gradeBracketSignature?: string;
+    averageSalt?: number;
+    saltiestCards?: Array<{ name: string; salt: number }>;
   }): string;
 
   updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>): void;
   renameDeck(id: string, name: string): void;
   deleteDeck(id: string): void;
+  /** Delete every deck. Used by the admin "Wipe all decks" button. */
+  deleteAllDecks(): void;
   /** Deep-clone a deck. Allocations reset — the original still claims those copies. */
   duplicateDeck(id: string): string | null;
 
@@ -164,6 +180,9 @@ export const useDecksStore = create<DecksState>()(
           cardDrawSubtypeCounts: input.cardDrawSubtypeCounts,
           bracketEstimation: input.bracketEstimation,
           deckGrade: input.deckGrade,
+          gradeBracketSignature: input.gradeBracketSignature,
+          averageSalt: input.averageSalt,
+          saltiestCards: input.saltiestCards,
           color: input.color ?? pickRandomPresetColor(),
           createdAt: now,
           updatedAt: now,
@@ -185,6 +204,11 @@ export const useDecksStore = create<DecksState>()(
       deleteDeck: (id) => {
         markDestructive();
         set((s) => ({ decks: s.decks.filter((d) => d.id !== id) }));
+      },
+
+      deleteAllDecks: () => {
+        markDestructive();
+        set({ decks: [] });
       },
 
       duplicateDeck: (id) => {
@@ -360,9 +384,10 @@ export const useDecksStore = create<DecksState>()(
             copyId: string,
             deckId: string,
             deckName: string,
+            deckColor: string,
             cardName: string
           ): void => {
-            allocated.set(copyId, { deckId, deckName, cardName });
+            allocated.set(copyId, { deckId, deckName, deckColor, cardName });
           };
 
           // Two passes: first preserve every still-valid binding so they get
@@ -372,6 +397,7 @@ export const useDecksStore = create<DecksState>()(
           interface SlotRef {
             deckId: string;
             deckName: string;
+            deckColor: string;
             cardName: string;
             scryfallId: string | undefined;
             currentCopyId: string | null;
@@ -410,6 +436,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: deck.commander.name,
                 scryfallId: deck.commander.id,
                 currentCopyId: deck.commanderAllocatedCopyId,
@@ -422,6 +449,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: deck.partnerCommander.name,
                 scryfallId: deck.partnerCommander.id,
                 currentCopyId: deck.partnerCommanderAllocatedCopyId,
@@ -435,6 +463,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: c.card.name,
                 scryfallId: c.card.id,
                 currentCopyId: c.allocatedCopyId,
@@ -449,6 +478,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: c.card.name,
                 scryfallId: c.card.id,
                 currentCopyId: c.allocatedCopyId,
@@ -494,8 +524,14 @@ export const useDecksStore = create<DecksState>()(
           const needsPick: SlotRef[] = [];
           for (const slot of slots) {
             const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
+            // Basic lands are fungible — any printing satisfies the slot's
+            // preference, so the current binding is "OK" regardless of
+            // scryfallId. Without this, every basic-land slot churns to
+            // whatever printing pass 2 happens to find first.
             const printingOk =
-              !slot.scryfallId || (current ? current.scryfallId === slot.scryfallId : false);
+              !slot.scryfallId ||
+              isBasicLandName(slot.cardName) ||
+              (current ? current.scryfallId === slot.scryfallId : false);
             if (
               slot.currentCopyId &&
               current &&
@@ -503,7 +539,7 @@ export const useDecksStore = create<DecksState>()(
               printingOk &&
               !allocated.has(slot.currentCopyId)
             ) {
-              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(current);
             } else {
               needsPick.push(slot);
@@ -516,7 +552,9 @@ export const useDecksStore = create<DecksState>()(
           // pre-fix randomness left slots on whatever Plains was cheap.
           const stillNeedsPick: SlotRef[] = [];
           for (const slot of needsPick) {
-            if (!slot.scryfallId) {
+            // No preferred printing or basic land → skip the printing-match
+            // upgrade and let pass 3/4 distribute across whatever's free.
+            if (!slot.scryfallId || isBasicLandName(slot.cardName)) {
               stillNeedsPick.push(slot);
               continue;
             }
@@ -534,7 +572,7 @@ export const useDecksStore = create<DecksState>()(
                 return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
               });
               const pick = list[0];
-              claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(pick.copyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(pick);
               slot.apply(pick.copyId);
             } else {
@@ -554,7 +592,7 @@ export const useDecksStore = create<DecksState>()(
               current.name === slot.cardName &&
               !allocated.has(slot.currentCopyId)
             ) {
-              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(current);
             } else {
               needsFreshPick.push(slot);
@@ -572,7 +610,7 @@ export const useDecksStore = create<DecksState>()(
               slot.scryfallId
             );
             if (pick) {
-              claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(pick.copyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(pick);
               slot.apply(pick.copyId);
             } else {
