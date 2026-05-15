@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ExternalLink, Layers, Pencil, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Pencil, RefreshCw } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
@@ -8,7 +8,8 @@ import { classifyFoil } from '../lib/foil-style';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
-import { useAllocations } from '../lib/allocations';
+import type { AllocationInfo } from '../lib/allocations';
+import type { BinderInfo } from './BinderBadge';
 
 interface Props {
   cards: EnrichedCard[];
@@ -20,6 +21,19 @@ interface Props {
   pageNumbers: number[];
   /** Total number of pages in the scope these cards belong to. */
   totalPages: number;
+  /**
+   * Aggregated binders covering every copy in the row at index `i`. Looked
+   * up lazily by the carousel — building a parallel array up front would
+   * cost O(rows) per render even though only the focused row is rendered.
+   */
+  getStackBinders?: (i: number) => BinderInfo[];
+  /**
+   * Aggregated deck allocations for every copy in the row at index `i`.
+   * Each unique deck renders as a link in the context line; `currentDeckId`
+   * is filtered so the preview doesn't link back to the deck it was opened
+   * from.
+   */
+  getStackAllocations?: (i: number) => AllocationInfo[];
   /**
    * Deck the preview is being opened from, if any. When the current card is
    * allocated to this same deck, we suppress the "In deck" chip — repeating
@@ -46,11 +60,12 @@ export function CardPreview({
   pageNumbers,
   totalPages,
   currentDeckId,
+  getStackBinders,
+  getStackAllocations,
   onIndexChange,
   onClose,
   onEdit,
 }: Props) {
-  const allocations = useAllocations();
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
@@ -72,18 +87,52 @@ export function CardPreview({
     };
   }, []);
 
-  // Mount neighboring images; once mounted, stay mounted to avoid mid-swipe
-  // DOM thrash when a new image first appears.
+  // Mount the focused slide synchronously so the first paint already shows
+  // the card the user clicked. Neighbors fill in on the next tick — they're
+  // only needed for swipe peeks, and deferring them buys a faster open.
+  // Once mounted, slides stay mounted to avoid mid-swipe DOM thrash.
   const [mounted, setMounted] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    for (let i = 0; i < cards.length; i++) {
-      if (Math.abs(i - index) <= PRELOAD_RADIUS) {
-        const id = cards[i]?.scryfallId;
-        if (id) initial.add(id);
-      }
-    }
+    const id = cards[index]?.scryfallId;
+    if (id) initial.add(id);
     return initial;
   });
+
+  useEffect(() => {
+    const expand = () => {
+      setMounted((prev) => {
+        let changed = false;
+        let next = prev;
+        for (let j = index - PRELOAD_RADIUS; j <= index + PRELOAD_RADIUS; j++) {
+          const id = cards[j]?.scryfallId;
+          if (id && !prev.has(id)) {
+            if (!changed) {
+              next = new Set(prev);
+              changed = true;
+            }
+            next.add(id);
+          }
+        }
+        return next;
+      });
+    };
+    // requestIdleCallback when available, otherwise a microtask via setTimeout(0)
+    // — either way runs after the first paint.
+    const ric = (window as unknown as { requestIdleCallback?: typeof requestIdleCallback })
+      .requestIdleCallback;
+    if (typeof ric === 'function') {
+      const handle = ric(expand);
+      return () =>
+        (
+          window as unknown as { cancelIdleCallback?: typeof cancelIdleCallback }
+        ).cancelIdleCallback?.(handle);
+    }
+    const t = window.setTimeout(expand, 0);
+    return () => window.clearTimeout(t);
+    // Only on initial mount — once neighbors are added, useCenteredSlide
+    // takes over for subsequent index changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onIndexChangeRef = useRef(onIndexChange);
   useEffect(() => {
@@ -265,40 +314,27 @@ export function CardPreview({
                   className={`card-preview-image-frame${foilClass}`}
                   ref={i === selected ? holoRef : undefined}
                 >
-                  <div
-                    className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
-                  >
-                    <div className="card-preview-face card-preview-face-front">
-                      {c.imageNormal && !errored && shouldMount ? (
-                        <img
-                          src={c.imageNormal}
-                          alt={c.name}
-                          className="card-preview-image"
-                          draggable={false}
-                          decoding="async"
-                          onError={() =>
-                            setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
-                          }
-                        />
-                      ) : c.imageNormal && errored ? (
-                        <div className="card-preview-image-fallback">Image unavailable</div>
-                      ) : null}
-                      {c.foil && (
-                        <>
-                          <div className="card-preview-foil-shine" aria-hidden="true" />
-                          <div className="card-preview-foil-glare" aria-hidden="true" />
-                        </>
-                      )}
-                    </div>
-                    {c.imageNormalBack && (
-                      <div className="card-preview-face card-preview-face-back">
-                        <img
-                          src={c.imageNormalBack}
-                          alt={`${c.name} (back)`}
-                          className="card-preview-image"
-                          draggable={false}
-                          decoding="async"
-                        />
+                  {shouldMount && (
+                    <div
+                      className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
+                    >
+                      <div className="card-preview-face card-preview-face-front">
+                        {c.imageNormal && !errored ? (
+                          <img
+                            src={c.imageNormal}
+                            alt={c.name}
+                            className="card-preview-image"
+                            draggable={false}
+                            decoding={i === selected ? 'sync' : 'async'}
+                            loading={i === selected ? 'eager' : 'lazy'}
+                            fetchPriority={i === selected ? 'high' : 'auto'}
+                            onError={() =>
+                              setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
+                            }
+                          />
+                        ) : c.imageNormal && errored ? (
+                          <div className="card-preview-image-fallback">Image unavailable</div>
+                        ) : null}
                         {c.foil && (
                           <>
                             <div className="card-preview-foil-shine" aria-hidden="true" />
@@ -306,8 +342,25 @@ export function CardPreview({
                           </>
                         )}
                       </div>
-                    )}
-                  </div>
+                      {c.imageNormalBack && (
+                        <div className="card-preview-face card-preview-face-back">
+                          <img
+                            src={c.imageNormalBack}
+                            alt={`${c.name} (back)`}
+                            className="card-preview-image"
+                            draggable={false}
+                            decoding="async"
+                          />
+                          {c.foil && (
+                            <>
+                              <div className="card-preview-foil-shine" aria-hidden="true" />
+                              <div className="card-preview-foil-glare" aria-hidden="true" />
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -356,21 +409,68 @@ export function CardPreview({
           <div className="card-preview-panel-inner">
             <div className="card-preview-name-row">
               <div className="card-preview-name">{current.name}</div>
-              {(() => {
-                const allocation = allocations.get(current.copyId);
-                if (!allocation || allocation.deckId === currentDeckId) return null;
-                return (
-                  <DeckChip
-                    deckId={allocation.deckId}
-                    deckName={allocation.deckName}
-                    onNavigate={onClose}
-                  />
-                );
-              })()}
             </div>
             <div className="card-preview-context">
               {binderName}
-              {sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : ''}
+              {(() => {
+                // Aggregate binders and decks across every copy in the stack
+                // so a grouped row can surface every container it touches —
+                // not just whichever copy the row picked as its representative.
+                const binders = getStackBinders?.(selected) ?? [];
+                const binderById = new Map<string, BinderInfo>();
+                for (const b of binders) binderById.set(b.id, b);
+                const uniqueBinders = [...binderById.values()];
+
+                const allocs = getStackAllocations?.(selected) ?? [];
+                const deckById = new Map<string, AllocationInfo>();
+                for (const a of allocs) {
+                  if (a.deckId === currentDeckId) continue;
+                  deckById.set(a.deckId, a);
+                }
+                const uniqueDecks = [...deckById.values()];
+
+                const hasAny = uniqueBinders.length > 0 || uniqueDecks.length > 0;
+                if (!hasAny) {
+                  return sectionLabels[selected] ? ` · ${sectionLabels[selected]}` : '';
+                }
+                return (
+                  <>
+                    {uniqueBinders.length > 0 && ' · '}
+                    {uniqueBinders.map((b, i) => (
+                      <span key={`b-${b.id}`}>
+                        {i > 0 && ', '}
+                        <Link
+                          to={`/binders/${b.id}`}
+                          className="card-preview-context-link"
+                          style={
+                            {
+                              '--binder-color': b.color || 'var(--accent)',
+                            } as React.CSSProperties
+                          }
+                          onClick={onClose}
+                          title={`Open binder ${b.name}`}
+                        >
+                          {b.name}
+                        </Link>
+                      </span>
+                    ))}
+                    {uniqueDecks.length > 0 && ' · '}
+                    {uniqueDecks.map((d, i) => (
+                      <span key={`d-${d.deckId}`}>
+                        {i > 0 && ', '}
+                        <Link
+                          to={`/decks/${d.deckId}`}
+                          className="card-preview-context-link card-preview-context-link--deck"
+                          onClick={onClose}
+                          title={`Open deck ${d.deckName}`}
+                        >
+                          {d.deckName}
+                        </Link>
+                      </span>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
             <div className="card-preview-meta">
               <span
@@ -442,53 +542,6 @@ export function CardPreview({
         </div>
       </div>
     </div>
-  );
-}
-
-function DeckChip({
-  deckId,
-  deckName,
-  onNavigate,
-}: {
-  deckId: string;
-  deckName: string;
-  onNavigate: () => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <span className={`card-preview-deck-chip${expanded ? ' is-expanded' : ''}`}>
-      <button
-        type="button"
-        className="card-preview-deck-chip-toggle"
-        onClick={(e) => {
-          e.stopPropagation();
-          setExpanded((v) => !v);
-        }}
-        aria-label={expanded ? 'Hide deck name' : 'Show deck name'}
-        aria-expanded={expanded}
-      >
-        <Layers
-          className="card-preview-deck-chip-icon"
-          width={13}
-          height={13}
-          strokeWidth={2}
-          aria-hidden
-        />
-      </button>
-      <Link
-        to={`/decks/${deckId}`}
-        className="card-preview-deck-chip-link"
-        onClick={(e) => {
-          e.stopPropagation();
-          onNavigate();
-        }}
-        title={`Open deck ${deckName}`}
-      >
-        <span className="card-preview-deck-chip-label">In deck</span>
-        <span className="card-preview-deck-chip-name">{deckName}</span>
-      </Link>
-    </span>
   );
 }
 
