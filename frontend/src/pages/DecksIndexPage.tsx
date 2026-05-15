@@ -1,9 +1,11 @@
 import {
   AlignJustify,
   CircleAlert,
+  Download,
   LayoutGrid,
   List as ListIconLucide,
   MoreVertical,
+  Plus,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,6 +16,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { SearchPill } from '../components/SearchPill';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import type { Deck } from '../store/decks';
 import type { ScryfallCard } from '../deck-builder/types';
@@ -114,6 +118,8 @@ export function DecksIndexPage() {
 
   const [sortField, setSortField] = useState<DeckSortField>(loadSort().field);
   const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 180);
   const [view, setViewRaw] = useState<DecksViewMode>(readStoredView);
   const setView = (v: DecksViewMode) => {
     setViewRaw(v);
@@ -150,14 +156,23 @@ export function DecksIndexPage() {
   );
 
   const sorted = useMemo(() => {
-    return [...decks].sort((a, b) => {
+    const q = debouncedSearch.trim().toLowerCase();
+    const filtered = q
+      ? decks.filter(
+          (d) =>
+            d.name.toLowerCase().includes(q) ||
+            (d.commander?.name ?? '').toLowerCase().includes(q) ||
+            (d.partnerCommander?.name ?? '').toLowerCase().includes(q)
+        )
+      : decks;
+    return [...filtered].sort((a, b) => {
       const va = deckSortValue(a, sortField);
       const vb = deckSortValue(b, sortField);
       if (va < vb) return sortDir === 'desc' ? 1 : -1;
       if (va > vb) return sortDir === 'desc' ? -1 : 1;
       return 0;
     });
-  }, [decks, sortField, sortDir]);
+  }, [decks, sortField, sortDir, debouncedSearch]);
 
   const [showImport, setShowImport] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
@@ -208,17 +223,30 @@ export function DecksIndexPage() {
             aria-haspopup="dialog"
             onClick={() => setShowImport(true)}
           >
-            Import deck
+            <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <span>Import deck</span>
           </button>
           <Link to="/decks/new" className="pill-btn pill-btn-primary">
-            + New deck
+            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <span>New deck</span>
           </Link>
         </div>
       </header>
 
-      {sorted.length > 0 && (
+      {decks.length > 0 && (
+        <div className="decks-index-search-row">
+          <SearchPill
+            value={search}
+            onChange={setSearch}
+            placeholder="Search decks"
+            ariaLabel="Search decks"
+          />
+        </div>
+      )}
+
+      {decks.length > 0 && (
         <div className="decks-index-sort-bar">
-          {sorted.length > 1 && (
+          {decks.length > 1 && (
             <SelectMenu
               value={sortField}
               options={DECK_SORT_OPTIONS}
@@ -268,7 +296,7 @@ export function DecksIndexPage() {
         />
       )}
 
-      {sorted.length === 0 ? (
+      {decks.length === 0 ? (
         <div className="empty-state">
           <p className="empty-state-tagline">No decks yet.</p>
           <div className="empty-state-actions">
@@ -276,6 +304,10 @@ export function DecksIndexPage() {
               Build your first deck
             </Link>
           </div>
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-state-tagline">No decks match "{debouncedSearch}".</p>
         </div>
       ) : (
         <ul className={`decks-index-list is-${view}`}>

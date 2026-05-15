@@ -360,6 +360,7 @@ function saveGeneratedDeck(
     claimed.set(pick.copyId, {
       deckId: '__pending__',
       deckName: '__pending__',
+      deckColor: '',
       cardName: card.name,
     });
     return pick.copyId;
