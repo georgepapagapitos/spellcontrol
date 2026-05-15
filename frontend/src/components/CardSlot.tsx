@@ -123,15 +123,16 @@ export function CardSlot({ card, showImage }: Props) {
     reposition();
   }, [hovered, card, imgError, reposition]);
 
-  // Keep the popup pinned correctly while it's visible.
+  // Close the tooltip on scroll (any scrollable ancestor) and reposition on resize.
   useEffect(() => {
     if (!hovered) return;
-    const handler = () => reposition();
-    window.addEventListener('scroll', handler, true);
-    window.addEventListener('resize', handler);
+    const onScroll = () => setHovered(false);
+    const onResize = () => reposition();
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('resize', onResize);
     return () => {
-      window.removeEventListener('scroll', handler, true);
-      window.removeEventListener('resize', handler);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
     };
   }, [hovered, reposition]);
 
