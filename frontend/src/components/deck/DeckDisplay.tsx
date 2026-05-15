@@ -42,6 +42,7 @@ import {
 import { useDecksStore } from '../../store/decks';
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import {
   cardMatchesRole,
   getCardRole,
@@ -2250,47 +2251,7 @@ function DeckStatistics({
   // the fly from the tagger so the Roles panel works for either flow.
   const derivedRoles = useMemo(() => {
     if (roleCounts !== undefined) return null;
-    const r: Record<string, number> = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
-    const rampSub: Record<string, number> = {};
-    const removalSub: Record<string, number> = {};
-    const boardwipeSub: Record<string, number> = {};
-    const drawSub: Record<string, number> = {};
-    for (const c of allCards) {
-      // Match the enricher: don't count lands toward role totals.
-      if ((c.type_line || '').toLowerCase().includes('land')) continue;
-      const role = getCardRole(c.name);
-      if (!role) continue;
-      r[role] = (r[role] || 0) + 1;
-      switch (role) {
-        case 'ramp': {
-          const s = getRampSubtype(c.name);
-          if (s) rampSub[s] = (rampSub[s] || 0) + 1;
-          break;
-        }
-        case 'removal': {
-          const s = getRemovalSubtype(c.name);
-          if (s) removalSub[s] = (removalSub[s] || 0) + 1;
-          break;
-        }
-        case 'boardwipe': {
-          const s = getBoardwipeSubtype(c.name);
-          if (s) boardwipeSub[s] = (boardwipeSub[s] || 0) + 1;
-          break;
-        }
-        case 'cardDraw': {
-          const s = getCardDrawSubtype(c.name);
-          if (s) drawSub[s] = (drawSub[s] || 0) + 1;
-          break;
-        }
-      }
-    }
-    return {
-      roleCounts: r,
-      rampSubtypeCounts: rampSub,
-      removalSubtypeCounts: removalSub,
-      boardwipeSubtypeCounts: boardwipeSub,
-      cardDrawSubtypeCounts: drawSub,
-    };
+    return computeRoleCounts(allCards);
   }, [allCards, roleCounts]);
 
   const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
@@ -2355,6 +2316,20 @@ function DeckStatistics({
             )}
           </ul>
         </Panel>
+        {bracketEstimation && (
+          <Panel title="Estimated bracket">
+            <div className="deck-stats-bracket">
+              <strong>
+                Bracket {bracketEstimation.bracket} — {bracketEstimation.label}
+              </strong>
+              {bracketEstimation.hardFloors.length > 0 && (
+                <span className="deck-stats-bracket-note">
+                  {bracketEstimation.hardFloors[0].reason}
+                </span>
+              )}
+            </div>
+          </Panel>
+        )}
         {saltiestCards && saltiestCards.length > 0 && (
           <Panel title="Saltiest cards">
             <ul className="deck-saltiest-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -2447,21 +2422,6 @@ function DeckStatistics({
               ))}
           </ul>
         </Panel>
-
-        {bracketEstimation && (
-          <Panel title="Estimated bracket">
-            <div className="deck-stats-bracket">
-              <strong>
-                Bracket {bracketEstimation.bracket} — {bracketEstimation.label}
-              </strong>
-              {bracketEstimation.hardFloors.length > 0 && (
-                <span className="deck-stats-bracket-note">
-                  {bracketEstimation.hardFloors[0].reason}
-                </span>
-              )}
-            </div>
-          </Panel>
-        )}
       </div>
     </section>
   );
