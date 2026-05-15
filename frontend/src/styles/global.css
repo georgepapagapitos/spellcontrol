@@ -1981,6 +1981,22 @@ input[type='text'] {
   margin-bottom: 2rem;
 }
 
+/* Tighten the gap between sections in list / compact mode — the
+   default 2rem is sized for the page-row grid view where each
+   section holds full-size card pages. In list mode each section is
+   just a stack of skinny rows (and often a collapsed header), so
+   the same gap reads as wasted space. Set via a modifier class
+   from BinderListView rather than `:has(> .collection-list)` so the
+   collapsed state (where .collection-list isn't in the DOM) still
+   matches the rule. */
+.binder-section.binder-section--list {
+  margin-bottom: 0.5rem;
+}
+
+.binder-section.binder-section--compact {
+  margin-bottom: 0.25rem;
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -5899,15 +5915,16 @@ hr {
     min-height: 36px;
   }
 
-  /* Section header on mobile: chip stays inline with the title on row 1;
-     the card/page count wraps to its own row below, right-aligned. */
+  /* Section header on mobile: let the chip + count sit inline next to
+     the title when there's room. Drops the prior forced
+     `flex-basis: 100%` on the count so it only wraps to its own row
+     when a longer sort breadcrumb actually fills the row. */
   .section-header {
     flex-wrap: wrap;
     row-gap: 2px;
   }
 
   .section-meta {
-    flex-basis: 100%;
     white-space: nowrap;
     font-size: var(--text-xs);
   }
@@ -8623,6 +8640,14 @@ hr {
 /* ── ProgressBar ─────────────────────────────────────────────────────── */
 .progress-bar {
   width: 100%;
+}
+
+/* Top-of-panel progress slot used by UploadPanel while a collection
+   import / backup restore runs. Same vertical rhythm as the success
+   / unresolved banners that follow it so the panel doesn't jump
+   when the bar appears. */
+.upload-progress {
+  margin-bottom: 0.75rem;
 }
 
 .progress-bar-track {

@@ -5741,11 +5741,27 @@ input.deck-row-qty-input.deck-row-qty-missing {
   font-size: var(--text-xs);
 }
 
-/* Strip the "N cards · M pages" detail span in compact — name +
-   Manual/Cap tags are the skim-worthy bits; counts live one click
-   away. */
-.binders-index-list.is-compact .binders-index-card-meta > span:not(.binders-index-card-tag) {
+/* Restore the inline " · " separator that originally lived inside
+   the combined "N cards · M pages" string — now that it's split into
+   two spans the flex gap alone leaves them too detached. The dot is
+   drawn from the pages span so it only shows when both spans are
+   present (and disappears cleanly in compact, where the cards span
+   is hidden). */
+.binders-index-card-pages::before {
+  content: '· ';
+  margin-right: 0.05rem;
+  color: var(--text3);
+}
+
+/* In compact mode we still want a single skim-worthy signal next to
+   the name — page count gives a quick "how big is this binder?" cue,
+   while the redundant cards detail is hidden. */
+.binders-index-list.is-compact .binders-index-card-cards {
   display: none;
+}
+
+.binders-index-list.is-compact .binders-index-card-pages::before {
+  content: none;
 }
 
 /* Center the action menu vertically in compact rows (default

@@ -295,7 +295,10 @@ export function BinderListView({
         const panelId = `binder-list-panel-${sectionKey}`;
         const totalQty = rows.reduce((s, r) => s + r.qty, 0);
         return (
-          <div key={sectionKey} className="binder-section">
+          <div
+            key={sectionKey}
+            className={`binder-section binder-section--list${isCompact ? ' binder-section--compact' : ''}`}
+          >
             <button
               type="button"
               id={headerId}

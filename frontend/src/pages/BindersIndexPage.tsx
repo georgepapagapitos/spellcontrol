@@ -22,6 +22,7 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
+import { ProgressBar } from '../components/ProgressBar';
 
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
@@ -355,8 +356,13 @@ export function BindersIndexPage() {
                     {b.def.mode === 'manual' && (
                       <span className="binders-index-card-tag">Manual</span>
                     )}
-                    <span>
-                      {b.totalCards.toLocaleString()} {b.totalCards === 1 ? 'card' : 'cards'} ·{' '}
+                    {/* Split into two spans so compact mode (which hides the
+                        cards count via CSS) can still show the page count
+                        as a quick skim signal. */}
+                    <span className="binders-index-card-cards">
+                      {b.totalCards.toLocaleString()} {b.totalCards === 1 ? 'card' : 'cards'}
+                    </span>
+                    <span className="binders-index-card-pages">
                       {b.totalPages.toLocaleString()} {b.totalPages === 1 ? 'page' : 'pages'}
                     </span>
                     {b.def.fixedCapacity != null && (
@@ -468,6 +474,12 @@ function SamplesIntroDialog({
             </li>
           )}
         </ul>
+        {loading && (
+          <ProgressBar
+            indeterminate
+            message={bindersOnly ? 'Building sample binders…' : 'Importing starter pack…'}
+          />
+        )}
         <div className="choice-dialog-actions">
           <button type="button" className="btn" onClick={onCancel} disabled={loading}>
             Cancel
