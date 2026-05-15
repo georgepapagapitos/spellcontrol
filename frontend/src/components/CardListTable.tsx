@@ -12,6 +12,9 @@ import type { SetMap } from '../lib/api';
 import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { RemoveCopiesDialog } from './RemoveCopiesDialog';
+import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
+import { useToastsStore } from '../store/toasts';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
@@ -617,6 +620,66 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     setEditingCard(null);
   };
 
+  const pushToast = useToastsStore((s) => s.push);
+  const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+  // For stacked rows (qty > 1, grouped view), the user picks how many to drop.
+  const [deletingRow, setDeletingRow] = useState<{
+    card: EnrichedCard;
+    key: string;
+    total: number;
+  } | null>(null);
+
+  // Restore by appending the exact removed copies (copyIds preserved) to the
+  // current collection — replaceAllCards re-runs remapAllocations so any deck
+  // that lost a binding rebinds.
+  const applyRemoval = useCallback(
+    (removed: EnrichedCard[]) => {
+      if (removed.length === 0) return;
+      const removedIds = new Set(removed.map((c) => c.copyId));
+      replaceAllCards(allCards.filter((c) => !removedIds.has(c.copyId)));
+      pushToast({
+        message: `Removed ${removed.length} ${removed.length === 1 ? 'copy' : 'copies'} of ${removed[0].name}`,
+        tone: 'info',
+        actionLabel: 'Undo',
+        onAction: () => replaceAllCards([...useCollectionStore.getState().cards, ...removed]),
+      });
+    },
+    [allCards, replaceAllCards, pushToast]
+  );
+
+  const handleDeleteRow = useCallback(
+    (row: Row) => {
+      // Ungrouped view: a row is one physical copy — remove exactly it.
+      if (!groupPrintings) {
+        applyRemoval([row.card]);
+        return;
+      }
+      const key = printingFinishKey(row.card);
+      const total = allCards.filter((c) => printingFinishKey(c) === key).length;
+      if (total <= 1) {
+        applyRemoval(removeCopiesOfPrinting(allCards, key, 1, allocatedCopyIds).removed);
+        return;
+      }
+      setDeletingRow({ card: row.card, key, total });
+    },
+    [groupPrintings, allCards, allocatedCopyIds, applyRemoval]
+  );
+
+  const confirmDeleteCount = useCallback(
+    (count: number) => {
+      if (!deletingRow) return;
+      const { removed } = removeCopiesOfPrinting(
+        allCards,
+        deletingRow.key,
+        count,
+        allocatedCopyIds
+      );
+      applyRemoval(removed);
+      setDeletingRow(null);
+    },
+    [deletingRow, allCards, allocatedCopyIds, applyRemoval]
+  );
+
   // Count active filter *groups*, not individual chips — five colors
   // selected is still one filter group, so the badge stays glanceable.
   const activeFilterCount =
@@ -904,6 +967,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                     <CardRowMenu
                       card={r.card}
                       onEditCard={() => setEditingCard(r.card)}
+                      onDelete={() => handleDeleteRow(r)}
                       currentBinder={
                         r.binderId && r.binderName
                           ? { id: r.binderId, name: r.binderName, color: r.binderColor }
@@ -954,6 +1018,15 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           quantity={editingQty}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
+        />
+      )}
+
+      {deletingRow && (
+        <RemoveCopiesDialog
+          cardName={deletingRow.card.name}
+          total={deletingRow.total}
+          onConfirm={confirmDeleteCount}
+          onCancel={() => setDeletingRow(null)}
         />
       )}
     </div>
