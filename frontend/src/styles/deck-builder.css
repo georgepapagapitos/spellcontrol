@@ -4047,6 +4047,13 @@ input.toolbar-search-input {
 }
 
 .deck-combos-card-art {
+  /* Reset button chrome — element is a <button> for tap-to-preview. */
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   position: relative;
   display: block;
   width: 100%;
@@ -4058,6 +4065,19 @@ input.toolbar-search-input {
   /* The card art looks slightly washed against the row's tinted background
      when the row is expanded — a soft shadow re-establishes depth. */
   box-shadow: 0 1px 2px color-mix(in srgb, black 18%, transparent);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.deck-combos-card-art:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  .deck-combos-card-art:hover {
+    box-shadow: 0 2px 8px color-mix(in srgb, black 28%, transparent);
+  }
 }
 
 .deck-combos-card-art img {
@@ -4081,6 +4101,12 @@ input.toolbar-search-input {
   filter: grayscale(0.7) brightness(0.55);
 }
 
+/* Owned in collection but not in this deck — softer treatment since the
+   card is within reach; just needs to be added. */
+.deck-combos-card-tile.missing.owned .deck-combos-card-art {
+  filter: grayscale(0.25) brightness(0.78);
+}
+
 .deck-combos-card-overlay {
   position: absolute;
   inset: 0;
@@ -4094,6 +4120,53 @@ input.toolbar-search-input {
   color: var(--text);
   background: color-mix(in srgb, var(--err-text, var(--accent)) 60%, transparent);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Owned overlay — subtle muted tint instead of error-red. */
+.deck-combos-card-overlay.is-owned {
+  background: color-mix(in srgb, var(--surface3, #555) 65%, transparent);
+}
+
+/* ── Ownership filter pills ────────────────────────────────────────────── */
+.deck-combos-ownership-filter {
+  display: flex;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem 0.5rem;
+}
+
+.deck-combos-filter-pill {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.deck-combos-filter-pill:hover {
+  background: var(--surface2);
+}
+
+.deck-combos-filter-pill.active {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  border-color: var(--accent);
+}
+
+.deck-combos-filter-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
 }
 
 .deck-combos-card-qty-badge {

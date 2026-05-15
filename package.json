@@ -16,15 +16,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "prettier --write --ignore-unknown",
-      "eslint --no-warn-ignored"
-    ],
-    "*.css": [
-      "prettier --write --ignore-unknown",
-      "stylelint --allow-empty-input"
-    ],
-    "*.{json,md}": "prettier --write --ignore-unknown"
+    "*.{ts,tsx,css,json,md}": "prettier --write --ignore-unknown"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -53,7 +53,7 @@ describe('matchCombos', () => {
     expect(result.inDeck[0].missingOracleIds).toEqual([]);
   });
 
-  it('flags combos missing exactly one deck card AND that card is owned as oneAway', () => {
+  it('flags combos missing exactly one deck card as oneAway (owned)', () => {
     const result = matchCombos({
       combos: [oracleLabman],
       ownedOracleIds: ['oracle-thassa', 'oracle-labman'],
@@ -63,13 +63,14 @@ describe('matchCombos', () => {
     expect(result.oneAway[0].missingOracleIds).toEqual(['oracle-labman']);
   });
 
-  it('does NOT flag oneAway when the missing card is unowned', () => {
+  it('flags combos missing exactly one deck card as oneAway (unowned)', () => {
     const result = matchCombos({
       combos: [oracleLabman],
       ownedOracleIds: ['oracle-thassa'],
       deckOracleIds: ['oracle-thassa'],
     });
-    expect(result.oneAway).toHaveLength(0);
+    expect(result.oneAway).toHaveLength(1);
+    expect(result.oneAway[0].missingOracleIds).toEqual(['oracle-labman']);
   });
 
   it('skips combos missing two or more cards from the deck', () => {
