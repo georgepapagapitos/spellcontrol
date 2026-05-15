@@ -1,4 +1,4 @@
-import { Hand, MoreVertical, Sparkles } from 'lucide-react';
+import { Gauge, Hand, MoreVertical, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
@@ -6,6 +6,10 @@ import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
+import {
+  DeckAnalysisPanel,
+  type DeckAnalysisPanelHandle,
+} from '../components/deck/DeckAnalysisPanel';
 import {
   DeckTestHandPanel,
   type DeckTestHandPanelHandle,
@@ -63,6 +67,7 @@ export function DeckEditorPage() {
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
   const combosPanelRef = useRef<DeckCombosPanelHandle>(null);
+  const analysisPanelRef = useRef<DeckAnalysisPanelHandle>(null);
   const testHandPanelRef = useRef<DeckTestHandPanelHandle>(null);
 
   // Counts already in this deck — fed to the search panel so it can mark
@@ -125,6 +130,9 @@ export function DeckEditorPage() {
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
         combosPanelRef.current?.reveal();
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        analysisPanelRef.current?.reveal();
       }
     };
     document.addEventListener('keydown', onKey);
@@ -452,6 +460,7 @@ export function DeckEditorPage() {
         comboCount={comboData.data?.inDeck.length ?? null}
         comboLoading={comboData.loading}
         onShowCombos={() => combosPanelRef.current?.reveal()}
+        onShowAnalysis={() => analysisPanelRef.current?.reveal()}
         onShowTestHand={() => testHandPanelRef.current?.reveal()}
       />
 
@@ -500,6 +509,15 @@ export function DeckEditorPage() {
             deckId={deck.id}
             deckOracleIds={deckOracleIds}
             format={deck.format}
+            onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+          />
+          <DeckAnalysisPanel
+            ref={analysisPanelRef}
+            deckId={deck.id}
+            format={deck.format}
+            commander={deck.commander}
+            partnerCommander={deck.partnerCommander}
+            mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
             onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
           />
           <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
@@ -609,6 +627,7 @@ function DeckFeatureStrip({
   comboCount,
   comboLoading,
   onShowCombos,
+  onShowAnalysis,
   onShowTestHand,
 }: {
   cardCount: number;
@@ -618,6 +637,7 @@ function DeckFeatureStrip({
   comboCount: number | null;
   comboLoading: boolean;
   onShowCombos: () => void;
+  onShowAnalysis: () => void;
   onShowTestHand: () => void;
 }) {
   const cardLabel = hasCommander
@@ -639,6 +659,15 @@ function DeckFeatureStrip({
         <Sparkles width={13} height={13} aria-hidden />
         {comboLoading ? '…' : comboCount === null ? '—' : comboCount}{' '}
         {comboCount === 1 ? 'combo' : 'combos'}
+      </button>
+      <button
+        type="button"
+        className="deck-feature-chip deck-feature-chip--action"
+        onClick={onShowAnalysis}
+        title="Open deck analysis (press A)"
+      >
+        <Gauge width={13} height={13} aria-hidden />
+        Analysis
       </button>
       <button
         type="button"
