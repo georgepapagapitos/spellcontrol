@@ -3147,9 +3147,11 @@ input.toolbar-search-input {
 
 .deck-editor-aside {
   position: sticky;
-  top: 1rem;
+  /* The desktop site header pins at top:0 with height 3.25rem, so the
+     aside parks 1rem below it. */
+  top: calc(3.25rem + 1rem);
   align-self: start;
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - 3.25rem - 2rem);
   overflow: auto;
   /* Stacked panels (card search, combos, test hand) — keep them visually
      separated with the same spacing the deck-builder-page uses between
