@@ -525,6 +525,8 @@ export function DeckEditorPage() {
             cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
             bracketEstimation={deck.bracketEstimation}
             deckGrade={deck.deckGrade}
+            averageSalt={deck.averageSalt}
+            saltiestCards={deck.saltiestCards}
             exportOpen={exportOpen}
             onExportOpenChange={setExportOpen}
           />

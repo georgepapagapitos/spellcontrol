@@ -398,6 +398,8 @@ function saveGeneratedDeck(
     cardDrawSubtypeCounts: generated.cardDrawSubtypeCounts,
     bracketEstimation: generated.bracketEstimation,
     deckGrade: generated.deckGrade,
+    averageSalt: generated.stats.averageSalt,
+    saltiestCards: generated.stats.saltiestCards,
   });
 }
 

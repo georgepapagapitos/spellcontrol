@@ -230,10 +230,11 @@ describe('remapAllocations', () => {
     // Pre-fix code may have shuffled this slot onto a same-name but wrong-
     // printing copy. Stability alone preserved the wrong binding forever.
     // The corrective pass must swap to the preferred printing when free.
+    // (Non-basic — basic lands are fungible and exempt; see next test.)
     useDecksStore.setState({
       decks: [
         baseDeck({
-          cards: [slot('Plains', 'wrong-printing-copy', 'sf-preferred')],
+          cards: [slot('Sol Ring', 'wrong-printing-copy', 'sf-preferred')],
         }),
       ],
     });
@@ -241,12 +242,43 @@ describe('remapAllocations', () => {
     const collection = [
       enriched({
         copyId: 'wrong-printing-copy',
+        name: 'Sol Ring',
+        scryfallId: 'sf-other',
+        setCode: 'C20',
+      }),
+      enriched({
+        copyId: 'right-printing-copy',
+        name: 'Sol Ring',
+        scryfallId: 'sf-preferred',
+        setCode: 'CMR',
+      }),
+    ];
+    useDecksStore.getState().remapAllocations(collection);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('right-printing-copy');
+  });
+
+  it('does NOT churn a basic-land binding to a different printing (fungible)', () => {
+    // Basic lands have no meaningful printing preference. Remap must keep
+    // whatever copy is bound instead of reshuffling it onto the slot's
+    // arbitrary generator-default printing.
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          cards: [slot('Plains', 'bound-copy', 'sf-preferred')],
+        }),
+      ],
+    });
+
+    const collection = [
+      enriched({
+        copyId: 'bound-copy',
         name: 'Plains',
         scryfallId: 'sf-other',
         setCode: 'M20',
       }),
       enriched({
-        copyId: 'right-printing-copy',
+        copyId: 'preferred-copy',
         name: 'Plains',
         scryfallId: 'sf-preferred',
         setCode: 'ECL',
@@ -254,7 +286,7 @@ describe('remapAllocations', () => {
     ];
     useDecksStore.getState().remapAllocations(collection);
 
-    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('right-printing-copy');
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('bound-copy');
   });
 
   it('keeps wrong-printing binding when no preferred-printing copy is free', () => {
