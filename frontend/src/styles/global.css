@@ -1155,6 +1155,12 @@ input[type='search'] {
   border-left: 3px solid var(--binder-color, var(--accent));
 }
 
+@media (max-width: 600px) {
+  .binder-hero {
+    margin: 0.15rem 0 0.4rem;
+  }
+}
+
 /* Hero variants with right-aligned actions: text on the left, action
    pill(s) on the right. Stack at narrow widths so actions get full
    touch targets and don't crowd the title. */
@@ -2163,11 +2169,12 @@ input[type='text'] {
 
 /* Qty badge for binder slots when the binder is in group-printings
    mode. Sister to .collection-grid-qty (collection grid view) so the
-   affordance reads identically across surfaces. */
+   affordance reads identically across surfaces — same bottom-left
+   placement on both. */
 .slot-qty-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  bottom: 4px;
+  left: 4px;
   background: var(--accent);
   color: var(--on-accent, #fff);
   font-size: var(--text-xs);
@@ -2289,6 +2296,24 @@ input[type='text'] {
 }
 .tooltip-rarity.rarity-common {
   color: #555;
+}
+
+/* Grouped-row quantity tag for the carousel meta line. Mirrors the
+   ×N badge on the grid thumbnail so opening a grouped row surfaces
+   how many copies the stack represents. */
+.card-preview-qty {
+  /* The carousel info panel is always rendered on a dark surface
+     (rgba(15, 15, 18, 0.92)) regardless of theme, so use direct light
+     values here rather than var(--text) tokens that would invert. */
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-preview-qty-x {
+  margin-right: 0.05rem;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .tooltip-foil,
@@ -5305,32 +5330,45 @@ hr {
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-mono);
   letter-spacing: 0.04em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Allow the line to wrap so every binder/deck pill stays visible on
+     narrow viewports instead of being truncated under an ellipsis. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
-.card-preview-context-link {
-  color: var(--binder-color, var(--accent));
+/* Inline pill linking out to a binder or deck from the card preview's
+   context line. Tinted with the target binder's / deck's own color so a
+   glance is enough to tell which container the card belongs to. */
+.card-preview-context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.45rem;
+  margin: 0 0.05rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pill-color, var(--accent)) 18%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--pill-color, var(--accent)) 45%, transparent);
+  color: var(--pill-color, var(--accent));
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
   text-decoration: none;
-  border-bottom: 1px dotted color-mix(in srgb, var(--binder-color, var(--accent)) 50%, transparent);
-  transition: border-color 0.12s;
+  vertical-align: middle;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
 }
 
-.card-preview-context-link:hover,
-.card-preview-context-link:focus-visible {
-  border-bottom-color: var(--binder-color, var(--accent));
+.card-preview-context-pill:hover,
+.card-preview-context-pill:focus-visible {
+  background: color-mix(in srgb, var(--pill-color, var(--accent)) 28%, transparent);
+  border-color: var(--pill-color, var(--accent));
   outline: none;
 }
 
-.card-preview-context-link--deck {
-  color: var(--accent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-.card-preview-context-link--deck:hover,
-.card-preview-context-link--deck:focus-visible {
-  border-bottom-color: var(--accent);
+.card-preview-context-pill svg {
+  flex-shrink: 0;
 }
 
 .card-preview-meta {
@@ -5438,7 +5476,7 @@ hr {
   }
 
   .card-preview-panel-inner {
-    max-width: 75%;
+    max-width: 100%;
   }
 }
 
@@ -6004,22 +6042,18 @@ hr {
 @media (max-width: 1024px) {
   .mobile-tab-bar {
     display: flex;
-    /* Carry the system safe-area inset as the bar's bottom padding so
-       the bar's own background paints through the iOS home-indicator
-       strip and the Android gesture region — but cap it. Some builds
-       of Firefox on Samsung devices report ~50–60px for
-       env(safe-area-inset-bottom) (gesture-bar territory), which made
-       the bar absurdly tall. 0.75rem is enough clearance to keep the
-       icons off the home indicator on iOS without ballooning on
-       Android. */
-    --tab-bar-safe-bottom: min(env(safe-area-inset-bottom, 0px), 0.75rem);
+    /* Use a fixed height. env(safe-area-inset-bottom) changes as the
+       browser chrome (URL bar, gesture bar) shows/hides on scroll in
+       Chrome/Firefox on Android, which previously made the bar grow
+       and shrink. A constant height keeps the bar visually stable
+       and clamped to the bottom on every scroll. */
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: var(--z-panel);
-    height: calc(3.25rem + var(--tab-bar-safe-bottom));
-    padding: 0 0.4rem var(--tab-bar-safe-bottom);
+    height: 3.5rem;
+    padding: 0 0.4rem;
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
@@ -6028,7 +6062,7 @@ hr {
   /* Make room at the bottom of the document so the last bit of content
      isn't trapped under the fixed tab bar. */
   .app-main {
-    padding-bottom: calc(3.25rem + min(env(safe-area-inset-bottom, 0px), 0.75rem) + 1rem);
+    padding-bottom: calc(3.5rem + 1rem);
   }
 
   .mobile-tab-bar-link {
@@ -6150,15 +6184,14 @@ hr {
   }
 }
 
-/* Secondary toolbar row — collection totals + Stats button. Sits
-   directly below the sticky search and scrolls away with the list so
-   the pinned bar stays minimal (just search + filter icon). */
-.collection-toolbar-meta {
+/* Collection hero meta — totals + Stats button sit under the Collection
+   h1, mirroring how the binders/decks index shows a count under its hero. */
+.collection-hero-meta {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
-  margin-bottom: 0.6rem;
+  font-variant-numeric: tabular-nums;
 }
 
 /* CollectionFiltersDialog — centered modal triggered by the filter
@@ -6379,34 +6412,6 @@ hr {
   outline: none;
 }
 
-.collection-toolbar-totals {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  padding: 0 0.25rem;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.collection-toolbar-totals-num {
-  color: var(--text);
-  font-weight: 600;
-  font-size: var(--text-sm);
-}
-
-.collection-toolbar-totals-unit {
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: var(--text-xs);
-}
-
-.collection-toolbar-totals-sep {
-  color: var(--text3);
-  margin: 0 0.15rem;
-}
-
 .collection-toolbar-stats-btn {
   display: inline-flex;
   align-items: center;
@@ -6433,14 +6438,6 @@ hr {
 }
 
 @media (max-width: 640px) {
-  .collection-toolbar-stats-label {
-    display: none;
-  }
-
-  .collection-toolbar-totals-unit {
-    display: none;
-  }
-
   .collection-toolbar-stats-btn {
     padding: 0 0.6rem;
   }
@@ -6651,7 +6648,7 @@ hr {
 .card-list-summary-line {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.75rem;
   font-size: var(--text-sm);
   color: var(--text3);
@@ -6722,9 +6719,9 @@ hr {
   margin-left: 0.4rem;
   padding: 0.05rem 0.35rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
-  border: 0.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--deck-color, var(--accent)) 18%, transparent);
+  color: var(--deck-color, var(--accent));
+  border: 0.5px solid color-mix(in srgb, var(--deck-color, var(--accent)) 35%, transparent);
   font-size: var(--text-xs);
   font-weight: 600;
   text-decoration: none;
@@ -6737,8 +6734,8 @@ hr {
 
 .card-list-deck-badge:hover,
 .card-list-deck-badge:focus-visible {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--deck-color, var(--accent)) 28%, transparent);
+  border-color: var(--deck-color, var(--accent));
   outline: none;
 }
 
@@ -6896,7 +6893,15 @@ hr {
 }
 
 .collection-grid-badges .card-list-deck-badge {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-color: color-mix(in srgb, var(--deck-color, var(--accent)) 55%, transparent);
+  color: var(--deck-color, var(--accent));
+}
+
+/* In the grid badge cluster the deck pill stays a fixed icon-size dot —
+   per-deck names are surfaced via the title/aria-label, so the ×N count
+   we show in list view would just clutter the thumbnail. */
+.collection-grid-badges .card-list-deck-badge-count {
+  display: none;
 }
 
 .collection-grid-badges svg {
@@ -6950,45 +6955,35 @@ hr {
   left: 8px;
 }
 
-.collection-grid-item.is-foil::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(
-    115deg,
-    #ff80c8 0%,
-    #78c8ff 25%,
-    #78ffb4 50%,
-    #ffdc78 75%,
-    #ff78c8 100%
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: 1;
+/* Foil indication on grid thumbnails: reuse the CardPreview shine/glare
+   layers (.card-preview-foil-shine + .card-preview-foil-glare) and run
+   them in the same ambient-drift mode used on touch devices in the
+   preview. Grid items have no cursor tracking driving --active, so the
+   shine would otherwise be invisible — these overrides force a constant
+   opacity and a slow drift animation regardless of pointer capability. */
+.collection-grid-item.is-foil {
+  isolation: isolate;
 }
 
-.collection-grid-item.is-foil.grid-3x::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    115deg,
-    rgba(255, 128, 200, 0.12) 0%,
-    rgba(120, 200, 255, 0.12) 25%,
-    rgba(120, 255, 180, 0.12) 50%,
-    rgba(255, 220, 120, 0.12) 75%,
-    rgba(255, 120, 200, 0.12) 100%
+.collection-grid-item.is-foil .card-preview-foil-shine {
+  opacity: var(--foil-strength, 0.35);
+  animation: foil-drift 8s ease-in-out infinite alternate;
+}
+
+.collection-grid-item.is-foil .card-preview-foil-glare {
+  opacity: 0.25;
+  background-image: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    rgba(255, 255, 255, 0.3) 0%,
+    transparent 70%
   );
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-grid-item.is-foil .card-preview-foil-shine {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }
 
 /* List view */

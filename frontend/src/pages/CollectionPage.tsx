@@ -1,4 +1,4 @@
-import { Download, Plus } from 'lucide-react';
+import { BarChart3, Download, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
@@ -20,6 +20,12 @@ export function CollectionPage() {
   const [addCardOpen, setAddCardOpen] = useState(false);
 
   const [statsOpen, setStatsOpen] = useState(false);
+
+  const collectionCardCount = cards.length;
+  const collectionValue = useMemo(
+    () => cards.reduce((sum, c) => sum + c.purchasePrice, 0),
+    [cards]
+  );
 
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
@@ -62,6 +68,22 @@ export function CollectionPage() {
           <header className="binder-hero collection-hero">
             <div className="collection-hero-text">
               <h1 className="binder-hero-name">Collection</h1>
+              <p className="binder-hero-meta collection-hero-meta">
+                <span aria-label="Collection totals">
+                  {collectionCardCount.toLocaleString()}{' '}
+                  {collectionCardCount === 1 ? 'card' : 'cards'} · ${collectionValue.toFixed(0)}
+                </span>
+                <button
+                  type="button"
+                  className="collection-toolbar-stats-btn"
+                  onClick={() => setStatsOpen(true)}
+                  aria-label="Open collection breakdown"
+                  title="Breakdown"
+                >
+                  <BarChart3 width={14} height={14} strokeWidth={2} aria-hidden />
+                  <span className="collection-toolbar-stats-label">Stats</span>
+                </button>
+              </p>
             </div>
             <div className="collection-hero-actions">
               <button
@@ -84,12 +106,7 @@ export function CollectionPage() {
               </button>
             </div>
           </header>
-          <CardListTable
-            cards={cards}
-            binders={materialized}
-            setMap={setMap}
-            onOpenStats={() => setStatsOpen(true)}
-          />
+          <CardListTable cards={cards} binders={materialized} setMap={setMap} />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
           <ImportSheet />
           {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}

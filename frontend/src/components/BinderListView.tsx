@@ -414,6 +414,11 @@ export function BinderListView({
           sectionLabels={flat.sectionLabels}
           pageNumbers={flat.pageNumbers}
           totalPages={binder.totalPages}
+          getStackAllocations={(i) => allocationsFor(flat.cards[i])}
+          getStackQty={(i) => {
+            const c = flat.cards[i];
+            return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
+          }}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
@@ -442,6 +447,7 @@ export function BinderListView({
           pocketSize={binder.effectivePocketSize}
           binderName={binder.def.name}
           resolveCard={resolveCard}
+          qtyByCopyId={qtyByCopyId}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);

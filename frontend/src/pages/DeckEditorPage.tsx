@@ -286,6 +286,7 @@ export function DeckEditorPage() {
           allocations.set(allocatedId, {
             deckId: deck.id,
             deckName: deck.name,
+            deckColor: deck.color,
             cardName: card.name,
           });
         }
