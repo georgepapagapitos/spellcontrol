@@ -1,4 +1,4 @@
-import { Check, ChevronDown, RotateCcw, Save } from 'lucide-react';
+import { Check, ChevronDown, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type {
   BudgetOption,
@@ -44,6 +44,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
       gameChangerLimit: 'unlimited',
       comboCount: 1,
       tempoAutoDetect: true,
+      saltTolerance: 2,
       scryfallQuery: '',
       mustIncludeCards: [],
       bannedCards: [],
@@ -102,17 +103,28 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
         <CollapsibleGroup title="Tempo" defaultOpen={false}>
           <TempoGroup customization={customization} update={update} />
         </CollapsibleGroup>
+        <CollapsibleGroup title="Salt" defaultOpen={false}>
+          <SaltGroup customization={customization} update={update} />
+        </CollapsibleGroup>
         <CollapsibleGroup title="Scryfall filter" defaultOpen={false}>
           <ScryfallGroup customization={customization} update={update} />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Must-include cards" defaultOpen={false}>
+        <CollapsibleGroup
+          title="Must-include cards"
+          defaultOpen={false}
+          count={customization.mustIncludeCards.length}
+        >
           <CardListGroup
             hint="These cards are forced into the deck before EDHREC suggestions are considered."
             values={customization.mustIncludeCards}
             onChange={(next) => update({ mustIncludeCards: next })}
           />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Excluded cards" defaultOpen={false}>
+        <CollapsibleGroup
+          title="Excluded cards"
+          defaultOpen={false}
+          count={customization.bannedCards.length}
+        >
           <CardListGroup
             hint="These cards will never be suggested by the generator."
             values={customization.bannedCards}
@@ -162,6 +174,72 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
   );
 }
 
+function SaltGroup({ customization, update }: DeckCustomizerProps) {
+  const value = (customization.saltTolerance ?? 2) as number;
+  const SALT_LABELS = ['Unsalted', 'Low', 'Any', 'Extra'];
+  const SALT_DESCRIPTIONS: Record<number, string> = {
+    0: 'Strict filter — exclude EDHREC salt > 0.75 (pillow-fort friendly)',
+    1: 'Moderate filter — exclude EDHREC salt > 2.0 (no Armageddon, no Cyclonic Rift)',
+    2: 'No salt filtering (default)',
+    3: 'No filter — boost high-salt staples in the priority order',
+  };
+  return (
+    <div className="deck-customizer-slider">
+      <p
+        className="deck-customizer-slider-hint"
+        style={{
+          margin: '0 0 0.75rem',
+          fontSize: '0.85em',
+          lineHeight: 1.4,
+          opacity: 0.75,
+        }}
+      >
+        <a
+          href="https://edhrec.com/top/salt"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'inherit', textDecoration: 'underline' }}
+        >
+          EDHREC&apos;s salt scores
+        </a>{' '}
+        tally votes for the most-hated cards in the format — think Stax, Armageddon, Cyclonic Rift.
+        Slide left to leave them out, right to lean into them.
+      </p>
+      <input
+        type="range"
+        className="deck-customizer-range"
+        min={0}
+        max={3}
+        step={1}
+        value={value}
+        aria-label="Salt level"
+        title={SALT_DESCRIPTIONS[value]}
+        onChange={(e) => update({ saltTolerance: Number(e.target.value) as 0 | 1 | 2 | 3 })}
+        style={{
+          ['--range-progress' as string]: `${(value / 3) * 100}%`,
+        }}
+      />
+      <div className="deck-customizer-slider-anchors">
+        {SALT_LABELS.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            className="deck-customizer-slider-anchor"
+            data-align={i === 0 ? 'start' : i === SALT_LABELS.length - 1 ? 'end' : 'center'}
+            aria-label={`Set salt level to ${label}`}
+            aria-pressed={value === i}
+            title={SALT_DESCRIPTIONS[i]}
+            onClick={() => update({ saltTolerance: i as 0 | 1 | 2 | 3 })}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          >
+            <span className="deck-customizer-slider-anchor-label">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CollectionGroup({ customization, update }: DeckCustomizerProps) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const uniqueCount = new Set(collectionCards.map((c) => c.name)).size;
@@ -177,11 +255,13 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
           disabled={empty}
           onChange={(e) => update({ collectionMode: e.target.checked })}
         />
-        <span className="collection-group-icon" aria-hidden>
-          <Save width={20} height={20} strokeWidth={2} />
-        </span>
         <span className="collection-group-text">
-          <span className="collection-group-title">Build from my collection</span>
+          <span className="collection-group-title-row">
+            <span className="collection-group-title">Build from my collection</span>
+            <span className="collection-group-badge" aria-hidden>
+              {uniqueCount.toLocaleString()} unique
+            </span>
+          </span>
           <span className="collection-group-sub">
             {empty
               ? 'Import cards on the Collection page to enable this.'
@@ -189,9 +269,6 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
                 ? `Generator will only suggest cards you own.`
                 : `Constrain the build to your owned cards.`}
           </span>
-        </span>
-        <span className="collection-group-badge" aria-hidden>
-          {uniqueCount.toLocaleString()} unique
         </span>
       </label>
     </div>
@@ -201,10 +278,12 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
 function CollapsibleGroup({
   title,
   defaultOpen,
+  count,
   children,
 }: {
   title: string;
   defaultOpen?: boolean;
+  count?: number;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
@@ -218,7 +297,14 @@ function CollapsibleGroup({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="deck-customizer-group-title">{title}</span>
+        <span className="deck-customizer-group-toggle-title">
+          <span className="deck-customizer-group-title">{title}</span>
+          {typeof count === 'number' && count > 0 && (
+            <span className="deck-customizer-group-count" aria-label={`${count} selected`}>
+              {count}
+            </span>
+          )}
+        </span>
         <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
       </button>
       {open && <div className="deck-customizer-group-body">{children}</div>}
@@ -466,6 +552,26 @@ function TempoGroup({ customization, update }: DeckCustomizerProps) {
   ];
   return (
     <>
+      <p
+        style={{
+          margin: '0 0 0.75rem',
+          fontSize: '0.85em',
+          lineHeight: 1.4,
+          opacity: 0.75,
+        }}
+      >
+        Tempo shapes the mana curve and play pattern — aggressive decks load up on cheap threats,
+        late-game decks lean on big payoffs. Auto-detect picks a profile from{' '}
+        <a
+          href="https://edhrec.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: 'inherit', textDecoration: 'underline' }}
+        >
+          EDHREC
+        </a>
+        &apos;s stats for your commander.
+      </p>
       <Toggle
         label="Auto-detect from EDHREC stats"
         checked={customization.tempoAutoDetect}
