@@ -360,9 +360,10 @@ export const useDecksStore = create<DecksState>()(
             copyId: string,
             deckId: string,
             deckName: string,
+            deckColor: string,
             cardName: string
           ): void => {
-            allocated.set(copyId, { deckId, deckName, cardName });
+            allocated.set(copyId, { deckId, deckName, deckColor, cardName });
           };
 
           // Two passes: first preserve every still-valid binding so they get
@@ -372,6 +373,7 @@ export const useDecksStore = create<DecksState>()(
           interface SlotRef {
             deckId: string;
             deckName: string;
+            deckColor: string;
             cardName: string;
             scryfallId: string | undefined;
             currentCopyId: string | null;
@@ -410,6 +412,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: deck.commander.name,
                 scryfallId: deck.commander.id,
                 currentCopyId: deck.commanderAllocatedCopyId,
@@ -422,6 +425,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: deck.partnerCommander.name,
                 scryfallId: deck.partnerCommander.id,
                 currentCopyId: deck.partnerCommanderAllocatedCopyId,
@@ -435,6 +439,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: c.card.name,
                 scryfallId: c.card.id,
                 currentCopyId: c.allocatedCopyId,
@@ -449,6 +454,7 @@ export const useDecksStore = create<DecksState>()(
               slots.push({
                 deckId: deck.id,
                 deckName: deck.name,
+                deckColor: deck.color,
                 cardName: c.card.name,
                 scryfallId: c.card.id,
                 currentCopyId: c.allocatedCopyId,
@@ -503,7 +509,7 @@ export const useDecksStore = create<DecksState>()(
               printingOk &&
               !allocated.has(slot.currentCopyId)
             ) {
-              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(current);
             } else {
               needsPick.push(slot);
@@ -534,7 +540,7 @@ export const useDecksStore = create<DecksState>()(
                 return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
               });
               const pick = list[0];
-              claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(pick.copyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(pick);
               slot.apply(pick.copyId);
             } else {
@@ -554,7 +560,7 @@ export const useDecksStore = create<DecksState>()(
               current.name === slot.cardName &&
               !allocated.has(slot.currentCopyId)
             ) {
-              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(slot.currentCopyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(current);
             } else {
               needsFreshPick.push(slot);
@@ -572,7 +578,7 @@ export const useDecksStore = create<DecksState>()(
               slot.scryfallId
             );
             if (pick) {
-              claim(pick.copyId, slot.deckId, slot.deckName, slot.cardName);
+              claim(pick.copyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(pick);
               slot.apply(pick.copyId);
             } else {

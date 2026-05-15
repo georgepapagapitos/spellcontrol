@@ -8,6 +8,7 @@ import { useConfirm } from '../lib/use-confirm';
 import { Modal } from './Modal';
 import { CardScanner } from './CardScanner';
 import { useCanScan } from '../lib/use-can-scan';
+import { ProgressBar } from './ProgressBar';
 
 interface PendingImport {
   /** Runs the actual import call. */
@@ -187,6 +188,17 @@ export function UploadPanel() {
   return (
     <div className="upload-panel">
       {confirmDialog}
+      {/* While the collection import / backup restore is running we
+          surface a single indeterminate progress strip at the top of
+          the panel so the user gets clear feedback even when the
+          import itself takes 10+ seconds. Mirrors the
+          ImportDeckDialog progress UX so both surfaces communicate
+          "working" the same way. */}
+      {isLoading && (
+        <div className="upload-progress" role="status" aria-live="polite">
+          <ProgressBar indeterminate message="Importing your collection…" />
+        </div>
+      )}
       {successMsg && !error && (
         <div className="success-banner">
           <span>{successMsg}</span>
