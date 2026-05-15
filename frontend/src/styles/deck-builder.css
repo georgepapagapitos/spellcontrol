@@ -5585,3 +5585,424 @@ input.deck-row-qty-input.deck-row-qty-missing {
     font-size: var(--text-base);
   }
 }
+
+/* ─── Deck analysis panel ───────────────────────────────────────────────── */
+/* Shares the deck-combos-panel header/body chrome (see DeckCombosPanel) so
+   panels stack as one visual family. Only the inner sections are unique. */
+
+.deck-analysis-panel {
+  /* No additional styling — picks up .deck-combos-panel base. */
+}
+
+.deck-analysis-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.deck-analysis-subhead {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+.deck-analysis-verdict--top-heavy {
+  color: var(--warn, #b85c00);
+}
+
+.deck-analysis-verdict--low-curve {
+  color: var(--info, #4a6fa5);
+}
+
+.deck-analysis-warning {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.6rem 0.65rem;
+  background: var(--bg);
+  border: 0.5px solid var(--warn, #b85c00);
+  border-radius: var(--radius);
+  color: var(--text2);
+  font-size: var(--text-sm);
+}
+
+.deck-analysis-warning svg {
+  flex: 0 0 auto;
+  color: var(--warn, #b85c00);
+  margin-top: 0.15rem;
+}
+
+.deck-analysis-warning strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 0.15rem;
+}
+
+.deck-analysis-warning p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+/* Roles tab */
+
+.deck-analysis-role-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deck-analysis-role-row {
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.deck-analysis-role-row.is-low {
+  border-color: var(--warn, #b85c00);
+}
+.deck-analysis-role-row.is-high {
+  border-color: var(--info, #4a6fa5);
+}
+.deck-analysis-role-row.is-ok {
+  border-color: var(--border);
+}
+
+.deck-analysis-role-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.deck-analysis-role-row.is-low .deck-analysis-role-header > svg {
+  color: var(--warn, #b85c00);
+}
+.deck-analysis-role-row.is-high .deck-analysis-role-header > svg {
+  color: var(--info, #4a6fa5);
+}
+.deck-analysis-role-row.is-ok .deck-analysis-role-header > svg {
+  color: var(--success, #2f7d4f);
+}
+
+.deck-analysis-role-label {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+  flex: 1 1 auto;
+}
+
+.deck-analysis-role-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.deck-analysis-role-target {
+  color: var(--text3);
+  font-weight: 500;
+}
+
+.deck-analysis-role-message {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+/* Suggestions tab */
+
+.deck-analysis-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deck-analysis-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.deck-analysis-suggest-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.deck-analysis-suggest-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-analysis-suggest-art {
+  width: 44px;
+  height: 62px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface2);
+  flex: 0 0 auto;
+  display: block;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.deck-analysis-suggest-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.deck-analysis-suggest-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.deck-analysis-suggest-body:hover .deck-analysis-suggest-name {
+  color: var(--accent);
+}
+
+.deck-analysis-suggest-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.deck-analysis-suggest-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.deck-analysis-suggest-role {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--text2);
+  flex: 0 0 auto;
+}
+
+.deck-analysis-suggest-owned {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  flex: 0 0 auto;
+}
+
+.deck-analysis-suggest-elsewhere {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.deck-analysis-suggest-meta {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-analysis-suggest-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  background: var(--surface2);
+  color: var(--text);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.deck-analysis-suggest-add:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.deck-analysis-suggest-add[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.deck-analysis-suggest-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  margin: 0.25rem 0 0;
+}
+
+.deck-analysis-diagnosis {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deck-analysis-diagnosis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.deck-analysis-diagnosis-header svg {
+  color: var(--text3);
+  transition: transform 0.15s ease;
+}
+
+.deck-analysis-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text2);
+  margin: 0;
+}
+
+/* Theme picker — visually a single pill matching .deck-combos-filter-pill.
+   The native <select> is the source of truth (single-select, accessible,
+   mobile-friendly); we only strip its default chrome and overlay a chevron
+   so it reads as a pill instead of an input. */
+.deck-analysis-theme-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  align-self: flex-start;
+  max-width: 100%;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.deck-analysis-theme-pill:hover {
+  background: var(--surface2);
+}
+
+.deck-analysis-theme-pill.active {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  border-color: var(--accent);
+}
+
+.deck-analysis-theme-pill-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  opacity: 0.75;
+}
+
+.deck-analysis-theme-pill-value {
+  font-weight: 600;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
+}
+
+.deck-analysis-theme-pill-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: transparent;
+  cursor: pointer;
+  outline: none;
+  /* The decorative label/value/chevron underneath are aria-hidden via being
+     decorative; the select itself carries the aria-label so screen readers
+     announce it correctly. */
+}
+
+.deck-analysis-theme-pill-select::-ms-expand {
+  display: none;
+}
+
+.deck-analysis-theme-pill > svg {
+  opacity: 0.7;
+  flex: 0 0 auto;
+}
+
+.deck-analysis-theme-pill:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
