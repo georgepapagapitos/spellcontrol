@@ -313,6 +313,8 @@ export interface DeckStats {
   manaCurve: Record<number, number>; // CMC -> count
   colorDistribution: Record<string, number>; // Color -> count
   typeDistribution: Record<string, number>; // Type -> count
+  averageSalt?: number; // Mean EDHREC salt score across non-land cards with known salt
+  saltiestCards?: Array<{ name: string; salt: number }>; // Top-N by salt, descending
 }
 
 // Deck edit history
@@ -359,6 +361,11 @@ export type BracketLevel = 'all' | 1 | 2 | 3 | 4 | 5;
 
 // Max card rarity filter
 export type MaxRarity = 'common' | 'uncommon' | 'rare' | 'mythic' | null;
+
+// Salt level — discrete 0..3 slider. Uses EDHREC salt scores (vote-based
+// "most-hated" data). 0=unsalted (strict filter), 1=low (moderate filter),
+// 2=any (no filter, default), 3=extra (no filter + boost salty cards).
+export type SaltTolerance = 0 | 1 | 2 | 3;
 
 export type CollectionStrategy = 'full' | 'partial';
 
@@ -452,6 +459,7 @@ export interface Customization {
   advancedTargets: AdvancedTargets; // Advanced framework overrides (null = use defaults)
   tempoAutoDetect: boolean;
   tempoPacing: Pacing;
+  saltTolerance: SaltTolerance;
 }
 
 // Store state

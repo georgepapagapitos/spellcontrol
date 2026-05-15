@@ -26,10 +26,12 @@ export function DeckBadge({ allocations }: Props) {
     decks.length === 1 ? `In deck: ${decks[0].deckName}` : `In ${decks.length} decks: ${summary}`;
 
   if (decks.length === 1) {
+    const color = decks[0].deckColor || 'var(--accent)';
     return (
       <Link
         to={`/decks/${decks[0].deckId}`}
         className="card-list-deck-badge"
+        style={{ '--deck-color': color } as React.CSSProperties}
         title={label}
         aria-label={label}
         onClick={(e) => e.stopPropagation()}

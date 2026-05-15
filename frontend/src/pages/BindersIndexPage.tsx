@@ -1,4 +1,11 @@
-import { AlignJustify, LayoutGrid, List as ListIconLucide, MoreVertical } from 'lucide-react';
+import {
+  AlignJustify,
+  LayoutGrid,
+  List as ListIconLucide,
+  MoreVertical,
+  Plus,
+  Upload,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
@@ -10,9 +17,12 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { SearchPill } from '../components/SearchPill';
+import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv, SAMPLE_BINDERS, SAMPLE_CARDS } from '../lib/samples';
+import { ProgressBar } from '../components/ProgressBar';
 
 type BinderSortField = 'position' | 'name' | 'cards' | 'pages';
 type SortDir = 'asc' | 'desc';
@@ -105,6 +115,8 @@ export function BindersIndexPage() {
 
   const [sortField, setSortField] = useState<BinderSortField>(loadSort().field);
   const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 180);
   const [view, setViewRaw] = useState<BindersViewMode>(readStoredView);
   const setView = (v: BindersViewMode) => {
     setViewRaw(v);
@@ -140,7 +152,11 @@ export function BindersIndexPage() {
 
   const sorted = useMemo(() => {
     const dirMul = sortDir === 'asc' ? 1 : -1;
-    return [...materialized].sort((a, b) => {
+    const q = debouncedSearch.trim().toLowerCase();
+    const filtered = q
+      ? materialized.filter((b) => b.def.name.toLowerCase().includes(q))
+      : materialized;
+    return [...filtered].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case 'position':
@@ -159,7 +175,7 @@ export function BindersIndexPage() {
       if (cmp === 0) cmp = a.def.position - b.def.position;
       return cmp * dirMul;
     });
-  }, [materialized, sortField, sortDir]);
+  }, [materialized, sortField, sortDir, debouncedSearch]);
 
   const handleDelete = useCallback(
     async (id: string, name: string) => {
@@ -201,7 +217,8 @@ export function BindersIndexPage() {
               aria-haspopup="dialog"
               onClick={() => setExportOpen(true)}
             >
-              Export
+              <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
+              <span>Export</span>
             </button>
           )}
           <button
@@ -209,10 +226,22 @@ export function BindersIndexPage() {
             className="pill-btn pill-btn-primary"
             onClick={() => setEditingBinder('new')}
           >
-            + New binder
+            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <span>New binder</span>
           </button>
         </div>
       </header>
+
+      {binders.length > 0 && (
+        <div className="binders-index-search-row">
+          <SearchPill
+            value={search}
+            onChange={setSearch}
+            placeholder="Search binders"
+            ariaLabel="Search binders"
+          />
+        </div>
+      )}
 
       {binders.length > 0 && (
         <div className="binders-index-sort-bar">
@@ -303,6 +332,10 @@ export function BindersIndexPage() {
             </div>
           </div>
         )
+      ) : sorted.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-state-tagline">No binders match "{debouncedSearch}".</p>
+        </div>
       ) : (
         <ul className={`binders-index-list is-${view}`}>
           {sorted.map((b, idx) => (
@@ -323,8 +356,13 @@ export function BindersIndexPage() {
                     {b.def.mode === 'manual' && (
                       <span className="binders-index-card-tag">Manual</span>
                     )}
-                    <span>
-                      {b.totalCards.toLocaleString()} {b.totalCards === 1 ? 'card' : 'cards'} ·{' '}
+                    {/* Split into two spans so compact mode (which hides the
+                        cards count via CSS) can still show the page count
+                        as a quick skim signal. */}
+                    <span className="binders-index-card-cards">
+                      {b.totalCards.toLocaleString()} {b.totalCards === 1 ? 'card' : 'cards'}
+                    </span>
+                    <span className="binders-index-card-pages">
                       {b.totalPages.toLocaleString()} {b.totalPages === 1 ? 'page' : 'pages'}
                     </span>
                     {b.def.fixedCapacity != null && (
@@ -436,6 +474,12 @@ function SamplesIntroDialog({
             </li>
           )}
         </ul>
+        {loading && (
+          <ProgressBar
+            indeterminate
+            message={bindersOnly ? 'Building sample binders…' : 'Importing starter pack…'}
+          />
+        )}
         <div className="choice-dialog-actions">
           <button type="button" className="btn" onClick={onCancel} disabled={loading}>
             Cancel
