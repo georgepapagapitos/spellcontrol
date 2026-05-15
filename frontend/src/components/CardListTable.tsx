@@ -15,7 +15,7 @@ import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ManaCost } from './ManaCost';
 import { DeckBadge } from './DeckBadge';
-import { BinderBadge } from './BinderBadge';
+import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
@@ -59,9 +59,15 @@ interface Row {
   key: string;
   card: EnrichedCard;
   qty: number;
+  // Primary binder for this row — first copy seen. Drives section grouping
+  // and the move-to-binder menu's "currently in" anchor.
   binderId: string | null;
   binderName: string | null;
   binderColor: string | null;
+  // All binders covering any of this row's copies, deduped by id. When
+  // grouping is off this is at most one entry; when grouping is on the
+  // badge surfaces every binder the stacked copies are in.
+  binders: BinderInfo[];
 }
 
 type ViewMode = 'grid' | 'list' | 'compact';
@@ -337,21 +343,33 @@ export function CardListTable({
           binderId: assignment?.id ?? null,
           binderName: assignment?.name ?? null,
           binderColor: assignment?.color ?? null,
+          binders: assignment ? [assignment] : [],
         };
       });
     }
     // Default: roll duplicate copies of the same printing into one row.
-    // The row inherits the binder of the first copy seen — if multiple
-    // copies route to different binders, the badge reflects whichever copy
-    // we display as the representative.
-    const grouped = new Map<string, Row>();
+    // Primary binder fields reflect the first assigned copy seen; the
+    // `binders` array aggregates every distinct binder across the stack so
+    // the badge can show all of them.
+    const grouped = new Map<string, Row & { binderIds: Set<string> }>();
     for (const card of cards) {
       const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
+      const assignment = cardToBinder.get(card.copyId) ?? null;
       const existing = grouped.get(key);
       if (existing) {
         existing.qty += 1;
+        if (assignment && !existing.binderIds.has(assignment.id)) {
+          existing.binderIds.add(assignment.id);
+          existing.binders.push(assignment);
+          if (!existing.binderId) {
+            existing.binderId = assignment.id;
+            existing.binderName = assignment.name;
+            existing.binderColor = assignment.color;
+          }
+        }
       } else {
-        const assignment = cardToBinder.get(card.copyId) ?? null;
+        const binderIds = new Set<string>();
+        if (assignment) binderIds.add(assignment.id);
         grouped.set(key, {
           key,
           card,
@@ -359,10 +377,12 @@ export function CardListTable({
           binderId: assignment?.id ?? null,
           binderName: assignment?.name ?? null,
           binderColor: assignment?.color ?? null,
+          binders: assignment ? [assignment] : [],
+          binderIds,
         });
       }
     }
-    return [...grouped.values()];
+    return [...grouped.values()].map(({ binderIds: _ids, ...row }) => row);
   }, [cards, cardToBinder, groupPrintings]);
 
   // Compile the type-line expressions once per change; the per-row loop
@@ -512,19 +532,33 @@ export function CardListTable({
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allCards = useCollectionStore((s) => s.cards);
   const allocations = useAllocations();
-  const allocationsFor = (c: EnrichedCard): AllocationInfo[] => {
-    if (!groupPrintings) {
+  // Index allocations by printing (scryfallId + foil) once so per-row lookups
+  // stay O(1). Without this, allocationsFor scans allCards on every call —
+  // and we call it once per row when feeding the preview carousel.
+  const allocationsByPrinting = useMemo(() => {
+    if (!groupPrintings) return null;
+    const map = new Map<string, AllocationInfo[]>();
+    for (const c of allCards) {
       const a = allocations.get(c.copyId);
-      return a ? [a] : [];
+      if (!a) continue;
+      const key = `${c.scryfallId}:${c.foil ? 'foil' : 'nonfoil'}`;
+      const bucket = map.get(key);
+      if (bucket) bucket.push(a);
+      else map.set(key, [a]);
     }
-    const out: AllocationInfo[] = [];
-    for (const x of allCards) {
-      if (x.scryfallId !== c.scryfallId || x.foil !== c.foil) continue;
-      const a = allocations.get(x.copyId);
-      if (a) out.push(a);
-    }
-    return out;
-  };
+    return map;
+  }, [groupPrintings, allCards, allocations]);
+  const allocationsFor = useCallback(
+    (c: EnrichedCard): AllocationInfo[] => {
+      if (!groupPrintings) {
+        const a = allocations.get(c.copyId);
+        return a ? [a] : [];
+      }
+      const key = `${c.scryfallId}:${c.foil ? 'foil' : 'nonfoil'}`;
+      return allocationsByPrinting?.get(key) ?? [];
+    },
+    [groupPrintings, allocations, allocationsByPrinting]
+  );
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
@@ -733,6 +767,8 @@ export function CardListTable({
           sectionLabels={sorted.map((r) => r.binderName ?? 'Uncategorized')}
           pageNumbers={sorted.map(() => 0)}
           totalPages={0}
+          getStackBinders={(i) => sorted[i]?.binders ?? []}
+          getStackAllocations={(i) => (sorted[i] ? allocationsFor(sorted[i].card) : [])}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
@@ -780,11 +816,18 @@ export function CardListTable({
                 {rowItems.map((r, colIdx) => {
                   const idx = startIdx + colIdx;
                   return (
-                    <button
+                    <div
                       key={r.key}
-                      type="button"
-                      className={`collection-grid-item${r.card.foil ? ' is-foil' : ''}${gridSize === '3x' ? ' grid-3x' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      className={`collection-grid-item${r.card.foil ? ' is-foil' : ''} grid-${gridSize}`}
                       onClick={() => setPreviewIndex(idx)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setPreviewIndex(idx);
+                        }
+                      }}
                       aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}`}
                     >
                       {r.card.imageNormal ? (
@@ -797,8 +840,19 @@ export function CardListTable({
                       ) : (
                         <div className="collection-grid-placeholder">{r.card.name}</div>
                       )}
-                      {r.qty > 1 && <span className="collection-grid-qty">{r.qty}</span>}
-                    </button>
+                      {r.qty > 1 && (
+                        <span className="collection-grid-qty">
+                          <span className="collection-grid-qty-x" aria-hidden="true">
+                            ×
+                          </span>
+                          {r.qty}
+                        </span>
+                      )}
+                      <div className="collection-grid-badges">
+                        <DeckBadge allocations={allocationsFor(r.card)} />
+                        <BinderBadge binders={r.binders} />
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -861,11 +915,7 @@ export function CardListTable({
                       {r.card.name}
                       {r.card.foil && <span className="card-list-foil-tag">foil</span>}
                       <DeckBadge allocations={allocationsFor(r.card)} />
-                      <BinderBadge
-                        binderId={r.binderId}
-                        binderName={r.binderName}
-                        binderColor={r.binderColor}
-                      />
+                      <BinderBadge binders={r.binders} />
                     </div>
                     <div className="collection-list-meta">
                       <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
