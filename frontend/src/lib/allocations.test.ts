@@ -100,7 +100,7 @@ describe('pickCollectionCopy', () => {
 
   it('skips copies that are already allocated', () => {
     const claimed = new Map<string, AllocationInfo>();
-    claimed.set('a', { deckId: 'd1', deckName: 'X', cardName: 'Sol Ring' });
+    claimed.set('a', { deckId: 'd1', deckName: 'X', deckColor: '#000', cardName: 'Sol Ring' });
     const a = card({ copyId: 'a', purchasePrice: 1 });
     const b = card({ copyId: 'b', purchasePrice: 5 });
     expect(pickCollectionCopy('Sol Ring', [a, b], claimed)?.copyId).toBe('b');
@@ -133,7 +133,7 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
 
   it('returns null when all candidates are allocated even with a preference', () => {
     const claimed = new Map<string, AllocationInfo>();
-    claimed.set('a', { deckId: 'd1', deckName: 'X', cardName: 'Sol Ring' });
+    claimed.set('a', { deckId: 'd1', deckName: 'X', deckColor: '#000', cardName: 'Sol Ring' });
     const a = card({ copyId: 'a', scryfallId: 'sf-ONE' });
     expect(pickCollectionCopy('Sol Ring', [a], claimed, 'sf-ONE')).toBeNull();
   });
