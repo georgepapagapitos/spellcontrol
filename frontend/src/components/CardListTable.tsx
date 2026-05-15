@@ -496,7 +496,7 @@ export function CardListTable({
   const gridVirtualizer = useWindowVirtualizer({
     count: gridRowCount,
     estimateSize: estimateGridRowHeight,
-    overscan: 4,
+    overscan: 8,
   });
 
   const totalRowCount = rows.length;

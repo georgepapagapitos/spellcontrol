@@ -10,12 +10,11 @@ export function Layout() {
   // It loads IndexedDB cards into the store before any push, so Layout no
   // longer needs to call hydrateCards manually.
 
-  // Flex-column shell pinned to 100dvh: header on top (desktop), main fills
-  // the middle and is the scroll container, mobile tab bar locks to the
-  // bottom as a regular flex child. Doing the layout this way (instead of
-  // floating the tab bar with position: fixed) means the bar can't drift,
-  // grow, or detach during browser-chrome animations — the whole shell
-  // resizes together with the dynamic viewport.
+  // The document itself is the scroll container so useWindowVirtualizer
+  // and native pull-to-refresh work. The desktop header pins via
+  // position: sticky and the mobile tab bar via position: fixed —
+  // .app-main has a matching bottom padding on mobile so the last row
+  // isn't trapped under the bar.
   return (
     <div className="app-shell">
       <Header />

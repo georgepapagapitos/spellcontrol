@@ -117,35 +117,19 @@ body {
   font-family: var(--font-serif);
   background: var(--bg);
   color: var(--text);
-  /* The app shell owns scrolling; body itself never scrolls. This is
-     what lets the mobile tab bar sit at the bottom of the layout as a
-     regular flex child instead of a position: fixed overlay. */
-  overflow: hidden;
 }
 
-/* App shell: a flex column locked to the dynamic viewport height. The
-   header is the first child (desktop only), .app-main fills the middle
-   and is the actual scroll container, and the mobile tab bar is the
-   last child (mobile only). Because the shell is sized to 100dvh, the
-   whole layout resizes together as mobile browser chrome animates,
-   which keeps the tab bar glued to the visible bottom edge — no more
-   fixed-position drift. */
+/* App shell wraps the header, main content, and mobile tab bar. The
+   document is the scroll container so useWindowVirtualizer and native
+   pull-to-refresh work; the header pins via position: sticky and the
+   mobile tab bar pins via position: fixed. */
 .app-shell {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
 }
 
 .app-main {
   flex: 1 1 auto;
-  /* min-height: 0 lets the flex child actually shrink below its
-     content's intrinsic size so its own scrollbar takes over. */
-  min-height: 0;
-  overflow-y: auto;
-  /* Same intent as the old body rule: catch rogue overflow without
-     creating a containing block that would break position: fixed
-     popovers/dialogs rendered inside the page. */
   overflow-x: clip;
   padding: 0 1rem 2rem;
 }
@@ -171,6 +155,9 @@ select {
   background: var(--surface);
   border-bottom: 0.5px solid var(--border);
   padding: 0 1rem;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-panel);
 }
 
 .site-header-inner {
@@ -5993,7 +5980,6 @@ hr {
 
 @media (max-width: 1024px) {
   .mobile-tab-bar {
-    flex: 0 0 auto;
     display: flex;
     /* Carry the system safe-area inset as the bar's bottom padding so
        the bar's own background paints through the iOS home-indicator
@@ -6004,11 +5990,22 @@ hr {
        icons off the home indicator on iOS without ballooning on
        Android. */
     --tab-bar-safe-bottom: min(env(safe-area-inset-bottom, 0px), 0.75rem);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--z-panel);
     height: calc(3.25rem + var(--tab-bar-safe-bottom));
     padding: 0 0.4rem var(--tab-bar-safe-bottom);
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Make room at the bottom of the document so the last bit of content
+     isn't trapped under the fixed tab bar. */
+  .app-main {
+    padding-bottom: calc(3.25rem + min(env(safe-area-inset-bottom, 0px), 0.75rem) + 1rem);
   }
 
   .mobile-tab-bar-link {
@@ -6108,7 +6105,11 @@ hr {
    positive padding restores inner content alignment. */
 .collection-toolbar-row {
   position: sticky;
-  top: 0;
+  /* The desktop header is sticky at top:0 with height 3.25rem, so the
+     toolbar parks just under it. On mobile (≤1024px) the header is
+     hidden and the toolbar pins to the viewport top — see the override
+     below. */
+  top: 3.25rem;
   z-index: var(--z-panel);
   background: var(--bg);
   padding: 0.75rem 1rem 0.65rem;
@@ -6118,6 +6119,12 @@ hr {
   gap: 0.6rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
+}
+
+@media (max-width: 1024px) {
+  .collection-toolbar-row {
+    top: 0;
+  }
 }
 
 /* Secondary toolbar row — collection totals + Stats button. Sits
