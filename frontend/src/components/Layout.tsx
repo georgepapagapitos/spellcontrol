@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
 import { Footer } from './Footer';
@@ -15,6 +16,19 @@ export function Layout() {
   // position: sticky and the mobile tab bar via position: fixed —
   // .app-main has a matching bottom padding on mobile so the last row
   // isn't trapped under the bar.
+
+  // Reset scroll on forward navigations (PUSH/REPLACE) so e.g. landing
+  // on a freshly generated deck starts at the top. Back/forward (POP)
+  // keeps the prior scroll so returning to a list view feels natural.
+  // In-page hash links (#section) are exempt.
+  const { pathname, hash } = useLocation();
+  const navType = useNavigationType();
+  useEffect(() => {
+    if (navType === 'POP') return;
+    if (hash) return;
+    window.scrollTo(0, 0);
+  }, [pathname, hash, navType]);
+
   return (
     <div className="app-shell">
       <Header />
