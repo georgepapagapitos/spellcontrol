@@ -96,11 +96,10 @@ export function matchCombos(input: MatchInput): MatchResult {
         continue;
       }
 
-      // For "one away" we require: the single missing card is owned in the
-      // collection, AND every other card is in the deck. This makes the Add
-      // button actionable — the user can complete the combo with a card they
-      // physically have.
-      if (missing.length === 1 && owned.has(missing[0])) {
+      // One card away from the deck — includes both owned (actionable via the
+      // Add button) and unowned (discovery / wishlist). The frontend
+      // distinguishes the two visually and offers a filter toggle.
+      if (missing.length === 1) {
         oneAway.push({
           combo: toSummary(combo),
           presentOracleIds: present,
