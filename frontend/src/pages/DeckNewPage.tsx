@@ -360,6 +360,7 @@ function saveGeneratedDeck(
     claimed.set(pick.copyId, {
       deckId: '__pending__',
       deckName: '__pending__',
+      deckColor: '',
       cardName: card.name,
     });
     return pick.copyId;
@@ -397,6 +398,8 @@ function saveGeneratedDeck(
     cardDrawSubtypeCounts: generated.cardDrawSubtypeCounts,
     bracketEstimation: generated.bracketEstimation,
     deckGrade: generated.deckGrade,
+    averageSalt: generated.stats.averageSalt,
+    saltiestCards: generated.stats.saltiestCards,
   });
 }
 
