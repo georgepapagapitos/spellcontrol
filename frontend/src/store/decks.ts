@@ -29,6 +29,8 @@ export interface DeckCard {
   slotId: string;
   card: ScryfallCard;
   allocatedCopyId: string | null;
+  /** Unix ms timestamp when this slot was added. Absent on cards added before this field existed. */
+  addedAt?: number;
 }
 
 export interface Deck {
@@ -221,7 +223,7 @@ export const useDecksStore = create<DecksState>()(
             d.id === deckId
               ? touch({
                   ...d,
-                  cards: [...d.cards, { slotId, card, allocatedCopyId }],
+                  cards: [...d.cards, { slotId, card, allocatedCopyId, addedAt: Date.now() }],
                 })
               : d
           ),
@@ -255,7 +257,10 @@ export const useDecksStore = create<DecksState>()(
             d.id === deckId
               ? touch({
                   ...d,
-                  sideboard: [...d.sideboard, { slotId, card, allocatedCopyId }],
+                  sideboard: [
+                    ...d.sideboard,
+                    { slotId, card, allocatedCopyId, addedAt: Date.now() },
+                  ],
                 })
               : d
           ),
@@ -669,7 +674,7 @@ export const useDecksStore = create<DecksState>()(
 );
 
 export function newDeckCard(card: ScryfallCard, allocatedCopyId: string | null = null): DeckCard {
-  return { slotId: newId('slot'), card, allocatedCopyId };
+  return { slotId: newId('slot'), card, allocatedCopyId, addedAt: Date.now() };
 }
 
 function defaultDeckName(commander: ScryfallCard | null): string {
