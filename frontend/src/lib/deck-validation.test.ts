@@ -5,6 +5,7 @@ import {
   fitsColorIdentity,
   deckColorIdentity,
   validateDeck,
+  validateDeckSize,
   effectiveDeckColors,
   deckColorFrequency,
   countFlaggedCards,
@@ -267,6 +268,26 @@ describe('deckColorFrequency', () => {
       cards: [slot(card({ color_identity: ['B'] }), 'a')],
     });
     expect(freq.get('B')).toBe(1);
+  });
+});
+
+describe('validateDeckSize', () => {
+  const commander = DECK_FORMAT_CONFIGS.commander;
+
+  it('returns null when mainboard is at the limit', () => {
+    expect(validateDeckSize(99, commander)).toBeNull();
+  });
+
+  it('returns null when mainboard is under the limit', () => {
+    expect(validateDeckSize(50, commander)).toBeNull();
+  });
+
+  it('returns singular message when exactly 1 card over', () => {
+    expect(validateDeckSize(100, commander)).toBe('1 card over the Commander limit (99)');
+  });
+
+  it('returns plural message when multiple cards over', () => {
+    expect(validateDeckSize(102, commander)).toBe('3 cards over the Commander limit (99)');
   });
 });
 

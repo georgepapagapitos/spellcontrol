@@ -112,6 +112,20 @@ export function countFlaggedCards(issues: LegalityIssue[]): number {
   return new Set(issues.map((i) => i.cardName)).size;
 }
 
+/**
+ * Returns a human-readable warning when the mainboard card count exceeds the
+ * format's allowed size. Sideboard cards are intentionally excluded — they
+ * live in a separate zone and don't count toward the main deck limit.
+ * Under-count is not flagged here since partially-built decks are normal.
+ */
+export function validateDeckSize(mainboardCount: number, config: DeckFormatConfig): string | null {
+  if (mainboardCount > config.mainboardSize) {
+    const over = mainboardCount - config.mainboardSize;
+    return `${over} card${over === 1 ? '' : 's'} over the ${config.label} limit (${config.mainboardSize})`;
+  }
+  return null;
+}
+
 export function validateDeck(
   cards: DeckCard[],
   sideboard: DeckCard[],
