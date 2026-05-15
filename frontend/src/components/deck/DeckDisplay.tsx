@@ -16,6 +16,7 @@ import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
+  validateDeckSize,
   countFlaggedCards,
   type LegalityIssue,
 } from '../../lib/deck-validation';
@@ -200,7 +201,7 @@ function landProducedColors(card: ScryfallCard): string[] {
   return [...out];
 }
 
-type SortMode = 'name' | 'cmc' | 'price' | 'color';
+type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added';
 
 export type ExportFormat = 'mtga' | 'plain' | 'moxfield';
 
@@ -278,6 +279,8 @@ export interface DeckDisplayCard {
   card: ScryfallCard;
   /** scryfallId of the specific collection copy claimed by this slot, if any. */
   allocatedCopyId?: string | null;
+  /** Unix ms when this slot was added. Absent on cards predating the field. */
+  addedAt?: number;
 }
 
 export interface DeckDisplayProps {
@@ -361,6 +364,8 @@ interface Row {
   finishes?: string[];
   promoTypes?: string[];
   frameEffects?: string[];
+  /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
+  addedAt: number;
 }
 
 function frontFaceImage(card: ScryfallCard): string | undefined {
@@ -398,6 +403,7 @@ function buildRows(
     if (existing) {
       existing.qty += 1;
       existing.price += priceOf(card, currency);
+      if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
       if (dc.slotId) existing.slotIds.push(dc.slotId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -429,6 +435,7 @@ function buildRows(
       cmc: card.cmc ?? 0,
       price: priceOf(card, currency),
       colorKey: colorKeyOf(card),
+      addedAt: dc.addedAt ?? 0,
       slotIds: dc.slotId ? [dc.slotId] : [],
       status,
       allocatedQty: status === 'allocated' ? 1 : 0,
@@ -510,6 +517,7 @@ const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
   cmc: 'asc',
   price: 'desc',
   color: 'asc',
+  added: 'desc',
 };
 
 function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
@@ -529,6 +537,9 @@ function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
       );
       break;
     }
+    case 'added':
+      sorted.sort((a, b) => (a.addedAt - b.addedAt) * sign || a.name.localeCompare(b.name));
+      break;
     case 'name':
     default:
       sorted.sort((a, b) => a.name.localeCompare(b.name) * sign);
@@ -646,6 +657,7 @@ export function DeckDisplay({
         cmc: c.cmc ?? 0,
         price: priceOf(c, currency),
         colorKey: colorKeyOf(c),
+        addedAt: 0,
         slotIds: [],
         status,
         allocatedQty: status === 'allocated' ? 1 : 0,
@@ -742,6 +754,11 @@ export function DeckDisplay({
   }, [legalityIssues]);
 
   const flaggedCardCount = useMemo(() => countFlaggedCards(legalityIssues), [legalityIssues]);
+
+  const deckSizeWarning = useMemo(
+    () => validateDeckSize(cards.length, formatConfig),
+    [cards.length, formatConfig]
+  );
 
   const visibleGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -912,11 +929,17 @@ export function DeckDisplay({
           onExport={() => setExportOpen(true)}
         />
 
-        {flaggedCardCount > 0 && (
+        {(flaggedCardCount > 0 || deckSizeWarning) && (
           <div className="deck-legality-banner">
             <CircleAlert width={16} height={16} strokeWidth={2} aria-hidden />
-            {flaggedCardCount} {flaggedCardCount === 1 ? 'card' : 'cards'} flagged in{' '}
-            {formatConfig.label}
+            {deckSizeWarning && <span>{deckSizeWarning}</span>}
+            {deckSizeWarning && flaggedCardCount > 0 && <span aria-hidden>·</span>}
+            {flaggedCardCount > 0 && (
+              <span>
+                {flaggedCardCount} {flaggedCardCount === 1 ? 'card' : 'cards'} flagged in{' '}
+                {formatConfig.label}
+              </span>
+            )}
           </div>
         )}
 
@@ -1191,8 +1214,9 @@ const SORT_LABEL: Record<SortMode, string> = {
   cmc: 'CMC',
   color: 'Color',
   price: 'Price',
+  added: 'Added',
 };
-const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price'];
+const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price', 'added'];
 
 const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
   price: 'Price',
