@@ -25,6 +25,7 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@tanstack/react-virtual": "^3.13.24",
     "idb": "^8.0.0",
     "lucide-react": "^1.14.0",
     "mana-font": "^1.18.0",

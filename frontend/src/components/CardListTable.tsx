@@ -1,5 +1,6 @@
 import { AlignJustify, BarChart3, LayoutGrid, List as ListIconLucide } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import type {
   ChipExpression,
   EnrichedCard,
@@ -64,8 +65,16 @@ interface Row {
 }
 
 type ViewMode = 'grid' | 'list' | 'compact';
+type GridSize = '1x' | '2x' | '3x';
 
 const COLLECTION_VIEW_KEY = 'mtg-collection-view-mode';
+const GRID_SIZE_KEY = 'mtg-collection-grid-size';
+
+const GRID_SIZE_MIN_COL: Record<GridSize, { desktop: number; mobile: number }> = {
+  '1x': { desktop: 150, mobile: 110 },
+  '2x': { desktop: 220, mobile: 165 },
+  '3x': { desktop: 320, mobile: 240 },
+};
 
 function readStoredCollectionView(): ViewMode {
   try {
@@ -76,10 +85,20 @@ function readStoredCollectionView(): ViewMode {
   }
   return 'list';
 }
+
+function readStoredGridSize(): GridSize {
+  try {
+    const v = localStorage.getItem(GRID_SIZE_KEY);
+    if (v === '1x' || v === '2x' || v === '3x') return v;
+  } catch {
+    /* ignore */
+  }
+  return '1x';
+}
 type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
-type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+const ROW_HEIGHT_LIST = 66;
+const ROW_HEIGHT_COMPACT = 32;
 
 const COLOR_FILTERS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -158,6 +177,15 @@ export function CardListTable({
       /* ignore */
     }
   };
+  const [gridSize, setGridSizeRaw] = useState<GridSize>(readStoredGridSize);
+  const setGridSize = (s: GridSize) => {
+    setGridSizeRaw(s);
+    try {
+      localStorage.setItem(GRID_SIZE_KEY, s);
+    } catch {
+      /* ignore */
+    }
+  };
   const [binderExpr, setBinderExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -220,9 +248,9 @@ export function CardListTable({
   });
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<PageSize>(25);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
   // Global hotkeys while the table is mounted. We ignore key events when the
   // user is typing into an input/textarea/contenteditable so the shortcuts
@@ -421,56 +449,55 @@ export function CardListTable({
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
   }, [filtered, sortKey, sortDir, setMap]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const pageStart = (safePage - 1) * pageSize;
-  const pageItems = sorted.slice(pageStart, pageStart + pageSize);
+  // Scroll to top when filters, sort, or view mode change.
+  const resetKey = `${debouncedSearch}|${sortKey}|${sortDir}|${view}`;
+  const prevResetKey = useRef(resetKey);
+  useEffect(() => {
+    if (prevResetKey.current !== resetKey) {
+      prevResetKey.current = resetKey;
+      window.scrollTo({ top: 0 });
+    }
+  }, [resetKey]);
 
-  // Reset to page 1 whenever filters / sort / view / page size change the result set boundaries.
-  const [prevFilters, setPrevFilters] = useState({
-    debouncedSearch,
-    binderExpr,
-    colorFilter,
-    supertypeExpr,
-    typesExpr,
-    subtypeExpr,
-    rarityExpr,
-    setFilter,
-    sortKey,
-    sortDir,
-    view,
-    pageSize,
+  // Grid: compute column count from container width for row-of-columns virtualization.
+  const [gridCols, setGridCols] = useState(4);
+  useEffect(() => {
+    const el = gridContainerRef.current;
+    if (!el || view !== 'grid') return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const sizeConfig = GRID_SIZE_MIN_COL[gridSize];
+      const minCol = w <= 1024 ? sizeConfig.mobile : sizeConfig.desktop;
+      const gap = w <= 1024 ? 8 : 10;
+      setGridCols(Math.max(1, Math.floor((w + gap) / (minCol + gap))));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [view, gridSize]);
+
+  const gridRowCount = view === 'grid' ? Math.ceil(sorted.length / gridCols) : 0;
+  const GRID_GAP = 10;
+
+  const estimateGridRowHeight = useCallback(() => {
+    if (!gridContainerRef.current) return 250;
+    const w = gridContainerRef.current.clientWidth;
+    const colWidth = (w - GRID_GAP * (gridCols - 1)) / gridCols;
+    return colWidth * (680 / 488) + GRID_GAP;
+  }, [gridCols]);
+
+  const listVirtualizer = useWindowVirtualizer({
+    count: view !== 'grid' ? sorted.length : 0,
+    estimateSize: () => (view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST),
+    overscan: 20,
   });
-  if (
-    prevFilters.debouncedSearch !== debouncedSearch ||
-    prevFilters.binderExpr !== binderExpr ||
-    prevFilters.colorFilter !== colorFilter ||
-    prevFilters.supertypeExpr !== supertypeExpr ||
-    prevFilters.typesExpr !== typesExpr ||
-    prevFilters.subtypeExpr !== subtypeExpr ||
-    prevFilters.rarityExpr !== rarityExpr ||
-    prevFilters.setFilter !== setFilter ||
-    prevFilters.sortKey !== sortKey ||
-    prevFilters.sortDir !== sortDir ||
-    prevFilters.view !== view ||
-    prevFilters.pageSize !== pageSize
-  ) {
-    setPrevFilters({
-      debouncedSearch,
-      binderExpr,
-      colorFilter,
-      supertypeExpr,
-      typesExpr,
-      subtypeExpr,
-      rarityExpr,
-      setFilter,
-      sortKey,
-      sortDir,
-      view,
-      pageSize,
-    });
-    setPage(1);
-  }
+
+  const gridVirtualizer = useWindowVirtualizer({
+    count: gridRowCount,
+    estimateSize: estimateGridRowHeight,
+    overscan: 4,
+  });
 
   const totalRowCount = rows.length;
   const totalValue = sorted.reduce((s, r) => s + r.card.purchasePrice * r.qty, 0);
@@ -661,6 +688,18 @@ export function CardListTable({
             leadingIcon={<SortDirArrow dir={sortDir} />}
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
+          {view === 'grid' && (
+            <ViewModeToggle<GridSize>
+              ariaLabel="Card size"
+              value={gridSize}
+              onChange={setGridSize}
+              options={[
+                { value: '1x', label: 'Small cards', icon: <span>1×</span> },
+                { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
+                { value: '3x', label: 'Large cards', icon: <span>3×</span> },
+              ]}
+            />
+          )}
           <ViewModeToggle<ViewMode>
             ariaLabel="Collection view mode"
             value={view}
@@ -712,108 +751,148 @@ export function CardListTable({
           </p>
         </div>
       ) : view === 'grid' ? (
-        <div className="collection-grid">
-          {pageItems.map((r, i) => (
-            <button
-              key={r.key}
-              type="button"
-              className="collection-grid-item"
-              onClick={() => setPreviewIndex(pageStart + i)}
-              aria-label={`${r.card.name}, quantity ${r.qty}`}
-            >
-              {r.card.imageNormal ? (
-                <img
-                  src={r.card.imageNormal}
-                  alt={r.card.name}
-                  loading="lazy"
-                  className="collection-grid-img"
-                />
-              ) : (
-                <div className="collection-grid-placeholder">{r.card.name}</div>
-              )}
-              {r.qty > 1 && <span className="collection-grid-qty">x{r.qty}</span>}
-              {r.card.foil && <span className="collection-grid-foil">foil</span>}
-            </button>
-          ))}
+        <div
+          ref={gridContainerRef}
+          className="collection-grid"
+          style={{
+            height: gridVirtualizer.getTotalSize(),
+            position: 'relative',
+          }}
+        >
+          {gridVirtualizer.getVirtualItems().map((virtualRow) => {
+            const startIdx = virtualRow.index * gridCols;
+            const rowItems = sorted.slice(startIdx, startIdx + gridCols);
+            return (
+              <div
+                key={virtualRow.key}
+                className="collection-grid-vrow"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  transform: `translateY(${virtualRow.start}px)`,
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+                  gap: `${GRID_GAP}px`,
+                }}
+              >
+                {rowItems.map((r, colIdx) => {
+                  const idx = startIdx + colIdx;
+                  return (
+                    <button
+                      key={r.key}
+                      type="button"
+                      className={`collection-grid-item${r.card.foil ? ' is-foil' : ''}${gridSize === '3x' ? ' grid-3x' : ''}`}
+                      onClick={() => setPreviewIndex(idx)}
+                      aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}`}
+                    >
+                      {r.card.imageNormal ? (
+                        <img
+                          src={r.card.imageNormal}
+                          alt={r.card.name}
+                          loading="lazy"
+                          className="collection-grid-img"
+                        />
+                      ) : (
+                        <div className="collection-grid-placeholder">{r.card.name}</div>
+                      )}
+                      {r.qty > 1 && <span className="collection-grid-qty">{r.qty}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <div className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}>
-          {pageItems.map((r, i) => {
+        <div
+          ref={listContainerRef}
+          className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}
+          style={{
+            height: listVirtualizer.getTotalSize(),
+            position: 'relative',
+          }}
+        >
+          {listVirtualizer.getVirtualItems().map((virtualRow) => {
+            const r = sorted[virtualRow.index];
             const colorKey = getColorKey(r.card);
             return (
               <div
-                key={r.key}
-                className="collection-list-row"
-                role="row"
-                tabIndex={0}
-                onClick={() => setPreviewIndex(pageStart + i)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setPreviewIndex(pageStart + i);
-                  }
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={listVirtualizer.measureElement}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                {r.card.imageSmall ? (
-                  <img
-                    src={r.card.imageSmall}
-                    alt=""
-                    loading="lazy"
-                    className="collection-list-thumb"
-                  />
-                ) : (
-                  <div
-                    className="collection-list-thumb collection-list-thumb-placeholder"
-                    style={{ background: COLOR_INFO[colorKey]?.pip }}
-                    aria-hidden
-                  />
-                )}
-                <div className="collection-list-main">
-                  <div className="collection-list-name">
-                    {r.card.name}
-                    {r.card.foil && <span className="card-list-foil-tag">foil</span>}
-                    <DeckBadge allocations={allocationsFor(r.card)} />
-                    <BinderBadge
-                      binderId={r.binderId}
-                      binderName={r.binderName}
-                      binderColor={r.binderColor}
-                    />
-                  </div>
-                  <div className="collection-list-meta">
-                    <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
-                    <span className="card-list-cn">#{r.card.collectorNumber}</span>
-                    <ManaCost cost={r.card.manaCost} />
-                  </div>
-                </div>
-                <div className="collection-list-right">
-                  <CardRowMenu
-                    card={r.card}
-                    onEditCard={() => setEditingCard(r.card)}
-                    currentBinder={
-                      r.binderId && r.binderName
-                        ? { id: r.binderId, name: r.binderName, color: r.binderColor }
-                        : null
+                <div
+                  className="collection-list-row"
+                  role="row"
+                  tabIndex={0}
+                  onClick={() => setPreviewIndex(virtualRow.index)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setPreviewIndex(virtualRow.index);
                     }
-                  />
-                  <div className="collection-list-qty">×{r.qty}</div>
-                  <div className="collection-list-price">
-                    ${(r.card.purchasePrice * r.qty).toFixed(2)}
+                  }}
+                >
+                  {r.card.imageSmall ? (
+                    <img
+                      src={r.card.imageSmall}
+                      alt=""
+                      loading="lazy"
+                      className="collection-list-thumb"
+                    />
+                  ) : (
+                    <div
+                      className="collection-list-thumb collection-list-thumb-placeholder"
+                      style={{ background: COLOR_INFO[colorKey]?.pip }}
+                      aria-hidden
+                    />
+                  )}
+                  <div className="collection-list-main">
+                    <div className="collection-list-name">
+                      {r.card.name}
+                      {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                      <DeckBadge allocations={allocationsFor(r.card)} />
+                      <BinderBadge
+                        binderId={r.binderId}
+                        binderName={r.binderName}
+                        binderColor={r.binderColor}
+                      />
+                    </div>
+                    <div className="collection-list-meta">
+                      <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
+                      <span className="card-list-cn">#{r.card.collectorNumber}</span>
+                      <ManaCost cost={r.card.manaCost} />
+                    </div>
+                  </div>
+                  <div className="collection-list-right">
+                    <CardRowMenu
+                      card={r.card}
+                      onEditCard={() => setEditingCard(r.card)}
+                      currentBinder={
+                        r.binderId && r.binderName
+                          ? { id: r.binderId, name: r.binderName, color: r.binderColor }
+                          : null
+                      }
+                    />
+                    <div className="collection-list-qty">×{r.qty}</div>
+                    <div className="collection-list-price">
+                      ${(r.card.purchasePrice * r.qty).toFixed(2)}
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-      )}
-
-      {sorted.length > PAGE_SIZE_OPTIONS[0] && (
-        <Pagination
-          page={safePage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          onChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
       )}
 
       {shortcutsOpen && (
@@ -852,89 +931,4 @@ export function CardListTable({
       )}
     </div>
   );
-}
-
-interface PaginationProps {
-  page: number;
-  totalPages: number;
-  pageSize: PageSize;
-  onChange: (p: number) => void;
-  onPageSizeChange: (s: PageSize) => void;
-}
-
-function Pagination({ page, totalPages, pageSize, onChange, onPageSizeChange }: PaginationProps) {
-  const pages = pageRange(page, totalPages);
-  return (
-    <nav className="pagination" aria-label="Pagination">
-      <div className="pagination-meta">
-        <div className="pagination-pagesize">
-          <SelectMenu
-            label="Per page"
-            ariaLabel="Cards per page"
-            value={pageSize}
-            onChange={(v) => onPageSizeChange(v as PageSize)}
-            options={PAGE_SIZE_OPTIONS.map((n) => ({ value: n, label: String(n) }))}
-          />
-        </div>
-        <span className="pagination-status">
-          Page {page} of {totalPages}
-        </span>
-      </div>
-      <div className="pagination-controls">
-        <button
-          type="button"
-          className="pagination-btn"
-          disabled={page <= 1}
-          onClick={() => onChange(page - 1)}
-          aria-label="Previous page"
-        >
-          ‹
-        </button>
-        {pages.map((p, i) =>
-          p === '…' ? (
-            <span key={`g${i}`} className="pagination-ellipsis" aria-hidden>
-              …
-            </span>
-          ) : (
-            <button
-              key={p}
-              type="button"
-              className={`pagination-btn${p === page ? ' is-active' : ''}`}
-              onClick={() => onChange(p)}
-              aria-current={p === page ? 'page' : undefined}
-            >
-              {p}
-            </button>
-          )
-        )}
-        <button
-          type="button"
-          className="pagination-btn"
-          disabled={page >= totalPages}
-          onClick={() => onChange(page + 1)}
-          aria-label="Next page"
-        >
-          ›
-        </button>
-      </div>
-    </nav>
-  );
-}
-
-/**
- * Compact page list with ellipses.
- *   total=68, page=1  → [1, 2, 3, …, 68]
- *   total=68, page=34 → [1, …, 33, 34, 35, …, 68]
- *   total=68, page=68 → [1, …, 66, 67, 68]
- */
-function pageRange(page: number, total: number): Array<number | '…'> {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const out: Array<number | '…'> = [1];
-  const start = Math.max(2, page - 1);
-  const end = Math.min(total - 1, page + 1);
-  if (start > 2) out.push('…');
-  for (let i = start; i <= end; i++) out.push(i);
-  if (end < total - 1) out.push('…');
-  out.push(total);
-  return out;
 }
