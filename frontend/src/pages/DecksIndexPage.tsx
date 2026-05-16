@@ -114,6 +114,7 @@ function deckSortValue(deck: Deck, field: DeckSortField): number | string {
 export function DecksIndexPage() {
   const decks = useDecksStore((s) => s.decks);
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
+  const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
   const navigate = useNavigate();
 
   const [sortField, setSortField] = useState<DeckSortField>(loadSort().field);
@@ -176,6 +177,7 @@ export function DecksIndexPage() {
 
   const [showImport, setShowImport] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
@@ -205,6 +207,11 @@ export function DecksIndexPage() {
   const confirmDelete = () => {
     if (pendingDelete) deleteDeck(pendingDelete.id);
     setPendingDelete(null);
+  };
+
+  const confirmDeleteAllDecks = () => {
+    deleteAllDecks();
+    setConfirmDeleteAll(false);
   };
 
   return (
@@ -293,6 +300,17 @@ export function DecksIndexPage() {
           danger
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {confirmDeleteAll && (
+        <ConfirmDialog
+          title={`Delete all ${decks.length} decks?`}
+          body="Every deck will be permanently removed. Your collection and binders are unaffected. This cannot be undone."
+          confirmLabel="Delete all decks"
+          danger
+          onConfirm={confirmDeleteAllDecks}
+          onCancel={() => setConfirmDeleteAll(false)}
         />
       )}
 
@@ -419,6 +437,18 @@ export function DecksIndexPage() {
             );
           })}
         </ul>
+      )}
+
+      {decks.length > 1 && (
+        <div className="decks-index-danger">
+          <button
+            type="button"
+            className="btn-link decks-index-danger-btn"
+            onClick={() => setConfirmDeleteAll(true)}
+          >
+            Delete all decks
+          </button>
+        </div>
       )}
     </div>
   );
