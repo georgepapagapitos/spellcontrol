@@ -15,6 +15,7 @@ import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { markDestructive } from '../lib/sync-intent';
+import { reconcileBinderRefs, keysForIds } from '../lib/binder-refs';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -168,6 +169,21 @@ function remapDeckAllocations(newCards: EnrichedCard[]): void {
   }
 }
 
+/**
+ * Binder analogue of remapDeckAllocations: re-resolve every binder's pins /
+ * exclusions from their durable natural-key shadow against the new collection.
+ * `prevCards` is the collection BEFORE this mutation (still needed to backfill
+ * legacy binders that predate the shadow). No-ops cleanly — only writes
+ * `binders` when something actually changed, preserving the array reference so
+ * the sync subscriber doesn't see a phantom mutation.
+ */
+function remapBinderRefs(prevCards: EnrichedCard[], newCards: EnrichedCard[]): void {
+  const { binders } = useCollectionStore.getState();
+  if (binders.length === 0) return;
+  const result = reconcileBinderRefs(binders, newCards, prevCards);
+  if (result.changed) useCollectionStore.setState({ binders: result.binders });
+}
+
 export const useCollectionStore = create<CollectionState>()(
   persist(
     (set, get) => ({
@@ -287,6 +303,11 @@ export const useCollectionStore = create<CollectionState>()(
         set(stateUpdate);
 
         remapDeckAllocations(newCards);
+        // Re-resolve binder pins/exclusions from their durable key shadow. This
+        // is the headline recovery path: re-uploading a CSV after a cache/sync
+        // loss mints new copyIds, and this re-binds the user's pins to the
+        // equivalent new copies instead of silently dropping them.
+        remapBinderRefs(existing, newCards);
 
         try {
           await saveCollection({
@@ -330,6 +351,7 @@ export const useCollectionStore = create<CollectionState>()(
         });
         if (remainingCards.length < s.cards.length) {
           remapDeckAllocations(remainingCards);
+          remapBinderRefs(s.cards, remainingCards);
         }
         try {
           if (remainingCards.length === 0 && remainingHistory.length === 0) {
@@ -376,6 +398,7 @@ export const useCollectionStore = create<CollectionState>()(
         set({ cards });
         if (lostCopy) {
           remapDeckAllocations(cards);
+          remapBinderRefs(s.cards, cards);
         }
         try {
           await saveCollection({
@@ -473,6 +496,7 @@ export const useCollectionStore = create<CollectionState>()(
 
       clearCards: async () => {
         markDestructive();
+        const prevCards = get().cards;
         set({
           cards: [],
           fileName: '',
@@ -485,6 +509,10 @@ export const useCollectionStore = create<CollectionState>()(
           error: null,
         });
         remapDeckAllocations([]);
+        // Empties each binder's resolved pinnedCopyIds but RETAINS the durable
+        // pinnedKeys, so re-importing the same collection restores the pins
+        // rather than clearing them forever.
+        remapBinderRefs(prevCards, []);
         try {
           await clearCollection();
         } catch (err) {
@@ -515,6 +543,7 @@ export const useCollectionStore = create<CollectionState>()(
         const collection = backup.collection;
         const uploadedAt = collection?.uploadedAt ?? Date.now();
         const restoredHistory: ImportHistoryEntry[] = collection?.importHistory ?? [];
+        const prevCards = get().cards;
 
         set({
           cards: collection?.cards ?? [],
@@ -531,6 +560,7 @@ export const useCollectionStore = create<CollectionState>()(
         });
 
         remapDeckAllocations(collection?.cards ?? []);
+        remapBinderRefs(prevCards, collection?.cards ?? []);
 
         if (collection) {
           try {
@@ -561,7 +591,9 @@ export const useCollectionStore = create<CollectionState>()(
       // Binder card customization actions
       pinCardToBinder: (binderId, copyId) => {
         let added = false;
-        const card = get().cards.find((c) => c.copyId === copyId);
+        const cards = get().cards;
+        const card = cards.find((c) => c.copyId === copyId);
+        const byId = new Map(cards.map((c) => [c.copyId, c]));
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
@@ -569,7 +601,15 @@ export const useCollectionStore = create<CollectionState>()(
             if (existing.includes(copyId)) return b;
             added = true;
             const now = Date.now();
-            const updated = { ...b, pinnedCopyIds: [...existing, copyId], updatedAt: now };
+            const nextIds = [...existing, copyId];
+            const updated = {
+              ...b,
+              pinnedCopyIds: nextIds,
+              // Keep the durable key shadow in sync at pin time so a pin made
+              // before the next collection change still survives a loss.
+              pinnedKeys: keysForIds(nextIds, byId, existing, b.pinnedKeys ?? []),
+              updatedAt: now,
+            };
             if (b.mode !== 'manual' && card && !areAllGroupsEmpty(b.filterGroups)) {
               const compiled = compileFilterGroups(b.filterGroups);
               if (!cardMatchesAnyGroup(card, compiled)) {
@@ -583,17 +623,26 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       removeCardFromBinder: (binderId, copyId, isRuleMatched) => {
+        const byId = new Map(get().cards.map((c) => [c.copyId, c]));
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
             if (isRuleMatched) {
               const excluded = b.excludedCopyIds ?? [];
               if (excluded.includes(copyId)) return b;
-              return { ...b, excludedCopyIds: [...excluded, copyId], updatedAt: Date.now() };
-            } else {
+              const nextExcluded = [...excluded, copyId];
               return {
                 ...b,
-                pinnedCopyIds: (b.pinnedCopyIds ?? []).filter((id) => id !== copyId),
+                excludedCopyIds: nextExcluded,
+                excludedKeys: keysForIds(nextExcluded, byId, excluded, b.excludedKeys ?? []),
+                updatedAt: Date.now(),
+              };
+            } else {
+              const nextPinned = (b.pinnedCopyIds ?? []).filter((id) => id !== copyId);
+              return {
+                ...b,
+                pinnedCopyIds: nextPinned,
+                pinnedKeys: keysForIds(nextPinned, byId, b.pinnedCopyIds ?? [], b.pinnedKeys ?? []),
                 manualOrder: (b.manualOrder ?? []).filter((id) => id !== copyId),
                 updatedAt: Date.now(),
               };
@@ -603,12 +652,20 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       restoreExcludedCard: (binderId, copyId) => {
+        const byId = new Map(get().cards.map((c) => [c.copyId, c]));
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
+            const nextExcluded = (b.excludedCopyIds ?? []).filter((id) => id !== copyId);
             return {
               ...b,
-              excludedCopyIds: (b.excludedCopyIds ?? []).filter((id) => id !== copyId),
+              excludedCopyIds: nextExcluded,
+              excludedKeys: keysForIds(
+                nextExcluded,
+                byId,
+                b.excludedCopyIds ?? [],
+                b.excludedKeys ?? []
+              ),
               updatedAt: Date.now(),
             };
           }),
