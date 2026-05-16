@@ -1,13 +1,81 @@
 import { ListFilter, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ChipExpression, MaterializedBinder } from '../types';
+import type {
+  BorderColor,
+  ChipExpression,
+  Condition,
+  Finish,
+  Format,
+  Layout,
+  MaterializedBinder,
+  Treatment,
+} from '../types';
 import type { SetMap } from '../lib/api';
 import { SetFilterPicker } from './SetFilterPicker';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
+
+// Closed vocabularies for the enum chip rows. Kept local — mirroring
+// COLOR_FILTERS/RARITIES in the consuming pages — so this dialog isn't
+// load-coupled to the binder rule editor that defines the same lists.
+const FORMATS: Format[] = [
+  'standard',
+  'pioneer',
+  'modern',
+  'legacy',
+  'vintage',
+  'commander',
+  'pauper',
+];
+const LAYOUTS: { value: Layout; label: string }[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'split', label: 'Split' },
+  { value: 'flip', label: 'Flip' },
+  { value: 'transform', label: 'Transform' },
+  { value: 'modal_dfc', label: 'Modal DFC' },
+  { value: 'adventure', label: 'Adventure' },
+  { value: 'meld', label: 'Meld' },
+  { value: 'leveler', label: 'Leveler' },
+  { value: 'saga', label: 'Saga' },
+  { value: 'planar', label: 'Planar' },
+  { value: 'scheme', label: 'Scheme' },
+  { value: 'vanguard', label: 'Vanguard' },
+  { value: 'token', label: 'Token' },
+  { value: 'double_faced_token', label: 'DFC token' },
+  { value: 'emblem', label: 'Emblem' },
+  { value: 'augment', label: 'Augment' },
+  { value: 'host', label: 'Host' },
+  { value: 'class', label: 'Class' },
+];
+const TREATMENTS: { value: Treatment; label: string }[] = [
+  { value: 'fullart', label: 'Full art' },
+  { value: 'extendedart', label: 'Extended art' },
+  { value: 'showcase', label: 'Showcase' },
+  { value: 'etched', label: 'Etched' },
+  { value: 'inverted', label: 'Inverted' },
+];
+const BORDERS: { value: BorderColor; label: string }[] = [
+  { value: 'black', label: 'Black' },
+  { value: 'white', label: 'White' },
+  { value: 'borderless', label: 'Borderless' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'gold', label: 'Gold' },
+];
+const FINISHES: { value: Finish; label: string }[] = [
+  { value: 'nonfoil', label: 'Normal' },
+  { value: 'foil', label: 'Foil' },
+  { value: 'etched', label: 'Etched' },
+];
+const CONDITIONS: { value: Condition; label: string }[] = [
+  { value: 'nm', label: 'Near Mint' },
+  { value: 'lp', label: 'Lightly Played' },
+  { value: 'mp', label: 'Moderately Played' },
+  { value: 'hp', label: 'Heavily Played' },
+  { value: 'damaged', label: 'Damaged' },
+];
 
 interface Props {
   supertypeExpr: ChipExpression;
@@ -25,6 +93,35 @@ interface Props {
   rarityExpr: ChipExpression;
   setRarityExpr: (next: ChipExpression) => void;
   rarities: readonly string[];
+
+  /**
+   * Free-text oracle (rules) text search. Substring match, IS / IS NOT
+   * per chip, AND/OR between chips — so "draw a card" AND "{T}" composes.
+   */
+  oracleExpr: ChipExpression;
+  setOracleExpr: (next: ChipExpression) => void;
+
+  legalityExpr: ChipExpression;
+  setLegalityExpr: (next: ChipExpression) => void;
+
+  layoutExpr: ChipExpression;
+  setLayoutExpr: (next: ChipExpression) => void;
+
+  treatmentExpr: ChipExpression;
+  setTreatmentExpr: (next: ChipExpression) => void;
+
+  borderExpr: ChipExpression;
+  setBorderExpr: (next: ChipExpression) => void;
+
+  /**
+   * Finish + condition describe the *physical copy* owned, so they're
+   * collection-page-only — the deck-editor card search omits these props
+   * and the sections disappear (same pattern as the Binder section).
+   */
+  finishExpr?: ChipExpression;
+  setFinishExpr?: (next: ChipExpression) => void;
+  conditionExpr?: ChipExpression;
+  setConditionExpr?: (next: ChipExpression) => void;
 
   /**
    * Binder section is collection-page-only. The deck-editor card search
@@ -115,6 +212,20 @@ function DialogBody({
   rarityExpr,
   setRarityExpr,
   rarities,
+  oracleExpr,
+  setOracleExpr,
+  legalityExpr,
+  setLegalityExpr,
+  layoutExpr,
+  setLayoutExpr,
+  treatmentExpr,
+  setTreatmentExpr,
+  borderExpr,
+  setBorderExpr,
+  finishExpr,
+  setFinishExpr,
+  conditionExpr,
+  setConditionExpr,
   binderExpr,
   setBinderExpr,
   binders,
@@ -133,6 +244,13 @@ function DialogBody({
   const [draftSubtype, setDraftSubtype] = useState<ChipExpression>(subtypeExpr);
   const [draftColor, setDraftColor] = useState<Set<string>>(() => new Set(colorFilter));
   const [draftRarity, setDraftRarity] = useState<ChipExpression>(rarityExpr);
+  const [draftOracle, setDraftOracle] = useState<ChipExpression>(oracleExpr);
+  const [draftLegality, setDraftLegality] = useState<ChipExpression>(legalityExpr);
+  const [draftLayout, setDraftLayout] = useState<ChipExpression>(layoutExpr);
+  const [draftTreatment, setDraftTreatment] = useState<ChipExpression>(treatmentExpr);
+  const [draftBorder, setDraftBorder] = useState<ChipExpression>(borderExpr);
+  const [draftFinish, setDraftFinish] = useState<ChipExpression>(finishExpr ?? EMPTY_EXPR);
+  const [draftCondition, setDraftCondition] = useState<ChipExpression>(conditionExpr ?? EMPTY_EXPR);
   // Binder + groupPrintings are optional surfaces (collection-page only).
   // When the parent doesn't wire them up, the draft stays at its harmless
   // default and the section just doesn't render.
@@ -142,6 +260,8 @@ function DialogBody({
 
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
   const showOptions = groupPrintings !== undefined;
+  const showFinish = finishExpr !== undefined;
+  const showCondition = conditionExpr !== undefined;
 
   const draftHasAny =
     draftSuper.chips.length > 0 ||
@@ -149,6 +269,13 @@ function DialogBody({
     draftSubtype.chips.length > 0 ||
     draftColor.size > 0 ||
     draftRarity.chips.length > 0 ||
+    draftOracle.chips.length > 0 ||
+    draftLegality.chips.length > 0 ||
+    draftLayout.chips.length > 0 ||
+    draftTreatment.chips.length > 0 ||
+    draftBorder.chips.length > 0 ||
+    (showFinish && draftFinish.chips.length > 0) ||
+    (showCondition && draftCondition.chips.length > 0) ||
     (showBinder && draftBinder.chips.length > 0) ||
     draftSet.size > 0 ||
     (showOptions && !draftGroup);
@@ -183,6 +310,13 @@ function DialogBody({
     setSubtypeExpr(draftSubtype);
     setColorFilter(draftColor);
     setRarityExpr(draftRarity);
+    setOracleExpr(draftOracle);
+    setLegalityExpr(draftLegality);
+    setLayoutExpr(draftLayout);
+    setTreatmentExpr(draftTreatment);
+    setBorderExpr(draftBorder);
+    if (showFinish) setFinishExpr?.(draftFinish);
+    if (showCondition) setConditionExpr?.(draftCondition);
     if (showBinder) setBinderExpr?.(draftBinder);
     setSetFilter(draftSet);
     if (showOptions) setGroupPrintings?.(draftGroup);
@@ -195,6 +329,13 @@ function DialogBody({
     setDraftSubtype(EMPTY_EXPR);
     setDraftColor(new Set());
     setDraftRarity(EMPTY_EXPR);
+    setDraftOracle(EMPTY_EXPR);
+    setDraftLegality(EMPTY_EXPR);
+    setDraftLayout(EMPTY_EXPR);
+    setDraftTreatment(EMPTY_EXPR);
+    setDraftBorder(EMPTY_EXPR);
+    setDraftFinish(EMPTY_EXPR);
+    setDraftCondition(EMPTY_EXPR);
     setDraftBinder(EMPTY_EXPR);
     setDraftSet(new Set());
     setDraftGroup(true);
@@ -285,6 +426,93 @@ function DialogBody({
               placeholder="Add rarity…"
             />
           </section>
+
+          {/* Free-text oracle search — substring against the rules text.
+              Defaults to OR so "draw" / "destroy" reads as either; flip a
+              joiner to AND for "draw a card" AND "{T}". */}
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Oracle text</div>
+            <ChipExpressionBuilder
+              value={draftOracle}
+              onChange={setDraftOracle}
+              suggestions={[]}
+              defaultJoiner="OR"
+              placeholder="e.g. flying, draw a card…"
+            />
+          </section>
+
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Format</div>
+            <ChipExpressionBuilder
+              value={draftLegality}
+              onChange={setDraftLegality}
+              options={FORMATS.map((f) => ({
+                value: f,
+                label: f.charAt(0).toUpperCase() + f.slice(1),
+              }))}
+              defaultJoiner="OR"
+              placeholder="Add format…"
+            />
+          </section>
+
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Layout</div>
+            <ChipExpressionBuilder
+              value={draftLayout}
+              onChange={setDraftLayout}
+              options={LAYOUTS}
+              defaultJoiner="OR"
+              placeholder="Add layout…"
+            />
+          </section>
+
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Treatment</div>
+            <ChipExpressionBuilder
+              value={draftTreatment}
+              onChange={setDraftTreatment}
+              options={TREATMENTS}
+              defaultJoiner="OR"
+              placeholder="Add treatment…"
+            />
+          </section>
+
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Border</div>
+            <ChipExpressionBuilder
+              value={draftBorder}
+              onChange={setDraftBorder}
+              options={BORDERS}
+              defaultJoiner="OR"
+              placeholder="Add border…"
+            />
+          </section>
+
+          {showFinish && (
+            <section className="collection-filters-section">
+              <div className="collection-filters-section-label">Finish</div>
+              <ChipExpressionBuilder
+                value={draftFinish}
+                onChange={setDraftFinish}
+                options={FINISHES}
+                defaultJoiner="OR"
+                placeholder="Add finish…"
+              />
+            </section>
+          )}
+
+          {showCondition && (
+            <section className="collection-filters-section">
+              <div className="collection-filters-section-label">Condition</div>
+              <ChipExpressionBuilder
+                value={draftCondition}
+                onChange={setDraftCondition}
+                options={CONDITIONS}
+                defaultJoiner="OR"
+                placeholder="Add condition…"
+              />
+            </section>
+          )}
 
           {showBinder && (
             <section className="collection-filters-section">
