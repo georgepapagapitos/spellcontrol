@@ -25,6 +25,7 @@ import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
+import { InlineCardSearch } from './InlineCardSearch';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { classifyFoil } from '../lib/foil-style';
@@ -844,11 +845,26 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
 
       {sorted.length === 0 ? (
         <div className="empty-state">
-          <p className="empty-state-tagline">No matches</p>
-          <p className="empty-state-hint">
-            No cards match your current filters. Try broadening your search or clearing some
-            filters.
-          </p>
+          {debouncedSearch.trim().length >= 2 ? (
+            <>
+              <p className="empty-state-tagline">Not in your collection</p>
+              <p className="empty-state-hint">
+                Nothing matches “{debouncedSearch.trim()}”. Search Scryfall to add it:
+              </p>
+              <InlineCardSearch
+                key={debouncedSearch.trim()}
+                initialQuery={debouncedSearch.trim()}
+              />
+            </>
+          ) : (
+            <>
+              <p className="empty-state-tagline">No matches</p>
+              <p className="empty-state-hint">
+                No cards match your current filters. Try broadening your search or clearing some
+                filters.
+              </p>
+            </>
+          )}
         </div>
       ) : view === 'grid' ? (
         <div
