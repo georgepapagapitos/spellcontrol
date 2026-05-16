@@ -27,7 +27,7 @@ import {
   type LegalityIssue,
 } from '../../lib/deck-validation';
 import type { DeckCard } from '../../store/decks';
-import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { Modal } from '../Modal';
 import { CardPreview } from '../CardPreview';
@@ -43,6 +43,10 @@ import { useDecksStore } from '../../store/decks';
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import {
+  buildCommanderProfile,
+  whyCardMatches,
+} from '@/deck-builder/services/deckBuilder/commanderProfile';
 import {
   cardMatchesRole,
   getCardRole,
@@ -946,6 +950,23 @@ export function DeckDisplay({
     return list;
   }, [commander, partnerCommander, cards]);
 
+  // "Why this card" synergy reasons, keyed by card name. Computed from the
+  // commander's parsed ability profile so each row can explain its fit.
+  const synergyByName = useMemo<Map<string, string[]>>(() => {
+    const map = new Map<string, string[]>();
+    if (!commander) return map;
+    const profile = buildCommanderProfile(commander, partnerCommander);
+    if (profile.abilities.length === 0) return map;
+    for (const dc of cards) {
+      const card = dc.card;
+      if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) continue;
+      if (map.has(card.name)) continue;
+      const reasons = whyCardMatches(card, profile);
+      if (reasons.length > 0) map.set(card.name, reasons);
+    }
+    return map;
+  }, [commander, partnerCommander, cards]);
+
   // Stats summary line.
   const totalCards = allCards.length;
   const totalPrice = useMemo(
@@ -1140,6 +1161,7 @@ export function DeckDisplay({
                     }
                     onMakeCommander={onMakeCommander}
                     canMakeCommander={canMakeCommander}
+                    synergyByName={synergyByName}
                   />
                 ))}
 
@@ -1168,6 +1190,7 @@ export function DeckDisplay({
                         onMoveToMainboard={onMoveToMainboard}
                         onMakeCommander={onMakeCommander}
                         canMakeCommander={canMakeCommander}
+                        synergyByName={synergyByName}
                       />
                     ))}
                     {sideboard.length === 0 && (
@@ -1814,6 +1837,7 @@ function CategorySection({
   onMoveToMainboard,
   onMakeCommander,
   canMakeCommander,
+  synergyByName,
 }: {
   title: string;
   iconClass: string;
@@ -1829,6 +1853,7 @@ function CategorySection({
   onMoveToMainboard?: (slotId: string) => void;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
+  synergyByName?: Map<string, string[]>;
 }) {
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
@@ -1868,6 +1893,7 @@ function CategorySection({
             }
             onMakeCommander={onMakeCommander}
             canMakeCommander={canMakeCommander}
+            synergyReasons={synergyByName?.get(row.card.name)}
           />
         ))}
       </ul>
@@ -1888,6 +1914,7 @@ function DeckCardRow({
   moveLabel,
   onMakeCommander,
   canMakeCommander,
+  synergyReasons,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -1901,6 +1928,7 @@ function DeckCardRow({
   moveLabel?: string;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
+  synergyReasons?: string[];
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -2031,6 +2059,15 @@ function DeckCardRow({
         {row.foil && <span className="deck-row-foil">foil</span>}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
         <AllocationChip row={row} />
+        {synergyReasons && synergyReasons.length > 0 && (
+          <span
+            className="deck-row-synergy"
+            title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
+            aria-label={`Synergy: ${synergyReasons.join('; ')}`}
+          >
+            <span aria-hidden>✦</span> {synergyReasons[0]}
+          </span>
+        )}
       </span>
       {showPrefs.mana &&
         (mana ? (
