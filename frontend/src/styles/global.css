@@ -8401,26 +8401,133 @@ hr {
   font-weight: 600;
 }
 
-/* ── Inline Scryfall search (collection no-results state) ─────── */
+/* ── Inline Scryfall search (collection add-from-Scryfall) ────── */
+
+.inline-card-search-wrap {
+  margin-top: 0.75rem;
+}
 
 .inline-card-search {
   max-width: 540px;
-  margin: 1rem auto 0;
+  margin: 0.75rem auto 0;
   text-align: left;
 }
 
-.inline-card-search-input {
-  width: 100%;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--border);
+/* Collapsed trigger — shaped to match the active collection layout so it
+   reads as "one more card / row" at the end of the results. */
+.inline-card-search-tile {
+  display: flex;
+  align-items: center;
+  border: 1.5px dashed var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.inline-card-search-tile:hover,
+.inline-card-search-tile:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
+.inline-card-search-tile-icon {
+  flex-shrink: 0;
+}
+
+.inline-card-search-tile-title {
+  font-weight: 600;
+}
+
+.inline-card-search-tile-sub {
+  color: var(--text3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-card-search-tile:hover .inline-card-search-tile-sub,
+.inline-card-search-tile:focus-visible .inline-card-search-tile-sub {
+  color: inherit;
+}
+
+/* Grid: a card-shaped tile, icon stacked over text, centred. */
+.inline-card-search-tile--grid {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+  width: clamp(140px, 16vw, 200px);
+  aspect-ratio: 63 / 88;
+  padding: 1rem;
+  text-align: center;
+}
+
+.inline-card-search-tile--grid .inline-card-search-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
   font-size: var(--text-sm);
 }
 
-.inline-card-search-input:focus {
-  border-color: var(--accent);
+/* List: a full-width row roughly the height of a thumbnail list row. */
+.inline-card-search-tile--list {
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.5rem 0.85rem;
+}
+
+/* Compact: a slim full-width row. */
+.inline-card-search-tile--compact {
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.7rem;
+}
+
+.inline-card-search-tile--list .inline-card-search-tile-text,
+.inline-card-search-tile--compact .inline-card-search-tile-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.inline-card-search-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.inline-card-search-head-title {
+  font-size: var(--text-sm);
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-card-search-hide {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.inline-card-search-hide:hover,
+.inline-card-search-hide:focus-visible {
+  text-decoration: underline;
   outline: none;
 }
 
@@ -8449,8 +8556,8 @@ hr {
   border-top: 0.5px solid var(--border);
 }
 
-.inline-card-search-item.is-active {
-  background: var(--accent-light);
+.inline-card-search-item:hover {
+  background: var(--surface2);
 }
 
 .inline-card-search-row {
