@@ -12,6 +12,7 @@ import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './store/auth';
+import { useCollectionStore } from './store/collection';
 import { startSync } from './lib/sync';
 
 export default function App() {
@@ -39,6 +40,14 @@ export default function App() {
     syncStartedFor.current = userId;
     void startSync(userId).catch((err) => {
       console.warn('[sync] startSync failed:', err);
+      // Backstop: hydration is owned by the sync layer, but a failure here
+      // (network down, wipeLocal throwing, etc.) must NOT leave the UI stuck
+      // on "still hydrating" forever — the local IndexedDB cache is loaded
+      // independently of sync success. Clear the flag so the app renders
+      // whatever's cached instead of an indefinite loading state.
+      if (useCollectionStore.getState().hydrating) {
+        useCollectionStore.setState({ hydrating: false });
+      }
     });
   }, [status, userId]);
 
