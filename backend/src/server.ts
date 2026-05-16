@@ -140,6 +140,9 @@ app.post(
 
       res.json(response);
     } catch (err) {
+      if (err instanceof ImportTooLargeError) {
+        return res.status(413).json({ error: err.message });
+      }
       console.error('[import] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({
@@ -226,6 +229,9 @@ app.post(
 
       res.json(response);
     } catch (err) {
+      if (err instanceof ImportTooLargeError) {
+        return res.status(413).json({ error: err.message });
+      }
       console.error('[import-deck] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({
@@ -362,21 +368,72 @@ function pickUsdFromPrices(card: ScryfallCard): number {
 /**
  * Pulls the import text from whichever request shape was sent.
  */
+/**
+ * Rejects inputs with more lines than any real collection could have BEFORE
+ * the parser builds a row object per line. Every parser is line-oriented, so a
+ * 20MB file of single-character lines (~10M lines) would otherwise allocate
+ * ~10M ImportRow objects in a 256MB container. Counted with an early-exiting
+ * loop so the guard itself can't be turned into the bomb.
+ */
+function assertLineCountWithinLimit(text: string): void {
+  let lines = 1;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 10) {
+      if (++lines > MAX_TOTAL_CARDS) {
+        throw new ImportTooLargeError(
+          `Import has too many lines (limit ${MAX_TOTAL_CARDS.toLocaleString()}). ` +
+            `Split it into smaller files.`
+        );
+      }
+    }
+  }
+}
+
 async function readImportText(req: Request): Promise<string | null> {
   if (req.file) {
-    return req.file.buffer.toString('utf-8');
+    const text = req.file.buffer.toString('utf-8');
+    assertLineCountWithinLimit(text);
+    return text;
   }
   if (req.body && typeof req.body.text === 'string' && req.body.text.trim()) {
+    assertLineCountWithinLimit(req.body.text);
     return req.body.text;
   }
   return null;
 }
 
+/**
+ * Caps for the import expansion step. Parsers `parseInt()` the quantity field
+ * with no upper bound, so a tiny payload (`Sol Ring,2000000000`) would
+ * otherwise expand into a multi-billion-element array and OOM the container —
+ * a content-level amplification bomb that no byte-size limit can catch.
+ *
+ * MAX_QTY_PER_ROW: nobody legitimately owns >2000 copies of one card (a
+ * playset is 4; even bulk basics top out in the hundreds).
+ * MAX_TOTAL_CARDS: ~90k unique printings exist in all of Magic; the largest
+ * realistic single collection is well under 200k physical cards.
+ */
+const MAX_QTY_PER_ROW = 2000;
+const MAX_TOTAL_CARDS = 200_000;
+
+export class ImportTooLargeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ImportTooLargeError';
+  }
+}
+
 function expandByQuantity(rows: ImportRow[]): ImportRow[] {
   const expanded: ImportRow[] = [];
   for (const row of rows) {
-    const qty = Math.max(1, row.quantity || 1);
+    const qty = Math.min(MAX_QTY_PER_ROW, Math.max(1, row.quantity || 1));
     for (let i = 0; i < qty; i++) {
+      if (expanded.length >= MAX_TOTAL_CARDS) {
+        throw new ImportTooLargeError(
+          `Import exceeds the ${MAX_TOTAL_CARDS.toLocaleString()}-card limit. ` +
+            `Split it into smaller files.`
+        );
+      }
       expanded.push(row);
     }
   }
