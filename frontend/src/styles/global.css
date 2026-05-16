@@ -1325,7 +1325,11 @@ input[type='search'] {
 
 .binder-summary {
   display: flex;
-  align-items: baseline;
+  /* Center every item on the row's cross axis. The row mixes different
+     font sizes, a bordered pill, and the tall view-mode toggle, so
+     baseline alignment left them visually staggered — center stays
+     consistent across breakpoints, wrapping, and long sort chains. */
+  align-items: center;
   gap: 0.6rem;
   margin: 0.25rem 0 1rem;
   padding-left: 2px;
@@ -1338,12 +1342,11 @@ input[type='search'] {
 }
 
 /* Connects the sort pill to the "Browse pages · Key" group with the same
-   dot the meta cluster uses internally. Centered to match the pill. */
+   dot the meta cluster uses internally. */
 .binder-summary-sep {
   font-size: var(--text-sm);
   color: var(--text3);
   font-family: var(--font-mono);
-  align-self: center;
 }
 
 .binder-summary-overcap {
@@ -1692,10 +1695,9 @@ input[type='search'] {
 .sort-popover {
   position: relative;
   flex-shrink: 0;
-  /* The summary row is baseline-aligned for its text/link items; the pill
-     is a bordered chip, so center it on the row instead of hanging off
-     the text baseline. */
-  align-self: center;
+  /* Hug the button exactly — as a block wrapper the inline-flex button
+     gains line-box descender space, pushing it ~2px off the row center. */
+  display: flex;
 }
 
 .sort-popover-btn {
@@ -2166,19 +2168,6 @@ input[type='text'] {
   color: var(--text3);
   font-family: var(--font-mono);
   margin-left: auto;
-}
-
-.section-breadcrumb {
-  font-size: var(--text-xs);
-  color: var(--text3);
-  font-family: var(--font-mono);
-  text-transform: lowercase;
-  letter-spacing: 0.04em;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: var(--surface2);
-  border: 0.5px solid var(--border);
-  white-space: nowrap;
 }
 
 /* Pages */
