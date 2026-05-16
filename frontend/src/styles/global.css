@@ -883,6 +883,38 @@ select {
   text-overflow: ellipsis;
 }
 
+.file-dropzone {
+  position: relative;
+}
+
+.file-dropzone.is-dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+  border-radius: var(--radius);
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface1) 85%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: var(--radius);
+}
+
+.file-drop-message {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--accent);
+  padding: 0.75rem 1.25rem;
+  background: var(--surface2);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+}
+
 .import-card-desc {
   font-size: var(--text-sm);
   color: var(--text3);
