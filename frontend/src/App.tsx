@@ -6,6 +6,7 @@ import { BinderPage } from './pages/BinderPage';
 import { BindersIndexPage } from './pages/BindersIndexPage';
 import { DecksIndexPage } from './pages/DecksIndexPage';
 import { DeckNewPage } from './pages/DeckNewPage';
+import { GuidedBuildPage } from './pages/GuidedBuildPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/binders/:id" element={<BinderPage />} />
         <Route path="/decks" element={<DecksIndexPage />} />
         <Route path="/decks/new" element={<DeckNewPage />} />
+        <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
         <Route path="/decks/:id" element={<DeckEditorPage />} />
         <Route path="/play" element={<PlayPage />} />
         <Route path="/settings" element={<SettingsPage />} />
