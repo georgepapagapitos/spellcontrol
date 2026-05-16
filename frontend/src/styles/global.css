@@ -1678,6 +1678,75 @@ input[type='search'] {
   line-height: 1.35;
 }
 
+/* In-view sort control on the binder summary line — a breadcrumb chip
+   that opens the shared SortEditor in a popover. */
+.sort-popover {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sort-popover-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: min(60vw, 22rem);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 0.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.sort-popover-btn > svg {
+  flex-shrink: 0;
+}
+
+.sort-popover-label {
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sort-popover-btn:hover,
+.sort-popover-btn:focus-visible,
+.sort-popover-btn.open {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.sort-popover-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-popover);
+  width: max-content;
+  min-width: min(22rem, calc(100vw - 2rem));
+  max-width: min(26rem, calc(100vw - 2rem));
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  padding: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .sort-popover-panel {
+    min-width: min(20rem, calc(100vw - 1.5rem));
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
 select:focus,
 input[type='number']:focus,
 input[type='text']:focus {
