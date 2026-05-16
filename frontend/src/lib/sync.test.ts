@@ -714,3 +714,65 @@ describe('stopSyncAndWipeLocal', () => {
     expect(localStorage.getItem('spellcontrol-sync-base-version')).toBeNull();
   });
 });
+
+describe('refetch-on-focus', () => {
+  function snapshot(cardIds: string[], version: number) {
+    return {
+      collection: {
+        fileName: 'f',
+        cards: cardIds.map((id) => ({ copyId: id }) as never),
+        scryfallHits: 0,
+        scryfallMisses: 0,
+        uploadedAt: version,
+        importHistory: [],
+      },
+      binders: [],
+      decks: [],
+      games: [],
+      version,
+      updatedAt: 0,
+    };
+  }
+
+  function becomeVisible() {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  it('pulls and applies newer server state when the tab is brought to the foreground', async () => {
+    const fetchSpy = vi
+      .spyOn(authApi, 'fetchSync')
+      .mockResolvedValueOnce(snapshot(['a1'], 1) as never)
+      .mockResolvedValue(snapshot(['b1', 'b2'], 2) as never);
+    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 3, updatedAt: 0 });
+
+    await startSync('user-1');
+    expect(useCollectionStore.getState().cards.map((c) => c.copyId)).toEqual(['a1']);
+
+    becomeVisible();
+    for (let i = 0; i < 40 && useCollectionStore.getState().cards.length !== 2; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(useCollectionStore.getState().cards.map((c) => c.copyId)).toEqual(['b1', 'b2']);
+  });
+
+  it('throttles rapid foreground events to avoid hammering the server', async () => {
+    const fetchSpy = vi.spyOn(authApi, 'fetchSync').mockResolvedValue(snapshot(['a1'], 1) as never);
+    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 2, updatedAt: 0 });
+
+    await startSync('user-1'); // fetch #1 (initial)
+    becomeVisible(); // fetch #2 (first focus pull)
+    for (let i = 0; i < 20 && fetchSpy.mock.calls.length < 2; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    becomeVisible(); // immediately again — within the throttle window
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});

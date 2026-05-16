@@ -55,6 +55,15 @@ let hydrateFailed = false;
 let mutationCount = 0;
 let unsubscribers: Array<() => void> = [];
 
+// Refetch-on-focus: there is no live sync/polling, so a device only sees other
+// devices' changes when it next pulls. We pull when the tab becomes visible
+// again. `pulling` prevents overlap; the throttle prevents hammering on rapid
+// tab switching. lastPullAt is managed only by the focus path so the first
+// focus right after startSync still refreshes.
+let pulling = false;
+let lastPullAt = 0;
+const FOCUS_PULL_THROTTLE_MS = 3000;
+
 type SyncedListener = () => void;
 const syncedListeners = new Set<SyncedListener>();
 let syncedState: 'idle' | 'syncing' | 'ready' = 'idle';
@@ -428,13 +437,41 @@ function keepaliveFlush(): void {
   }
 }
 
+/**
+ * Pull the latest server state when the app is brought back to the foreground
+ * so another device's changes show up without a manual reload. Pushes any
+ * pending local edits first so the pull can't revert unsynced work, then runs
+ * the shared reconcile (all the same guards as startSync).
+ */
+async function handleVisible(): Promise<void> {
+  // The initial startSync owns the first pull; only run once it's done.
+  if (syncedState !== 'ready') return;
+  if (pulling) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  const now = Date.now();
+  if (now - lastPullAt < FOCUS_PULL_THROTTLE_MS) return;
+  lastPullAt = now;
+  pulling = true;
+  try {
+    if (isDirty()) await pushNow();
+    await pullAndReconcile();
+  } finally {
+    pulling = false;
+  }
+}
+
 function handleVisibilityChange(): void {
   // iOS Safari does NOT reliably fire beforeunload/pagehide when the user
   // switches apps; visibilitychange→hidden is the one signal we can count on.
   // It MUST use keepalive — the previous plain pushNow() fetch was killed when
   // the tab suspended, which is exactly the "collection vanishes after
   // app-switch" report.
-  if (document.visibilityState === 'hidden') keepaliveFlush();
+  if (document.visibilityState === 'hidden') {
+    keepaliveFlush();
+  } else if (document.visibilityState === 'visible') {
+    // Coming back to the foreground — pull other devices' changes.
+    void handleVisible();
+  }
 }
 
 function handlePageHide(): void {
@@ -509,6 +546,76 @@ function detachSubscribers(): void {
  *        (handles guest → authed signup flow).
  *      - Else: apply server snapshot (overwrite).
  */
+/**
+ * Fetch the server snapshot and reconcile it into local state. Shared by the
+ * initial startSync and the refetch-on-focus path so both go through the exact
+ * same guards (mutation-during-fetch wins, failed-hydrate safety, guest
+ * promotion, keep-local-when-server-lost-collection, blank-push refusal).
+ *
+ * Callers are responsible for flushing pending local changes (pushNow) BEFORE
+ * calling this, so a pull never reverts unsynced local edits.
+ */
+async function pullAndReconcile(): Promise<void> {
+  const mutationCountAtFetchStart = mutationCount;
+
+  let snap: SyncSnapshot | null = null;
+  try {
+    snap = await fetchSync();
+  } catch (err) {
+    console.warn('[sync] fetch failed:', err);
+  }
+  if (!snap) return;
+
+  if (mutationCount !== mutationCountAtFetchStart) {
+    // The user mutated state during the fetch window. Their intent is
+    // fresher than the server's reply — don't overwrite. Just record the
+    // server's version so the next push uses the right base. Their push
+    // is already queued by the subscriber.
+    persistVersion(snap.version);
+  } else if (hydrateFailed) {
+    // We could not read the local cache, so the in-memory store is empty for
+    // the WRONG reason and must not drive reconciliation. If the server has
+    // data, trust it (recovers the collection from the source of truth). If
+    // the server is also empty, do nothing destructive — the local
+    // IndexedDB copy is left intact for a future boot to recover — and
+    // surface an error instead of silently wiping. No push happens here:
+    // cacheHydrated is false, so pushNow() is already a no-op.
+    if (!isServerEmpty(snap)) {
+      await applyServerSnapshot(snap);
+    } else {
+      persistVersion(snap.version);
+      useCollectionStore.setState({
+        hydrating: false,
+        error:
+          'Could not read your saved collection on this device. Your data is safe — reload to try again.',
+      });
+    }
+  } else if (isServerEmpty(snap) && hasLocalData()) {
+    // Guest promotion path: a newly authed user has local data but the
+    // server account is empty. Push local up.
+    persistVersion(snap.version);
+    setDirty();
+    await pushNow();
+  } else if (!snap.collection && buildCollection() !== null) {
+    // Server has NO collection but still has other slices (binders/decks),
+    // so isServerEmpty() is false and the whole-snapshot promotion above
+    // doesn't fire. Hydrate succeeded (not hydrateFailed) and we hold a
+    // real local collection. Applying the snapshot would blank the
+    // in-memory cards even though IndexedDB still has them — the reported
+    // "collection loads then wipes after ~2s, binders stay" bug, where the
+    // server lost the collection but kept binders. Keep local, take the
+    // server's other slices, and push the collection back up to repair the
+    // server. (Tradeoff, consistent with the guest-promotion path: a
+    // deliberate cross-device collection delete can be resurrected by a
+    // device that still holds the cache — far preferable to permanent loss.)
+    await applyServerSnapshot(snap, { keepLocalCollection: true });
+    setDirty();
+    await pushNow();
+  } else {
+    await applyServerSnapshot(snap);
+  }
+}
+
 export async function startSync(userId?: string): Promise<void> {
   syncedState = 'syncing';
   emitSynced();
@@ -555,65 +662,7 @@ export async function startSync(userId?: string): Promise<void> {
     await pushNow();
   }
 
-  const mutationCountAtFetchStart = mutationCount;
-
-  let snap: SyncSnapshot | null = null;
-  try {
-    snap = await fetchSync();
-  } catch (err) {
-    console.warn('[sync] fetch on startSync failed:', err);
-  }
-
-  if (snap) {
-    if (mutationCount !== mutationCountAtFetchStart) {
-      // The user mutated state during the fetch window. Their intent is
-      // fresher than the server's reply — don't overwrite. Just record the
-      // server's version so the next push uses the right base. Their push
-      // is already queued by the subscriber.
-      persistVersion(snap.version);
-    } else if (hydrateFailed) {
-      // We could not read the local cache, so the in-memory store is empty for
-      // the WRONG reason and must not drive reconciliation. If the server has
-      // data, trust it (recovers the collection from the source of truth). If
-      // the server is also empty, do nothing destructive — the local
-      // IndexedDB copy is left intact for a future boot to recover — and
-      // surface an error instead of silently wiping. No push happens here:
-      // cacheHydrated is false, so pushNow() is already a no-op.
-      if (!isServerEmpty(snap)) {
-        await applyServerSnapshot(snap);
-      } else {
-        persistVersion(snap.version);
-        useCollectionStore.setState({
-          hydrating: false,
-          error:
-            'Could not read your saved collection on this device. Your data is safe — reload to try again.',
-        });
-      }
-    } else if (isServerEmpty(snap) && hasLocalData()) {
-      // Guest promotion path: a newly authed user has local data but the
-      // server account is empty. Push local up.
-      persistVersion(snap.version);
-      setDirty();
-      await pushNow();
-    } else if (!snap.collection && buildCollection() !== null) {
-      // Server has NO collection but still has other slices (binders/decks),
-      // so isServerEmpty() is false and the whole-snapshot promotion above
-      // doesn't fire. Hydrate succeeded (not hydrateFailed) and we hold a
-      // real local collection. Applying the snapshot would blank the
-      // in-memory cards even though IndexedDB still has them — the reported
-      // "collection loads then wipes after ~2s, binders stay" bug, where the
-      // server lost the collection but kept binders. Keep local, take the
-      // server's other slices, and push the collection back up to repair the
-      // server. (Tradeoff, consistent with the guest-promotion path: a
-      // deliberate cross-device collection delete can be resurrected by a
-      // device that still holds the cache — far preferable to permanent loss.)
-      await applyServerSnapshot(snap, { keepLocalCollection: true });
-      setDirty();
-      await pushNow();
-    } else {
-      await applyServerSnapshot(snap);
-    }
-  }
+  await pullAndReconcile();
 
   syncedState = 'ready';
   emitSynced();
@@ -694,6 +743,10 @@ async function wipeLocal(): Promise<void> {
   cacheHydrated = false;
   hydrateFailed = false;
   mutationCount = 0;
+  // Fresh sync lifecycle (sign-out / user switch): allow an immediate
+  // focus pull and clear any in-flight-pull latch.
+  lastPullAt = 0;
+  pulling = false;
   clearDirty();
   for (const key of [VERSION_KEY, OWNER_KEY, LEGACY_META_KEY]) {
     try {
