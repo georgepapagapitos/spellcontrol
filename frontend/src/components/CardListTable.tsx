@@ -851,10 +851,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
               <p className="empty-state-hint">
                 Nothing matches “{debouncedSearch.trim()}”. Search Scryfall to add it:
               </p>
-              <InlineCardSearch
-                key={debouncedSearch.trim()}
-                initialQuery={debouncedSearch.trim()}
-              />
+              <InlineCardSearch query={debouncedSearch.trim()} defaultExpanded />
             </>
           ) : (
             <>
@@ -1032,6 +1029,10 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
             );
           })}
         </div>
+      )}
+
+      {sorted.length > 0 && debouncedSearch.trim().length >= 2 && (
+        <InlineCardSearch query={debouncedSearch.trim()} view={view} />
       )}
 
       {shortcutsOpen && (
