@@ -1,4 +1,5 @@
 import { Layers, List, Notebook, Settings, Users } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 
@@ -10,10 +11,48 @@ const ICON_PROPS = {
   'aria-hidden': true,
 } as const;
 
+// Firefox/Chrome on Android anchor `position: fixed; bottom: 0` to the
+// *layout* viewport, but the *visual* viewport shrinks/grows as the URL
+// bar animates in/out on scroll. That gap is what makes the bar jump.
+// There is no CSS way to bind a fixed element to the visual viewport, so
+// we translate the bar by the difference using the Visual Viewport API
+// (its intended use). When the two viewports match the offset is 0 and
+// no transform is applied, so desktop/Chrome are untouched.
+function useVisualViewportPin(ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = ref.current;
+    if (!vv || !el) return;
+
+    let frame = 0;
+    const apply = () => {
+      frame = 0;
+      const offset = Math.max(0, document.documentElement.clientHeight - vv.height - vv.offsetTop);
+      el.style.transform = offset > 0 ? `translateY(-${offset}px)` : '';
+    };
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(apply);
+    };
+
+    apply();
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      vv.removeEventListener('resize', schedule);
+      vv.removeEventListener('scroll', schedule);
+      el.style.transform = '';
+    };
+  }, [ref]);
+}
+
 export function MobileTabBar() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
+  const navRef = useRef<HTMLElement>(null);
+  useVisualViewportPin(navRef);
   return (
-    <nav className="mobile-tab-bar" aria-label="Primary mobile">
+    <nav ref={navRef} className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
         to="/collection"
         className={({ isActive }) =>
