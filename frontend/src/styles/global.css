@@ -6105,15 +6105,18 @@ hr {
 @media (max-width: 1024px) {
   /* A normal flex child at the bottom of the non-scrolling shell — not
      position:fixed. It can't be moved by the browser URL-bar animation
-     because it isn't fixed and the document doesn't scroll. The safe-area
-     inset is added as padding so the row's touch targets stay above the
-     home indicator / gesture area. */
+     because it isn't fixed and the document doesn't scroll. Since the bar
+     is in normal flow inside a 100dvh shell (which already excludes
+     browser/system chrome), the raw safe-area inset is mostly redundant
+     and reads as dead space on Android. Subtract a small constant so a
+     typical Android gesture inset collapses to ~0 while a genuine iOS
+     home indicator (~2rem) still keeps the touch targets clear of it. */
   .mobile-tab-bar {
     display: flex;
     flex: 0 0 auto;
     min-height: 3.5rem;
     padding: 0 0.4rem;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: max(0px, calc(env(safe-area-inset-bottom) - 0.5rem));
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
