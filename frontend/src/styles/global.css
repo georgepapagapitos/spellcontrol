@@ -1337,6 +1337,15 @@ input[type='search'] {
   font-family: var(--font-mono);
 }
 
+/* Connects the sort pill to the "Browse pages · Key" group with the same
+   dot the meta cluster uses internally. Centered to match the pill. */
+.binder-summary-sep {
+  font-size: var(--text-sm);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  align-self: center;
+}
+
 .binder-summary-overcap {
   color: var(--warn, #c98a3a);
   font-weight: 600;
