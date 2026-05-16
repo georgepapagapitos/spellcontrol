@@ -4,6 +4,9 @@ import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { isBasicLandName, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
 import { markDestructive } from '../lib/sync-intent';
+import { createIndexedDbStorage } from '../lib/idb-storage';
+
+const decksIdbStorage = createIndexedDbStorage('mtg-spellcontrol');
 import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
 
@@ -649,7 +652,7 @@ export const useDecksStore = create<DecksState>()(
     {
       name: 'mtg-decks',
       version: 4,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => decksIdbStorage),
       onRehydrateStorage: () => (state) => {
         if (state) state.hydrated = true;
       },
