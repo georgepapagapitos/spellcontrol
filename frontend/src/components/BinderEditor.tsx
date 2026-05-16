@@ -103,6 +103,11 @@ const DEFAULT_EDHREC_TOP_N = 100;
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
+// Default fixed capacity in cards for a given layout: 20 sheet-sides per page
+// (40 when double-sided, since each sheet stores cards on both sides).
+const defaultFixedCapacity = (pocket: PocketSize, doubleSided: boolean): number =>
+  pocket * (doubleSided ? 40 : 20);
+
 export function BinderEditor() {
   const editingBinder = useCollectionStore((s) => s.editingBinder);
   const binders = useCollectionStore((s) => s.binders);
@@ -407,7 +412,15 @@ export function BinderEditor() {
                   <SelectMenu
                     ariaLabel="Pocket layout"
                     value={pocketSize}
-                    onChange={(v) => setPocketSize(v as PocketSize)}
+                    onChange={(v) => {
+                      const next = v as PocketSize;
+                      setFixedCapacity((prev) =>
+                        prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
+                          ? defaultFixedCapacity(next, doubleSided)
+                          : prev
+                      );
+                      setPocketSize(next);
+                    }}
                     options={[
                       { value: 4, label: '4-pocket' },
                       { value: 9, label: '9-pocket' },
@@ -422,7 +435,15 @@ export function BinderEditor() {
                     <input
                       type="checkbox"
                       checked={doubleSided}
-                      onChange={(e) => setDoubleSided(e.target.checked)}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setFixedCapacity((prev) =>
+                          prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
+                            ? defaultFixedCapacity(pocketSize, next)
+                            : prev
+                        );
+                        setDoubleSided(next);
+                      }}
                     />
                     Double-sided
                   </label>
@@ -446,7 +467,7 @@ export function BinderEditor() {
                       checked={fixedCapacity !== null}
                       onChange={(e) =>
                         setFixedCapacity(
-                          e.target.checked ? pocketSize * (doubleSided ? 40 : 20) : null
+                          e.target.checked ? defaultFixedCapacity(pocketSize, doubleSided) : null
                         )
                       }
                     />
