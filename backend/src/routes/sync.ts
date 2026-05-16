@@ -6,12 +6,16 @@ import { userData } from '../db/schema';
 
 export const syncRouter: Router = Router();
 
-// Per-user stored-snapshot cap. The global body limit is 25MB, but that's a
-// transport limit — without this an authed user could repeatedly persist
-// ~25MB JSONB blobs (storage-exhaustion DoS, and every later GET/PUT
-// round-trips the blob through a 256MB container). 10MB comfortably fits a
-// very large collection (20k+ copies) while bounding the abuse ceiling.
-const MAX_SNAPSHOT_BYTES = 10 * 1024 * 1024;
+// Per-user stored-snapshot cap. Still a real anti-abuse bound (every GET/PUT
+// round-trips the blob through the container), but the old 10MB figure was
+// wrong in practice: an EnrichedCard carries full Scryfall data (oracle text,
+// legalities, image URLs, mana cost…), so a ~10.7k-copy collection serializes
+// to ~16MB and was being rejected with 413 — sync silently never happened.
+// 64MB gives that real-world collection ~4x headroom to grow. The Express
+// json() limit (server.ts) is set higher so THIS check produces the friendly
+// message instead of a raw parser 413. Long-term fix is to stop persisting
+// Scryfall-derivable fields and re-enrich on load (much smaller blobs).
+const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024;
 
 interface SyncSnapshot {
   collection: unknown;
@@ -110,6 +114,13 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
     'utf8'
   );
   if (snapshotBytes > MAX_SNAPSHOT_BYTES) {
+    // Log it: an oversize push means sync is silently failing for this user,
+    // and (until this commit) it never showed in the logs because PUT.in is
+    // logged AFTER this check. Now it is visible.
+    console.log(
+      `[sync] PUT.reject user=${req.user!.id} reason=too-large bytes=${snapshotBytes} ` +
+        `cap=${MAX_SNAPSHOT_BYTES}`
+    );
     return res.status(413).json({
       error: `Saved data is too large (${Math.ceil(snapshotBytes / 1024 / 1024)} MB). Maximum is ${MAX_SNAPSHOT_BYTES / 1024 / 1024} MB.`,
     });
