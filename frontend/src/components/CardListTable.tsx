@@ -1,6 +1,7 @@
 import { AlignJustify, LayoutGrid, List as ListIconLucide } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { useScrollContainer } from '../lib/scroll-container';
 import type {
   ChipExpression,
   EnrichedCard,
@@ -266,6 +267,14 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
+  // The window no longer scrolls — .app-main is the scroll container. The
+  // virtualized list lives below the hero/search/toolbar inside it, so the
+  // virtualizer needs that leading offset (scrollMargin) to map scroll
+  // position to row index. Measured from rects so it's agnostic to which
+  // wrappers are positioned and to toolbar reflow.
+  const scrollEl = useScrollContainer();
+  const [scrollMargin, setScrollMargin] = useState(0);
+
   // Global hotkeys while the table is mounted. We ignore key events when the
   // user is typing into an input/textarea/contenteditable so the shortcuts
   // don't fight with normal text entry.
@@ -483,9 +492,9 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   useEffect(() => {
     if (prevResetKey.current !== resetKey) {
       prevResetKey.current = resetKey;
-      window.scrollTo({ top: 0 });
+      scrollEl?.scrollTo({ top: 0 });
     }
-  }, [resetKey]);
+  }, [resetKey, scrollEl]);
 
   // Grid: compute column count from container width for row-of-columns virtualization.
   const [gridCols, setGridCols] = useState(4);
@@ -515,16 +524,39 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     return colWidth * (680 / 488) + GRID_GAP;
   }, [gridCols]);
 
-  const listVirtualizer = useWindowVirtualizer({
+  useLayoutEffect(() => {
+    if (!scrollEl) return;
+    const measure = () => {
+      const el = view === 'grid' ? gridContainerRef.current : listContainerRef.current;
+      if (!el) return;
+      const top =
+        el.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop;
+      setScrollMargin((prev) => (Math.abs(prev - top) > 0.5 ? top : prev));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(scrollEl);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [scrollEl, view, gridCols, sorted.length]);
+
+  const listVirtualizer = useVirtualizer({
     count: view !== 'grid' ? sorted.length : 0,
+    getScrollElement: () => scrollEl,
     estimateSize: () => (view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST),
     overscan: 20,
+    scrollMargin,
   });
 
-  const gridVirtualizer = useWindowVirtualizer({
+  const gridVirtualizer = useVirtualizer({
     count: gridRowCount,
+    getScrollElement: () => scrollEl,
     estimateSize: estimateGridRowHeight,
     overscan: 8,
+    scrollMargin,
   });
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
@@ -839,7 +871,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                   top: 0,
                   left: 0,
                   right: 0,
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                   display: 'grid',
                   gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
                   gap: `${GRID_GAP}px`,
@@ -921,7 +953,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                   top: 0,
                   left: 0,
                   right: 0,
-                  transform: `translateY(${virtualRow.start}px)`,
+                  transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 }}
               >
                 <div

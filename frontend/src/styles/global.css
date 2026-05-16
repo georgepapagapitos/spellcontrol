@@ -117,20 +117,34 @@ body {
   font-family: var(--font-serif);
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
 
-/* App shell wraps the header, main content, and mobile tab bar. The
-   document is the scroll container so useWindowVirtualizer and native
-   pull-to-refresh work; the header pins via position: sticky and the
-   mobile tab bar pins via position: fixed. */
+/* App-shell layout: the shell is a fixed-height (100dvh) non-scrolling
+   flex column — header, the scrolling main region, and the mobile tab
+   bar — and .app-main is the single scroll container. Nothing is
+   position:fixed and the document never scrolls, so a mobile browser's
+   URL-bar show/hide animation cannot shift the tab bar. The shell height
+   tracks the dynamic viewport, so the bar stays glued to the visible
+   bottom edge with no jump. */
 .app-shell {
   display: flex;
   flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .app-main {
   flex: 1 1 auto;
+  /* min-height:0 lets this flex child shrink below its content so it can
+     actually scroll instead of expanding the shell. */
+  min-height: 0;
+  overflow-y: auto;
   overflow-x: clip;
+  /* Keep scroll/overscroll contained to this region — no chaining to the
+     shell and no browser overscroll glow/navigation. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   /* Page horizontal gutter is exposed as a custom property so sticky
      bars / bleed elements (.collection-toolbar-row, the index search
      rows) can mirror it via negative margins and stay flush with the
@@ -6089,32 +6103,20 @@ hr {
 }
 
 @media (max-width: 1024px) {
+  /* A normal flex child at the bottom of the non-scrolling shell — not
+     position:fixed. It can't be moved by the browser URL-bar animation
+     because it isn't fixed and the document doesn't scroll. The safe-area
+     inset is added as padding so the row's touch targets stay above the
+     home indicator / gesture area. */
   .mobile-tab-bar {
     display: flex;
-    /* Use a fixed height. env(safe-area-inset-bottom) changes as the
-       browser chrome (URL bar, gesture bar) shows/hides on scroll in
-       Chrome/Firefox on Android, which previously made the bar grow
-       and shrink. A constant height keeps the bar visually stable
-       and clamped to the bottom on every scroll. */
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: var(--z-panel);
-    height: 3.5rem;
+    flex: 0 0 auto;
+    min-height: 3.5rem;
     padding: 0 0.4rem;
+    padding-bottom: env(safe-area-inset-bottom);
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
-    /* Force GPU compositing so Firefox/Chrome on Android don't repaint
-       the bar as the browser chrome (URL bar) animates in/out on scroll. */
-    will-change: transform;
-  }
-
-  /* Make room at the bottom of the document so the last bit of content
-     isn't trapped under the fixed tab bar. */
-  .app-main {
-    padding-bottom: calc(3.5rem + 1rem);
   }
 
   .mobile-tab-bar-link {
