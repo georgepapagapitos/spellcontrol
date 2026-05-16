@@ -5,21 +5,17 @@ import { BackLink } from '../components/BackLink';
 import { ProgressBar } from '../components/ProgressBar';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
+import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
 import { ThemePicker } from '../components/deck/ThemePicker';
+import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
-import { useDecksStore, newDeckCard } from '../store/decks';
-import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
-import type {
-  ScryfallCard,
-  GeneratedDeck,
-  DeckCategory,
-  DeckFormat,
-  EDHRECTheme,
-  ThemeResult,
-} from '@/deck-builder/types';
+import { useDecksStore } from '../store/decks';
+import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
+import { saveGeneratedDeck } from '../lib/save-generated-deck';
+import type { ScryfallCard, DeckFormat, EDHRECTheme, ThemeResult } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
 interface PrefillState {
@@ -76,6 +72,11 @@ export function DeckNewPage() {
     [selectedThemes]
   );
 
+  const commanderProfile = useMemo(
+    () => (commander ? buildCommanderProfile(commander) : null),
+    [commander]
+  );
+
   const handleToggleTheme = useCallback(
     (theme: EDHRECTheme) => {
       setSelectedThemes((prev) => {
@@ -102,12 +103,27 @@ export function DeckNewPage() {
         if (!useDeckBuilderStore.getState().userEditedLands) {
           updateCustomization({ landCount: total, nonBasicLandCount: nonbasic });
         }
+        // Preselect the themes the commander's abilities point at, but
+        // never clobber a selection the user (or a prefill) already made.
+        const profile = buildCommanderProfile(commander);
+        if (profile.suggestedThemes.length > 0 && data.themes.length > 0) {
+          const byName = new Map(data.themes.map((t) => [t.name.toLowerCase().trim(), t]));
+          const picks: EDHRECTheme[] = [];
+          for (const name of profile.suggestedThemes) {
+            const match = byName.get(name);
+            if (match && !picks.some((p) => p.slug === match.slug)) picks.push(match);
+            if (picks.length >= 3) break;
+          }
+          if (picks.length > 0) {
+            setSelectedThemes((prev) => (prev.length > 0 ? prev : picks));
+          }
+        }
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [commander, setEdhrecLandSuggestion, setEdhrecStats, updateCustomization]);
+  }, [commander, setEdhrecLandSuggestion, setEdhrecStats, updateCustomization, setSelectedThemes]);
 
   // ── Start-blank ───────────────────────────────────────────────────────
   const handleStartBlank = useCallback(() => {
@@ -268,10 +284,29 @@ export function DeckNewPage() {
       </section>
 
       {formatConfig.hasCommander && (
+        <section className="deck-builder-section guided-cta">
+          <div className="guided-cta-text">
+            <strong>Not sure where to start?</strong>
+            <span>
+              Build together — a guided, step-by-step Commander build that explains each decision as
+              you go.
+            </span>
+          </div>
+          <button type="button" className="btn" onClick={() => navigate('/decks/new/guided')}>
+            Build together →
+          </button>
+        </section>
+      )}
+
+      {formatConfig.hasCommander && (
         <section className="deck-builder-section">
           <h2 className="deck-builder-section-title">Commander</h2>
           <CommanderSearch value={commander} onSelect={handleSelectCommander} />
         </section>
+      )}
+
+      {formatConfig.hasCommander && commander && commanderProfile && (
+        <CommanderProfileCard profile={commanderProfile} />
       )}
 
       {formatConfig.hasCommander && commander && (
@@ -336,72 +371,3 @@ export function DeckNewPage() {
     </div>
   );
 }
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-function saveGeneratedDeck(
-  generated: GeneratedDeck,
-  customization: ReturnType<typeof useDeckBuilderStore.getState>['customization'],
-  selectedThemes: ThemeResult[],
-  existingDecks: ReturnType<typeof useDecksStore.getState>['decks'],
-  collection: ReturnType<typeof useCollectionStore.getState>['cards'],
-  createDeck: ReturnType<typeof useDecksStore.getState>['createDeck']
-): string {
-  // Build a running allocation map so we never claim the same physical
-  // copy twice within a single deck (e.g. when the deck contains
-  // duplicates of a non-basic — rare in EDH but possible).
-  const claimed = new Map<string, AllocationInfo>(buildAllocationMap(existingDecks));
-
-  const allocateFor = (card: ScryfallCard): string | null => {
-    // Pass card.id as the preferred printing so generated-deck allocation
-    // respects the printing the builder chose. Without this, allocation
-    // falls back to "cheapest same-name" and ignores intent.
-    const pick = pickCollectionCopy(card.name, collection, claimed, card.id);
-    if (!pick) return null;
-    claimed.set(pick.copyId, {
-      deckId: '__pending__',
-      deckName: '__pending__',
-      deckColor: '',
-      cardName: card.name,
-    });
-    return pick.copyId;
-  };
-
-  const commander = generated.commander;
-  const partner = generated.partnerCommander;
-  const commanderAlloc = commander ? allocateFor(commander) : null;
-  const partnerAlloc = partner ? allocateFor(partner) : null;
-
-  const cards = [];
-  for (const cat of Object.keys(generated.categories) as DeckCategory[]) {
-    for (const card of generated.categories[cat]) {
-      cards.push(newDeckCard(card, allocateFor(card)));
-    }
-  }
-
-  return createDeck({
-    source: 'generated',
-    commander,
-    partnerCommander: partner,
-    commanderAllocatedCopyId: commanderAlloc,
-    partnerCommanderAllocatedCopyId: partnerAlloc,
-    cards,
-    generationContext: {
-      selectedThemes,
-      bracketLevel: customization.bracketLevel,
-      landCount: customization.landCount,
-      collectionMode: customization.collectionMode,
-    },
-    roleCounts: generated.roleCounts,
-    rampSubtypeCounts: generated.rampSubtypeCounts,
-    removalSubtypeCounts: generated.removalSubtypeCounts,
-    boardwipeSubtypeCounts: generated.boardwipeSubtypeCounts,
-    cardDrawSubtypeCounts: generated.cardDrawSubtypeCounts,
-    bracketEstimation: generated.bracketEstimation,
-    deckGrade: generated.deckGrade,
-    averageSalt: generated.stats.averageSalt,
-    saltiestCards: generated.stats.saltiestCards,
-  });
-}
-
-// Suppress unused-import lint when ScryfallCard isn't directly named in JSX.
-export type _Unused = ScryfallCard;
