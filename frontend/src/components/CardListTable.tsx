@@ -1,4 +1,4 @@
-import { AlignJustify, LayoutGrid, List as ListIconLucide } from 'lucide-react';
+import { AlignJustify, LayoutGrid, List as ListIconLucide, Search } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
@@ -158,6 +158,7 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
 export function CardListTable({ cards, binders, setMap, hideBinderFilter = false }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
+  const [scryfallOpen, setScryfallOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const toggleSort = (key: SortKey) => {
@@ -515,7 +516,12 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     return () => ro.disconnect();
   }, [view, effectiveGridSize]);
 
-  const gridRowCount = view === 'grid' ? Math.ceil(sorted.length / gridCols) : 0;
+  // Offer Scryfall add whenever there's a real query — even with zero
+  // collection matches (then the trigger is the only card/row).
+  const showScryfall = debouncedSearch.trim().length >= 2;
+  const triggerIndex = sorted.length;
+  const gridItemCount = sorted.length + (showScryfall ? 1 : 0);
+  const gridRowCount = view === 'grid' ? Math.ceil(gridItemCount / gridCols) : 0;
   const GRID_GAP = 10;
 
   const estimateGridRowHeight = useCallback(() => {
@@ -545,7 +551,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   }, [scrollEl, view, gridCols, sorted.length]);
 
   const listVirtualizer = useVirtualizer({
-    count: view !== 'grid' ? sorted.length : 0,
+    count: view !== 'grid' ? sorted.length + (showScryfall ? 1 : 0) : 0,
     getScrollElement: () => scrollEl,
     estimateSize: () => (view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST),
     overscan: 20,
@@ -843,25 +849,13 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         />
       )}
 
-      {sorted.length === 0 ? (
+      {sorted.length === 0 && !showScryfall ? (
         <div className="empty-state">
-          {debouncedSearch.trim().length >= 2 ? (
-            <>
-              <p className="empty-state-tagline">Not in your collection</p>
-              <p className="empty-state-hint">
-                Nothing matches “{debouncedSearch.trim()}”. Search Scryfall to add it:
-              </p>
-              <InlineCardSearch query={debouncedSearch.trim()} defaultExpanded />
-            </>
-          ) : (
-            <>
-              <p className="empty-state-tagline">No matches</p>
-              <p className="empty-state-hint">
-                No cards match your current filters. Try broadening your search or clearing some
-                filters.
-              </p>
-            </>
-          )}
+          <p className="empty-state-tagline">No matches</p>
+          <p className="empty-state-hint">
+            No cards match your current filters. Try broadening your search or clearing some
+            filters.
+          </p>
         </div>
       ) : view === 'grid' ? (
         <div
@@ -874,7 +868,6 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         >
           {gridVirtualizer.getVirtualItems().map((virtualRow) => {
             const startIdx = virtualRow.index * gridCols;
-            const rowItems = sorted.slice(startIdx, startIdx + gridCols);
             return (
               <div
                 key={virtualRow.key}
@@ -890,8 +883,30 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                   gap: `${GRID_GAP}px`,
                 }}
               >
-                {rowItems.map((r, colIdx) => {
+                {Array.from({ length: gridCols }, (_, colIdx) => {
                   const idx = startIdx + colIdx;
+                  if (idx === triggerIndex && showScryfall) {
+                    return (
+                      <button
+                        key="scryfall-trigger"
+                        type="button"
+                        className={`collection-grid-item collection-grid-scryfall${
+                          scryfallOpen ? ' is-open' : ''
+                        }`}
+                        onClick={() => setScryfallOpen(true)}
+                        aria-expanded={scryfallOpen}
+                        aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
+                      >
+                        <Search width={26} height={26} strokeWidth={1.6} aria-hidden />
+                        <span className="collection-grid-scryfall-title">Search Scryfall</span>
+                        <span className="collection-grid-scryfall-sub">
+                          for “{debouncedSearch.trim()}”
+                        </span>
+                      </button>
+                    );
+                  }
+                  if (idx >= sorted.length) return null;
+                  const r = sorted[idx];
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   return (
@@ -954,6 +969,46 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           }}
         >
           {listVirtualizer.getVirtualItems().map((virtualRow) => {
+            if (virtualRow.index === triggerIndex && showScryfall) {
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={listVirtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                    // Gap between the owned cards and the add-from-Scryfall
+                    // row. Padding (not margin) so the virtualizer's
+                    // measureElement includes it and positioning stays exact.
+                    paddingTop: sorted.length > 0 ? 14 : 0,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={`collection-list-row collection-list-scryfall${
+                      scryfallOpen ? ' is-open' : ''
+                    }`}
+                    aria-expanded={scryfallOpen}
+                    aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
+                    onClick={() => setScryfallOpen(true)}
+                  >
+                    <span className="collection-list-scryfall-icon">
+                      <Search width={18} height={18} strokeWidth={1.7} aria-hidden />
+                    </span>
+                    <span className="collection-list-scryfall-text">
+                      <span className="collection-list-scryfall-title">Search Scryfall</span>
+                      <span className="collection-list-scryfall-sub">
+                        for “{debouncedSearch.trim()}”
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              );
+            }
             const r = sorted[virtualRow.index];
             const colorKey = getColorKey(r.card);
             return (
@@ -1031,8 +1086,8 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         </div>
       )}
 
-      {sorted.length > 0 && debouncedSearch.trim().length >= 2 && (
-        <InlineCardSearch query={debouncedSearch.trim()} view={view} />
+      {scryfallOpen && showScryfall && (
+        <InlineCardSearch query={debouncedSearch.trim()} onClose={() => setScryfallOpen(false)} />
       )}
 
       {shortcutsOpen && (
