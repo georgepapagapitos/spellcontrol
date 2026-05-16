@@ -291,11 +291,22 @@ export interface BinderDef {
    *  'manual': only pinned cards appear; filterGroups are preserved but ignored. */
   mode?: 'rules' | 'manual';
   /** copyIds manually added to this binder. Claimed before rule routing so they
-   *  don't land in other binders. Undefined = no pinned cards. */
+   *  don't land in other binders. Undefined = no pinned cards.
+   *  Derived: re-resolved from `pinnedKeys` against the live collection on every
+   *  collection change. This is the array materialize consumes. */
   pinnedCopyIds?: string[];
+  /** Durable natural-key shadow of `pinnedCopyIds` (printingFinishKey per pin,
+   *  same length & order, multiplicity preserved). copyIds are regenerated on
+   *  every import, so the key — not the copyId — is the persisted source of
+   *  truth that lets pins survive a collection round-trip (re-upload after a
+   *  cache/sync loss). Undefined on binders created before this existed; it is
+   *  backfilled on the next reconcile while the old copyIds still resolve. */
+  pinnedKeys?: string[];
   /** copyIds manually excluded from this binder even if rules match them.
-   *  Undefined = no exclusions. */
+   *  Undefined = no exclusions. Derived from `excludedKeys`, like pinnedCopyIds. */
   excludedCopyIds?: string[];
+  /** Durable natural-key shadow of `excludedCopyIds`. See `pinnedKeys`. */
+  excludedKeys?: string[];
   /** When set, explicit card order overrides the binder's sort fields.
    *  Cards not in this list (new additions) are appended at the end.
    *  Undefined = use auto-sort (existing behavior). */

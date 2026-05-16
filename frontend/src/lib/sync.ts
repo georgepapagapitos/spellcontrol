@@ -13,6 +13,7 @@ import type { BinderDef, EnrichedCard } from '../types';
 import type { GameRecord } from './game-state';
 import { consumeImmediateFlush } from './sync-intent';
 import { fetchOracleIds } from './api/combos';
+import { reconcileBinderRefs } from './binder-refs';
 
 /**
  * Sync model: server is the source of truth for authed users.
@@ -45,6 +46,12 @@ let pushing = false;
 let pushPending = false;
 let isApplyingServer = false;
 let cacheHydrated = false;
+// True when the most recent hydrateFromCache() could NOT read IndexedDB
+// (threw — quota, private mode, iOS cold-start empty-read). In that state the
+// in-memory store does NOT reflect reality, so it must never drive a push
+// (collection: null) or a destructive server-empty reconcile. Distinct from a
+// genuinely-empty cache, where the store IS authoritative.
+let hydrateFailed = false;
 let mutationCount = 0;
 let unsubscribers: Array<() => void> = [];
 
@@ -213,17 +220,36 @@ function schedulePush(immediate = false): void {
   }
 }
 
+/**
+ * Re-resolve binder pin/exclusion refs against a new collection using their
+ * durable key shadow. Mirrors collection.ts's remapBinderRefs but lives here
+ * because the real app-load path is sync.ts (the collection store's
+ * hydrateCards action is unused). Called inside isApplyingServer so the write
+ * isn't observed as a user mutation / spurious push.
+ */
+function reconcileBinders(prevCards: EnrichedCard[], newCards: EnrichedCard[]): void {
+  const { binders } = useCollectionStore.getState();
+  if (binders.length === 0) return;
+  const result = reconcileBinderRefs(binders, newCards, prevCards);
+  if (result.changed) useCollectionStore.setState({ binders: result.binders });
+}
+
 async function hydrateFromCache(): Promise<void> {
   // Apply the IndexedDB-stored collection to the in-memory store. Wrapped in
   // isApplyingServer so attached subscribers (if any) don't observe this as a
   // user mutation. Cards live in IndexedDB only — zustand persist excludes
   // them due to size — so without this step pushNow() would see cards=[].
   isApplyingServer = true;
+  hydrateFailed = false;
+  const prevCards = useCollectionStore.getState().cards;
   try {
     let stored: StoredCollection | null = null;
     try {
       stored = await loadCollection();
     } catch (err) {
+      // Could not READ the cache (vs. cache being legitimately empty, which
+      // resolves to null without throwing). The store is now NOT trustworthy.
+      hydrateFailed = true;
       console.warn('[sync] cache hydrate failed:', err);
     }
     if (stored) {
@@ -236,6 +262,11 @@ async function hydrateFromCache(): Promise<void> {
         importHistory: stored.importHistory ?? [],
         hydrating: false,
       });
+      // Re-resolve binder pins/exclusions from their durable key shadow against
+      // the cards just loaded from IndexedDB. On a normal load the copyIds
+      // match and this just backfills keys (immunizing the current good state);
+      // after a loss + re-cache it re-binds pins to the equivalent new copies.
+      reconcileBinders(prevCards, stored.cards);
     } else {
       // Nothing cached but mark hydration complete so the UI stops showing a
       // loading state.
@@ -243,12 +274,17 @@ async function hydrateFromCache(): Promise<void> {
     }
   } finally {
     isApplyingServer = false;
-    cacheHydrated = true;
+    // Only enable pushes if we actually KNOW the local state (loaded data or a
+    // confirmed-empty cache). A failed read leaves cacheHydrated false so
+    // pushNow()'s existing safety belt blocks a destructive collection: null
+    // push — restoring the invariant documented at the top of this file.
+    cacheHydrated = !hydrateFailed;
   }
 }
 
 async function applyServerSnapshot(snap: SyncSnapshot): Promise<void> {
   isApplyingServer = true;
+  const prevCards = useCollectionStore.getState().cards;
   try {
     persistVersion(snap.version);
     const remoteBinders = Array.isArray(snap.binders) ? (snap.binders as BinderDef[]) : [];
@@ -264,9 +300,13 @@ async function applyServerSnapshot(snap: SyncSnapshot): Promise<void> {
 
     if (remoteCollection) {
       await saveCollection(remoteCollection);
-    } else {
-      await clearCollection();
     }
+    // Deliberately NOT clearing IndexedDB when the server has no collection. A
+    // null server reply must never destroy the local cache: the only ways we
+    // legitimately reach here with a null collection are (a) the cache is
+    // already empty (nothing to clear) or (b) a bug we refuse to amplify into
+    // permanent data loss. Real deletion is explicit and lives in
+    // clearCards() / wipeLocal(). Regression guard for the #153-class bug.
 
     useCollectionStore.setState({
       binders: remoteBinders,
@@ -280,22 +320,23 @@ async function applyServerSnapshot(snap: SyncSnapshot): Promise<void> {
     });
     useDecksStore.setState({ decks: remoteDecks, hydrated: true });
     usePlayStore.setState({ history: remoteGames });
+    // Server binders + collection are internally consistent (pushed together),
+    // so this is usually a no-op; its job is to backfill the durable key
+    // shadow on snapshots that predate it, so a later loss is recoverable.
+    reconcileBinders(prevCards, remoteCollection?.cards ?? []);
   } finally {
     isApplyingServer = false;
   }
 }
 
-function handleVisibilityChange(): void {
-  if (document.visibilityState === 'hidden' && pushTimer) {
-    clearTimeout(pushTimer);
-    pushTimer = null;
-    void pushNow();
-  }
-}
-
-function handleBeforeUnload(): void {
+/**
+ * Best-effort push that survives the page being suspended/discarded: fetch
+ * keepalive lets the request outlive the document. Guarded so it can never
+ * send a destructive collection: null when the cache could not be read
+ * (cacheHydrated is false on failed/pre hydrate).
+ */
+function keepaliveFlush(): void {
   if (!cacheHydrated) return;
-  if (!pushTimer && !pushing && !isDirty()) return;
   if (pushTimer) {
     clearTimeout(pushTimer);
     pushTimer = null;
@@ -316,11 +357,28 @@ function handleBeforeUnload(): void {
       credentials: 'same-origin',
       keepalive: true,
     }).catch(() => {
-      /* best effort */
+      /* best effort — dirty flag stays set, reconciled on next boot */
     });
   } catch {
-    /* payload too large — dirty flag stays set, retried on next boot */
+    /* payload too large for keepalive — dirty flag stays set, retried on boot */
   }
+}
+
+function handleVisibilityChange(): void {
+  // iOS Safari does NOT reliably fire beforeunload/pagehide when the user
+  // switches apps; visibilitychange→hidden is the one signal we can count on.
+  // It MUST use keepalive — the previous plain pushNow() fetch was killed when
+  // the tab suspended, which is exactly the "collection vanishes after
+  // app-switch" report.
+  if (document.visibilityState === 'hidden') keepaliveFlush();
+}
+
+function handlePageHide(): void {
+  keepaliveFlush();
+}
+
+function handleBeforeUnload(): void {
+  keepaliveFlush();
 }
 
 function handleOnline(): void {
@@ -349,6 +407,7 @@ function attachSubscribers(): void {
   });
   unsubscribers = [u1, u2, u3];
   document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('pagehide', handlePageHide);
   window.addEventListener('beforeunload', handleBeforeUnload);
   window.addEventListener('online', handleOnline);
 }
@@ -364,6 +423,7 @@ function detachSubscribers(): void {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
   }
   if (typeof window !== 'undefined') {
+    window.removeEventListener('pagehide', handlePageHide);
     window.removeEventListener('beforeunload', handleBeforeUnload);
     window.removeEventListener('online', handleOnline);
   }
@@ -447,6 +507,24 @@ export async function startSync(userId?: string): Promise<void> {
       // server's version so the next push uses the right base. Their push
       // is already queued by the subscriber.
       persistVersion(snap.version);
+    } else if (hydrateFailed) {
+      // We could not read the local cache, so the in-memory store is empty for
+      // the WRONG reason and must not drive reconciliation. If the server has
+      // data, trust it (recovers the collection from the source of truth). If
+      // the server is also empty, do nothing destructive — the local
+      // IndexedDB copy is left intact for a future boot to recover — and
+      // surface an error instead of silently wiping. No push happens here:
+      // cacheHydrated is false, so pushNow() is already a no-op.
+      if (!isServerEmpty(snap)) {
+        await applyServerSnapshot(snap);
+      } else {
+        persistVersion(snap.version);
+        useCollectionStore.setState({
+          hydrating: false,
+          error:
+            'Could not read your saved collection on this device. Your data is safe — reload to try again.',
+        });
+      }
     } else if (isServerEmpty(snap) && hasLocalData()) {
       // Guest promotion path: a newly authed user has local data but the
       // server account is empty. Push local up.
@@ -535,6 +613,7 @@ export async function stopSyncAndWipeLocal(): Promise<void> {
 async function wipeLocal(): Promise<void> {
   currentVersion = 0;
   cacheHydrated = false;
+  hydrateFailed = false;
   mutationCount = 0;
   clearDirty();
   for (const key of [VERSION_KEY, OWNER_KEY, LEGACY_META_KEY]) {
