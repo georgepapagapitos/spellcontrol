@@ -7162,6 +7162,12 @@ hr {
   cursor: pointer;
 }
 
+/* The last row's divider would double up against the container's own
+   bottom border (visible as a stray extra line at the rounded corner). */
+.collection-list-row.is-last-row {
+  box-shadow: none;
+}
+
 .collection-list-row:hover {
   background: var(--surface);
 }
