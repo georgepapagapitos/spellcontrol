@@ -11,8 +11,10 @@ import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../../lib/card-types';
 import {
   compileExpression,
+  effectiveTreatments,
   exactMatchesExpression,
   isExpressionEmpty,
+  legalityMatchesExpression,
   setMatchesExpression,
   substringMatchesExpression,
 } from '../../lib/rules';
@@ -86,6 +88,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [layoutExpr, setLayoutExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [borderExpr, setBorderExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [subtypeSuggestions, setSubtypeSuggestions] = useState<string[]>([]);
   const setMap = useSetMap();
@@ -120,6 +127,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     (!isExpressionEmpty(subtypeExpr) ? 1 : 0) +
     (colorFilter.size > 0 ? 1 : 0) +
     (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
+    (!isExpressionEmpty(oracleExpr) ? 1 : 0) +
+    (!isExpressionEmpty(legalityExpr) ? 1 : 0) +
+    (!isExpressionEmpty(layoutExpr) ? 1 : 0) +
+    (!isExpressionEmpty(treatmentExpr) ? 1 : 0) +
+    (!isExpressionEmpty(borderExpr) ? 1 : 0) +
     (setFilter.size > 0 ? 1 : 0);
 
   // Pre-compile the chip expressions once per change so the per-card
@@ -128,6 +140,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const compiledTypes = useMemo(() => compileExpression(typesExpr), [typesExpr]);
   const compiledSubtype = useMemo(() => compileExpression(subtypeExpr), [subtypeExpr]);
   const compiledRarity = useMemo(() => compileExpression(rarityExpr), [rarityExpr]);
+  const compiledOracle = useMemo(() => compileExpression(oracleExpr), [oracleExpr]);
+  const compiledLegality = useMemo(() => compileExpression(legalityExpr), [legalityExpr]);
+  const compiledLayout = useMemo(() => compileExpression(layoutExpr), [layoutExpr]);
+  const compiledTreatment = useMemo(() => compileExpression(treatmentExpr), [treatmentExpr]);
+  const compiledBorder = useMemo(() => compileExpression(borderExpr), [borderExpr]);
   // The two result lists publish their currently-visible cards here so the
   // panel-level "Enter to add the first result" handler is independent of
   // which tab is active.
@@ -241,6 +258,16 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             rarityExpr={rarityExpr}
             setRarityExpr={setRarityExpr}
             rarities={RARITIES}
+            oracleExpr={oracleExpr}
+            setOracleExpr={setOracleExpr}
+            legalityExpr={legalityExpr}
+            setLegalityExpr={setLegalityExpr}
+            layoutExpr={layoutExpr}
+            setLayoutExpr={setLayoutExpr}
+            treatmentExpr={treatmentExpr}
+            setTreatmentExpr={setTreatmentExpr}
+            borderExpr={borderExpr}
+            setBorderExpr={setBorderExpr}
             setFilter={setFilter}
             setSetFilter={setSetFilter}
             setMap={setMap}
@@ -271,6 +298,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           compiledTypes={compiledTypes}
           compiledSubtype={compiledSubtype}
           compiledRarity={compiledRarity}
+          compiledOracle={compiledOracle}
+          compiledLegality={compiledLegality}
+          compiledLayout={compiledLayout}
+          compiledTreatment={compiledTreatment}
+          compiledBorder={compiledBorder}
           colorFilter={colorFilter}
           setFilter={setFilter}
         />
@@ -319,6 +351,11 @@ interface CollectionResultsProps extends ResultsProps {
   compiledTypes: ReturnType<typeof compileExpression>;
   compiledSubtype: ReturnType<typeof compileExpression>;
   compiledRarity: ReturnType<typeof compileExpression>;
+  compiledOracle: ReturnType<typeof compileExpression>;
+  compiledLegality: ReturnType<typeof compileExpression>;
+  compiledLayout: ReturnType<typeof compileExpression>;
+  compiledTreatment: ReturnType<typeof compileExpression>;
+  compiledBorder: ReturnType<typeof compileExpression>;
   colorFilter: Set<string>;
   setFilter: Set<string>;
 }
@@ -338,6 +375,11 @@ function CollectionResults({
   compiledTypes,
   compiledSubtype,
   compiledRarity,
+  compiledOracle,
+  compiledLegality,
+  compiledLayout,
+  compiledTreatment,
+  compiledBorder,
   colorFilter,
   setFilter,
 }: CollectionResultsProps) {
@@ -379,6 +421,12 @@ function CollectionResults({
         }
       }
       if (compiledRarity && !exactMatchesExpression(c.rarity, compiledRarity)) continue;
+      if (compiledOracle && !substringMatchesExpression(c.oracleText, compiledOracle)) continue;
+      if (compiledLegality && !legalityMatchesExpression(c.legalities, compiledLegality)) continue;
+      if (compiledLayout && !exactMatchesExpression(c.layout, compiledLayout)) continue;
+      if (compiledTreatment && !setMatchesExpression(effectiveTreatments(c), compiledTreatment))
+        continue;
+      if (compiledBorder && !exactMatchesExpression(c.borderColor, compiledBorder)) continue;
       if (setFilter.size > 0 && !setFilter.has((c.setCode || '').toUpperCase())) continue;
 
       if (seenNames.has(c.name)) continue;
@@ -395,6 +443,11 @@ function CollectionResults({
     compiledTypes,
     compiledSubtype,
     compiledRarity,
+    compiledOracle,
+    compiledLegality,
+    compiledLayout,
+    compiledTreatment,
+    compiledBorder,
     colorFilter,
     setFilter,
   ]);
