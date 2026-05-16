@@ -371,6 +371,19 @@ export function CommanderSearch({ value, onSelect }: Props) {
           <div className="commander-pick-headline">
             <span className="commander-pick-name">{value.name}</span>
             {manaCost && <ManaCost cost={manaCost} className="commander-pick-mana" />}
+            {power && toughness && (
+              <span className="commander-pick-stat">
+                <span className="commander-pick-stat-value">
+                  {power}/{toughness}
+                </span>
+              </span>
+            )}
+            {loyalty && (
+              <span className="commander-pick-stat">
+                <span className="commander-pick-stat-label">Loyalty</span>
+                <span className="commander-pick-stat-value">{loyalty}</span>
+              </span>
+            )}
           </div>
           <div className="commander-pick-type">{value.type_line}</div>
           {oracleText && (
@@ -378,26 +391,6 @@ export function CommanderSearch({ value, onSelect }: Props) {
               {oracleText.split('\n').map((line, i) => (
                 <p key={i}>{line}</p>
               ))}
-            </div>
-          )}
-          {/* P/T (and Loyalty for planeswalker commanders) anchored to the
-              bottom-right of the body, mirroring the stat box on a real
-              MTG card. */}
-          {(power || loyalty) && (
-            <div className="commander-pick-stat-row">
-              {power && toughness && (
-                <span className="commander-pick-stat">
-                  <span className="commander-pick-stat-value">
-                    {power}/{toughness}
-                  </span>
-                </span>
-              )}
-              {loyalty && (
-                <span className="commander-pick-stat">
-                  <span className="commander-pick-stat-label">Loyalty</span>
-                  <span className="commander-pick-stat-value">{loyalty}</span>
-                </span>
-              )}
             </div>
           )}
         </div>
