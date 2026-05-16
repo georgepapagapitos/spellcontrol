@@ -7,7 +7,7 @@ import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { useCollectionStore } from '../store/collection';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
-import { sortEntryLabel } from '../lib/sorting';
+import { SortPopover } from './SortPopover';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
 import { DeckBadge } from './DeckBadge';
@@ -66,6 +66,8 @@ export function BinderListView({
   const isGrouped = !!qtyByCopyId;
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
+  const sortEditable = binder.def.mode !== 'manual' && !binder.def.manualOrder?.length;
   const allocations = useAllocations();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
@@ -90,14 +92,6 @@ export function BinderListView({
     }
     return out;
   };
-
-  // Sort breadcrumb (e.g. "color › cmc › name") shown on each section
-  // header so the binder's grouping/ordering hierarchy is visible at a
-  // glance — same affordance the page-grid view exposes.
-  const sortBreadcrumb = useMemo(() => {
-    const active = binder.displaySorts.filter((s) => s && s.field !== 'none');
-    return active.map(sortEntryLabel);
-  }, [binder.displaySorts]);
 
   // Flat page list for "Browse pages" — opens the BinderPagePreview at
   // the first page; same carousel the grid view uses.
@@ -271,6 +265,19 @@ export function BinderListView({
           )}
           <Legend />
         </span>
+        {sortEditable && (
+          <span className="binder-summary-sep" aria-hidden="true">
+            ·
+          </span>
+        )}
+        {sortEditable && (
+          <SortPopover
+            sorts={binder.def.sorts}
+            valueOrders={binder.def.sortValueOrders ?? {}}
+            onSortsChange={(next) => updateBinder(binder.def.id, { sorts: next })}
+            onValueOrdersChange={(next) => updateBinder(binder.def.id, { sortValueOrders: next })}
+          />
+        )}
         {flat.sectionRows.length > 1 && (
           <button
             type="button"
@@ -317,11 +324,6 @@ export function BinderListView({
                 />
               )}
               <span className="section-title">{section.label}</span>
-              {sortBreadcrumb.length > 0 && (
-                <span className="section-breadcrumb" aria-label="Sort order">
-                  {sortBreadcrumb.join(' › ')}
-                </span>
-              )}
               <span className="section-meta">
                 {totalQty} {totalQty === 1 ? 'card' : 'cards'}
                 {isGrouped && totalQty !== rows.length && ` · ${rows.length} unique`}
