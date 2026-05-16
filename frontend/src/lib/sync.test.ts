@@ -5,7 +5,8 @@ import * as authApi from './auth-api';
 import * as combosApi from './api/combos';
 import { startSync, stopSyncAndWipeLocal, flushSync } from './sync';
 import { markDestructive } from './sync-intent';
-import { saveCollection, clearCollection } from './local-cards';
+import { saveCollection, clearCollection, loadCollection } from './local-cards';
+import * as localCards from './local-cards';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
@@ -319,6 +320,94 @@ describe('cache hydration safety', () => {
     // The post-fetch guest-promotion path keeps local data, doesn't wipe.
     expect(useCollectionStore.getState().cards).toHaveLength(1);
     expect(useCollectionStore.getState().binders).toHaveLength(1);
+  });
+});
+
+describe('failed cache hydrate (IndexedDB unreadable: iOS cold-start / quota / private mode)', () => {
+  it('never pushes collection: null and recovers from the server when the cache cannot be read', async () => {
+    // IndexedDB has the user's collection, but the read THROWS (not returns
+    // null) — the unguarded #153-class hole. The store stays empty for the
+    // wrong reason; it must not drive a destructive reconcile.
+    await saveCollection({
+      fileName: 'mine.csv',
+      cards: [{ copyId: 'c1', name: 'Lightning Bolt' } as never],
+      scryfallHits: 1,
+      scryfallMisses: 0,
+      uploadedAt: 100,
+      importHistory: [],
+    });
+    // A stale dirty flag survived from a pre-background import.
+    localStorage.setItem('spellcontrol-sync-dirty', '1');
+    localStorage.setItem('spellcontrol-sync-owner', 'user-1');
+    vi.spyOn(localCards, 'loadCollection').mockRejectedValue(
+      new Error('Could not load your saved collection.')
+    );
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 6, updatedAt: 100 });
+    // Server is the source of truth and still has the data.
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: {
+        fileName: 'mine.csv',
+        cards: [{ copyId: 'c1', name: 'Lightning Bolt' } as never],
+        scryfallHits: 1,
+        scryfallMisses: 0,
+        uploadedAt: 100,
+        importHistory: [],
+      },
+      binders: [],
+      decks: [],
+      games: [],
+      version: 5,
+      updatedAt: 0,
+    });
+
+    await startSync('user-1');
+
+    // The destructive collection: null push MUST NOT have happened, even
+    // though the dirty flag was set.
+    for (const call of putSpy.mock.calls) {
+      expect(call[0].collection).not.toBeNull();
+    }
+    // Recovered from the server.
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+    expect(useCollectionStore.getState().fileName).toBe('mine.csv');
+  });
+
+  it('does not wipe IndexedDB or push null when both the read fails and the server is empty', async () => {
+    await saveCollection({
+      fileName: 'mine.csv',
+      cards: [{ copyId: 'c1', name: 'Sol Ring' } as never],
+      scryfallHits: 1,
+      scryfallMisses: 0,
+      uploadedAt: 100,
+      importHistory: [],
+    });
+    localStorage.setItem('spellcontrol-sync-dirty', '1');
+    localStorage.setItem('spellcontrol-sync-owner', 'user-1');
+    const readSpy = vi
+      .spyOn(localCards, 'loadCollection')
+      .mockRejectedValue(new Error('IndexedDB unavailable'));
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 0 });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 0,
+      updatedAt: 0,
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await startSync('user-1');
+
+    // No push at all — a failed hydrate must not let an empty store overwrite
+    // the server with collection: null.
+    expect(putSpy).not.toHaveBeenCalled();
+    // The local IndexedDB copy is left intact so a future boot can recover it.
+    readSpy.mockRestore();
+    const survived = await loadCollection();
+    expect(survived?.cards).toHaveLength(1);
+    // The user is told, rather than silently losing data.
+    expect(useCollectionStore.getState().error).toMatch(/could not read/i);
   });
 });
 
