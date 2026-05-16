@@ -165,7 +165,7 @@ export function cardMatchesAnyGroup(card: EnrichedCard, compiled: CompiledFilter
  * historical behavior. Authoring `IS standard AND IS modern` as a new
  * expression yields "legal in both" — what the user actually asked for.
  */
-function legalityMatchesExpression(
+export function legalityMatchesExpression(
   legalities: Record<string, string> | undefined,
   expr: CompiledExpression
 ): boolean {
@@ -185,7 +185,7 @@ function legalityMatchesExpression(
  * Build the effective set of treatments for a card, including the 'fullart' alias
  * (covers both Scryfall's full_art flag and the 'fullart' frame effect).
  */
-function effectiveTreatments(card: EnrichedCard): string[] {
+export function effectiveTreatments(card: EnrichedCard): string[] {
   const out = new Set<string>(card.frameEffects || []);
   if (card.fullArt === true) out.add('fullart');
   return Array.from(out);

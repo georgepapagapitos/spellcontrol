@@ -36,8 +36,10 @@ import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import {
   compileExpression,
+  effectiveTreatments,
   exactMatchesExpression,
   isExpressionEmpty,
+  legalityMatchesExpression,
   setMatchesExpression,
   substringMatchesExpression,
 } from '../lib/rules';
@@ -264,6 +266,13 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     joiners: [],
   });
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
+  const [oracleExpr, setOracleExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [legalityExpr, setLegalityExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [layoutExpr, setLayoutExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [borderExpr, setBorderExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [finishExpr, setFinishExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [conditionExpr, setConditionExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -411,6 +420,13 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   const compiledSubtype = useMemo(() => compileExpression(subtypeExpr), [subtypeExpr]);
   const compiledRarity = useMemo(() => compileExpression(rarityExpr), [rarityExpr]);
   const compiledBinder = useMemo(() => compileExpression(binderExpr), [binderExpr]);
+  const compiledOracle = useMemo(() => compileExpression(oracleExpr), [oracleExpr]);
+  const compiledLegality = useMemo(() => compileExpression(legalityExpr), [legalityExpr]);
+  const compiledLayout = useMemo(() => compileExpression(layoutExpr), [layoutExpr]);
+  const compiledTreatment = useMemo(() => compileExpression(treatmentExpr), [treatmentExpr]);
+  const compiledBorder = useMemo(() => compileExpression(borderExpr), [borderExpr]);
+  const compiledFinish = useMemo(() => compileExpression(finishExpr), [finishExpr]);
+  const compiledCondition = useMemo(() => compileExpression(conditionExpr), [conditionExpr]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -456,6 +472,27 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
       if (compiledRarity) {
         if (!exactMatchesExpression(r.card.rarity, compiledRarity)) return false;
       }
+      if (compiledOracle && !substringMatchesExpression(r.card.oracleText, compiledOracle))
+        return false;
+      if (compiledLegality && !legalityMatchesExpression(r.card.legalities, compiledLegality))
+        return false;
+      if (compiledLayout && !exactMatchesExpression(r.card.layout, compiledLayout)) return false;
+      if (
+        compiledTreatment &&
+        !setMatchesExpression(effectiveTreatments(r.card), compiledTreatment)
+      )
+        return false;
+      if (compiledBorder && !exactMatchesExpression(r.card.borderColor, compiledBorder))
+        return false;
+      if (compiledFinish) {
+        // Match the finish the user *owns*, not the printing's available
+        // finishes — mirrors cardMatchesCompiled so "Finish IS foil" doesn't
+        // match every nonfoil basic that merely comes in foil too.
+        const owned = r.card.finish ?? (r.card.foil ? 'foil' : 'nonfoil');
+        if (!setMatchesExpression([owned], compiledFinish)) return false;
+      }
+      if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
+        return false;
       if (setFilter.size > 0 && !setFilter.has((r.card.setCode || '').toUpperCase())) return false;
       return true;
     });
@@ -468,6 +505,13 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     compiledTypes,
     compiledSubtype,
     compiledRarity,
+    compiledOracle,
+    compiledLegality,
+    compiledLayout,
+    compiledTreatment,
+    compiledBorder,
+    compiledFinish,
+    compiledCondition,
     setFilter,
   ]);
 
@@ -727,6 +771,13 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     (!isExpressionEmpty(subtypeExpr) ? 1 : 0) +
     (colorFilter.size > 0 ? 1 : 0) +
     (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
+    (!isExpressionEmpty(oracleExpr) ? 1 : 0) +
+    (!isExpressionEmpty(legalityExpr) ? 1 : 0) +
+    (!isExpressionEmpty(layoutExpr) ? 1 : 0) +
+    (!isExpressionEmpty(treatmentExpr) ? 1 : 0) +
+    (!isExpressionEmpty(borderExpr) ? 1 : 0) +
+    (!isExpressionEmpty(finishExpr) ? 1 : 0) +
+    (!isExpressionEmpty(conditionExpr) ? 1 : 0) +
     (!isExpressionEmpty(binderExpr) ? 1 : 0) +
     (setFilter.size > 0 ? 1 : 0) +
     (groupPrintings ? 0 : 1);
@@ -759,6 +810,20 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
               rarityExpr={rarityExpr}
               setRarityExpr={setRarityExpr}
               rarities={RARITIES}
+              oracleExpr={oracleExpr}
+              setOracleExpr={setOracleExpr}
+              legalityExpr={legalityExpr}
+              setLegalityExpr={setLegalityExpr}
+              layoutExpr={layoutExpr}
+              setLayoutExpr={setLayoutExpr}
+              treatmentExpr={treatmentExpr}
+              setTreatmentExpr={setTreatmentExpr}
+              borderExpr={borderExpr}
+              setBorderExpr={setBorderExpr}
+              finishExpr={finishExpr}
+              setFinishExpr={setFinishExpr}
+              conditionExpr={conditionExpr}
+              setConditionExpr={setConditionExpr}
               binderExpr={binderExpr}
               setBinderExpr={setBinderExpr}
               binders={binders}
