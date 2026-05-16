@@ -1683,6 +1683,10 @@ input[type='search'] {
 .sort-popover {
   position: relative;
   flex-shrink: 0;
+  /* The summary row is baseline-aligned for its text/link items; the pill
+     is a bordered chip, so center it on the row instead of hanging off
+     the text baseline. */
+  align-self: center;
 }
 
 .sort-popover-btn {
