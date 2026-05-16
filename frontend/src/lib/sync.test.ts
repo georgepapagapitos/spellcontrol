@@ -63,12 +63,18 @@ describe('startSync', () => {
     expect(useDecksStore.getState().decks[0]).toMatchObject({ name: 'Server deck' });
   });
 
-  it('pushes locally dirty state before overwriting from server', async () => {
-    // Simulate: user deleted a binder pre-reload. Dirty flag survives reload.
+  it('pushes NON-blank locally dirty state before overwriting from server', async () => {
+    // A surviving dirty flag after reload is only honored when the local state
+    // is non-blank. The destructive-intent latch is in-memory and cannot
+    // survive a reload, so a *blank* dirty state can no longer be told apart
+    // from a bad empty hydrate — see the blank-push guard test below. A real
+    // local change (a non-empty binder set) still propagates as before.
     localStorage.setItem('spellcontrol-sync-dirty', '1');
     localStorage.setItem('spellcontrol-sync-base-version', '2');
     localStorage.setItem('spellcontrol-sync-owner', 'user-1');
-    useCollectionStore.setState({ binders: [] });
+    useCollectionStore.setState({
+      binders: [{ id: 'local', name: 'Edited', createdAt: 1, updatedAt: 1, position: 0 } as never],
+    });
 
     const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 3, updatedAt: 100 });
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
@@ -82,7 +88,12 @@ describe('startSync', () => {
 
     await startSync('user-1');
 
-    expect(putSpy).toHaveBeenCalledWith(expect.objectContaining({ baseVersion: 2, binders: [] }));
+    expect(putSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseVersion: 2,
+        binders: [expect.objectContaining({ id: 'local' })],
+      })
+    );
     expect(localStorage.getItem('spellcontrol-sync-dirty')).toBeNull();
   });
 
@@ -363,6 +374,77 @@ describe('cache hydration safety', () => {
     expect((repair.collection as { cards: unknown[] }).cards).toHaveLength(1);
     // Local IndexedDB copy still intact.
     expect((await loadCollection())?.cards).toHaveLength(1);
+  });
+});
+
+describe('blank-push guard (the root invariant: empty != truth)', () => {
+  it('refuses to push a blank-slate snapshot over the server and adopts server data instead', async () => {
+    // Reproduces the production logs: a wiped/empty client (post sign-out
+    // re-login) is dirty and would PUT collection=null binders=0 over a
+    // populated server.
+    localStorage.setItem('spellcontrol-sync-dirty', '1');
+    localStorage.setItem('spellcontrol-sync-base-version', '74');
+    localStorage.setItem('spellcontrol-sync-owner', 'user-1');
+    // Store is empty (the beforeEach default) — nothing in IndexedDB either.
+
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 99, updatedAt: 0 });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: {
+        fileName: 'mine.csv',
+        cards: [{ copyId: 'c1', name: 'Sol Ring' } as never],
+        scryfallHits: 1,
+        scryfallMisses: 0,
+        uploadedAt: 100,
+        importHistory: [],
+      },
+      binders: [{ id: 'b1', name: 'Server binder', createdAt: 1, updatedAt: 1, position: 0 }],
+      decks: [],
+      games: [],
+      version: 74,
+      updatedAt: 0,
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await startSync('user-1');
+
+    // The blank push was refused — the server was never overwritten.
+    expect(putSpy).not.toHaveBeenCalled();
+    // And the device adopted the server's real data.
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+    expect(useCollectionStore.getState().binders[0]).toMatchObject({ name: 'Server binder' });
+  });
+
+  it('still pushes an empty snapshot when an explicit user deletion (clearCards) produced it', async () => {
+    // The guard must NOT break a real "Clear all" — that emptiness is intended
+    // and must propagate.
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: {
+        fileName: 'mine.csv',
+        cards: [{ copyId: 'c1' }] as never,
+        scryfallHits: 1,
+        scryfallMisses: 0,
+        uploadedAt: 1,
+        importHistory: [],
+      },
+      binders: [],
+      decks: [],
+      games: [],
+      version: 5,
+      updatedAt: 0,
+    });
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 6, updatedAt: 0 });
+
+    await startSync('user-1');
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+
+    await useCollectionStore.getState().clearCards();
+    await new Promise((r) => setTimeout(r, 50));
+
+    // The intentional deletion DID push (collection: null), unblocked by the
+    // destructive latch.
+    expect(putSpy).toHaveBeenCalled();
+    const last = putSpy.mock.calls.at(-1)![0];
+    expect(last.collection).toBeNull();
   });
 });
 
