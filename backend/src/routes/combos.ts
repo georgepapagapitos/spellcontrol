@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 import { getDb } from '../db';
@@ -8,6 +9,16 @@ import { matchCombos, type ComboInput } from '../combos/match';
 import { ingestCombos, streamSpellbookVariants } from '../combos/ingest';
 
 export const combosRouter: Router = Router();
+
+// /match is the heaviest endpoint in the app: up to MAX_OWNED_IDS ids, three
+// Postgres round-trips, SHA-256 + in-JS bucketing, all in a 256MB container
+// that has OOM-crashed under load. Without a limiter any one authed user can
+// loop it (varying inputs to dodge the LRU cache) and 502 everyone. Disabled
+// under test so the suite can fire many matches without tripping it.
+const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
+const matchLimiter = isTest
+  ? (_req: Request, _res: Response, next: () => void) => next()
+  : rateLimit({ windowMs: 60_000, max: 30 });
 
 const MAX_OWNED_IDS = 10_000;
 const MAX_DECK_IDS = 500;
@@ -171,7 +182,7 @@ async function loadRelevantCombos(oracleIds: string[]): Promise<ComboInput[]> {
   }));
 }
 
-combosRouter.post('/match', requireAuth, async (req: Request, res: Response) => {
+combosRouter.post('/match', matchLimiter, requireAuth, async (req: Request, res: Response) => {
   const body = req.body as {
     ownedOracleIds?: unknown;
     deckOracleIds?: unknown;
