@@ -17,6 +17,8 @@ export function AdminPage() {
   const clearCards = useCollectionStore((s) => s.clearCards);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
   const decks = useDecksStore((s) => s.decks);
+  const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
+  const remapAllocations = useDecksStore((s) => s.remapAllocations);
 
   const [tab, setTab] = useState<Tab>('overview');
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -46,10 +48,21 @@ export function AdminPage() {
     () => (hydrating ? [] : findSuboptimalPrintings(decks, cards)),
     [decks, cards, hydrating]
   );
+  const fixableCount = useMemo(
+    () => suboptimalPrintings.filter((r) => r.preferredFree).length,
+    [suboptimalPrintings]
+  );
+  const stuckCount = suboptimalPrintings.length - fixableCount;
   const suboptimalGrouped = useMemo(() => {
     const m = new Map<
       string,
-      { deckName: string; cardName: string; allocatedSet: string; count: number }
+      {
+        deckName: string;
+        cardName: string;
+        allocatedSet: string;
+        count: number;
+        fixable: boolean;
+      }
     >();
     for (const r of suboptimalPrintings) {
       const k = `${r.deckId}|${r.cardName}|${r.preferredScryfallId}|${r.allocatedSet}`;
@@ -61,10 +74,12 @@ export function AdminPage() {
           cardName: r.cardName,
           allocatedSet: r.allocatedSet,
           count: 1,
+          fixable: r.preferredFree,
         });
     }
     return [...m.values()].sort((a, b) => b.count - a.count);
   }, [suboptimalPrintings]);
+  const [remapResult, setRemapResult] = useState<string | null>(null);
 
   // Expose everything on window for console poking.
   useEffect(() => {
@@ -239,11 +254,18 @@ export function AdminPage() {
               </tr>
               <tr>
                 <th>
-                  Deck slots: <span className="admin-err">suboptimal printing</span> (bound to wrong
-                  printing while the preferred printing is owned)
+                  Deck slots:{' '}
+                  <span className={fixableCount ? 'admin-err' : ''}>suboptimal printing</span> (a
+                  free copy of the preferred printing exists → remap can rebind)
                 </th>
-                <td className={suboptimalPrintings.length ? 'admin-err' : ''}>
-                  {suboptimalPrintings.length}
+                <td className={fixableCount ? 'admin-err' : ''}>
+                  {fixableCount}
+                  {stuckCount > 0 && (
+                    <span className="admin-sub">
+                      {' '}
+                      (+{stuckCount} informational, not actionable)
+                    </span>
+                  )}
                 </td>
               </tr>
             </tbody>
@@ -254,13 +276,36 @@ export function AdminPage() {
               allocations. Open the Decks tab to find them.
             </p>
           )}
-          {suboptimalPrintings.length > 0 && (
+          {fixableCount > 0 && (
             <>
               <p className="admin-warn">
-                {suboptimalPrintings.length} slot(s) are bound to a wrong printing. A page refresh
-                runs the allocation remap, which auto-heals these — if they persist after refresh,
-                file a bug.
+                <strong>{fixableCount} slot(s) fixable</strong> — a free copy of the preferred
+                printing exists, so re-running the remap rebinds them. Basic lands are excluded
+                (fungible across printings).
               </p>
+              <div className="admin-danger" style={{ marginBottom: '0.85rem' }}>
+                <button
+                  onClick={() => {
+                    const before = suboptimalPrintings.filter((r) => r.preferredFree).length;
+                    remapAllocations(cards);
+                    // decks store mutated synchronously — recompute against it.
+                    const after = findSuboptimalPrintings(
+                      useDecksStore.getState().decks,
+                      cards
+                    ).filter((r) => r.preferredFree).length;
+                    const healed = before - after;
+                    setRemapResult(
+                      healed > 0
+                        ? `Remap ran — ${healed} slot(s) healed, ${after} still fixable.`
+                        : `Remap ran — nothing changed (${after} still fixable).`
+                    );
+                    setTimeout(() => setRemapResult(null), 6000);
+                  }}
+                >
+                  Re-run allocation remap
+                </button>
+                {remapResult && <span className="admin-sub">{remapResult}</span>}
+              </div>
               <table className="admin-table admin-table--dense">
                 <thead>
                   <tr>
@@ -271,20 +316,58 @@ export function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {suboptimalGrouped.slice(0, 25).map((g, i) => (
-                    <tr key={i} className="admin-row--err">
-                      <td>{g.deckName}</td>
-                      <td>{g.cardName}</td>
-                      <td className="admin-mono">{g.allocatedSet}</td>
-                      <td>{g.count}</td>
-                    </tr>
-                  ))}
+                  {suboptimalGrouped
+                    .filter((g) => g.fixable)
+                    .slice(0, 25)
+                    .map((g, i) => (
+                      <tr key={i} className="admin-row--err">
+                        <td>{g.deckName}</td>
+                        <td>{g.cardName}</td>
+                        <td className="admin-mono">{g.allocatedSet}</td>
+                        <td>{g.count}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
-              {suboptimalGrouped.length > 25 && (
-                <p className="admin-sub">…and {suboptimalGrouped.length - 25} more rows.</p>
-              )}
             </>
+          )}
+          {stuckCount > 0 && (
+            <details className="admin-subopt-info">
+              <summary className="admin-sub">
+                {stuckCount} slot(s) use a different printing than the generator&apos;s default —
+                informational, not a problem (click to expand)
+              </summary>
+              <p className="admin-sub">
+                These slots are bound to a real owned copy. You also own the printing the generator
+                happened to pick by default, but every copy of it is already in another deck.
+                Nothing is broken, double-claimed, or orphaned — the only way to &quot;match&quot;
+                would be to steal a copy out of another deck, which you don&apos;t want. Safe to
+                ignore; listed for transparency.
+              </p>
+              <table className="admin-table admin-table--dense">
+                <thead>
+                  <tr>
+                    <th>Deck</th>
+                    <th>Card</th>
+                    <th>Using (set)</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suboptimalGrouped
+                    .filter((g) => !g.fixable)
+                    .slice(0, 50)
+                    .map((g, i) => (
+                      <tr key={i}>
+                        <td>{g.deckName}</td>
+                        <td>{g.cardName}</td>
+                        <td className="admin-mono">{g.allocatedSet}</td>
+                        <td>{g.count}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </details>
           )}
         </section>
       )}
@@ -377,6 +460,13 @@ export function AdminPage() {
           }}
           onClearBinders={() => {
             if (confirm('Delete every binder definition? Cards untouched.')) deleteAllBinders();
+          }}
+          onClearDecks={() => {
+            if (confirm(`Delete all ${decks.length} deck(s)? Collection/binders are kept.`))
+              deleteAllDecks();
+          }}
+          onRerunRemap={() => {
+            remapAllocations(cards);
           }}
         />
       )}
@@ -673,13 +763,18 @@ function StorageTab({
   importHistory,
   onClearCards,
   onClearBinders,
+  onClearDecks,
+  onRerunRemap,
 }: {
   fileName: string;
   uploadedAt: number | null;
   importHistory: { id?: string; name: string; count: number; format: string; addedAt: number }[];
   onClearCards: () => void;
   onClearBinders: () => void;
+  onClearDecks: () => void;
+  onRerunRemap: () => void;
 }) {
+  const [remapToast, setRemapToast] = useState<string | null>(null);
   // Snapshot localStorage once at mount. Admin page is short-lived; no need
   // to re-read on every render or watch for storage events.
   const lsKeys = useMemo(() => {
@@ -748,10 +843,30 @@ function StorageTab({
         <code>spellcontrol</code>.
       </p>
 
+      <h3>Maintenance</h3>
+      <p className="admin-sub">
+        Re-runs the allocation remap against the current collection. Heals slots that drift from the
+        user&apos;s owned printings (basic-land binding, orphaned copies, etc.) without needing a
+        page refresh.
+      </p>
+      <div className="admin-danger">
+        <button
+          onClick={() => {
+            onRerunRemap();
+            setRemapToast('Remap complete.');
+            setTimeout(() => setRemapToast(null), 2000);
+          }}
+        >
+          Re-run allocation remap
+        </button>
+        {remapToast && <span className="admin-sub">{remapToast}</span>}
+      </div>
+
       <h3 className="admin-danger-h">Danger zone</h3>
       <div className="admin-danger">
         <button onClick={onClearCards}>Clear collection (IndexedDB)</button>
         <button onClick={onClearBinders}>Delete all binders</button>
+        <button onClick={onClearDecks}>Delete all decks</button>
         <button
           onClick={() => {
             if (confirm('Nuke EVERYTHING (collection + decks + binders + localStorage)?')) {
