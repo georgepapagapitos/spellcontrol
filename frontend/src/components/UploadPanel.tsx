@@ -11,6 +11,7 @@ import { useCanScan } from '../lib/use-can-scan';
 import { ProgressBar } from './ProgressBar';
 import { StagedFileList } from './StagedFileList';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
+import { useFileDrop } from '../lib/use-file-drop';
 
 interface PendingImport {
   /** Runs the actual import call. Omitted for staged-file batches. */
@@ -60,14 +61,20 @@ export function UploadPanel() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const incoming = e.target.files ? Array.from(e.target.files) : [];
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const stageIncoming = (incoming: File[]) => {
     if (incoming.length === 0) return;
     const { files, renamed, dropped } = mergeStagedFiles(stagedFiles, incoming);
     setStagedFiles(files);
     setStageNote(stagedFilesNotice(renamed, dropped));
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = e.target.files ? Array.from(e.target.files) : [];
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    stageIncoming(incoming);
+  };
+
+  const { isDragging, dropProps } = useFileDrop(stageIncoming, { disabled: isLoading });
 
   const handleRemoveStaged = (index: number) => {
     setStagedFiles((fs) => fs.filter((_, i) => i !== index));
@@ -287,7 +294,15 @@ export function UploadPanel() {
       )}
 
       <div className={`import-grid${hasCollection ? ' has-history' : ''}`}>
-        <div className="import-card">
+        <div
+          className={`import-card file-dropzone${isDragging ? ' is-dragging' : ''}`}
+          {...dropProps}
+        >
+          {isDragging && (
+            <div className="file-drop-overlay" aria-hidden="true">
+              <div className="file-drop-message">Drop file(s) to stage</div>
+            </div>
+          )}
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">

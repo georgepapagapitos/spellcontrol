@@ -3,6 +3,7 @@ import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-ca
 import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
+import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
@@ -144,9 +145,9 @@ export function BinderEditor() {
   const [binderDrafts, setBinderDrafts] = useState<Array<{ name: string; color: string }>>([]);
   // Set when staged files resolve to duplicate binder names and we need the
   // user to choose how to handle it (merge / rename / separate).
-  const [collisionPrompt, setCollisionPrompt] = useState<{ name: string; count: number }[] | null>(
-    null
-  );
+  const [collisionPrompt, setCollisionPrompt] = useState<
+    { name: string; count: number; existing: boolean }[] | null
+  >(null);
 
   /**
    * Keeps staged files and their per-file binder drafts aligned. Drafts are
@@ -165,6 +166,17 @@ export function BinderEditor() {
     setImportStageNote(note);
     if (nextFiles.length > 0) setImportPasteText('');
   };
+
+  /** Merges incoming files (picker or drop) into the staged list. */
+  const stageIncoming = (incoming: File[]) => {
+    if (incoming.length === 0) return;
+    const { files, renamed, dropped } = mergeStagedFiles(importFiles_, incoming);
+    applyStagedFiles(files, importFiles_, stagedFilesNotice(renamed, dropped));
+  };
+
+  const { isDragging: importDragging, dropProps: importDropProps } = useFileDrop(stageIncoming, {
+    disabled: saving,
+  });
 
   // Set codes the user actually owns — used to populate the multi-select.
   const ownedSets = useMemo(() => {
@@ -449,12 +461,17 @@ export function BinderEditor() {
     }
 
     // Import mode owns binder creation via importCards (one 'manual' pinned
-    // binder per source). When staged files resolve to duplicate names, ask
-    // the user how to handle it before doing anything.
+    // binder per source). When staged files resolve to a name that's used
+    // twice in the batch OR already exists as a binder, ask the user first.
     if (isImportBatch) {
+      const existingNames = new Set(binders.map((b) => b.name.trim().toLowerCase()));
       const collisions = groupIndicesByName()
-        .filter((g) => g.length > 1)
-        .map((g) => ({ name: draftName(g[0]), count: g.length }));
+        .map((g) => ({
+          name: draftName(g[0]),
+          count: g.length,
+          existing: existingNames.has(draftName(g[0]).toLowerCase()),
+        }))
+        .filter((c) => c.count > 1 || c.existing);
       if (collisions.length > 0) {
         setCollisionPrompt(collisions);
         return;
@@ -737,7 +754,15 @@ export function BinderEditor() {
             )}
 
             {binderMode === 'import' && isNew && (
-              <section className="editor-section">
+              <section
+                className={`editor-section file-dropzone${importDragging ? ' is-dragging' : ''}`}
+                {...importDropProps}
+              >
+                {importDragging && (
+                  <div className="file-drop-overlay" aria-hidden="true">
+                    <div className="file-drop-message">Drop file(s) — one binder each</div>
+                  </div>
+                )}
                 <p className="muted" style={{ marginBottom: '0.5rem' }}>
                   Paste a card list, or upload one or more CSV files —{' '}
                   <strong>each file becomes its own binder</strong>. Cards are added to your
@@ -842,9 +867,7 @@ export function BinderEditor() {
                     onChange={(e) => {
                       const incoming = e.target.files ? Array.from(e.target.files) : [];
                       if (importFileRef.current) importFileRef.current.value = '';
-                      if (incoming.length === 0) return;
-                      const { files, renamed, dropped } = mergeStagedFiles(importFiles_, incoming);
-                      applyStagedFiles(files, importFiles_, stagedFilesNotice(renamed, dropped));
+                      stageIncoming(incoming);
                     }}
                     disabled={saving}
                   />
@@ -875,27 +898,39 @@ export function BinderEditor() {
       {collisionPrompt && (
         <div className="modal-backdrop" onClick={() => setCollisionPrompt(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="choice-dialog-title">Some binders share a name</h2>
-            <p className="choice-dialog-body">
-              {collisionPrompt.map((c) => `"${c.name}" (${c.count} files)`).join(', ')}. How should
-              these be imported?
-            </p>
+            <h2 className="choice-dialog-title">Some binder names need a decision</h2>
+            <ul className="choice-dialog-body" style={{ paddingLeft: '1.1rem' }}>
+              {collisionPrompt.map((c) => (
+                <li key={c.name}>
+                  <strong>"{c.name}"</strong>
+                  {c.count > 1 ? ` — ${c.count} staged files share this name` : ''}
+                  {c.existing
+                    ? `${c.count > 1 ? '; it' : ' —'} also matches a binder you already have`
+                    : ''}
+                </li>
+              ))}
+            </ul>
             <div className="choice-dialog-options">
-              <button
-                type="button"
-                className="choice-dialog-option"
-                onClick={() => {
-                  setCollisionPrompt(null);
-                  void executeImport('merge');
-                }}
-                autoFocus
-              >
-                <span className="choice-dialog-option-title">Merge same-named files</span>
-                <span className="choice-dialog-option-desc">
-                  Files that share a name go into one binder together. Other files still get their
-                  own binder.
-                </span>
-              </button>
+              {collisionPrompt.some((c) => c.count > 1) && (
+                <button
+                  type="button"
+                  className="choice-dialog-option"
+                  onClick={() => {
+                    setCollisionPrompt(null);
+                    void executeImport('merge');
+                  }}
+                  autoFocus
+                >
+                  <span className="choice-dialog-option-title">Merge same-named files</span>
+                  <span className="choice-dialog-option-desc">
+                    Files that share a name go into one new binder together. Other files still get
+                    their own binder.
+                    {collisionPrompt.some((c) => c.existing)
+                      ? ' (Still creates new binders — existing same-named binders are left alone.)'
+                      : ''}
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
                 className="choice-dialog-option"
@@ -906,7 +941,11 @@ export function BinderEditor() {
               >
                 <span className="choice-dialog-option-title">Create separate binders</span>
                 <span className="choice-dialog-option-desc">
-                  Keep one binder per file — you'll get multiple binders with the same name.
+                  Keep one binder per file — you'll get additional binders with the same name
+                  {collisionPrompt.some((c) => c.existing)
+                    ? ', including alongside the existing ones'
+                    : ''}
+                  .
                 </span>
               </button>
               <button
