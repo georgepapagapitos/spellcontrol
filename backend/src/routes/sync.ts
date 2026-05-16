@@ -22,6 +22,26 @@ interface SyncSnapshot {
   updatedAt: number;
 }
 
+/**
+ * Diagnostic summary of a stored/incoming snapshot. Cheap, no PII beyond the
+ * userId (already in our logs). Grep the container logs with:
+ *   docker compose logs -f backend | grep '\[sync\]'
+ */
+function summarize(label: string, userId: string, snap: Partial<SyncSnapshot>): string {
+  const col = snap.collection as { cards?: unknown } | null | undefined;
+  const cards = col && Array.isArray(col.cards) ? col.cards.length : 0;
+  const collection = col ? `${cards}cards` : 'null';
+  const binders = Array.isArray(snap.binders) ? snap.binders.length : 0;
+  const decks = Array.isArray(snap.decks) ? snap.decks.length : 0;
+  const games = Array.isArray(snap.games) ? snap.games.length : 0;
+  return `[sync] ${label} user=${userId} v=${snap.version ?? '?'} collection=${collection} binders=${binders} decks=${decks} games=${games}`;
+}
+
+function collectionCardCount(collection: unknown): number {
+  const col = collection as { cards?: unknown } | null | undefined;
+  return col && Array.isArray(col.cards) ? col.cards.length : 0;
+}
+
 async function loadSnapshot(userId: string): Promise<SyncSnapshot> {
   const db = getDb();
   const rows = await db.select().from(userData).where(eq(userData.userId, userId)).limit(1);
@@ -52,6 +72,11 @@ async function loadSnapshot(userId: string): Promise<SyncSnapshot> {
 
 syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   const snap = await loadSnapshot(req.user!.id);
+  // What the client is about to reconcile against. If this shows
+  // collection=null while binders>0, the server has lost the collection and
+  // the client's applyServerSnapshot will blank the in-memory cards (~2s
+  // after the IndexedDB hydrate) — the reported "loads then wipes" symptom.
+  console.log(summarize('GET', req.user!.id, snap));
   res.json(snap);
 });
 
@@ -90,6 +115,18 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
     });
   }
 
+  // Diagnostic: compare what's about to be written against what's stored, so a
+  // collection-destroying push is loud and attributable in the container logs.
+  const prior = await loadSnapshot(req.user!.id);
+  const priorCards = collectionCardCount(prior.collection);
+  const incomingCards = collectionCardCount(body.collection ?? null);
+  const wipe = priorCards > 0 && (body.collection == null || incomingCards === 0);
+  console.log(
+    `${summarize('PUT.in', req.user!.id, { ...body, version: body.baseVersion as number })} ` +
+      `prior.collection=${prior.collection ? `${priorCards}cards` : 'null'} prior.v=${prior.version}` +
+      (wipe ? ' *** COLLECTION WIPE: null/empty push over a non-empty stored collection ***' : '')
+  );
+
   const db = getDb();
   const now = Date.now();
   // Optimistic concurrency: only update when DB version matches client's base.
@@ -111,8 +148,16 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
 
   if (updated.length === 0) {
     const current = await loadSnapshot(req.user!.id);
+    console.log(
+      `[sync] PUT.409 user=${req.user!.id} base=${body.baseVersion} dbv=${current.version} ` +
+        `(client re-bases and retries; last-write-wins for fields it touched)`
+    );
     return res.status(409).json({ error: 'Version conflict.', current });
   }
 
+  console.log(
+    `[sync] PUT.ok user=${req.user!.id} v=${updated[0].version} ` +
+      `collection=${body.collection == null ? 'null' : `${incomingCards}cards`}`
+  );
   res.json({ version: updated[0].version, updatedAt: updated[0].updatedAt });
 });
