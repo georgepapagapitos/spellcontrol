@@ -8470,10 +8470,10 @@ hr {
     border-color 0.12s;
 }
 
-.collection-list.is-compact .collection-list-scryfall {
-  min-height: 0;
-  padding: 0.4rem 0.7rem;
-  gap: 0.5rem;
+/* Standalone (list/compact): its own element below the bordered list
+   container with clear breathing room — not crammed inside it. */
+.collection-list-scryfall--standalone {
+  margin-top: 0.85rem;
 }
 
 .collection-list-scryfall:hover,
