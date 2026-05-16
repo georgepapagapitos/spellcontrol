@@ -6,9 +6,11 @@ import type {
   MaterializedBinder,
   PocketSize,
   SortEntry,
+  SortField,
 } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { sortEntryLabel } from '../lib/sorting';
+import { SortPopover } from './SortPopover';
 import { PageGrid } from './PageGrid';
 import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
@@ -45,6 +47,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
   const { confirm, dialog: confirmDialog } = useConfirm();
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
@@ -110,6 +113,11 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
         sections={active.sections}
         pocketSize={active.effectivePocketSize}
         sorts={active.displaySorts}
+        editSorts={active.def.sorts}
+        valueOrders={active.def.sortValueOrders ?? {}}
+        sortEditable={active.def.mode !== 'manual' && !active.def.manualOrder?.length}
+        onSortsChange={(next) => updateBinder(active.def.id, { sorts: next })}
+        onValueOrdersChange={(next) => updateBinder(active.def.id, { sortValueOrders: next })}
         viewToggle={viewToggle}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}
@@ -127,6 +135,11 @@ function SectionList({
   sections,
   pocketSize,
   sorts,
+  editSorts,
+  valueOrders,
+  sortEditable,
+  onSortsChange,
+  onValueOrdersChange,
   viewToggle,
   qtyByCopyId,
   showImages,
@@ -138,6 +151,11 @@ function SectionList({
   sections: BinderSection[];
   pocketSize: PocketSize;
   sorts: SortEntry[];
+  editSorts: SortEntry[];
+  valueOrders: Partial<Record<SortField, string[]>>;
+  sortEditable: boolean;
+  onSortsChange: (next: SortEntry[]) => void;
+  onValueOrdersChange: (next: Partial<Record<SortField, string[]>>) => void;
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
@@ -320,6 +338,14 @@ function SectionList({
           )}
           <Legend />
         </span>
+        {sortEditable && (
+          <SortPopover
+            sorts={editSorts}
+            valueOrders={valueOrders}
+            onSortsChange={onSortsChange}
+            onValueOrdersChange={onValueOrdersChange}
+          />
+        )}
         {sections.length > 1 && (
           <button
             type="button"
