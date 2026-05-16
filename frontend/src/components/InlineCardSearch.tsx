@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { fetchPrintings } from '../lib/api';
@@ -10,21 +10,13 @@ import type { Finish } from '../types';
 interface Props {
   /** The shared collection search term — this panel never owns an input. */
   query: string;
-  /**
-   * Empty-state (zero collection matches) passes true: results show
-   * immediately, no trigger. When the collection DID match, it's rendered
-   * collapsed behind a view-shaped trigger so browsing isn't noisy and no
-   * Scryfall call fires until the user asks for it.
-   */
-  defaultExpanded?: boolean;
-  /**
-   * The active collection layout, so the collapsed trigger matches it: a
-   * card tile in grid, a full row in list, a slim row in compact.
-   */
-  view?: 'grid' | 'list' | 'compact';
+  /** When provided, a Hide control is shown that calls this. */
+  onClose?: () => void;
 }
 
-const RESULT_LIMIT = 40;
+const RESULT_LIMIT = 60;
+const PAGE_SIZE = 10;
+const PRINTING_PAGE_SIZE = 8;
 const FINISH_LABEL: Record<Finish, string> = {
   nonfoil: 'Non-foil',
   foil: 'Foil',
@@ -42,6 +34,10 @@ function fmtPrice(n: number): string {
   return n > 0 ? `$${n.toFixed(2)}` : '—';
 }
 
+function cardThumb(card: ScryfallCard): string | undefined {
+  return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
+}
+
 function cardFinishes(card: ScryfallCard): Finish[] {
   const all = (card.finishes ?? ['nonfoil']).filter(
     (f): f is Finish => f === 'nonfoil' || f === 'foil' || f === 'etched'
@@ -50,18 +46,19 @@ function cardFinishes(card: ScryfallCard): Finish[] {
 }
 
 /**
- * Live Scryfall search-and-add, driven entirely by the collection's own
- * search bar (no second input — typing up top updates these results).
- * Quick-add uses the printing Scryfall returns (nonfoil), same as the
- * top-level Add card button; the per-row "Printings" disclosure lazily
- * loads every printing so a specific set + finish can be chosen inline.
- * All network goes through the shared rate-limited, cached client.
+ * Live Scryfall search-and-add results panel, driven entirely by the
+ * collection's own search bar (no second input — typing up top updates
+ * these results). The trigger that opens it lives in the grid/list as
+ * the trailing card/row. Quick-add uses the printing Scryfall returns
+ * (nonfoil), same as the top-level Add card button; the per-row
+ * "Printings" disclosure lazily loads every printing so a specific set +
+ * finish can be chosen inline. All network goes through the shared
+ * rate-limited, cached client.
  */
-export function InlineCardSearch({ query, defaultExpanded = false, view = 'grid' }: Props) {
+export function InlineCardSearch({ query, onClose }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
   const collection = useCollectionStore((s) => s.cards);
 
-  const [expanded, setExpanded] = useState(defaultExpanded);
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +66,13 @@ export function InlineCardSearch({ query, defaultExpanded = false, view = 'grid'
   // How many copies the user added this session, keyed by scryfall id, so
   // the row can confirm the action without re-deriving from the collection.
   const [addedCounts, setAddedCounts] = useState<Record<string, number>>({});
+  // Progressive reveal instead of an inner scrollbar — the page scrolls.
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const debounceRef = useRef<number | null>(null);
 
   const q = query.trim();
 
   useEffect(() => {
-    if (!expanded) return;
     let cancelled = false;
     async function run() {
       if (q.length < 2) {
@@ -96,6 +94,7 @@ export function InlineCardSearch({ query, defaultExpanded = false, view = 'grid'
         const resp = await searchCards(q, [], { skipFormatFilter: true });
         if (!cancelled) {
           setResults(resp.data.slice(0, RESULT_LIMIT));
+          setVisible(PAGE_SIZE);
           setOpenPrintingsId(null);
         }
       } catch (e) {
@@ -112,7 +111,7 @@ export function InlineCardSearch({ query, defaultExpanded = false, view = 'grid'
       cancelled = true;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [q, expanded]);
+  }, [q]);
 
   const ownedCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -136,120 +135,107 @@ export function InlineCardSearch({ query, defaultExpanded = false, view = 'grid'
     confirm(card.id);
   };
 
-  const showTrigger = !defaultExpanded && !expanded;
-
   return (
-    <div className="inline-card-search-wrap">
-      {showTrigger && (
-        <button
-          type="button"
-          className={`inline-card-search-tile inline-card-search-tile--${view}`}
-          aria-expanded={false}
-          aria-label={`Search Scryfall for ${q}`}
-          onClick={() => setExpanded(true)}
-        >
-          <Search
-            className="inline-card-search-tile-icon"
-            width={view === 'grid' ? 26 : 16}
-            height={view === 'grid' ? 26 : 16}
-            strokeWidth={1.8}
-            aria-hidden
-          />
-          <span className="inline-card-search-tile-text">
-            <span className="inline-card-search-tile-title">Search Scryfall</span>
-            <span className="inline-card-search-tile-sub">for “{q}”</span>
-          </span>
-        </button>
+    <div className="inline-card-search">
+      <div className="inline-card-search-head">
+        <span className="inline-card-search-head-title">Scryfall results for “{q}”</span>
+        {onClose && (
+          <button type="button" className="inline-card-search-hide" onClick={onClose}>
+            Hide
+          </button>
+        )}
+      </div>
+      {q.length < 2 && (
+        <p className="inline-card-search-status">Type at least two characters above.</p>
+      )}
+      {q.length >= 2 && loading && <p className="inline-card-search-status">Searching Scryfall…</p>}
+      {error && <p className="inline-card-search-status inline-card-search-error">{error}</p>}
+      {q.length >= 2 && !loading && !error && results.length === 0 && (
+        <p className="inline-card-search-status">No cards on Scryfall match “{q}”.</p>
       )}
 
-      {expanded && (
-        <div className="inline-card-search">
-          {!defaultExpanded && (
-            <div className="inline-card-search-head">
-              <span className="inline-card-search-head-title">Scryfall results for “{q}”</span>
-              <button
-                type="button"
-                className="inline-card-search-hide"
-                onClick={() => setExpanded(false)}
-              >
-                Hide
-              </button>
-            </div>
-          )}
-          {q.length < 2 && (
-            <p className="inline-card-search-status">Type at least two characters above.</p>
-          )}
-          {q.length >= 2 && loading && (
-            <p className="inline-card-search-status">Searching Scryfall…</p>
-          )}
-          {error && <p className="inline-card-search-status inline-card-search-error">{error}</p>}
-          {q.length >= 2 && !loading && !error && results.length === 0 && (
-            <p className="inline-card-search-status">No cards on Scryfall match “{q}”.</p>
-          )}
-
-          {results.length > 0 && (
-            <ul className="inline-card-search-list" role="listbox" aria-label="Scryfall results">
-              {results.map((c) => {
-                const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
-                const added = addedCounts[c.id] ?? 0;
-                const printingsOpen = openPrintingsId === c.id;
-                const finishes = cardFinishes(c);
-                return (
-                  <li key={c.id} className="inline-card-search-item">
-                    <div className="inline-card-search-row">
-                      <button
-                        type="button"
-                        className="inline-card-search-add"
-                        aria-label={`Add ${c.name}`}
-                        onClick={() => void quickAdd(c)}
-                      >
-                        {added > 0 ? (
-                          <Check width={12} height={12} strokeWidth={2.5} aria-hidden />
-                        ) : (
-                          <Plus width={12} height={12} strokeWidth={2.5} aria-hidden />
-                        )}
-                      </button>
-                      <span className="inline-card-search-name">{c.name}</span>
-                      {c.mana_cost && (
-                        <ManaCost cost={c.mana_cost} className="inline-card-search-mana" />
-                      )}
-                      <span className="inline-card-search-meta">
-                        {added > 0 && (
-                          <span className="inline-card-search-added">added ×{added}</span>
-                        )}
-                        {owned > 0 && (
-                          <span className="inline-card-search-owned">in collection ×{owned}</span>
-                        )}
-                      </span>
-                      <button
-                        type="button"
-                        className={`inline-card-search-printings-toggle${
-                          printingsOpen ? ' is-open' : ''
-                        }`}
-                        aria-expanded={printingsOpen}
-                        onClick={() => setOpenPrintingsId(printingsOpen ? null : c.id)}
-                      >
-                        {printingsOpen ? (
-                          <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
-                        ) : (
-                          <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
-                        )}
-                        {finishes.length > 1 ? 'Printing & finish' : 'Printing'}
-                      </button>
-                    </div>
-                    {printingsOpen && (
-                      <PrintingPicker
-                        cardName={c.name}
-                        fallback={c}
-                        onAdd={(printing, finish) => void addPrinting(printing, finish)}
-                      />
+      {results.length > 0 && (
+        <ul className="inline-card-search-list" role="listbox" aria-label="Scryfall results">
+          {results.slice(0, visible).map((c) => {
+            const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
+            const added = addedCounts[c.id] ?? 0;
+            const printingsOpen = openPrintingsId === c.id;
+            const finishes = cardFinishes(c);
+            return (
+              <li key={c.id} className="inline-card-search-item">
+                <div className="inline-card-search-row">
+                  <button
+                    type="button"
+                    className="inline-card-search-add"
+                    aria-label={`Add ${c.name}`}
+                    onClick={() => void quickAdd(c)}
+                  >
+                    {added > 0 ? (
+                      <Check width={12} height={12} strokeWidth={2.5} aria-hidden />
+                    ) : (
+                      <Plus width={12} height={12} strokeWidth={2.5} aria-hidden />
                     )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+                  </button>
+                  {cardThumb(c) ? (
+                    <img
+                      src={cardThumb(c)}
+                      alt=""
+                      loading="lazy"
+                      className="inline-card-search-thumb"
+                    />
+                  ) : (
+                    <span
+                      className="inline-card-search-thumb inline-card-search-thumb--ph"
+                      aria-hidden
+                    />
+                  )}
+                  <span className="inline-card-search-name">{c.name}</span>
+                  {c.mana_cost && (
+                    <ManaCost cost={c.mana_cost} className="inline-card-search-mana" />
+                  )}
+                  <span className="inline-card-search-meta">
+                    {added > 0 && <span className="inline-card-search-added">added ×{added}</span>}
+                    {owned > 0 && (
+                      <span className="inline-card-search-owned">in collection ×{owned}</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className={`inline-card-search-printings-toggle${
+                      printingsOpen ? ' is-open' : ''
+                    }`}
+                    aria-expanded={printingsOpen}
+                    onClick={() => setOpenPrintingsId(printingsOpen ? null : c.id)}
+                  >
+                    {printingsOpen ? (
+                      <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
+                    ) : (
+                      <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
+                    )}
+                    {finishes.length > 1 ? 'Printing & finish' : 'Printing'}
+                  </button>
+                </div>
+                {printingsOpen && (
+                  <PrintingPicker
+                    cardName={c.name}
+                    fallback={c}
+                    onAdd={(printing, finish) => void addPrinting(printing, finish)}
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {results.length > visible && (
+        <button
+          type="button"
+          className="inline-card-search-more"
+          onClick={() => setVisible((v) => v + PAGE_SIZE)}
+        >
+          Show {Math.min(PAGE_SIZE, results.length - visible)} more · {results.length - visible} not
+          shown
+        </button>
       )}
     </div>
   );
@@ -269,6 +255,7 @@ function PrintingPicker({
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>(fallback.id);
   const [finish, setFinish] = useState<Finish>('nonfoil');
+  const [pVisible, setPVisible] = useState(PRINTING_PAGE_SIZE);
 
   // cardName is fixed for this picker's lifetime (a different row mounts a
   // fresh picker), so the initial loading/error state is correct and we
@@ -313,7 +300,7 @@ function PrintingPicker({
       {printings && (
         <>
           <ul className="inline-card-search-printing-list" role="listbox" aria-label="Printings">
-            {printings.map((p) => {
+            {printings.slice(0, pVisible).map((p) => {
               const isSel = p.id === selectedId;
               return (
                 <li key={p.id}>
@@ -336,6 +323,15 @@ function PrintingPicker({
               );
             })}
           </ul>
+          {printings.length > pVisible && (
+            <button
+              type="button"
+              className="inline-card-search-more inline-card-search-more--printings"
+              onClick={() => setPVisible((v) => v + PRINTING_PAGE_SIZE)}
+            >
+              Show {Math.min(PRINTING_PAGE_SIZE, printings.length - pVisible)} more printings
+            </button>
+          )}
           {selected && (
             <div className="inline-card-search-finish-bar">
               <div className="inline-card-search-finishes" role="group" aria-label="Finish">
