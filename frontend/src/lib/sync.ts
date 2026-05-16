@@ -282,7 +282,10 @@ async function hydrateFromCache(): Promise<void> {
   }
 }
 
-async function applyServerSnapshot(snap: SyncSnapshot): Promise<void> {
+async function applyServerSnapshot(
+  snap: SyncSnapshot,
+  opts: { keepLocalCollection?: boolean } = {}
+): Promise<void> {
   isApplyingServer = true;
   const prevCards = useCollectionStore.getState().cards;
   try {
@@ -307,6 +310,23 @@ async function applyServerSnapshot(snap: SyncSnapshot): Promise<void> {
     // already empty (nothing to clear) or (b) a bug we refuse to amplify into
     // permanent data loss. Real deletion is explicit and lives in
     // clearCards() / wipeLocal(). Regression guard for the #153-class bug.
+
+    if (opts.keepLocalCollection) {
+      // The server lost the collection but still has other slices (binders),
+      // so isServerEmpty() is false and the whole-snapshot promotion guard
+      // doesn't fire. Apply the server's non-collection slices but KEEP the
+      // local collection (still in the store + IndexedDB) — blanking it here
+      // is the "loads then wipes after ~2s" bug. The caller re-pushes the
+      // kept collection to repair the server.
+      const keptCards = useCollectionStore.getState().cards;
+      useCollectionStore.setState({ binders: remoteBinders, hydrating: false });
+      useDecksStore.setState({ decks: remoteDecks, hydrated: true });
+      usePlayStore.setState({ history: remoteGames });
+      // Re-resolve the (server) binders' durable key shadow against the kept
+      // local collection so pins/exclusions point at owned copies.
+      reconcileBinders(prevCards, keptCards);
+      return;
+    }
 
     useCollectionStore.setState({
       binders: remoteBinders,
@@ -529,6 +549,21 @@ export async function startSync(userId?: string): Promise<void> {
       // Guest promotion path: a newly authed user has local data but the
       // server account is empty. Push local up.
       persistVersion(snap.version);
+      setDirty();
+      await pushNow();
+    } else if (!snap.collection && buildCollection() !== null) {
+      // Server has NO collection but still has other slices (binders/decks),
+      // so isServerEmpty() is false and the whole-snapshot promotion above
+      // doesn't fire. Hydrate succeeded (not hydrateFailed) and we hold a
+      // real local collection. Applying the snapshot would blank the
+      // in-memory cards even though IndexedDB still has them — the reported
+      // "collection loads then wipes after ~2s, binders stay" bug, where the
+      // server lost the collection but kept binders. Keep local, take the
+      // server's other slices, and push the collection back up to repair the
+      // server. (Tradeoff, consistent with the guest-promotion path: a
+      // deliberate cross-device collection delete can be resurrected by a
+      // device that still holds the cache — far preferable to permanent loss.)
+      await applyServerSnapshot(snap, { keepLocalCollection: true });
       setDirty();
       await pushNow();
     } else {

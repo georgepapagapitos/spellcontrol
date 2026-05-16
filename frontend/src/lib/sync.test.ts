@@ -321,6 +321,49 @@ describe('cache hydration safety', () => {
     expect(useCollectionStore.getState().cards).toHaveLength(1);
     expect(useCollectionStore.getState().binders).toHaveLength(1);
   });
+
+  it('server lost the collection but kept binders: keeps local cards and re-pushes them (the "loads then wipes after 2s" report)', async () => {
+    // Exact production scenario from the [sync] logs: IndexedDB still has the
+    // collection (it shows for ~2s after hydrate), but the server returns
+    // collection=null with binders>0. isServerEmpty() is false because of the
+    // binders, so the whole-snapshot promotion does NOT fire. Applying the
+    // snapshot would blank the in-memory cards.
+    await saveCollection({
+      fileName: 'mine.csv',
+      cards: [{ copyId: 'c1', name: 'Sol Ring' } as never],
+      scryfallHits: 1,
+      scryfallMisses: 0,
+      uploadedAt: 100,
+      importHistory: [],
+    });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [{ id: 'b1', name: 'Server binder', createdAt: 1, updatedAt: 1, position: 0 }],
+      decks: [],
+      games: [],
+      version: 72,
+      updatedAt: 0,
+    });
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 73, updatedAt: 0 });
+
+    await startSync('user-1');
+
+    // Collection is NOT wiped — kept from IndexedDB.
+    expect(useCollectionStore.getState().cards).toHaveLength(1);
+    expect(useCollectionStore.getState().fileName).toBe('mine.csv');
+    // Server's other slices were still applied.
+    expect(useCollectionStore.getState().binders).toHaveLength(1);
+    expect(useCollectionStore.getState().binders[0]).toMatchObject({ name: 'Server binder' });
+    // And the kept collection was pushed back up to repair the server — the
+    // push must carry the real cards, never null, on the server's version.
+    expect(putSpy).toHaveBeenCalled();
+    const repair = putSpy.mock.calls.at(-1)![0];
+    expect(repair.baseVersion).toBe(72);
+    expect(repair.collection).not.toBeNull();
+    expect((repair.collection as { cards: unknown[] }).cards).toHaveLength(1);
+    // Local IndexedDB copy still intact.
+    expect((await loadCollection())?.cards).toHaveLength(1);
+  });
 });
 
 describe('failed cache hydrate (IndexedDB unreadable: iOS cold-start / quota / private mode)', () => {
