@@ -339,6 +339,11 @@ function SectionList({
           <Legend />
         </span>
         {sortEditable && (
+          <span className="binder-summary-sep" aria-hidden="true">
+            ·
+          </span>
+        )}
+        {sortEditable && (
           <SortPopover
             sorts={editSorts}
             valueOrders={valueOrders}
