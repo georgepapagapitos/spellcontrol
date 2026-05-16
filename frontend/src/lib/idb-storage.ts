@@ -15,6 +15,22 @@ import type { StateStorage } from 'zustand/middleware';
  * old quota is reclaimed.
  */
 export function createIndexedDbStorage(dbName: string): StateStorage {
+  // Non-browser environments (SSR, unit tests under the `node` runtime) have
+  // no IndexedDB. Fall back to an in-memory map so store creation/hydration
+  // never throws — same effective "no persistence" behaviour as before.
+  if (typeof indexedDB === 'undefined') {
+    const mem = new Map<string, string>();
+    return {
+      getItem: async (name) => mem.get(name) ?? null,
+      setItem: async (name, value) => {
+        mem.set(name, value);
+      },
+      removeItem: async (name) => {
+        mem.delete(name);
+      },
+    };
+  }
+
   let store: UseStore | null = null;
   const getStore = (): UseStore => {
     if (!store) store = createStore(dbName, 'keyval');
