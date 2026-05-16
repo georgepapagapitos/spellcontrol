@@ -1,4 +1,4 @@
-import { AlignJustify, LayoutGrid, List as ListIconLucide } from 'lucide-react';
+import { AlignJustify, LayoutGrid, List as ListIconLucide, Search } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
@@ -25,6 +25,7 @@ import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
+import { InlineCardSearch } from './InlineCardSearch';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { classifyFoil } from '../lib/foil-style';
@@ -157,6 +158,7 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
 export function CardListTable({ cards, binders, setMap, hideBinderFilter = false }: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
+  const [scryfallOpen, setScryfallOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const toggleSort = (key: SortKey) => {
@@ -514,7 +516,12 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     return () => ro.disconnect();
   }, [view, effectiveGridSize]);
 
-  const gridRowCount = view === 'grid' ? Math.ceil(sorted.length / gridCols) : 0;
+  // Offer Scryfall add whenever there's a real query — even with zero
+  // collection matches (then the trigger is the only card/row).
+  const showScryfall = debouncedSearch.trim().length >= 2;
+  const triggerIndex = sorted.length;
+  const gridItemCount = sorted.length + (showScryfall ? 1 : 0);
+  const gridRowCount = view === 'grid' ? Math.ceil(gridItemCount / gridCols) : 0;
   const GRID_GAP = 10;
 
   const estimateGridRowHeight = useCallback(() => {
@@ -842,7 +849,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         />
       )}
 
-      {sorted.length === 0 ? (
+      {sorted.length === 0 && !showScryfall ? (
         <div className="empty-state">
           <p className="empty-state-tagline">No matches</p>
           <p className="empty-state-hint">
@@ -861,7 +868,6 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         >
           {gridVirtualizer.getVirtualItems().map((virtualRow) => {
             const startIdx = virtualRow.index * gridCols;
-            const rowItems = sorted.slice(startIdx, startIdx + gridCols);
             return (
               <div
                 key={virtualRow.key}
@@ -877,8 +883,30 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                   gap: `${GRID_GAP}px`,
                 }}
               >
-                {rowItems.map((r, colIdx) => {
+                {Array.from({ length: gridCols }, (_, colIdx) => {
                   const idx = startIdx + colIdx;
+                  if (idx === triggerIndex && showScryfall) {
+                    return (
+                      <button
+                        key="scryfall-trigger"
+                        type="button"
+                        className={`collection-grid-item collection-grid-scryfall${
+                          scryfallOpen ? ' is-open' : ''
+                        }`}
+                        onClick={() => setScryfallOpen(true)}
+                        aria-expanded={scryfallOpen}
+                        aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
+                      >
+                        <Search width={26} height={26} strokeWidth={1.6} aria-hidden />
+                        <span className="collection-grid-scryfall-title">Search Scryfall</span>
+                        <span className="collection-grid-scryfall-sub">
+                          for “{debouncedSearch.trim()}”
+                        </span>
+                      </button>
+                    );
+                  }
+                  if (idx >= sorted.length) return null;
+                  const r = sorted[idx];
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   return (
@@ -931,7 +959,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
             );
           })}
         </div>
-      ) : (
+      ) : sorted.length === 0 ? null : (
         <div
           ref={listContainerRef}
           className={`collection-list${view === 'compact' ? ' is-compact' : ''}`}
@@ -957,7 +985,9 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                 }}
               >
                 <div
-                  className="collection-list-row"
+                  className={`collection-list-row${
+                    virtualRow.index === sorted.length - 1 ? ' is-last-row' : ''
+                  }`}
                   role="row"
                   tabIndex={0}
                   onClick={() => setPreviewIndex(virtualRow.index)}
@@ -1016,6 +1046,30 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
             );
           })}
         </div>
+      )}
+
+      {view !== 'grid' && showScryfall && (
+        <button
+          type="button"
+          className={`collection-list-scryfall collection-list-scryfall--standalone${
+            scryfallOpen ? ' is-open' : ''
+          }`}
+          aria-expanded={scryfallOpen}
+          aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
+          onClick={() => setScryfallOpen(true)}
+        >
+          <span className="collection-list-scryfall-icon">
+            <Search width={18} height={18} strokeWidth={1.7} aria-hidden />
+          </span>
+          <span className="collection-list-scryfall-text">
+            <span className="collection-list-scryfall-title">Search Scryfall</span>
+            <span className="collection-list-scryfall-sub">for “{debouncedSearch.trim()}”</span>
+          </span>
+        </button>
+      )}
+
+      {scryfallOpen && showScryfall && (
+        <InlineCardSearch query={debouncedSearch.trim()} onClose={() => setScryfallOpen(false)} />
       )}
 
       {shortcutsOpen && (

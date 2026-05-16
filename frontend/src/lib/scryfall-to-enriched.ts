@@ -1,10 +1,15 @@
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { EnrichedCard } from '../types';
+import type { EnrichedCard, Finish } from '../types';
 
-function resolvePrice(scryfall: ScryfallCard): number {
+/**
+ * Price for the chosen finish, falling back to any available price so a
+ * card never lands at $0 just because its specific finish isn't priced.
+ */
+function resolvePrice(scryfall: ScryfallCard, finish: Finish): number {
   const p = scryfall.prices;
   if (!p) return 0;
-  for (const raw of [p.usd, p.usd_foil, p.usd_etched]) {
+  const preferred = finish === 'foil' ? p.usd_foil : finish === 'etched' ? p.usd_etched : p.usd;
+  for (const raw of [preferred, p.usd, p.usd_foil, p.usd_etched]) {
     if (!raw) continue;
     const n = Number(raw);
     if (Number.isFinite(n) && n > 0) return n;
@@ -12,8 +17,11 @@ function resolvePrice(scryfall: ScryfallCard): number {
   return 0;
 }
 
-export function scryfallToEnrichedCard(scryfall: ScryfallCard): EnrichedCard {
-  const price = resolvePrice(scryfall);
+export function scryfallToEnrichedCard(
+  scryfall: ScryfallCard,
+  finish: Finish = 'nonfoil'
+): EnrichedCard {
+  const price = resolvePrice(scryfall, finish);
   const firstFace = scryfall.card_faces?.[0];
   const backFace = scryfall.card_faces?.[1];
 
@@ -28,8 +36,8 @@ export function scryfallToEnrichedCard(scryfall: ScryfallCard): EnrichedCard {
     purchasePrice: price,
     sourceCategory: '',
     sourceFormat: 'manual',
-    finish: 'nonfoil',
-    foil: false,
+    finish,
+    foil: finish !== 'nonfoil',
     oracleId: scryfall.oracle_id,
     cmc: scryfall.cmc,
     typeLine: scryfall.type_line ?? firstFace?.type_line,
