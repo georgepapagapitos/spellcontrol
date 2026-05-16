@@ -38,7 +38,10 @@ app.use(cookieParser());
 const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 
-app.use(express.json({ limit: '25mb' }));
+// Kept ABOVE the sync snapshot cap (MAX_SNAPSHOT_BYTES, 64MB) so an oversize
+// collection is rejected by the sync route with a friendly, actionable message
+// rather than a raw body-parser 413.
+app.use(express.json({ limit: '72mb' }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
