@@ -6,6 +6,13 @@ import { userData } from '../db/schema';
 
 export const syncRouter: Router = Router();
 
+// Per-user stored-snapshot cap. The global body limit is 25MB, but that's a
+// transport limit — without this an authed user could repeatedly persist
+// ~25MB JSONB blobs (storage-exhaustion DoS, and every later GET/PUT
+// round-trips the blob through a 256MB container). 10MB comfortably fits a
+// very large collection (20k+ copies) while bounding the abuse ceiling.
+const MAX_SNAPSHOT_BYTES = 10 * 1024 * 1024;
+
 interface SyncSnapshot {
   collection: unknown;
   binders: unknown;
@@ -67,6 +74,21 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'games must be an array if provided.' });
   }
   // collection is allowed to be null (no upload yet) or any object shape.
+
+  const snapshotBytes = Buffer.byteLength(
+    JSON.stringify({
+      collection: body.collection ?? null,
+      binders: body.binders,
+      decks: body.decks,
+      games: body.games ?? [],
+    }),
+    'utf8'
+  );
+  if (snapshotBytes > MAX_SNAPSHOT_BYTES) {
+    return res.status(413).json({
+      error: `Saved data is too large (${Math.ceil(snapshotBytes / 1024 / 1024)} MB). Maximum is ${MAX_SNAPSHOT_BYTES / 1024 / 1024} MB.`,
+    });
+  }
 
   const db = getDb();
   const now = Date.now();
