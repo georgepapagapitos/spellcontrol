@@ -764,6 +764,125 @@ select {
   padding: 8px 14px;
 }
 
+.staged-files {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface1);
+  padding: 0.75rem;
+  margin: 0 0 0.85rem;
+}
+
+.staged-files-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: 0.5rem;
+}
+
+.staged-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  max-height: 160px;
+  overflow-y: auto;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.staged-files-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.staged-files-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staged-files-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text3);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.staged-files-remove:hover:not(:disabled) {
+  background: var(--surface1);
+  color: var(--text);
+}
+
+.staged-files-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.binder-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: 0.5rem;
+}
+
+.binder-import-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.binder-import-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface1);
+}
+
+.binder-import-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.binder-import-row-main .binder-name-input {
+  width: 100%;
+}
+
+.binder-import-row-file {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .import-card-desc {
   font-size: var(--text-sm);
   color: var(--text3);

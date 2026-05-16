@@ -1,4 +1,4 @@
-import { Camera, RotateCcw, Trash2 } from 'lucide-react';
+import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
@@ -9,13 +9,17 @@ import { Modal } from './Modal';
 import { CardScanner } from './CardScanner';
 import { useCanScan } from '../lib/use-can-scan';
 import { ProgressBar } from './ProgressBar';
+import { StagedFileList } from './StagedFileList';
+import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 
 interface PendingImport {
-  /** Runs the actual import call. */
-  fn: () => Promise<UploadResponse>;
+  /** Runs the actual import call. Omitted for staged-file batches. */
+  fn?: () => Promise<UploadResponse>;
+  /** Staged files to import sequentially (one history entry per file). */
+  files?: File[];
   /** Display label — file name or "pasted-list". */
   label: string;
-  /** Approximate item count for the prompt (line count for paste, unknown for files). */
+  /** Approximate item count for the prompt (line count for paste, file count for batches). */
   preview?: string;
   /** True for sample-set imports — flagged in history so users can find & delete them. */
   isSample?: boolean;
@@ -25,6 +29,8 @@ export function UploadPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [stageNote, setStageNote] = useState<string | null>(null);
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
@@ -54,11 +60,32 @@ export function UploadPanel() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = e.target.files ? Array.from(e.target.files) : [];
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (!file) return;
-    queueImport({ fn: () => importFile(file), label: file.name, preview: file.name });
+    if (incoming.length === 0) return;
+    const { files, renamed, dropped } = mergeStagedFiles(stagedFiles, incoming);
+    setStagedFiles(files);
+    setStageNote(stagedFilesNotice(renamed, dropped));
+  };
+
+  const handleRemoveStaged = (index: number) => {
+    setStagedFiles((fs) => fs.filter((_, i) => i !== index));
+    setStageNote(null);
+  };
+
+  const handleClearStaged = () => {
+    setStagedFiles([]);
+    setStageNote(null);
+  };
+
+  const handleImportStaged = () => {
+    if (stagedFiles.length === 0 || isLoading) return;
+    queueImport({
+      files: stagedFiles,
+      label: `${stagedFiles.length} files`,
+      preview: `${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}`,
+    });
   };
 
   const handlePasteImport = () => {
@@ -83,7 +110,32 @@ export function UploadPanel() {
     setSuccessMsg(null);
     setShowUnresolved(false);
     try {
-      const result = await p.fn();
+      if (p.files) {
+        // Sequential batch: one history entry per file. For 'replace' the
+        // first file wipes the collection and the rest append, so the net
+        // result is the union of every file rather than just the last.
+        let totalCards = 0;
+        let totalUnresolved = 0;
+        for (let i = 0; i < p.files.length; i++) {
+          const file = p.files[i];
+          const result = await importFile(file);
+          const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
+          await importCards(result, file.name, fileMode, { isSample: p.isSample, binderName });
+          totalCards += result.cards.length;
+          totalUnresolved += result.unresolvedNames.length;
+        }
+        const parts: string[] = [
+          `Imported ${totalCards.toLocaleString()} cards from ${p.files.length} files`,
+        ];
+        if (totalUnresolved > 0) parts.push(`${totalUnresolved} unresolved`);
+        if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
+        setSuccessMsg(parts.join(' · '));
+        setStagedFiles([]);
+        setStageNote(null);
+        return;
+      }
+
+      const result = await p.fn!();
       await importCards(result, p.label, mode, {
         isSample: p.isSample,
         binderName,
@@ -256,16 +308,21 @@ export function UploadPanel() {
                 className="btn import-upload-btn"
                 onClick={handlePickFile}
                 disabled={isLoading}
-                title="Upload a CSV/TSV file (ManaBox, Archidekt, Moxfield, Deckbox, etc.)"
+                title="Upload one or more CSV/TSV files (ManaBox, Archidekt, Moxfield, Deckbox, etc.)"
               >
-                {isLoading && <span className="spinner" />}
-                <span>Upload CSV</span>
+                {isLoading ? (
+                  <span className="spinner" />
+                ) : (
+                  <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
+                )}
+                <span>Upload files</span>
               </button>
             </div>
             <input
               type="file"
               ref={fileInputRef}
               accept=".csv,.tsv,.txt"
+              multiple
               style={{ display: 'none' }}
               onChange={handleFileChange}
               disabled={isLoading}
@@ -273,17 +330,32 @@ export function UploadPanel() {
           </div>
 
           <p className="import-card-desc">
-            Paste card names — plain text, MTGA format, or pasted CSV — or upload a CSV file. Each
-            card gets matched against Scryfall and routed through your binder rules.
+            Paste card names — plain text, MTGA format, or pasted CSV — or upload one or more CSV
+            files. Each card gets matched against Scryfall and routed through your binder rules.
           </p>
 
-          <textarea
-            className="paste-textarea import-textarea"
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder={'4 Arcane Signet\n1 Cyclonic Rift\n2 Forest\n…'}
-            disabled={isLoading}
-          />
+          {stagedFiles.length > 0 ? (
+            <>
+              <StagedFileList
+                files={stagedFiles}
+                onRemove={handleRemoveStaged}
+                onClear={handleClearStaged}
+                disabled={isLoading}
+              />
+              <p className="import-card-desc">
+                {stageNote ??
+                  'Each file is imported as a separate entry in your import history. Upload more to add to this list.'}
+              </p>
+            </>
+          ) : (
+            <textarea
+              className="paste-textarea import-textarea"
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={'4 Arcane Signet\n1 Cyclonic Rift\n2 Forest\n…'}
+              disabled={isLoading}
+            />
+          )}
 
           <div className="import-card-footer">
             <span className="import-card-hint">
@@ -312,13 +384,21 @@ export function UploadPanel() {
                 MTGA
               </a>
             </span>
-            <button
-              className="btn btn-primary"
-              onClick={handlePasteImport}
-              disabled={isLoading || !pasteText.trim()}
-            >
-              {isLoading ? 'Importing…' : 'Import'}
-            </button>
+            {stagedFiles.length > 0 ? (
+              <button className="btn btn-primary" onClick={handleImportStaged} disabled={isLoading}>
+                {isLoading
+                  ? 'Importing…'
+                  : `Import ${stagedFiles.length} file${stagedFiles.length === 1 ? '' : 's'}`}
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={handlePasteImport}
+                disabled={isLoading || !pasteText.trim()}
+              >
+                {isLoading ? 'Importing…' : 'Import'}
+              </button>
+            )}
           </div>
         </div>
 
