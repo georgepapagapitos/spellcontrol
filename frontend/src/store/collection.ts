@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
+import type { BinderDef, BinderInput, EnrichedCard, Finish, UploadResponse } from '../types';
 import { useDecksStore } from './decks';
 import {
   saveCollection,
@@ -98,7 +98,7 @@ interface CollectionState {
    * Creates an EnrichedCard with a fresh copyId and persists. Returns the
    * new copyId so callers can pin it to a binder in the same action.
    */
-  addCard: (card: ScryfallCard) => Promise<string>;
+  addCard: (card: ScryfallCard, finish?: Finish) => Promise<string>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
@@ -414,8 +414,8 @@ export const useCollectionStore = create<CollectionState>()(
         }
       },
 
-      addCard: async (card) => {
-        const enriched = scryfallToEnrichedCard(card);
+      addCard: async (card, finish) => {
+        const enriched = scryfallToEnrichedCard(card, finish);
         const s = get();
         const updated = [...s.cards, enriched];
         set({ cards: updated });

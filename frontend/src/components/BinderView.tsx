@@ -6,9 +6,10 @@ import type {
   MaterializedBinder,
   PocketSize,
   SortEntry,
+  SortField,
 } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { sortEntryLabel } from '../lib/sorting';
+import { SortPopover } from './SortPopover';
 import { PageGrid } from './PageGrid';
 import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
@@ -45,6 +46,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const updateBinder = useCollectionStore((s) => s.updateBinder);
   const { confirm, dialog: confirmDialog } = useConfirm();
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
@@ -109,7 +111,11 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
         totalPages={active.totalPages}
         sections={active.sections}
         pocketSize={active.effectivePocketSize}
-        sorts={active.displaySorts}
+        editSorts={active.def.sorts}
+        valueOrders={active.def.sortValueOrders ?? {}}
+        sortEditable={active.def.mode !== 'manual' && !active.def.manualOrder?.length}
+        onSortsChange={(next) => updateBinder(active.def.id, { sorts: next })}
+        onValueOrdersChange={(next) => updateBinder(active.def.id, { sortValueOrders: next })}
         viewToggle={viewToggle}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}
@@ -126,7 +132,11 @@ function SectionList({
   totalPages,
   sections,
   pocketSize,
-  sorts,
+  editSorts,
+  valueOrders,
+  sortEditable,
+  onSortsChange,
+  onValueOrdersChange,
   viewToggle,
   qtyByCopyId,
   showImages,
@@ -137,16 +147,16 @@ function SectionList({
   totalPages: number;
   sections: BinderSection[];
   pocketSize: PocketSize;
-  sorts: SortEntry[];
+  editSorts: SortEntry[];
+  valueOrders: Partial<Record<SortField, string[]>>;
+  sortEditable: boolean;
+  onSortsChange: (next: SortEntry[]) => void;
+  onValueOrdersChange: (next: Partial<Record<SortField, string[]>>) => void;
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
   onDelete?: () => void;
 }) {
-  const activeSorts = sorts.filter((s) => s && s.field !== 'none');
-  // Full sort breadcrumb (e.g. "Color › CMC ↓ › Name") — communicates the
-  // section's grouping and the within-section ordering at the same time.
-  const sortBreadcrumb = activeSorts.map(sortEntryLabel);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Tap-to-preview state (touch devices). Tracks which section's card list to
@@ -320,6 +330,19 @@ function SectionList({
           )}
           <Legend />
         </span>
+        {sortEditable && (
+          <span className="binder-summary-sep" aria-hidden="true">
+            ·
+          </span>
+        )}
+        {sortEditable && (
+          <SortPopover
+            sorts={editSorts}
+            valueOrders={valueOrders}
+            onSortsChange={onSortsChange}
+            onValueOrdersChange={onValueOrdersChange}
+          />
+        )}
         {sections.length > 1 && (
           <button
             type="button"
@@ -347,7 +370,6 @@ function SectionList({
             isCollapsed={isCollapsed}
             headerId={headerId}
             panelId={panelId}
-            sortBreadcrumb={sortBreadcrumb}
             pocketSize={pocketSize}
             isPreviewOpen={preview !== null || pagesStartIndex !== null}
             qtyByCopyId={qtyByCopyId}
@@ -461,7 +483,6 @@ function SectionBlock({
   isCollapsed,
   headerId,
   panelId,
-  sortBreadcrumb,
   pocketSize,
   isPreviewOpen,
   qtyByCopyId,
@@ -474,7 +495,6 @@ function SectionBlock({
   isCollapsed: boolean;
   headerId: string;
   panelId: string;
-  sortBreadcrumb: string[];
   pocketSize: PocketSize;
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
@@ -510,11 +530,6 @@ function SectionBlock({
           />
         )}
         <span className="section-title">{section.label}</span>
-        {sortBreadcrumb.length > 0 && (
-          <span className="section-breadcrumb" aria-label="Sort order">
-            {sortBreadcrumb.join(' › ')}
-          </span>
-        )}
         <span className="section-meta">
           {section.cards.length} cards · {section.pages.length} page
           {section.pages.length !== 1 ? 's' : ''}
