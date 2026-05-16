@@ -985,7 +985,9 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                 }}
               >
                 <div
-                  className="collection-list-row"
+                  className={`collection-list-row${
+                    virtualRow.index === sorted.length - 1 ? ' is-last-row' : ''
+                  }`}
                   role="row"
                   tabIndex={0}
                   onClick={() => setPreviewIndex(virtualRow.index)}
