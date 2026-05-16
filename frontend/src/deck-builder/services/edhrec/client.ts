@@ -952,6 +952,7 @@ interface RawTopCommandersResponse {
   container?: {
     json_dict?: {
       cardlists?: Array<{
+        header?: string;
         cardviews?: RawTopCommanderEntry[];
       }>;
     };
@@ -1036,6 +1037,68 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
     return commanders;
   } catch (error) {
     console.warn(`[EDHREC] Failed to fetch top commanders for "${slug}":`, error);
+    return cached?.data ?? [];
+  }
+}
+
+const playstyleCommanderCache = new Map<
+  string,
+  { data: EDHRECTopCommander[]; timestamp: number }
+>();
+
+/**
+ * Fetch the top commanders for a play style (an EDHREC theme/tag such as
+ * "aristocrats", "tokens", "voltron"). Backs the "search by play style"
+ * entry in the guided builder. Color identity isn't on the tag page, so
+ * it's backfilled from Scryfall. Cached for 30 minutes.
+ */
+export async function fetchPlaystyleCommanders(tagSlug: string): Promise<EDHRECTopCommander[]> {
+  const key = tagSlug.toLowerCase().trim();
+  const cached = playstyleCommanderCache.get(key);
+  if (cached && Date.now() - cached.timestamp < TOP_COMMANDER_CACHE_TTL) {
+    return cached.data;
+  }
+
+  try {
+    const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/tags/${key}.json`);
+    const cardlists = response.container?.json_dict?.cardlists ?? [];
+    // The tag page leads with "New Commanders" then "Top Commanders" —
+    // prefer the latter, falling back to the first commander-ish list.
+    const list =
+      cardlists.find((c) => /top commanders/i.test(c.header ?? '')) ??
+      cardlists.find((c) => /commanders/i.test(c.header ?? '')) ??
+      cardlists[0];
+
+    const entries = (list?.cardviews ?? []).filter((e) => !e.name.includes('//')).slice(0, 18);
+
+    let commanders: EDHRECTopCommander[] = entries.map((entry, i) => ({
+      rank: i + 1,
+      name: entry.name,
+      sanitized: entry.sanitized,
+      colorIdentity: entry.color_identity?.map((c) => c.toUpperCase()) ?? [],
+      numDecks: entry.num_decks ?? entry.inclusion ?? 0,
+    }));
+
+    // Tag pages omit color_identity — backfill from Scryfall for the pips.
+    if (commanders.some((c) => c.colorIdentity.length === 0)) {
+      try {
+        const { getCardsByNames } = await import('@/deck-builder/services/scryfall/client');
+        const names = commanders.filter((c) => c.colorIdentity.length === 0).map((c) => c.name);
+        const cardMap = await getCardsByNames(names);
+        commanders = commanders.map((c) => {
+          if (c.colorIdentity.length > 0) return c;
+          const card = cardMap.get(c.name);
+          return { ...c, colorIdentity: card?.color_identity ?? [] };
+        });
+      } catch {
+        // Scryfall lookup failed — show without color pips
+      }
+    }
+
+    playstyleCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
+    return commanders;
+  } catch (error) {
+    console.warn(`[EDHREC] Failed to fetch play-style commanders for "${key}":`, error);
     return cached?.data ?? [];
   }
 }
