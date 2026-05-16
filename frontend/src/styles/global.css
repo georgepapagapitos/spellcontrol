@@ -8401,6 +8401,251 @@ hr {
   font-weight: 600;
 }
 
+/* ── Inline Scryfall search (collection no-results state) ─────── */
+
+.inline-card-search {
+  max-width: 540px;
+  margin: 1rem auto 0;
+  text-align: left;
+}
+
+.inline-card-search-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.inline-card-search-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.inline-card-search-status {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--text3);
+}
+
+.inline-card-search-error {
+  color: var(--err-text);
+}
+
+.inline-card-search-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius);
+}
+
+.inline-card-search-item + .inline-card-search-item {
+  border-top: 0.5px solid var(--border);
+}
+
+.inline-card-search-item.is-active {
+  background: var(--accent-light);
+}
+
+.inline-card-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+}
+
+.inline-card-search-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+
+.inline-card-search-add:hover,
+.inline-card-search-add:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
+.inline-card-search-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.inline-card-search-mana {
+  flex-shrink: 0;
+}
+
+.inline-card-search-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+}
+
+.inline-card-search-added {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.inline-card-search-owned {
+  color: var(--text3);
+}
+
+.inline-card-search-printings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  padding: 0.2rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text3);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.inline-card-search-printings-toggle:hover,
+.inline-card-search-printings-toggle:focus-visible,
+.inline-card-search-printings-toggle.is-open {
+  background: var(--surface2);
+  color: var(--text);
+  outline: none;
+}
+
+.inline-card-search-printings {
+  padding: 0.5rem 0.55rem 0.65rem 2rem;
+  background: var(--surface2);
+}
+
+.inline-card-search-printing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.inline-card-search-printing {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text2);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.inline-card-search-printing:hover {
+  background: var(--surface);
+}
+
+.inline-card-search-printing.is-selected {
+  background: var(--accent-light);
+  color: var(--text);
+}
+
+.inline-card-search-printing-set {
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.inline-card-search-printing-set-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text3);
+}
+
+.inline-card-search-printing-price {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.inline-card-search-finish-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+}
+
+.inline-card-search-finishes {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.inline-card-search-finish {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text2);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.inline-card-search-finish.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.inline-card-search-add-printing {
+  padding: 0.35rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.12s;
+}
+
+.inline-card-search-add-printing:hover,
+.inline-card-search-add-printing:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
 /* ── Binder mode toggle (new binder form) ────────────────────── */
 
 .binder-mode-toggle {
