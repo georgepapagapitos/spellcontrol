@@ -11,7 +11,7 @@ import {
 import type { Deck } from '../store/decks';
 import type { BinderDef, EnrichedCard } from '../types';
 import type { GameRecord } from './game-state';
-import { consumeImmediateFlush } from './sync-intent';
+import { consumeImmediateFlush, peekDestructive, consumeDestructive } from './sync-intent';
 import { fetchOracleIds } from './api/combos';
 import { reconcileBinderRefs } from './binder-refs';
 
@@ -163,14 +163,40 @@ async function pushNow(): Promise<void> {
     return;
   }
   if (!isDirty()) return;
+
+  const collection = buildCollection();
+  const binders = buildBinders();
+  const decks = buildDecks();
+  const games = buildGames();
+  // Root data-loss guard. A blank-slate payload (nothing at all) must never
+  // overwrite the server unless an explicit user deletion produced it. Every
+  // incident in this saga — failed/empty IndexedDB hydrate, the "loads then
+  // wipes after 2s", post-signout re-login pushing emptiness — is a
+  // non-destructive empty state being PUT as if it were the truth. Refuse it;
+  // the server stays authoritative and startSync's fetch (or the next online
+  // event) repopulates this device.
+  if (
+    !collection &&
+    binders.length === 0 &&
+    decks.length === 0 &&
+    games.length === 0 &&
+    !peekDestructive()
+  ) {
+    console.warn('[sync] refused blank push (no explicit deletion) — server stays source of truth');
+    // Don't spin retrying a push we will never send. Real local data will
+    // re-arm the dirty flag through the normal subscriber path.
+    clearDirty();
+    return;
+  }
+
   pushing = true;
   const countAtStart = mutationCount;
   try {
     const result = await putSync({
-      collection: buildCollection(),
-      binders: buildBinders(),
-      decks: buildDecks(),
-      games: buildGames(),
+      collection,
+      binders,
+      decks,
+      games,
       baseVersion: currentVersion,
     });
     persistVersion(result.version);
@@ -179,6 +205,9 @@ async function pushNow(): Promise<void> {
       // is current. Clear the dirty marker. If a mutation DID happen, leave
       // dirty set so the finally-block reschedules a push.
       clearDirty();
+      // The deletion (if any) is now durably accepted — drop the latch so a
+      // later non-destructive empty state can't ride on stale intent.
+      consumeDestructive();
     }
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
@@ -362,12 +391,27 @@ function keepaliveFlush(): void {
     pushTimer = null;
   }
   if (!isDirty()) return;
+  const collection = buildCollection();
+  const binders = buildBinders();
+  const decks = buildDecks();
+  const games = buildGames();
+  // Same root guard as pushNow(): never let a blank-slate snapshot escape on
+  // backgrounding/unload unless an explicit deletion produced it.
+  if (
+    !collection &&
+    binders.length === 0 &&
+    decks.length === 0 &&
+    games.length === 0 &&
+    !peekDestructive()
+  ) {
+    return;
+  }
   try {
     const payload = JSON.stringify({
-      collection: buildCollection(),
-      binders: buildBinders(),
-      decks: buildDecks(),
-      games: buildGames(),
+      collection,
+      binders,
+      decks,
+      games,
       baseVersion: currentVersion,
     });
     fetch('/api/sync', {
