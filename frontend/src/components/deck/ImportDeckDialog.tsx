@@ -13,6 +13,12 @@ import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
 import { isValidCommander } from '../../lib/commanders';
+import {
+  MAX_STAGED_FILES as MAX_FILES,
+  mergeStagedFiles,
+  stagedFilesNotice,
+  stripExtension,
+} from '../../lib/staged-files';
 
 interface Props {
   onClose: () => void;
@@ -25,9 +31,6 @@ type Step = 'input' | 'parsing' | 'batch' | 'review';
 type BatchMode = 'separate' | 'merge';
 
 const FORMATS = Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[];
-
-/** Most files that can be staged for a single batch import. */
-const MAX_FILES = 10;
 
 /**
  * A parsed-but-not-yet-saved deck. The user can edit name / format / commander
@@ -59,22 +62,6 @@ function normalizeFormat(detected: string | undefined | null): DeckFormat | null
   if (!detected) return null;
   const slug = detected.toLowerCase();
   return FORMATS.find((f) => f === slug) ?? null;
-}
-
-function stripExtension(fileName: string): string {
-  const dot = fileName.lastIndexOf('.');
-  return dot > 0 ? fileName.slice(0, dot) : fileName;
-}
-
-/** Returns `name` if free, else the next available "base (n).ext" variant. */
-function uniqueFileName(name: string, taken: Set<string>): string {
-  if (!taken.has(name)) return name;
-  const dot = name.lastIndexOf('.');
-  const base = dot > 0 ? name.slice(0, dot) : name;
-  const ext = dot > 0 ? name.slice(dot) : '';
-  let n = 1;
-  while (taken.has(`${base} (${n})${ext}`)) n++;
-  return `${base} (${n})${ext}`;
 }
 
 const PASTE_PLACEHOLDERS: Record<DeckFormat, string> = {
@@ -291,41 +278,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const acceptFiles = useCallback(
     (incoming: File[]) => {
       if (incoming.length === 0) return;
-      const taken = new Set(batchFiles.map((f) => f.name));
-      const next = [...batchFiles];
-      let renamed = 0;
-      let dropped = 0;
-      for (const file of incoming) {
-        if (next.length >= MAX_FILES) {
-          dropped++;
-          continue;
-        }
-        const finalName = uniqueFileName(file.name, taken);
-        if (finalName !== file.name) {
-          renamed++;
-          next.push(
-            new File([file], finalName, { type: file.type, lastModified: file.lastModified })
-          );
-        } else {
-          next.push(file);
-        }
-        taken.add(finalName);
-      }
-      const notes: string[] = [];
-      if (renamed > 0) {
-        notes.push(
-          `${renamed} file${renamed === 1 ? '' : 's'} had a duplicate name and ${
-            renamed === 1 ? 'was' : 'were'
-          } added as a copy.`
-        );
-      }
-      if (dropped > 0) {
-        notes.push(
-          `${dropped} file${dropped === 1 ? '' : 's'} skipped — you can stage up to ${MAX_FILES} at a time.`
-        );
-      }
-      setError(notes.length > 0 ? notes.join(' ') : null);
-      setBatchFiles(next);
+      const { files, renamed, dropped } = mergeStagedFiles(batchFiles, incoming);
+      setError(stagedFilesNotice(renamed, dropped));
+      setBatchFiles(files);
     },
     [batchFiles]
   );
