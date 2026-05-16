@@ -95,6 +95,7 @@ const defaultCustomization: Customization = {
   },
   tempoAutoDetect: true,
   tempoPacing: 'balanced',
+  saltTolerance: 2,
 };
 
 export const useDeckBuilderStore = create<AppState>((set, get) => ({
