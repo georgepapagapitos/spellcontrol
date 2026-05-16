@@ -1,0 +1,239 @@
+import { useEffect, useMemo, useState } from 'react';
+import { fetchPlaystyleCommanders } from '@/deck-builder/services/edhrec/client';
+import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
+import { useCollectionStore } from '../../store/collection';
+import type { EnrichedCard } from '../../types';
+
+interface Props {
+  onSelectCommander: (card: ScryfallCard) => void;
+}
+
+interface PlayStyle {
+  label: string;
+  /** EDHREC tag slug (verified to resolve at /pages/tags/{slug}.json). */
+  slug: string;
+  blurb: string;
+}
+
+// Shared with CommanderSearch so "use my collection" stays one preference
+// across both the by-commander and by-play-style paths.
+const OWNED_ONLY_KEY = 'commander-search-owned-only';
+
+function isLegendaryCreature(card: EnrichedCard): boolean {
+  const tl = (card.typeLine?.split('//')[0] ?? '').toLowerCase();
+  return tl.includes('legendary') && tl.includes('creature');
+}
+
+// Curated, broadly-distinct play styles. Each slug is a real EDHREC tag.
+const PLAY_STYLES: PlayStyle[] = [
+  {
+    label: 'Aristocrats',
+    slug: 'aristocrats',
+    blurb: 'Sacrifice creatures for value and drain the table.',
+  },
+  {
+    label: 'Tokens (go wide)',
+    slug: 'tokens',
+    blurb: 'Flood the board with tokens, then pump and swing.',
+  },
+  {
+    label: 'Voltron',
+    slug: 'voltron',
+    blurb: 'Suit up one threat with equipment/auras and connect.',
+  },
+  {
+    label: 'Spellslinger',
+    slug: 'spellslinger',
+    blurb: 'Chain instants and sorceries for payoffs.',
+  },
+  { label: 'Control', slug: 'control', blurb: 'Counter, remove, and grind the game out.' },
+  { label: 'Combo', slug: 'combo', blurb: 'Assemble a two- or three-card win.' },
+  { label: 'Reanimator', slug: 'reanimator', blurb: 'Cheat big things out of the graveyard.' },
+  { label: 'Landfall', slug: 'landfall', blurb: 'Ramp extra lands for snowballing triggers.' },
+  { label: 'Artifacts', slug: 'artifacts', blurb: 'Go wide on artifacts and treasures.' },
+  { label: 'Enchantress', slug: 'enchantress', blurb: 'Draw and snowball off enchantments.' },
+  {
+    label: '+1/+1 Counters',
+    slug: 'proliferate',
+    blurb: 'Grow creatures with counters and proliferate.',
+  },
+  { label: 'Lifegain', slug: 'lifegain', blurb: 'Gain life and turn it into a win condition.' },
+  {
+    label: 'Blink',
+    slug: 'blink',
+    blurb: 'Flicker creatures to abuse enter-the-battlefield effects.',
+  },
+  { label: 'Superfriends', slug: 'planeswalkers', blurb: 'Stick planeswalkers and protect them.' },
+];
+
+export function PlaystylePicker({ onSelectCommander }: Props) {
+  const [style, setStyle] = useState<PlayStyle | null>(null);
+  const [commanders, setCommanders] = useState<EDHRECTopCommander[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const collectionCards = useCollectionStore((s) => s.cards);
+  const collectionLegends = useMemo(
+    () => collectionCards.filter(isLegendaryCreature),
+    [collectionCards]
+  );
+  const ownedNames = useMemo(
+    () => new Set(collectionLegends.map((c) => c.name)),
+    [collectionLegends]
+  );
+
+  const [ownedOnly, setOwnedOnly] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(OWNED_ONLY_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (!style) return;
+    const activeStyle = style;
+    let cancelled = false;
+    async function run() {
+      setLoading(true);
+      setError(null);
+      setCommanders([]);
+      try {
+        const list = await fetchPlaystyleCommanders(activeStyle.slug);
+        if (cancelled) return;
+        if (list.length === 0) setError('No commanders found for that play style.');
+        setCommanders(list);
+      } catch {
+        if (!cancelled) setError('Could not load commanders for that play style.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [style]);
+
+  const visibleCommanders = useMemo(
+    () => (ownedOnly ? commanders.filter((c) => ownedNames.has(c.name)) : commanders),
+    [commanders, ownedOnly, ownedNames]
+  );
+
+  const handlePick = async (name: string) => {
+    setResolving(name);
+    setError(null);
+    try {
+      const card = await getCardByName(name, true);
+      onSelectCommander(card);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load that commander.');
+    } finally {
+      setResolving(null);
+    }
+  };
+
+  // Shared across both screens so the preference is always reachable.
+  const ownedToggle =
+    collectionLegends.length > 0 || ownedOnly ? (
+      <label className="commander-owned-toggle">
+        <input
+          type="checkbox"
+          checked={ownedOnly}
+          onChange={(e) => {
+            const next = e.target.checked;
+            setOwnedOnly(next);
+            try {
+              localStorage.setItem(OWNED_ONLY_KEY, String(next));
+            } catch {
+              /* ignore */
+            }
+          }}
+        />
+        <span>
+          Commanders I own
+          {collectionLegends.length > 0 && (
+            <span className="commander-owned-count">
+              {' '}
+              ({collectionLegends.length.toLocaleString()} legend
+              {collectionLegends.length === 1 ? '' : 's'})
+            </span>
+          )}
+        </span>
+      </label>
+    ) : null;
+
+  if (!style) {
+    return (
+      <div className="playstyle-picker">
+        <p className="playstyle-picker-hint">
+          Pick how you want to play. We’ll show the commanders that do it best on EDHREC.
+        </p>
+        {ownedToggle}
+        <div className="playstyle-grid">
+          {PLAY_STYLES.map((s) => (
+            <button
+              key={s.slug}
+              type="button"
+              className="playstyle-card"
+              onClick={() => setStyle(s)}
+            >
+              <span className="playstyle-card-label">{s.label}</span>
+              <span className="playstyle-card-blurb">{s.blurb}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="playstyle-picker">
+      <div className="playstyle-picker-bar">
+        <button type="button" className="btn-link" onClick={() => setStyle(null)}>
+          ← All play styles
+        </button>
+        <span className="playstyle-picker-current">{style.label}</span>
+      </div>
+      <p className="playstyle-picker-hint">{style.blurb}</p>
+      {ownedToggle}
+
+      {loading ? (
+        <p className="commander-suggestions-empty">Loading commanders…</p>
+      ) : visibleCommanders.length === 0 ? (
+        <p className="commander-suggestions-empty">
+          {ownedOnly && commanders.length > 0
+            ? 'You don’t own any of EDHREC’s top commanders for that play style.'
+            : 'No commanders found.'}
+        </p>
+      ) : (
+        <ul className="commander-suggestion-chips">
+          {visibleCommanders.map((c) => {
+            const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
+            return (
+              <li key={c.sanitized || c.name}>
+                <button
+                  type="button"
+                  className="commander-suggestion-chip"
+                  onClick={() => void handlePick(c.name)}
+                  disabled={resolving !== null}
+                >
+                  <span className="commander-suggestion-pips" aria-hidden>
+                    {colors.map((color) => (
+                      <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                    ))}
+                  </span>
+                  <span>{resolving === c.name ? 'Loading…' : c.name}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {error && <p className="commander-search-error">{error}</p>}
+    </div>
+  );
+}
