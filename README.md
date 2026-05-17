@@ -68,7 +68,7 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 
 ### Prerequisites
 
-- **Node.js 20 or newer**
+- **Node.js 22 or newer** (the version is pinned in `.nvmrc`; CI and the Docker images both use it)
 - A C++ toolchain (for `better-sqlite3`):
   - macOS: `xcode-select --install`
   - Linux: `sudo apt install build-essential python3`

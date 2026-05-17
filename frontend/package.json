@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "refresh-tags": "node scripts/refresh-tagger.mjs --force",
     "predev": "node scripts/refresh-tagger.mjs",
