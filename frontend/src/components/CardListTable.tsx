@@ -103,7 +103,7 @@ function readStoredGridSize(): GridSize {
   }
   return '1x';
 }
-type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc';
+type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc' | 'release';
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
@@ -126,6 +126,7 @@ const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'des
   { key: 'qty', label: 'Quantity', defaultDir: 'desc' },
   { key: 'rarity', label: 'Rarity', defaultDir: 'asc' },
   { key: 'set', label: 'Set', defaultDir: 'asc' },
+  { key: 'release', label: 'Release date', defaultDir: 'desc' },
 ];
 
 const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
@@ -135,6 +136,7 @@ const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
   price: 'price',
   qty: 'quantity',
   cmc: 'cmc',
+  release: 'setReleaseDate',
 };
 
 const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FIELDS.reduce(
