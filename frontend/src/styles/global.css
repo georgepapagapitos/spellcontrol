@@ -5259,6 +5259,16 @@ hr {
   transform: scale(0.96);
 }
 
+/* Destructive action (e.g. Delete) in the icon bar. */
+.card-preview-flip-btn.is-danger {
+  color: #ff8a8a;
+  border-color: rgba(255, 138, 138, 0.4);
+}
+
+.card-preview-flip-btn.is-danger:hover {
+  background: rgba(255, 138, 138, 0.16);
+}
+
 /* While the cursor is moving, the hook lerps every frame — disable the
    transition so we don't double-smooth (which feels laggy). The hook
    writes --rx / --ry on whichever frame is active, foil or not. */
@@ -5580,7 +5590,13 @@ hr {
   padding: 0.9rem 1.1rem;
   padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
   color: #fff;
-  min-height: 9rem;
+  /* Fixed height = the panel never grows or shrinks between cards or
+     callers. Tuned to the collapsed content (role/synergy live behind
+     the Details toggle now, so this can be tight — minimal empty
+     space). Expanding Details scrolls inside this fixed box.
+     border-box so the height includes the padding (deterministic). */
+  box-sizing: border-box;
+  height: 10.5rem;
   overflow-y: auto;
 }
 
@@ -7220,6 +7236,43 @@ hr {
   height: 13px;
 }
 
+/* Grid badges are interactive (a single binder/deck renders as a
+   button/link) but the opaque grid background above overrides the base
+   :hover/:focus-visible styles, leaving no feedback. Restore an explicit
+   affordance — lift + brighten on hover, and a focus ring that reads
+   against the card art behind it regardless of binder/deck color. */
+.collection-grid-badges .card-list-deck-badge,
+.collection-grid-badges .card-list-binder-badge {
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+
+.collection-grid-badges .card-list-binder-badge:hover,
+.collection-grid-badges .card-list-binder-badge:focus-visible {
+  background: rgba(0, 0, 0, 0.92);
+  border-color: var(--binder-color, var(--accent));
+  transform: scale(1.15);
+  outline: none;
+}
+
+.collection-grid-badges .card-list-deck-badge:hover,
+.collection-grid-badges .card-list-deck-badge:focus-visible {
+  background: rgba(0, 0, 0, 0.92);
+  border-color: var(--deck-color, var(--accent));
+  transform: scale(1.15);
+  outline: none;
+}
+
+.collection-grid-badges .card-list-deck-badge:focus-visible,
+.collection-grid-badges .card-list-binder-badge:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.85),
+    0 0 0 4px #fff;
+}
+
 .collection-grid-item.grid-2x .collection-grid-badges {
   bottom: 6px;
   right: 6px;
@@ -7250,6 +7303,27 @@ hr {
 .collection-grid-item.grid-3x .collection-grid-badges svg {
   width: 22px;
   height: 22px;
+}
+
+/* On phones the default (1x) badges are too small to read or tap
+   comfortably. Bump size + tap target; the grid-2x/3x rules above are
+   higher-specificity and already large, so they're unaffected. */
+@media (max-width: 640px) {
+  .collection-grid-badges {
+    bottom: 6px;
+    right: 6px;
+    gap: 0.3rem;
+  }
+
+  .collection-grid-badges .card-list-deck-badge,
+  .collection-grid-badges .card-list-binder-badge {
+    padding: 0.32rem;
+  }
+
+  .collection-grid-badges svg {
+    width: 17px;
+    height: 17px;
+  }
 }
 
 .collection-grid-item.grid-2x .collection-grid-qty {
