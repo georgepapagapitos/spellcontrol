@@ -959,7 +959,6 @@ body:has(.game-board) .modal-backdrop {
 .player-panel-content button,
 .player-panel-content input,
 .player-panel-content form,
-.player-panel-drawer,
 .seat-menu {
   pointer-events: auto;
 }
@@ -1116,6 +1115,56 @@ body:has(.game-board) .modal-backdrop {
   }
 }
 
+/* Multi-player panels: instead of pinning the − / + to the panel edges
+   (which leaves a big void next to a smaller numeral), anchor them to the
+   panel CENTRE and push them out by half the numeral's width (--life-half,
+   tracked to the per-count font clamp). They hug the number at any digit
+   count while it stays perfectly centred. */
+.game-board-3,
+.game-board-4 {
+  --life-half: 14vmin;
+}
+
+.game-board-5,
+.game-board-6 {
+  --life-half: 11vmin;
+}
+
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:first-child,
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:first-child,
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:first-child,
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:first-child {
+  left: 50%;
+  right: auto;
+  transform: translate(calc(-100% - var(--life-half, 11vmin)), -50%);
+}
+
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:last-child,
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:last-child,
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:last-child,
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:last-child {
+  right: 50%;
+  left: auto;
+  transform: translate(calc(100% + var(--life-half, 11vmin)), -50%);
+}
+
+/* Keep the centre-anchored X offset on press (the generic :active rule
+   resets transform to translateY only, which would snap the button to
+   centre — re-assert the offset here with higher specificity). */
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled) {
+  transform: translate(calc(-100% - var(--life-half, 11vmin)), -50%) scale(0.92);
+}
+
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled) {
+  transform: translate(calc(100% + var(--life-half, 11vmin)), -50%) scale(0.92);
+}
+
 @media (min-width: 600px) {
   .player-panel-life-wrap {
     gap: 0.8rem;
@@ -1143,12 +1192,12 @@ body:has(.game-board) .modal-backdrop {
    on a small phone. */
 .game-board-4 .player-panel-life,
 .game-board-3 .player-panel-life {
-  font-size: clamp(5.5rem, 24vmin, 13rem);
+  font-size: clamp(3.25rem, 16vmin, 13rem);
 }
 
 .game-board-5 .player-panel-life,
 .game-board-6 .player-panel-life {
-  font-size: clamp(4.25rem, 17vmin, 9rem);
+  font-size: clamp(2.5rem, 12vmin, 9rem);
 }
 
 @media (min-width: 1600px) {
@@ -1199,12 +1248,12 @@ body:has(.game-board) .modal-backdrop {
 /* Scale step buttons down alongside the life numeral in tighter layouts. */
 .game-board-4 .player-panel-step-btn,
 .game-board-3 .player-panel-step-btn {
-  font-size: clamp(2rem, 7.5vmin, 4.5rem);
+  font-size: clamp(1.5rem, 5vmin, 4rem);
 }
 
 .game-board-5 .player-panel-step-btn,
 .game-board-6 .player-panel-step-btn {
-  font-size: clamp(1.6rem, 5.5vmin, 3.2rem);
+  font-size: clamp(1.2rem, 4vmin, 2.8rem);
 }
 
 @media (min-width: 1600px) {
@@ -1236,36 +1285,6 @@ body:has(.game-board) .modal-backdrop {
   }
 }
 
-/* Counters chip pinned to the bottom-center of the panel — only renders
-   when commander damage or poison is enabled. */
-.player-panel-drawer-btn {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
-  background: rgba(0, 0, 0, 0.45);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
-  padding: 0.28rem 0.85rem;
-  font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.player-panel-drawer-btn:hover {
-  background: rgba(0, 0, 0, 0.65);
-}
-
-@media (min-width: 600px) {
-  .player-panel-drawer-btn {
-    bottom: 0.7rem;
-    padding: 0.32rem 1rem;
-  }
-}
-
 .player-panel-winner-tag,
 .player-panel-eliminated-tag {
   position: absolute;
@@ -1288,44 +1307,7 @@ body:has(.game-board) .modal-backdrop {
   border-color: rgba(255, 255, 255, 0.25);
 }
 
-/* ── Counters drawer ───────────────────────────────────────────────────── */
-
-.player-panel-drawer {
-  position: absolute;
-  inset: auto 0 0 0;
-  z-index: 4;
-  background: rgba(7, 9, 13, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 0.75rem 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 60%;
-  overflow-y: auto;
-}
-
-.player-panel-drawer-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.player-panel-drawer-close {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: var(--text-md);
-}
-
-.player-panel-drawer-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
+/* ── Counter rows (used by the counters popover) ───────────────────────── */
 
 .counter-row {
   display: flex;
@@ -1378,22 +1360,35 @@ body:has(.game-board) .modal-backdrop {
 /* ── Seat menu (popover inside a panel) ─────────────────────────────────── */
 
 .seat-menu {
-  /* Anchored above the bottom-right menu button so the popover opens
-     upward — same placement intent as before, just relative to the new
-     corner location. */
+  /* Same model as the counters cover: a full-panel sheet that grows out of
+     the ⋯ corner (bottom-right) and inherits the panel's rotation, so it
+     reads upright for that seat on any layout (incl. 90°/270° sideways).
+     No tiny box that overflows a small/rotated panel. */
   position: absolute;
-  bottom: 3rem;
-  right: 0.7rem;
-  z-index: 5;
-  background: #14181f;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.7rem;
+  inset: 0;
+  z-index: 6;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: min(18rem, 80vw);
-  box-shadow: var(--shadow-modal);
+  padding: 0.6rem 0.7rem;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
+    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
+  );
+  clip-path: circle(150% at 88% 88%);
+  animation: pp-seat-open 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes pp-seat-open {
+  from {
+    clip-path: circle(0% at 88% 88%);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: circle(150% at 88% 88%);
+    opacity: 1;
+  }
 }
 
 .seat-menu-head {
@@ -1413,9 +1408,15 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .seat-menu-body {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  min-height: 0;
+  justify-content: center;
+  /* Content normally fits the whole panel; only the very smallest 6-player
+     seats could need this, and then it scrolls rather than clipping. */
+  overflow-y: auto;
 }
 
 .seat-menu-label {
@@ -2622,37 +2623,36 @@ body:has(.game-board) .modal-backdrop {
 
 /* ── Life keypad modal ── */
 
-.life-keypad-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  /* Must sit above the game board (--z-overlay: 1100) — both are portaled
-     to body, so a literal 1000 would be painted under the board. */
-  z-index: calc(var(--z-overlay) + 50);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  animation: pp-fade-in 160ms ease-out;
-}
-
 .life-keypad {
-  /* Adopts the active app theme — the game board is its own dark overlay,
-     but the keypad is a modal that sits on top of it like any other
-     dialog and reads with the rest of the app. */
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow-modal);
-  padding: 1rem;
-  width: min(360px, 100%);
+  /* In-panel cover (same model as counters / seat menu): fills the rotated
+     panel and expands from the centre where the life number sits, so it's
+     oriented to that seat on every layout. */
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  animation: pp-scale-in 160ms ease-out;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
+    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
+  );
+  clip-path: circle(150% at 50% 50%);
+  animation: pp-keypad-open 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes pp-keypad-open {
+  from {
+    clip-path: circle(0% at 50% 50%);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: circle(150% at 50% 50%);
+    opacity: 1;
+  }
 }
 
 @keyframes pp-fade-in {
@@ -2680,11 +2680,12 @@ body:has(.game-board) .modal-backdrop {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  flex: 0 0 auto;
 }
 
 .life-keypad-title {
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .life-keypad-close {
@@ -2711,19 +2712,23 @@ body:has(.game-board) .modal-backdrop {
 
 .life-keypad-display {
   font-family: var(--font-mono);
-  font-size: clamp(2.5rem, 12vmin, 4rem);
+  font-size: clamp(2rem, 10vmin, 4rem);
   font-weight: 700;
   text-align: center;
-  padding: 0.5rem 0;
+  padding: 0.25rem 0;
   line-height: 1;
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: #fff;
+  flex: 0 0 auto;
 }
 
 .life-keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  grid-auto-rows: 1fr;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .life-keypad-btn {
@@ -2731,7 +2736,11 @@ body:has(.game-board) .modal-backdrop {
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 10px;
-  padding: 0.9rem 0;
+  padding: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-mono);
   font-size: var(--text-lg, 1.25rem);
   font-weight: 600;
@@ -2764,10 +2773,11 @@ body:has(.game-board) .modal-backdrop {
   border: none;
   color: var(--on-accent);
   border-radius: 10px;
-  padding: 0.85rem 0;
+  padding: 0.7rem 0;
   font-size: var(--text-md);
   font-weight: 600;
   cursor: pointer;
+  flex: 0 0 auto;
   transition: background 120ms ease;
 }
 
@@ -2783,9 +2793,6 @@ body:has(.game-board) .modal-backdrop {
 @media (hover: hover) {
   .player-panel-life-btn:not(:disabled) {
     cursor: pointer;
-  }
-  .player-panel-drawer-btn:hover {
-    filter: brightness(1.15);
   }
 }
 
@@ -2869,12 +2876,12 @@ body:has(.game-board) .modal-backdrop {
 .layout-option-cell {
   background: linear-gradient(
     155deg,
-    color-mix(in srgb, var(--pp-edge, #6aa6ff) 80%, transparent) 0%,
-    color-mix(in srgb, var(--pp-base, #4a5366) 92%, transparent) 100%
+    color-mix(in srgb, var(--pp-edge, #6aa6ff) 88%, transparent) 0%,
+    color-mix(in srgb, var(--pp-base, #4a5366) 96%, transparent) 100%
   );
-  border-radius: 5px;
+  border-radius: 6px;
   position: relative;
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2883,24 +2890,34 @@ body:has(.game-board) .modal-backdrop {
   overflow: hidden;
 }
 
-.layout-option-cell.is-flipped .layout-option-cell-num {
-  transform: rotate(180deg);
-}
-
 .layout-option-cell.is-empty {
   background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
 }
 
-.layout-option-cell-num {
+/* Big directional arrow = which way that seat reads. This is what makes
+   pod / sides / wide layouts visually distinct in the picker. */
+.layout-option-cell-face {
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.layout-option-cell-face svg {
+  width: clamp(14px, 4.5vmin, 26px);
+  height: clamp(14px, 4.5vmin, 26px);
+}
+
+/* Tiny seat index, tucked in the corner so it doesn't fight the arrow. */
+.layout-option-cell-seat {
+  position: absolute;
+  top: 3px;
+  left: 4px;
   font-family: var(--font-mono);
-  font-weight: 800;
-  font-size: clamp(0.7rem, 2.5vmin, 1.1rem);
-  color: rgba(0, 0, 0, 0.55);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
-  letter-spacing: -0.04em;
+  font-weight: 700;
+  font-size: var(--text-xs, 0.72rem);
   line-height: 1;
-  display: inline-block;
+  color: rgba(0, 0, 0, 0.45);
 }
 
 /* Respect reduced-motion users — kill all decorative animations but keep
@@ -2909,9 +2926,9 @@ body:has(.game-board) .modal-backdrop {
   .player-panel-life-num.is-pop,
   .player-panel.is-winner,
   .floating-delta,
-  .life-keypad,
-  .life-keypad-backdrop {
+  .life-keypad {
     animation: none !important;
+    clip-path: none;
   }
   .player-panel {
     transition: none;
@@ -2924,5 +2941,918 @@ body:has(.game-board) .modal-backdrop {
   }
   .player-panel.is-lethal-flash::after {
     animation-duration: 180ms;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Enhancements: undo, win celebration, low-life pulse, table tools, settings
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Floating undo button — sits beside the seam hub ── */
+.game-board-undo-btn {
+  position: absolute;
+  top: var(--seam-top-pct, 50%);
+  left: var(--seam-left-pct, 50%);
+  /* Offset left of the round hub so the two never overlap. */
+  transform: translate(calc(-50% - 3.4rem), -50%);
+  z-index: 10;
+  background: rgba(14, 17, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 4px rgba(0, 0, 0, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: pp-fade-in 160ms ease-out;
+}
+
+.game-board-undo-btn:hover {
+  background: #1c222d;
+}
+
+.game-board-undo-btn:active {
+  transform: translate(calc(-50% - 3.4rem), -50%) scale(0.94);
+}
+
+@media (min-width: 600px) {
+  .game-board-undo-btn {
+    width: 3rem;
+    height: 3rem;
+    transform: translate(calc(-50% - 4rem), -50%);
+  }
+  .game-board-undo-btn:active {
+    transform: translate(calc(-50% - 4rem), -50%) scale(0.94);
+  }
+}
+
+/* ── Low-life ambient pulse — alive but in topdeck range ── */
+.player-panel.is-low-life::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.55);
+  animation: pp-low-life 1.5s ease-in-out infinite;
+}
+
+@keyframes pp-low-life {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0.35);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px rgba(220, 38, 38, 0.7),
+      inset 0 0 26px rgba(220, 38, 38, 0.35);
+  }
+}
+
+/* ── Win celebration ── */
+.win-celebration {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: pp-fade-in 220ms ease-out;
+}
+
+.win-celebration-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.win-confetti-piece {
+  position: absolute;
+  top: -8%;
+  width: 0.65rem;
+  height: 0.95rem;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation-name: win-confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes win-confetti-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(112vh) rotate(var(--confetti-rot, 180deg));
+    opacity: 0.9;
+  }
+}
+
+.win-celebration-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.75rem 2.5rem;
+  border-radius: 18px;
+  background: rgba(14, 17, 24, 0.92);
+  border: 1px solid var(--win-accent, rgba(255, 224, 122, 0.6));
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 40px color-mix(in srgb, var(--win-accent, #ffe07a) 22%, transparent);
+  color: #fff;
+  text-align: center;
+  animation: win-card-in 420ms cubic-bezier(0.2, 0.9, 0.25, 1.4);
+}
+
+@keyframes win-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.win-celebration-trophy {
+  font-size: clamp(2rem, 9vmin, 2.8rem);
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  animation: win-trophy-pop 600ms ease-out 120ms both;
+}
+
+@keyframes win-trophy-pop {
+  0% {
+    transform: scale(0) rotate(-25deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.win-celebration-name {
+  font-size: clamp(1.6rem, 7vmin, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--win-accent, #ffe07a);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  max-width: 70vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.win-celebration-sub {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.win-celebration-dismiss {
+  margin-top: 0.9rem;
+  padding: 0.55rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.win-celebration-dismiss:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ── Table tools (coin / dice / first player) ── */
+.game-tools-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text2);
+  margin: 0 0 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.game-tools-result-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4.5rem;
+  margin-bottom: 0.7rem;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+
+.game-tools-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.game-tools-result.is-pop {
+  animation: game-tools-pop 320ms cubic-bezier(0.2, 0.9, 0.25, 1.4);
+}
+
+@keyframes game-tools-pop {
+  0% {
+    transform: scale(0.55) rotate(-8deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12) rotate(3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.game-tools-result-big {
+  font-family: var(--font-mono);
+  font-size: clamp(1.8rem, 8vmin, 2.6rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.game-tools-result-name {
+  font-family: inherit;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-tools-result-sub {
+  font-size: var(--text-xs, 0.72rem);
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.game-tools-result-hint {
+  font-size: var(--text-sm);
+  color: var(--text3, var(--text2));
+}
+
+.game-tools-actions,
+.game-tools-dice {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.game-tools-dice {
+  flex-wrap: wrap;
+}
+
+.game-tools-btn,
+.game-tools-die {
+  flex: 1 1 auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.6rem 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.game-tools-die {
+  flex: 1 1 3rem;
+  font-family: var(--font-mono);
+}
+
+.game-tools-btn:hover,
+.game-tools-die:hover,
+.game-tools-btn:focus-visible,
+.game-tools-die:focus-visible {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.game-tools-btn:active,
+.game-tools-die:active {
+  transform: scale(0.96);
+}
+
+.game-tools-custom {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.game-tools-custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1 1 auto;
+  font-size: var(--text-xs, 0.72rem);
+  color: var(--text2);
+}
+
+.game-tools-custom-field input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+}
+
+.game-tools-custom-x {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text2);
+  padding-bottom: 0.55rem;
+}
+
+.game-tools-custom-roll {
+  flex: 0 0 auto;
+}
+
+/* ── Game-menu inline setting toggle (haptics) ── */
+.game-menu-setting {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.game-menu-setting.is-on {
+  border-color: var(--accent);
+}
+
+.game-menu-setting-state {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 0.72rem);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text2);
+}
+
+.game-menu-setting.is-on .game-menu-setting-state {
+  color: var(--accent);
+}
+
+/* ── History "Rematch" affordance ── */
+.play-history-rematch {
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.play-history-rematch:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Reduced-motion: keep info, drop the decorative motion. */
+@media (prefers-reduced-motion: reduce) {
+  .game-board-undo-btn,
+  .win-celebration,
+  .win-celebration-card,
+  .win-celebration-trophy,
+  .game-tools-result.is-pop {
+    animation: none !important;
+  }
+  .player-panel.is-low-life::before {
+    animation: none;
+    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.6);
+  }
+  .win-confetti-piece {
+    display: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Custom table layout: per-seat facing + grid editor
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Seat menu: panel facing ── */
+.seat-menu-facing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.seat-menu-facing-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.seat-menu-facing-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.seat-menu-facing-btn:hover {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+.seat-menu-facing-btn.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ── Layout picker: the "Custom…" tile ── */
+.layout-option-custom {
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 78px;
+}
+
+.layout-option-custom-glyph {
+  font-size: clamp(1.3rem, 5vmin, 1.7rem);
+  color: var(--text2);
+  line-height: 1;
+}
+
+.layout-option-custom-label {
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 600;
+  color: var(--text2);
+}
+
+.layout-option-custom.is-selected .layout-option-custom-label {
+  color: var(--accent);
+}
+
+/* ── Custom layout editor modal ── */
+.cle-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) + 60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: pp-fade-in 160ms ease-out;
+}
+
+.cle {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-modal);
+  width: min(420px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  animation: pp-scale-in 160ms ease-out;
+}
+
+.cle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cle-title {
+  font-weight: 700;
+  font-size: var(--text-md);
+}
+
+.cle-close {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 50%;
+  width: 1.9rem;
+  height: 1.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cle-rows {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cle-label {
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.cle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  /* Roughly a table's footprint; rows stretch within. */
+  min-height: 220px;
+}
+
+.cle-cell {
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text3, var(--text2));
+  font-size: clamp(1rem, 4vmin, 1.3rem);
+  cursor: pointer;
+  min-height: 44px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.cle-cell.is-armed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cle-cell.is-over {
+  background: var(--accent-light);
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.cle-seat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border-radius: 8px;
+  padding: 0.4rem;
+  cursor: grab;
+  color: #fff;
+  touch-action: none;
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--pp-edge, #6aa6ff) 82%, transparent) 0%,
+    color-mix(in srgb, var(--pp-base, #4a5366) 92%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.cle-seat.is-selected {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.cle-seat.is-dragging {
+  opacity: 0.5;
+}
+
+.cle-seat-rot {
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cle-seat-name {
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 700;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.cle-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cle-tray-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cle-tray-chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cle-tray-chip.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.cle-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.cle-controls-name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.cle-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cle-ctrl {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cle-ctrl:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cle-ctrl.is-danger {
+  color: var(--warn-text, #ff7a7a);
+  border-color: var(--warn-border, var(--border));
+}
+
+.cle-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.cle-status {
+  font-size: var(--text-xs, 0.72rem);
+  color: var(--text2);
+}
+
+.cle-foot-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cle-backdrop,
+  .cle {
+    animation: none !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Counter chips + popover (replaces the swipe-up counters drawer)
+   ════════════════════════════════════════════════════════════════════════ */
+
+.player-panel-counters {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.65rem;
+  z-index: 3;
+  display: flex;
+  gap: 0.35rem;
+  pointer-events: auto;
+}
+
+.pp-counter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 80ms ease;
+}
+
+.pp-counter-chip:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.pp-counter-chip:active {
+  transform: scale(0.93);
+}
+
+.pp-counter-icon {
+  font-size: var(--text-xs, 0.72rem);
+  opacity: 0.85;
+}
+
+.pp-counter-chip.is-lethal {
+  background: rgba(220, 38, 38, 0.85);
+  border-color: rgba(255, 180, 180, 0.8);
+  animation: pp-counter-lethal 1.2s ease-in-out infinite;
+}
+
+@keyframes pp-counter-lethal {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+  }
+}
+
+/* Full-panel cover that expands from the chip corner (bottom-left) and
+   blots out the life total — no scrolling: the rows flex to fill. Lives
+   inside the rotated .player-panel so it's oriented exactly like that
+   seat's life number (each panel may differ). */
+.pp-counters-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
+    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
+  );
+  /* Reveal grows out of the bottom-left corner where the chips sit. */
+  clip-path: circle(140% at 12% 88%);
+  animation: pp-counters-open 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes pp-counters-open {
+  from {
+    clip-path: circle(0% at 12% 88%);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: circle(140% at 12% 88%);
+    opacity: 1;
+  }
+}
+
+.pp-counters-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.pp-counters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+}
+
+.pp-counters-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text2, rgba(255, 255, 255, 0.7));
+}
+
+.pp-counters-close {
+  background: var(--surface2, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  color: var(--text2, rgba(255, 255, 255, 0.7));
+  border-radius: 50%;
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Rows flex to fill the panel height instead of scrolling. Even a 6-player
+   pod (poison + 5 commander rows) divides the panel evenly with no
+   overflow. */
+.pp-counters-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.pp-counters-body .counter-row {
+  flex: 1 1 0;
+  min-height: 0;
+  /* Slightly tighter than the standalone row so many rows still fit. */
+  padding: 0.3rem 0.55rem;
+}
+
+.pp-counters-body .counter-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-counters-cover,
+  .seat-menu {
+    animation: none !important;
+    clip-path: none;
+  }
+  .pp-counter-chip.is-lethal {
+    animation: none !important;
   }
 }
