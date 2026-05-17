@@ -21,10 +21,20 @@ const LIFETIME_MS = 1500;
 export function useFloatingDelta(): {
   chips: FloatingChip[];
   push: (delta: number, x: number, y: number) => void;
+  /** Drop all chips immediately (e.g. the burst was undone). */
+  clear: () => void;
 } {
   const [chips, setChips] = useState<FloatingChip[]>([]);
   const idRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clear = useCallback(() => {
+    if (timerRef.current != null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setChips((prev) => (prev.length === 0 ? prev : []));
+  }, []);
 
   const push = useCallback((delta: number, x: number, y: number) => {
     if (delta === 0) return;
@@ -58,5 +68,5 @@ export function useFloatingDelta(): {
     []
   );
 
-  return { chips, push };
+  return { chips, push, clear };
 }
