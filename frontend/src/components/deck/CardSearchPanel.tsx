@@ -35,6 +35,9 @@ export interface AddCardChoice {
 
 export interface CardSearchPanelHandle {
   focusInput(): void;
+  /** Seed the panel from an external search (the deck's in-deck search
+   *  bar): set the query, jump to the Scryfall tab, and focus. */
+  seed(query: string): void;
 }
 
 interface Props {
@@ -153,6 +156,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
 
   useImperativeHandle(ref, () => ({
     focusInput: () => inputRef.current?.focus(),
+    seed: (q: string) => {
+      setQuery(q);
+      setMode('scryfall');
+      inputRef.current?.focus();
+    },
   }));
 
   // Auto-focus on mount.

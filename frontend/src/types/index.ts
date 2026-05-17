@@ -374,6 +374,9 @@ export interface MaterializedBinder {
   sections: BinderSection[];
   totalCards: number;
   totalPages: number;
+  /** Sum of purchasePrice across every card — a Scryfall-snapshot
+   *  approximation (cards with no/stale price contribute 0). */
+  totalValue: number;
 }
 
 export interface UncategorizedBucket {

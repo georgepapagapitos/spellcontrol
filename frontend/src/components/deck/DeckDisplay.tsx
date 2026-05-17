@@ -3,16 +3,18 @@ import {
   Check,
   CircleAlert,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Clipboard,
   Download,
   Eye,
-  FileText,
   Layers,
   LayoutGrid,
   List as ListIconLucide,
   MoreVertical,
+  Pencil,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -30,7 +32,7 @@ import type { DeckCard } from '../../store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { Modal } from '../Modal';
-import { CardPreview } from '../CardPreview';
+import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { COLOR_INFO } from '../../lib/colors';
 import {
@@ -58,6 +60,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
+import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
 
@@ -134,6 +137,40 @@ function multiRoleTitle(card: ScryfallCard): string {
 }
 
 type RoleBadge = { label: string; title: string; tone: string };
+
+// Single source of truth for the 2-letter role badges — consumed by
+// both the per-row badge (getRoleBadge) and the toolbar "Role badge
+// key" legend so the two can't drift apart.
+const ROLE_BADGE_BY_TONE: Record<string, { label: string; title: string }> = {
+  'mana-producer': { label: 'MP', title: 'Mana Producer' },
+  'mana-rock': { label: 'MR', title: 'Mana Rock' },
+  'cost-reducer': { label: 'CR', title: 'Cost Reducer' },
+  ramp: { label: 'RA', title: 'Ramp' },
+  counterspell: { label: 'CT', title: 'Counterspell' },
+  bounce: { label: 'BN', title: 'Bounce' },
+  'spot-removal': { label: 'SR', title: 'Spot Removal' },
+  removal: { label: 'RE', title: 'Removal' },
+  'bounce-wipe': { label: 'BW', title: 'Bounce Wipe' },
+  boardwipe: { label: 'WI', title: 'Board Wipe' },
+  tutor: { label: 'TU', title: 'Tutor' },
+  wheel: { label: 'WH', title: 'Wheel' },
+  cantrip: { label: 'CN', title: 'Cantrip' },
+  'card-draw': { label: 'DR', title: 'Card Draw' },
+  'card-advantage': { label: 'CA', title: 'Card Advantage' },
+};
+
+// Grouped ordering for the legend (by top-level role, matching the
+// Stats panel's Ramp / Removal / Board wipe / Card draw sections).
+const ROLE_BADGE_GROUPS: { group: string; tones: string[] }[] = [
+  { group: 'Ramp', tones: ['mana-producer', 'mana-rock', 'cost-reducer', 'ramp'] },
+  { group: 'Removal', tones: ['counterspell', 'bounce', 'spot-removal', 'removal'] },
+  { group: 'Board wipe', tones: ['bounce-wipe', 'boardwipe'] },
+  { group: 'Card draw', tones: ['tutor', 'wheel', 'cantrip', 'card-draw', 'card-advantage'] },
+];
+
+function badge(tone: string): RoleBadge {
+  return { ...ROLE_BADGE_BY_TONE[tone], tone };
+}
 // Manually-built decks don't go through the generator/enricher, so the
 // deckRole/*Subtype fields on the card are typically empty. Fall back to
 // the bundled tagger so badges show up the same way for both flows.
@@ -145,50 +182,50 @@ function getRoleBadge(card: ScryfallCard): RoleBadge | null {
       const sub = card.rampSubtype ?? getRampSubtype(card.name);
       switch (sub) {
         case 'mana-producer':
-          return { label: 'MP', title: 'Mana Producer', tone: 'mana-producer' };
+          return badge('mana-producer');
         case 'mana-rock':
-          return { label: 'MR', title: 'Mana Rock', tone: 'mana-rock' };
+          return badge('mana-rock');
         case 'cost-reducer':
-          return { label: 'CR', title: 'Cost Reducer', tone: 'cost-reducer' };
+          return badge('cost-reducer');
         default:
-          return { label: 'RA', title: 'Ramp', tone: 'ramp' };
+          return badge('ramp');
       }
     }
     case 'removal': {
       const sub = card.removalSubtype ?? getRemovalSubtype(card.name);
       switch (sub) {
         case 'counterspell':
-          return { label: 'CT', title: 'Counterspell', tone: 'counterspell' };
+          return badge('counterspell');
         case 'bounce':
-          return { label: 'BN', title: 'Bounce', tone: 'bounce' };
+          return badge('bounce');
         case 'spot-removal':
-          return { label: 'SR', title: 'Spot Removal', tone: 'spot-removal' };
+          return badge('spot-removal');
         default:
-          return { label: 'RE', title: 'Removal', tone: 'removal' };
+          return badge('removal');
       }
     }
     case 'boardwipe': {
       const sub = card.boardwipeSubtype ?? getBoardwipeSubtype(card.name);
       switch (sub) {
         case 'bounce-wipe':
-          return { label: 'BW', title: 'Bounce Wipe', tone: 'bounce-wipe' };
+          return badge('bounce-wipe');
         default:
-          return { label: 'WI', title: 'Board Wipe', tone: 'boardwipe' };
+          return badge('boardwipe');
       }
     }
     case 'cardDraw': {
       const sub = card.cardDrawSubtype ?? getCardDrawSubtype(card.name);
       switch (sub) {
         case 'tutor':
-          return { label: 'TU', title: 'Tutor', tone: 'tutor' };
+          return badge('tutor');
         case 'wheel':
-          return { label: 'WH', title: 'Wheel', tone: 'wheel' };
+          return badge('wheel');
         case 'cantrip':
-          return { label: 'CN', title: 'Cantrip', tone: 'cantrip' };
+          return badge('cantrip');
         case 'card-draw':
-          return { label: 'DR', title: 'Card Draw', tone: 'card-draw' };
+          return badge('card-draw');
         default:
-          return { label: 'CA', title: 'Card Advantage', tone: 'card-advantage' };
+          return badge('card-advantage');
       }
     }
     default:
@@ -252,7 +289,10 @@ function readStoredFormat(): ExportFormat {
 // Decks intentionally don't expose a "compact" list mode — the deck row
 // is already text-only and tight, so a denser variant would be visually
 // indistinguishable from the regular list.
-export type DeckViewMode = 'list' | 'grid' | 'text';
+export type DeckViewMode = 'list' | 'grid';
+
+// Card size for grid view — mirrors the collection grid's 1×/2×/3×.
+export type DeckGridSize = '1x' | '2x' | '3x';
 
 interface ShowPrefs {
   price: boolean;
@@ -261,7 +301,19 @@ interface ShowPrefs {
 }
 
 const VIEW_MODE_STORAGE_KEY = 'mtg-decks-view-mode';
+const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 const SHOW_PREFS_STORAGE_KEY = 'mtg-decks-show-prefs';
+
+function readStoredGridSize(): DeckGridSize {
+  if (typeof window === 'undefined') return '1x';
+  try {
+    const v = window.localStorage.getItem(GRID_SIZE_STORAGE_KEY);
+    if (v === '1x' || v === '2x' || v === '3x') return v;
+  } catch {
+    /* ignore */
+  }
+  return '1x';
+}
 
 const DEFAULT_SHOW_PREFS: ShowPrefs = { price: true, roles: true, mana: true };
 
@@ -269,9 +321,10 @@ function readStoredViewMode(): DeckViewMode {
   if (typeof window === 'undefined') return 'list';
   try {
     const v = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-    if (v === 'list' || v === 'grid' || v === 'text') return v;
-    // Migrate the dropped 'compact' mode → 'list' for any persisted value.
-    if (v === 'compact') return 'list';
+    if (v === 'list' || v === 'grid') return v;
+    // Migrate dropped modes ('compact', 'text') → 'list' for any
+    // persisted value.
+    if (v === 'compact' || v === 'text') return 'list';
   } catch {
     /* ignore */
   }
@@ -344,6 +397,9 @@ export interface DeckDisplayProps {
   canMakeCommander?: (card: ScryfallCard) => boolean;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
+  /** Binder(s) each collection copy is filed in, keyed by copyId — drives
+   *  the grid card's binder-membership badge. */
+  binderByCopyId?: Map<string, BinderInfo[]>;
   /**
    * Optional parent-controlled state for the Export dialog. When both
    * are provided, the parent owns the open state — useful for opening
@@ -352,6 +408,11 @@ export interface DeckDisplayProps {
    */
   exportOpen?: boolean;
   onExportOpenChange?: (open: boolean) => void;
+  /** When provided, the in-deck search shows a "Search Scryfall for X"
+   *  trigger (query ≥ 2 chars) that hands the query off to the host's
+   *  add panel — so adding a card not in the deck starts from the same
+   *  search bar, mirroring the collection page. */
+  onAddFromSearch?: (query: string) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -364,6 +425,9 @@ interface Row {
   colorKey: string;
   /** Slot ids covered by this aggregated row (for remove-one). */
   slotIds: string[];
+  /** Non-null allocatedCopyIds across this row's slots — resolves to
+   *  binder membership for the grid badge. */
+  allocatedCopyIds: string[];
   /** Allocation status of this row, summarised across the slots it covers. */
   status: AllocationStatus;
   /** Number of slots in this row whose allocatedCopyId resolves to a real owned copy. */
@@ -460,6 +524,7 @@ function buildRows(
       existing.price += priceOf(card, currency);
       if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
       if (dc.slotId) existing.slotIds.push(dc.slotId);
+      if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
       else if (status === 'claimed-elsewhere') existing.claimedElsewhereQty += 1;
@@ -499,6 +564,7 @@ function buildRows(
       colorKey: colorKeyOf(card),
       addedAt: dc.addedAt ?? 0,
       slotIds: dc.slotId ? [dc.slotId] : [],
+      allocatedCopyIds: dc.allocatedCopyId ? [dc.allocatedCopyId] : [],
       status,
       allocatedQty: status === 'allocated' ? 1 : 0,
       unownedQty: status === 'unowned' ? 1 : 0,
@@ -678,8 +744,10 @@ export function DeckDisplay({
   onMakeCommander,
   canMakeCommander,
   collectionByCopyId,
+  binderByCopyId,
   exportOpen: exportOpenProp,
   onExportOpenChange,
+  onAddFromSearch,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -696,7 +764,22 @@ export function DeckDisplay({
   const [search, setSearch] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
+  const [gridSize, setGridSize] = useState<DeckGridSize>(() => readStoredGridSize());
   const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
+  // Mirrors the collection grid: on narrow viewports 3× can't render
+  // visibly larger than 2×, so the option is hidden and a persisted 3×
+  // is clamped down for layout (without overwriting the stored value).
+  const [isNarrowGrid, setIsNarrowGrid] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsNarrowGrid(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const effectiveGridSize: DeckGridSize = isNarrowGrid && gridSize === '3x' ? '2x' : gridSize;
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
     try {
@@ -709,6 +792,14 @@ export function DeckDisplay({
     setViewMode(m);
     try {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, m);
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleGridSizeChange = (s: DeckGridSize) => {
+    setGridSize(s);
+    try {
+      window.localStorage.setItem(GRID_SIZE_STORAGE_KEY, s);
     } catch {
       /* ignore */
     }
@@ -816,6 +907,7 @@ export function DeckDisplay({
         colorKey: colorKeyOf(c),
         addedAt: 0,
         slotIds: [],
+        allocatedCopyIds: allocatedCopyId ? [allocatedCopyId] : [],
         status,
         allocatedQty: status === 'allocated' ? 1 : 0,
         unownedQty: status === 'unowned' ? 1 : 0,
@@ -939,6 +1031,12 @@ export function DeckDisplay({
       return { ...g, rows: sortRows(filtered, sort, sortDir) };
     });
   }, [sideboardGroups, sort, sortDir, search]);
+
+  // No card in the deck (main or sideboard) matches the current query —
+  // the cue to surface the "search Scryfall to add it" trigger.
+  const noDeckMatches =
+    !visibleGroups.some((g) => g.rows.length > 0) &&
+    !visibleSideboardGroups.some((g) => g.rows.length > 0);
 
   // Flat list for stats panels (commanders included, since color identity
   // and curve are commander-relevant too).
@@ -1071,10 +1169,12 @@ export function DeckDisplay({
   const flat = useMemo(() => {
     const enrichedCards: EnrichedCard[] = [];
     const labels: string[] = [];
+    const rows: Row[] = [];
     const indexByName = new Map<string, number>();
     for (const g of visibleGroups) {
       for (const row of g.rows) {
         indexByName.set(row.name, enrichedCards.length);
+        rows.push(row);
         enrichedCards.push(
           scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack, {
             foil: row.foil,
@@ -1090,7 +1190,7 @@ export function DeckDisplay({
         labels.push(g.title);
       }
     }
-    return { cards: enrichedCards, labels, indexByName };
+    return { cards: enrichedCards, labels, rows, indexByName };
   }, [visibleGroups]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -1120,6 +1220,9 @@ export function DeckDisplay({
           onSearch={setSearch}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
+          gridSize={effectiveGridSize}
+          onGridSizeChange={handleGridSizeChange}
+          isNarrowGrid={isNarrowGrid}
           showPrefs={showPrefs}
           onShowPrefsChange={handleShowPrefsChange}
           onExport={() => setExportOpen(true)}
@@ -1205,9 +1308,28 @@ export function DeckDisplay({
                 groups={visibleGroups}
                 onRowClick={openPreview}
                 legalityBySlot={legalityBySlot}
+                gridSize={effectiveGridSize}
+                showRoles={showPrefs.roles}
+                synergyByName={synergyByName}
+                binderByCopyId={binderByCopyId}
               />
             )}
-            {viewMode === 'text' && <DeckTextView text={exportText} />}
+            {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
+              <button
+                type="button"
+                className="deck-display-scryfall-trigger"
+                onClick={() => onAddFromSearch(search.trim())}
+                aria-label={`Search Scryfall for ${search.trim()} to add a card not in this deck`}
+              >
+                <Search width={16} height={16} strokeWidth={1.8} aria-hidden />
+                <span className="deck-display-scryfall-trigger-text">
+                  <span className="deck-display-scryfall-trigger-title">Search Scryfall</span>
+                  <span className="deck-display-scryfall-trigger-sub">
+                    for "{search.trim()}" — add a card not in this deck
+                  </span>
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1251,6 +1373,65 @@ export function DeckDisplay({
             index={previewIndex}
             onIndexChange={setPreviewIndex}
             onClose={() => setPreviewIndex(null)}
+            getStackBinders={(i) => {
+              const r = flat.rows[i];
+              if (!r || !binderByCopyId) return [];
+              const seen = new Set<string>();
+              const out: BinderInfo[] = [];
+              for (const cid of r.allocatedCopyIds) {
+                for (const b of binderByCopyId.get(cid) ?? []) {
+                  if (!seen.has(b.id)) {
+                    seen.add(b.id);
+                    out.push(b);
+                  }
+                }
+              }
+              return out;
+            }}
+            getStackAllocations={(i) => {
+              const r = flat.rows[i];
+              if (!r || !crossDeck.otherDeckAllocations) return [];
+              const seen = new Set<string>();
+              const out: AllocationInfo[] = [];
+              for (const cid of r.allocatedCopyIds) {
+                const a = crossDeck.otherDeckAllocations.get(cid);
+                if (a && !seen.has(a.deckId)) {
+                  seen.add(a.deckId);
+                  out.push(a);
+                }
+              }
+              return out;
+            }}
+            getActions={(i) => {
+              const r = flat.rows[i];
+              if (!r) return [];
+              const acts: CardPreviewAction[] = [];
+              const slotId = r.slotIds[0];
+              if (onEditCard && slotId) {
+                acts.push({
+                  key: 'edit',
+                  label: 'Edit',
+                  icon: <Pencil width={18} height={18} strokeWidth={2} aria-hidden />,
+                  onClick: () => {
+                    setPreviewIndex(null);
+                    onEditCard(slotId, r.card);
+                  },
+                });
+              }
+              if (onRemoveCard && r.slotIds.length > 0) {
+                acts.push({
+                  key: 'delete',
+                  label: 'Delete',
+                  danger: true,
+                  icon: <Trash2 width={18} height={18} strokeWidth={2} aria-hidden />,
+                  onClick: () => {
+                    setPreviewIndex(null);
+                    onRemoveCard(r.slotIds[r.slotIds.length - 1]);
+                  },
+                });
+              }
+              return acts;
+            }}
           />
         )}
         {exportOpen && (
@@ -1420,6 +1601,9 @@ interface ToolbarProps {
   onSearch: (s: string) => void;
   viewMode: DeckViewMode;
   onViewModeChange: (m: DeckViewMode) => void;
+  gridSize: DeckGridSize;
+  onGridSizeChange: (s: DeckGridSize) => void;
+  isNarrowGrid: boolean;
   showPrefs: ShowPrefs;
   onShowPrefsChange: (next: ShowPrefs) => void;
   onExport: () => void;
@@ -1440,6 +1624,47 @@ const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
   mana: 'Mana cost',
 };
 
+// Collapsible key for the cryptic 2-letter role badges, surfaced from
+// the toolbar "Show" popover (next to the Roles toggle). Lives inside
+// that popover so it inherits its dismiss handling.
+function RoleBadgeLegend() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="deck-role-legend">
+      <button
+        type="button"
+        className="deck-role-legend-trigger"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? (
+          <ChevronDown width={13} height={13} strokeWidth={2} aria-hidden />
+        ) : (
+          <ChevronRight width={13} height={13} strokeWidth={2} aria-hidden />
+        )}
+        What do the role badges mean?
+      </button>
+      {open && (
+        <div className="deck-role-legend-body" role="group" aria-label="Role badge key">
+          {ROLE_BADGE_GROUPS.map((g) => (
+            <div key={g.group} className="deck-role-legend-group">
+              <div className="deck-role-legend-group-title">{g.group}</div>
+              {g.tones.map((tone) => (
+                <div key={tone} className="deck-role-legend-item">
+                  <span className={`deck-row-role-badge deck-row-role-${tone}`} aria-hidden>
+                    {ROLE_BADGE_BY_TONE[tone].label}
+                  </span>
+                  {ROLE_BADGE_BY_TONE[tone].title}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeckToolbar({
   title,
   sort,
@@ -1449,6 +1674,9 @@ function DeckToolbar({
   onSearch,
   viewMode,
   onViewModeChange,
+  gridSize,
+  onGridSizeChange,
+  isNarrowGrid,
   showPrefs,
   onShowPrefsChange,
   onExport,
@@ -1477,24 +1705,27 @@ function DeckToolbar({
           icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
         >
           {() => (
-            <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
-              {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
-                <li key={k}>
-                  <button
-                    type="button"
-                    role="menuitemcheckbox"
-                    aria-checked={showPrefs[k]}
-                    className={`toolbar-popover-item${showPrefs[k] ? ' active' : ''}`}
-                    onClick={() => onShowPrefsChange({ ...showPrefs, [k]: !showPrefs[k] })}
-                  >
-                    <span className="toolbar-popover-check" aria-hidden>
-                      {showPrefs[k] ? '✓' : ''}
-                    </span>
-                    {SHOW_PREFS_LABEL[k]}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
+                {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
+                  <li key={k}>
+                    <button
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={showPrefs[k]}
+                      className={`toolbar-popover-item${showPrefs[k] ? ' active' : ''}`}
+                      onClick={() => onShowPrefsChange({ ...showPrefs, [k]: !showPrefs[k] })}
+                    >
+                      <span className="toolbar-popover-check" aria-hidden>
+                        {showPrefs[k] ? '✓' : ''}
+                      </span>
+                      {SHOW_PREFS_LABEL[k]}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <RoleBadgeLegend />
+            </>
           )}
         </ToolbarPopover>
 
@@ -1517,6 +1748,26 @@ function DeckToolbar({
         </div>
 
         <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
+
+        {viewMode === 'grid' && (
+          <SharedViewModeToggle<DeckGridSize>
+            ariaLabel="Card size"
+            value={gridSize}
+            onChange={onGridSizeChange}
+            options={
+              isNarrowGrid
+                ? [
+                    { value: '1x', label: 'Small cards', icon: <span>1×</span> },
+                    { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
+                  ]
+                : [
+                    { value: '1x', label: 'Small cards', icon: <span>1×</span> },
+                    { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
+                    { value: '3x', label: 'Large cards', icon: <span>3×</span> },
+                  ]
+            }
+          />
+        )}
 
         <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
           Export
@@ -1681,11 +1932,6 @@ function DeckViewModeToggle({
           label: 'List view',
           icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
         },
-        {
-          value: 'text',
-          label: 'Text view',
-          icon: <FileText width={14} height={14} strokeWidth={2} aria-hidden />,
-        },
       ]}
     />
   );
@@ -1707,10 +1953,18 @@ function DeckCardGrid({
   groups,
   onRowClick,
   legalityBySlot,
+  gridSize,
+  showRoles,
+  synergyByName,
+  binderByCopyId,
 }: {
   groups: { title: string; icon: string; rows: Row[] }[];
   onRowClick: (name: string) => void;
   legalityBySlot?: Map<string, LegalityIssue>;
+  gridSize: DeckGridSize;
+  showRoles: boolean;
+  synergyByName?: Map<string, string[]>;
+  binderByCopyId?: Map<string, BinderInfo[]>;
 }) {
   return (
     <div className="deck-card-grid-sections">
@@ -1727,96 +1981,99 @@ function DeckCardGrid({
                 {g.title} <span className="deck-section-count">({count})</span>
               </h3>
             </header>
-            <ul className="deck-card-grid">
-              {g.rows.map((row) => (
-                <li key={row.name} className="deck-card-grid-cell">
-                  <button
-                    type="button"
-                    className="deck-card-grid-tile"
-                    onClick={() => onRowClick(row.name)}
-                    aria-label={`${row.name} (${row.qty} in deck — ${allocationSummary(row)})`}
-                  >
-                    {row.imageNormal ? (
-                      <img
-                        src={row.imageNormal}
-                        alt=""
-                        className="deck-card-grid-image"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="deck-card-grid-fallback">{row.name}</span>
-                    )}
-                    {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
-                    {row.foil && <span className="deck-card-grid-foil">foil</span>}
-                    {row.status !== 'allocated' &&
-                      (row.allocatedQty > 0 ? (
-                        <span
-                          className={`deck-card-grid-alloc deck-card-grid-alloc-${
-                            row.orphanQty > 0 ? 'orphan' : 'unowned'
-                          }`}
-                          title={allocationSummary(row)}
-                          aria-label={allocationSummary(row)}
-                        >
-                          {row.allocatedQty}/{row.qty}
-                        </span>
-                      ) : (
-                        <span
-                          className="deck-card-grid-missing"
-                          title={allocationSummary(row)}
-                          aria-label={allocationSummary(row)}
+            <ul className={`deck-card-grid grid-${gridSize}`}>
+              {g.rows.map((row) => {
+                const role = showRoles ? getRoleBadge(row.card) : null;
+                const synergy = synergyByName?.get(row.name);
+                const binders: BinderInfo[] = [];
+                if (binderByCopyId) {
+                  const seen = new Set<string>();
+                  for (const cid of row.allocatedCopyIds) {
+                    for (const b of binderByCopyId.get(cid) ?? []) {
+                      if (!seen.has(b.id)) {
+                        seen.add(b.id);
+                        binders.push(b);
+                      }
+                    }
+                  }
+                }
+                return (
+                  <li key={row.name} className="deck-card-grid-cell">
+                    <button
+                      type="button"
+                      className="deck-card-grid-tile"
+                      onClick={() => onRowClick(row.name)}
+                      aria-label={`${row.name} (${row.qty} in deck — ${allocationSummary(row)})`}
+                    >
+                      {row.imageNormal ? (
+                        <img
+                          src={row.imageNormal}
+                          alt=""
+                          className="deck-card-grid-image"
+                          loading="lazy"
                         />
-                      ))}
-                    {(() => {
-                      const issue = legalityBySlot?.get(row.slotIds[0]);
-                      return issue ? (
-                        <LegalityBadge issue={issue} className="deck-card-grid-illegal" />
-                      ) : null;
-                    })()}
-                  </button>
-                </li>
-              ))}
+                      ) : (
+                        <span className="deck-card-grid-fallback">{row.name}</span>
+                      )}
+                      {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
+                      {row.foil && <span className="deck-card-grid-foil">foil</span>}
+                      {row.status !== 'allocated' &&
+                        (row.allocatedQty > 0 ? (
+                          <span
+                            className={`deck-card-grid-alloc deck-card-grid-alloc-${
+                              row.orphanQty > 0 ? 'orphan' : 'unowned'
+                            }`}
+                            title={allocationSummary(row)}
+                            aria-label={allocationSummary(row)}
+                          >
+                            {row.allocatedQty}/{row.qty}
+                          </span>
+                        ) : (
+                          <span
+                            className="deck-card-grid-missing"
+                            title={allocationSummary(row)}
+                            aria-label={allocationSummary(row)}
+                          />
+                        ))}
+                      {(() => {
+                        const issue = legalityBySlot?.get(row.slotIds[0]);
+                        return issue ? (
+                          <LegalityBadge issue={issue} className="deck-card-grid-illegal" />
+                        ) : null;
+                      })()}
+                    </button>
+                    {(role || (synergy && synergy.length > 0) || binders.length > 0) && (
+                      <div className="deck-card-grid-badges">
+                        {binders.length > 0 && <BinderBadge binders={binders} />}
+                        {synergy && synergy.length > 0 && (
+                          <span
+                            className="deck-card-grid-synergy"
+                            role="img"
+                            title={`Synergy with your commander:\n• ${synergy.join('\n• ')}`}
+                            aria-label={`Synergy: ${synergy.join('; ')}`}
+                          >
+                            ✦
+                          </span>
+                        )}
+                        {role && (
+                          <span
+                            className={`deck-card-grid-role deck-row-role-${role.tone}`}
+                            role="img"
+                            title={role.title}
+                            aria-label={role.title}
+                          >
+                            {role.label}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         );
       })}
-    </div>
-  );
-}
-
-// ── Text view ────────────────────────────────────────────────────────────
-function DeckTextView({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* ignore */
-    }
-  };
-  return (
-    <div className="deck-text-view">
-      <div className="deck-text-view-header">
-        <span className="deck-text-view-hint">Deck list — copy to share or import elsewhere.</span>
-        <button type="button" className="btn" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
-      </div>
-      <pre
-        className="deck-text-view-pre"
-        tabIndex={0}
-        onFocus={(e) => {
-          // Convenience: focusing the block selects all so Cmd/Ctrl+C just works.
-          const range = document.createRange();
-          range.selectNodeContents(e.currentTarget);
-          const sel = window.getSelection();
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        }}
-      >
-        {text}
-      </pre>
     </div>
   );
 }
@@ -2047,6 +2304,7 @@ function DeckCardRow({
             <span
               className={`deck-row-role-badge deck-row-role-${roleBadge.tone}`}
               title={roleBadge.title}
+              aria-label={roleBadge.title}
             >
               {roleBadge.label}
             </span>
