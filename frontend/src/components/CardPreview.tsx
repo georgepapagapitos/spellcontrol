@@ -7,7 +7,7 @@ import {
   Pencil,
   RefreshCw,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getSetMap, type SetMap } from '../lib/api';
@@ -18,6 +18,17 @@ import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
+
+/** One button in the preview's compact icon bar. Callers supply only
+ *  the actions relevant to their view (collection: edit/delete; deck:
+ *  edit/delete; etc.), so the bar is view-dependent by construction. */
+export interface CardPreviewAction {
+  key: string;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}
 
 interface Props {
   cards: EnrichedCard[];
@@ -62,6 +73,12 @@ interface Props {
    * avoid stacking two scroll-locking modals.
    */
   onEdit?: (card: EnrichedCard) => void;
+  /**
+   * View-dependent icon bar. Returns the actions for the card at index
+   * `i` (looked up lazily like getStack*). Rendered as a compact icon
+   * row next to Flip/Edit; callers pass only what their surface needs.
+   */
+  getActions?: (i: number) => CardPreviewAction[];
 }
 
 const PRELOAD_RADIUS = 2;
@@ -77,6 +94,7 @@ export function CardPreview({
   getStackBinders,
   getStackAllocations,
   getStackQty,
+  getActions,
   onIndexChange,
   onClose,
   onEdit,
@@ -418,6 +436,22 @@ export function CardPreview({
               <span>Edit</span>
             </button>
           )}
+          {getActions?.(selected).map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              className={`card-preview-flip-btn${a.danger ? ' is-danger' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                a.onClick();
+              }}
+              aria-label={a.label}
+              title={a.label}
+            >
+              {a.icon}
+              <span>{a.label}</span>
+            </button>
+          ))}
         </div>
 
         <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
