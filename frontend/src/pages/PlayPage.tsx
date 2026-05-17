@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
-import { aggregateDeckRecords, usePlayStore, type LocalGameSetup } from '../store/play';
+import {
+  aggregateDeckRecords,
+  gameToRematch,
+  recordToRematch,
+  usePlayStore,
+  type LocalGameSetup,
+} from '../store/play';
 import { GameBoard } from '../components/play/GameBoard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
@@ -36,6 +42,7 @@ export function PlayPage() {
   const boardVisible = usePlayStore((s) => s.boardVisible);
 
   const startLocal = usePlayStore((s) => s.startLocal);
+  const rematchLocal = usePlayStore((s) => s.rematchLocal);
   const dispatchLocal = usePlayStore((s) => s.dispatchLocal);
   const endLocal = usePlayStore((s) => s.endLocal);
   const discardLocal = usePlayStore((s) => s.discardLocal);
@@ -119,6 +126,7 @@ export function PlayPage() {
               onMinimize={hideBoard}
               onEnd={() => setPendingEnd('local')}
               onLeave={() => setPendingDiscard(true)}
+              onRematch={() => rematchLocal(gameToRematch(local))}
             />
           ) : (
             <>
@@ -150,6 +158,10 @@ export function PlayPage() {
               onMinimize={hideBoard}
               onEnd={() => setPendingEnd('online')}
               onLeave={() => void leaveOnline()}
+              onRematch={() => {
+                rematchLocal(gameToRematch(online));
+                setTab('local');
+              }}
               errorMessage={onlineError}
               banner={
                 <div className="play-code-banner">
@@ -182,7 +194,16 @@ export function PlayPage() {
         </>
       )}
 
-      {tab === 'history' && <HistoryTab history={history} userId={user?.id ?? null} />}
+      {tab === 'history' && (
+        <HistoryTab
+          history={history}
+          userId={user?.id ?? null}
+          onRematch={(rec) => {
+            rematchLocal(recordToRematch(rec));
+            setTab('local');
+          }}
+        />
+      )}
 
       {pendingEnd && (
         <EndGameDialog
@@ -793,7 +814,15 @@ function OnlineSetup({
 
 // ── History ─────────────────────────────────────────────────────────────────
 
-function HistoryTab({ history, userId }: { history: GameRecord[]; userId: string | null }) {
+function HistoryTab({
+  history,
+  userId,
+  onRematch,
+}: {
+  history: GameRecord[];
+  userId: string | null;
+  onRematch: (rec: GameRecord) => void;
+}) {
   const removeHistory = usePlayStore((s) => s.removeHistory);
   const deckRows = useMemo(() => aggregateDeckRecords(history, userId), [history, userId]);
 
@@ -850,6 +879,13 @@ function HistoryTab({ history, userId }: { history: GameRecord[]; userId: string
                   <span className="play-history-date">
                     {new Date(rec.endedAt).toLocaleString()}
                   </span>
+                  <button
+                    type="button"
+                    className="play-history-rematch"
+                    onClick={() => onRematch(rec)}
+                  >
+                    Rematch
+                  </button>
                   <button
                     type="button"
                     className="play-history-remove"
