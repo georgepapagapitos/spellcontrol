@@ -136,6 +136,10 @@ export function materializeBinders(
       sections,
       totalCards: sections.reduce((s, sec) => s + sec.cards.length, 0),
       totalPages: sections.reduce((s, sec) => s + sec.pages.length, 0),
+      totalValue: sections.reduce(
+        (s, sec) => s + sec.cards.reduce((cs, c) => cs + c.purchasePrice, 0),
+        0
+      ),
     };
   });
 
