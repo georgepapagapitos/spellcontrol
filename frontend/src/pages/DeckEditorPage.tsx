@@ -1,9 +1,11 @@
-import { Gauge, Hand, MoreVertical, Sparkles } from 'lucide-react';
+import { Copy, Gauge, Hand, MoreVertical, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
+import { materializeBinders } from '../lib/materialize';
+import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import {
@@ -43,6 +45,7 @@ export function DeckEditorPage() {
   const setCommander = useDecksStore((s) => s.setCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const collectionCards = useCollectionStore((s) => s.cards);
+  const binderDefs = useCollectionStore((s) => s.binders);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const pushToast = useToastsStore((s) => s.push);
 
@@ -52,8 +55,6 @@ export function DeckEditorPage() {
   );
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const colorPickerRef = useRef<HTMLDivElement>(null);
   const [makeCommanderTarget, setMakeCommanderTarget] = useState<{
     slotId: string;
     card: ScryfallCard;
@@ -104,6 +105,33 @@ export function DeckEditorPage() {
     return Array.from(ids);
   }, [collectionCards]);
 
+  // Which binder(s) each collection copy lives in — mirrors how the
+  // collection table derives `binders` per row (materialize, then map by
+  // copyId). Lets the deck grid show a binder badge for cards whose
+  // allocated copy is filed in a binder.
+  const binderByCopyId = useMemo(() => {
+    const map = new Map<string, BinderInfo[]>();
+    if (collectionCards.length === 0 || binderDefs.length === 0) return map;
+    const { binders: materialized } = materializeBinders(collectionCards, binderDefs, {
+      search: '',
+    });
+    for (const b of materialized) {
+      const info: BinderInfo = { id: b.def.id, name: b.def.name, color: b.def.color };
+      for (const section of b.sections) {
+        for (const c of section.cards) {
+          if (!c.copyId) continue;
+          const arr = map.get(c.copyId);
+          if (arr) {
+            if (!arr.some((x) => x.id === info.id)) arr.push(info);
+          } else {
+            map.set(c.copyId, [info]);
+          }
+        }
+      }
+    }
+    return map;
+  }, [collectionCards, binderDefs]);
+
   const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
 
   const commanderColorIdentity = useMemo(() => {
@@ -151,24 +179,6 @@ export function DeckEditorPage() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  useEffect(() => {
-    if (!colorPickerOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
-        setColorPickerOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setColorPickerOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [colorPickerOpen]);
-
   // Hero totals — mirrors the values surfaced in the Statistics panel
   // header so the desktop hero reads as a quick at-a-glance summary
   // before the user scrolls into the deck composition. Sideboard counts
@@ -213,6 +223,10 @@ export function DeckEditorPage() {
     if (trimmed && trimmed !== deck.name) renameDeck(deck.id, trimmed);
     setRenaming(false);
   };
+  const handleCancelRename = () => {
+    setDraftName(deck.name);
+    setRenaming(false);
+  };
   const handleConfirmDelete = () => {
     deleteDeck(deck.id);
     navigate('/decks');
@@ -220,6 +234,13 @@ export function DeckEditorPage() {
   const handleDuplicate = () => {
     const newId = duplicateDeck(deck.id);
     if (newId) navigate(`/decks/${newId}`);
+  };
+  const handleToggleAddPanel = () => {
+    const next = !showAddPanel;
+    setShowAddPanel(next);
+    if (next) {
+      window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
+    }
   };
 
   // Capture the slot before removing so Undo can re-add the same card with
@@ -381,24 +402,50 @@ export function DeckEditorPage() {
       <header className="deck-editor-header">
         <div className="deck-editor-hero" style={{ borderLeftColor: deck.color }}>
           {renaming ? (
-            <input
-              autoFocus
-              type="text"
-              className="deck-editor-name-input"
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              onBlur={handleCommitRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCommitRename();
-                if (e.key === 'Escape') setRenaming(false);
+            <div
+              className="deck-editor-hero-edit"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  handleCommitRename();
+                }
               }}
-            />
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') handleCancelRename();
+              }}
+            >
+              <input
+                autoFocus
+                type="text"
+                className="deck-editor-name-input"
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCommitRename();
+                }}
+                aria-label="Deck name"
+              />
+              <div className="deck-editor-hero-edit-color">
+                <span className="deck-editor-hero-edit-label">Color</span>
+                <ColorPicker
+                  value={deck.color}
+                  onChange={(hex) => updateDeck(deck.id, { color: hex })}
+                  ariaLabel="Deck color"
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary deck-editor-hero-edit-done"
+                onClick={handleCommitRename}
+              >
+                Done
+              </button>
+            </div>
           ) : (
             <button
               type="button"
               className="deck-editor-name binder-hero-name"
               onClick={handleStartRename}
-              title="Rename deck"
+              title="Edit deck name & color"
             >
               {deck.name}
             </button>
@@ -422,81 +469,50 @@ export function DeckEditorPage() {
           </p>
         </div>
         <div className="deck-editor-actions">
-          <div className="deck-editor-color" ref={colorPickerRef}>
-            <button
-              type="button"
-              className="btn deck-editor-color-btn"
-              onClick={() => setColorPickerOpen((v) => !v)}
-              aria-haspopup="dialog"
-              aria-expanded={colorPickerOpen}
-              title="Deck color"
-            >
-              <span
-                className="deck-editor-color-dot"
-                style={{ background: deck.color }}
-                aria-hidden
-              />
-              Color
-            </button>
-            {colorPickerOpen && (
-              <div className="deck-editor-color-popover" role="dialog" aria-label="Deck color">
-                <ColorPicker
-                  value={deck.color}
-                  onChange={(hex) => updateDeck(deck.id, { color: hex })}
-                  ariaLabel="Deck color"
-                />
-              </div>
-            )}
-          </div>
           <button
             type="button"
-            className="btn"
-            onClick={() => {
-              const next = !showAddPanel;
-              setShowAddPanel(next);
-              if (next) {
-                window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
-              }
-            }}
+            className="btn deck-editor-action-btn"
+            onClick={handleToggleAddPanel}
             aria-expanded={showAddPanel}
             title="Add cards (press / to focus search)"
           >
+            {showAddPanel ? (
+              <X width={14} height={14} strokeWidth={2} aria-hidden />
+            ) : (
+              <Plus width={14} height={14} strokeWidth={2} aria-hidden />
+            )}
             {showAddPanel ? 'Hide cards panel' : 'Add cards'}
           </button>
-          {formatConfig?.hasCommander && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => combosPanelRef.current?.reveal()}
-              title="Jump to combos (press c)"
-            >
-              Combos
-            </button>
-          )}
-          <button type="button" className="btn" onClick={handleDuplicate}>
+          <button type="button" className="btn deck-editor-action-btn" onClick={handleDuplicate}>
+            <Copy width={14} height={14} strokeWidth={2} aria-hidden />
             Duplicate
           </button>
-          <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
+          <button
+            type="button"
+            className="btn btn-danger deck-editor-action-btn"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 width={14} height={14} strokeWidth={2} aria-hidden />
             Delete
           </button>
         </div>
-        <DeckEditorOverflowMenu
-          isAddPanelOpen={showAddPanel}
-          onToggleAddPanel={() => {
-            const next = !showAddPanel;
-            setShowAddPanel(next);
-            if (next) {
-              window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
-            }
-          }}
-          onJumpToCombos={() => combosPanelRef.current?.reveal()}
-          showCombos={!!formatConfig?.hasCommander}
-          onDuplicate={handleDuplicate}
-          onDelete={() => setConfirmDelete(true)}
-          onExport={() => setExportOpen(true)}
-          color={deck.color}
-          onColorChange={(hex) => updateDeck(deck.id, { color: hex })}
-        />
+        <div className="deck-editor-mobile-actions">
+          <button
+            type="button"
+            className="pill-btn deck-editor-add-pill"
+            onClick={handleToggleAddPanel}
+            aria-expanded={showAddPanel}
+            title="Add cards (press / to focus search)"
+          >
+            <Plus width={15} height={15} strokeWidth={2} aria-hidden />
+            <span>Add cards</span>
+          </button>
+          <DeckEditorOverflowMenu
+            onDuplicate={handleDuplicate}
+            onDelete={() => setConfirmDelete(true)}
+            onExport={() => setExportOpen(true)}
+          />
+        </div>
       </header>
 
       <DeckFeatureStrip
@@ -509,7 +525,7 @@ export function DeckEditorPage() {
         onShowTestHand={() => testHandPanelRef.current?.reveal()}
       />
 
-      <div className={`deck-editor-layout${showAddPanel ? ' with-panel' : ''}`}>
+      <div className="deck-editor-layout">
         <main className="deck-editor-main">
           <DeckDisplay
             title={deck.name}
@@ -530,6 +546,11 @@ export function DeckEditorPage() {
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={formatConfig?.hasCommander ? isValidCommander : undefined}
             collectionByCopyId={collectionById}
+            binderByCopyId={binderByCopyId}
+            onAddFromSearch={(q) => {
+              setShowAddPanel(true);
+              window.requestAnimationFrame(() => searchPanelRef.current?.seed(q));
+            }}
             roleCounts={deck.roleCounts}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -544,21 +565,11 @@ export function DeckEditorPage() {
           />
 
           {/*
-            Combos + Test hand live in the main column (under the deck
-            composition + Stats), not in the right rail. Stats has always
-            paired with the deck cards; pulling these into the right rail
-            created visual "two sidebars" noise. Below the deck they get
-            full main-column width, which lets the combo grid auto-fan to
-            2+ columns on wide viewports.
-
             Combos and Analysis are gated on `hasCommander` — both panels
             are built around the singleton / color-identity rules of
-            Commander-family formats (combo bucketing assumes a 99-card
-            deck around a commander; the analysis breakdowns score
-            against bracket-style heuristics). For Standard / Pauper they
-            mostly produce noise, so they're hidden entirely. Test Hand
-            stays for every format — drawing an opening hand is useful
-            for any deck.
+            Commander-family formats. For Standard / Pauper they mostly
+            produce noise, so they're hidden. Test Hand stays for every
+            format — drawing an opening hand is useful for any deck.
           */}
           {formatConfig?.hasCommander && (
             <>
@@ -582,12 +593,25 @@ export function DeckEditorPage() {
           )}
           <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
         </main>
+      </div>
 
-        {/* Right rail is reserved for the toggleable Card Search panel only.
-            Hidden entirely when search isn't open so the deck composition
-            gets the full main-column width by default. */}
-        {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
-          <aside className="deck-editor-aside">
+      {/* Add cards — a breakpoint-aware overlay (bottom sheet on
+          mobile, centered modal ≥1024px) via the shared card-picker
+          sheet, instead of an inline rail. */}
+      {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
+        <div
+          className="card-picker-root"
+          role="presentation"
+          onClick={() => setShowAddPanel(false)}
+        >
+          <div
+            className="card-picker-sheet deck-add-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add cards"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-picker-handle" aria-hidden />
             {formatConfig && formatConfig.sideboardSize > 0 && (
               <div className="deck-editor-zone-toggle">
                 <button
@@ -620,9 +644,9 @@ export function DeckEditorPage() {
               }}
               onClose={() => setShowAddPanel(false)}
             />
-          </aside>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <ConfirmDialog
@@ -745,39 +769,16 @@ function DeckFeatureStrip({
 }
 
 function DeckEditorOverflowMenu({
-  isAddPanelOpen,
-  onToggleAddPanel,
-  onJumpToCombos,
-  showCombos,
   onDuplicate,
   onDelete,
   onExport,
-  color,
-  onColorChange,
 }: {
-  isAddPanelOpen: boolean;
-  onToggleAddPanel: () => void;
-  onJumpToCombos: () => void;
-  /** Hide the "Jump to combos" entry when the deck's format has no combos panel. */
-  showCombos: boolean;
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
-  color: string;
-  onColorChange: (hex: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'menu' | 'color'>('menu');
   const wrapperRef = useRef<HTMLDivElement>(null);
-
-  // Closing the sheet resets the sub-view so reopening lands on the action
-  // list. Done as a render-phase reset to keep setState out of useEffect
-  // (cascading-render lint).
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (prevOpen !== open) {
-    setPrevOpen(open);
-    if (!open && view !== 'menu') setView('menu');
-  }
 
   useEffect(() => {
     if (!open) return;
@@ -785,10 +786,7 @@ function DeckEditorOverflowMenu({
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (view === 'color') setView('menu');
-        else setOpen(false);
-      }
+      if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
@@ -796,7 +794,7 @@ function DeckEditorOverflowMenu({
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open, view]);
+  }, [open]);
 
   return (
     <div className="deck-editor-overflow" ref={wrapperRef}>
@@ -813,96 +811,39 @@ function DeckEditorOverflowMenu({
       {open && (
         <>
           <div className="deck-editor-overflow-panel" role="menu">
-            {view === 'menu' && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-editor-overflow-item"
-                  onClick={() => {
-                    setOpen(false);
-                    onToggleAddPanel();
-                  }}
-                >
-                  {isAddPanelOpen ? 'Hide cards panel' : 'Add cards'}
-                </button>
-                {showCombos && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="deck-editor-overflow-item"
-                    onClick={() => {
-                      setOpen(false);
-                      onJumpToCombos();
-                    }}
-                  >
-                    Jump to combos
-                  </button>
-                )}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-editor-overflow-item"
-                  onClick={() => setView('color')}
-                >
-                  <span
-                    className="deck-editor-overflow-color-dot"
-                    style={{ background: color }}
-                    aria-hidden
-                  />
-                  Color
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-editor-overflow-item"
-                  onClick={() => {
-                    setOpen(false);
-                    onDuplicate();
-                  }}
-                >
-                  Duplicate
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-editor-overflow-item"
-                  onClick={() => {
-                    setOpen(false);
-                    onExport();
-                  }}
-                >
-                  Export
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-editor-overflow-item deck-editor-overflow-item--danger"
-                  onClick={() => {
-                    setOpen(false);
-                    onDelete();
-                  }}
-                >
-                  Delete
-                </button>
-              </>
-            )}
-            {view === 'color' && (
-              <div className="deck-editor-overflow-subview">
-                <div className="deck-editor-overflow-subview-header">
-                  <button
-                    type="button"
-                    className="deck-editor-overflow-back"
-                    onClick={() => setView('menu')}
-                    aria-label="Back"
-                  >
-                    ‹
-                  </button>
-                  <span className="deck-editor-overflow-subview-title">Deck color</span>
-                </div>
-                <ColorPicker value={color} onChange={onColorChange} ariaLabel="Deck color" />
-              </div>
-            )}
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onDuplicate();
+              }}
+            >
+              Duplicate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onExport();
+              }}
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item deck-editor-overflow-item--danger"
+              onClick={() => {
+                setOpen(false);
+                onDelete();
+              }}
+            >
+              Delete
+            </button>
           </div>
         </>
       )}

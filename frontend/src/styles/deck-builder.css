@@ -758,6 +758,73 @@
   color: var(--accent);
 }
 
+/* Role-badge key — a collapsible disclosure inside the "Show" popover
+   that explains the cryptic 2-letter role abbreviations. */
+.deck-role-legend {
+  border-top: 0.5px solid var(--border);
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+}
+
+.deck-role-legend-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--text3);
+  background: transparent;
+  border: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+}
+
+.deck-role-legend-trigger:hover,
+.deck-role-legend-trigger:focus-visible {
+  background: var(--accent-light);
+  color: var(--text);
+  outline: none;
+}
+
+.deck-role-legend-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.25rem 0.6rem 0.5rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.deck-role-legend-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.deck-role-legend-group-title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-role-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.deck-role-legend-item .deck-row-role-badge {
+  width: 1.7rem;
+  flex: 0 0 auto;
+}
+
 /* Pill search input — magnifying-glass icon + flat input. */
 .toolbar-search {
   display: inline-flex;
@@ -865,12 +932,127 @@ input.toolbar-search-input {
   margin: 0.5rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.65rem;
 }
 
+/* 1×/2×/3× card sizing — mirrors the collection grid's min-column
+   widths (desktop here; narrowed on mobile below). 3× is hidden on
+   phones by the toolbar, so no phone rule needed for it. */
+.deck-card-grid.grid-1x {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.deck-card-grid.grid-2x {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.deck-card-grid.grid-3x {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+@media (max-width: 1024px) {
+  .deck-card-grid.grid-1x {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+
+  .deck-card-grid.grid-2x {
+    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  }
+
+  .deck-card-grid.grid-3x {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
 .deck-card-grid-cell {
+  position: relative;
   display: flex;
+}
+
+/* Card badge cluster — bottom-right over the art, like the collection
+   grid. Sibling of the tile button (not nested) so the interactive
+   BinderBadge isn't a button-in-button. */
+.deck-card-grid-badges {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+}
+
+.deck-card-grid-role,
+.deck-card-grid-synergy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+/* `.deck-row-role-<tone>` (shared with list view) supplies the text
+   color; the chip above supplies the dark plate so it reads on art. */
+.deck-card-grid-synergy {
+  color: var(--accent);
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.72rem;
+}
+
+.deck-card-grid-badges .card-list-binder-badge {
+  margin-left: 0;
+  padding: 0.2rem;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.deck-card-grid-badges .card-list-binder-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Scale the cluster up with the card at 2×/3× so it stays legible. */
+.deck-card-grid.grid-2x .deck-card-grid-badges,
+.deck-card-grid.grid-3x .deck-card-grid-badges {
+  gap: 0.3rem;
+}
+
+.deck-card-grid.grid-2x .deck-card-grid-role,
+.deck-card-grid.grid-2x .deck-card-grid-synergy {
+  min-width: 1.4rem;
+  height: 1.4rem;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.72rem;
+}
+
+.deck-card-grid.grid-2x .deck-card-grid-badges .card-list-binder-badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.deck-card-grid.grid-3x .deck-card-grid-role,
+.deck-card-grid.grid-3x .deck-card-grid-synergy {
+  min-width: 1.6rem;
+  height: 1.6rem;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.82rem;
+}
+
+.deck-card-grid.grid-3x .deck-card-grid-badges .card-list-binder-badge svg {
+  width: 20px;
+  height: 20px;
 }
 
 .deck-card-grid-tile {
@@ -883,16 +1065,13 @@ input.toolbar-search-input {
   background: var(--surface2);
   cursor: pointer;
   padding: 0;
-  transition:
-    transform 120ms ease,
-    box-shadow 120ms ease;
 }
 
-.deck-card-grid-tile:hover,
+/* No hover movement. Keep a visible keyboard-focus ring for a11y
+   (the tile is a button). */
 .deck-card-grid-tile:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .deck-card-grid-image {
@@ -979,50 +1158,59 @@ input.toolbar-search-input {
   border-color: var(--err-border);
 }
 
-/* ── Text view ────────────────────────────────────────────────────────── */
-.deck-text-view {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.deck-text-view-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.deck-text-view-hint {
-  color: var(--text3);
-  font-size: var(--text-sm);
-}
-
-.deck-text-view-pre {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  background: var(--bg);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.85rem 1rem;
-  max-height: 70vh;
-  overflow: auto;
-  white-space: pre;
-  color: var(--text);
-}
-
-.deck-text-view-pre:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .deck-display-main {
   min-width: 0;
+}
+
+/* "Search Scryfall for X" trigger under the deck list — mirrors the
+   collection page's standalone trigger so adding a card not in the
+   deck starts from the same in-deck search bar. */
+.deck-display-scryfall-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 0.85rem;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.deck-display-scryfall-trigger:hover,
+.deck-display-scryfall-trigger:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
+.deck-display-scryfall-trigger-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.deck-display-scryfall-trigger-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text3);
+}
+
+.deck-display-scryfall-trigger:hover .deck-display-scryfall-trigger-sub,
+.deck-display-scryfall-trigger:focus-visible .deck-display-scryfall-trigger-sub {
+  color: inherit;
 }
 
 /* The body now holds only the deck composition (the sidebar is a
@@ -2337,35 +2525,37 @@ input.toolbar-search-input {
   min-width: 0;
 }
 
-.deck-editor-color {
-  position: relative;
-}
-
-.deck-editor-color-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.deck-editor-color-dot {
-  display: inline-block;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  border: 1px solid var(--border2);
-}
-
-.deck-editor-color-popover {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  z-index: var(--z-dropdown);
+/* Inline hero editor: opened by clicking the deck title. Holds the
+   name field and the deck color picker together so color editing no
+   longer needs its own toolbar button / overflow entry. */
+.deck-editor-hero-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(22rem, 100%);
+  padding: 0.7rem;
   background: var(--surface);
   border: 0.5px solid var(--border2);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  padding: 0.6rem;
-  min-width: 17rem;
+}
+
+.deck-editor-hero-edit-color {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.deck-editor-hero-edit-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-editor-hero-edit-done {
+  align-self: flex-end;
 }
 
 .deck-editor-name {
@@ -2402,10 +2592,24 @@ input.toolbar-search-input {
   flex-wrap: wrap;
 }
 
+.deck-editor-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* ── Deck editor overflow (mobile) ─────────────────────────────────────── */
 .deck-editor-overflow {
   position: relative;
   /* Hidden on desktop — the inline action row handles things there. */
+  display: none;
+}
+
+/* Mobile-only cluster: a visible "Add cards" pill (so adding is a
+   first-class affordance, like the collection's Add card button —
+   no longer buried in the overflow) plus the 3-dot menu. Hidden on
+   desktop, where .deck-editor-actions covers these. */
+.deck-editor-mobile-actions {
   display: none;
 }
 
@@ -2471,51 +2675,6 @@ input.toolbar-search-input {
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
   cursor: pointer;
-}
-
-.deck-editor-overflow-color-dot {
-  width: 1.1rem;
-  height: 1.1rem;
-  border-radius: 999px;
-  border: 1px solid var(--border2);
-  flex-shrink: 0;
-}
-
-.deck-editor-overflow-subview {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.25rem 0.5rem 0.5rem;
-}
-
-.deck-editor-overflow-subview-header {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.deck-editor-overflow-back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  background: transparent;
-  border: 0;
-  color: var(--text);
-  font-size: var(--text-xl);
-  line-height: 1;
-  cursor: pointer;
-  border-radius: var(--radius);
-}
-
-.deck-editor-overflow-back:hover {
-  background: var(--surface2);
-}
-
-.deck-editor-overflow-subview-title {
-  font-size: var(--text-base);
-  font-weight: 600;
 }
 
 /* Shared menu-item hover used by every 3-dot popover in the app —
@@ -2608,6 +2767,12 @@ input.toolbar-search-input {
   .deck-editor-actions,
   .deck-toolbar-export {
     display: none;
+  }
+
+  .deck-editor-mobile-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .deck-editor-overflow {
@@ -3472,51 +3637,16 @@ input.toolbar-search-input {
   color: var(--text2);
 }
 
-.deck-editor-layout {
-  display: grid;
-  /* minmax(0, 1fr) so the deck-display inside can shrink below its
-     content's intrinsic min-width — without this the page horizontal-
-     scrolls at ~360px viewport widths. */
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
-  /* Smooth the column reflow when the side panel toggles so deck cards
-     glide into their new width instead of snapping. */
-  transition: grid-template-columns 180ms ease;
-}
-
-/* The main column stacks deck composition + Combos panel + Test hand panel
-   vertically. Same gap as the page-level layout so panels read as siblings. */
+/* Single stacked column: deck composition, then Combos / Analysis /
+   Test hand. Adding cards is a breakpoint-aware sheet overlay
+   (`.deck-add-sheet`), not an inline rail — so no grid/column logic
+   here. */
+.deck-editor-layout,
 .deck-editor-main {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
-}
-
-.deck-editor-layout.with-panel {
-  grid-template-columns: minmax(0, 1fr) 340px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deck-editor-layout {
-    transition: none;
-  }
-}
-
-.deck-editor-aside {
-  position: sticky;
-  /* The desktop site header pins at top:0 with height 3.25rem, so the
-     aside parks 1rem below it. */
-  top: calc(3.25rem + 1rem);
-  align-self: start;
-  max-height: calc(100vh - 3.25rem - 2rem);
-  overflow: auto;
-  /* Stacked panels (card search, combos, test hand) — keep them visually
-     separated with the same spacing the deck-builder-page uses between
-     sections. */
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 /* ── Card search panel ────────────────────────────────────────────────── */
@@ -3528,6 +3658,45 @@ input.toolbar-search-input {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* Add-cards sheet: the shared card-picker sheet (bottom sheet on
+   mobile, centered modal ≥1024px) hosts the deck's CardSearchPanel.
+   Strip the panel's own card chrome — the sheet is the surface — and
+   let it flex so results scroll within the sheet height instead of
+   the panel's own fixed max-height. */
+/* Pin a stable height (matching the sheet/modal max) so switching
+   tabs or an empty Scryfall result set doesn't shrink the sheet —
+   the results area just scrolls/empties within a constant frame.
+   Scoped to the deck sheet so the collection picker is unaffected. */
+.deck-add-sheet {
+  padding-bottom: 0.75rem;
+  height: 85dvh;
+}
+
+@media (min-width: 1024px) {
+  .deck-add-sheet {
+    height: 70vh;
+  }
+}
+
+.deck-add-sheet .deck-editor-zone-toggle {
+  padding: 0.25rem 0.85rem 0;
+}
+
+.deck-add-sheet .card-search-panel {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0.85rem 0;
+}
+
+.deck-add-sheet .card-search-results {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .card-search-tabs {
@@ -4457,34 +4626,37 @@ input.toolbar-search-input {
   );
 }
 
+/* Missing from this deck: a light dim keeps the art readable — the
+   corner status icon (not the wash) now carries the owned/not-owned
+   meaning. */
 .deck-combos-card-tile.missing .deck-combos-card-art {
-  filter: grayscale(0.7) brightness(0.55);
+  filter: grayscale(0.4) brightness(0.85);
 }
 
-/* Owned in collection but not in this deck — softer treatment since the
+/* Owned in collection but not in this deck — barely dimmed since the
    card is within reach; just needs to be added. */
 .deck-combos-card-tile.missing.owned .deck-combos-card-art {
-  filter: grayscale(0.25) brightness(0.78);
+  filter: grayscale(0.15) brightness(0.95);
 }
 
-.deck-combos-card-overlay {
+/* Corner status chip. Dark backdrop so the fixed red/green status
+   colors stay legible over any card art. */
+.deck-combos-card-status {
   position: absolute;
-  inset: 0;
+  bottom: 0.25rem;
+  right: 0.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text);
-  background: color-mix(in srgb, var(--err-text, var(--accent)) 60%, transparent);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #e5484d;
+  line-height: 0;
 }
 
-/* Owned overlay — subtle muted tint instead of error-red. */
-.deck-combos-card-overlay.is-owned {
-  background: color-mix(in srgb, var(--surface3, #555) 65%, transparent);
+.deck-combos-card-status.is-owned {
+  color: #30a46c;
 }
 
 /* ── Ownership filter pills ────────────────────────────────────────────── */
@@ -4522,6 +4694,25 @@ input.toolbar-search-input {
   background: var(--accent);
   color: var(--on-accent, #fff);
   border-color: var(--accent);
+}
+
+.deck-combos-filter-icon {
+  flex-shrink: 0;
+}
+
+.deck-combos-filter-icon--owned {
+  color: #30a46c;
+}
+
+.deck-combos-filter-icon--not-owned {
+  color: #e5484d;
+}
+
+/* On the active (accent-filled) pill the status colors lose contrast —
+   fall back to the pill's own text color; the icon shape still carries
+   the owned/not-owned meaning. */
+.deck-combos-filter-pill.active .deck-combos-filter-icon {
+  color: currentColor;
 }
 
 .deck-combos-filter-count {
@@ -5115,15 +5306,6 @@ input.deck-row-qty-input.deck-row-qty-missing {
     columns: 220px;
   }
 
-  .deck-editor-layout.with-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .deck-editor-aside {
-    position: static;
-    max-height: none;
-  }
-
   .deck-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -5193,15 +5375,6 @@ input.deck-row-qty-input.deck-row-qty-missing {
   }
   .decks-index-list {
     grid-template-columns: 1fr;
-  }
-
-  /* Editor stacks the search panel below the deck on small screens. */
-  .deck-editor-layout.with-panel {
-    grid-template-columns: 1fr;
-  }
-  .deck-editor-aside {
-    position: static;
-    max-height: none;
   }
 
   .deck-toolbar {
@@ -5911,11 +6084,11 @@ input.deck-row-qty-input.deck-row-qty-missing {
    the full-width top banner. Drop the left stripe so the banner sits
    flush against a uniform border on every side — otherwise the
    stripe creates a "T"-shape notch in the top-left of the tile.
-   overflow: hidden keeps the swatch's rounded corners flush with
-   the card's outer radius. */
+   No overflow: hidden here — the swatch self-rounds its own top
+   corners below, and clipping the card would also clip the kebab
+   menu's dropdown panel. */
 .binders-index-list.is-grid .binders-index-card {
   border-left-width: 1px;
-  overflow: hidden;
 }
 
 .binders-index-list.is-grid .binders-index-card-link {
@@ -5925,20 +6098,33 @@ input.deck-row-qty-input.deck-row-qty-missing {
   gap: 0;
 }
 
-/* In grid mode the swatch is the banner: stretches across the top
-   of the tile in the binder's color. Loses its circular shape and
-   1rem dimensions for the duration. */
+/* In grid mode the binder color becomes the card header that holds
+   the name — an empty color block read as wasted space. The
+   standalone swatch dot is redundant here, so it collapses. */
 .binders-index-list.is-grid .binders-index-card-swatch {
-  width: 100%;
-  height: clamp(3rem, 8vw, 4rem);
-  border-radius: 0;
-  border: none;
+  display: none;
+}
+
+.binders-index-list.is-grid .binders-index-card-body {
+  padding: 0;
+}
+
+/* Name is the colored header band. White text + shadow stays legible
+   on any user-chosen binder color (pale gold through dark purple).
+   Right padding clears the absolutely-positioned 3-dot menu. */
+.binders-index-list.is-grid .binders-index-card-name {
+  background: var(--binder-color, var(--accent));
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-size: var(--text-lg);
+  padding: 0.85rem 2.6rem 0.85rem 0.95rem;
   border-top-left-radius: calc(var(--radius-lg) - 1px);
   border-top-right-radius: calc(var(--radius-lg) - 1px);
 }
 
-.binders-index-list.is-grid .binders-index-card-body {
-  padding: 0.6rem 0.85rem 0.75rem;
+.binders-index-list.is-grid .binders-index-card-meta {
+  padding: 0.6rem 0.95rem 0.75rem;
+  margin-top: 0;
 }
 
 /* List: horizontal row — swatch dot on the left, name + meta on
@@ -6092,7 +6278,8 @@ input.deck-row-qty-input.deck-row-qty-missing {
    drawn from the pages span so it only shows when both spans are
    present (and disappears cleanly in compact, where the cards span
    is hidden). */
-.binders-index-card-pages::before {
+.binders-index-card-pages::before,
+.binders-index-card-value::before {
   content: '· ';
   margin-right: 0.05rem;
   color: var(--text3);
@@ -6101,7 +6288,8 @@ input.deck-row-qty-input.deck-row-qty-missing {
 /* In compact mode we still want a single skim-worthy signal next to
    the name — page count gives a quick "how big is this binder?" cue,
    while the redundant cards detail is hidden. */
-.binders-index-list.is-compact .binders-index-card-cards {
+.binders-index-list.is-compact .binders-index-card-cards,
+.binders-index-list.is-compact .binders-index-card-value {
   display: none;
 }
 
@@ -6153,6 +6341,21 @@ input.deck-row-qty-input.deck-row-qty-missing {
 .binders-index-card-menu-btn[aria-expanded='true'] {
   background: var(--surface2);
   color: var(--text);
+}
+
+/* Grid mode: the button sits on the colored header band, where the
+   default muted gray washes out. White icon + shadow keeps it visible
+   on any binder color; hover/open uses a dark scrim chip instead of
+   the light surface (which disappeared on pale banners). */
+.binders-index-list.is-grid .binders-index-card-menu-btn {
+  color: #fff;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+}
+
+.binders-index-list.is-grid .binders-index-card-menu-btn:hover,
+.binders-index-list.is-grid .binders-index-card-menu-btn[aria-expanded='true'] {
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
 }
 
 .binders-index-card-menu-backdrop {
@@ -6901,6 +7104,8 @@ input.deck-row-qty-input.deck-row-qty-missing {
   max-width: 14rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: 1px;
+  /* Center the pill against the card-name text instead of sitting on
+     its baseline (which made the padded chip ride high in the row). */
+  vertical-align: middle;
   cursor: help;
 }
