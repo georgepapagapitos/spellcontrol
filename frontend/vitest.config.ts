@@ -16,6 +16,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Installs an in-memory `localStorage` shim for persisted stores; inert
+    // for tests that don't touch storage.
+    setupFiles: ['./src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/lib/**'],
