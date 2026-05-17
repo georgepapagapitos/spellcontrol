@@ -179,7 +179,20 @@ const LAYOUTS: Record<number, BoardLayout[]> = {
   // "1 vs 1 vs 2 in the middle" arrangement.
   4: [
     {
-      // Classic Commander pod — 2 on each side of the device.
+      // Two players per long edge of the device — the most common phone-
+      // on-the-table 4-player seating. Both seats in the LEFT column read
+      // rotated 90°, both in the RIGHT column 270° (mirror), so each
+      // *column* faces one way and the hub sits on the vertical seam
+      // between the columns.
+      id: '4p-sides',
+      cols: 2,
+      rows: 2,
+      seam: { col: 1 },
+      seats: [s(1, 1, 90), s(2, 1, 270), s(1, 2, 90), s(2, 2, 270)],
+    },
+    {
+      // Classic Commander pod — 2 on the far side of the device (rotated
+      // 180°) facing 2 on the near side (upright).
       id: '4p-pod',
       cols: 2,
       rows: 2,
@@ -255,6 +268,119 @@ export function layoutsForCount(count: number): BoardLayout[] {
   return LAYOUTS[c] ?? LAYOUTS[2];
 }
 
+// ── Custom layouts ─────────────────────────────────────────────────────────
+//
+// A user-arranged layout is serialized into the opaque `GameLayout` id
+// string so it persists and syncs online with zero server changes — the
+// server treats the id as opaque and `resolveLayout` falls back to a
+// preset for anything it can't parse. Format (v1):
+//
+//   custom:v1~{rows}~{seam}~{seat};{seat};…
+//     rows  = grid row count (cols are fixed at 2 in v1)
+//     seam  = `r{n}` (row seam after row n) or `c{n}` (col seam after col n)
+//     seat  = `col.row.colSpan.rowSpan.rot`  (seat-index order)
+
+const CUSTOM_PREFIX = 'custom:v1~';
+const VALID_ROT = new Set([0, 90, 180, 270]);
+
+export function isCustomLayout(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.startsWith(CUSTOM_PREFIX);
+}
+
+export function encodeCustomLayout(layout: {
+  rows: number;
+  seam: { row: number } | { col: number };
+  seats: SeatSlot[];
+}): string {
+  const seam = 'row' in layout.seam ? `r${layout.seam.row}` : `c${layout.seam.col}`;
+  const seats = layout.seats
+    .map((st) => `${st.col}.${st.row}.${st.colSpan ?? 1}.${st.rowSpan ?? 1}.${st.rot}`)
+    .join(';');
+  return `${CUSTOM_PREFIX}${layout.rows}~${seam}~${seats}`;
+}
+
+function computeEmpty(rows: number, seats: SeatSlot[]): EmptyCell[] {
+  const occ = new Set<string>();
+  for (const st of seats) {
+    const cs = st.colSpan ?? 1;
+    const rs = st.rowSpan ?? 1;
+    for (let c = st.col; c < st.col + cs; c++) {
+      for (let r = st.row; r < st.row + rs; r++) occ.add(`${c},${r}`);
+    }
+  }
+  const empties: EmptyCell[] = [];
+  for (let r = 1; r <= rows; r++) {
+    for (const c of [1, 2] as const) {
+      if (!occ.has(`${c},${r}`)) empties.push({ col: c, row: r });
+    }
+  }
+  return empties;
+}
+
+/**
+ * Parse a serialized custom layout. Returns null (so the caller falls back
+ * to a preset) if the string is malformed, the seat count doesn't match
+ * `count`, or any seat would overlap / spill off the 2-column grid. Being
+ * strict here means a stale or corrupt id can never render a broken board.
+ */
+export function decodeCustomLayout(
+  id: string | null | undefined,
+  count: number
+): BoardLayout | null {
+  if (!isCustomLayout(id)) return null;
+  try {
+    const [rowsStr, seamStr, seatsStr] = (id as string).slice(CUSTOM_PREFIX.length).split('~');
+    const rows = Number(rowsStr);
+    if (!Number.isInteger(rows) || rows < 1 || rows > 8) return null;
+
+    let seam: { row: number } | { col: number };
+    if (seamStr?.[0] === 'r') {
+      const n = Number(seamStr.slice(1));
+      if (!Number.isInteger(n) || n < 0 || n > rows) return null;
+      seam = { row: n };
+    } else if (seamStr?.[0] === 'c') {
+      const n = Number(seamStr.slice(1));
+      if (!Number.isInteger(n) || n < 0 || n > 2) return null;
+      seam = { col: n };
+    } else {
+      return null;
+    }
+
+    const parts = (seatsStr ?? '').split(';').filter(Boolean);
+    if (parts.length !== count) return null;
+
+    const seats: SeatSlot[] = [];
+    const occ = new Set<string>();
+    for (const p of parts) {
+      const [c, r, cs, rs, rot] = p.split('.').map(Number);
+      if (c !== 1 && c !== 2) return null;
+      if (!Number.isInteger(r) || r < 1 || r > rows) return null;
+      if ((cs !== 1 && cs !== 2) || (rs !== 1 && rs !== 2)) return null;
+      if (!VALID_ROT.has(rot)) return null;
+      if (c + cs - 1 > 2) return null; // can't span past column 2
+      if (r + rs - 1 > rows) return null; // can't span past the last row
+      for (let cc = c; cc < c + cs; cc++) {
+        for (let rr = r; rr < r + rs; rr++) {
+          const k = `${cc},${rr}`;
+          if (occ.has(k)) return null; // overlap
+          occ.add(k);
+        }
+      }
+      seats.push({
+        col: c as 1 | 2,
+        row: r,
+        colSpan: cs as 1 | 2,
+        rowSpan: rs as 1 | 2,
+        rot: rot as 0 | 90 | 180 | 270,
+      });
+    }
+
+    return { id: id as string, cols: 2, rows, seam, seats, empty: computeEmpty(rows, seats) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resolve a (count, layoutId) pair to its concrete BoardLayout, falling
  * back to the count's default if the id is unknown. Legacy persisted ids
@@ -265,6 +391,9 @@ export function resolveLayout(
   count: number,
   id: GameLayout | string | undefined | null
 ): BoardLayout {
+  const c = Math.max(2, Math.min(count, 6));
+  const custom = decodeCustomLayout(id, c);
+  if (custom) return custom;
   const available = layoutsForCount(count);
   const match = available.find((l) => l.id === id);
   return match ?? available[0];
