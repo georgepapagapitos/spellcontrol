@@ -9,6 +9,7 @@ import {
 } from 'react';
 import {
   AlertTriangle,
+  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -401,6 +402,13 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
               className={`deck-combos-filter-pill${ownershipFilter === 'owned' ? ' active' : ''}`}
               onClick={() => setOwnershipFilter('owned')}
             >
+              <CheckCircle2
+                className="deck-combos-filter-icon deck-combos-filter-icon--owned"
+                width={13}
+                height={13}
+                strokeWidth={2.5}
+                aria-hidden
+              />
               Owned
               <span className="deck-combos-filter-count">{oneAwayOwned.length}</span>
             </button>
@@ -409,6 +417,13 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
               className={`deck-combos-filter-pill${ownershipFilter === 'notOwned' ? ' active' : ''}`}
               onClick={() => setOwnershipFilter('notOwned')}
             >
+              <Ban
+                className="deck-combos-filter-icon deck-combos-filter-icon--not-owned"
+                width={13}
+                height={13}
+                strokeWidth={2.5}
+                aria-hidden
+              />
               Not owned
               <span className="deck-combos-filter-count">{oneAwayNotOwned.length}</span>
             </button>
@@ -597,12 +612,17 @@ function ComboRow({
                 )}
                 {isMissing && (
                   <span
-                    className={`deck-combos-card-overlay${isOwned ? ' is-owned' : ''}`}
+                    className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}
+                    role="img"
                     aria-label={
                       isOwned ? `${c.cardName} — owned in collection` : `${c.cardName} — not owned`
                     }
                   >
-                    {isOwned ? 'Owned' : 'Not owned'}
+                    {isOwned ? (
+                      <CheckCircle2 width={18} height={18} strokeWidth={2.5} aria-hidden />
+                    ) : (
+                      <Ban width={18} height={18} strokeWidth={2.5} aria-hidden />
+                    )}
                   </span>
                 )}
                 {c.quantity > 1 && (

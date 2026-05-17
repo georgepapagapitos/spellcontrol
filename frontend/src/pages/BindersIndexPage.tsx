@@ -365,6 +365,11 @@ export function BindersIndexPage() {
                     <span className="binders-index-card-pages">
                       {b.totalPages.toLocaleString()} {b.totalPages === 1 ? 'page' : 'pages'}
                     </span>
+                    {b.totalValue > 0 && (
+                      <span className="binders-index-card-value">
+                        ${Math.round(b.totalValue).toLocaleString()}
+                      </span>
+                    )}
                     {b.def.fixedCapacity != null && (
                       <span className="binders-index-card-tag">
                         Cap {b.def.fixedCapacity.toLocaleString()}
