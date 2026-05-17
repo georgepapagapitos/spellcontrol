@@ -67,7 +67,7 @@ interface CollectionState {
     response: UploadResponse,
     fileName: string,
     mode: ImportMode,
-    options?: { isSample?: boolean; binderName?: string }
+    options?: { isSample?: boolean; binderName?: string; binderColor?: string }
   ) => Promise<void>;
   /**
    * Removes the import history entry with the given id and any cards stamped
@@ -290,7 +290,10 @@ export const useCollectionStore = create<CollectionState>()(
             pocketSize: null,
             doubleSided: false,
             fixedCapacity: null,
-            color: '#6366f1',
+            color: options.binderColor ?? '#6366f1',
+            // Imported binders hold exactly the imported copies — 'manual' so
+            // the empty filterGroups can't vacuum unrelated collection cards.
+            mode: 'manual',
             pinnedCopyIds: copyIds,
             manualOrder: copyIds,
             createdAt: now,

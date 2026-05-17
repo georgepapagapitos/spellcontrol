@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
+import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
+import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
@@ -107,6 +109,7 @@ export function BinderEditor() {
   const createBinder = useCollectionStore((s) => s.createBinder);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
   const importCards = useCollectionStore((s) => s.importCards);
+  const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
   const setLoading = useCollectionStore((s) => s.setLoading);
 
   const isOpen = editingBinder !== null;
@@ -135,7 +138,45 @@ export function BinderEditor() {
   const [binderMode, setBinderMode] = useState<'rules' | 'import'>('rules');
   const [importPasteText, setImportPasteText] = useState('');
   const importFileRef = useRef<HTMLInputElement>(null);
-  const [importFile_, setImportFile] = useState<File | null>(null);
+  const [importFiles_, setImportFiles] = useState<File[]>([]);
+  const [importStageNote, setImportStageNote] = useState<string | null>(null);
+  // One draft binder per staged file. Each file becomes its own binder; the
+  // user can rename it and recolor it before saving.
+  const [binderDrafts, setBinderDrafts] = useState<Array<{ name: string; color: string }>>([]);
+  // Set when staged files resolve to duplicate binder names and we need the
+  // user to choose how to handle it (merge / rename / separate).
+  const [collisionPrompt, setCollisionPrompt] = useState<
+    { name: string; count: number; existing: boolean }[] | null
+  >(null);
+
+  /**
+   * Keeps staged files and their per-file binder drafts aligned. Drafts are
+   * matched by filename so edits survive add/remove (mergeStagedFiles already
+   * guarantees unique names).
+   */
+  const applyStagedFiles = (nextFiles: File[], prevFiles: File[], note: string | null = null) => {
+    const prevByName = new Map(prevFiles.map((f, i) => [f.name, binderDrafts[i]]));
+    setImportFiles(nextFiles);
+    setBinderDrafts(
+      nextFiles.map(
+        (f) =>
+          prevByName.get(f.name) ?? { name: stripExtension(f.name), color: pickRandomPresetColor() }
+      )
+    );
+    setImportStageNote(note);
+    if (nextFiles.length > 0) setImportPasteText('');
+  };
+
+  /** Merges incoming files (picker or drop) into the staged list. */
+  const stageIncoming = (incoming: File[]) => {
+    if (incoming.length === 0) return;
+    const { files, renamed, dropped } = mergeStagedFiles(importFiles_, incoming);
+    applyStagedFiles(files, importFiles_, stagedFilesNotice(renamed, dropped));
+  };
+
+  const { isDragging: importDragging, dropProps: importDropProps } = useFileDrop(stageIncoming, {
+    disabled: saving,
+  });
 
   // Set codes the user actually owns — used to populate the multi-select.
   const ownedSets = useMemo(() => {
@@ -222,7 +263,10 @@ export function BinderEditor() {
       setAutofocusGroupIdx(null);
       setBinderMode('rules');
       setImportPasteText('');
-      setImportFile(null);
+      setImportFiles([]);
+      setBinderDrafts([]);
+      setImportStageNote(null);
+      setCollisionPrompt(null);
     }
   }
 
@@ -290,13 +334,87 @@ export function BinderEditor() {
     });
   };
 
+  /** Effective binder name for a staged file (draft name, or filename). */
+  const draftName = (i: number) =>
+    binderDrafts[i]?.name.trim() || stripExtension(importFiles_[i].name);
+
+  /** Staged file indices grouped by case-insensitive effective name. */
+  const groupIndicesByName = (): number[][] => {
+    const order: string[] = [];
+    const map = new Map<string, number[]>();
+    importFiles_.forEach((_, i) => {
+      const key = draftName(i).toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, []);
+        order.push(key);
+      }
+      map.get(key)!.push(i);
+    });
+    return order.map((k) => map.get(k)!);
+  };
+
+  /**
+   * Imports the staged files. 'separate' = one binder per file (duplicate
+   * names produce duplicate binders). 'merge' = files sharing a name feed a
+   * single binder (first file creates it; the rest pin into it).
+   */
+  const executeImport = async (strategy: 'separate' | 'merge') => {
+    setSaving(true);
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      if (importFiles_.length > 0) {
+        const groups =
+          strategy === 'merge' ? groupIndicesByName() : importFiles_.map((_, i) => [i]);
+        for (const idxs of groups) {
+          let binderId = '';
+          for (let j = 0; j < idxs.length; j++) {
+            const i = idxs[j];
+            const file = importFiles_[i];
+            const draft = binderDrafts[i];
+            const result = await importFile(file);
+            if (j === 0) {
+              await importCards(result, file.name, 'binder', {
+                binderName: draft?.name.trim() || stripExtension(file.name),
+                binderColor: draft?.color ?? color,
+              });
+              binderId = useCollectionStore.getState().activeTab;
+            } else {
+              // Add this file's cards to the collection, then pin them into
+              // the binder the group's first file created. pinCardToBinder
+              // maintains the durable pin-key shadow.
+              await importCards(result, file.name, 'merge', {});
+              for (const c of result.cards) pinCardToBinder(binderId, c.copyId);
+            }
+          }
+        }
+      } else {
+        const result = await importText(importPasteText.trim());
+        await importCards(result, 'pasted-list', 'binder', {
+          binderName: name.trim(),
+          binderColor: color,
+        });
+      }
+      setEditingBinder(null);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!name.trim()) {
+    const isImportMode = binderMode === 'import' && isNew;
+    const isImportBatch = isImportMode && importFiles_.length > 0;
+    // In batch import each staged file names its own binder, so the top-level
+    // name field is unused; otherwise a name is required.
+    if (!isImportBatch && !name.trim()) {
       setErrorMsg('Name is required');
       return;
     }
-    if (binderMode === 'import' && isNew && !importPasteText.trim() && !importFile_) {
-      setErrorMsg('Paste a card list or upload a CSV');
+    if (isImportMode && !importPasteText.trim() && importFiles_.length === 0) {
+      setErrorMsg('Paste a card list or upload one or more CSV files');
       return;
     }
     for (let i = 0; i < groups.length; i++) {
@@ -326,34 +444,40 @@ export function BinderEditor() {
       sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
     };
 
-    setSaving(true);
-    setErrorMsg(null);
-    try {
-      if (existing) {
-        updateBinder(existing.id, input);
-      } else {
-        createBinder(input);
-
-        const hasImport = importPasteText.trim() || importFile_;
-        if (hasImport) {
-          setLoading(true);
-          try {
-            const result = importFile_
-              ? await importFile(importFile_)
-              : await importText(importPasteText.trim());
-            const label = importFile_ ? importFile_.name : 'pasted-list';
-            await importCards(result, label, 'binder', { binderName: name.trim() });
-          } finally {
-            setLoading(false);
-          }
-        }
+    // Rules binder (or editing an existing one): synchronous create/update.
+    if (existing || !isImportMode) {
+      setSaving(true);
+      setErrorMsg(null);
+      try {
+        if (existing) updateBinder(existing.id, input);
+        else createBinder(input);
+        setEditingBinder(null);
+      } catch (err) {
+        setErrorMsg(err instanceof Error ? err.message : 'Save failed');
+      } finally {
+        setSaving(false);
       }
-      setEditingBinder(null);
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
+      return;
     }
+
+    // Import mode owns binder creation via importCards (one 'manual' pinned
+    // binder per source). When staged files resolve to a name that's used
+    // twice in the batch OR already exists as a binder, ask the user first.
+    if (isImportBatch) {
+      const existingNames = new Set(binders.map((b) => b.name.trim().toLowerCase()));
+      const collisions = groupIndicesByName()
+        .map((g) => ({
+          name: draftName(g[0]),
+          count: g.length,
+          existing: existingNames.has(draftName(g[0]).toLowerCase()),
+        }))
+        .filter((c) => c.count > 1 || c.existing);
+      if (collisions.length > 0) {
+        setCollisionPrompt(collisions);
+        return;
+      }
+    }
+    await executeImport('separate');
   };
 
   const showEmptyWarning = areAllGroupsEmpty(groups);
@@ -364,339 +488,481 @@ export function BinderEditor() {
   const overCapacity = fixedCapacity !== null && !showEmptyWarning && binderMatchCount > capacity;
 
   return (
-    <div className="modal-backdrop" onClick={() => setEditingBinder(null)}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{existing ? 'Edit binder' : 'New binder'}</h2>
-          <button className="modal-close" onClick={() => setEditingBinder(null)} aria-label="Close">
-            ×
-          </button>
-        </div>
+    <>
+      <div className="modal-backdrop" onClick={() => setEditingBinder(null)}>
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>{existing ? 'Edit binder' : 'New binder'}</h2>
+            <button
+              className="modal-close"
+              onClick={() => setEditingBinder(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
 
-        <div className="modal-body">
-          {/* Basics */}
-          <section className="editor-section">
-            <div className="editor-row">
-              <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                <label>Binder name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Standard staples, Cube reserves..."
-                  autoFocus
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </div>
-            <div className="editor-row" style={{ alignItems: 'flex-start' }}>
-              <div className="field" style={{ flex: 1 }}>
-                <label>Pocket layout</label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <SelectMenu
-                    ariaLabel="Pocket layout"
-                    value={pocketSize}
-                    onChange={(v) => {
-                      const next = v as PocketSize;
-                      setFixedCapacity((prev) =>
-                        prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
-                          ? defaultFixedCapacity(next, doubleSided)
-                          : prev
-                      );
-                      setPocketSize(next);
-                    }}
-                    options={[
-                      { value: 4, label: '4-pocket' },
-                      { value: 9, label: '9-pocket' },
-                      { value: 12, label: '12-pocket' },
-                    ]}
+          <div className="modal-body">
+            {/* Basics */}
+            <section className="editor-section">
+              <div className="editor-row">
+                <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                  <label>Binder name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Standard staples, Cube reserves..."
+                    autoFocus
+                    style={{ width: '100%' }}
                   />
-                  <label
-                    className="field-checkbox"
-                    style={{ margin: 0, whiteSpace: 'nowrap' }}
-                    title="Each sheet stores cards on both sides — back of each sheet counts as its own page."
+                </div>
+              </div>
+              <div className="editor-row" style={{ alignItems: 'flex-start' }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Pocket layout</label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      flexWrap: 'wrap',
+                    }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={doubleSided}
-                      onChange={(e) => {
-                        const next = e.target.checked;
+                    <SelectMenu
+                      ariaLabel="Pocket layout"
+                      value={pocketSize}
+                      onChange={(v) => {
+                        const next = v as PocketSize;
                         setFixedCapacity((prev) =>
                           prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
-                            ? defaultFixedCapacity(pocketSize, next)
+                            ? defaultFixedCapacity(next, doubleSided)
                             : prev
                         );
-                        setDoubleSided(next);
+                        setPocketSize(next);
                       }}
+                      options={[
+                        { value: 4, label: '4-pocket' },
+                        { value: 9, label: '9-pocket' },
+                        { value: 12, label: '12-pocket' },
+                      ]}
                     />
-                    Double-sided
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="editor-row">
-              <div className="field" style={{ flex: 1 }}>
-                <label>Capacity</label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <label className="field-checkbox" style={{ margin: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={fixedCapacity !== null}
-                      onChange={(e) =>
-                        setFixedCapacity(
-                          e.target.checked ? defaultFixedCapacity(pocketSize, doubleSided) : null
-                        )
-                      }
-                    />
-                    Fixed
-                  </label>
-                  {fixedCapacity !== null && (
-                    <>
-                      <input
-                        type="number"
-                        min={1}
-                        max={100000}
-                        step={1}
-                        value={fixedCapacity}
-                        onChange={(e) => {
-                          const cards = parseInt(e.target.value);
-                          setFixedCapacity(Number.isFinite(cards) && cards > 0 ? cards : 1);
-                        }}
-                        aria-label="Capacity in cards"
-                        style={{ width: 100 }}
-                      />
-                      <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
-                        cards · ≈{' '}
-                        <strong>{Math.ceil(fixedCapacity / pocketSize).toLocaleString()}</strong>{' '}
-                        {Math.ceil(fixedCapacity / pocketSize) === 1 ? 'page' : 'pages'}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            {overCapacity && (
-              <div className="warn-banner" style={{ marginTop: '0.5rem' }}>
-                ⚠️ This binder matches {binderMatchCount.toLocaleString()} cards but its capacity is
-                only {capacity.toLocaleString()}. The extra{' '}
-                {(binderMatchCount - capacity).toLocaleString()} won't fit physically — they'll
-                still display, just flagged as over-capacity.
-              </div>
-            )}
-            <div className="editor-row">
-              <div className="field" style={{ flex: 1 }}>
-                <label>Deck cards</label>
-                <label
-                  className="field-checkbox"
-                  style={{ margin: 0 }}
-                  title="When off, cards currently allocated to any deck are hidden from this binder until the deck releases them. Pins and manual order are preserved."
-                >
-                  <input
-                    type="checkbox"
-                    checked={showDeckAllocated}
-                    onChange={(e) => setShowDeckAllocated(e.target.checked)}
-                  />
-                  Show cards that are in a deck
-                </label>
-              </div>
-            </div>
-            <div className="editor-row">
-              <div className="field">
-                <label>Tab color</label>
-                <ColorPicker value={color} onChange={setColor} ariaLabel="Tab color" />
-              </div>
-            </div>
-          </section>
-
-          {isNew && (
-            <div className="binder-mode-toggle" role="radiogroup" aria-label="Binder creation mode">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={binderMode === 'rules'}
-                className={`binder-mode-pill${binderMode === 'rules' ? ' active' : ''}`}
-                onClick={() => setBinderMode('rules')}
-              >
-                Build with rules
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={binderMode === 'import'}
-                className={`binder-mode-pill${binderMode === 'import' ? ' active' : ''}`}
-                onClick={() => setBinderMode('import')}
-              >
-                Import a list
-              </button>
-            </div>
-          )}
-
-          {(binderMode === 'rules' || existing) && (
-            <>
-              {/* Filters */}
-              <section className="editor-section">
-                {routingMode === 'manual' && existing && (
-                  <div className="manual-mode-banner">
-                    <p>
-                      This binder uses manual mode. Only pinned cards appear; filter rules are
-                      paused.
-                    </p>
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => setRoutingMode('rules')}
+                    <label
+                      className="field-checkbox"
+                      style={{ margin: 0, whiteSpace: 'nowrap' }}
+                      title="Each sheet stores cards on both sides — back of each sheet counts as its own page."
                     >
-                      Switch to rules
-                    </button>
+                      <input
+                        type="checkbox"
+                        checked={doubleSided}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setFixedCapacity((prev) =>
+                            prev !== null && prev === defaultFixedCapacity(pocketSize, doubleSided)
+                              ? defaultFixedCapacity(pocketSize, next)
+                              : prev
+                          );
+                          setDoubleSided(next);
+                        }}
+                      />
+                      Double-sided
+                    </label>
                   </div>
-                )}
-
-                <div
-                  style={
-                    routingMode === 'manual' ? { opacity: 0.5, pointerEvents: 'none' } : undefined
-                  }
-                >
-                  <h3>
-                    Filters{' '}
-                    <span className="muted">
-                      {groups.length === 1
-                        ? '— a card joins this binder if it matches every filter below'
-                        : '— a card joins this binder if it matches any rule group below'}
-                    </span>
-                  </h3>
-
-                  <FilterGroupList
-                    groups={groups}
-                    cards={cards}
-                    ownedSets={ownedSets}
-                    typeSuggestions={typeSuggestions}
-                    oracleSuggestions={oracleSuggestions}
-                    autofocusIdx={autofocusGroupIdx}
-                    clearAutofocus={() => setAutofocusGroupIdx(null)}
-                    onPatchFilter={patchFilter}
-                    onSetName={setGroupName}
-                    onAdd={addGroup}
-                    onDuplicate={duplicateGroup}
-                    onRemove={removeGroup}
-                  />
                 </div>
-
-                <div className="sr-only" role="status" aria-live="polite">
-                  {liveMsg}
-                </div>
-
-                {showEmptyWarning && (
-                  <div className="warn-banner" style={{ marginTop: '0.75rem' }}>
-                    ⚠️ This binder has no filters — it will match every remaining card. Add at least
-                    one, or place this binder near the bottom of the priority list.
-                  </div>
-                )}
-              </section>
-
-              {/* Sort */}
-              <section className="editor-section">
-                <h3>Sort within binder</h3>
-                <SortEditor
-                  sorts={sorts}
-                  valueOrders={sortValueOrders}
-                  onSortsChange={setSorts}
-                  onValueOrdersChange={setSortValueOrders}
-                />
-              </section>
-            </>
-          )}
-
-          {binderMode === 'import' && isNew && (
-            <section className="editor-section">
-              <p className="muted" style={{ marginBottom: '0.5rem' }}>
-                Paste a card list or upload a CSV. Cards will be added to your collection and placed
-                in this binder in the order listed.
-              </p>
-              {importFile_ ? (
-                <div className="import-binder-file-row">
-                  <span className="import-binder-file-name">{importFile_.name}</span>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => {
-                      setImportFile(null);
-                      if (importFileRef.current) importFileRef.current.value = '';
+              </div>
+              <div className="editor-row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Capacity</label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      flexWrap: 'wrap',
                     }}
                   >
-                    Remove
-                  </button>
+                    <label className="field-checkbox" style={{ margin: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={fixedCapacity !== null}
+                        onChange={(e) =>
+                          setFixedCapacity(
+                            e.target.checked ? defaultFixedCapacity(pocketSize, doubleSided) : null
+                          )
+                        }
+                      />
+                      Fixed
+                    </label>
+                    {fixedCapacity !== null && (
+                      <>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100000}
+                          step={1}
+                          value={fixedCapacity}
+                          onChange={(e) => {
+                            const cards = parseInt(e.target.value);
+                            setFixedCapacity(Number.isFinite(cards) && cards > 0 ? cards : 1);
+                          }}
+                          aria-label="Capacity in cards"
+                          style={{ width: 100 }}
+                        />
+                        <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
+                          cards · ≈{' '}
+                          <strong>{Math.ceil(fixedCapacity / pocketSize).toLocaleString()}</strong>{' '}
+                          {Math.ceil(fixedCapacity / pocketSize) === 1 ? 'page' : 'pages'}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <textarea
-                  className="paste-textarea import-binder-textarea"
-                  value={importPasteText}
-                  onChange={(e) => setImportPasteText(e.target.value)}
-                  placeholder={'1 Llanowar Elves\n1 Birds of Paradise\n4 Lightning Bolt\n...'}
-                  disabled={saving}
-                  autoFocus
-                />
+              </div>
+              {overCapacity && (
+                <div className="warn-banner" style={{ marginTop: '0.5rem' }}>
+                  ⚠️ This binder matches {binderMatchCount.toLocaleString()} cards but its capacity
+                  is only {capacity.toLocaleString()}. The extra{' '}
+                  {(binderMatchCount - capacity).toLocaleString()} won't fit physically — they'll
+                  still display, just flagged as over-capacity.
+                </div>
               )}
-              <div style={{ marginTop: '0.5rem' }}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => importFileRef.current?.click()}
-                  disabled={saving}
-                >
-                  Upload CSV
-                </button>
-                <input
-                  type="file"
-                  ref={importFileRef}
-                  accept=".csv,.tsv,.txt"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setImportFile(file);
-                      setImportPasteText('');
-                    }
-                    if (importFileRef.current) importFileRef.current.value = '';
-                  }}
-                  disabled={saving}
-                />
+              <div className="editor-row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Deck cards</label>
+                  <label
+                    className="field-checkbox"
+                    style={{ margin: 0 }}
+                    title="When off, cards currently allocated to any deck are hidden from this binder until the deck releases them. Pins and manual order are preserved."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={showDeckAllocated}
+                      onChange={(e) => setShowDeckAllocated(e.target.checked)}
+                    />
+                    Show cards that are in a deck
+                  </label>
+                </div>
+              </div>
+              <div className="editor-row">
+                <div className="field">
+                  <label>Tab color</label>
+                  <ColorPicker value={color} onChange={setColor} ariaLabel="Tab color" />
+                </div>
               </div>
             </section>
-          )}
 
-          {errorMsg && <div className="error-banner">{errorMsg}</div>}
-        </div>
+            {isNew && (
+              <div
+                className="binder-mode-toggle"
+                role="radiogroup"
+                aria-label="Binder creation mode"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={binderMode === 'rules'}
+                  className={`binder-mode-pill${binderMode === 'rules' ? ' active' : ''}`}
+                  onClick={() => setBinderMode('rules')}
+                >
+                  Build with rules
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={binderMode === 'import'}
+                  className={`binder-mode-pill${binderMode === 'import' ? ' active' : ''}`}
+                  onClick={() => setBinderMode('import')}
+                >
+                  Import a list
+                </button>
+              </div>
+            )}
 
-        <div className="modal-footer">
-          <button className="btn" onClick={() => setEditingBinder(null)} disabled={saving}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving
-              ? 'Saving...'
-              : existing
-                ? 'Save changes'
-                : binderMode === 'import'
-                  ? 'Create and import'
-                  : 'Create binder'}
-          </button>
+            {(binderMode === 'rules' || existing) && (
+              <>
+                {/* Filters */}
+                <section className="editor-section">
+                  {routingMode === 'manual' && existing && (
+                    <div className="manual-mode-banner">
+                      <p>
+                        This binder uses manual mode. Only pinned cards appear; filter rules are
+                        paused.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => setRoutingMode('rules')}
+                      >
+                        Switch to rules
+                      </button>
+                    </div>
+                  )}
+
+                  <div
+                    style={
+                      routingMode === 'manual' ? { opacity: 0.5, pointerEvents: 'none' } : undefined
+                    }
+                  >
+                    <h3>
+                      Filters{' '}
+                      <span className="muted">
+                        {groups.length === 1
+                          ? '— a card joins this binder if it matches every filter below'
+                          : '— a card joins this binder if it matches any rule group below'}
+                      </span>
+                    </h3>
+
+                    <FilterGroupList
+                      groups={groups}
+                      cards={cards}
+                      ownedSets={ownedSets}
+                      typeSuggestions={typeSuggestions}
+                      oracleSuggestions={oracleSuggestions}
+                      autofocusIdx={autofocusGroupIdx}
+                      clearAutofocus={() => setAutofocusGroupIdx(null)}
+                      onPatchFilter={patchFilter}
+                      onSetName={setGroupName}
+                      onAdd={addGroup}
+                      onDuplicate={duplicateGroup}
+                      onRemove={removeGroup}
+                    />
+                  </div>
+
+                  <div className="sr-only" role="status" aria-live="polite">
+                    {liveMsg}
+                  </div>
+
+                  {showEmptyWarning && (
+                    <div className="warn-banner" style={{ marginTop: '0.75rem' }}>
+                      ⚠️ This binder has no filters — it will match every remaining card. Add at
+                      least one, or place this binder near the bottom of the priority list.
+                    </div>
+                  )}
+                </section>
+
+                {/* Sort */}
+                <section className="editor-section">
+                  <h3>Sort within binder</h3>
+                  <SortEditor
+                    sorts={sorts}
+                    valueOrders={sortValueOrders}
+                    onSortsChange={setSorts}
+                    onValueOrdersChange={setSortValueOrders}
+                  />
+                </section>
+              </>
+            )}
+
+            {binderMode === 'import' && isNew && (
+              <section
+                className={`editor-section file-dropzone${importDragging ? ' is-dragging' : ''}`}
+                {...importDropProps}
+              >
+                {importDragging && (
+                  <div className="file-drop-overlay" aria-hidden="true">
+                    <div className="file-drop-message">Drop file(s) — one binder each</div>
+                  </div>
+                )}
+                <p className="muted" style={{ marginBottom: '0.5rem' }}>
+                  Paste a card list, or upload one or more CSV files —{' '}
+                  <strong>each file becomes its own binder</strong>. Cards are added to your
+                  collection and pinned into their binder in the order listed.
+                </p>
+                {importFiles_.length > 0 ? (
+                  <>
+                    <div className="binder-import-head">
+                      <strong>
+                        {importFiles_.length} file{importFiles_.length === 1 ? '' : 's'} — one
+                        binder each
+                      </strong>
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={() => applyStagedFiles([], importFiles_)}
+                        disabled={saving}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <ul className="binder-import-rows">
+                      {importFiles_.map((f, i) => (
+                        <li key={f.name} className="binder-import-row">
+                          <ColorPicker
+                            value={binderDrafts[i]?.color ?? PRESET_COLORS[0].hex}
+                            onChange={(hex) =>
+                              setBinderDrafts((ds) =>
+                                ds.map((d, idx) => (idx === i ? { ...d, color: hex } : d))
+                              )
+                            }
+                            ariaLabel={`Binder color for ${f.name}`}
+                          />
+                          <div className="binder-import-row-main">
+                            <input
+                              type="text"
+                              className="binder-name-input"
+                              value={binderDrafts[i]?.name ?? ''}
+                              onChange={(e) =>
+                                setBinderDrafts((ds) =>
+                                  ds.map((d, idx) =>
+                                    idx === i ? { ...d, name: e.target.value } : d
+                                  )
+                                )
+                              }
+                              placeholder={stripExtension(f.name)}
+                              maxLength={60}
+                              disabled={saving}
+                              aria-label={`Binder name for ${f.name}`}
+                            />
+                            <span className="binder-import-row-file">{f.name}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="staged-files-remove"
+                            onClick={() =>
+                              applyStagedFiles(
+                                importFiles_.filter((_, idx) => idx !== i),
+                                importFiles_
+                              )
+                            }
+                            disabled={saving}
+                            aria-label={`Remove ${f.name}`}
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {importStageNote && (
+                      <p className="muted" style={{ marginTop: '0.25rem' }}>
+                        {importStageNote}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <textarea
+                    className="paste-textarea import-binder-textarea"
+                    value={importPasteText}
+                    onChange={(e) => setImportPasteText(e.target.value)}
+                    placeholder={'1 Llanowar Elves\n1 Birds of Paradise\n4 Lightning Bolt\n...'}
+                    disabled={saving}
+                    autoFocus
+                  />
+                )}
+                <div style={{ marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => importFileRef.current?.click()}
+                    disabled={saving}
+                  >
+                    Upload files
+                  </button>
+                  <input
+                    type="file"
+                    ref={importFileRef}
+                    accept=".csv,.tsv,.txt"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const incoming = e.target.files ? Array.from(e.target.files) : [];
+                      if (importFileRef.current) importFileRef.current.value = '';
+                      stageIncoming(incoming);
+                    }}
+                    disabled={saving}
+                  />
+                </div>
+              </section>
+            )}
+
+            {errorMsg && <div className="error-banner">{errorMsg}</div>}
+          </div>
+
+          <div className="modal-footer">
+            <button className="btn" onClick={() => setEditingBinder(null)} disabled={saving}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving
+                ? 'Saving...'
+                : existing
+                  ? 'Save changes'
+                  : binderMode === 'import'
+                    ? 'Create and import'
+                    : 'Create binder'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {collisionPrompt && (
+        <div className="modal-backdrop" onClick={() => setCollisionPrompt(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2 className="choice-dialog-title">Some binder names need a decision</h2>
+            <ul className="choice-dialog-body" style={{ paddingLeft: '1.1rem' }}>
+              {collisionPrompt.map((c) => (
+                <li key={c.name}>
+                  <strong>"{c.name}"</strong>
+                  {c.count > 1 ? ` — ${c.count} staged files share this name` : ''}
+                  {c.existing
+                    ? `${c.count > 1 ? '; it' : ' —'} also matches a binder you already have`
+                    : ''}
+                </li>
+              ))}
+            </ul>
+            <div className="choice-dialog-options">
+              {collisionPrompt.some((c) => c.count > 1) && (
+                <button
+                  type="button"
+                  className="choice-dialog-option"
+                  onClick={() => {
+                    setCollisionPrompt(null);
+                    void executeImport('merge');
+                  }}
+                  autoFocus
+                >
+                  <span className="choice-dialog-option-title">Merge same-named files</span>
+                  <span className="choice-dialog-option-desc">
+                    Files that share a name go into one new binder together. Other files still get
+                    their own binder.
+                    {collisionPrompt.some((c) => c.existing)
+                      ? ' (Still creates new binders — existing same-named binders are left alone.)'
+                      : ''}
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="choice-dialog-option"
+                onClick={() => {
+                  setCollisionPrompt(null);
+                  void executeImport('separate');
+                }}
+              >
+                <span className="choice-dialog-option-title">Create separate binders</span>
+                <span className="choice-dialog-option-desc">
+                  Keep one binder per file — you'll get additional binders with the same name
+                  {collisionPrompt.some((c) => c.existing)
+                    ? ', including alongside the existing ones'
+                    : ''}
+                  .
+                </span>
+              </button>
+              <button
+                type="button"
+                className="choice-dialog-option"
+                onClick={() => setCollisionPrompt(null)}
+              >
+                <span className="choice-dialog-option-title">Let me rename them</span>
+                <span className="choice-dialog-option-desc">
+                  Go back to the list and edit the binder names first.
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
