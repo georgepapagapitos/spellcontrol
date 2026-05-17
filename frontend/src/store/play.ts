@@ -21,6 +21,8 @@ import {
   type JoinGameInput,
 } from '../lib/games-api';
 import { markDestructive } from '../lib/sync-intent';
+import { setHapticsEnabled } from '../lib/haptics';
+import { clearUndo } from '../lib/undo-stack';
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -45,6 +47,51 @@ export interface LocalGameSetup {
   }>;
 }
 
+/** Minimal shape needed to re-seed a game from a finished one. */
+export interface RematchTemplate {
+  format: GameFormat;
+  startingLife: number;
+  commanderDamageEnabled: boolean;
+  poisonEnabled: boolean;
+  players: LocalGameSetup['players'];
+}
+
+/** Derive a rematch template from a finished in-memory game. */
+export function gameToRematch(game: GameState): RematchTemplate {
+  return {
+    format: game.format,
+    startingLife: game.startingLife,
+    commanderDamageEnabled: game.commanderDamageEnabled,
+    poisonEnabled: game.poisonEnabled,
+    players: game.players.map((p) => ({
+      name: p.name,
+      deckId: p.deckId,
+      deckName: p.deckName,
+      commander: p.commander,
+      colorIdentity: p.colorIdentity,
+    })),
+  };
+}
+
+/** Derive a rematch template from a persisted history record. */
+export function recordToRematch(rec: GameRecord): RematchTemplate {
+  return {
+    format: rec.format,
+    startingLife: rec.startingLife,
+    // Records don't store the rule toggles; infer cmdr damage from format and
+    // leave poison off (the host can flip it in the game menu if needed).
+    commanderDamageEnabled: rec.format === 'commander',
+    poisonEnabled: false,
+    players: rec.players.map((p) => ({
+      name: p.name,
+      deckId: p.deckId,
+      deckName: p.deckName,
+      commander: p.commander,
+      colorIdentity: [],
+    })),
+  };
+}
+
 interface PlayState {
   /** Active local (shared-device) game, if any. */
   local: GameState | null;
@@ -63,13 +110,26 @@ interface PlayState {
    * app, but the underlying game state is kept intact and is resumable.
    */
   boardVisible: boolean;
+  /** Vibration feedback on taps / lethal hits. Persisted; default on. */
+  hapticsEnabled: boolean;
+  /**
+   * Remembered board layout per player count (keyed by count). New local
+   * games of that size start in this arrangement instead of the built-in
+   * default. Persisted. Holds preset ids or serialized custom layouts.
+   */
+  preferredLayouts: Record<number, string>;
 
   // ── Board visibility ────────────────────────────────────────────────────
   hideBoard(): void;
   showBoard(): void;
+  setHaptics(enabled: boolean): void;
+  /** Remember (or clear, with null) the default layout for `count` seats. */
+  setPreferredLayout(count: number, layout: string | null): void;
 
   // ── Local game ──────────────────────────────────────────────────────────
   startLocal(setup: LocalGameSetup): void;
+  /** Start a fresh local game reusing a finished game's roster + settings. */
+  rematchLocal(record: RematchTemplate): void;
   dispatchLocal(action: GameAction): void;
   endLocal(winnerSeat: number | null): void;
   discardLocal(): void;
@@ -126,9 +186,23 @@ export const usePlayStore = create<PlayState>()(
       onlineError: null,
       onlinePolling: false,
       boardVisible: true,
+      hapticsEnabled: true,
+      preferredLayouts: {},
 
       hideBoard: () => set({ boardVisible: false }),
       showBoard: () => set({ boardVisible: true }),
+      setHaptics: (enabled) => {
+        setHapticsEnabled(enabled);
+        set({ hapticsEnabled: enabled });
+      },
+      setPreferredLayout: (count, layout) => {
+        set((s) => {
+          const nextLayouts = { ...s.preferredLayouts };
+          if (layout == null) delete nextLayouts[count];
+          else nextLayouts[count] = layout;
+          return { preferredLayouts: nextLayouts };
+        });
+      },
 
       // ── Local ─────────────────────────────────────────────────────────────
       startLocal: (setup) => {
@@ -155,10 +229,24 @@ export const usePlayStore = create<PlayState>()(
           startingLife: setup.startingLife,
           commanderDamageEnabled: setup.commanderDamageEnabled,
           poisonEnabled: setup.poisonEnabled,
+          // Honor a remembered arrangement for this table size, if any.
+          layout: get().preferredLayouts[players.length],
           players,
         });
         const started = applyAction(game, { type: 'start' });
         set({ local: started, boardVisible: true });
+      },
+
+      rematchLocal: (template) => {
+        const prev = get().local;
+        if (prev) clearUndo(prev.id);
+        get().startLocal({
+          format: template.format,
+          startingLife: template.startingLife,
+          commanderDamageEnabled: template.commanderDamageEnabled,
+          poisonEnabled: template.poisonEnabled,
+          players: template.players,
+        });
       },
 
       dispatchLocal: (action) => {
@@ -177,7 +265,11 @@ export const usePlayStore = create<PlayState>()(
         recordIfFinished(next, set);
       },
 
-      discardLocal: () => set({ local: null, boardVisible: true }),
+      discardLocal: () => {
+        const cur = get().local;
+        if (cur) clearUndo(cur.id);
+        set({ local: null, boardVisible: true });
+      },
 
       // ── Online ────────────────────────────────────────────────────────────
       hostOnline: async (input) => {
@@ -295,6 +387,7 @@ export const usePlayStore = create<PlayState>()(
         } catch {
           /* best effort */
         }
+        clearUndo(cur.id);
         get().stopPolling();
         pendingActions = [];
         serverCode = null;
@@ -303,6 +396,8 @@ export const usePlayStore = create<PlayState>()(
       },
 
       clearOnline: () => {
+        const cur = get().online;
+        if (cur) clearUndo(cur.id);
         get().stopPolling();
         pendingActions = [];
         serverCode = null;
@@ -340,6 +435,8 @@ export const usePlayStore = create<PlayState>()(
       onRehydrateStorage: () => (state) => {
         if (!state) return;
         state.hydrated = true;
+        // Mirror the persisted haptics preference into the module flag.
+        setHapticsEnabled(state.hapticsEnabled ?? true);
         // If we had an online game in flight (refresh, dropped wifi, accidental
         // tab close), seed the module-level polling identity from the persisted
         // snapshot. The PlayPage mount effect calls startPolling() + an
@@ -363,6 +460,8 @@ export const usePlayStore = create<PlayState>()(
         online: s.online,
         history: s.history,
         boardVisible: s.boardVisible,
+        hapticsEnabled: s.hapticsEnabled,
+        preferredLayouts: s.preferredLayouts,
       }),
     }
   )
