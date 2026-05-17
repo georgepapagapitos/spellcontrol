@@ -100,4 +100,58 @@ describe('undo-stack', () => {
     runSuppressed(() => capture('g1', g, { type: 'life', seat: 0, delta: -1, actorSeat: 0 }));
     expect(canUndo('g1')).toBe(false);
   });
+
+  it('restores a poison change', () => {
+    let g = applyAction(game(), { type: 'start' });
+    const action = { type: 'poison', seat: 0, delta: 4, actorSeat: 1 } as const;
+    capture('g1', g, action);
+    g = applyAction(g, action);
+    expect(g.players[0].poison).toBe(4);
+    expect(peekLabel('g1')).toContain('poison');
+
+    const restore = popRestore('g1', g);
+    for (const a of restore) g = applyAction(g, a);
+    expect(g.players[0].poison).toBe(0);
+  });
+
+  it('restores a manual concede toggle', () => {
+    let g = applyAction(game(), { type: 'start' });
+    const action = { type: 'eliminate', seat: 1, eliminated: true } as const;
+    capture('g1', g, action);
+    g = applyAction(g, action);
+    expect(g.players[1].eliminated).toBe(true);
+    expect(peekLabel('g1')).toContain('concede');
+
+    const restore = popRestore('g1', g);
+    for (const a of restore) g = applyAction(g, a);
+    expect(g.players[1].eliminated).toBe(false);
+  });
+
+  it('returns no actions and stays empty when there is nothing to undo', () => {
+    const g = applyAction(game(), { type: 'start' });
+    expect(popRestore('g1', g)).toEqual([]);
+    expect(canUndo('g1')).toBe(false);
+    expect(peekLabel('g1')).toBeNull();
+  });
+
+  it('starts a new undo entry once the burst window lapses', () => {
+    let g = applyAction(game(), { type: 'start' });
+    const a = { type: 'life', seat: 0, delta: -1, actorSeat: 0 } as const;
+    capture('g1', g, a);
+    g = applyAction(g, a);
+    // A different kind on a different seat is never coalesced with the above.
+    const b = { type: 'poison', seat: 1, delta: 1, actorSeat: 1 } as const;
+    capture('g1', g, b);
+    g = applyAction(g, b);
+
+    let r = popRestore('g1', g); // undoes the poison
+    for (const x of r) g = applyAction(g, x);
+    expect(g.players[1].poison).toBe(0);
+    expect(canUndo('g1')).toBe(true);
+
+    r = popRestore('g1', g); // undoes the life change
+    for (const x of r) g = applyAction(g, x);
+    expect(g.players[0].life).toBe(40);
+    expect(canUndo('g1')).toBe(false);
+  });
 });

@@ -22,11 +22,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/lib/**'],
-      // ocr.ts is a thin wrapper around tesseract.js that requires a real
-      // browser worker + WASM runtime. Unit tests can't exercise it
-      // meaningfully — its behaviour is verified by integration use of the
-      // scanner UI.
-      exclude: ['src/lib/ocr.ts'],
+      // Thin browser-API wrappers that need a real runtime (worker/WASM,
+      // Screen Wake Lock + visibilitychange) and can't be exercised
+      // meaningfully under the node test env — verified via integration use:
+      //   - ocr.ts: tesseract.js worker + WASM
+      //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
+      exclude: ['src/lib/ocr.ts', 'src/lib/use-wake-lock.ts'],
       thresholds: {
         statements: 80,
         branches: 80,
