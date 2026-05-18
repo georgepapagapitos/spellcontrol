@@ -38,11 +38,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
-import {
-  computeGradeAndBracket,
-  buildInclusionIndex,
-  lookupInclusion,
-} from './commanderDeckAnalysis';
+import { computeGradeAndBracket } from './commanderDeckAnalysis';
 import { getDynamicRoleTargets, estimatePacingFromStats } from './roleTargets';
 import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
@@ -92,6 +88,7 @@ import {
 } from './deckGeneration/state';
 import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
+import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -3092,48 +3089,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Build deck score from EDHREC inclusion percentages
-  let deckScore: number | undefined;
-  let cardInclusionMap: Record<string, number> | undefined;
-  if (state.edhrecData) {
-    const inclusionIndex = buildInclusionIndex(state.edhrecData);
-
-    const inclMap: Record<string, number> = {};
-    let score = 0;
-    for (const cards of Object.values(categories)) {
-      for (const card of cards) {
-        if (BASIC_LAND_NAMES.has(card.name)) continue;
-        const val = lookupInclusion(inclusionIndex, card.name) ?? 0;
-        inclMap[card.name] = val;
-        score += val;
-      }
-    }
-    // Also index swap candidates so the UI can show their inclusion %
-    if (swapCandidates) {
-      for (const cards of Object.values(swapCandidates)) {
-        for (const card of cards) {
-          if (inclMap[card.name] !== undefined) continue;
-          const incl = lookupInclusion(inclusionIndex, card.name);
-          if (incl !== undefined) inclMap[card.name] = incl;
-        }
-      }
-    }
-    // Also index gap analysis cards
-    if (gapAnalysis) {
-      for (const g of gapAnalysis) {
-        if (inclMap[g.name] === undefined) inclMap[g.name] = g.inclusion;
-      }
-    }
-    deckScore = Math.round(score);
-    cardInclusionMap = inclMap;
-    const nonBasicCount =
-      Object.keys(inclMap).length -
-      (swapCandidates ? Object.values(swapCandidates).flat().length : 0) -
-      (gapAnalysis?.length ?? 0);
-    const avg = nonBasicCount > 0 ? score / nonBasicCount : 0;
-    console.log(
-      `[DeckGen] Deck score: ${deckScore} (avg ${avg.toFixed(1)}% across ${nonBasicCount} deck cards)`
-    );
-  }
+  const { deckScore, cardInclusionMap } = deckScorePhase(state, swapCandidates, gapAnalysis);
 
   // Build per-card relevancy scores (composite: synergy + inclusion + role deficit + curve fit + type balance)
   let cardRelevancyMap: Record<string, number> | undefined;
