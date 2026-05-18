@@ -4,16 +4,13 @@ import type {
   GapAnalysisCard,
   DetectedCombo,
   DeckCategory,
-  Customization,
   DeckDataSource,
-  ThemeResult,
   EDHRECCard,
   EDHRECCombo,
   EDHRECCommanderData,
   EDHRECCommanderStats,
   BracketLevel,
   BudgetOption,
-  CollectionStrategy,
 } from '@/deck-builder/types';
 import {
   getCardByName,
@@ -23,7 +20,6 @@ import {
   getGameChangerNames,
   getCardPrice,
   getFrontFaceTypeLine,
-  parseSetFromQuery,
   upgradeCardPrintings,
   isMdfcLand,
   isChannelLand,
@@ -87,21 +83,21 @@ import {
   MDFC_LAND_BOOST,
 } from './landGenerator';
 
+import {
+  type GenerationContext,
+  createState,
+  markUsed as stMarkUsed,
+  markBanned as stMarkBanned,
+  addMustInclude as stAddMustInclude,
+  getComboBoosts as stGetComboBoosts,
+  countAllCards as stCountAllCards,
+} from './deckGeneration/state';
+
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
 export { stampRoleSubtypes } from './categorize';
 export { CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
-
-interface GenerationContext {
-  commander: ScryfallCard;
-  partnerCommander: ScryfallCard | null;
-  colorIdentity: string[];
-  customization: Customization;
-  selectedThemes?: ThemeResult[];
-  collectionNames?: Set<string>;
-  optimizeDeckCards?: string[];
-  onProgress?: (message: string, percent: number) => void;
-}
+export type { GenerationContext };
 
 // Merge cardlists from multiple theme results
 function mergeThemeCardlists(themeDataResults: EDHRECCommanderData[]): {
@@ -229,26 +225,46 @@ export function getGenerationCacheEdhrecData(): EDHRECCommanderData | null {
 export async function generateDeck(context: GenerationContext): Promise<GeneratedDeck> {
   const { commander, partnerCommander, colorIdentity, customization, onProgress } = context;
 
-  const format = customization.deckFormat;
-  const usedNames = new Set<string>();
-
-  // Helper: mark a card name as used, including front-face name for DFCs
-  // EDHREC uses front-face-only names while Scryfall uses "Front // Back"
-  function markUsed(name: string) {
-    usedNames.add(name);
-    if (name.includes(' // ')) {
-      usedNames.add(name.split(' // ')[0]);
-    }
-  }
-  const bannedCards = new Set<string>();
-  // Helper: ban a card name, including front-face name for DFCs
-  // EDHREC uses front-face-only names while Scryfall uses "Front // Back"
-  function markBanned(name: string) {
-    bannedCards.add(name);
-    if (name.includes(' // ')) {
-      bannedCards.add(name.split(' // ')[0]);
-    }
-  }
+  const state = createState(context);
+  const {
+    usedNames,
+    bannedCards,
+    categories,
+    currentCurveCounts,
+    currentRoleCounts,
+    currentSubtypeCounts,
+    staticComboBoosts,
+    comboCardNames,
+    comboCards,
+    gameChangerCount,
+    mustIncludeNames,
+    mustIncludeSources,
+  } = state;
+  const {
+    format,
+    maxCardPrice,
+    budgetOption,
+    bracketLevel,
+    maxRarity,
+    maxCmc,
+    arenaOnly,
+    scryfallQuery,
+    preferredSet,
+    maxGameChangers,
+    deckBudget,
+    currency,
+    ignoreOwnedBudget,
+    ignoreOwnedRarity,
+    collectionStrategy,
+    collectionOwnedPercent,
+    comboCountSetting,
+    selectedThemesWithSlugs,
+  } = state.cfg;
+  const markUsed = (name: string) => stMarkUsed(state, name);
+  const markBanned = (name: string) => stMarkBanned(state, name);
+  const addMustInclude = (name: string, source: 'user' | 'deck' | 'combo') =>
+    stAddMustInclude(state, name, source);
+  const getComboBoosts = () => stGetComboBoosts(state);
   (customization.bannedCards || []).forEach(markBanned);
   // Merge enabled ban lists into the banned set
   for (const list of customization.banLists || []) {
@@ -268,27 +284,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     console.log(`[DeckGen] Temp banned cards:`, tempBanned);
     tempBanned.forEach(markBanned);
   }
-  const maxCardPrice = customization.maxCardPrice ?? null;
-  const budgetOption =
-    customization.budgetOption !== 'any' ? customization.budgetOption : undefined;
-  const bracketLevel =
-    customization.bracketLevel !== 'all' ? customization.bracketLevel : undefined;
-  const maxRarity = customization.maxRarity ?? null;
-  const maxCmc = customization.tinyLeaders ? 3 : null;
-  const arenaOnly = !!customization.arenaOnly;
-  const scryfallQuery = customization.scryfallQuery ?? '';
-  const preferredSet = parseSetFromQuery(scryfallQuery);
-  const maxGameChangers =
-    customization.gameChangerLimit === 'none'
-      ? 0
-      : customization.gameChangerLimit === 'unlimited'
-        ? Infinity
-        : customization.gameChangerLimit;
-  const gameChangerCount = { value: 0 };
-  const deckBudget = customization.deckBudget ?? null;
-  const currency = customization.currency ?? 'USD';
-  const ignoreOwnedBudget = !!(customization.ignoreOwnedBudget && context.collectionNames);
-  const ignoreOwnedRarity = !!(customization.ignoreOwnedRarity && context.collectionNames);
   console.log(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );
@@ -299,8 +294,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Log collection mode
-  const collectionStrategy: CollectionStrategy = customization.collectionStrategy ?? 'full';
-  const collectionOwnedPercent = customization.collectionOwnedPercent ?? 75;
   if (context.collectionNames) {
     console.log(
       `[DeckGen] Collection mode (${collectionStrategy}${collectionStrategy === 'partial' ? `, ${collectionOwnedPercent}%` : ''}): ${collectionStrategy === 'full' ? 'restricting to' : 'prioritizing'} ${context.collectionNames.size} owned cards`
@@ -321,8 +314,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   let dataSource: DeckDataSource = 'scryfall';
   let baseData: EDHRECCommanderData | null = null;
   let themeOverlapCounts = new Map<string, number>();
-  const selectedThemesWithSlugs =
-    context.selectedThemes?.filter((t) => t.isSelected && t.source === 'edhrec' && t.slug) || [];
 
   if (usingCache) {
     console.log('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
@@ -354,10 +345,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Build combo priority boost map + combo membership index for dynamic boosting
-  const comboCountSetting = customization.comboCount ?? 0;
-  const staticComboBoosts = new Map<string, number>();
-  const comboCardNames = new Set<string>();
-  const comboCards = new Map<string, Set<string>>(); // comboId -> card names
   if (comboCountSetting > 0 && combos.length > 0) {
     // Scale combo attempts by deck size (baseline: 99 cards → 1→2, 2→4, 3→7)
     const sizeScale = Math.max(0.5, format / 99);
@@ -427,44 +414,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     );
   }
 
-  // Dynamic combo boosts: recalculates each phase to boost remaining pieces of partially-assembled combos
-  const getComboBoosts = (): Map<string, number> => {
-    const boosts = new Map(staticComboBoosts);
-    if (comboCountSetting <= 0 || comboCards.size === 0) return boosts;
-    for (const [, cardSet] of comboCards) {
-      const totalPieces = cardSet.size;
-      if (totalPieces <= 1) continue;
-      let selectedCount = 0;
-      for (const name of cardSet) {
-        if (usedNames.has(name)) selectedCount++;
-      }
-      if (selectedCount === 0) continue;
-      // completionFraction uses totalPieces-1 so 2-of-3 = 1.0 (max urgency for last piece)
-      const completionFraction = selectedCount / (totalPieces - 1);
-      const dynamicBoost = 50 * comboCountSetting * completionFraction;
-      for (const name of cardSet) {
-        if (usedNames.has(name)) continue;
-        boosts.set(name, (boosts.get(name) ?? 0) + dynamicBoost);
-      }
-    }
-    return boosts;
-  };
-  // getComboBoosts() is called at each type phase to include dynamic boosts
-
-  const categories: Record<DeckCategory, ScryfallCard[]> = {
-    lands: [],
-    ramp: [],
-    cardDraw: [],
-    singleRemoval: [],
-    boardWipes: [],
-    creatures: [],
-    synergy: [],
-    utility: [],
-  };
-
-  // Track current curve distribution as we add cards (moved up for must-include cards)
-  const currentCurveCounts: Record<number, number> = {};
-
   // Balanced roles tracking — declared at outer scope so return statement can access them
   let roleTargets: Record<RoleKey, number> | null = null;
   let roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
@@ -472,26 +421,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // resolvedPacing is set after edhrecData is available; detectedPacing mirrors it for the return value
   let resolvedPacing: Pacing = 'balanced';
   let detectedPacing: Pacing = 'balanced';
-  const currentRoleCounts: Record<RoleKey, number> = {
-    ramp: 0,
-    removal: 0,
-    boardwipe: 0,
-    cardDraw: 0,
-  };
-  const currentSubtypeCounts: Record<string, number> = {};
   let swapCandidates: Record<string, ScryfallCard[]> | undefined;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
-  const mustIncludeNames: string[] = [];
-  const mustIncludeSources = new Map<string, 'user' | 'deck' | 'combo'>();
-
-  function addMustInclude(name: string, source: 'user' | 'deck' | 'combo') {
-    if (!bannedCards.has(name) && !usedNames.has(name) && !mustIncludeNames.includes(name)) {
-      mustIncludeNames.push(name);
-      mustIncludeSources.set(name, source);
-    }
-  }
 
   // Persistent user must-includes
   for (const name of customization.mustIncludeCards || []) {
@@ -2210,7 +2143,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   const targetDeckSize = format === 99 ? 100 - commanderCount : format - commanderCount;
 
   // Helper to count all cards
-  const countAllCards = () => Object.values(categories).flat().length;
+  const countAllCards = () => stCountAllCards(state);
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
   const MUST_INCLUDE_BOOST = 10000;
