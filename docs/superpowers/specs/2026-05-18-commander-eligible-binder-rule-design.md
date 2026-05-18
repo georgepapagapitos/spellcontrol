@@ -111,28 +111,31 @@ undefined`, so a binder whose only rule is "commander-eligible" does not
 
 ### 4. UI — `frontend/src/components/BinderEditor.tsx`
 
-A new `rule-row` labeled **Commander**, tri-state, matching the editor's
-IS / IS NOT idiom and existing control styling:
+A new `rule-row` labeled **Commander** with a three-option segmented pill
+control. **Reuse the editor's existing pattern** — the `role="radiogroup"` /
+`role="radio"` pill group already used for `binder-mode-toggle` /
+`binder-mode-pill` (`BinderEditor.tsx:654-679`) — rather than introducing a
+new widget. Three pills:
 
 - **Any** (clears → `commanderEligible: undefined`)
-- **IS commander** (`true`)
-- **IS NOT commander** (`false`)
+- **Is** (`true`)
+- **Is not** (`false`)
 
-`ⓘ` tooltip (same `has-tooltip` pattern as Type line / Treatment rows):
-_"Matches legal commanders: legendary creatures and cards that say 'can be
-your commander' (e.g. planeswalker-commanders), legal in the Commander
-format."_
+`ⓘ` tooltip (same `has-tooltip` / `tooltip-marker` pattern as the Type line /
+Treatment rows): _"Matches legal commanders: legendary creatures and cards
+that say 'can be your commander' (e.g. planeswalker-commanders), legal in the
+Commander format."_
 
-Placement: near the Type line / Oracle text rows where commander-style
-filtering is most discoverable. Reuse an existing segmented/toggle control
-pattern already in the editor rather than introducing a new widget.
+Placement: in the same filter `rule-row` stack, near the Type line / Oracle
+text rows where commander-style filtering is most discoverable.
 
 ### 5. Tests
 
-- `frontend/src/lib/commanders.test.ts`: extend (or add) — legendary creature
-  ✓; planeswalker with "can be your commander" + commander legal ✓; banned
-  legend (commander not legal) ✗; non-legendary non-text card ✗; missing
-  fields ✗. Assert `isValidCommander` behavior is unchanged.
+- `frontend/src/lib/commanders.test.ts` (exists): extend it — legendary
+  creature ✓; planeswalker with "can be your commander" + commander legal ✓;
+  banned legend (commander not legal) ✗; non-legendary non-text card ✗;
+  missing fields ✗. Keep the existing `isValidCommander` cases green to assert
+  its behavior is unchanged after the refactor.
 - `frontend/src/lib/rules.test.ts`: `commanderEligible: true` matches a
   legendary creature and a planeswalker-commander, rejects a banned legend and
   a vanilla creature; `false` inverts; `undefined` imposes nothing;
