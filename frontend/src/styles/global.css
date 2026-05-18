@@ -6457,11 +6457,13 @@ hr {
    positive padding restores inner content alignment. */
 .collection-toolbar-row {
   position: sticky;
-  /* The desktop header is sticky at top:0 with height 3.25rem, so the
-     toolbar parks just under it. On mobile (≤1024px) the header is
-     hidden and the toolbar pins to the viewport top — see the override
-     below. */
-  top: 3.25rem;
+  /* `.app-main` is the sole scroll container and the header is a
+     non-scrolling flex sibling *outside* it (see Layout.tsx), so the
+     scrollport's top edge already sits flush under the header at every
+     breakpoint — the bar pins at 0, not the header's height. (A prior
+     `top: 3.25rem` left a header-tall strip of scrolling cards visible
+     above the pinned bar.) */
+  top: 0;
   z-index: var(--z-panel);
   background: var(--bg);
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
@@ -6471,12 +6473,6 @@ hr {
   gap: 0.6rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
-}
-
-@media (max-width: 1024px) {
-  .collection-toolbar-row {
-    top: 0;
-  }
 }
 
 /* Collection hero meta — totals + Stats button sit under the Collection
