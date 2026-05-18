@@ -1,0 +1,110 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+  calculateCardPriority,
+  isHighSynergyCard,
+  mergeWithAllNonLand,
+  pickFromPrefetched,
+} from './cardPicking';
+import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
+
+function ec(overrides: Partial<EDHRECCard> = {}): EDHRECCard {
+  return {
+    name: 'Card',
+    sanitized: 'card',
+    primary_type: 'Creature',
+    inclusion: 10,
+    num_decks: 100,
+    ...overrides,
+  };
+}
+
+function sc(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
+  return {
+    id: 'id',
+    oracle_id: 'oracle',
+    name: 'Card',
+    cmc: 3,
+    type_line: 'Creature',
+    oracle_text: '',
+    color_identity: [],
+    keywords: [],
+    rarity: 'rare',
+    set: 'tst',
+    set_name: 'Test',
+    prices: {},
+    legalities: { commander: 'legal' },
+    ...overrides,
+  };
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('calculateCardPriority', () => {
+  it('gives theme-synergy cards the dominant 100+ boost', () => {
+    const themed = calculateCardPriority(
+      ec({ isThemeSynergyCard: true, synergy: 0.5, inclusion: 5 })
+    );
+    const staple = calculateCardPriority(ec({ inclusion: 90 }));
+    expect(themed).toBeGreaterThan(staple);
+    expect(themed).toBe(100 + 0.5 * 50 + 5);
+  });
+
+  it('weights high-synergy (>0.3) non-theme cards by synergy*100', () => {
+    expect(calculateCardPriority(ec({ synergy: 0.6, inclusion: 10 }))).toBe(0.6 * 100 + 10);
+  });
+
+  it('falls back to inclusion for low-synergy cards, plus a new-card boost', () => {
+    expect(calculateCardPriority(ec({ synergy: 0.1, inclusion: 20 }))).toBe(20);
+    expect(calculateCardPriority(ec({ synergy: 0.1, inclusion: 20, isNewCard: true }))).toBe(45);
+  });
+});
+
+describe('isHighSynergyCard', () => {
+  it('is true for theme cards or synergy above 0.3', () => {
+    expect(isHighSynergyCard(ec({ isThemeSynergyCard: true }))).toBe(true);
+    expect(isHighSynergyCard(ec({ synergy: 0.31 }))).toBe(true);
+  });
+  it('is false at or below the 0.3 synergy threshold with no theme flag', () => {
+    expect(isHighSynergyCard(ec({ synergy: 0.3 }))).toBe(false);
+    expect(isHighSynergyCard(ec({}))).toBe(false);
+  });
+});
+
+describe('mergeWithAllNonLand', () => {
+  it('adds only Unknown allNonLand cards not already present, sorted by priority', () => {
+    const typed = [ec({ name: 'A', inclusion: 10 })];
+    const allNonLand = [
+      ec({ name: 'A', primary_type: 'Unknown', inclusion: 99 }), // dup name — skipped
+      ec({ name: 'B', primary_type: 'Unknown', inclusion: 50 }),
+      ec({ name: 'C', primary_type: 'Creature', inclusion: 80 }), // not Unknown — skipped
+    ];
+    const merged = mergeWithAllNonLand(typed, allNonLand);
+    expect(merged.map((c) => c.name)).toEqual(['B', 'A']); // B (50) outranks A (10)
+  });
+});
+
+describe('pickFromPrefetched', () => {
+  it('respects count, color identity, and bans while mutating usedNames', () => {
+    const cards = [
+      ec({ name: 'InColor', inclusion: 90 }),
+      ec({ name: 'OffColor', inclusion: 80 }),
+      ec({ name: 'Banned', inclusion: 70 }),
+    ];
+    const map = new Map<string, ScryfallCard>([
+      ['InColor', sc({ name: 'InColor', color_identity: ['G'] })],
+      ['OffColor', sc({ name: 'OffColor', color_identity: ['R'] })],
+      ['Banned', sc({ name: 'Banned', color_identity: ['G'] })],
+    ]);
+    const used = new Set<string>();
+    const picked = pickFromPrefetched(cards, map, 5, used, ['G'], new Set(['Banned']));
+    expect(picked.map((c) => c.name)).toEqual(['InColor']);
+    expect(used.has('InColor')).toBe(true);
+  });
+
+  it('stops once the requested count is reached', () => {
+    const cards = [ec({ name: 'A' }), ec({ name: 'B' }), ec({ name: 'C' })];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    const picked = pickFromPrefetched(cards, map, 2, new Set(), []);
+    expect(picked).toHaveLength(2);
+  });
+});

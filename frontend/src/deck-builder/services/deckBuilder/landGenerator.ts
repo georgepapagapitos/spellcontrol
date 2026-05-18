@@ -1,0 +1,352 @@
+// Land base generation: non-basic land selection (EDHREC + Scryfall fallback),
+// channel/MDFC/tapland pacing boosts, and pip-proportional basics.
+// Extracted verbatim from deckGenerator.ts.
+import type {
+  EDHRECCard,
+  ScryfallCard,
+  MaxRarity,
+  DeckSize,
+  CollectionStrategy,
+  Pacing,
+} from '@/deck-builder/types';
+import {
+  getCardsByNames,
+  upgradeCardPrintings,
+  isChannelLand,
+  isMdfcLand,
+  CHANNEL_LANDS,
+  getCardByName,
+  getCachedCard,
+} from '@/deck-builder/services/scryfall/client';
+import { isTapland } from '@/deck-builder/services/tagger/client';
+import { BudgetTracker } from './budgetTracker';
+import { pickFromPrefetched } from './cardPicking';
+import { fillWithScryfall } from './scryfallFill';
+
+// Basic land names to filter out from EDHREC suggestions
+export const BASIC_LAND_NAMES = new Set([
+  'Plains',
+  'Island',
+  'Swamp',
+  'Mountain',
+  'Forest',
+  'Snow-Covered Plains',
+  'Snow-Covered Island',
+  'Snow-Covered Swamp',
+  'Snow-Covered Mountain',
+  'Snow-Covered Forest',
+  'Wastes',
+]);
+
+/** Priority boost for Kamigawa channel lands — near-auto-includes in their color. */
+export const CHANNEL_LAND_BOOST = 80;
+/** Priority boost for MDFC spell/lands — strictly better than spell-only equivalents. */
+export const MDFC_LAND_BOOST = 50;
+
+const TAPLAND_PENALTIES: Record<Pacing, number> = {
+  'aggressive-early': -30,
+  'fast-tempo': -20,
+  balanced: -10,
+  midrange: -5,
+  'late-game': 0,
+};
+
+// Count color pips across all cards' mana costs (including hybrid mana)
+export function countColorPips(cards: ScryfallCard[]): Record<string, number> {
+  const pips: Record<string, number> = {};
+  // Match any mana symbol: {W}, {U/B}, {2/R}, {G/P}, etc.
+  const symbolPattern = /\{([^}]+)\}/g;
+  const colorLetters = new Set(['W', 'U', 'B', 'R', 'G']);
+  for (const card of cards) {
+    const costs: string[] = [];
+    if (card.mana_cost) costs.push(card.mana_cost);
+    // Double-faced cards store mana cost on each face
+    if (card.card_faces) {
+      for (const face of card.card_faces) {
+        if (face.mana_cost) costs.push(face.mana_cost);
+      }
+    }
+    for (const cost of costs) {
+      let match;
+      while ((match = symbolPattern.exec(cost)) !== null) {
+        // Extract every color letter from the symbol (handles hybrid like W/U, 2/R, G/P)
+        for (const char of match[1]) {
+          if (colorLetters.has(char)) {
+            pips[char] = (pips[char] || 0) + 1;
+          }
+        }
+      }
+    }
+  }
+  return pips;
+}
+
+// Generate lands from EDHREC data + basics
+export async function generateLands(
+  edhrecLands: EDHRECCard[],
+  colorIdentity: string[],
+  count: number,
+  usedNames: Set<string>,
+  basicCount: number,
+  format: DeckSize,
+  nonLandCards: ScryfallCard[],
+  onProgress?: (message: string, percent: number) => void,
+  bannedCards: Set<string> = new Set(),
+  maxCardPrice: number | null = null,
+  maxRarity: MaxRarity = null,
+  maxCmc: number | null = null,
+  budgetTracker: BudgetTracker | null = null,
+  collectionNames?: Set<string>,
+  currency: 'USD' | 'EUR' = 'USD',
+  arenaOnly: boolean = false,
+  scryfallQuery: string = '',
+  preferredSet?: string,
+  collectionStrategy: CollectionStrategy = 'full',
+  collectionOwnedPercent: number = 100,
+  ignoreOwnedBudget: boolean = false,
+  ignoreOwnedRarity: boolean = false,
+  pacing: Pacing = 'balanced',
+  priorityBoosts?: Map<string, number>
+): Promise<ScryfallCard[]> {
+  const lands: ScryfallCard[] = [];
+
+  // Filter out basic lands from EDHREC suggestions - we add those separately
+  const nonBasicEdhrecLands = edhrecLands.filter((land) => !BASIC_LAND_NAMES.has(land.name));
+
+  console.log('[DeckGen] generateLands:', {
+    totalEdhrecLands: edhrecLands.length,
+    nonBasicEdhrecLands: nonBasicEdhrecLands.length,
+    basicTarget: basicCount,
+    totalTarget: count,
+  });
+
+  // First, get non-basic lands from EDHREC
+  const nonBasicTarget = count - basicCount;
+
+  if (nonBasicTarget > 0 && nonBasicEdhrecLands.length > 0) {
+    onProgress?.('Loading utility lands', 82);
+    console.log(
+      `[DeckGen] Picking ${nonBasicTarget} non-basic lands from ${nonBasicEdhrecLands.length} EDHREC suggestions`
+    );
+
+    // Batch fetch candidate lands — fetch more than needed to account for filtering
+    const landNamesToFetch = nonBasicEdhrecLands
+      .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
+      .slice(0, nonBasicTarget * 2)
+      .map((c) => c.name);
+
+    // Ensure channel lands for this color identity are always fetched and in
+    // the candidate list, even if EDHREC doesn't recommend them for this commander
+    const edhrecLandNames = new Set(nonBasicEdhrecLands.map((c) => c.name));
+    for (const [name, color] of Object.entries(CHANNEL_LANDS)) {
+      if (!colorIdentity.includes(color) || usedNames.has(name) || bannedCards.has(name)) continue;
+      if (!landNamesToFetch.includes(name)) landNamesToFetch.push(name);
+      if (!edhrecLandNames.has(name)) {
+        nonBasicEdhrecLands.push({
+          name,
+          sanitized: name,
+          primary_type: 'Land',
+          inclusion: 0,
+          num_decks: 0,
+        });
+      }
+    }
+
+    const landCardMap = await getCardsByNames(landNamesToFetch, undefined, preferredSet);
+    if (preferredSet) {
+      for (const [name, card] of landCardMap) {
+        if (card.set !== preferredSet) landCardMap.delete(name);
+      }
+    }
+    await upgradeCardPrintings(landCardMap, scryfallQuery, true);
+
+    // Build priority boost / penalty map for pacing-aware land selection
+    const landPenalties = new Map<string, number>();
+
+    // Flex land boosts: channel lands and MDFCs have low EDHREC inclusion but are
+    // format staples — boost aggressively so they're picked over generic lands.
+    for (const [name, card] of landCardMap) {
+      if (isChannelLand(card)) {
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) + CHANNEL_LAND_BOOST);
+      } else if (isMdfcLand(card)) {
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) + MDFC_LAND_BOOST);
+      }
+    }
+
+    // Tapland penalties based on deck pacing
+    const basePenalty = TAPLAND_PENALTIES[pacing];
+    if (basePenalty !== 0) {
+      for (const [name, card] of landCardMap) {
+        if (isTapland(name)) {
+          // MDFC taplands get half penalty — the spell side compensates
+          const penalty = isMdfcLand(card) ? Math.round(basePenalty / 2) : basePenalty;
+          landPenalties.set(name, (landPenalties.get(name) ?? 0) + penalty);
+        }
+      }
+    }
+
+    // Merge any external priority boosts
+    if (priorityBoosts) {
+      for (const [name, boost] of priorityBoosts) {
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);
+      }
+    }
+
+    const nonBasics = pickFromPrefetched(
+      nonBasicEdhrecLands,
+      landCardMap,
+      nonBasicTarget,
+      usedNames,
+      colorIdentity,
+      bannedCards,
+      maxCardPrice,
+      Infinity,
+      { value: 0 },
+      maxRarity,
+      maxCmc,
+      budgetTracker,
+      collectionNames,
+      landPenalties.size > 0 ? landPenalties : undefined,
+      currency,
+      new Set(),
+      arenaOnly,
+      collectionStrategy,
+      collectionOwnedPercent,
+      ignoreOwnedBudget,
+      ignoreOwnedRarity
+    );
+    lands.push(...nonBasics);
+    console.log(
+      `[DeckGen] Got ${nonBasics.length} non-basic lands:`,
+      nonBasics.map((l) => l.name)
+    );
+  }
+
+  // If we didn't get enough from EDHREC, search Scryfall for more
+  if (lands.length < nonBasicTarget) {
+    onProgress?.('Selecting non-basic lands', 87);
+    const query =
+      colorIdentity.length > 0
+        ? `t:land (${colorIdentity.map((c) => `o:{${c}}`).join(' OR ')}) -t:basic`
+        : `t:land id:c -t:basic`;
+    const moreLands = await fillWithScryfall(
+      query,
+      colorIdentity,
+      nonBasicTarget - lands.length,
+      usedNames,
+      bannedCards,
+      maxCardPrice,
+      maxRarity,
+      maxCmc,
+      budgetTracker,
+      collectionNames,
+      currency,
+      arenaOnly,
+      scryfallQuery,
+      collectionStrategy,
+      ignoreOwnedBudget,
+      ignoreOwnedRarity
+    );
+    lands.push(...moreLands);
+  }
+
+  // Add Command Tower for multicolor Commander decks (unless banned)
+  if (
+    format === 99 &&
+    colorIdentity.length >= 2 &&
+    !usedNames.has('Command Tower') &&
+    !bannedCards.has('Command Tower')
+  ) {
+    try {
+      const commandTower = await getCardByName('Command Tower', true);
+      lands.push(commandTower);
+      usedNames.add('Command Tower');
+    } catch {
+      // Ignore if not found
+    }
+  }
+
+  // Fill remaining with basic lands (use cached cards for efficiency)
+  const basicsNeeded = Math.max(0, count - lands.length);
+  const basicTypes: Record<string, string> = {
+    W: 'Plains',
+    U: 'Island',
+    B: 'Swamp',
+    R: 'Mountain',
+    G: 'Forest',
+  };
+
+  const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
+
+  if (colorsWithBasics.length > 0 && basicsNeeded > 0) {
+    onProgress?.('Adding non-basic lands', 92);
+
+    // Distribute basics proportional to mana pips in the deck
+    const pipCounts = countColorPips(nonLandCards);
+    const totalPips = colorsWithBasics.reduce((sum, c) => sum + (pipCounts[c] || 0), 0);
+
+    // Calculate proportional counts (fall back to even split if no pips found)
+    const landsPerColor: Record<string, number> = {};
+    if (totalPips > 0) {
+      let assigned = 0;
+      for (let i = 0; i < colorsWithBasics.length; i++) {
+        const color = colorsWithBasics[i];
+        if (i === colorsWithBasics.length - 1) {
+          // Last color gets the remainder to ensure exact total
+          landsPerColor[color] = basicsNeeded - assigned;
+        } else {
+          const proportion = (pipCounts[color] || 0) / totalPips;
+          landsPerColor[color] = Math.round(basicsNeeded * proportion);
+          assigned += landsPerColor[color];
+        }
+      }
+    } else {
+      // No pips found — fall back to even split
+      const perColor = Math.floor(basicsNeeded / colorsWithBasics.length);
+      const remainder = basicsNeeded % colorsWithBasics.length;
+      for (let i = 0; i < colorsWithBasics.length; i++) {
+        landsPerColor[colorsWithBasics[i]] = perColor + (i < remainder ? 1 : 0);
+      }
+    }
+
+    console.log('[DeckGen] Basic land distribution by pips:', { pipCounts, landsPerColor });
+
+    for (const color of colorsWithBasics) {
+      const basicName = basicTypes[color];
+      const countForColor = landsPerColor[color];
+
+      // Try to get cached basic land first (prefetched at start of deck generation)
+      let basicCard = getCachedCard(basicName);
+      if (!basicCard) {
+        try {
+          basicCard = await getCardByName(basicName, true);
+        } catch {
+          continue; // Skip if can't fetch
+        }
+      }
+
+      // Add multiple copies with unique IDs
+      for (let j = 0; j < countForColor; j++) {
+        lands.push({ ...basicCard, id: `${basicCard.id}-${j}-${color}` });
+      }
+    }
+  } else if (colorsWithBasics.length === 0 && basicsNeeded > 0) {
+    // Colorless deck — use Wastes as the basic land
+    onProgress?.('Adding basic lands', 92);
+    let wastesCard = getCachedCard('Wastes');
+    if (!wastesCard) {
+      try {
+        wastesCard = await getCardByName('Wastes', true);
+      } catch {
+        // Skip if can't fetch
+      }
+    }
+    if (wastesCard) {
+      for (let j = 0; j < basicsNeeded; j++) {
+        lands.push({ ...wastesCard, id: `${wastesCard.id}-${j}-C` });
+      }
+    }
+  }
+
+  return lands.slice(0, count);
+}
