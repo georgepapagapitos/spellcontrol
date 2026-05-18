@@ -14,6 +14,7 @@ import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
+import { Modal } from './Modal';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
@@ -277,6 +278,23 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   const [conditionExpr, setConditionExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Bulk selection is keyed by row.key (the grouped printing+finish key, or a
+  // copyId when grouping is off) — the same identity the row template renders
+  // and the same one handleDeleteRow resolves to underlying copies. Each
+  // selected row is expanded to its physical copyIds only at move time.
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
+  const subCollections = useCollectionStore((s) => s.subCollections);
+  const moveCardsToSubCollection = useCollectionStore((s) => s.moveCardsToSubCollection);
+  const createSubCollection = useCollectionStore((s) => s.createSubCollection);
+  const toggleRow = useCallback((key: string) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelectedRowKeys(new Set()), []);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
@@ -776,6 +794,62 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     [deletingRow, allCards, allocatedCopyIds, applyRemoval]
   );
 
+  // Resolve a displayed row to the physical copyIds it represents — mirrors
+  // handleDeleteRow's resolution exactly: ungrouped, a row is one physical
+  // copy; grouped, a row stands for every copy sharing its printing+finish.
+  // Moving only the representative copy would strand the rest of a stack in
+  // the old bucket, so a "move this row" must hit the whole stack.
+  const rowCopyIds = useCallback(
+    (row: Row): string[] => {
+      if (!groupPrintings) return [row.card.copyId];
+      const key = printingFinishKey(row.card);
+      return allCards.filter((c) => printingFinishKey(c) === key).map((c) => c.copyId);
+    },
+    [groupPrintings, allCards]
+  );
+
+  // Expand the selected rows (by row.key) to copyIds, restricting to the
+  // currently-rendered rows so a stale key from a filter change can't move
+  // something no longer on screen.
+  const selectedCopyIds = useCallback((): string[] => {
+    if (selectedRowKeys.size === 0) return [];
+    const ids: string[] = [];
+    for (const r of sorted) {
+      if (selectedRowKeys.has(r.key)) ids.push(...rowCopyIds(r));
+    }
+    return ids;
+  }, [selectedRowKeys, sorted, rowCopyIds]);
+
+  // Shared move path used by both the bulk toolbar and the per-row menu item.
+  // `value` is the <select>/menu choice: '' = no-op, '__main' = back to Main,
+  // '__new' = prompt + create, otherwise an existing sub-collection id.
+  const moveToSubCollection = useCallback(
+    async (copyIds: string[], value: string) => {
+      if (!value || copyIds.length === 0) return;
+      let targetId: string | null;
+      if (value === '__main') {
+        targetId = null;
+      } else if (value === '__new') {
+        const name = window.prompt('New sub-collection name')?.trim();
+        if (!name) return;
+        targetId = createSubCollection(name);
+      } else {
+        targetId = value;
+      }
+      await moveCardsToSubCollection(copyIds, targetId);
+    },
+    [createSubCollection, moveCardsToSubCollection]
+  );
+
+  // The per-row menu item lacks a <select>; reuse the bulk picker by stashing
+  // the row's copyIds and rendering the same toolbar-style chooser as a small
+  // popover anchored to nothing (a lightweight prompt-driven fallback keeps
+  // the surface tiny and avoids a second portal/positioning system).
+  const [rowMovePicker, setRowMovePicker] = useState<{
+    cardName: string;
+    copyIds: string[];
+  } | null>(null);
+
   // Count active filter *groups*, not individual chips — five colors
   // selected is still one filter group, so the badge stays glanceable.
   const activeFilterCount =
@@ -906,6 +980,36 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           />
         </div>
       </div>
+
+      {selectedRowKeys.size > 0 && (
+        <div className="card-list-bulk-toolbar" role="region" aria-label="Bulk actions">
+          <span className="card-list-bulk-count">{selectedRowKeys.size} selected</span>
+          <select
+            className="binder-name-input"
+            aria-label="Move selected to sub-collection"
+            value=""
+            onChange={async (e) => {
+              const value = e.target.value;
+              e.target.value = '';
+              if (!value) return;
+              await moveToSubCollection(selectedCopyIds(), value);
+              clearSelection();
+            }}
+          >
+            <option value="">Move to…</option>
+            <option value="__main">Main</option>
+            {subCollections.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+            <option value="__new">+ New sub-collection…</option>
+          </select>
+          <button type="button" className="btn" onClick={clearSelection}>
+            Clear
+          </button>
+        </div>
+      )}
 
       {previewIndex !== null && sorted[previewIndex] && (
         <CardPreview
@@ -1076,6 +1180,14 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                     }
                   }}
                 >
+                  <input
+                    type="checkbox"
+                    className="collection-list-select"
+                    aria-label={`Select ${r.card.name}`}
+                    checked={selectedRowKeys.has(r.key)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleRow(r.key)}
+                  />
                   {r.card.imageSmall ? (
                     <img
                       src={r.card.imageSmall}
@@ -1108,6 +1220,9 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                       card={r.card}
                       onEditCard={() => setEditingCard(r.card)}
                       onDelete={() => handleDeleteRow(r)}
+                      onMoveToSubCollection={() =>
+                        setRowMovePicker({ cardName: r.card.name, copyIds: rowCopyIds(r) })
+                      }
                       currentBinder={
                         r.binderId && r.binderName
                           ? { id: r.binderId, name: r.binderName, color: r.binderColor }
@@ -1194,6 +1309,46 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           onConfirm={confirmDeleteCount}
           onCancel={() => setDeletingRow(null)}
         />
+      )}
+
+      {rowMovePicker && (
+        <Modal onClose={() => setRowMovePicker(null)} labelledBy="row-move-sub-title">
+          <h2 id="row-move-sub-title" className="choice-dialog-title">
+            Move {rowMovePicker.cardName}
+          </h2>
+          <p className="choice-dialog-body">
+            Move{' '}
+            {rowMovePicker.copyIds.length === 1
+              ? 'this copy'
+              : `all ${rowMovePicker.copyIds.length} copies`}{' '}
+            to a sub-collection.
+          </p>
+          <select
+            className="binder-name-input"
+            aria-label="Target sub-collection"
+            defaultValue=""
+            onChange={async (e) => {
+              const value = e.target.value;
+              if (!value) return;
+              await moveToSubCollection(rowMovePicker.copyIds, value);
+              setRowMovePicker(null);
+            }}
+          >
+            <option value="">Choose…</option>
+            <option value="__main">Main</option>
+            {subCollections.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+            <option value="__new">+ New sub-collection…</option>
+          </select>
+          <div className="choice-dialog-actions">
+            <button type="button" className="btn" onClick={() => setRowMovePicker(null)}>
+              Cancel
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
