@@ -1,5 +1,6 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression, EnrichedCard } from '../types';
 import { getColorKey } from './colors';
+import { isCommanderEligible } from './commanders';
 
 /**
  * Pre-processed filter ready for the per-card matching hot path.
@@ -33,6 +34,7 @@ interface CompiledFilter {
   cmcMin?: number;
   cmcMax?: number;
   edhrecRankMax?: number;
+  commanderEligible?: boolean;
 }
 
 export function compileFilter(filter: BinderFilter): CompiledFilter {
@@ -62,6 +64,7 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   if (filter.cmcMin !== undefined) out.cmcMin = filter.cmcMin;
   if (filter.cmcMax !== undefined) out.cmcMax = filter.cmcMax;
   if (filter.edhrecRankMax !== undefined) out.edhrecRankMax = filter.edhrecRankMax;
+  if (filter.commanderEligible !== undefined) out.commanderEligible = filter.commanderEligible;
 
   return out;
 }
@@ -124,6 +127,10 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
   if (f.treatments && !setMatchesExpression(effectiveTreatments(card), f.treatments)) return false;
 
   if (f.borderColors && !exactMatchesExpression(card.borderColor, f.borderColors)) return false;
+
+  if (f.commanderEligible !== undefined) {
+    if (isCommanderEligible(card) !== f.commanderEligible) return false;
+  }
 
   return true;
 }
@@ -220,7 +227,8 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     !filter.manaCost?.trim() &&
     !filter.nameContains?.trim() &&
     (!filter.setCodes || filter.setCodes.length === 0) &&
-    filter.edhrecRankMax === undefined
+    filter.edhrecRankMax === undefined &&
+    filter.commanderEligible === undefined
   );
 }
 
