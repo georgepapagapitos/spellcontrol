@@ -1,8 +1,6 @@
 import type {
   ScryfallCard,
   GeneratedDeck,
-  GapAnalysisCard,
-  DetectedCombo,
   DeckCategory,
   DeckDataSource,
   EDHRECCard,
@@ -39,12 +37,7 @@ import {
   getCardSubtype,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
-import {
-  computeGradeAndBracket,
-  buildInclusionIndex,
-  lookupInclusion,
-} from './commanderDeckAnalysis';
+import { computeGradeAndBracket } from './commanderDeckAnalysis';
 import { getDynamicRoleTargets, estimatePacingFromStats } from './roleTargets';
 import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
@@ -60,7 +53,6 @@ import {
 } from './deckFilters';
 import { calculateTargetCounts } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
-import { calculateStats } from './deckStats';
 import {
   pickFromPrefetchedWithCurve,
   mergeWithAllNonLand,
@@ -78,7 +70,6 @@ import { resolveMultiCopyCards } from './multiCopy';
 import {
   generateLands,
   countColorPips,
-  BASIC_LAND_NAMES,
   CHANNEL_LAND_BOOST,
   MDFC_LAND_BOOST,
 } from './landGenerator';
@@ -92,6 +83,12 @@ import {
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
 } from './deckGeneration/state';
+import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
+import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
+import { deckScorePhase } from './deckGeneration/phaseDeckScore';
+import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
+import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
+import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -308,22 +305,16 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
   // --- Phase A: Data Acquisition (skippable via generation cache) ---
   const usingCache = isCacheValid(context);
-  let gameChangerNames: Set<string> = new Set();
-  let combos: EDHRECCombo[] = [];
-  let edhrecData: EDHRECCommanderData | null = null;
-  let dataSource: DeckDataSource = 'scryfall';
-  let baseData: EDHRECCommanderData | null = null;
-  let themeOverlapCounts = new Map<string, number>();
 
   if (usingCache) {
     console.log('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
     onProgress?.('Restarting from cached data', 5);
-    gameChangerNames = generationCache!.gameChangerNames;
-    combos = generationCache!.combos;
-    edhrecData = generationCache!.edhrecData;
-    dataSource = generationCache!.dataSource;
-    baseData = generationCache!.baseData;
-    themeOverlapCounts = generationCache!.themeOverlapCounts;
+    state.gameChangerNames = generationCache!.gameChangerNames;
+    state.combos = generationCache!.combos;
+    state.edhrecData = generationCache!.edhrecData;
+    state.dataSource = generationCache!.dataSource;
+    state.baseData = generationCache!.baseData;
+    state.themeOverlapCounts = generationCache!.themeOverlapCounts;
     await loadTaggerData();
     onProgress?.('Card pools ready', 12);
   } else {
@@ -335,17 +326,17 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       fetchCommanderCombos(commander.name).catch(() => [] as EDHRECCombo[]),
       loadTaggerData(),
     ]);
-    gameChangerNames = fetchedGCNames;
-    combos = fetchedCombos;
+    state.gameChangerNames = fetchedGCNames;
+    state.combos = fetchedCombos;
     onProgress?.('Loading card role data', 7);
-    console.log(`[DeckGen] Fetched ${combos.length} combos from EDHREC`);
+    console.log(`[DeckGen] Fetched ${state.combos.length} combos from EDHREC`);
     console.log(
       `[DeckGen] Tagger data: ${hasTaggerData() ? 'loaded' : 'unavailable (role detection disabled)'}`
     );
   }
 
   // Build combo priority boost map + combo membership index for dynamic boosting
-  if (comboCountSetting > 0 && combos.length > 0) {
+  if (comboCountSetting > 0 && state.combos.length > 0) {
     // Scale combo attempts by deck size (baseline: 99 cards → 1→2, 2→4, 3→7)
     const sizeScale = Math.max(0.5, format / 99);
     const comboSliceCount = Math.max(1, Math.round(comboCountSetting * 2.33 * sizeScale));
@@ -353,8 +344,9 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     // Build inclusion index for this commander so we can prefer combos whose pieces
     // actually appear in this commander's typical builds over globally-popular combos.
     const comboInclusionIndex = new Map<string, number>();
-    if (edhrecData) {
-      for (const c of edhrecData.cardlists.allNonLand) comboInclusionIndex.set(c.name, c.inclusion);
+    if (state.edhrecData) {
+      for (const c of state.edhrecData.cardlists.allNonLand)
+        comboInclusionIndex.set(c.name, c.inclusion);
     }
 
     // Score each combo by: EDHREC rank (already sorted) + relevance to this commander.
@@ -363,7 +355,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     // At lower combo settings, require pieces to actually fit this commander's builds
     // so we don't pull in random 2-card combos that aren't thematically relevant.
     const comboInclusionFloor = comboCountSetting === 1 ? 25 : comboCountSetting === 2 ? 10 : 0;
-    const scoredCombos = combos
+    const scoredCombos = state.combos
       .filter((combo) => !combo.cards.some((c) => bannedCards.has(c.name)))
       .map((combo) => {
         const avgInclusion =
@@ -559,7 +551,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     // Cross-reference must-include cards with Scryfall game changer list
     const allAdded = Object.values(categories).flat();
     for (const card of allAdded) {
-      if (card.isMustInclude && gameChangerNames.has(card.name)) {
+      if (card.isMustInclude && state.gameChangerNames.has(card.name)) {
         card.isGameChanger = true;
         gameChangerCount.value++;
       }
@@ -603,12 +595,12 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         Promise.all(themeDataPromises),
         baseDataPromise,
       ]);
-      baseData = fetchedBaseData;
+      state.baseData = fetchedBaseData;
 
       // Merge cardlists from all themes
       const merged = mergeThemeCardlists(themeDataResults);
       const mergedCardlists = merged.cardlists;
-      themeOverlapCounts = merged.themeOverlapCounts;
+      state.themeOverlapCounts = merged.themeOverlapCounts;
 
       // Use the first theme's stats as representative, but if the theme endpoint
       // lacks type distribution data (numDecks=0), fetch base commander stats instead
@@ -657,14 +649,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         }
       }
 
-      edhrecData = {
+      state.edhrecData = {
         themes: [],
         stats: representativeStats,
         cardlists: mergedCardlists,
         similarCommanders: [],
       };
 
-      dataSource = bracketLevel ? 'theme+bracket' : 'theme';
+      state.dataSource = bracketLevel ? 'theme+bracket' : 'theme';
       const themeNames = selectedThemesWithSlugs.map((t) => t.name).join(', ');
       onProgress?.(`Loading theme data: ${themeNames}...`, 12);
     } catch (error) {
@@ -674,7 +666,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       );
       // Fall back to base commander data (with bracket)
       try {
-        edhrecData = partnerCommander
+        state.edhrecData = partnerCommander
           ? await fetchPartnerCommanderData(
               commander.name,
               partnerCommander.name,
@@ -682,7 +674,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
               bracketLevel
             )
           : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
-        dataSource = bracketLevel ? 'base+bracket' : 'base';
+        state.dataSource = bracketLevel ? 'base+bracket' : 'base';
         console.log('[DeckGen] FALLBACK: Using base commander data (with bracket)');
         onProgress?.('Loading commander data', 12);
       } catch {
@@ -692,10 +684,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             '[DeckGen] FALLBACK: Base commander+bracket also failed, trying without bracket'
           );
           try {
-            edhrecData = partnerCommander
+            state.edhrecData = partnerCommander
               ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
               : await fetchCommanderData(commander.name, budgetOption);
-            dataSource = 'base';
+            state.dataSource = 'base';
             console.log('[DeckGen] FALLBACK: Using base commander data (no bracket)');
             onProgress?.('Loading commander data', 12);
           } catch {
@@ -716,7 +708,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     // No themes selected - use base commander data (top recommended cards)
     onProgress?.('Loading commander data from EDHREC', 8);
     try {
-      edhrecData = partnerCommander
+      state.edhrecData = partnerCommander
         ? await fetchPartnerCommanderData(
             commander.name,
             partnerCommander.name,
@@ -724,16 +716,16 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             bracketLevel
           )
         : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
-      dataSource = bracketLevel ? 'base+bracket' : 'base';
+      state.dataSource = bracketLevel ? 'base+bracket' : 'base';
       onProgress?.('Commander data ready', 12);
     } catch (error) {
       console.warn('[DeckGen] FALLBACK: Base commander+bracket fetch failed:', error);
       if (bracketLevel) {
         try {
-          edhrecData = partnerCommander
+          state.edhrecData = partnerCommander
             ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
             : await fetchCommanderData(commander.name, budgetOption);
-          dataSource = 'base';
+          state.dataSource = 'base';
           console.log('[DeckGen] FALLBACK: Using base commander data (no bracket)');
           onProgress?.('Commander data ready', 12);
         } catch {
@@ -756,7 +748,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // top-100 saltiest cards from `top/salt.json` and use that as the index.
   // Cards not in the index are treated as ~0 salt (not salty enough to matter).
   let saltIndex: Map<string, number> = new Map();
-  if (edhrecData) {
+  if (state.edhrecData) {
     const saltTolerance = customization.saltTolerance ?? 2;
     if (saltTolerance !== 2) {
       saltIndex = await fetchSaltIndex();
@@ -784,7 +776,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       if (saltTolerance === 3) {
         // Embrace salt: bump inclusion of salty cards so they sort higher.
         // Bump scales with how salty the card is (cap at +60 for very salty).
-        for (const list of Object.values(edhrecData.cardlists)) {
+        for (const list of Object.values(state.edhrecData.cardlists)) {
           for (const card of list) {
             const salt = saltFor(card.name);
             if (salt !== undefined && salt > 1.0) {
@@ -794,14 +786,18 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         }
         console.log('[DeckGen] Salt tolerance "extra": boosting high-salt cards');
       } else {
-        edhrecData.cardlists.creatures = filterList(edhrecData.cardlists.creatures);
-        edhrecData.cardlists.instants = filterList(edhrecData.cardlists.instants);
-        edhrecData.cardlists.sorceries = filterList(edhrecData.cardlists.sorceries);
-        edhrecData.cardlists.artifacts = filterList(edhrecData.cardlists.artifacts);
-        edhrecData.cardlists.enchantments = filterList(edhrecData.cardlists.enchantments);
-        edhrecData.cardlists.planeswalkers = filterList(edhrecData.cardlists.planeswalkers);
-        edhrecData.cardlists.lands = filterList(edhrecData.cardlists.lands);
-        edhrecData.cardlists.allNonLand = filterList(edhrecData.cardlists.allNonLand);
+        state.edhrecData.cardlists.creatures = filterList(state.edhrecData.cardlists.creatures);
+        state.edhrecData.cardlists.instants = filterList(state.edhrecData.cardlists.instants);
+        state.edhrecData.cardlists.sorceries = filterList(state.edhrecData.cardlists.sorceries);
+        state.edhrecData.cardlists.artifacts = filterList(state.edhrecData.cardlists.artifacts);
+        state.edhrecData.cardlists.enchantments = filterList(
+          state.edhrecData.cardlists.enchantments
+        );
+        state.edhrecData.cardlists.planeswalkers = filterList(
+          state.edhrecData.cardlists.planeswalkers
+        );
+        state.edhrecData.cardlists.lands = filterList(state.edhrecData.cardlists.lands);
+        state.edhrecData.cardlists.allNonLand = filterList(state.edhrecData.cardlists.allNonLand);
         console.log(
           `[DeckGen] Salt tolerance "${saltTolerance}" (cap ${saltCap}): trimmed ${trimmed} card slots`
         );
@@ -814,10 +810,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Build hyper focus boost map if enabled (runs with cached or fresh data)
-  if (edhrecData && customization.hyperFocus && selectedThemesWithSlugs.length >= 1) {
+  if (state.edhrecData && customization.hyperFocus && selectedThemesWithSlugs.length >= 1) {
     const baseCardNames = new Set<string>();
-    if (baseData) {
-      for (const list of Object.values(baseData.cardlists)) {
+    if (state.baseData) {
+      for (const list of Object.values(state.baseData.cardlists)) {
         for (const card of list) {
           baseCardNames.add(card.name);
         }
@@ -825,12 +821,12 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     const allThemeCards = [
-      ...edhrecData.cardlists.creatures,
-      ...edhrecData.cardlists.instants,
-      ...edhrecData.cardlists.sorceries,
-      ...edhrecData.cardlists.artifacts,
-      ...edhrecData.cardlists.enchantments,
-      ...edhrecData.cardlists.planeswalkers,
+      ...state.edhrecData.cardlists.creatures,
+      ...state.edhrecData.cardlists.instants,
+      ...state.edhrecData.cardlists.sorceries,
+      ...state.edhrecData.cardlists.artifacts,
+      ...state.edhrecData.cardlists.enchantments,
+      ...state.edhrecData.cardlists.planeswalkers,
     ];
 
     if (selectedThemesWithSlugs.length === 1) {
@@ -859,7 +855,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       );
     } else {
       const numThemes = selectedThemesWithSlugs.length;
-      for (const [name, count] of themeOverlapCounts) {
+      for (const [name, count] of state.themeOverlapCounts) {
         const inBase = baseCardNames.has(name);
         let boost = 0;
         if (count === 1 && !inBase) {
@@ -874,23 +870,23 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         staticComboBoosts.set(name, (staticComboBoosts.get(name) ?? 0) + boost);
       }
       console.log(
-        `[DeckGen] Hyper Focus (${numThemes} themes, base pool: ${baseCardNames.size} cards): adjusted ${themeOverlapCounts.size} cards`
+        `[DeckGen] Hyper Focus (${numThemes} themes, base pool: ${baseCardNames.size} cards): adjusted ${state.themeOverlapCounts.size} cards`
       );
     }
   }
 
   // Populate generation cache after successful EDHREC fetch
-  if (!usingCache && edhrecData) {
+  if (!usingCache && state.edhrecData) {
     const key = buildCacheKey(context);
     generationCache = {
-      edhrecData,
-      baseData,
+      edhrecData: state.edhrecData,
+      baseData: state.baseData,
       cardMap: new Map(), // Will be populated after Scryfall batch fetch
-      themeOverlapCounts,
-      combos,
-      gameChangerNames,
-      dataSource,
-      representativeStats: edhrecData.stats,
+      themeOverlapCounts: state.themeOverlapCounts,
+      combos: state.combos,
+      gameChangerNames: state.gameChangerNames,
+      dataSource: state.dataSource,
+      representativeStats: state.edhrecData.stats,
       ...key,
     };
     console.log('[DeckGen] Generation cache populated for fast regeneration');
@@ -899,8 +895,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Resolve pacing: user override > auto-detect from EDHREC stats > fallback
   if (!customization.tempoAutoDetect) {
     resolvedPacing = customization.tempoPacing;
-  } else if (edhrecData?.stats?.manaCurve) {
-    resolvedPacing = estimatePacingFromStats(edhrecData.stats.manaCurve);
+  } else if (state.edhrecData?.stats?.manaCurve) {
+    resolvedPacing = estimatePacingFromStats(state.edhrecData.stats.manaCurve);
   }
   detectedPacing = resolvedPacing;
 
@@ -909,7 +905,12 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     composition: targets,
     typeTargets,
     curveTargets,
-  } = calculateTargetCounts(customization, edhrecData?.stats, !!partnerCommander, resolvedPacing);
+  } = calculateTargetCounts(
+    customization,
+    state.edhrecData?.stats,
+    !!partnerCommander,
+    resolvedPacing
+  );
 
   // Compress curve targets for Tiny Leaders (CMC cap at 3)
   if (maxCmc !== null) {
@@ -986,8 +987,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
 
   // ---- Multi-copy card pipeline (self-contained, no impact if nothing found) ----
-  if (edhrecData) {
-    const allEdhrecNames = edhrecData.cardlists.allNonLand.map((c) => c.name);
+  if (state.edhrecData) {
+    const allEdhrecNames = state.edhrecData.cardlists.allNonLand.map((c) => c.name);
     const firstThemeSlug =
       selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs[0].slug : undefined;
     const multiCopyResults = await resolveMultiCopyCards(
@@ -1071,8 +1072,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // If we have EDHREC data, use it as the primary source with CMC-aware selection
-  if (edhrecData && edhrecData.cardlists.allNonLand.length > 0) {
-    const { cardlists } = edhrecData;
+  if (state.edhrecData && state.edhrecData.cardlists.allNonLand.length > 0) {
+    const { cardlists } = state.edhrecData;
 
     // Build all pools first — subtract pre-filled cards from targets
     // Use ?? instead of || so that 0 targets (from advanced overrides) are respected
@@ -1254,8 +1255,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       const dynamic = getDynamicRoleTargets(
         format,
         context.selectedThemes,
-        edhrecData?.stats,
-        edhrecData,
+        state.edhrecData?.stats,
+        state.edhrecData,
         customization.advancedTargets?.edhrecBlendWeight ?? null,
         customization.advancedTargets?.edhrecInclusionThreshold ?? null
       );
@@ -1364,7 +1365,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       context.collectionNames,
       creatureBoosts,
       currency,
-      gameChangerNames,
+      state.gameChangerNames,
       arenaOnly,
       strictCurve,
       collectionStrategy,
@@ -1449,7 +1450,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       context.collectionNames,
       instantBoosts,
       currency,
-      gameChangerNames,
+      state.gameChangerNames,
       arenaOnly,
       strictCurve,
       collectionStrategy,
@@ -1504,7 +1505,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       context.collectionNames,
       sorceryBoosts,
       currency,
-      gameChangerNames,
+      state.gameChangerNames,
       arenaOnly,
       strictCurve,
       collectionStrategy,
@@ -1561,7 +1562,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       context.collectionNames,
       artifactBoosts,
       currency,
-      gameChangerNames,
+      state.gameChangerNames,
       arenaOnly,
       strictCurve,
       collectionStrategy,
@@ -1618,7 +1619,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       context.collectionNames,
       enchantmentBoosts,
       currency,
-      gameChangerNames,
+      state.gameChangerNames,
       arenaOnly,
       strictCurve,
       collectionStrategy,
@@ -1676,7 +1677,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         context.collectionNames,
         planeswalkerBoosts,
         currency,
-        gameChangerNames,
+        state.gameChangerNames,
         arenaOnly,
         strictCurve,
         collectionStrategy,
@@ -2092,50 +2093,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // ── Auto-include staple mana rocks (like Command Tower for lands) ──
-  // Sol Ring goes in every Commander deck. Arcane Signet goes in every 2+ color deck.
-  // These are so universally played that a deck with Charcoal Diamond but no Arcane Signet is wrong.
-  const stapleRocks: { name: string; minColors: number }[] = [
-    { name: 'Sol Ring', minColors: 0 },
-    { name: 'Arcane Signet', minColors: 1 },
-  ];
-  if (format === 99) {
-    for (const staple of stapleRocks) {
-      if (colorIdentity.length < staple.minColors) continue;
-      if (usedNames.has(staple.name) || bannedCards.has(staple.name)) continue;
-      // Respect collection-only mode
-      if (collectionStrategy === 'full' && notInCollection(staple.name, context.collectionNames))
-        continue;
-      try {
-        const card = await getCardByName(staple.name, true);
-        // Respect budget, rarity, arena-only constraints
-        if (
-          !isOwnedBudgetExempt(staple.name, context.collectionNames, ignoreOwnedBudget) &&
-          exceedsMaxPrice(card, maxCardPrice, currency)
-        )
-          continue;
-        if (
-          !isOwnedRarityExempt(staple.name, context.collectionNames, ignoreOwnedRarity) &&
-          exceedsMaxRarity(card, maxRarity)
-        )
-          continue;
-        if (notOnArena(card, arenaOnly)) continue;
-        markUsed(card.name);
-        categorizeCards([card], categories);
-        const cmc = Math.min(Math.floor(card.cmc), 7);
-        currentCurveCounts[cmc] = (currentCurveCounts[cmc] ?? 0) + 1;
-        // Stamp role if available (use tagger directly since cardRoleMap is EDHREC-path only)
-        const role = getCardRole(card.name);
-        if (role) {
-          currentRoleCounts[role]++;
-          card.deckRole = role;
-          stampRoleSubtypes(card);
-        }
-        console.log(`[DeckGen] Auto-included staple: ${staple.name}`);
-      } catch {
-        // Ignore if not found
-      }
-    }
-  }
+  await stapleManaRocksPhase(state);
 
   // Calculate the target deck size (commander(s) are separate)
   // With partner, we need one fewer card since both commanders count toward the total
@@ -2275,8 +2233,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
     // Try to fill with remaining EDHREC cards (relaxed budget cap)
     // Respect type distribution targets when filling
-    if (edhrecData && edhrecData.cardlists.allNonLand.length > 0) {
-      const remainingEdhrecCards = edhrecData.cardlists.allNonLand
+    if (state.edhrecData && state.edhrecData.cardlists.allNonLand.length > 0) {
+      const remainingEdhrecCards = state.edhrecData.cardlists.allNonLand
         .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
         .sort((a, b) => b.inclusion - a.inclusion);
 
@@ -2641,182 +2599,29 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Calculate stats
-  const stats = calculateStats(categories);
-
-  // Compute salt stats from the salt index (top-100 saltiest from EDHREC).
-  // We load it here as well if it wasn't already (e.g. saltTolerance === 'any').
-  if (!saltIndex.size) saltIndex = await fetchSaltIndex();
-  if (saltIndex.size > 0) {
-    const nonLandCards = Object.values(categories)
-      .flat()
-      .filter((c) => !getFrontFaceTypeLine(c).toLowerCase().includes('land'));
-
-    const saltyCards: Array<{ name: string; salt: number }> = [];
-    let saltSum = 0;
-    for (const card of nonLandCards) {
-      const key = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
-      const salt = saltIndex.get(card.name) ?? saltIndex.get(key) ?? 0;
-      saltSum += salt;
-      if (salt > 0) saltyCards.push({ name: card.name, salt });
-    }
-    if (nonLandCards.length > 0) {
-      stats.averageSalt = Math.round((saltSum / nonLandCards.length) * 100) / 100;
-      stats.saltiestCards = saltyCards
-        .sort((a, b) => b.salt - a.salt)
-        .slice(0, 5)
-        .map((c) => ({ name: c.name, salt: Math.round(c.salt * 100) / 100 }));
-    }
-  }
+  const stats = await finalStatsPhase(state, saltIndex);
 
   // Get the theme names that were actually used
   const usedThemes =
     selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs.map((t) => t.name) : undefined;
 
   // Gap analysis: find top unowned cards that would improve the deck
-  let gapAnalysis: GapAnalysisCard[] | undefined;
-  if (context.collectionNames && edhrecData) {
-    const allDeckCardNames = new Set<string>();
-    for (const c of Object.values(categories).flat()) {
-      allDeckCardNames.add(c.name);
-      // DFCs: also add front-face name so EDHREC's front-face-only names match
-      if (c.name.includes(' // ')) allDeckCardNames.add(c.name.split(' // ')[0]);
-    }
-
-    const gapCandidates = edhrecData.cardlists.allNonLand
-      .filter((c) => !allDeckCardNames.has(c.name) && !bannedCards.has(c.name))
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a))
-      .slice(0, 40);
-
-    if (gapCandidates.length > 0) {
-      const gapCardMap = await getCardsByNames(
-        gapCandidates.map((c) => c.name),
-        undefined,
-        preferredSet
-      );
-
-      const ROLE_LABELS: Record<string, string> = {
-        ramp: 'Ramp',
-        removal: 'Removal',
-        boardwipe: 'Board Wipes',
-        cardDraw: 'Card Advantage',
-      };
-      gapAnalysis = gapCandidates
-        .map((c) => {
-          const scryfall = gapCardMap.get(c.name);
-          const role = getCardRole(c.name) || undefined;
-          return {
-            name: c.name,
-            price: scryfall ? getCardPrice(scryfall, currency) : null,
-            inclusion: c.inclusion,
-            synergy: c.synergy ?? 0,
-            typeLine: scryfall?.type_line ?? '',
-            cmc: scryfall?.cmc,
-            imageUrl: scryfall?.image_uris?.small,
-            isOwned: context.collectionNames!.has(c.name),
-            role,
-            roleLabel: role ? ROLE_LABELS[role] : undefined,
-          };
-        })
-        .filter((c) => c.price !== null);
-
-      console.log(
-        `[DeckGen] Gap analysis: ${gapAnalysis.length} cards suggested (${gapAnalysis.filter((c) => c.isOwned).length} owned)`
-      );
-    }
-  }
+  const gapAnalysis = await gapAnalysisPhase(state);
 
   // Detect combos present in the generated deck
-  let detectedCombos: DetectedCombo[] | undefined;
-  if (combos.length > 0) {
-    const allDeckNames = new Set<string>();
-    // Include commander(s) — they're part of the deck but not in categories
-    if (commander) {
-      allDeckNames.add(commander.name);
-      if (commander.name.includes(' // ')) allDeckNames.add(commander.name.split(' // ')[0]);
-    }
-    if (partnerCommander) {
-      allDeckNames.add(partnerCommander.name);
-      if (partnerCommander.name.includes(' // '))
-        allDeckNames.add(partnerCommander.name.split(' // ')[0]);
-    }
-    for (const c of Object.values(categories).flat()) {
-      allDeckNames.add(c.name);
-      if (c.name.includes(' // ')) allDeckNames.add(c.name.split(' // ')[0]);
-    }
-
-    detectedCombos = combos
-      .filter((combo) => !combo.cards.some((c) => bannedCards.has(c.name)))
-      .map((combo) => {
-        const comboCardNames = combo.cards.map((c) => c.name);
-        const missingCards = comboCardNames.filter((name) => !allDeckNames.has(name));
-
-        return {
-          comboId: combo.comboId,
-          cards: comboCardNames,
-          results: combo.results,
-          isComplete: missingCards.length === 0,
-          missingCards,
-          deckCount: combo.deckCount,
-          bracket: combo.bracket,
-        };
-      })
-      .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
-
-    // Deduplicate combos with identical card sets (keep higher deck count)
-    {
-      const seen = new Map<string, number>();
-      detectedCombos = detectedCombos.filter((combo, idx) => {
-        const key = [...combo.cards].sort().join('|');
-        const existing = seen.get(key);
-        if (existing !== undefined) {
-          // Keep the one with higher deck count
-          if (combo.deckCount > detectedCombos![existing].deckCount) {
-            detectedCombos![existing] = combo;
-          }
-          return false;
-        }
-        seen.set(key, idx);
-        return true;
-      });
-    }
-
-    // Float commander combos to the top within each completeness group
-    const commanderNames = new Set<string>();
-    if (commander) {
-      commanderNames.add(commander.name);
-      if (commander.name.includes(' // ')) commanderNames.add(commander.name.split(' // ')[0]);
-    }
-    if (partnerCommander) {
-      commanderNames.add(partnerCommander.name);
-      if (partnerCommander.name.includes(' // '))
-        commanderNames.add(partnerCommander.name.split(' // ')[0]);
-    }
-    detectedCombos.sort((a, b) => {
-      if (a.isComplete !== b.isComplete) return a.isComplete ? -1 : 1;
-      const aHasCommander = a.cards.some((n) => commanderNames.has(n));
-      const bHasCommander = b.cards.some((n) => commanderNames.has(n));
-      if (aHasCommander !== bHasCommander) return aHasCommander ? -1 : 1;
-      return b.deckCount - a.deckCount;
-    });
-
-    console.log(
-      `[DeckGen] Detected ${detectedCombos.filter((c) => c.isComplete).length} complete combos, ${detectedCombos.filter((c) => !c.isComplete).length} near-misses`
-    );
-
-    if (detectedCombos.length === 0) detectedCombos = undefined;
-  }
+  let detectedCombos = detectCombosPhase(state);
 
   // ── Combo Integrity Audit ──
   // After deck assembly: if a combo piece slipped in but its combo is incomplete,
   // either complete the combo (swap in missing pieces) or evict the low-value orphan.
-  if (detectedCombos && edhrecData && comboCountSetting > 0) {
+  if (detectedCombos && state.edhrecData && comboCountSetting > 0) {
     const ORPHAN_INCLUSION_THRESHOLD = 25; // below this %, the card is considered combo-dependent
     const MAX_AUDIT_SWAPS = 4;
     let auditSwaps = 0;
 
     // Build inclusion index from EDHREC pool
     const auditInclusion = new Map<string, number>();
-    for (const c of edhrecData.cardlists.allNonLand) auditInclusion.set(c.name, c.inclusion);
+    for (const c of state.edhrecData.cardlists.allNonLand) auditInclusion.set(c.name, c.inclusion);
 
     // Build must-include protection set
     const auditMustInclude = new Set([
@@ -3012,7 +2817,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             }
           }
           if (!found) continue;
-          const replacement = edhrecData.cardlists.allNonLand
+          const replacement = state.edhrecData.cardlists.allNonLand
             .filter(
               (c) =>
                 !usedNames.has(c.name) &&
@@ -3061,7 +2866,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
   // ── Post-Generation Fixup Pass (light touch) ──
   // Only fix critical gaps: roles ≤50% of target, dead CMC 1/2 slots
-  if (edhrecData && customization.balancedRoles) {
+  if (state.edhrecData && customization.balancedRoles) {
     const MAX_FIXUP_SWAPS = 5;
     let fixupSwaps = 0;
 
@@ -3125,8 +2930,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
     // Helper: find best EDHREC candidate for a role that's already fetched
     function findRoleCandidate(role: RoleKey): ScryfallCard | null {
-      const candidates = edhrecData!.cardlists.allNonLand
-        .filter(
+      const candidates = state
+        .edhrecData!.cardlists.allNonLand.filter(
           (c) =>
             !usedNames.has(c.name) &&
             !bannedCards.has(c.name) &&
@@ -3184,8 +2989,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           if (overfullEntry) {
             const weak = findWeakestCard((card) => (card.cmc ?? 0) === Number(overfullEntry[0]));
             if (weak) {
-              const candidates = edhrecData!.cardlists.allNonLand
-                .filter(
+              const candidates = state
+                .edhrecData!.cardlists.allNonLand.filter(
                   (c) =>
                     !usedNames.has(c.name) &&
                     !bannedCards.has(c.name) &&
@@ -3216,201 +3021,17 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Build deck score from EDHREC inclusion percentages
-  let deckScore: number | undefined;
-  let cardInclusionMap: Record<string, number> | undefined;
-  if (edhrecData) {
-    const inclusionIndex = buildInclusionIndex(edhrecData);
-
-    const inclMap: Record<string, number> = {};
-    let score = 0;
-    for (const cards of Object.values(categories)) {
-      for (const card of cards) {
-        if (BASIC_LAND_NAMES.has(card.name)) continue;
-        const val = lookupInclusion(inclusionIndex, card.name) ?? 0;
-        inclMap[card.name] = val;
-        score += val;
-      }
-    }
-    // Also index swap candidates so the UI can show their inclusion %
-    if (swapCandidates) {
-      for (const cards of Object.values(swapCandidates)) {
-        for (const card of cards) {
-          if (inclMap[card.name] !== undefined) continue;
-          const incl = lookupInclusion(inclusionIndex, card.name);
-          if (incl !== undefined) inclMap[card.name] = incl;
-        }
-      }
-    }
-    // Also index gap analysis cards
-    if (gapAnalysis) {
-      for (const g of gapAnalysis) {
-        if (inclMap[g.name] === undefined) inclMap[g.name] = g.inclusion;
-      }
-    }
-    deckScore = Math.round(score);
-    cardInclusionMap = inclMap;
-    const nonBasicCount =
-      Object.keys(inclMap).length -
-      (swapCandidates ? Object.values(swapCandidates).flat().length : 0) -
-      (gapAnalysis?.length ?? 0);
-    const avg = nonBasicCount > 0 ? score / nonBasicCount : 0;
-    console.log(
-      `[DeckGen] Deck score: ${deckScore} (avg ${avg.toFixed(1)}% across ${nonBasicCount} deck cards)`
-    );
-  }
+  const { deckScore, cardInclusionMap } = deckScorePhase(state, swapCandidates, gapAnalysis);
 
   // Build per-card relevancy scores (composite: synergy + inclusion + role deficit + curve fit + type balance)
-  let cardRelevancyMap: Record<string, number> | undefined;
-  if (edhrecData) {
-    // Index full EDHREC card objects for synergy/theme lookup
-    const edhrecCardIndex = new Map<string, EDHRECCard>();
-    for (const c of edhrecData.cardlists.allNonLand) edhrecCardIndex.set(c.name, c);
-    for (const c of edhrecData.cardlists.lands) {
-      if (!BASIC_LAND_NAMES.has(c.name)) edhrecCardIndex.set(c.name, c);
-    }
-
-    // Build scoring context from final deck state
-    const relRoleDeficits = roleTargets
-      ? Object.entries(roleTargets).map(([role, target]) => ({
-          role,
-          label: role,
-          current: currentRoleCounts[role as RoleKey] ?? 0,
-          target,
-          deficit: Math.max(0, target - (currentRoleCounts[role as RoleKey] ?? 0)),
-        }))
-      : [];
-
-    const nonLandForScoring = Object.values(categories)
-      .flat()
-      .filter(
-        (c) =>
-          !BASIC_LAND_NAMES.has(c.name) && !getFrontFaceTypeLine(c).toLowerCase().includes('land')
-      );
-    const actualCurve: Record<number, number> = {};
-    for (const c of nonLandForScoring) {
-      const cmc = Math.min(Math.floor(c.cmc), 7);
-      actualCurve[cmc] = (actualCurve[cmc] || 0) + 1;
-    }
-    const relCurveAnalysis = Object.keys(curveTargets)
-      .map(Number)
-      .map((cmc) => ({
-        cmc,
-        current: actualCurve[cmc] || 0,
-        target: curveTargets[cmc] || 0,
-        delta: (actualCurve[cmc] || 0) - (curveTargets[cmc] || 0),
-      }));
-
-    const actualTypes: Record<string, number> = {};
-    for (const c of nonLandForScoring) {
-      const t = getFrontFaceTypeLine(c).toLowerCase();
-      const type =
-        ['creature', 'instant', 'sorcery', 'artifact', 'enchantment', 'planeswalker'].find((tp) =>
-          t.includes(tp)
-        ) || 'other';
-      actualTypes[type] = (actualTypes[type] || 0) + 1;
-    }
-    const relTypeAnalysis = Object.keys(typeTargets).map((type) => ({
-      type,
-      current: actualTypes[type] || 0,
-      target: typeTargets[type] || 0,
-      delta: (actualTypes[type] || 0) - (typeTargets[type] || 0),
-    }));
-
-    const scoringCtx: ScoringContext = {
-      roleDeficits: relRoleDeficits,
-      curveAnalysis: relCurveAnalysis,
-      typeAnalysis: relTypeAnalysis,
-      currentSubtypeCounts,
-    };
-
-    const relMap: Record<string, number> = {};
-    for (const cards of Object.values(categories)) {
-      for (const card of cards) {
-        if (BASIC_LAND_NAMES.has(card.name)) continue;
-        const ec =
-          edhrecCardIndex.get(card.name) ??
-          (card.name.includes(' // ')
-            ? edhrecCardIndex.get(card.name.split(' // ')[0])
-            : undefined);
-        if (!ec) {
-          relMap[card.name] = 0;
-          continue;
-        }
-        const role = (card.deckRole as RoleKey) || null;
-        const sub =
-          card.rampSubtype ||
-          card.removalSubtype ||
-          card.boardwipeSubtype ||
-          card.cardDrawSubtype ||
-          null;
-        let score = scoreRecommendation(ec, role, sub, scoringCtx);
-        // Apply the same boosts used during card selection so the displayed
-        // relevancy score reflects why the generator actually picked this card
-        score += staticComboBoosts.get(card.name) ?? 0;
-        if (isChannelLand(card)) score += CHANNEL_LAND_BOOST;
-        else if (card.isMdfcLand || isMdfcLand(card)) score += MDFC_LAND_BOOST;
-        relMap[card.name] = Math.round(score);
-      }
-    }
-    // Also index swap candidates
-    if (swapCandidates) {
-      for (const cards of Object.values(swapCandidates)) {
-        for (const card of cards) {
-          if (relMap[card.name] !== undefined) continue;
-          const ec =
-            edhrecCardIndex.get(card.name) ??
-            (card.name.includes(' // ')
-              ? edhrecCardIndex.get(card.name.split(' // ')[0])
-              : undefined);
-          if (!ec) continue;
-          const role = (card.deckRole as RoleKey) || null;
-          const sub =
-            card.rampSubtype ||
-            card.removalSubtype ||
-            card.boardwipeSubtype ||
-            card.cardDrawSubtype ||
-            null;
-          let score = scoreRecommendation(ec, role, sub, scoringCtx);
-          score += staticComboBoosts.get(card.name) ?? 0;
-          if (isChannelLand(card)) score += CHANNEL_LAND_BOOST;
-          else if (card.isMdfcLand || isMdfcLand(card)) score += MDFC_LAND_BOOST;
-          relMap[card.name] = Math.round(score);
-        }
-      }
-    }
-    // Also index gap analysis cards
-    if (gapAnalysis) {
-      for (const g of gapAnalysis) {
-        if (relMap[g.name] !== undefined) continue;
-        const pseudoEc: EDHRECCard = {
-          name: g.name,
-          sanitized: g.name,
-          primary_type:
-            g.typeLine
-              .split(' ')
-              .find((t) =>
-                [
-                  'Creature',
-                  'Instant',
-                  'Sorcery',
-                  'Artifact',
-                  'Enchantment',
-                  'Planeswalker',
-                  'Land',
-                ].includes(t)
-              ) || 'Unknown',
-          inclusion: g.inclusion,
-          num_decks: 0,
-          synergy: g.synergy,
-          cmc: g.cmc,
-        };
-        const role = (g.role as RoleKey) || null;
-        relMap[g.name] = Math.round(scoreRecommendation(pseudoEc, role, null, scoringCtx));
-      }
-    }
-    cardRelevancyMap = relMap;
-    console.log(`[DeckGen] Relevancy map: ${Object.keys(relMap).length} cards scored`);
-  }
+  const cardRelevancyMap = cardRelevancyPhase(
+    state,
+    roleTargets,
+    curveTargets,
+    typeTargets,
+    swapCandidates,
+    gapAnalysis
+  );
 
   // ── Grade + bracket ──
   const allDeckCardNames = Object.values(categories)
@@ -3424,11 +3045,11 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     averageCmc: stats.averageCmc,
     deckScore,
     bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
-    gameChangerNames,
+    gameChangerNames: state.gameChangerNames,
     allCards: Object.values(categories).flat(),
     roleCounts: currentRoleCounts,
     roleTargets,
-    edhrecData,
+    edhrecData: state.edhrecData,
     deckSize: format,
     cardInclusionMap,
     colorIdentity: context.colorIdentity,
@@ -3452,7 +3073,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         ? basicLandFillCount
         : undefined,
     typeTargets,
-    dataSource,
+    dataSource: state.dataSource,
     roleCounts: roleTargets ? { ...currentRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
@@ -3506,7 +3127,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     detectedArchetype,
     detectedPacing,
     bracketEstimation,
-    gameChangerNames: [...gameChangerNames],
+    gameChangerNames: [...state.gameChangerNames],
     deckGrade,
   };
 }
