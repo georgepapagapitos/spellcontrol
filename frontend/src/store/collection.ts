@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { BinderDef, BinderInput, EnrichedCard, Finish, UploadResponse } from '../types';
+import type {
+  BinderDef,
+  BinderInput,
+  EnrichedCard,
+  Finish,
+  SubCollectionDef,
+  UploadResponse,
+} from '../types';
 import { useDecksStore } from './decks';
 import {
   saveCollection,
@@ -16,6 +23,7 @@ import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { markDestructive } from '../lib/sync-intent';
 import { reconcileBinderRefs, keysForIds } from '../lib/binder-refs';
+import { assignSubCollection, clampSubCollectionName } from '../lib/sub-collections';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -53,6 +61,7 @@ interface CollectionState {
   error: string | null;
 
   binders: BinderDef[];
+  subCollections: SubCollectionDef[];
   activeTab: string;
   editingBinder: string | null;
   /** Whether the import bottom-sheet is open. Triggered by the small "+"
@@ -122,6 +131,14 @@ interface CollectionState {
   /** Snapshot the current sorted order as the manual order. */
   seedManualOrder: (binderId: string, currentCardIds: string[]) => void;
 
+  // Sub-collection actions
+  createSubCollection: (name: string, color?: string) => string;
+  renameSubCollection: (id: string, name: string) => void;
+  recolorSubCollection: (id: string, color: string) => void;
+  reorderSubCollections: (orderedIds: string[]) => void;
+  deleteSubCollection: (id: string) => Promise<void>;
+  moveCardsToSubCollection: (copyIds: string[], subCollectionId: string | null) => Promise<void>;
+
   // Binder actions
   /**
    * Creates the sample binder defs (tagged isSample on BinderDef). When
@@ -160,6 +177,26 @@ interface CollectionState {
  */
 function mergeCards(existing: EnrichedCard[], incoming: EnrichedCard[]): EnrichedCard[] {
   return [...existing, ...incoming];
+}
+
+function buildStored(s: {
+  cards: EnrichedCard[];
+  fileName: string;
+  scryfallHits: number;
+  scryfallMisses: number;
+  uploadedAt: number | null;
+  importHistory: ImportHistoryEntry[];
+  subCollections: SubCollectionDef[];
+}): StoredCollection {
+  return {
+    cards: s.cards,
+    fileName: s.fileName,
+    scryfallHits: s.scryfallHits,
+    scryfallMisses: s.scryfallMisses,
+    uploadedAt: s.uploadedAt ?? Date.now(),
+    importHistory: s.importHistory,
+    subCollections: s.subCollections,
+  };
 }
 
 function remapDeckAllocations(newCards: EnrichedCard[]): void {
@@ -206,6 +243,7 @@ export const useCollectionStore = create<CollectionState>()(
 
       // Persisted defaults
       binders: [],
+      subCollections: [],
 
       // Card actions
       hydrateCards: async () => {
@@ -697,6 +735,88 @@ export const useCollectionStore = create<CollectionState>()(
             b.id !== binderId ? b : { ...b, manualOrder: currentCardIds, updatedAt: Date.now() }
           ),
         }));
+      },
+
+      // Sub-collection actions
+      createSubCollection: (name, color) => {
+        const id =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `sc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const defs = get().subCollections;
+        const def: SubCollectionDef = {
+          id,
+          name: clampSubCollectionName(name) || 'Untitled',
+          order: defs.length,
+          ...(color ? { color } : {}),
+        };
+        set({ subCollections: [...defs, def] });
+        void get().moveCardsToSubCollection([], id); // persist defs (no card change)
+        return id;
+      },
+
+      renameSubCollection: (id, name) => {
+        set({
+          subCollections: get().subCollections.map((d) =>
+            d.id === id ? { ...d, name: clampSubCollectionName(name) || d.name } : d
+          ),
+        });
+        void get().moveCardsToSubCollection([], null);
+      },
+
+      recolorSubCollection: (id, color) => {
+        set({
+          subCollections: get().subCollections.map((d) => (d.id === id ? { ...d, color } : d)),
+        });
+        void get().moveCardsToSubCollection([], null);
+      },
+
+      reorderSubCollections: (orderedIds) => {
+        const byId = new Map(get().subCollections.map((d) => [d.id, d]));
+        const reordered = orderedIds
+          .map((id, i) => {
+            const d = byId.get(id);
+            return d ? { ...d, order: i } : null;
+          })
+          .filter((d): d is SubCollectionDef => d !== null);
+        set({ subCollections: reordered });
+        void get().moveCardsToSubCollection([], null);
+      },
+
+      deleteSubCollection: async (id) => {
+        const cards = get().cards.map((c) =>
+          c.subCollectionId === id ? assignSubCollection(c, null) : c
+        );
+        const subCollections = get()
+          .subCollections.filter((d) => d.id !== id)
+          .map((d, i) => ({ ...d, order: i }));
+        set({ cards, subCollections });
+        remapDeckAllocations(cards);
+        try {
+          await saveCollection(buildStored({ ...get(), cards, subCollections }));
+        } catch (err) {
+          console.warn('[store] Failed to persist after deleteSubCollection:', err);
+        }
+      },
+
+      moveCardsToSubCollection: async (copyIds, subCollectionId) => {
+        const ids = new Set(copyIds);
+        const cards =
+          ids.size === 0
+            ? get().cards
+            : get().cards.map((c) =>
+                ids.has(c.copyId) ? assignSubCollection(c, subCollectionId) : c
+              );
+        if (ids.size > 0) set({ cards });
+        try {
+          await saveCollection(buildStored({ ...get(), cards }));
+        } catch (err) {
+          console.warn('[store] Failed to persist after moveCardsToSubCollection:', err);
+          set({
+            error:
+              'Sub-collection change saved in memory but could not be saved locally. It will be lost if you refresh the page.',
+          });
+        }
       },
 
       // Binder actions
