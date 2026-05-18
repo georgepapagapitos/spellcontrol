@@ -1280,6 +1280,45 @@ function FilterGroupFields({
         />
       </div>
 
+      {/* Commander eligibility */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
+        >
+          Commander <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <div className="binder-mode-toggle" role="radiogroup" aria-label="Commander eligibility">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter.commanderEligible === undefined}
+            className={`binder-mode-pill${filter.commanderEligible === undefined ? ' active' : ''}`}
+            onClick={() => patch({ commanderEligible: undefined })}
+          >
+            Any
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter.commanderEligible === true}
+            className={`binder-mode-pill${filter.commanderEligible === true ? ' active' : ''}`}
+            onClick={() => patch({ commanderEligible: true })}
+          >
+            Is
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter.commanderEligible === false}
+            className={`binder-mode-pill${filter.commanderEligible === false ? ' active' : ''}`}
+            onClick={() => patch({ commanderEligible: false })}
+          >
+            Is not
+          </button>
+        </div>
+      </div>
+
       {/* Sets */}
       <div className="rule-row">
         <span className="rule-label">Sets</span>
