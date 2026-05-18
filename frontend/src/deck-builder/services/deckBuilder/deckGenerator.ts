@@ -53,7 +53,6 @@ import {
 } from './deckFilters';
 import { calculateTargetCounts } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
-import { calculateStats } from './deckStats';
 import {
   pickFromPrefetchedWithCurve,
   mergeWithAllNonLand,
@@ -89,6 +88,7 @@ import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
+import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -2599,32 +2599,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   // Calculate stats
-  const stats = calculateStats(categories);
-
-  // Compute salt stats from the salt index (top-100 saltiest from EDHREC).
-  // We load it here as well if it wasn't already (e.g. saltTolerance === 'any').
-  if (!saltIndex.size) saltIndex = await fetchSaltIndex();
-  if (saltIndex.size > 0) {
-    const nonLandCards = Object.values(categories)
-      .flat()
-      .filter((c) => !getFrontFaceTypeLine(c).toLowerCase().includes('land'));
-
-    const saltyCards: Array<{ name: string; salt: number }> = [];
-    let saltSum = 0;
-    for (const card of nonLandCards) {
-      const key = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
-      const salt = saltIndex.get(card.name) ?? saltIndex.get(key) ?? 0;
-      saltSum += salt;
-      if (salt > 0) saltyCards.push({ name: card.name, salt });
-    }
-    if (nonLandCards.length > 0) {
-      stats.averageSalt = Math.round((saltSum / nonLandCards.length) * 100) / 100;
-      stats.saltiestCards = saltyCards
-        .sort((a, b) => b.salt - a.salt)
-        .slice(0, 5)
-        .map((c) => ({ name: c.name, salt: Math.round(c.salt * 100) / 100 }));
-    }
-  }
+  const stats = await finalStatsPhase(state, saltIndex);
 
   // Get the theme names that were actually used
   const usedThemes =
