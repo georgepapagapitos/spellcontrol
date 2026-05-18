@@ -2122,19 +2122,16 @@ input.toolbar-search-input {
    stays minimal once pinned. */
 .decks-index-search-row {
   position: sticky;
-  top: 3.25rem;
+  /* `.app-main` is the sole scroll container; the header sits outside
+     it, so the scrollport top is already under the header — pin at 0,
+     not the header height (see .collection-toolbar-row). */
+  top: 0;
   z-index: var(--z-panel);
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
-}
-
-@media (max-width: 1024px) {
-  .decks-index-search-row {
-    top: 0;
-  }
 }
 
 @media (max-width: 600px) {
@@ -6030,19 +6027,16 @@ input.deck-row-qty-input.deck-row-qty-missing {
    row scrolls away with the list. */
 .binders-index-search-row {
   position: sticky;
-  top: 3.25rem;
+  /* `.app-main` is the sole scroll container; the header sits outside
+     it, so the scrollport top is already under the header — pin at 0,
+     not the header height (see .collection-toolbar-row). */
+  top: 0;
   z-index: var(--z-panel);
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
-}
-
-@media (max-width: 1024px) {
-  .binders-index-search-row {
-    top: 0;
-  }
 }
 
 @media (max-width: 600px) {
