@@ -1,0 +1,269 @@
+// Card classification & role bucketing: type matching, tagger-role
+// categorization, swap-candidate collection, and balanced-roles boosts.
+// Extracted verbatim from deckGenerator.ts.
+import type {
+  ScryfallCard,
+  EDHRECCard,
+  DeckCategory,
+  MaxRarity,
+  CollectionStrategy,
+} from '@/deck-builder/types';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import {
+  getCardRole,
+  hasMultipleRoles,
+  getRampSubtype,
+  getRemovalSubtype,
+  getBoardwipeSubtype,
+  getCardDrawSubtype,
+  type RoleKey,
+} from '@/deck-builder/services/tagger/client';
+import {
+  fitsColorIdentity,
+  exceedsMaxPrice,
+  exceedsMaxRarity,
+  notInCollection,
+  isOwnedRarityExempt,
+  notOnArena,
+  exceedsCmcCap,
+} from './deckFilters';
+
+// Check if a card's type_line matches the expected type
+export function matchesExpectedType(typeLine: string, expectedType: string): boolean {
+  const normalizedType = expectedType.toLowerCase();
+  const normalizedTypeLine = typeLine.toLowerCase();
+
+  // Handle the main card types
+  if (normalizedType === 'creature') return normalizedTypeLine.includes('creature');
+  if (normalizedType === 'instant') return normalizedTypeLine.includes('instant');
+  if (normalizedType === 'sorcery') return normalizedTypeLine.includes('sorcery');
+  if (normalizedType === 'artifact')
+    return (
+      normalizedTypeLine.includes('artifact') &&
+      !normalizedTypeLine.includes('creature') &&
+      !normalizedTypeLine.includes('land')
+    );
+  if (normalizedType === 'enchantment')
+    return (
+      normalizedTypeLine.includes('enchantment') &&
+      !normalizedTypeLine.includes('creature') &&
+      !normalizedTypeLine.includes('land')
+    );
+  if (normalizedType === 'planeswalker') return normalizedTypeLine.includes('planeswalker');
+  if (normalizedType === 'battle') return normalizedTypeLine.includes('battle');
+  if (normalizedType === 'land') return normalizedTypeLine.includes('land');
+
+  return false;
+}
+
+const ROLE_TO_CATEGORY: Record<RoleKey, DeckCategory> = {
+  ramp: 'ramp',
+  removal: 'singleRemoval',
+  boardwipe: 'boardWipes',
+  cardDraw: 'cardDraw',
+};
+
+// Categorize cards by functional role using Scryfall tagger data.
+// Cards without a tagger role go to the given fallback category (typically 'synergy').
+export function categorizeCards(
+  cards: ScryfallCard[],
+  categories: Record<DeckCategory, ScryfallCard[]>,
+  fallback: DeckCategory = 'synergy'
+): void {
+  for (const card of cards) {
+    const role = getCardRole(card.name);
+    categories[role ? ROLE_TO_CATEGORY[role] : fallback].push(card);
+  }
+}
+
+// Stamp all role subtypes on a card based on its deckRole
+export function stampRoleSubtypes(card: ScryfallCard): void {
+  card.multiRole = hasMultipleRoles(card.name);
+  // Stamp all subtypes so secondary-role contexts (e.g. a ramp card in the card draw panel) show the right badge
+  card.rampSubtype = getRampSubtype(card.name) ?? undefined;
+  card.removalSubtype = getRemovalSubtype(card.name) ?? undefined;
+  card.boardwipeSubtype = getBoardwipeSubtype(card.name) ?? undefined;
+  card.cardDrawSubtype = getCardDrawSubtype(card.name) ?? undefined;
+}
+
+/** Map a ScryfallCard to a type-based swap bucket key, or null for lands. */
+function getPrimaryTypeKey(card: ScryfallCard): string | null {
+  const t = getFrontFaceTypeLine(card).toLowerCase();
+  if (t.includes('land')) return null;
+  if (t.includes('creature')) return 'type:creature';
+  if (t.includes('instant')) return 'type:instant';
+  if (t.includes('sorcery')) return 'type:sorcery';
+  if (t.includes('artifact')) return 'type:artifact';
+  if (t.includes('enchantment')) return 'type:enchantment';
+  if (t.includes('planeswalker')) return 'type:planeswalker';
+  return null;
+}
+
+// Collect swap candidates from pools — eligible cards that weren't selected, grouped by role or card type
+export function collectSwapCandidates(
+  pools: EDHRECCard[][],
+  cardMap: Map<string, ScryfallCard>,
+  usedNames: Set<string>,
+  colorIdentity: string[],
+  bannedCards: Set<string>,
+  maxCardPrice: number | null,
+  maxRarity: MaxRarity,
+  maxCmc: number | null,
+  collectionNames: Set<string> | undefined,
+  currency: 'USD' | 'EUR',
+  arenaOnly: boolean,
+  collectionStrategy: CollectionStrategy = 'full',
+  limitPerBucket: number = 15,
+  ignoreOwnedRarity: boolean = false
+): Record<string, ScryfallCard[]> {
+  const result: Record<string, ScryfallCard[]> = {
+    ramp: [],
+    removal: [],
+    boardwipe: [],
+    cardDraw: [],
+    'type:creature': [],
+    'type:instant': [],
+    'type:sorcery': [],
+    'type:artifact': [],
+    'type:enchantment': [],
+    'type:planeswalker': [],
+  };
+  const seen = new Set<string>();
+
+  for (const pool of pools) {
+    for (const edhrecCard of pool) {
+      if (usedNames.has(edhrecCard.name) || bannedCards.has(edhrecCard.name)) continue;
+      if (seen.has(edhrecCard.name)) continue;
+      if (collectionStrategy === 'full' && notInCollection(edhrecCard.name, collectionNames))
+        continue;
+
+      const scryfallCard = cardMap.get(edhrecCard.name);
+      if (!scryfallCard) continue;
+
+      // Determine bucket: role-based if tagged, otherwise type-based
+      const role = getCardRole(scryfallCard.name);
+      const bucket = role ?? getPrimaryTypeKey(scryfallCard);
+      if (!bucket) continue;
+      if ((result[bucket]?.length ?? 0) >= limitPerBucket) continue;
+
+      if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
+      if (exceedsMaxPrice(scryfallCard, maxCardPrice, currency)) continue;
+      if (!isOwnedRarityExempt(edhrecCard.name, collectionNames, ignoreOwnedRarity)) {
+        if (exceedsMaxRarity(scryfallCard, maxRarity)) continue;
+      }
+      if (exceedsCmcCap(scryfallCard, maxCmc)) continue;
+      if (notOnArena(scryfallCard, arenaOnly)) continue;
+
+      if (role) {
+        scryfallCard.deckRole = role;
+        stampRoleSubtypes(scryfallCard);
+      }
+      result[bucket].push(scryfallCard);
+      seen.add(edhrecCard.name);
+    }
+  }
+
+  // Sort each bucket by edhrec_rank (lower = more popular = better swap suggestion)
+  for (const key of Object.keys(result)) {
+    result[key].sort((a, b) => (a.edhrec_rank ?? Infinity) - (b.edhrec_rank ?? Infinity));
+  }
+
+  return result;
+}
+
+// Role targets by deck size — used by balanced roles mode
+// getRoleTargets moved to ./roleTargets.ts as getBaseRoleTargets / getDynamicRoleTargets
+
+// Compute role-deficit boost map for balanced roles mode
+// Subtypes per role for diversity calculations
+const ROLE_SUBTYPES: Record<string, string[]> = {
+  ramp: ['mana-producer', 'mana-rock', 'cost-reducer', 'ramp'],
+  removal: ['counterspell', 'bounce', 'spot-removal', 'removal'],
+  boardwipe: ['bounce-wipe', 'boardwipe'],
+  cardDraw: ['tutor', 'wheel', 'cantrip', 'card-draw', 'card-advantage'],
+};
+
+export function computeRoleBoosts(
+  cardRoleMap: Map<string, RoleKey>,
+  roleTargets: Record<RoleKey, number>,
+  currentRoleCounts: Record<RoleKey, number>,
+  baseBoosts?: Map<string, number>,
+  cardCmcMap?: Map<string, number>,
+  cardSubtypeMap?: Map<string, string>,
+  currentSubtypeCounts?: Record<string, number>,
+  strictRoles: boolean = false
+): Map<string, number> {
+  const boosts = new Map<string, number>(baseBoosts ?? []);
+
+  // Pre-compute peer average counts per role for subtype diversity
+  const peerAverages: Record<string, number> = {};
+  if (cardSubtypeMap && currentSubtypeCounts) {
+    for (const [role, subtypes] of Object.entries(ROLE_SUBTYPES)) {
+      const total = subtypes.reduce((sum, st) => sum + (currentSubtypeCounts[st] ?? 0), 0);
+      peerAverages[role] = subtypes.length > 0 ? total / subtypes.length : 0;
+    }
+  }
+
+  for (const [name, role] of cardRoleMap) {
+    const target = roleTargets[role];
+    const current = currentRoleCounts[role] ?? 0;
+
+    // When user explicitly set role targets, penalize roles that are at or over target
+    if (strictRoles) {
+      if (target <= 0) {
+        // Target is 0 — strongly penalize cards with this role
+        boosts.set(name, (boosts.get(name) ?? 0) - 100);
+        continue;
+      }
+      if (current >= target) {
+        // Already met target — penalize further cards with this role
+        const surplus = current - target;
+        boosts.set(name, (boosts.get(name) ?? 0) - 50 - surplus * 15);
+        continue;
+      }
+    } else {
+      if (target <= 0) continue;
+    }
+
+    const deficit = Math.max(0, target - current);
+    if (deficit > 0) {
+      // Stronger boost when user explicitly set targets (up to 120 vs 75)
+      const maxBoost = strictRoles ? 120 : 75;
+      const roleBoost = (deficit / target) * maxBoost;
+      // Early ramp bonus: prefer low-CMC mana producers for reliable early acceleration
+      let earlyRampMultiplier = 1.0;
+      if (role === 'ramp' && cardCmcMap) {
+        const cmc = cardCmcMap.get(name);
+        if (cmc !== undefined) {
+          if (cmc <= 1)
+            earlyRampMultiplier = 2.0; // Sol Ring, Birds of Paradise, Llanowar Elves
+          else if (cmc <= 2)
+            earlyRampMultiplier = 1.5; // Arcane Signet, Fellwar Stone
+          else if (cmc <= 3) earlyRampMultiplier = 1.2; // Cultivate, Kodama's Reach
+        }
+      }
+      // Subtype diversity: penalize over-represented subtypes, bonus for unrepresented ones
+      let diversityMultiplier = 1.0;
+      if (cardSubtypeMap && currentSubtypeCounts) {
+        const subtype = cardSubtypeMap.get(name);
+        if (subtype) {
+          const subtypeCount = currentSubtypeCounts[subtype] ?? 0;
+          const avg = peerAverages[role] ?? 0;
+          const excess = subtypeCount - avg;
+          if (excess > 1) {
+            // Gradually reduce boost: 0.9x at +2, 0.8x at +3, floor at 0.4x
+            diversityMultiplier = Math.max(0.4, 1.0 - (excess - 1) * 0.1);
+          } else if (subtypeCount === 0) {
+            // Encourage picking the first of each subtype
+            diversityMultiplier = 1.25;
+          }
+        }
+      }
+      boosts.set(
+        name,
+        (boosts.get(name) ?? 0) + roleBoost * earlyRampMultiplier * diversityMultiplier
+      );
+    }
+  }
+  return boosts;
+}
