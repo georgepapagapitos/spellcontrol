@@ -702,6 +702,17 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     }
 
     replaceAllCards([...otherCards, ...updatedExisting, ...newCopies]);
+
+    // The dialog edits a whole printing/finish stack, so a sub-collection
+    // choice applies to every resulting copy of that stack (preserved +
+    // freshly-created copyIds). `undefined` ⇒ the picker wasn't shown
+    // (non-collection usage) — leave existing assignments untouched.
+    if (selection.subCollectionId !== undefined) {
+      const editedCopyIds = [...updatedExisting, ...newCopies].map((c) => c.copyId);
+      void useCollectionStore
+        .getState()
+        .moveCardsToSubCollection(editedCopyIds, selection.subCollectionId);
+    }
     setEditingCard(null);
   };
 
@@ -1169,6 +1180,8 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           currentScryfallId={editingCard.scryfallId}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingQty}
+          subCollections={useCollectionStore.getState().subCollections}
+          currentSubCollectionId={editingCard.subCollectionId}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
