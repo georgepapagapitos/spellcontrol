@@ -48,6 +48,7 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 - **Mana cost** — exact match on the normalized cost string.
 - **Type line** — IS / IS NOT substring chips against the Scryfall type line.
 - **Oracle text** — IS / IS NOT substring chips against rules text.
+- **Commander** — Any / Is / Is not. _Is_ matches commander-eligible cards: legendary creatures, plus cards whose text says "can be your commander" (planeswalker-commanders), that are legal in the Commander format. _Is not_ matches everything else.
 - **Sets** — multi-select from sets in your collection.
 - **Price** — min / max in USD.
 - **Finishes** — IS / IS NOT (nonfoil, foil, etched).

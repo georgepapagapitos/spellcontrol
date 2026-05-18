@@ -3,6 +3,7 @@ import {
   areAllGroupsEmpty,
   cardMatchesAnyGroup,
   cardMatchesFilter,
+  compileFilter,
   compileFilterGroups,
   isFilterEmpty,
 } from './rules';
@@ -382,5 +383,64 @@ describe('areAllGroupsEmpty', () => {
   });
   it('false when at least one group has a constraint', () => {
     expect(areAllGroupsEmpty([{ filter: {} }, { filter: { priceMin: 1 } }])).toBe(false);
+  });
+});
+
+describe('commanderEligible filter', () => {
+  const legend = makeCard({
+    typeLine: 'Legendary Creature — Human Wizard',
+    oracleText: '',
+    legalities: { commander: 'legal' },
+  });
+  const pwCommander = makeCard({
+    typeLine: 'Legendary Planeswalker — Daretti',
+    oracleText: 'daretti can be your commander.',
+    legalities: { commander: 'legal' },
+  });
+  const bannedLegend = makeCard({
+    typeLine: 'Legendary Creature — Human',
+    oracleText: '',
+    legalities: { commander: 'banned' },
+  });
+  const vanilla = makeCard({
+    typeLine: 'Creature — Bear',
+    oracleText: '',
+    legalities: { commander: 'legal' },
+  });
+
+  it('true matches legendary creatures and planeswalker-commanders', () => {
+    const f: BinderFilter = { commanderEligible: true };
+    expect(cardMatchesFilter(legend, f)).toBe(true);
+    expect(cardMatchesFilter(pwCommander, f)).toBe(true);
+  });
+
+  it('true rejects banned legends and vanilla creatures', () => {
+    const f: BinderFilter = { commanderEligible: true };
+    expect(cardMatchesFilter(bannedLegend, f)).toBe(false);
+    expect(cardMatchesFilter(vanilla, f)).toBe(false);
+  });
+
+  it('false inverts the match', () => {
+    const f: BinderFilter = { commanderEligible: false };
+    expect(cardMatchesFilter(legend, f)).toBe(false);
+    expect(cardMatchesFilter(vanilla, f)).toBe(true);
+  });
+
+  it('undefined imposes no constraint', () => {
+    const f: BinderFilter = {};
+    expect(cardMatchesFilter(legend, f)).toBe(true);
+    expect(cardMatchesFilter(vanilla, f)).toBe(true);
+  });
+
+  it('compileFilter round-trips the flag', () => {
+    expect(compileFilter({ commanderEligible: true }).commanderEligible).toBe(true);
+    expect(compileFilter({ commanderEligible: false }).commanderEligible).toBe(false);
+    expect(compileFilter({}).commanderEligible).toBeUndefined();
+  });
+
+  it('isFilterEmpty is false when only commanderEligible is set', () => {
+    expect(isFilterEmpty({ commanderEligible: true })).toBe(false);
+    expect(isFilterEmpty({ commanderEligible: false })).toBe(false);
+    expect(isFilterEmpty({})).toBe(true);
   });
 });
