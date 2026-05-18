@@ -1,7 +1,6 @@
 import type {
   ScryfallCard,
   GeneratedDeck,
-  GapAnalysisCard,
   DeckCategory,
   DeckDataSource,
   EDHRECCard,
@@ -92,6 +91,7 @@ import {
   countAllCards as stCountAllCards,
 } from './deckGeneration/state';
 import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
+import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -2677,57 +2677,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs.map((t) => t.name) : undefined;
 
   // Gap analysis: find top unowned cards that would improve the deck
-  let gapAnalysis: GapAnalysisCard[] | undefined;
-  if (context.collectionNames && state.edhrecData) {
-    const allDeckCardNames = new Set<string>();
-    for (const c of Object.values(categories).flat()) {
-      allDeckCardNames.add(c.name);
-      // DFCs: also add front-face name so EDHREC's front-face-only names match
-      if (c.name.includes(' // ')) allDeckCardNames.add(c.name.split(' // ')[0]);
-    }
-
-    const gapCandidates = state.edhrecData.cardlists.allNonLand
-      .filter((c) => !allDeckCardNames.has(c.name) && !bannedCards.has(c.name))
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a))
-      .slice(0, 40);
-
-    if (gapCandidates.length > 0) {
-      const gapCardMap = await getCardsByNames(
-        gapCandidates.map((c) => c.name),
-        undefined,
-        preferredSet
-      );
-
-      const ROLE_LABELS: Record<string, string> = {
-        ramp: 'Ramp',
-        removal: 'Removal',
-        boardwipe: 'Board Wipes',
-        cardDraw: 'Card Advantage',
-      };
-      gapAnalysis = gapCandidates
-        .map((c) => {
-          const scryfall = gapCardMap.get(c.name);
-          const role = getCardRole(c.name) || undefined;
-          return {
-            name: c.name,
-            price: scryfall ? getCardPrice(scryfall, currency) : null,
-            inclusion: c.inclusion,
-            synergy: c.synergy ?? 0,
-            typeLine: scryfall?.type_line ?? '',
-            cmc: scryfall?.cmc,
-            imageUrl: scryfall?.image_uris?.small,
-            isOwned: context.collectionNames!.has(c.name),
-            role,
-            roleLabel: role ? ROLE_LABELS[role] : undefined,
-          };
-        })
-        .filter((c) => c.price !== null);
-
-      console.log(
-        `[DeckGen] Gap analysis: ${gapAnalysis.length} cards suggested (${gapAnalysis.filter((c) => c.isOwned).length} owned)`
-      );
-    }
-  }
+  const gapAnalysis = await gapAnalysisPhase(state);
 
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);
