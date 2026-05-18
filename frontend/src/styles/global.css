@@ -7015,6 +7015,13 @@ hr {
   min-width: 12rem;
 }
 
+/* Sub-collection view filter — a chip row in the collection toolbar stack.
+   Reuses the shared .chip / .chip.active styling; only spacing is added so
+   it sits between the hero and the list like the bulk toolbar does. */
+.collection-subfilter {
+  margin-bottom: 0.6rem;
+}
+
 /* Set code + collector number (used in list view) */
 .card-list-foil-tag {
   display: inline-block;
