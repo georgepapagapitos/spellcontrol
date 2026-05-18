@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
 import { clearCollection, loadCollection } from '../lib/local-cards';
-import type { EnrichedCard } from '../types';
+import type { EnrichedCard, UploadResponse } from '../types';
 
 function enriched(copyId: string, scryfallId: string): EnrichedCard {
   return {
@@ -83,5 +83,49 @@ describe('sub-collection CRUD', () => {
     const defs = useCollectionStore.getState().subCollections;
     expect(defs.map((d) => d.id)).toEqual([b, a]);
     expect(defs.map((d) => d.order)).toEqual([0, 1]);
+  });
+});
+
+function uploadResponse(cards: EnrichedCard[]): UploadResponse {
+  return {
+    cards,
+    totalRows: cards.length,
+    scryfallHits: cards.length,
+    scryfallMisses: 0,
+    unresolvedNames: [],
+    detectedFormat: 'plain',
+  };
+}
+
+describe('sub-collection import durability', () => {
+  it('stamps imported cards with the chosen subCollectionId', async () => {
+    const id = useCollectionStore.getState().createSubCollection('Bulk');
+    await useCollectionStore
+      .getState()
+      .importCards(uploadResponse([enriched('n1', 'sf1')]), 'f.csv', 'replace', {
+        subCollectionId: id,
+      });
+    expect(useCollectionStore.getState().cards[0].subCollectionId).toBe(id);
+  });
+
+  it('restores assignments across a replace re-import by printing+finish', async () => {
+    useCollectionStore.setState({ cards: [enriched('old', 'sf1')] });
+    const id = useCollectionStore.getState().createSubCollection('Bulk');
+    await useCollectionStore.getState().moveCardsToSubCollection(['old'], id);
+
+    await useCollectionStore
+      .getState()
+      .importCards(uploadResponse([enriched('fresh', 'sf1')]), 'f.csv', 'replace');
+
+    const c = useCollectionStore.getState().cards[0];
+    expect(c.copyId).toBe('fresh');
+    expect(c.subCollectionId).toBe(id);
+  });
+
+  it('round-trips subCollections through hydrateCards', async () => {
+    const id = useCollectionStore.getState().createSubCollection('Bulk');
+    useCollectionStore.setState({ cards: [], subCollections: [] });
+    await useCollectionStore.getState().hydrateCards();
+    expect(useCollectionStore.getState().subCollections.find((d) => d.id === id)).toBeDefined();
   });
 });

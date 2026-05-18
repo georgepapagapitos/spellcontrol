@@ -23,7 +23,11 @@ import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { markDestructive } from '../lib/sync-intent';
 import { reconcileBinderRefs, keysForIds } from '../lib/binder-refs';
-import { assignSubCollection, clampSubCollectionName } from '../lib/sub-collections';
+import {
+  assignSubCollection,
+  clampSubCollectionName,
+  restoreSubCollectionAssignments,
+} from '../lib/sub-collections';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -76,7 +80,12 @@ interface CollectionState {
     response: UploadResponse,
     fileName: string,
     mode: ImportMode,
-    options?: { isSample?: boolean; binderName?: string; binderColor?: string }
+    options?: {
+      isSample?: boolean;
+      binderName?: string;
+      binderColor?: string;
+      subCollectionId?: string;
+    }
   ) => Promise<void>;
   /**
    * Removes the import history entry with the given id and any cards stamped
@@ -271,6 +280,7 @@ export const useCollectionStore = create<CollectionState>()(
               scryfallMisses: stored.scryfallMisses,
               uploadedAt: stored.uploadedAt,
               importHistory: history,
+              subCollections: stored.subCollections ?? [],
             });
           }
         } catch (err) {
@@ -290,7 +300,10 @@ export const useCollectionStore = create<CollectionState>()(
         const importId = newImportId();
         const existing = get().cards;
         const existingHistory = get().importHistory;
-        const stamped = response.cards.map((c) => ({ ...c, importId }));
+        const baseStamped = response.cards.map((c) => ({ ...c, importId }));
+        const stamped = options?.subCollectionId
+          ? baseStamped.map((c) => assignSubCollection(c, options.subCollectionId!))
+          : restoreSubCollectionAssignments(baseStamped, existing);
         const collectionMode = mode === 'binder' ? 'merge' : mode;
         const newCards = collectionMode === 'merge' ? mergeCards(existing, stamped) : stamped;
         const entry: ImportHistoryEntry = {
@@ -351,14 +364,17 @@ export const useCollectionStore = create<CollectionState>()(
         remapBinderRefs(existing, newCards);
 
         try {
-          await saveCollection({
-            cards: newCards,
-            fileName,
-            scryfallHits: response.scryfallHits,
-            scryfallMisses: response.scryfallMisses,
-            uploadedAt,
-            importHistory,
-          });
+          await saveCollection(
+            buildStored({
+              cards: newCards,
+              fileName,
+              scryfallHits: response.scryfallHits,
+              scryfallMisses: response.scryfallMisses,
+              uploadedAt,
+              importHistory,
+              subCollections: get().subCollections,
+            })
+          );
         } catch (err) {
           console.warn('[store] Failed to persist collection:', err);
           set({
@@ -575,6 +591,7 @@ export const useCollectionStore = create<CollectionState>()(
                 scryfallMisses: s.scryfallMisses,
                 uploadedAt: s.uploadedAt ?? Date.now(),
                 importHistory: s.importHistory,
+                subCollections: s.subCollections,
               }
             : null;
         return buildBackup(collection, s.binders);
@@ -595,6 +612,7 @@ export const useCollectionStore = create<CollectionState>()(
           detectedFormat: '',
           uploadedAt: collection ? uploadedAt : null,
           importHistory: restoredHistory,
+          subCollections: collection?.subCollections ?? [],
           binders: backup.binders,
           activeTab: backup.binders[0]?.id ?? 'uncategorized',
           error: null,
@@ -612,6 +630,7 @@ export const useCollectionStore = create<CollectionState>()(
               scryfallMisses: collection.scryfallMisses,
               uploadedAt,
               importHistory: restoredHistory,
+              subCollections: collection?.subCollections ?? [],
             });
           } catch (err) {
             console.warn('[store] Failed to persist restored collection:', err);
