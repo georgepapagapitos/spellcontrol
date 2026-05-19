@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import type { EnrichedCard, ListDef, SubCollectionDef } from '../types';
+import type { EnrichedCard, ListDef } from '../types';
 
 /**
  * IndexedDB-backed persistence for the most recent CSV upload.
@@ -49,14 +49,9 @@ export interface StoredCollection {
    */
   importHistory?: ImportHistoryEntry[];
   /**
-   * User-defined sub-collection (physical-location) definitions. Optional so
-   * collections saved before this existed load fine (treated as `[]`).
-   */
-  subCollections?: SubCollectionDef[];
-  /**
    * User-defined lists of unowned cards. Optional for back-compat (treated as
    * `[]`). Conceptually independent of owned cards; stored here only because
-   * this blob is the user's synced data envelope (mirrors subCollections).
+   * this blob is the user's synced data envelope (rides the synced blob).
    */
   lists?: ListDef[];
 }

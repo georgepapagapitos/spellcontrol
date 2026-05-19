@@ -140,13 +140,13 @@ export function BinderPage() {
   // No binders or no cards → the index page owns those empty states.
   // Send users back to /binders, where they get the right call-to-action.
   if (binders.length === 0 || cards.length === 0) {
-    return <Navigate to="/binders" replace />;
+    return <Navigate to="/collection/binders" replace />;
   }
 
   // Route param points at a binder that doesn't exist (deleted, bookmark
   // gone stale, typo). Bounce to the index rather than rendering empty.
   if (routeId && !binders.some((b) => b.id === routeId)) {
-    return <Navigate to="/binders" replace />;
+    return <Navigate to="/collection/binders" replace />;
   }
 
   const active = materialized.find((b) => b.def.id === routeId) ?? materialized[0];
@@ -181,7 +181,7 @@ export function BinderPage() {
 
   return (
     <>
-      <BackLink to="/binders" label="All binders" />
+      <BackLink to="/collection/binders" label="All binders" />
       <BinderTabs binders={materialized} />
       {active && (
         <header

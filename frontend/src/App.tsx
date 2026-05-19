@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { CollectionHubLayout } from './components/CollectionHubLayout';
 import { CollectionPage } from './pages/CollectionPage';
 import { BinderPage } from './pages/BinderPage';
 import { BindersIndexPage } from './pages/BindersIndexPage';
@@ -16,6 +17,19 @@ import AuthPage from './pages/AuthPage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync } from './lib/sync';
+
+// Back-compat redirects for the pre-hub flat paths. Param-preserving so deep
+// links / bookmarks to /binders/:id and /lists/:id still land on the right
+// detail page under the new /collection hub.
+function RedirectBinder() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/collection/binders/${id}`} replace />;
+}
+
+function RedirectList() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/collection/lists/${id}`} replace />;
+}
 
 export default function App() {
   const status = useAuth((s) => s.status);
@@ -64,12 +78,22 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
-        <Route path="/collection" element={<CollectionPage />} />
-        <Route path="/binder" element={<Navigate to="/binders" replace />} />
-        <Route path="/binders" element={<BindersIndexPage />} />
-        <Route path="/binders/:id" element={<BinderPage />} />
-        <Route path="/lists" element={<ListsPage />} />
-        <Route path="/lists/:id" element={<ListsPage />} />
+
+        <Route path="/collection" element={<CollectionHubLayout />}>
+          <Route index element={<CollectionPage />} />
+          <Route path="binders" element={<BindersIndexPage />} />
+          <Route path="binders/:id" element={<BinderPage />} />
+          <Route path="lists" element={<ListsPage />} />
+          <Route path="lists/:id" element={<ListsPage />} />
+        </Route>
+
+        {/* Back-compat permanent redirects (preserve old deep links). */}
+        <Route path="/binder" element={<Navigate to="/collection/binders" replace />} />
+        <Route path="/binders" element={<Navigate to="/collection/binders" replace />} />
+        <Route path="/binders/:id" element={<RedirectBinder />} />
+        <Route path="/lists" element={<Navigate to="/collection/lists" replace />} />
+        <Route path="/lists/:id" element={<RedirectList />} />
+
         <Route path="/decks" element={<DecksIndexPage />} />
         <Route path="/decks/new" element={<DeckNewPage />} />
         <Route path="/decks/new/guided" element={<GuidedBuildPage />} />

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { SubCollectionDef } from '../types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
 import { Modal } from './Modal';
 
@@ -10,12 +9,6 @@ export interface PrintingSelection {
   card: ScryfallCard;
   finish: Finish;
   quantity?: number;
-  /**
-   * Chosen sub-collection: an id, or `null` for the synthetic "Main" bucket.
-   * `undefined` ⇒ the dialog had no sub-collection picker (non-collection
-   * usages), so the caller must leave the existing assignment untouched.
-   */
-  subCollectionId?: string | null;
 }
 
 interface Props {
@@ -24,10 +17,6 @@ interface Props {
   currentFinish: Finish;
   /** When set, shows a quantity editor. Only used for collection edits. */
   quantity?: number;
-  /** When provided (and non-empty), renders the sub-collection picker. */
-  subCollections?: SubCollectionDef[];
-  /** The card's current sub-collection id (preselects the picker). */
-  currentSubCollectionId?: string;
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
@@ -72,8 +61,6 @@ export function CardEditDialog({
   currentScryfallId,
   currentFinish,
   quantity,
-  subCollections,
-  currentSubCollectionId,
   onConfirm,
   onCancel,
 }: Props) {
@@ -87,7 +74,6 @@ export function CardEditDialog({
 
   const [selectedId, setSelectedId] = useState(currentScryfallId);
   const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFinish);
-  const [selectedSubId, setSelectedSubId] = useState<string>(currentSubCollectionId ?? '');
   const [qty, setQty] = useState(quantity ?? 1);
   const [search, setSearch] = useState('');
 
@@ -160,15 +146,13 @@ export function CardEditDialog({
   const isDirty =
     selectedId !== currentScryfallId ||
     selectedFinish !== currentFinish ||
-    (quantity !== undefined && qty !== quantity) ||
-    (subCollections !== undefined && selectedSubId !== (currentSubCollectionId ?? ''));
+    (quantity !== undefined && qty !== quantity);
 
   const handleConfirm = () => {
     if (!selectedCard) return;
     onConfirm({
       card: selectedCard,
       finish: selectedFinish,
-      subCollectionId: selectedSubId || null,
       ...(quantity !== undefined ? { quantity: qty } : {}),
     });
   };
@@ -234,26 +218,6 @@ export function CardEditDialog({
                       {f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched'}
                     </button>
                   ))}
-                </div>
-              )}
-
-              {subCollections && subCollections.length > 0 && (
-                <div className="card-edit-subcollection" role="group" aria-label="Sub-collection">
-                  <label className="card-edit-subcollection-label" htmlFor="card-edit-sub">
-                    Sub-collection
-                  </label>
-                  <select
-                    id="card-edit-sub"
-                    value={selectedSubId}
-                    onChange={(e) => setSelectedSubId(e.target.value)}
-                  >
-                    <option value="">Main</option>
-                    {subCollections.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               )}
 
