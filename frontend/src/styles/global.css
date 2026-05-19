@@ -62,6 +62,15 @@
   --overlay-sheet: rgba(0, 0, 0, 0.4);
   --pip-border: rgba(255, 255, 255, 0.15);
 
+  /* ── Motion ───────────────────────────────────────────────────────────── */
+  /* Smooth, fairly even glide with a soft (near-flat) landing — for larger
+     surfaces that should read as travelling the full distance and settling
+     (e.g. the card-preview drawer rise) rather than snapping. Distinct
+     from the existing inline house curves (the snappier
+     cubic-bezier(0.2, 0.8, 0.2, 1) settle / 0.2, 0.9, 0.3, 1 pop), which
+     stay as-is. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   /* ── Shape ────────────────────────────────────────────────────────────── */
   --radius: 8px;
   --radius-lg: 12px;
@@ -5011,7 +5020,7 @@ hr {
      the first frame for a clean entrance, then releases transform control
      when the one-shot ends so the swipe-down-dismiss inline translateY
      still works (its value is 0 at mount, so there's no conflict). */
-  animation: card-preview-rise 0.5s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  animation: card-preview-rise 0.5s var(--ease-drawer) backwards;
   /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
      horizontal pans are owned by the nested .card-preview-track
      (which sets its own touch-action: pan-x). Telling the browser
