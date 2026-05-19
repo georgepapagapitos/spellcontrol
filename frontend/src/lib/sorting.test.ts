@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortCards, cardSortValue } from './sorting';
+import { sortCards, cardSortValue, colorSortRank, CANONICAL_MULTICOLOR } from './sorting';
 import type { EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -67,12 +67,16 @@ const multiCreature = makeCard({
 });
 
 describe('cardSortValue', () => {
-  it('color: returns numeric order', () => {
+  it('color: mono in WUBRG order, multicolor between green and colorless', () => {
     expect(cardSortValue(whiteEnchantment, 'color')).toBe(0); // W
     expect(cardSortValue(blueCreature, 'color')).toBe(1); // U
     expect(cardSortValue(redInstant, 'color')).toBe(3); // R
-    expect(cardSortValue(multiCreature, 'color')).toBe(5); // M
     expect(cardSortValue(colorlessArtifact, 'color')).toBe(6); // C
+    // Multicolor fans out within the [5, 6) band: after mono green (4),
+    // before colorless (6), so the Multicolor section stays contiguous.
+    const m = cardSortValue(multiCreature, 'color') as number;
+    expect(m).toBeGreaterThanOrEqual(5);
+    expect(m).toBeLessThan(6);
   });
 
   it('rarity: mythic < rare < uncommon < common', () => {
@@ -357,5 +361,75 @@ describe('helpers around treatment/finish ordering', () => {
     expect(fields).toContain('name');
     expect(fields).toContain('treatment');
     expect(fields).not.toContain('finish');
+  });
+});
+
+describe('colorSortRank — canonical multicolor ordering', () => {
+  const rank = (colors: string[]) =>
+    colorSortRank(makeCard({ colors, colorIdentity: colors, typeLine: 'Creature' }));
+
+  it('keeps mono colors in WUBRG order, all before any multicolor', () => {
+    const mono = [rank(['W']), rank(['U']), rank(['B']), rank(['R']), rank(['G'])];
+    expect(mono).toEqual([0, 1, 2, 3, 4]);
+    expect(Math.max(...mono)).toBeLessThan(rank(['W', 'U']));
+  });
+
+  it('orders the ten guilds in canonical WUBRG-pair order', () => {
+    const guilds = [
+      ['W', 'U'],
+      ['W', 'B'],
+      ['W', 'R'],
+      ['W', 'G'],
+      ['U', 'B'],
+      ['U', 'R'],
+      ['U', 'G'],
+      ['B', 'R'],
+      ['B', 'G'],
+      ['R', 'G'],
+    ];
+    const ranks = guilds.map(rank);
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(new Set(ranks).size).toBe(10); // all distinct
+  });
+
+  it('sorts by color count: 2c < 3c < 4c < 5c', () => {
+    expect(rank(['R', 'G'])).toBeLessThan(rank(['B', 'R', 'G'])); // Gruul < Jund
+    expect(rank(['B', 'R', 'G'])).toBeLessThan(rank(['U', 'B', 'R', 'G'])); // Jund < 4c
+    expect(rank(['U', 'B', 'R', 'G'])).toBeLessThan(rank(['W', 'U', 'B', 'R', 'G'])); // 4c < WUBRG
+  });
+
+  it('keeps every multicolor rank inside the [5, 6) band (section stays intact)', () => {
+    for (const combo of CANONICAL_MULTICOLOR) {
+      const r = rank(combo.split(''));
+      expect(r).toBeGreaterThanOrEqual(5);
+      expect(r).toBeLessThan(6); // strictly before colorless (COLOR_INFO order 6)
+    }
+  });
+
+  it('normalizes color order — input order does not matter', () => {
+    expect(rank(['G', 'U'])).toBe(rank(['U', 'G'])); // Simic either way
+    expect(rank(['R', 'W', 'U'])).toBe(rank(['U', 'R', 'W'])); // Jeskai either way
+  });
+
+  it('sortCards lays out a mixed pile mono → guilds → wedge → 5c → colorless', () => {
+    const cards = [
+      makeCard({ name: '5c', colors: ['W', 'U', 'B', 'R', 'G'], typeLine: 'Creature' }),
+      makeCard({ name: 'colorless', colors: [], typeLine: 'Artifact' }),
+      makeCard({ name: 'gruul', colors: ['R', 'G'], typeLine: 'Creature' }),
+      makeCard({ name: 'mono-green', colors: ['G'], typeLine: 'Creature' }),
+      makeCard({ name: 'azorius', colors: ['W', 'U'], typeLine: 'Creature' }),
+      makeCard({ name: 'mono-white', colors: ['W'], typeLine: 'Creature' }),
+      makeCard({ name: 'bant', colors: ['W', 'U', 'G'], typeLine: 'Creature' }),
+    ];
+    const sorted = sortCards(cards, [{ field: 'color', dir: 'asc' }]).map((c) => c.name);
+    expect(sorted).toEqual([
+      'mono-white',
+      'mono-green',
+      'azorius',
+      'gruul',
+      'bant',
+      '5c',
+      'colorless',
+    ]);
   });
 });

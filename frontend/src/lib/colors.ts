@@ -16,11 +16,18 @@ import type { EnrichedCard } from '../types';
  *   'C' for colorless (incl. basic Wastes / colorless lands)
  *   '?' if Scryfall data is missing (so user knows lookup failed)
  */
+/**
+ * The color letters a card is bucketed by: color identity for lands (so a
+ * Forest sits with green), the card's own printed colors otherwise. `colors`
+ * falls back to `colorIdentity` for cards enriched before the dedicated field
+ * existed. Returns undefined when Scryfall data is missing entirely.
+ */
+export function getColorPalette(card: EnrichedCard): string[] | undefined {
+  return isLand(card) ? card.colorIdentity : (card.colors ?? card.colorIdentity);
+}
+
 export function getColorKey(card: EnrichedCard): string {
-  // Lands key off color identity; everything else off the card's own colors.
-  // `colors` falls back to `colorIdentity` for cards enriched before the
-  // dedicated field existed, then to a basic-land name guess.
-  const palette = isLand(card) ? card.colorIdentity : (card.colors ?? card.colorIdentity);
+  const palette = getColorPalette(card);
 
   if (!palette) {
     // Scryfall lookup missed — basic lands have well-known names so we can still bucket those.
