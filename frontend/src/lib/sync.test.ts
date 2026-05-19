@@ -808,6 +808,36 @@ describe('lists sync', () => {
     );
   });
 
+  it('pushes a list created via the store action even with no imported collection (regression: "make a list, it disappears")', async () => {
+    // The reported bug: createList mutates ONLY the lists slice. The
+    // collection-store subscriber ignored that change, so no push was armed
+    // — the list was saved to IndexedDB but never reached the server, and
+    // the next snapshot wiped it. And buildCollection() returned null with
+    // no cards/fileName/uploadedAt, dropping lists even if a push did fire.
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 0,
+      updatedAt: 0,
+    });
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 0 });
+
+    await startSync('user-1');
+    // Real store action, no cards/binders — mutates only the lists slice.
+    useCollectionStore.getState().createList('Wants');
+    // Wait out the 500ms debounce: the subscriber must have armed a push.
+    await new Promise((r) => setTimeout(r, 900));
+
+    expect(putSpy).toHaveBeenCalled();
+    const pushed = putSpy.mock.calls.at(-1)![0];
+    expect(pushed.collection).not.toBeNull();
+    expect((pushed.collection as { lists: Array<{ name: string }> }).lists).toEqual([
+      expect.objectContaining({ name: 'Wants' }),
+    ]);
+  });
+
   it('applies server lists on snapshot', async () => {
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
       collection: {
