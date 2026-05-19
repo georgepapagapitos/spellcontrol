@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
 import { LIST_KINDS } from '../lib/lists';
+import { ListEntriesView } from '../components/ListEntriesView';
 
 export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
@@ -47,8 +48,8 @@ export function ListsPage() {
     if (ok) deleteList(id);
   };
 
-  // Per-list view. Task 8 replaces this placeholder with the real
-  // ListEntriesView (add/edit-printing/own-badge/move-to-collection).
+  // Per-list view: the real entries view (add via Scryfall search, the
+  // "you own N" badge, inline edits, edit-printing, move-to-collection).
   if (routeId) {
     if (!activeList) {
       return (
@@ -65,32 +66,7 @@ export function ListsPage() {
         </div>
       );
     }
-    return (
-      <div className="binders-index-page">
-        <header className="binder-hero binders-index-hero">
-          <div className="binders-index-hero-text">
-            <h1 className="binder-hero-name">{activeList.name}</h1>
-            <p className="binder-hero-meta">
-              {activeList.kind ? `${activeList.kind} · ` : ''}
-              {activeList.entries.length.toLocaleString()}{' '}
-              {activeList.entries.length === 1 ? 'entry' : 'entries'}
-            </p>
-          </div>
-          <div className="binders-index-actions">
-            <Link to="/lists" className="pill-btn">
-              <span>Back to lists</span>
-            </Link>
-          </div>
-        </header>
-        <div className="empty-state">
-          <p className="empty-state-tagline">Per-list view coming soon.</p>
-          <p className="empty-state-hint">
-            Adding cards, the “you own N” badge, and move-to-collection land in the next update.
-          </p>
-        </div>
-        {confirmDialog}
-      </div>
-    );
+    return <ListEntriesView list={activeList} />;
   }
 
   return (
