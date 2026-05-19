@@ -120,7 +120,6 @@ export function ListEntriesView({ list }: Props) {
         <div className="binders-index-hero-text">
           <h1 className="binder-hero-name">{list.name}</h1>
           <p className="binder-hero-meta">
-            {list.kind ? `${list.kind} · ` : ''}
             {entries.length.toLocaleString()} {entries.length === 1 ? 'entry' : 'entries'}
           </p>
         </div>

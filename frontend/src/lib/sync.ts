@@ -131,7 +131,10 @@ function buildGames(): GameRecord[] {
 
 function buildCollection(): StoredCollection | null {
   const s = useCollectionStore.getState();
-  if (!s.cards.length && !s.fileName && !s.uploadedAt) return null;
+  // Lists ride inside this blob, so a user with lists but no imported
+  // collection still has data worth persisting — returning null here would
+  // drop the lists on every push.
+  if (!s.cards.length && !s.fileName && !s.uploadedAt && !s.lists.length) return null;
   return {
     fileName: s.fileName,
     cards: s.cards,
@@ -147,6 +150,7 @@ function hasLocalData(): boolean {
   return (
     useCollectionStore.getState().binders.length > 0 ||
     useCollectionStore.getState().cards.length > 0 ||
+    useCollectionStore.getState().lists.length > 0 ||
     useDecksStore.getState().decks.length > 0 ||
     usePlayStore.getState().history.length > 0
   );
@@ -492,7 +496,13 @@ function handleOnline(): void {
 function attachSubscribers(): void {
   detachSubscribers();
   const u1 = useCollectionStore.subscribe((state, prev) => {
-    if (state.binders === prev.binders && state.cards === prev.cards) return;
+    // `lists` is part of the synced collection blob but lives in its own
+    // store slice — without it here, creating/editing a list mutates state
+    // but never arms the dirty flag, so it's saved to IndexedDB yet never
+    // pushed, and the next server snapshot wipes it ("make a list, it
+    // disappears").
+    if (state.binders === prev.binders && state.cards === prev.cards && state.lists === prev.lists)
+      return;
     if (isApplyingServer) return;
     mutationCount++;
     schedulePush();

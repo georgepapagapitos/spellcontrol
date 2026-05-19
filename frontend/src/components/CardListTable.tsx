@@ -567,6 +567,18 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
   }, [filtered, sortKey, sortDir, setMap]);
 
+  // "Select all" is scoped to the rows currently shown (post-search/filter),
+  // not the whole collection — selecting things you can't see would be a
+  // footgun for the bulk delete/move actions. allSelected drives the toggle
+  // label so one button both selects and clears the visible set.
+  const allSelected = useMemo(
+    () => sorted.length > 0 && sorted.every((r) => selectedRowKeys.has(r.key)),
+    [sorted, selectedRowKeys]
+  );
+  const selectAll = useCallback(() => {
+    setSelectedRowKeys(new Set(sorted.map((r) => r.key)));
+  }, [sorted]);
+
   // Scroll to top when filters, sort, or view mode change.
   const resetKey = `${debouncedSearch}|${sortKey}|${sortDir}|${view}`;
   const prevResetKey = useRef(resetKey);
@@ -918,7 +930,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           {sorted.length > 0 && (
             <button
               type="button"
-              className="btn card-list-select-toggle"
+              className="toolbar-pill card-list-select-toggle"
               aria-pressed={selectMode}
               onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             >
@@ -986,7 +998,14 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           </span>
           <button
             type="button"
-            className="btn"
+            className="toolbar-pill"
+            onClick={() => (allSelected ? clearSelection() : selectAll())}
+          >
+            {allSelected ? 'Deselect all' : `Select all (${sorted.length})`}
+          </button>
+          <button
+            type="button"
+            className="toolbar-pill"
             disabled={selectedRowKeys.size === 0}
             onClick={() => setBulkMoveOpen(true)}
           >
@@ -994,18 +1013,22 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           </button>
           <button
             type="button"
-            className="btn"
+            className="toolbar-pill card-list-bulk-danger"
             disabled={selectedRowKeys.size === 0}
             onClick={handleBulkDelete}
           >
             Delete selected
           </button>
-          {selectedRowKeys.size > 0 && (
-            <button type="button" className="btn" onClick={clearSelection}>
+          {selectedRowKeys.size > 0 && !allSelected && (
+            <button type="button" className="toolbar-pill" onClick={clearSelection}>
               Clear
             </button>
           )}
-          <button type="button" className="btn" onClick={exitSelectMode}>
+          <button
+            type="button"
+            className="toolbar-pill card-list-bulk-done"
+            onClick={exitSelectMode}
+          >
             Done
           </button>
         </div>
