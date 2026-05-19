@@ -162,6 +162,7 @@ describe('scryfallToEnrichedCard', () => {
     const result = scryfallToEnrichedCard(makeScryfall());
     expect(result.imageSmall).toBe('https://example.com/small.jpg');
     expect(result.imageNormal).toBe('https://example.com/normal.jpg');
+    expect(result.imageLarge).toBe('https://example.com/large.jpg');
   });
 
   it('uses face images when top-level image_uris is missing', () => {
@@ -195,6 +196,11 @@ describe('scryfallToEnrichedCard', () => {
     expect(result.imageSmall).toBe('https://example.com/front-small.jpg');
     expect(result.imageNormal).toBe('https://example.com/front.jpg');
     expect(result.imageNormalBack).toBe('https://example.com/back.jpg');
+    // Faces carry empty `large`, so imageLarge falls through to '' (the
+    // CardPreview consumer treats that as falsy and uses imageNormal);
+    // an empty back-face large is dropped entirely.
+    expect(result.imageLarge).toBe('');
+    expect(result.imageLargeBack).toBeUndefined();
   });
 
   it('joins mana costs from card faces when top-level mana_cost is missing', () => {

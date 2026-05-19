@@ -448,6 +448,11 @@ interface Row {
    */
   imageNormal?: string;
   imageNormalBack?: string;
+  /** Hero-resolution variants (Scryfall `large`) — only the full-screen
+   *  CardPreview opened from this row consumes these; the grid keeps using
+   *  imageNormal. Falls back to imageNormal when absent. */
+  imageLarge?: string;
+  imageLargeBack?: string;
   foil: boolean;
   finish: EnrichedCard['finish'];
   finishes?: string[];
@@ -473,6 +478,19 @@ function frontFaceImage(card: ScryfallCard): string | undefined {
 function backFaceImage(card: ScryfallCard): string | undefined {
   if (card.card_faces && card.card_faces.length > 1) {
     return card.card_faces[1].image_uris?.normal;
+  }
+  return undefined;
+}
+
+// Hero-resolution (`large`) counterparts — only the full-screen CardPreview
+// consumes these; everything else stays on the normal-res helpers above.
+function frontFaceImageLarge(card: ScryfallCard): string | undefined {
+  return card.image_uris?.large ?? card.card_faces?.[0]?.image_uris?.large;
+}
+
+function backFaceImageLarge(card: ScryfallCard): string | undefined {
+  if (card.card_faces && card.card_faces.length > 1) {
+    return card.card_faces[1].image_uris?.large;
   }
   return undefined;
 }
@@ -573,6 +591,8 @@ function buildRows(
       claimedBy: status === 'claimed-elsewhere' ? claimedByFor(card.name) : undefined,
       imageNormal: owned?.imageNormal ?? frontFaceImage(card),
       imageNormalBack: owned?.imageNormalBack ?? backFaceImage(card),
+      imageLarge: owned?.imageLarge ?? frontFaceImageLarge(card),
+      imageLargeBack: owned?.imageLargeBack ?? backFaceImageLarge(card),
       foil: owned?.foil ?? false,
       finish: owned?.finish ?? 'nonfoil',
       finishes: owned?.finishes,
@@ -916,6 +936,8 @@ export function DeckDisplay({
         claimedBy: status === 'claimed-elsewhere' ? claimedByForName(c.name) : undefined,
         imageNormal: owned?.imageNormal ?? frontFaceImage(c),
         imageNormalBack: owned?.imageNormalBack ?? backFaceImage(c),
+        imageLarge: owned?.imageLarge ?? frontFaceImageLarge(c),
+        imageLargeBack: owned?.imageLargeBack ?? backFaceImageLarge(c),
         foil: owned?.foil ?? false,
         finish: owned?.finish ?? 'nonfoil',
         finishes: owned?.finishes,
@@ -1561,6 +1583,17 @@ function scryfallToEnriched(
     (card.card_faces && card.card_faces.length > 1
       ? card.card_faces[1].image_uris?.normal
       : undefined);
+  // An override is a specific normal-res printing URL with no large
+  // counterpart; pulling `large` off the base card here could surface a
+  // different printing's art, so suppress it and let the consumer fall
+  // back to the override normal.
+  const frontLarge = frontOverride
+    ? undefined
+    : (card.image_uris?.large ?? card.card_faces?.[0]?.image_uris?.large);
+  const backLarge =
+    backOverride || !(card.card_faces && card.card_faces.length > 1)
+      ? undefined
+      : card.card_faces[1].image_uris?.large;
   const usd = card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched;
   const price = usd ? Number(usd) : NaN;
   return {
@@ -1585,6 +1618,8 @@ function scryfallToEnriched(
     colors: card.colors,
     imageNormal: front,
     imageNormalBack: back,
+    imageLarge: frontLarge,
+    imageLargeBack: backLarge,
     layout: card.layout,
     manaCost: card.mana_cost,
     oracleText: card.oracle_text,
