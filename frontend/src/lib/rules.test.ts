@@ -142,8 +142,8 @@ describe('cardMatchesFilter', () => {
       expect(cardMatchesFilter(card, { colors: chips('C') })).toBe(true);
     });
     it('IS NOT excludes that color', () => {
-      const red = makeCard({ colorIdentity: ['R'] });
-      const blue = makeCard({ colorIdentity: ['U'] });
+      const red = makeCard({ colors: ['R'], colorIdentity: ['R'] });
+      const blue = makeCard({ colors: ['U'], colorIdentity: ['U'] });
       const filter: BinderFilter = { colors: chip('R', true) };
       expect(cardMatchesFilter(red, filter)).toBe(false);
       expect(cardMatchesFilter(blue, filter)).toBe(true);
