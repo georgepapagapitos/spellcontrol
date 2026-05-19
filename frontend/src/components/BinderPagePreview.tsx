@@ -6,6 +6,7 @@ import { CardPreview } from './CardPreview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 
 export interface InnerCardScope {
@@ -113,12 +114,16 @@ export function BinderPagePreview({
 
   useLockBodyScroll();
 
+  // Symmetric exit: every flipbook dismiss path plays sheet-fall, then
+  // unmounts — same treatment as the inner CardPreview.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
+
   // Keyboard nav.
   useEffect(() => {
     if (innerCard) return; // let CardPreview own keys while it's open
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        beginClose();
         return;
       }
       let next: number | null = null;
@@ -133,10 +138,10 @@ export function BinderPagePreview({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, selected, pages.length, innerCard]);
+  }, [beginClose, selected, pages.length, innerCard]);
 
   const { dragY, isDragging, touchHandlers } = useSwipeDownDismiss({
-    onDismiss: onClose,
+    onDismiss: beginClose,
     trackRef,
   });
 
@@ -149,10 +154,14 @@ export function BinderPagePreview({
 
   if (pages.length === 0) return null;
 
-  const dim = Math.max(0, 1 - dragY / 400);
+  // Drawer model (ManaBox-style), same as CardPreview: the translucent
+  // .binder-pages-sheet is the opaque surface that covers the grid as it
+  // rises, so there is no separate dimmed backdrop to interpolate. The
+  // backdrop only carries the sizing var (--page-w-ratio drives
+  // --slide-size). Swiping down just translates the sheet back off-screen,
+  // revealing the undimmed grid underneath.
   const sheetStyle = { transform: `translateY(${dragY}px)` } as React.CSSProperties;
   const backdropStyle = {
-    backgroundColor: `rgba(0, 0, 0, ${0.72 * dim})`,
     ['--page-w-ratio' as string]: pageAspectRatio,
   } as React.CSSProperties;
 
@@ -163,14 +172,17 @@ export function BinderPagePreview({
     <>
       <div
         className="binder-pages-backdrop"
-        onClick={onClose}
+        onClick={beginClose}
         role="dialog"
         aria-modal="true"
         style={backdropStyle}
       >
         <div
-          className={`binder-pages-sheet${isDragging ? ' is-dragging' : ''}`}
+          className={`binder-pages-sheet${isDragging ? ' is-dragging' : ''}${
+            isClosing ? ' is-closing' : ''
+          }`}
           style={sheetStyle}
+          onAnimationEnd={onAnimationEnd}
           {...touchHandlers}
         >
           <button
@@ -178,7 +190,7 @@ export function BinderPagePreview({
             className="card-preview-close"
             onClick={(e) => {
               e.stopPropagation();
-              onClose();
+              beginClose();
             }}
             aria-label="Close preview"
           >
@@ -351,13 +363,7 @@ function Cell({
       }`}
     >
       {card.imageNormal ? (
-        <img
-          src={card.imageNormal}
-          alt={card.name}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
+        <CellImage src={card.imageNormal} alt={card.name} />
       ) : (
         <span className="binder-pages-cell-fallback">{card.name}</span>
       )}
@@ -374,5 +380,32 @@ function Cell({
         </Link>
       )}
     </button>
+  );
+}
+
+// Pocket thumbnail with a skeleton placeholder until the art loads — the
+// grid analogue of CardPreview's hero skeleton (shared skeleton-shimmer
+// keyframe). One image per cell and binder slots are immutable while the
+// flipbook is open, so a local boolean is the per-cell equivalent of
+// CardPreview's id-keyed imgLoaded map.
+function CellImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {!loaded && <div className="binder-pages-cell-skeleton" aria-hidden="true" />}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        // Cached images can be complete before onLoad attaches — mark
+        // loaded on mount so the skeleton doesn't linger forever.
+        ref={(el) => {
+          if (el?.complete && el.naturalWidth > 0) setLoaded(true);
+        }}
+        onLoad={() => setLoaded(true)}
+      />
+    </>
   );
 }
