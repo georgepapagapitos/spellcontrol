@@ -129,3 +129,36 @@ describe('sub-collection import durability', () => {
     expect(useCollectionStore.getState().subCollections.find((d) => d.id === id)).toBeDefined();
   });
 });
+
+describe('persistence regression (buildStored coverage)', () => {
+  it('addCard preserves subCollections in the cache', async () => {
+    const id = useCollectionStore.getState().createSubCollection('Bulk');
+    await useCollectionStore.getState().addCard({
+      id: 'sfX',
+      name: 'Test',
+      set: 'tst',
+      set_name: 'Test Set',
+      collector_number: '1',
+      rarity: 'common',
+      oracle_id: 'o1',
+    } as never);
+    const stored = await loadCollection();
+    expect(stored?.subCollections?.some((s) => s.id === id)).toBe(true);
+    expect(stored?.cards.some((c) => c.scryfallId === 'sfX')).toBe(true);
+  });
+
+  it('deleteImports preserves subCollections in the cache', async () => {
+    const id = useCollectionStore.getState().createSubCollection('Bulk');
+    await useCollectionStore
+      .getState()
+      .importCards(uploadResponse([enriched('c1', 'sf1')]), 'a.csv', 'replace');
+    await useCollectionStore
+      .getState()
+      .importCards(uploadResponse([enriched('c2', 'sf2')]), 'b.csv', 'merge');
+    const firstImportId = useCollectionStore.getState().importHistory[0].id!;
+    await useCollectionStore.getState().deleteImports([firstImportId]);
+    const stored = await loadCollection();
+    expect(stored?.subCollections?.some((s) => s.id === id)).toBe(true);
+    expect(stored?.cards.some((c) => c.scryfallId === 'sf2')).toBe(true);
+  });
+});

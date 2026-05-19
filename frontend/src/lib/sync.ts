@@ -140,6 +140,7 @@ function buildCollection(): StoredCollection | null {
     uploadedAt: s.uploadedAt ?? Date.now(),
     importHistory: s.importHistory,
     subCollections: s.subCollections,
+    lists: s.lists,
   };
 }
 
@@ -300,6 +301,7 @@ async function hydrateFromCache(): Promise<void> {
         uploadedAt: stored.uploadedAt,
         importHistory: stored.importHistory ?? [],
         subCollections: stored.subCollections ?? [],
+        lists: stored.lists ?? [],
         hydrating: false,
       });
       // Re-resolve binder pins/exclusions from their durable key shadow against
@@ -377,6 +379,7 @@ async function applyServerSnapshot(
       uploadedAt: remoteCollection?.uploadedAt ?? null,
       importHistory: remoteCollection?.importHistory ?? [],
       subCollections: remoteCollection?.subCollections ?? [],
+      lists: remoteCollection?.lists ?? [],
       hydrating: false,
     });
     useDecksStore.setState({ decks: remoteDecks, hydrated: true });
