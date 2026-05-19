@@ -88,3 +88,46 @@ export async function putSync(input: {
   }
   return handleResponse<PutSyncResult>(res);
 }
+
+export interface SyncBackupMeta {
+  id: string;
+  /** Why the backup was taken — currently always 'collection-wipe'. */
+  reason: string;
+  priorVersion: number;
+  priorCardCount: number;
+  createdAt: number;
+}
+
+/** List the server-side pre-wipe backups for the current user (newest first). */
+export async function fetchBackups(): Promise<SyncBackupMeta[]> {
+  const res = await authedFetch('/api/sync/backups', { method: 'GET' });
+  const data = await handleResponse<{ backups: SyncBackupMeta[] }>(res);
+  return data.backups;
+}
+
+/**
+ * Restore a backup as the current server snapshot. Same 409 contract as
+ * putSync (throws with `.status === 409` and `.current` so the caller can
+ * rebase). Returns the restored snapshot the client should apply.
+ */
+export async function restoreBackup(input: {
+  backupId: string;
+  baseVersion: number;
+}): Promise<SyncSnapshot> {
+  const res = await authedFetch('/api/sync/restore', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (res.status === 409) {
+    const body = (await res.json()) as { current: SyncSnapshot };
+    const e = new Error('Version conflict.') as Error & {
+      status?: number;
+      current?: SyncSnapshot;
+    };
+    e.status = 409;
+    e.current = body.current;
+    throw e;
+  }
+  return handleResponse<SyncSnapshot>(res);
+}
