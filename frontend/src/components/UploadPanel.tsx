@@ -2,7 +2,7 @@ import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
-import type { UploadResponse } from '../types';
+import type { SubCollectionDef, UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import { Modal } from './Modal';
@@ -42,6 +42,7 @@ export function UploadPanel() {
 
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  const subCollections = useCollectionStore((s) => s.subCollections);
   const isLoading = useCollectionStore((s) => s.isLoading);
   const error = useCollectionStore((s) => s.error);
   const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);
@@ -110,7 +111,12 @@ export function UploadPanel() {
     setPendingImport(p);
   }
 
-  async function runImport(p: PendingImport, mode: ImportMode, binderName?: string) {
+  async function runImport(
+    p: PendingImport,
+    mode: ImportMode,
+    binderName?: string,
+    subCollectionId?: string
+  ) {
     setPendingImport(null);
     setLoading(true);
     setError(null);
@@ -127,7 +133,11 @@ export function UploadPanel() {
           const file = p.files[i];
           const result = await importFile(file);
           const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
-          await importCards(result, file.name, fileMode, { isSample: p.isSample, binderName });
+          await importCards(result, file.name, fileMode, {
+            isSample: p.isSample,
+            binderName,
+            subCollectionId,
+          });
           totalCards += result.cards.length;
           totalUnresolved += result.unresolvedNames.length;
         }
@@ -146,6 +156,7 @@ export function UploadPanel() {
       await importCards(result, p.label, mode, {
         isSample: p.isSample,
         binderName,
+        subCollectionId,
       });
       const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
       if (result.scryfallHits > 0) {
@@ -546,7 +557,10 @@ export function UploadPanel() {
         <ImportModeDialog
           existingCount={cards.length}
           incomingPreview={pendingImport.preview}
-          onPick={(mode, binderName) => runImport(pendingImport, mode, binderName)}
+          subCollections={subCollections}
+          onPick={(mode, binderName, subCollectionId) =>
+            runImport(pendingImport, mode, binderName, subCollectionId)
+          }
           onCancel={() => setPendingImport(null)}
         />
       )}
@@ -607,18 +621,21 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
 interface ImportModeDialogProps {
   existingCount: number;
   incomingPreview?: string;
-  onPick: (mode: ImportMode, binderName?: string) => void;
+  subCollections: SubCollectionDef[];
+  onPick: (mode: ImportMode, binderName?: string, subCollectionId?: string) => void;
   onCancel: () => void;
 }
 
 function ImportModeDialog({
   existingCount,
   incomingPreview,
+  subCollections,
   onPick,
   onCancel,
 }: ImportModeDialogProps) {
   const [binderName, setBinderName] = useState('');
   const [showBinderInput, setShowBinderInput] = useState(false);
+  const [targetSubId, setTargetSubId] = useState<string>('');
 
   const handleBinderSubmit = () => {
     const name = binderName.trim();
@@ -642,7 +659,9 @@ function ImportModeDialog({
         <button
           type="button"
           className="choice-dialog-option"
-          onClick={() => onPick(existingCount > 0 ? 'merge' : 'replace')}
+          onClick={() =>
+            onPick(existingCount > 0 ? 'merge' : 'replace', undefined, targetSubId || undefined)
+          }
           autoFocus={!showBinderInput}
         >
           <span className="choice-dialog-option-title">Add to collection</span>
@@ -652,6 +671,25 @@ function ImportModeDialog({
               : 'Import these cards into your collection. They will be routed through your binder rules.'}
           </span>
         </button>
+        <div className="choice-dialog-option choice-dialog-subcollection">
+          <label className="choice-dialog-option-title" htmlFor="import-subcollection">
+            Add to sub-collection
+          </label>
+          <select
+            id="import-subcollection"
+            className="binder-name-input"
+            value={targetSubId}
+            onChange={(e) => setTargetSubId(e.target.value)}
+          >
+            <option value="">Main</option>
+            {subCollections.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <span className="choice-dialog-option-desc">New cards land here. Default is Main.</span>
+        </div>
         {!showBinderInput ? (
           <button
             type="button"
@@ -697,7 +735,7 @@ function ImportModeDialog({
           <button
             type="button"
             className="choice-dialog-option choice-dialog-option-danger"
-            onClick={() => onPick('replace')}
+            onClick={() => onPick('replace', undefined, targetSubId || undefined)}
           >
             <span className="choice-dialog-option-title">Replace collection</span>
             <span className="choice-dialog-option-desc">
