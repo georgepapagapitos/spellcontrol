@@ -23,6 +23,7 @@ beforeEach(async () => {
   useCollectionStore.setState({
     binders: [],
     cards: [],
+    subCollections: [],
     fileName: '',
     scryfallHits: 0,
     scryfallMisses: 0,
@@ -774,5 +775,63 @@ describe('refetch-on-focus', () => {
     await new Promise((r) => setTimeout(r, 20));
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('subCollections sync', () => {
+  it('includes subCollections in the pushed collection blob', async () => {
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      version: 0,
+      updatedAt: 0,
+    });
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 0 });
+
+    await startSync('user-1');
+    useCollectionStore.setState({
+      cards: [],
+      fileName: 'x.csv',
+      uploadedAt: 1,
+      subCollections: [{ id: 'sc1', name: 'Bulk', order: 0 }],
+    });
+    await flushSync();
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(putSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: expect.objectContaining({
+          subCollections: [{ id: 'sc1', name: 'Bulk', order: 0 }],
+        }),
+      })
+    );
+  });
+
+  it('applies server subCollections on snapshot', async () => {
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: {
+        fileName: 'remote.csv',
+        cards: [],
+        scryfallHits: 0,
+        scryfallMisses: 0,
+        uploadedAt: 1,
+        importHistory: [],
+        subCollections: [{ id: 'rsc', name: 'Server', order: 0 }],
+      },
+      binders: [],
+      decks: [],
+      games: [],
+      version: 3,
+      updatedAt: 1,
+    });
+    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 4, updatedAt: 1 });
+
+    await startSync('user-1');
+    await flushSync();
+
+    expect(useCollectionStore.getState().subCollections).toEqual([
+      { id: 'rsc', name: 'Server', order: 0 },
+    ]);
   });
 });

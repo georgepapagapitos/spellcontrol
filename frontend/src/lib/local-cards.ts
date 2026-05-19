@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import type { EnrichedCard } from '../types';
+import type { EnrichedCard, SubCollectionDef } from '../types';
 
 /**
  * IndexedDB-backed persistence for the most recent CSV upload.
@@ -48,6 +48,11 @@ export interface StoredCollection {
    * import in chronological order.
    */
   importHistory?: ImportHistoryEntry[];
+  /**
+   * User-defined sub-collection (physical-location) definitions. Optional so
+   * collections saved before this existed load fine (treated as `[]`).
+   */
+  subCollections?: SubCollectionDef[];
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
