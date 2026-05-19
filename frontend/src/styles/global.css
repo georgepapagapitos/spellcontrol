@@ -1732,8 +1732,9 @@ input[type='search'] {
 }
 
 /* Filter / options popover that lives INSIDE the search bar. Single
-   icon button → click opens a small panel of toggles. Active dot
-   shows up on `.has-active-option` so an enabled filter is glanceable. */
+   icon button → click opens a small panel of toggles. A numeric
+   `.collection-filters-badge` count (shared with CollectionFiltersDialog)
+   shows on the trigger when any toggle is active, so it's glanceable. */
 .filter-popover {
   position: relative;
   flex-shrink: 0;
@@ -1769,10 +1770,6 @@ input[type='search'] {
   background: var(--accent-light);
   color: var(--accent);
   outline: none;
-}
-
-.filter-popover-btn.has-active-option {
-  color: var(--accent);
 }
 
 .filter-popover-panel {
