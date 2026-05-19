@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import {
   captureBinderSnapshot,
@@ -14,39 +14,48 @@ interface Props {
 }
 
 /**
- * Shows what's changed in a binder since the user last clicked "Mark reviewed".
- * Hidden entirely when:
- *   - the binder has never been reviewed AND has no current contents (nothing
- *     interesting to surface for an empty fresh binder), or
- *   - the binder has been reviewed and current membership matches the snapshot.
+ * Shows what's changed in a binder since its review baseline was captured.
+ * Hidden entirely when membership matches the baseline (no drift to surface).
  *
- * For never-reviewed binders with contents, we still render a single "Mark
- * reviewed" affordance so the user can establish a baseline.
+ * Baseline capture is automatic — the first time a binder is viewed without
+ * a snapshot AND it has cards, we silently stamp the current membership as
+ * the baseline. Rationale: at creation time the binder's intentional
+ * contents *are* the baseline by definition, so prompting the user to
+ * "Mark reviewed" is noise. Legacy binders predating snapshots get the same
+ * one-time silent capture on first view.
+ *
+ * After that, the only way the snapshot updates is the explicit "Mark
+ * reviewed" button — clicking it means "I've physically reviewed the binder
+ * and want future drift measured from this point."
  */
 export function BinderDriftBanner({ binder }: Props) {
   const allCards = useCollectionStore((s) => s.cards);
+  const importHistory = useCollectionStore((s) => s.importHistory);
   const markBinderReviewed = useCollectionStore((s) => s.markBinderReviewed);
   const [expanded, setExpanded] = useState(false);
 
-  const drift = useMemo(() => computeDrift(binder, allCards), [binder, allCards]);
+  const drift = useMemo(
+    () => computeDrift(binder, allCards, importHistory),
+    [binder, allCards, importHistory]
+  );
+
+  // Auto-baseline on first view. Effect deps include `binder.def.id` so
+  // switching to *another* unbaselined binder triggers its own capture
+  // exactly once; the snapshot field then disqualifies it from re-firing.
+  useEffect(() => {
+    if (drift.neverReviewed && binder.totalCards > 0) {
+      markBinderReviewed(binder.def.id, captureBinderSnapshot(binder));
+    }
+  }, [drift.neverReviewed, binder, markBinderReviewed]);
 
   const handleMarkReviewed = () => {
     markBinderReviewed(binder.def.id, captureBinderSnapshot(binder));
     setExpanded(false);
   };
 
-  // Never-reviewed binder with contents: offer a baseline-capture pill.
-  if (drift.neverReviewed) {
-    if (binder.totalCards === 0) return null;
-    return (
-      <div className="binder-drift binder-drift--neutral">
-        <span>No review baseline yet — capture one to start tracking price / EDHREC drift.</span>
-        <button type="button" className="btn-link" onClick={handleMarkReviewed}>
-          Mark reviewed
-        </button>
-      </div>
-    );
-  }
+  // While the auto-snapshot effect is pending (or the binder is genuinely
+  // empty), there's nothing useful to show.
+  if (drift.neverReviewed) return null;
 
   if (!hasDrift(drift)) return null;
 

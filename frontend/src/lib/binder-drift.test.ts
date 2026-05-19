@@ -229,6 +229,104 @@ describe('computeDrift', () => {
     expect(result.removed).toEqual([]);
   });
 
+  it('attributes a newly-imported card to its import when newer than snapshot', () => {
+    const snapshotAt = Date.now() - 86_400_000;
+    const card = makeCard({
+      scryfallId: 'i',
+      name: 'Imported',
+      purchasePrice: 8,
+      importId: 'imp-1',
+    });
+    const binder = makeBinder({
+      filter: { priceMin: 5 },
+      lastReviewedSnapshot: {
+        at: snapshotAt,
+        keys: [], // card wasn't in the binder at snapshot time
+        cardSnapshots: {}, // and we hadn't observed it
+      },
+    });
+    const mat = materializeOne([card], binder);
+    const history = [
+      {
+        id: 'imp-1',
+        name: 'manabox.csv',
+        count: 1,
+        format: 'manabox',
+        addedAt: snapshotAt + 3_600_000,
+      },
+    ];
+    const result = computeDrift(mat, [card], history);
+
+    expect(result.added).toHaveLength(1);
+    expect(result.added[0].reason.kind).toBe('imported');
+    expect(result.added[0].reason.detail?.importName).toBe('manabox.csv');
+  });
+
+  it('ignores imports older than the snapshot', () => {
+    const snapshotAt = Date.now();
+    const card = makeCard({
+      scryfallId: 'i2',
+      name: 'OldImport',
+      purchasePrice: 8,
+      importId: 'imp-old',
+    });
+    const binder = makeBinder({
+      filter: { priceMin: 5 },
+      lastReviewedSnapshot: {
+        at: snapshotAt,
+        keys: [],
+        cardSnapshots: {},
+      },
+    });
+    const mat = materializeOne([card], binder);
+    const history = [
+      {
+        id: 'imp-old',
+        name: 'old.csv',
+        count: 1,
+        format: 'manabox',
+        addedAt: snapshotAt - 86_400_000,
+      },
+    ];
+    const result = computeDrift(mat, [card], history);
+
+    expect(result.added).toHaveLength(1);
+    expect(result.added[0].reason.kind).toBe('other');
+  });
+
+  it('prefers price reason over import attribution when both apply', () => {
+    const snapshotAt = Date.now() - 86_400_000;
+    const card = makeCard({
+      scryfallId: 'p2',
+      name: 'Both',
+      purchasePrice: 8,
+      importId: 'imp-1',
+    });
+    const binder = makeBinder({
+      filter: { priceMin: 5 },
+      lastReviewedSnapshot: {
+        at: snapshotAt,
+        keys: [],
+        cardSnapshots: {
+          [printingFinishKey(card)]: { price: 2 },
+        },
+      },
+    });
+    const mat = materializeOne([card], binder);
+    const history = [
+      {
+        id: 'imp-1',
+        name: 'manabox.csv',
+        count: 1,
+        format: 'manabox',
+        addedAt: snapshotAt + 3_600_000,
+      },
+    ];
+    const result = computeDrift(mat, [card], history);
+
+    expect(result.added[0].reason.kind).toBe('price');
+  });
+
   it('returns empty added/removed when membership is unchanged', () => {
     const card = makeCard({ scryfallId: 's', name: 'Stable', purchasePrice: 10 });
     const binder = makeBinder({
@@ -271,5 +369,18 @@ describe('formatDriftReason', () => {
 
   it('formats an other change', () => {
     expect(formatDriftReason({ kind: 'other' })).toBe('rule or other change');
+  });
+
+  it('formats an imported reason with the source label', () => {
+    expect(
+      formatDriftReason({
+        kind: 'imported',
+        detail: { importName: 'manabox.csv', importedAt: Date.now() },
+      })
+    ).toBe('newly imported from manabox.csv');
+  });
+
+  it('falls back when imported reason has no source label', () => {
+    expect(formatDriftReason({ kind: 'imported' })).toBe('newly imported');
   });
 });
