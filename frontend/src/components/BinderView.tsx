@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
   BinderSection,
@@ -247,14 +247,14 @@ function SectionList({
     setPagesStartIndex(null);
   }
 
-  const toggle = (key: string) => {
+  const toggle = useCallback((key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  };
+  }, []);
 
   const allCollapsed = sections.length > 0 && sections.every((s) => collapsed.has(s.key));
   const collapseAll = () => setCollapsed(new Set(sections.map((s) => s.key)));
@@ -313,6 +313,40 @@ function SectionList({
     [flatCards, totalPages]
   );
 
+  // Stable handlers so memoized SectionBlocks don't re-render the whole binder
+  // grid on unrelated BinderView state changes — or, critically, on the open
+  // itself (see the gridPreviewOpen note below).
+  const handleOpenCard = useCallback(
+    (card: EnrichedCard) => {
+      const next = resolveCard(card);
+      if (next) setPreview(next);
+    },
+    [resolveCard]
+  );
+  const handleOpenPages = useCallback(
+    (sectionIdx: number, localPageIndex: number) =>
+      setPagesStartIndex(sectionPageOffsets[sectionIdx] + localPageIndex),
+    [sectionPageOffsets]
+  );
+
+  // `isPreviewOpen` is consumed by every CardSlot purely to force-hide a stale
+  // hover tooltip behind the modal. Threading it synchronously meant opening a
+  // preview reconciled the entire binder grid in the same commit that mounts
+  // CardPreview — a multi-hundred-ms task that blocked the first paint until
+  // the 0.5s sheet-rise had already elapsed, so the sheet "popped in" fully
+  // open instead of gliding. Defer that propagation one frame past the open
+  // paint: the opaque-ish sheet covers the grid during the rise (which is a
+  // compositor-driven transform, unaffected by the later main-thread
+  // reconcile), so hiding tooltips a frame late is invisible. Closing clears
+  // a frame later so tooltips re-enable just after it (the modal is unmounting,
+  // nothing is animating, so the one-frame lag is imperceptible).
+  const previewActive = preview !== null || pagesStartIndex !== null;
+  const [gridPreviewOpen, setGridPreviewOpen] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setGridPreviewOpen(previewActive));
+    return () => cancelAnimationFrame(id);
+  }, [previewActive]);
+
   return (
     <>
       <div className="binder-summary" aria-live="polite">
@@ -369,28 +403,17 @@ function SectionList({
           <SectionBlock
             key={section.key}
             section={section}
+            sectionIdx={sectionIdx}
             isCollapsed={isCollapsed}
             headerId={headerId}
             panelId={panelId}
             pocketSize={pocketSize}
-            isPreviewOpen={preview !== null || pagesStartIndex !== null}
+            isPreviewOpen={gridPreviewOpen}
             qtyByCopyId={qtyByCopyId}
             showImages={showImages}
-            onToggle={() => toggle(section.key)}
-            onOpenCard={(card) => {
-              const i = flatCards.cardIndex.get(card);
-              if (i === undefined) return;
-              setPreview({
-                cards: flatCards.cards,
-                index: i,
-                sectionLabels: flatCards.sectionLabels,
-                pageNumbers: flatCards.pageNumbers,
-                totalPages,
-              });
-            }}
-            onOpenPages={(localPageIndex) =>
-              setPagesStartIndex(sectionPageOffsets[sectionIdx] + localPageIndex)
-            }
+            onToggle={toggle}
+            onOpenCard={handleOpenCard}
+            onOpenPages={handleOpenPages}
           />
         );
       })}
@@ -480,8 +503,9 @@ function pageNumbersForSection(section: BinderSection): number[] {
   return section.cards.map((c) => cardToPage.get(c) ?? 0);
 }
 
-function SectionBlock({
+const SectionBlock = memo(function SectionBlock({
   section,
+  sectionIdx,
   isCollapsed,
   headerId,
   panelId,
@@ -494,6 +518,7 @@ function SectionBlock({
   onOpenPages,
 }: {
   section: BinderSection;
+  sectionIdx: number;
   isCollapsed: boolean;
   headerId: string;
   panelId: string;
@@ -501,15 +526,21 @@ function SectionBlock({
   isPreviewOpen: boolean;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
-  onToggle: () => void;
+  onToggle: (sectionKey: string) => void;
   onOpenCard: (card: EnrichedCard) => void;
-  onOpenPages: (startPageIndex: number) => void;
+  onOpenPages: (sectionIdx: number, localPageIndex: number) => void;
 }) {
-  // Stable per-section context — CardSlot calls openCard on tap (touch only),
-  // PageGrid calls openPages when the page number label is tapped.
+  // Bind this section's flipbook offset once. Stable identity keeps the
+  // context value (and thus every CardSlot) from re-rendering on unrelated
+  // BinderView state changes; combined with React.memo above, an open that
+  // doesn't touch this section's props skips it entirely.
+  const openPages = useCallback(
+    (localPageIndex: number) => onOpenPages(sectionIdx, localPageIndex),
+    [onOpenPages, sectionIdx]
+  );
   const ctxValue = useMemo(
-    () => ({ openCard: onOpenCard, openPages: onOpenPages, isPreviewOpen, qtyByCopyId }),
-    [onOpenCard, onOpenPages, isPreviewOpen, qtyByCopyId]
+    () => ({ openCard: onOpenCard, openPages, isPreviewOpen, qtyByCopyId }),
+    [onOpenCard, openPages, isPreviewOpen, qtyByCopyId]
   );
 
   return (
@@ -518,7 +549,7 @@ function SectionBlock({
         type="button"
         id={headerId}
         className={`section-header section-header-toggle ${isCollapsed ? 'collapsed' : ''}`}
-        onClick={onToggle}
+        onClick={() => onToggle(section.key)}
         aria-expanded={!isCollapsed}
         aria-controls={panelId}
       >
@@ -555,4 +586,4 @@ function SectionBlock({
       )}
     </div>
   );
-}
+});
