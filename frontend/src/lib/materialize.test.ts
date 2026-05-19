@@ -505,4 +505,66 @@ describe('materializeBinders', () => {
     const { binders } = materializeBinders([inBucket, notInBucket], [rareBinder], defaultOpts);
     expect(binders[0].totalCards).toBe(2); // routed purely by the rarity filter
   });
+
+  // Lists are user-defined collections of UNOWNED card references that ride in
+  // StoredCollection but must stay inert to binder/deck logic. The structural
+  // guarantee: materializeBinders is a 3-arg pure function over
+  // (cards: EnrichedCard[], binders: BinderDef[], opts: MaterializeOptions) —
+  // neither EnrichedCard nor MaterializeOptions carries any list field, and the
+  // only call sites (e.g. CollectionPage) pass cards/binders/opts, never `lists`.
+  // This test makes that contract executable rather than tautological: it stamps
+  // list-association-shaped data onto cards and into opts the way a future
+  // "wire lists into materialization" change plausibly would, and asserts binder
+  // membership is still routed SOLELY by the rule filter over `cards`. It would
+  // FAIL if anyone made routing read a list-link field, exclude list-referenced
+  // cards, or accept list data via opts.
+  it('lists are inert: list associations on cards/opts never change binder membership', () => {
+    const rareFilter = {
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    };
+    const rareBinder = makeBinder(rareFilter);
+
+    // Baseline: pure rule routing with no list data anywhere.
+    const baseline = materializeBinders(
+      [makeCard({ rarity: 'rare' }), makeCard({ rarity: 'rare' })],
+      [rareBinder],
+      defaultOpts
+    );
+    expect(baseline.binders[0].totalCards).toBe(2);
+
+    // Same two rare cards, but now each carries list-like associations a future
+    // list↔card link could plausibly attach, and opts carries list-shaped extra
+    // keys. Cast through unknown because none of these fields exist on the public
+    // types today — that absence is exactly the contract under guard.
+    const linkedRare = makeCard({
+      rarity: 'rare',
+      ...({ listIds: ['wishlist-1', 'buylist-2'], listEntryId: 'entry-9' } as object),
+    } as Partial<EnrichedCard>);
+    const unlinkedRare = makeCard({ rarity: 'rare' });
+    const optsWithListData = {
+      ...defaultOpts,
+      ...({
+        lists: [
+          {
+            id: 'wishlist-1',
+            name: 'Wants',
+            entries: [{ id: 'entry-9', name: linkedRare.name, scryfallId: linkedRare.scryfallId }],
+          },
+        ],
+      } as object),
+    } as typeof defaultOpts;
+
+    const withListData = materializeBinders(
+      [linkedRare, unlinkedRare],
+      [rareBinder],
+      optsWithListData
+    );
+
+    // Membership is identical to the baseline: both rares are still routed purely
+    // by the rarity rule. The list link on a card and the list payload in opts
+    // changed nothing — neither suppressed nor re-routed a card.
+    expect(withListData.binders[0].totalCards).toBe(baseline.binders[0].totalCards);
+    expect(withListData.binders[0].totalCards).toBe(2);
+    expect(withListData.uncategorized.totalCards).toBe(0);
+  });
 });
