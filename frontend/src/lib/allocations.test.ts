@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildAllocationMap,
+  dedupeDeckAllocations,
   pickCollectionCopy,
   classifyAllocation,
   findSuboptimalPrintings,
@@ -75,6 +76,150 @@ describe('buildAllocationMap', () => {
       commanderAllocatedCopyId: null,
     });
     expect(buildAllocationMap([d]).size).toBe(0);
+  });
+});
+
+describe('dedupeDeckAllocations', () => {
+  function dc(slotId: string, name: string, allocatedCopyId: string | null): DeckCard {
+    return { slotId, card: { name } as ScryfallCard, allocatedCopyId };
+  }
+
+  it('returns the same array reference when nothing is double-claimed', () => {
+    const decks = [
+      deck({ id: 'd1', cards: [dc('s1', 'Sol Ring', 'c1')] }),
+      deck({ id: 'd2', cards: [dc('s2', 'Mana Crypt', 'c2')] }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.changed).toBe(false);
+    expect(res.decks).toBe(decks);
+    expect(res.decks[0]).toBe(decks[0]);
+    expect(res.decks[1]).toBe(decks[1]);
+  });
+
+  it('first-claim-wins across decks in array order; later deck slot is cleared', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'A', cards: [dc('s1', 'Sol Ring', 'shared')] }),
+      deck({ id: 'd2', name: 'B', cards: [dc('s2', 'Sol Ring', 'shared')] }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.changed).toBe(true);
+    expect(res.decks[0].cards[0].allocatedCopyId).toBe('shared');
+    expect(res.decks[1].cards[0].allocatedCopyId).toBeNull();
+    // Untouched deck keeps its reference; only the contested one is rebuilt.
+    expect(res.decks[0]).toBe(decks[0]);
+    expect(res.decks[1]).not.toBe(decks[1]);
+  });
+
+  it('clears a duplicate within a single deck (first slot keeps it)', () => {
+    const decks = [
+      deck({
+        id: 'd1',
+        cards: [dc('s1', 'Sol Ring', 'dup'), dc('s2', 'Sol Ring', 'dup')],
+      }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.changed).toBe(true);
+    expect(res.decks[0].cards[0].allocatedCopyId).toBe('dup');
+    expect(res.decks[0].cards[1].allocatedCopyId).toBeNull();
+  });
+
+  it('resolves slots in order commander → partner → cards → sideboard', () => {
+    const decks = [
+      deck({
+        id: 'd1',
+        commander: { name: 'Atraxa' } as never,
+        commanderAllocatedCopyId: 'x',
+        partnerCommander: { name: 'Partner' } as never,
+        partnerCommanderAllocatedCopyId: 'x',
+        cards: [dc('s1', 'Sol Ring', 'x')],
+        sideboard: [dc('s2', 'Mana Crypt', 'x')],
+      }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.changed).toBe(true);
+    const d = res.decks[0];
+    expect(d.commanderAllocatedCopyId).toBe('x');
+    expect(d.partnerCommanderAllocatedCopyId).toBeNull();
+    expect(d.cards[0].allocatedCopyId).toBeNull();
+    expect(d.sideboard[0].allocatedCopyId).toBeNull();
+  });
+
+  it('leaves null allocations and unrelated copies untouched', () => {
+    const decks = [
+      deck({
+        id: 'd1',
+        cards: [dc('s1', 'Sol Ring', null), dc('s2', 'Mana Crypt', 'c2')],
+        sideboard: [dc('s3', 'Bolt', null)],
+      }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.changed).toBe(false);
+    expect(res.decks).toBe(decks);
+  });
+
+  it('preserves deck contents — only the impossible copyId is nulled', () => {
+    const decks = [
+      deck({ id: 'd1', cards: [dc('s1', 'Sol Ring', 'shared')] }),
+      deck({
+        id: 'd2',
+        cards: [dc('s2', 'Sol Ring', 'shared'), dc('s3', 'Mana Crypt', 'c9')],
+      }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    const d2 = res.decks[1];
+    expect(d2.cards).toHaveLength(2);
+    expect(d2.cards[0].card.name).toBe('Sol Ring');
+    expect(d2.cards[0].allocatedCopyId).toBeNull();
+    expect(d2.cards[1].allocatedCopyId).toBe('c9');
+  });
+
+  it('does not bump updatedAt on a self-heal', () => {
+    const decks = [
+      deck({ id: 'd1', updatedAt: 111, cards: [dc('s1', 'Sol Ring', 'shared')] }),
+      deck({ id: 'd2', updatedAt: 222, cards: [dc('s2', 'Sol Ring', 'shared')] }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.decks[1].updatedAt).toBe(222);
+  });
+
+  it('is idempotent', () => {
+    const decks = [
+      deck({ id: 'd1', cards: [dc('s1', 'Sol Ring', 'shared')] }),
+      deck({ id: 'd2', cards: [dc('s2', 'Sol Ring', 'shared')] }),
+    ];
+    const once = dedupeDeckAllocations(decks).decks;
+    const twice = dedupeDeckAllocations(once);
+    expect(twice.changed).toBe(false);
+    expect(twice.decks).toBe(once);
+  });
+
+  it('output is free of cross-slot double-claims (the core invariant)', () => {
+    const decks = [
+      deck({
+        id: 'd1',
+        commanderAllocatedCopyId: 'a',
+        cards: [dc('s1', 'X', 'a'), dc('s2', 'Y', 'b')],
+      }),
+      deck({
+        id: 'd2',
+        cards: [dc('s3', 'X', 'b'), dc('s4', 'Z', 'a')],
+        sideboard: [dc('s5', 'W', 'c')],
+      }),
+    ];
+    const { decks: out } = dedupeDeckAllocations(decks);
+    const seen = new Set<string>();
+    for (const d of out) {
+      for (const id of [d.commanderAllocatedCopyId, d.partnerCommanderAllocatedCopyId])
+        if (id) {
+          expect(seen.has(id)).toBe(false);
+          seen.add(id);
+        }
+      for (const c of [...d.cards, ...d.sideboard])
+        if (c.allocatedCopyId) {
+          expect(seen.has(c.allocatedCopyId)).toBe(false);
+          seen.add(c.allocatedCopyId);
+        }
+    }
   });
 });
 
