@@ -105,6 +105,46 @@ describe('delete collection → re-upload same CSV (the persistence question)', 
     expect(b.pinnedKeys).toEqual(['sf1:nonfoil']);
   });
 
+  it('restores a hand-arranged binder order after a delete + re-import', async () => {
+    const store = useCollectionStore.getState();
+
+    // 1. Import two printings and hand-order them B-before-A.
+    await store.importCards(
+      uploadResponse([enriched('a1', 'sf1', 'nonfoil'), enriched('b1', 'sf2', 'nonfoil')]),
+      'mine.csv',
+      'replace'
+    );
+    useCollectionStore.setState({ binders: [binder()] });
+    useCollectionStore.getState().setBinderManualOrder('b1', ['b1', 'a1']);
+
+    let b = useCollectionStore.getState().binders[0];
+    expect(b.manualOrder).toEqual(['b1', 'a1']);
+    expect(b.manualKeys).toEqual(['sf2:nonfoil', 'sf1:nonfoil']); // durable order shadow
+
+    // 2. Delete the whole collection — live order gone, intent retained.
+    await useCollectionStore.getState().clearCards();
+    b = useCollectionStore.getState().binders[0];
+    expect(b.manualOrder).toEqual([]);
+    expect(b.manualKeys).toEqual(['sf2:nonfoil', 'sf1:nonfoil']);
+
+    // 3. Re-upload the SAME CSV (collection lists A before B, fresh copyIds).
+    await useCollectionStore
+      .getState()
+      .importCards(
+        uploadResponse([
+          enriched('a2-fresh', 'sf1', 'nonfoil'),
+          enriched('b2-fresh', 'sf2', 'nonfoil'),
+        ]),
+        'mine.csv',
+        'replace'
+      );
+
+    b = useCollectionStore.getState().binders[0];
+    // The user's B-before-A arrangement re-attached to the new copies.
+    expect(b.manualOrder).toEqual(['b2-fresh', 'a2-fresh']);
+    expect(b.manualKeys).toEqual(['sf2:nonfoil', 'sf1:nonfoil']);
+  });
+
   it('re-attaches a deck allocation after the same delete + re-import (decks already self-heal)', async () => {
     const store = useCollectionStore.getState();
     await store.importCards(
