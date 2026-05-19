@@ -73,6 +73,9 @@ interface CollectionState {
 
   // Card actions
   hydrateCards: () => Promise<void>;
+  /** Returns the importId that was stamped on the newly added cards, so the
+   *  caller can correlate them with the routing summary or any other
+   *  per-import affordance. */
   importCards: (
     response: UploadResponse,
     fileName: string,
@@ -82,7 +85,7 @@ interface CollectionState {
       binderName?: string;
       binderColor?: string;
     }
-  ) => Promise<void>;
+  ) => Promise<string>;
   /**
    * Removes the import history entry with the given id and any cards stamped
    * with that importId. No-op if the id is unknown. Cards that predate the
@@ -420,6 +423,7 @@ export const useCollectionStore = create<CollectionState>()(
               'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
           });
         }
+        return importId;
       },
 
       deleteImports: async (ids) => {
