@@ -228,6 +228,7 @@ function buildStored(s: {
   uploadedAt: number | null;
   importHistory: ImportHistoryEntry[];
   subCollections: SubCollectionDef[];
+  lists: ListDef[];
 }): StoredCollection {
   return {
     cards: s.cards,
@@ -237,6 +238,7 @@ function buildStored(s: {
     uploadedAt: s.uploadedAt ?? Date.now(),
     importHistory: s.importHistory,
     subCollections: s.subCollections,
+    lists: s.lists,
   };
 }
 
@@ -314,6 +316,7 @@ export const useCollectionStore = create<CollectionState>()(
               uploadedAt: stored.uploadedAt,
               importHistory: history,
               subCollections: stored.subCollections ?? [],
+              lists: stored.lists ?? [],
             });
           }
         } catch (err) {
@@ -406,6 +409,7 @@ export const useCollectionStore = create<CollectionState>()(
               uploadedAt,
               importHistory,
               subCollections: get().subCollections,
+              lists: get().lists,
             })
           );
         } catch (err) {
@@ -590,6 +594,7 @@ export const useCollectionStore = create<CollectionState>()(
                 uploadedAt: s.uploadedAt ?? Date.now(),
                 importHistory: s.importHistory,
                 subCollections: s.subCollections,
+                lists: s.lists,
               }
             : null;
         return buildBackup(collection, s.binders);
@@ -611,6 +616,7 @@ export const useCollectionStore = create<CollectionState>()(
           uploadedAt: collection ? uploadedAt : null,
           importHistory: restoredHistory,
           subCollections: collection?.subCollections ?? [],
+          lists: collection?.lists ?? [],
           binders: backup.binders,
           activeTab: backup.binders[0]?.id ?? 'uncategorized',
           error: null,

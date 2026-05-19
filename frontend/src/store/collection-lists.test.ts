@@ -97,3 +97,24 @@ describe('list entries', () => {
     expect(stored?.cards.filter((c) => c.scryfallId === 'sf1')).toHaveLength(3);
   });
 });
+
+describe('persistence regression (buildStored coverage)', () => {
+  it('addCard preserves subCollections AND lists in the cache', async () => {
+    const scId = useCollectionStore.getState().createSubCollection('Bulk');
+    const listId = useCollectionStore.getState().createList('Wants');
+    // addCard takes a ScryfallCard; minimal shape is enough for scryfallToEnrichedCard.
+    await useCollectionStore.getState().addCard({
+      id: 'sfX',
+      name: 'Test',
+      set: 'tst',
+      set_name: 'Test Set',
+      collector_number: '1',
+      rarity: 'common',
+      oracle_id: 'o1',
+    } as never);
+    const stored = await loadCollection();
+    expect(stored?.subCollections?.some((s) => s.id === scId)).toBe(true);
+    expect(stored?.lists?.some((l) => l.id === listId)).toBe(true);
+    expect(stored?.cards.some((c) => c.scryfallId === 'sfX')).toBe(true);
+  });
+});
