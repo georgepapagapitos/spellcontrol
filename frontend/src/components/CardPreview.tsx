@@ -375,7 +375,13 @@ export function CardPreview({
                               alt={c.name}
                               className="card-preview-image"
                               draggable={false}
-                              decoding={i === selected ? 'sync' : 'async'}
+                              // All slides decode async: a synchronous
+                              // decode of the ~672×936 hero (a different,
+                              // usually-uncached URL than the grid's normal
+                              // art) lands mid-rise and stutters it. Let the
+                              // skeleton→image cross-fade cover the arrival
+                              // instead — that's what it's built for.
+                              decoding="async"
                               loading={i === selected ? 'eager' : 'lazy'}
                               fetchPriority={i === selected ? 'high' : 'auto'}
                               // Cached images may already be complete before
