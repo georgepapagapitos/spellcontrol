@@ -126,6 +126,7 @@ export function BinderEditor() {
   const [doubleSided, setDoubleSided] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
   const [showDeckAllocated, setShowDeckAllocated] = useState(true);
+  const [keepPrintingsTogether, setKeepPrintingsTogether] = useState(false);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
@@ -236,6 +237,7 @@ export function BinderEditor() {
         setDoubleSided(!!existing.doubleSided);
         setFixedCapacity(existing.fixedCapacity ?? null);
         setShowDeckAllocated(existing.hideDeckAllocated !== false);
+        setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
               name: g.name,
@@ -253,6 +255,7 @@ export function BinderEditor() {
         setDoubleSided(false);
         setFixedCapacity(null);
         setShowDeckAllocated(true);
+        setKeepPrintingsTogether(false);
         setGroups([newGroup()]);
         setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
@@ -430,6 +433,11 @@ export function BinderEditor() {
       ...(g.name?.trim() ? { name: g.name.trim() } : {}),
       filter: cleanFilter(g.filter),
     }));
+    // ⚠️ This is a FIELD WHITELIST: every persistable BinderDef field must be
+    // listed here explicitly. A BinderDef field omitted here is silently
+    // dropped on save (the editor preview reads local state and looks fine,
+    // but the reloaded binder loses it). Add new fields here when extending
+    // BinderDef. (Same trap that hit BinderFilter via cleanFilter.)
     const input: BinderInput = {
       name: name.trim(),
       position: existing?.position ?? 0,
@@ -442,6 +450,7 @@ export function BinderEditor() {
       mode: routingMode,
       hideDeckAllocated: showDeckAllocated ? undefined : false,
       sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
+      keepPrintingsTogether: keepPrintingsTogether || undefined,
     };
 
     // Rules binder (or editing an existing one): synchronous create/update.
@@ -640,6 +649,23 @@ export function BinderEditor() {
                       onChange={(e) => setShowDeckAllocated(e.target.checked)}
                     />
                     Show cards that are in a deck
+                  </label>
+                </div>
+              </div>
+              <div className="editor-row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Printings</label>
+                  <label
+                    className="field-checkbox"
+                    style={{ margin: 0 }}
+                    title="When on, if any printing you own of a card matches this binder's rules, all your copies of that card join the binder — not just the printings that matched (e.g. a pricey commander brings its cheap copies along). Only reclaims cards not already in another binder. Ignored for manual binders."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={keepPrintingsTogether}
+                      onChange={(e) => setKeepPrintingsTogether(e.target.checked)}
+                    />
+                    Keep all printings together
                   </label>
                 </div>
               </div>
