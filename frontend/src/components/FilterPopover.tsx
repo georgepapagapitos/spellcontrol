@@ -1,4 +1,4 @@
-import { ListFilter, ListFilterPlus } from 'lucide-react';
+import { ListFilter } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface FilterToggle {
@@ -25,17 +25,19 @@ interface Props {
 
 /**
  * Small inline filter popover — anchored to a magnifier-icon trigger so
- * it tucks neatly inside the trailing slot of <SearchPill>. Dot on the
- * trigger when any toggle is active, themed checkboxes inside, single
- * column of rows. Used by binder + collection list options today; any
- * future on-toolbar option set can drop in.
+ * it tucks neatly inside the trailing slot of <SearchPill>. A numeric
+ * count badge on the trigger (matching the collection search bar's
+ * CollectionFiltersDialog) shows how many toggles are active, themed
+ * checkboxes inside, single column of rows. Used by binder + collection
+ * list options today; any future on-toolbar option set can drop in.
  */
 export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // "Active" = value != neutral. defaultValue defaults to false, so a
   // toggle that's on without an explicit default still flags as active.
-  const anyActive = toggles.some((t) => t.value !== (t.defaultValue ?? false));
+  const activeCount = toggles.filter((t) => t.value !== (t.defaultValue ?? false)).length;
+  const anyActive = activeCount > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -59,17 +61,18 @@ export function FilterPopover({ toggles, ariaLabel = 'Filters' }: Props) {
     <div className="filter-popover" ref={wrapperRef}>
       <button
         type="button"
-        className={`filter-popover-btn${anyActive ? ' has-active-option' : ''}`}
+        className="filter-popover-btn"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={ariaLabel}
+        aria-label={anyActive ? `${ariaLabel} (${activeCount} active)` : ariaLabel}
         title={ariaLabel}
         onClick={() => setOpen((v) => !v)}
       >
-        {anyActive ? (
-          <ListFilterPlus width={16} height={16} strokeWidth={2} aria-hidden />
-        ) : (
-          <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
+        <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
+        {anyActive && (
+          <span className="collection-filters-badge" aria-hidden>
+            {activeCount}
+          </span>
         )}
       </button>
       {open && (
