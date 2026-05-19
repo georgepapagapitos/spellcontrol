@@ -7,7 +7,7 @@ import {
   Pencil,
   RefreshCw,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getSetMap, type SetMap } from '../lib/api';
@@ -103,6 +103,13 @@ export function CardPreview({
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  // Per-card art-loaded flag. Drives the skeleton→image cross-fade so the
+  // hero image lands gracefully under the sheet's rise animation instead
+  // of popping in. Keyed by scryfallId since slides stay mounted.
+  const [imgLoaded, setImgLoaded] = useState<Record<string, boolean>>({});
+  const markLoaded = useCallback((id: string) => {
+    setImgLoaded((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
+  }, []);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
 
@@ -257,22 +264,16 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
-  const dim = Math.max(0, 1 - dragY / 400);
+  // Drawer model (ManaBox-style): the sheet itself is the opaque surface
+  // that covers the grid, so there is no separate dimmed backdrop. Swiping
+  // down just translates the opaque sheet back off-screen, revealing the
+  // undimmed collection underneath — no dim to interpolate.
   const sheetStyle = {
     transform: `translateY(${dragY}px)`,
   } as React.CSSProperties;
-  const backdropStyle = {
-    backgroundColor: `rgba(0, 0, 0, ${0.72 * dim})`,
-  } as React.CSSProperties;
 
   return (
-    <div
-      className="card-preview-backdrop"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      style={backdropStyle}
-    >
+    <div className="card-preview-backdrop" onClick={onClose} role="dialog" aria-modal="true">
       <div
         className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}`}
         style={sheetStyle}
@@ -353,18 +354,30 @@ export function CardPreview({
                     >
                       <div className="card-preview-face card-preview-face-front">
                         {c.imageNormal && !errored ? (
-                          <img
-                            src={c.imageNormal}
-                            alt={c.name}
-                            className="card-preview-image"
-                            draggable={false}
-                            decoding={i === selected ? 'sync' : 'async'}
-                            loading={i === selected ? 'eager' : 'lazy'}
-                            fetchPriority={i === selected ? 'high' : 'auto'}
-                            onError={() =>
-                              setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
-                            }
-                          />
+                          <>
+                            {!imgLoaded[c.scryfallId] && (
+                              <div className="card-preview-image-skeleton" aria-hidden="true" />
+                            )}
+                            <img
+                              src={c.imageNormal}
+                              alt={c.name}
+                              className="card-preview-image"
+                              draggable={false}
+                              decoding={i === selected ? 'sync' : 'async'}
+                              loading={i === selected ? 'eager' : 'lazy'}
+                              fetchPriority={i === selected ? 'high' : 'auto'}
+                              // Cached images may already be complete before
+                              // onLoad can attach — mark them loaded on mount
+                              // so the skeleton doesn't linger forever.
+                              ref={(el) => {
+                                if (el?.complete && el.naturalWidth > 0) markLoaded(c.scryfallId);
+                              }}
+                              onLoad={() => markLoaded(c.scryfallId)}
+                              onError={() =>
+                                setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
+                              }
+                            />
+                          </>
                         ) : c.imageNormal && errored ? (
                           <div className="card-preview-image-fallback">Image unavailable</div>
                         ) : null}
