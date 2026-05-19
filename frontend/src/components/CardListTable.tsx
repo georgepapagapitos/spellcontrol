@@ -567,6 +567,18 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
   }, [filtered, sortKey, sortDir, setMap]);
 
+  // "Select all" is scoped to the rows currently shown (post-search/filter),
+  // not the whole collection — selecting things you can't see would be a
+  // footgun for the bulk delete/move actions. allSelected drives the toggle
+  // label so one button both selects and clears the visible set.
+  const allSelected = useMemo(
+    () => sorted.length > 0 && sorted.every((r) => selectedRowKeys.has(r.key)),
+    [sorted, selectedRowKeys]
+  );
+  const selectAll = useCallback(() => {
+    setSelectedRowKeys(new Set(sorted.map((r) => r.key)));
+  }, [sorted]);
+
   // Scroll to top when filters, sort, or view mode change.
   const resetKey = `${debouncedSearch}|${sortKey}|${sortDir}|${view}`;
   const prevResetKey = useRef(resetKey);
@@ -987,6 +999,13 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           <button
             type="button"
             className="btn"
+            onClick={() => (allSelected ? clearSelection() : selectAll())}
+          >
+            {allSelected ? 'Deselect all' : `Select all (${sorted.length})`}
+          </button>
+          <button
+            type="button"
+            className="btn"
             disabled={selectedRowKeys.size === 0}
             onClick={() => setBulkMoveOpen(true)}
           >
@@ -1000,7 +1019,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           >
             Delete selected
           </button>
-          {selectedRowKeys.size > 0 && (
+          {selectedRowKeys.size > 0 && !allSelected && (
             <button type="button" className="btn" onClick={clearSelection}>
               Clear
             </button>
