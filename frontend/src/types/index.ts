@@ -391,8 +391,27 @@ export interface BinderDef {
    *  (existing behavior). Ignored for manual-mode binders.
    *  See `materializeBinders`. */
   keepPrintingsTogether?: boolean;
+  /** Captured each time the user clicks "Mark reviewed" on this binder. The
+   *  next view diffs current membership against this snapshot and surfaces
+   *  added/removed cards — so volatile fields (price, EDHREC rank) silently
+   *  shifting membership become visible instead of invisible drift.
+   *  Keyed by `printingFinishKey` (durable across the copyId regeneration
+   *  that happens on every re-import). Undefined = never reviewed yet. */
+  lastReviewedSnapshot?: BinderReviewSnapshot;
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * Snapshot of a binder's membership at the moment the user marked it reviewed.
+ * `keys` is the full membership set (printingFinishKey); `cardSnapshots` pins
+ * the volatile per-card fields so drift attribution can say "price went 6.20→4.80"
+ * instead of just "this card left".
+ */
+export interface BinderReviewSnapshot {
+  at: number;
+  keys: string[];
+  cardSnapshots: Record<string, { price: number; edhrecRank?: number }>;
 }
 
 export type BinderInput = Omit<BinderDef, 'id' | 'createdAt' | 'updatedAt'>;
