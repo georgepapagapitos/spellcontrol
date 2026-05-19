@@ -232,7 +232,7 @@ export function CardPreview({
   useLockBodyScroll();
 
   // Symmetric exit: every dismiss path plays sheet-fall, then unmounts.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
+  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -274,10 +274,16 @@ export function CardPreview({
   // undimmed collection underneath — no dim to interpolate.
   const sheetStyle = {
     transform: `translateY(${dragY}px)`,
+    ...exitStyle,
   } as React.CSSProperties;
 
   return (
-    <div className="card-preview-backdrop" onClick={beginClose} role="dialog" aria-modal="true">
+    <div
+      className="card-preview-backdrop"
+      onClick={() => beginClose()}
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}${
           isClosing ? ' is-closing' : ''
