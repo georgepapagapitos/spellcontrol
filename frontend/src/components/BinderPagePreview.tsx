@@ -116,7 +116,7 @@ export function BinderPagePreview({
 
   // Symmetric exit: every flipbook dismiss path plays sheet-fall, then
   // unmounts — same treatment as the inner CardPreview.
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
+  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
 
   // Keyboard nav.
   useEffect(() => {
@@ -160,7 +160,10 @@ export function BinderPagePreview({
   // backdrop only carries the sizing var (--page-w-ratio drives
   // --slide-size). Swiping down just translates the sheet back off-screen,
   // revealing the undimmed grid underneath.
-  const sheetStyle = { transform: `translateY(${dragY}px)` } as React.CSSProperties;
+  const sheetStyle = {
+    transform: `translateY(${dragY}px)`,
+    ...exitStyle,
+  } as React.CSSProperties;
   const backdropStyle = {
     ['--page-w-ratio' as string]: pageAspectRatio,
   } as React.CSSProperties;
@@ -172,7 +175,7 @@ export function BinderPagePreview({
     <>
       <div
         className="binder-pages-backdrop"
-        onClick={beginClose}
+        onClick={() => beginClose()}
         role="dialog"
         aria-modal="true"
         style={backdropStyle}

@@ -5228,10 +5228,15 @@ hr {
    .is-closing class (see useSheetExit); transform sits in the CSS
    Animation origin so it overrides the swipe gesture's inline
    translateY during the exit. A touch quicker than the 0.5s rise —
-   exits reading slightly faster than entrances feels responsive. */
+   exits reading slightly faster than entrances feels responsive.
+   `from` reads --sheet-exit-from (set by useSheetExit while closing):
+   a swipe-dismiss seeds it with the finger-release offset so the sheet
+   continues sliding down from there instead of snapping back to 0 first;
+   non-drag paths (button / Escape / backdrop) leave it 0 and fall from
+   the top exactly as before. */
 @keyframes sheet-fall {
   from {
-    transform: translateY(0);
+    transform: translateY(var(--sheet-exit-from, 0px));
   }
 
   to {
