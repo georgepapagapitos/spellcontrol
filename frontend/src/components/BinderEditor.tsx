@@ -1495,6 +1495,9 @@ function autoSummary(f: BinderFilter): string {
   push(chipNames(f.legalities));
   push(chipNames(f.oracleChips));
 
+  if (f.commanderEligible === true) parts.push('Commander');
+  else if (f.commanderEligible === false) parts.push('Not commander');
+
   if (f.setCodes && f.setCodes.length > 0) {
     push(
       f.setCodes.length <= 2
