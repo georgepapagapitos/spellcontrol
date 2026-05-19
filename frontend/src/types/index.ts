@@ -354,6 +354,15 @@ export interface BinderDef {
    *  Each entry is the canonical key list in user-preferred order. Fields not
    *  present fall back to the built-in default order. */
   sortValueOrders?: Partial<Record<SortField, string[]>>;
+  /** When true, a card that matches this binder's rules via ANY owned copy
+   *  pulls in ALL the user's owned copies of that card (grouped by Scryfall
+   *  oracleId), instead of only the printings whose per-printing attributes
+   *  (price/finish/set/treatment) matched. Promotion reclaims copies from
+   *  Uncategorized only — copies already routed to another binder keep
+   *  first-match-wins precedence. Undefined/false = per-copy routing
+   *  (existing behavior). Ignored for manual-mode binders.
+   *  See `materializeBinders`. */
+  keepPrintingsTogether?: boolean;
   createdAt: number;
   updatedAt: number;
 }
