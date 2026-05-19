@@ -930,7 +930,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           {sorted.length > 0 && (
             <button
               type="button"
-              className="btn card-list-select-toggle"
+              className="toolbar-pill card-list-select-toggle"
               aria-pressed={selectMode}
               onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             >
@@ -998,14 +998,14 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           </span>
           <button
             type="button"
-            className="btn"
+            className="toolbar-pill"
             onClick={() => (allSelected ? clearSelection() : selectAll())}
           >
             {allSelected ? 'Deselect all' : `Select all (${sorted.length})`}
           </button>
           <button
             type="button"
-            className="btn"
+            className="toolbar-pill"
             disabled={selectedRowKeys.size === 0}
             onClick={() => setBulkMoveOpen(true)}
           >
@@ -1013,18 +1013,22 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           </button>
           <button
             type="button"
-            className="btn"
+            className="toolbar-pill card-list-bulk-danger"
             disabled={selectedRowKeys.size === 0}
             onClick={handleBulkDelete}
           >
             Delete selected
           </button>
           {selectedRowKeys.size > 0 && !allSelected && (
-            <button type="button" className="btn" onClick={clearSelection}>
+            <button type="button" className="toolbar-pill" onClick={clearSelection}>
               Clear
             </button>
           )}
-          <button type="button" className="btn" onClick={exitSelectMode}>
+          <button
+            type="button"
+            className="toolbar-pill card-list-bulk-done"
+            onClick={exitSelectMode}
+          >
             Done
           </button>
         </div>
