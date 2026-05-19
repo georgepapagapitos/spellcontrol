@@ -5,6 +5,8 @@ import { importFile, importText } from '../lib/api';
 import type { UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
+import { findPriorImports } from '../lib/reimport';
+import type { ImportHistoryEntry } from '../lib/local-cards';
 import { Modal } from './Modal';
 import { CardScanner } from './CardScanner';
 import { useCanScan } from '../lib/use-can-scan';
@@ -549,6 +551,10 @@ export function UploadPanel() {
         <ImportModeDialog
           existingCount={cards.length}
           incomingPreview={pendingImport.preview}
+          priorImports={findPriorImports(
+            pendingImport.files ? pendingImport.files.map((f) => f.name) : [pendingImport.label],
+            importHistory
+          )}
           onPick={(mode, binderName) => runImport(pendingImport, mode, binderName)}
           onCancel={() => setPendingImport(null)}
         />
@@ -610,6 +616,8 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
 interface ImportModeDialogProps {
   existingCount: number;
   incomingPreview?: string;
+  /** Prior imports whose name matches an incoming source — a likely re-import. */
+  priorImports?: ImportHistoryEntry[];
   onPick: (mode: ImportMode, binderName?: string) => void;
   onCancel: () => void;
 }
@@ -617,11 +625,17 @@ interface ImportModeDialogProps {
 function ImportModeDialog({
   existingCount,
   incomingPreview,
+  priorImports,
   onPick,
   onCancel,
 }: ImportModeDialogProps) {
   const [binderName, setBinderName] = useState('');
   const [showBinderInput, setShowBinderInput] = useState(false);
+
+  // A re-import only stacks duplicates when there's already a collection to
+  // stack onto; with an empty collection "Add" behaves like "Replace" anyway.
+  const reimports = existingCount > 0 ? (priorImports ?? []) : [];
+  const isReimport = reimports.length > 0;
 
   const handleBinderSubmit = () => {
     const name = binderName.trim();
@@ -641,17 +655,37 @@ function ImportModeDialog({
           {incomingPreview ? ` and you are importing ${incomingPreview}` : ''}.
         </p>
       )}
+      {isReimport && (
+        <p className="choice-dialog-warning" role="alert">
+          {reimports.length === 1 ? (
+            <>
+              You already imported <strong>{reimports[0].name}</strong> (
+              {reimports[0].count.toLocaleString()} cards, {formatRelative(reimports[0].addedAt)}
+              ).{' '}
+            </>
+          ) : (
+            <>
+              <strong>{reimports.length}</strong> of these were imported before:{' '}
+              {reimports.map((r) => r.name).join(', ')}.{' '}
+            </>
+          )}
+          “Add to collection” adds a <strong>second copy of every card</strong>. To refresh it
+          instead, choose <strong>Replace collection</strong>.
+        </p>
+      )}
       <div className="choice-dialog-options">
         <button
           type="button"
           className="choice-dialog-option"
           onClick={() => onPick(existingCount > 0 ? 'merge' : 'replace')}
-          autoFocus={!showBinderInput}
+          autoFocus={!showBinderInput && !isReimport}
         >
           <span className="choice-dialog-option-title">Add to collection</span>
           <span className="choice-dialog-option-desc">
             {existingCount > 0
-              ? 'Keep existing cards and append the new ones. Duplicates will stack.'
+              ? isReimport
+                ? 'Keeps the existing cards AND adds another full copy of this import — duplicates stack.'
+                : 'Keep existing cards and append the new ones. Duplicates will stack.'
               : 'Import these cards into your collection. They will be routed through your binder rules.'}
           </span>
         </button>
@@ -701,10 +735,15 @@ function ImportModeDialog({
             type="button"
             className="choice-dialog-option choice-dialog-option-danger"
             onClick={() => onPick('replace')}
+            autoFocus={isReimport && !showBinderInput}
           >
-            <span className="choice-dialog-option-title">Replace collection</span>
+            <span className="choice-dialog-option-title">
+              Replace collection{isReimport ? ' (recommended)' : ''}
+            </span>
             <span className="choice-dialog-option-desc">
-              Wipe the current collection and start fresh with the imported cards.
+              {isReimport
+                ? 'Wipe the current collection and load this import fresh — refreshes it with no duplicates.'
+                : 'Wipe the current collection and start fresh with the imported cards.'}
             </span>
           </button>
         )}
