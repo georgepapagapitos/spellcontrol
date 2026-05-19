@@ -139,6 +139,7 @@ function buildCollection(): StoredCollection | null {
     scryfallMisses: s.scryfallMisses,
     uploadedAt: s.uploadedAt ?? Date.now(),
     importHistory: s.importHistory,
+    subCollections: s.subCollections,
   };
 }
 
@@ -298,6 +299,7 @@ async function hydrateFromCache(): Promise<void> {
         scryfallMisses: stored.scryfallMisses,
         uploadedAt: stored.uploadedAt,
         importHistory: stored.importHistory ?? [],
+        subCollections: stored.subCollections ?? [],
         hydrating: false,
       });
       // Re-resolve binder pins/exclusions from their durable key shadow against
@@ -374,6 +376,7 @@ async function applyServerSnapshot(
       scryfallMisses: remoteCollection?.scryfallMisses ?? 0,
       uploadedAt: remoteCollection?.uploadedAt ?? null,
       importHistory: remoteCollection?.importHistory ?? [],
+      subCollections: remoteCollection?.subCollections ?? [],
       hydrating: false,
     });
     useDecksStore.setState({ decks: remoteDecks, hydrated: true });
