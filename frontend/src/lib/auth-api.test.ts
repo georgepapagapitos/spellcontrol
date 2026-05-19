@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { register, login, logout, fetchMe, fetchSync, putSync } from './auth-api';
+import {
+  register,
+  login,
+  logout,
+  fetchMe,
+  fetchSync,
+  putSync,
+  fetchBackups,
+  restoreBackup,
+} from './auth-api';
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -102,5 +111,47 @@ describe('putSync', () => {
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error & { status?: number }).status).toBe(409);
     expect((caught as Error & { current?: { version: number } }).current?.version).toBe(7);
+  });
+});
+
+describe('fetchBackups', () => {
+  it('GETs /api/sync/backups and returns the list', async () => {
+    const backups = [
+      { id: 'b1', reason: 'collection-wipe', priorVersion: 4, priorCardCount: 12, createdAt: 100 },
+    ];
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ backups }));
+    expect(await fetchBackups()).toEqual(backups);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/sync/backups',
+      expect.objectContaining({ method: 'GET', credentials: 'same-origin' })
+    );
+  });
+});
+
+describe('restoreBackup', () => {
+  it('POSTs the backupId + baseVersion and returns the restored snapshot', async () => {
+    const snap = { collection: { cards: [{}] }, binders: [], decks: [], version: 9, updatedAt: 5 };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(snap));
+    const r = await restoreBackup({ backupId: 'b1', baseVersion: 8 });
+    expect(r.version).toBe(9);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/sync/restore',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('throws with status 409 and current snapshot on conflict', async () => {
+    const current = { collection: null, binders: [], decks: [], version: 11, updatedAt: 2 };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'conflict', current }, { status: 409 })
+    );
+    let caught: unknown;
+    try {
+      await restoreBackup({ backupId: 'b1', baseVersion: 0 });
+    } catch (err) {
+      caught = err;
+    }
+    expect((caught as Error & { status?: number }).status).toBe(409);
+    expect((caught as Error & { current?: { version: number } }).current?.version).toBe(11);
   });
 });
