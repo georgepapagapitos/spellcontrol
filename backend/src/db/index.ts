@@ -64,6 +64,17 @@ export async function ensureSchema(): Promise<void> {
       updated_at BIGINT NOT NULL
     );
     ALTER TABLE user_data ADD COLUMN IF NOT EXISTS games JSONB NOT NULL DEFAULT '[]'::jsonb;
+    CREATE TABLE IF NOT EXISTS user_data_backups (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      snapshot JSONB NOT NULL,
+      reason TEXT NOT NULL,
+      prior_version INTEGER NOT NULL,
+      prior_card_count INTEGER NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS user_data_backups_user_idx
+      ON user_data_backups(user_id, created_at);
     CREATE TABLE IF NOT EXISTS game_sessions (
       id TEXT PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
