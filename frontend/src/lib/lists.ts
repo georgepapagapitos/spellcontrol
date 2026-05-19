@@ -1,7 +1,6 @@
-import type { EnrichedCard, Finish, ListEntry, ListKind } from '../types';
+import type { EnrichedCard, Finish, ListEntry } from '../types';
 
 export const MAX_LIST_NAME = 60;
-export const LIST_KINDS: ListKind[] = ['wishlist', 'buylist', 'deck', 'trade'];
 
 export function clampListName(name: string): string {
   return name.trim().slice(0, MAX_LIST_NAME);
