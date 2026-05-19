@@ -73,11 +73,12 @@ export function BinderPage() {
   };
   const [showImages, setShowImagesRaw] = useState(() => {
     try {
-      return localStorage.getItem('mtg-binder-show-images') === 'true';
+      // On by default — only an explicit persisted opt-out turns it off.
+      return localStorage.getItem('mtg-binder-show-images') !== 'false';
     } catch {
       /* ignore */
     }
-    return false;
+    return true;
   });
   const setShowImages = (v: boolean) => {
     setShowImagesRaw(v);
@@ -277,6 +278,9 @@ export function BinderPage() {
                         label: 'Show card images',
                         value: showImages,
                         onChange: setShowImages,
+                        // On by default — only badge it when the user
+                        // has actively turned card images off.
+                        defaultValue: true,
                       },
                     ]
                   : []),
