@@ -79,8 +79,9 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 
 ```bash
 npm install                              # root dev tools (concurrently, husky, prettier)
-npm install --prefix frontend
-npm install --prefix backend
+npm install --prefix packages/game-core  # shared reducer — installs + builds its dist
+npm install --prefix frontend            # resolves the @spellcontrol/game-core file: dep
+npm install --prefix backend             # resolves the @spellcontrol/game-core file: dep
 npm run dev                              # backend on :3737, frontend on :5173
 ```
 
@@ -131,11 +132,13 @@ The backend reads:
 
 ## Architecture
 
-The repo is a monorepo with two workspaces: `backend/` and `frontend/`.
+The repo is a monorepo with three packages: `backend/`, `frontend/`, and the shared `packages/game-core/`.
 
 **Backend** — Node + Express 5 + TypeScript. Postgres (via Drizzle) stores user accounts and synced state. A SQLite cache (via better-sqlite3) holds Scryfall card data with a 7-day TTL. Format-specific parsers in `src/parsers/` handle import detection and normalization.
 
 **Frontend** — React 18 + Vite + TypeScript + Zustand + react-router-dom 7. Collection and binder state lives in IndexedDB and localStorage, synced to the server on change. The `deck-builder/` subsystem handles EDHREC-powered deck generation with its own services, store, and types. Plain CSS with guild-themed custom properties for re-skinning.
+
+**game-core** (`packages/game-core/`) — a zero-dependency, isomorphic package owning the multiplayer game-state reducer (`applyAction`, `createGameState`, loss/win logic, `GameState`/`GameAction` types). It is the single source of truth: the backend runs it for authoritative online sessions and the frontend runs it for local + optimistic play. Both consume it as a `file:` dependency (`@spellcontrol/game-core`) — `backend → game-core ← frontend`, with game-core a leaf. It builds a dual CJS (backend) + ESM (frontend bundle) output with shared types, has its own test suite (80% coverage gate), and there is no second copy to keep in lockstep.
 
 ## API
 
@@ -186,7 +189,7 @@ npm run format            # prettier --write
 npm run format:check
 ```
 
-Per workspace, both `frontend` and `backend` also expose `test:watch` and `test:coverage`. CI enforces an 80% coverage floor on `lib/` and parser modules.
+Per workspace, both `frontend` and `backend` also expose `test:watch` and `test:coverage`. CI enforces an 80% coverage floor on `lib/` and parser modules. The shared `packages/game-core` package is built and tested independently (its own `npm test` / `test:coverage`, run as a dedicated CI job and built before the consumer jobs); the root `npm test` covers `frontend` + `backend` only.
 
 `husky` + `lint-staged` run prettier on staged files before commit.
 
