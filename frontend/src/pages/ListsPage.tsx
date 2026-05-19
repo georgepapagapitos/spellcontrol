@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
@@ -20,13 +20,10 @@ export function ListsPage() {
     [lists, routeId]
   );
 
-  const [newName, setNewName] = useState('');
-
   const handleCreate = () => {
-    const name = newName.trim();
+    const name = window.prompt('New list name')?.trim();
     if (!name) return;
     const id = createList(name);
-    setNewName('');
     navigate(`/collection/lists/${id}`);
   };
 
@@ -75,29 +72,13 @@ export function ListsPage() {
             {lists.length.toLocaleString()} {lists.length === 1 ? 'list' : 'lists'}
           </p>
         </div>
+        <div className="binders-index-actions">
+          <button type="button" className="pill-btn pill-btn-primary" onClick={handleCreate}>
+            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <span>New list</span>
+          </button>
+        </div>
       </header>
-
-      <div className="binders-index-search-row">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New list name"
-          aria-label="New list name"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleCreate();
-          }}
-        />
-        <button
-          type="button"
-          className="pill-btn pill-btn-primary"
-          onClick={handleCreate}
-          disabled={!newName.trim()}
-        >
-          <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-          <span>New list</span>
-        </button>
-      </div>
 
       {lists.length === 0 ? (
         <div className="empty-state">
@@ -106,6 +87,11 @@ export function ListsPage() {
             Create a list to track cards you don’t own yet — a wishlist, buylist, deck plan, or
             trade pile. Lists never affect your collection, binders, or decks.
           </p>
+          <div className="empty-state-actions">
+            <button type="button" className="btn btn-primary" onClick={handleCreate}>
+              Create your first list
+            </button>
+          </div>
         </div>
       ) : (
         <ul className="binders-index-list is-list">
