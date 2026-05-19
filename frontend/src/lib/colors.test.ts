@@ -78,6 +78,59 @@ describe('getColorKey', () => {
       getColorKey(makeCard({ typeLine: 'Creature', colorIdentity: ['W', 'U', 'B', 'R', 'G'] }))
     ).toBe('M');
   });
+
+  it('groups non-lands by printed color, not color identity from rules text', () => {
+    // Shalai, Voice of Plenty: {3}{W} cost but a "{4}{G}{G}:" ability, so
+    // Scryfall reports color_identity ['G','W']. ManaBox-style: this is White.
+    expect(
+      getColorKey(
+        makeCard({
+          name: 'Shalai, Voice of Plenty',
+          typeLine: 'Legendary Creature — Angel',
+          colors: ['W'],
+          colorIdentity: ['G', 'W'],
+        })
+      )
+    ).toBe('W');
+  });
+
+  it('groups a transform card by its front face, not the combined identity', () => {
+    // "Ashling, Rekindled // Ashling, Rimebound": front {1}{R} (red), back is
+    // blue, so Scryfall color_identity is ['R','U']. Enrichment resolves
+    // colors to the front face (['R']) since transform has no top-level
+    // colors, so this groups under Red — not Multicolor.
+    expect(
+      getColorKey(
+        makeCard({
+          name: 'Ashling, Rekindled // Ashling, Rimebound',
+          typeLine: 'Legendary Creature — Elemental Sorcerer',
+          colors: ['R'],
+          colorIdentity: ['R', 'U'],
+        })
+      )
+    ).toBe('R');
+  });
+
+  it('treats devoid / colorless-but-identity-colored cards as colorless', () => {
+    // Devoid: colors [] even though the {U} cost gives it color_identity ['U'].
+    expect(
+      getColorKey(
+        makeCard({ typeLine: 'Creature — Eldrazi Drone', colors: [], colorIdentity: ['U'] })
+      )
+    ).toBe('C');
+  });
+
+  it('still groups lands by color identity even when colors is empty', () => {
+    // Lands are colorless (colors []) but should bucket by identity.
+    expect(
+      getColorKey(
+        makeCard({ typeLine: 'Land', name: 'Temple Garden', colors: [], colorIdentity: ['G', 'W'] })
+      )
+    ).toBe('M');
+    expect(
+      getColorKey(makeCard({ typeLine: 'Basic Land — Forest', colors: [], colorIdentity: ['G'] }))
+    ).toBe('G');
+  });
 });
 
 describe('COLOR_INFO', () => {
