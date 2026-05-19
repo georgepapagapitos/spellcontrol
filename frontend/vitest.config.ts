@@ -21,18 +21,47 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**'],
+      // `all: true` counts files in `include` even when no test imports
+      // them — so the gate reflects real logic coverage, not just
+      // test-touched files. Required for the per-directory floors below
+      // to be honest.
+      all: true,
+      include: [
+        'src/lib/**/*.{ts,tsx}',
+        'src/store/**/*.{ts,tsx}',
+        'src/deck-builder/**/*.{ts,tsx}',
+      ],
       // Thin browser-API wrappers that need a real runtime (worker/WASM,
       // Screen Wake Lock + visibilitychange) and can't be exercised
       // meaningfully under the node test env — verified via integration use:
       //   - ocr.ts: tesseract.js worker + WASM
       //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
       exclude: ['src/lib/ocr.ts', 'src/lib/use-wake-lock.ts'],
+      // Per-directory floors. `src/lib/**` stays the long-standing 80.
+      // `src/store/**` and `src/deck-builder/**` are newly gated: the
+      // floors are their current measured baselines, rounded down with a
+      // small margin, so coverage can no longer regress. Ratchet these
+      // upward as tests are added — never lower them, and never drop the
+      // src/lib/** 80.
       thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 80,
-        lines: 80,
+        'src/lib/**': {
+          statements: 80,
+          branches: 80,
+          functions: 80,
+          lines: 80,
+        },
+        'src/store/**': {
+          statements: 40,
+          branches: 27,
+          functions: 38,
+          lines: 43,
+        },
+        'src/deck-builder/**': {
+          statements: 38,
+          branches: 30,
+          functions: 38,
+          lines: 40,
+        },
       },
     },
   },
