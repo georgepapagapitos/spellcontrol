@@ -1,5 +1,5 @@
 import type { EnrichedCard, SortDir, SortEntry, SortField } from '../types';
-import { COLOR_INFO, getColorKey } from './colors';
+import { COLOR_INFO, getColorKey, getColorPalette } from './colors';
 import { TYPE_ORDER, getCardType } from './card-types';
 import type { SetMap } from './api';
 
@@ -141,6 +141,62 @@ export const RARITY_ORDER: Record<string, number> = {
   bonus: 5,
 };
 
+const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+
+/**
+ * Canonical Magic ordering of multicolor combinations: 2-color guilds in
+ * WUBRG-pair order, then 3-color (shards/wedges), 4-color, then 5-color.
+ * Matches the order ManaBox / Scryfall use within the multicolor section.
+ */
+export const CANONICAL_MULTICOLOR: string[] = [
+  'WU',
+  'WB',
+  'WR',
+  'WG',
+  'UB',
+  'UR',
+  'UG',
+  'BR',
+  'BG',
+  'RG',
+  'WUB',
+  'WUR',
+  'WUG',
+  'WBR',
+  'WBG',
+  'WRG',
+  'UBR',
+  'UBG',
+  'URG',
+  'BRG',
+  'WUBR',
+  'WUBG',
+  'WURG',
+  'WBRG',
+  'UBRG',
+  'WUBRG',
+];
+
+/** Card colors normalized into canonical WUBRG order, e.g. ['G','U'] → 'UG'. */
+function canonicalComboKey(palette: string[]): string {
+  return [...palette].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b)).join('');
+}
+
+/**
+ * Sort rank for the Color field. Mono/colorless/land keep their COLOR_INFO
+ * order (W<U<B<R<G<…). Multicolor cards all share COLOR_INFO order 5, so we
+ * fan them out within the [5, 6) band — keeping the Multicolor section
+ * contiguous (still before Colorless = 6) while ordering it canonically.
+ */
+export function colorSortRank(card: EnrichedCard): number {
+  const key = getColorKey(card);
+  if (key !== 'M') return COLOR_INFO[key]?.order ?? 99;
+  const idx = CANONICAL_MULTICOLOR.indexOf(canonicalComboKey(getColorPalette(card) ?? []));
+  // Unknown/odd combos sort after the known ones but still inside the band.
+  const pos = idx === -1 ? CANONICAL_MULTICOLOR.length : idx;
+  return 5 + pos / (CANONICAL_MULTICOLOR.length + 1);
+}
+
 export function cardSortValue(
   card: EnrichedCard,
   field: SortField,
@@ -148,7 +204,7 @@ export function cardSortValue(
 ): number | string {
   switch (field) {
     case 'color':
-      return COLOR_INFO[getColorKey(card)]?.order ?? 99;
+      return colorSortRank(card);
     case 'type': {
       const idx = TYPE_ORDER.indexOf(getCardType(card));
       return idx === -1 ? 99 : idx;
