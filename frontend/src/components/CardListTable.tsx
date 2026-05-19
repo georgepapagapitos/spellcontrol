@@ -1,4 +1,11 @@
-import { AlignJustify, LayoutGrid, List as ListIconLucide, Search } from 'lucide-react';
+import {
+  AlignJustify,
+  Check,
+  CheckSquare,
+  LayoutGrid,
+  List as ListIconLucide,
+  Search,
+} from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
@@ -293,6 +300,14 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     });
   }, []);
   const clearSelection = useCallback(() => setSelectedRowKeys(new Set()), []);
+  // Selection is a deliberate mode the user opts into (toggle in the toolbar),
+  // not an always-on affordance: rows/cards stay clean until "Select" is on,
+  // then a row/card click toggles its selection instead of opening preview.
+  const [selectMode, setSelectMode] = useState(false);
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    clearSelection();
+  }, [clearSelection]);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -900,6 +915,17 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
 
       <div className="card-list-summary-line">
         <div className="card-list-summary-actions">
+          {sorted.length > 0 && (
+            <button
+              type="button"
+              className="btn card-list-select-toggle"
+              aria-pressed={selectMode}
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            >
+              <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+              <span>{selectMode ? 'Done' : 'Select'}</span>
+            </button>
+          )}
           <SelectMenu
             ariaLabel="Sort"
             value={sortKey}
@@ -953,17 +979,34 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         </div>
       </div>
 
-      {selectedRowKeys.size > 0 && (
+      {selectMode && (
         <div className="card-list-bulk-toolbar" role="region" aria-label="Bulk actions">
-          <span className="card-list-bulk-count">{selectedRowKeys.size} selected</span>
-          <button type="button" className="btn" onClick={() => setBulkMoveOpen(true)}>
+          <span className="card-list-bulk-count">
+            {selectedRowKeys.size > 0 ? `${selectedRowKeys.size} selected` : 'Select cards…'}
+          </span>
+          <button
+            type="button"
+            className="btn"
+            disabled={selectedRowKeys.size === 0}
+            onClick={() => setBulkMoveOpen(true)}
+          >
             Move to…
           </button>
-          <button type="button" className="btn" onClick={handleBulkDelete}>
+          <button
+            type="button"
+            className="btn"
+            disabled={selectedRowKeys.size === 0}
+            onClick={handleBulkDelete}
+          >
             Delete selected
           </button>
-          <button type="button" className="btn" onClick={clearSelection}>
-            Clear
+          {selectedRowKeys.size > 0 && (
+            <button type="button" className="btn" onClick={clearSelection}>
+              Clear
+            </button>
+          )}
+          <button type="button" className="btn" onClick={exitSelectMode}>
+            Done
           </button>
         </div>
       )}
@@ -1048,21 +1091,33 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                   const r = sorted[idx];
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
+                  const selected = selectedRowKeys.has(r.key);
                   return (
                     <div
                       key={r.key}
                       role="button"
                       tabIndex={0}
-                      className={`collection-grid-item grid-${effectiveGridSize}${foilClass}`}
-                      onClick={() => setPreviewIndex(idx)}
+                      aria-pressed={selectMode ? selected : undefined}
+                      className={`collection-grid-item grid-${effectiveGridSize}${foilClass}${
+                        selectMode ? ' is-selectable' : ''
+                      }${selected ? ' is-selected' : ''}`}
+                      onClick={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
-                          setPreviewIndex(idx);
+                          if (selectMode) toggleRow(r.key);
+                          else setPreviewIndex(idx);
                         }
                       }}
-                      aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}`}
+                      aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}${
+                        selectMode ? (selected ? ', selected' : ', not selected') : ''
+                      }`}
                     >
+                      {selectMode && (
+                        <span className="collection-grid-check" data-checked={selected} aria-hidden>
+                          {selected && <Check width={14} height={14} strokeWidth={3} />}
+                        </span>
+                      )}
                       {r.card.imageNormal ? (
                         <img
                           src={r.card.imageNormal}
@@ -1110,6 +1165,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           {listVirtualizer.getVirtualItems().map((virtualRow) => {
             const r = sorted[virtualRow.index];
             const colorKey = getColorKey(r.card);
+            const selected = selectedRowKeys.has(r.key);
             return (
               <div
                 key={virtualRow.key}
@@ -1126,25 +1182,26 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                 <div
                   className={`collection-list-row${
                     virtualRow.index === sorted.length - 1 ? ' is-last-row' : ''
-                  }`}
+                  }${selectMode ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}`}
                   role="row"
                   tabIndex={0}
-                  onClick={() => setPreviewIndex(virtualRow.index)}
+                  aria-pressed={selectMode ? selected : undefined}
+                  onClick={() =>
+                    selectMode ? toggleRow(r.key) : setPreviewIndex(virtualRow.index)
+                  }
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setPreviewIndex(virtualRow.index);
+                      if (selectMode) toggleRow(r.key);
+                      else setPreviewIndex(virtualRow.index);
                     }
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    className="collection-list-select"
-                    aria-label={`Select ${r.card.name}`}
-                    checked={selectedRowKeys.has(r.key)}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => toggleRow(r.key)}
-                  />
+                  {selectMode && (
+                    <span className="collection-list-check" data-checked={selected} aria-hidden>
+                      {selected && <Check width={13} height={13} strokeWidth={3} />}
+                    </span>
+                  )}
                   {r.card.imageSmall ? (
                     <img
                       src={r.card.imageSmall}
