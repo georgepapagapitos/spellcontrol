@@ -7,6 +7,7 @@ import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
+import { cleanFilter } from '../lib/clean-filter';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
@@ -23,7 +24,6 @@ import type {
   Finish,
   Format,
   Layout,
-  NegatableChip,
   PocketSize,
   Rarity,
   SortEntry,
@@ -1280,6 +1280,45 @@ function FilterGroupFields({
         />
       </div>
 
+      {/* Commander eligibility */}
+      <div className="rule-row">
+        <span
+          className="rule-label has-tooltip"
+          title="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
+        >
+          Commander <span className="tooltip-marker">ⓘ</span>
+        </span>
+        <div className="rule-segmented" role="radiogroup" aria-label="Commander eligibility">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter.commanderEligible === undefined}
+            className={`rule-segmented-pill${filter.commanderEligible === undefined ? ' active' : ''}`}
+            onClick={() => patch({ commanderEligible: undefined })}
+          >
+            Any
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter.commanderEligible === true}
+            className={`rule-segmented-pill${filter.commanderEligible === true ? ' active' : ''}`}
+            onClick={() => patch({ commanderEligible: true })}
+          >
+            Is
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filter.commanderEligible === false}
+            className={`rule-segmented-pill${filter.commanderEligible === false ? ' active' : ''}`}
+            onClick={() => patch({ commanderEligible: false })}
+          >
+            Is not
+          </button>
+        </div>
+      </div>
+
       {/* Sets */}
       <div className="rule-row">
         <span className="rule-label">Sets</span>
@@ -1621,50 +1660,4 @@ function validateRanges(f: BinderFilter): string | null {
   return null;
 }
 
-/** Strip empty strings/arrays/undefineds and chips with blank values. */
-function cleanFilter(f: BinderFilter): BinderFilter {
-  const out: BinderFilter = {};
-  /**
-   * Strip blank-value chips, dropping the field entirely when nothing's
-   * left. Joiners stay in lockstep with surviving chips: joiners[i]
-   * connects chips[i]→chips[i+1], so when chip i is removed we drop
-   * joiner i (the one *after* it) — preserving the leading-no-joiner
-   * invariant.
-   */
-  const cleanField = (expr?: ChipExpression): ChipExpression | undefined => {
-    if (!expr) return undefined;
-    const keepIdx: number[] = [];
-    const keptChips: NegatableChip[] = [];
-    expr.chips.forEach((c, i) => {
-      if (c.value.trim()) {
-        keepIdx.push(i);
-        keptChips.push({ value: c.value.trim(), negate: c.negate });
-      }
-    });
-    if (keptChips.length === 0) return undefined;
-    const keptJoiners: ('AND' | 'OR')[] = [];
-    for (let k = 0; k < keepIdx.length - 1; k++) {
-      keptJoiners.push(expr.joiners[keepIdx[k]] ?? 'AND');
-    }
-    return { chips: keptChips, joiners: keptJoiners };
-  };
-  if (cleanField(f.legalities)) out.legalities = cleanField(f.legalities);
-  if (cleanField(f.colors)) out.colors = cleanField(f.colors);
-  if (cleanField(f.rarities)) out.rarities = cleanField(f.rarities);
-  if (cleanField(f.typeChips)) out.typeChips = cleanField(f.typeChips);
-  if (cleanField(f.oracleChips)) out.oracleChips = cleanField(f.oracleChips);
-  if (cleanField(f.finishes)) out.finishes = cleanField(f.finishes);
-  if (cleanField(f.layouts)) out.layouts = cleanField(f.layouts);
-  if (cleanField(f.treatments)) out.treatments = cleanField(f.treatments);
-  if (cleanField(f.borderColors)) out.borderColors = cleanField(f.borderColors);
-
-  if (f.cmcMin !== undefined && !isNaN(f.cmcMin)) out.cmcMin = f.cmcMin;
-  if (f.cmcMax !== undefined && !isNaN(f.cmcMax)) out.cmcMax = f.cmcMax;
-  if (f.manaCost?.trim()) out.manaCost = f.manaCost.trim();
-  if (f.setCodes && f.setCodes.length) out.setCodes = f.setCodes.map((s) => s.toUpperCase());
-  if (f.priceMin !== undefined && !isNaN(f.priceMin)) out.priceMin = f.priceMin;
-  if (f.priceMax !== undefined && !isNaN(f.priceMax)) out.priceMax = f.priceMax;
-  if (f.nameContains?.trim()) out.nameContains = f.nameContains.trim();
-  if (f.edhrecRankMax !== undefined && !isNaN(f.edhrecRankMax)) out.edhrecRankMax = f.edhrecRankMax;
-  return out;
-}
+// cleanFilter moved to ../lib/clean-filter (pure, unit-tested, coverage-gated).

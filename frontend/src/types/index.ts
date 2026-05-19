@@ -271,6 +271,14 @@ export interface BinderFilter {
   treatments?: ChipExpression;
   /** Border chips. Exact match on borderColor. */
   borderColors?: ChipExpression;
+  /**
+   * Commander-eligibility constraint. undefined = no constraint;
+   * true = card must be commander-eligible; false = must NOT be.
+   * "Commander-eligible" = legendary creature OR oracle text contains
+   * "can be your commander", AND legal/restricted in Commander
+   * (see lib/commanders.ts:isCommanderEligible).
+   */
+  commanderEligible?: boolean;
 }
 
 /**

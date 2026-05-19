@@ -4189,6 +4189,46 @@ hr {
   }
 }
 
+/* Compact segmented toggle for tri-state rule fields (e.g. Commander).
+   Sized to match the chip controls in a rule-row — content width, never
+   stretches, never wraps. Distinct from the full-width .binder-mode-toggle
+   used for the binder creation-mode selector. */
+.rule-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.rule-segmented-pill {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.rule-segmented-pill:not(:first-child) {
+  border-left: 1px solid var(--border);
+}
+
+.rule-segmented-pill:hover:not(.active) {
+  background: var(--surface2);
+}
+
+.rule-segmented-pill.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 /* ── Chip group ─────────────────────────────────────────────────────────── */
 .chip-group {
   display: flex;
