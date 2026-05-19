@@ -1,4 +1,4 @@
-import { ClipboardList, Layers, List, Notebook, Settings, Users } from 'lucide-react';
+import { Layers, List, Settings, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 
@@ -24,28 +24,6 @@ export function MobileTabBar() {
           <List {...ICON_PROPS} />
         </span>
         <span className="mobile-tab-bar-label">Collection</span>
-      </NavLink>
-      <NavLink
-        to="/binders"
-        className={({ isActive }) =>
-          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
-        }
-      >
-        <span className="mobile-tab-bar-glyph">
-          <Notebook {...ICON_PROPS} />
-        </span>
-        <span className="mobile-tab-bar-label">Binders</span>
-      </NavLink>
-      <NavLink
-        to="/lists"
-        className={({ isActive }) =>
-          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
-        }
-      >
-        <span className="mobile-tab-bar-glyph">
-          <ClipboardList {...ICON_PROPS} />
-        </span>
-        <span className="mobile-tab-bar-label">Lists</span>
       </NavLink>
       <NavLink
         to="/decks"

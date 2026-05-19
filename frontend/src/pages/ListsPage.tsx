@@ -30,7 +30,7 @@ export function ListsPage() {
     const id = createList(name, newKind || undefined);
     setNewName('');
     setNewKind('');
-    navigate(`/lists/${id}`);
+    navigate(`/collection/lists/${id}`);
   };
 
   const handleRename = (id: string, current: string) => {
@@ -57,7 +57,7 @@ export function ListsPage() {
           <div className="empty-state">
             <p className="empty-state-tagline">List not found.</p>
             <div className="empty-state-actions">
-              <Link to="/lists" className="btn btn-primary">
+              <Link to="/collection/lists" className="btn btn-primary">
                 Back to lists
               </Link>
             </div>
@@ -126,7 +126,7 @@ export function ListsPage() {
         <ul className="binders-index-list is-list">
           {sorted.map((l) => (
             <li key={l.id} className="binders-index-card">
-              <Link to={`/lists/${l.id}`} className="binders-index-card-link">
+              <Link to={`/collection/lists/${l.id}`} className="binders-index-card-link">
                 <div className="binders-index-card-body">
                   <div className="binders-index-card-name">{l.name}</div>
                   <div className="binders-index-card-meta">
