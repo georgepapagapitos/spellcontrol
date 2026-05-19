@@ -697,4 +697,154 @@ describe('allocation invariants', () => {
       }
     }
   });
+
+  // B1-deck: the deck-remap analogue of binder-refs.test.ts's 400-op seeded
+  // property test. Arbitrary add-slot / remove-slot / re-import (copyIds
+  // regenerated, owned multiset perturbed) / inject-double-claim histories
+  // must leave remap satisfying the full resilience contract: every still-
+  // owned card re-binds, no copyId double-claimed, per-name multiplicity is
+  // exactly min(slots-wanting, owned), and a second remap on the same
+  // collection is a no-op (idempotent).
+  it('remap upholds rebind + multiplicity + no-double-claim + idempotence across 400 random ops', () => {
+    // Deterministic LCG so a failure reproduces.
+    let seed = 0x5bd1e995 >>> 0;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+    const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
+
+    // Card universe: non-basics (printing is meaningful intent) plus a basic
+    // land (printing fungible — exercises the basic-land short-circuit in
+    // every pass). Each name has two printings.
+    const NONBASIC = ['Sol Ring', 'Mana Crypt', 'Lightning Bolt'];
+    const NAMES = [...NONBASIC, 'Plains'];
+    const PRINTINGS: Record<string, [string, string]> = {
+      'Sol Ring': ['sf-sr-a', 'sf-sr-b'],
+      'Mana Crypt': ['sf-mc-a', 'sf-mc-b'],
+      'Lightning Bolt': ['sf-lb-a', 'sf-lb-b'],
+      Plains: ['sf-pl-a', 'sf-pl-b'],
+    };
+
+    let uid = 0;
+    let collection: EnrichedCard[] = [];
+    const regenCollection = (): void => {
+      const next: EnrichedCard[] = [];
+      for (const name of NAMES)
+        for (const sf of PRINTINGS[name]) {
+          const n = Math.floor(rnd() * 3); // 0..2 copies per (name, printing)
+          for (let i = 0; i < n; i++)
+            next.push(enriched({ copyId: `c${uid++}`, name, scryfallId: sf, purchasePrice: 1 }));
+        }
+      collection = next;
+    };
+
+    const DECK_IDS = ['pd1', 'pd2'];
+    useDecksStore.setState({
+      decks: DECK_IDS.map((id) => baseDeck({ id, name: id, cards: [] })),
+    });
+    regenCollection();
+
+    const allSlots = () => {
+      const out: { deckId: string; idx: number }[] = [];
+      for (const d of useDecksStore.getState().decks)
+        d.cards.forEach((_, idx) => out.push({ deckId: d.id, idx }));
+      return out;
+    };
+    const setDeckCards = (deckId: string, mut: (cards: DeckCard[]) => DeckCard[]): void => {
+      useDecksStore.setState((s) => ({
+        decks: s.decks.map((d) => (d.id === deckId ? { ...d, cards: mut([...d.cards]) } : d)),
+      }));
+    };
+
+    const snapshotAllocs = (): string[] =>
+      useDecksStore
+        .getState()
+        .decks.flatMap((d) =>
+          d.cards.map((c) => `${d.id}:${c.slotId}=${c.allocatedCopyId ?? '∅'}`)
+        );
+
+    for (let step = 0; step < 400; step++) {
+      const op = Math.floor(rnd() * 4);
+      if (op === 0) {
+        // add slot: random deck, random card name + printing, unbound.
+        const deckId = pick(DECK_IDS);
+        const name = pick(NAMES);
+        const sf = pick(PRINTINGS[name]);
+        setDeckCards(deckId, (cards) => {
+          cards.push({ slotId: `ps${uid++}`, card: sfCard(name, sf), allocatedCopyId: null });
+          return cards;
+        });
+      } else if (op === 1) {
+        // remove a random slot
+        const slots = allSlots();
+        if (slots.length) {
+          const { deckId, idx } = pick(slots);
+          setDeckCards(deckId, (cards) => {
+            cards.splice(idx, 1);
+            return cards;
+          });
+        }
+      } else if (op === 2) {
+        // inject a cross-slot double-claim (the A3 hazard a manual mutation
+        // would create) so the next reimport's remap must heal it.
+        const slots = allSlots();
+        const bound = useDecksStore
+          .getState()
+          .decks.flatMap((d) => d.cards.map((c) => c.allocatedCopyId))
+          .filter((x): x is string => !!x);
+        if (slots.length && bound.length) {
+          const victimId = pick(bound);
+          const { deckId, idx } = pick(slots);
+          setDeckCards(deckId, (cards) => {
+            cards[idx] = { ...cards[idx], allocatedCopyId: victimId };
+            return cards;
+          });
+        }
+      } else {
+        // reimport: brand-new copyIds, perturbed owned multiset, then remap.
+        regenCollection();
+        useDecksStore.getState().remapAllocations(collection);
+
+        const decks = useDecksStore.getState().decks;
+        const ownedById = new Map(collection.map((c) => [c.copyId, c]));
+        const ownedByName = new Map<string, number>();
+        for (const c of collection) ownedByName.set(c.name, (ownedByName.get(c.name) ?? 0) + 1);
+
+        // I1: every non-null binding is a distinct, currently-owned copy.
+        const seen = new Set<string>();
+        for (const d of decks)
+          for (const c of d.cards) {
+            if (!c.allocatedCopyId) continue;
+            expect(
+              seen.has(c.allocatedCopyId),
+              `step ${step}: ${c.allocatedCopyId} double-claimed`
+            ).toBe(false);
+            seen.add(c.allocatedCopyId);
+            expect(ownedById.has(c.allocatedCopyId)).toBe(true);
+          }
+
+        // I2: per name, #bound == min(#slots wanting it, #owned of it).
+        // (Printing only affects WHICH copy, never WHETHER one is found.)
+        const wantByName = new Map<string, number>();
+        const boundByName = new Map<string, number>();
+        for (const d of decks)
+          for (const c of d.cards) {
+            wantByName.set(c.card.name, (wantByName.get(c.card.name) ?? 0) + 1);
+            if (c.allocatedCopyId)
+              boundByName.set(c.card.name, (boundByName.get(c.card.name) ?? 0) + 1);
+          }
+        for (const name of NAMES) {
+          const want = wantByName.get(name) ?? 0;
+          const own = ownedByName.get(name) ?? 0;
+          const got = boundByName.get(name) ?? 0;
+          expect(got, `step ${step}: ${name} bound ${got}, expected min(${want},${own})`).toBe(
+            Math.min(want, own)
+          );
+        }
+
+        // I3: a second remap on the identical collection is a no-op.
+        const before = snapshotAllocs();
+        useDecksStore.getState().remapAllocations(collection);
+        expect(snapshotAllocs(), `step ${step}: remap not idempotent`).toEqual(before);
+      }
+    }
+  });
 });
