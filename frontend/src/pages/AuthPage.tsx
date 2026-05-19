@@ -7,6 +7,8 @@ export default function AuthPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const error = useAuth((s) => s.error);
   const clearError = useAuth((s) => s.clearError);
@@ -15,11 +17,17 @@ export default function AuthPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (mode === 'register' && password !== confirm) {
+      setConfirmError('Passwords do not match.');
+      return;
+    }
+    setConfirmError(null);
     setSubmitting(true);
     if (mode === 'login') {
       await loginAction(username.trim(), password);
     } else {
       await registerAction(username.trim(), password);
+      setConfirm('');
     }
     setSubmitting(false);
   }
@@ -27,6 +35,8 @@ export default function AuthPage() {
   function switchMode(next: Mode) {
     if (next === mode) return;
     setMode(next);
+    setConfirm('');
+    setConfirmError(null);
     clearError();
   }
 
@@ -91,9 +101,56 @@ export default function AuthPage() {
               minLength={mode === 'register' ? 10 : 1}
             />
             {mode === 'register' ? (
-              <small className="auth-hint">At least 10 characters.</small>
+              <ul className="auth-rules" aria-label="Password requirements">
+                <li
+                  className={`auth-rule${password.length >= 10 ? ' is-met' : ''}`}
+                  aria-checked={password.length >= 10}
+                  role="checkbox"
+                >
+                  <span className="auth-rule-mark" aria-hidden="true">
+                    {password.length >= 10 ? '✓' : '•'}
+                  </span>
+                  At least 10 characters
+                </li>
+                <li className="auth-rule auth-rule-note">
+                  <span className="auth-rule-mark" aria-hidden="true">
+                    !
+                  </span>
+                  No password reset — pick something you'll remember
+                </li>
+              </ul>
             ) : null}
           </label>
+
+          {mode === 'register' ? (
+            <label className="auth-field">
+              <span>Confirm password</span>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  if (confirmError) setConfirmError(null);
+                }}
+                required
+                minLength={10}
+                aria-invalid={confirmError ? true : undefined}
+              />
+              <ul className="auth-rules" aria-label="Confirm requirements">
+                <li
+                  className={`auth-rule${confirm.length > 0 && confirm === password ? ' is-met' : ''}${confirmError ? ' is-error' : ''}`}
+                  aria-checked={confirm.length > 0 && confirm === password}
+                  role="checkbox"
+                >
+                  <span className="auth-rule-mark" aria-hidden="true">
+                    {confirm.length > 0 && confirm === password ? '✓' : '•'}
+                  </span>
+                  Passwords match
+                </li>
+              </ul>
+            </label>
+          ) : null}
 
           {error ? (
             <div role="alert" className="auth-error">
