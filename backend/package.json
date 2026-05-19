@@ -21,6 +21,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,json}\""
   },
   "dependencies": {
+    "@spellcontrol/game-core": "file:../packages/game-core",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
     "cookie-parser": "^1.4.7",
