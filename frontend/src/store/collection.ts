@@ -6,6 +6,7 @@ import type {
   BinderInput,
   EnrichedCard,
   Finish,
+  ListDef,
   SubCollectionDef,
   UploadResponse,
 } from '../types';
@@ -28,6 +29,7 @@ import {
   clampSubCollectionName,
   restoreSubCollectionAssignments,
 } from '../lib/sub-collections';
+import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -66,6 +68,7 @@ interface CollectionState {
 
   binders: BinderDef[];
   subCollections: SubCollectionDef[];
+  lists: ListDef[];
   activeTab: string;
   editingBinder: string | null;
   /** Whether the import bottom-sheet is open. Triggered by the small "+"
@@ -148,6 +151,35 @@ interface CollectionState {
   deleteSubCollection: (id: string) => Promise<void>;
   moveCardsToSubCollection: (copyIds: string[], subCollectionId: string | null) => Promise<void>;
 
+  // List actions
+  createList: (name: string, kind?: string) => string;
+  renameList: (id: string, name: string) => void;
+  setListKind: (id: string, kind: string) => void;
+  reorderLists: (orderedIds: string[]) => void;
+  deleteList: (id: string) => void;
+  addListEntry: (
+    listId: string,
+    card: Parameters<typeof makeListEntry>[0],
+    quantity?: number
+  ) => Promise<void>;
+  updateListEntry: (
+    listId: string,
+    entryId: string,
+    patch: Partial<{
+      quantity: number;
+      note: string;
+      targetPrice: number;
+      scryfallId: string;
+      setCode: string;
+      collectorNumber: string;
+      finish: import('../types').Finish;
+    }>
+  ) => Promise<void>;
+  removeListEntry: (listId: string, entryId: string) => Promise<void>;
+  moveListEntryToCollection: (listId: string, entryId: string) => Promise<void>;
+  /** Persists the full current collection blob (cards + subCollections + lists). */
+  persistCollection: () => Promise<void>;
+
   // Binder actions
   /**
    * Creates the sample binder defs (tagged isSample on BinderDef). When
@@ -196,6 +228,7 @@ function buildStored(s: {
   uploadedAt: number | null;
   importHistory: ImportHistoryEntry[];
   subCollections: SubCollectionDef[];
+  lists: ListDef[];
 }): StoredCollection {
   return {
     cards: s.cards,
@@ -205,6 +238,7 @@ function buildStored(s: {
     uploadedAt: s.uploadedAt ?? Date.now(),
     importHistory: s.importHistory,
     subCollections: s.subCollections,
+    lists: s.lists,
   };
 }
 
@@ -253,6 +287,7 @@ export const useCollectionStore = create<CollectionState>()(
       // Persisted defaults
       binders: [],
       subCollections: [],
+      lists: [],
 
       // Card actions
       hydrateCards: async () => {
@@ -281,6 +316,7 @@ export const useCollectionStore = create<CollectionState>()(
               uploadedAt: stored.uploadedAt,
               importHistory: history,
               subCollections: stored.subCollections ?? [],
+              lists: stored.lists ?? [],
             });
           }
         } catch (err) {
@@ -373,6 +409,7 @@ export const useCollectionStore = create<CollectionState>()(
               uploadedAt,
               importHistory,
               subCollections: get().subCollections,
+              lists: get().lists,
             })
           );
         } catch (err) {
@@ -557,6 +594,7 @@ export const useCollectionStore = create<CollectionState>()(
                 uploadedAt: s.uploadedAt ?? Date.now(),
                 importHistory: s.importHistory,
                 subCollections: s.subCollections,
+                lists: s.lists,
               }
             : null;
         return buildBackup(collection, s.binders);
@@ -578,6 +616,7 @@ export const useCollectionStore = create<CollectionState>()(
           uploadedAt: collection ? uploadedAt : null,
           importHistory: restoredHistory,
           subCollections: collection?.subCollections ?? [],
+          lists: collection?.lists ?? [],
           binders: backup.binders,
           activeTab: backup.binders[0]?.id ?? 'uncategorized',
           error: null,
@@ -791,6 +830,122 @@ export const useCollectionStore = create<CollectionState>()(
           set({
             error:
               'Sub-collection change saved in memory but could not be saved locally. It will be lost if you refresh the page.',
+          });
+        }
+      },
+
+      // List actions
+      createList: (name, kind) => {
+        const id =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `list-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const now = Date.now();
+        const lists = get().lists;
+        const def: ListDef = {
+          id,
+          name: clampListName(name) || 'Untitled',
+          entries: [],
+          order: lists.length,
+          createdAt: now,
+          updatedAt: now,
+          ...(kind ? { kind } : {}),
+        };
+        set({ lists: [...lists, def] });
+        void get().persistCollection();
+        return id;
+      },
+      renameList: (id, name) => {
+        set({
+          lists: get().lists.map((l) =>
+            l.id === id ? { ...l, name: clampListName(name) || l.name, updatedAt: Date.now() } : l
+          ),
+        });
+        void get().persistCollection();
+      },
+      setListKind: (id, kind) => {
+        set({
+          lists: get().lists.map((l) => (l.id === id ? { ...l, kind, updatedAt: Date.now() } : l)),
+        });
+        void get().persistCollection();
+      },
+      reorderLists: (orderedIds) => {
+        const byId = new Map(get().lists.map((l) => [l.id, l]));
+        const reordered = orderedIds
+          .map((id, i) => {
+            const l = byId.get(id);
+            return l ? { ...l, order: i } : null;
+          })
+          .filter((l): l is ListDef => l !== null);
+        set({ lists: reordered });
+        void get().persistCollection();
+      },
+      deleteList: (id) => {
+        set({
+          lists: get()
+            .lists.filter((l) => l.id !== id)
+            .map((l, i) => ({ ...l, order: i })),
+        });
+        void get().persistCollection();
+      },
+      addListEntry: async (listId, card, quantity) => {
+        const entry = makeListEntry(card, quantity);
+        set({
+          lists: get().lists.map((l) =>
+            l.id === listId ? { ...l, entries: [...l.entries, entry], updatedAt: Date.now() } : l
+          ),
+        });
+        await get().persistCollection();
+      },
+      updateListEntry: async (listId, entryId, patch) => {
+        set({
+          lists: get().lists.map((l) =>
+            l.id === listId
+              ? {
+                  ...l,
+                  updatedAt: Date.now(),
+                  entries: l.entries.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
+                }
+              : l
+          ),
+        });
+        await get().persistCollection();
+      },
+      removeListEntry: async (listId, entryId) => {
+        set({
+          lists: get().lists.map((l) =>
+            l.id === listId
+              ? { ...l, entries: l.entries.filter((e) => e.id !== entryId), updatedAt: Date.now() }
+              : l
+          ),
+        });
+        await get().persistCollection();
+      },
+      moveListEntryToCollection: async (listId, entryId) => {
+        const list = get().lists.find((l) => l.id === listId);
+        const entry = list?.entries.find((e) => e.id === entryId);
+        if (!entry) return;
+        const newOwned = entryToCards(entry);
+        const cards = [...get().cards, ...newOwned];
+        set({
+          cards,
+          lists: get().lists.map((l) =>
+            l.id === listId
+              ? { ...l, entries: l.entries.filter((e) => e.id !== entryId), updatedAt: Date.now() }
+              : l
+          ),
+        });
+        remapDeckAllocations(cards);
+        await get().persistCollection();
+      },
+      persistCollection: async () => {
+        try {
+          await saveCollection(buildStored({ ...get() }));
+        } catch (err) {
+          console.warn('[store] Failed to persist collection:', err);
+          set({
+            error:
+              'Change saved in memory but could not be saved locally. It will be lost if you refresh the page.',
           });
         }
       },

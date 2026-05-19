@@ -109,6 +109,43 @@ export interface SubCollectionDef {
   order: number;
 }
 
+/** Preset list kinds (purely cosmetic grouping; free strings also allowed). */
+export type ListKind = 'wishlist' | 'buylist' | 'deck' | 'trade';
+
+/**
+ * One entry in a List — a reference to a card the user does NOT own. Carries a
+ * concrete printing (defaults to the latest on add, editable via CardEditDialog).
+ * No copyId / ownership. Inert to deck/combo logic.
+ */
+export interface ListEntry {
+  id: string;
+  name: string;
+  scryfallId: string;
+  setCode: string;
+  collectorNumber: string;
+  finish: Finish;
+  /** Printing-agnostic identity, used for the "you own N" match. */
+  oracleId?: string;
+  quantity: number;
+  note?: string;
+  /** Optional per-entry target price (display only; no automation). */
+  targetPrice?: number;
+}
+
+/**
+ * A user-defined list of unowned cards. Rides inside StoredCollection (synced
+ * like subCollections). `kind` is cosmetic; `undefined` ⇒ generic list.
+ */
+export interface ListDef {
+  id: string;
+  name: string;
+  kind?: ListKind | string;
+  entries: ListEntry[];
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface UploadResponse {
   cards: EnrichedCard[];
   totalRows: number;
