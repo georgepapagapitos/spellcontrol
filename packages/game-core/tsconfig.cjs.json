@@ -1,0 +1,16 @@
+{
+  // CommonJS build — consumed by the Express backend (tsc module:commonjs)
+  // and Node's `require` at runtime. `module: Node16` with this package's
+  // "type": "commonjs" emits CommonJS and is the non-deprecated successor to
+  // classic `node` resolution under TS 6. Also emits the single shared .d.ts
+  // set into dist/types (the package "types" field points here).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "outDir": "dist/cjs",
+    "declaration": true,
+    "declarationDir": "dist/types"
+  },
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+}

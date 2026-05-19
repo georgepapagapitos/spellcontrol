@@ -16,10 +16,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Build context is the repo root so each image can pull in the
+          # shared packages/game-core (file: dependency); the Dockerfile
+          # still lives with its service.
           - service: backend
-            context: ./backend
+            dockerfile: ./backend/Dockerfile
           - service: frontend
-            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
     steps:
       - uses: actions/checkout@v6
 
@@ -44,7 +47,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.context }}
+          context: .
+          file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}

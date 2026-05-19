@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyAction, createGameState, gameToRecord, makePlayer } from './state';
+import { applyAction, createGameState, gameToRecord, makePlayer } from './index';
 
 function lobby(players = 2, opts: Partial<Parameters<typeof createGameState>[0]> = {}) {
   return createGameState({
