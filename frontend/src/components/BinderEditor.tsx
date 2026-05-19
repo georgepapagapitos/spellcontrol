@@ -6,7 +6,8 @@ import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/stag
 import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
-import { areAllGroupsEmpty, cardMatchesCompiled, compileFilterGroups } from '../lib/rules';
+import { areAllGroupsEmpty } from '../lib/rules';
+import { countBinderMatches } from '../lib/binder-counts';
 import { cleanFilter } from '../lib/clean-filter';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
@@ -280,20 +281,13 @@ export function BinderEditor() {
 
   useLockBodyScroll(isOpen);
 
+  // Over-capacity check uses the same estimate the editor shows: when
+  // "keep all printings together" is on, count the printings it pulls in too,
+  // so the warning doesn't silently under-count.
   const binderMatchCount = useMemo(() => {
     if (fixedCapacity === null) return 0;
-    const compiled = compileFilterGroups(groups);
-    let n = 0;
-    for (const card of cards) {
-      for (let i = 0; i < compiled.length; i++) {
-        if (cardMatchesCompiled(card, compiled[i])) {
-          n++;
-          break;
-        }
-      }
-    }
-    return n;
-  }, [cards, groups, fixedCapacity]);
+    return countBinderMatches(cards, groups, keepPrintingsTogether).total;
+  }, [cards, groups, fixedCapacity, keepPrintingsTogether]);
 
   if (!isOpen) return null;
 
@@ -741,6 +735,7 @@ export function BinderEditor() {
                     <FilterGroupList
                       groups={groups}
                       cards={cards}
+                      keepPrintingsTogether={keepPrintingsTogether}
                       ownedSets={ownedSets}
                       typeSuggestions={typeSuggestions}
                       oracleSuggestions={oracleSuggestions}
@@ -1004,6 +999,7 @@ export function BinderEditor() {
 function FilterGroupList({
   groups,
   cards,
+  keepPrintingsTogether,
   ownedSets,
   typeSuggestions,
   oracleSuggestions,
@@ -1017,6 +1013,7 @@ function FilterGroupList({
 }: {
   groups: BinderFilterGroup[];
   cards: EnrichedCard[];
+  keepPrintingsTogether: boolean;
   ownedSets: { code: string; label: string }[];
   typeSuggestions: string[];
   oracleSuggestions: string[];
@@ -1028,25 +1025,13 @@ function FilterGroupList({
   onDuplicate: (idx: number) => void;
   onRemove: (idx: number) => void;
 }) {
-  // Per-group match counts + deduped total. Single pass over cards: for each
-  // card, check each compiled group; first hit increments `total`, every hit
-  // increments that group's count. Compile is cached per render of this list.
-  const { perGroup, total } = useMemo(() => {
-    const compiled = compileFilterGroups(groups);
-    const perGroup = new Array(compiled.length).fill(0) as number[];
-    let total = 0;
-    for (const card of cards) {
-      let any = false;
-      for (let i = 0; i < compiled.length; i++) {
-        if (cardMatchesCompiled(card, compiled[i])) {
-          perGroup[i]++;
-          any = true;
-        }
-      }
-      if (any) total++;
-    }
-    return { perGroup, total };
-  }, [groups, cards]);
+  // Per-group counts are always raw rule matches; the total expands to
+  // pulled-in printings when "keep all printings together" is on. See
+  // countBinderMatches.
+  const { perGroup, total } = useMemo(
+    () => countBinderMatches(cards, groups, keepPrintingsTogether),
+    [groups, cards, keepPrintingsTogether]
+  );
 
   return (
     <div className="filter-group-list">
@@ -1088,9 +1073,15 @@ function FilterGroupList({
           Use OR rules for whole alternative patterns. Within a single field, the{' '}
           <strong>AND</strong>/<strong>OR</strong> pill between chips already handles per-field OR.
         </span>
-        {groups.length > 1 && (
+        {(groups.length > 1 || keepPrintingsTogether) && (
           <span className="filter-group-total" aria-live="polite">
             Matches <strong>{total.toLocaleString()}</strong> {total === 1 ? 'card' : 'cards'} total
+          </span>
+        )}
+        {keepPrintingsTogether && (
+          <span className="filter-group-help" aria-hidden>
+            Per-rule counts are rule matches; the total also counts every printing pulled in by
+            “keep all printings together”.
           </span>
         )}
       </div>
