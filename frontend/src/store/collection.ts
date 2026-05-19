@@ -22,7 +22,7 @@ import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { markDestructive } from '../lib/sync-intent';
-import { reconcileBinderRefs, keysForIds } from '../lib/binder-refs';
+import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
 
 function newBinderId(): string {
@@ -252,7 +252,8 @@ function remapDeckAllocations(newCards: EnrichedCard[]): void {
 
 /**
  * Binder analogue of remapDeckAllocations: re-resolve every binder's pins /
- * exclusions from their durable natural-key shadow against the new collection.
+ * exclusions / manual order from their durable natural-key shadow against the
+ * new collection.
  * `prevCards` is the collection BEFORE this mutation (still needed to backfill
  * legacy binders that predate the shadow). No-ops cleanly — only writes
  * `binders` when something actually changed, preserving the array reference so
@@ -642,22 +643,21 @@ export const useCollectionStore = create<CollectionState>()(
         let added = false;
         const cards = get().cards;
         const card = cards.find((c) => c.copyId === copyId);
-        const byId = new Map(cards.map((c) => [c.copyId, c]));
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
             const existing = b.pinnedCopyIds ?? [];
             if (existing.includes(copyId)) return b;
             added = true;
-            const now = Date.now();
-            const nextIds = [...existing, copyId];
+            // Durable keys are the source of truth: append this copy's key and
+            // re-derive ids. Never reconstructs keys from ids, so an existing
+            // orphan-retained pin survives this mutation (the keysForIds bug).
+            const { keys, ids } = addRef(b.pinnedKeys, existing, copyId, cards);
             const updated = {
               ...b,
-              pinnedCopyIds: nextIds,
-              // Keep the durable key shadow in sync at pin time so a pin made
-              // before the next collection change still survives a loss.
-              pinnedKeys: keysForIds(nextIds, byId, existing, b.pinnedKeys ?? []),
-              updatedAt: now,
+              pinnedCopyIds: ids,
+              pinnedKeys: keys,
+              updatedAt: Date.now(),
             };
             if (b.mode !== 'manual' && card && !areAllGroupsEmpty(b.filterGroups)) {
               const compiled = compileFilterGroups(b.filterGroups);
@@ -672,27 +672,32 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       removeCardFromBinder: (binderId, copyId, isRuleMatched) => {
-        const byId = new Map(get().cards.map((c) => [c.copyId, c]));
+        const cards = get().cards;
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
             if (isRuleMatched) {
               const excluded = b.excludedCopyIds ?? [];
               if (excluded.includes(copyId)) return b;
-              const nextExcluded = [...excluded, copyId];
+              // Exclude = add to the exclusion ref (same model as a pin).
+              const { keys, ids } = addRef(b.excludedKeys, excluded, copyId, cards);
               return {
                 ...b,
-                excludedCopyIds: nextExcluded,
-                excludedKeys: keysForIds(nextExcluded, byId, excluded, b.excludedKeys ?? []),
+                excludedCopyIds: ids,
+                excludedKeys: keys,
                 updatedAt: Date.now(),
               };
             } else {
-              const nextPinned = (b.pinnedCopyIds ?? []).filter((id) => id !== copyId);
+              // Drop this copy's slot from both the pin and manual-order refs:
+              // one key occurrence each, every other key (incl. orphans) kept.
+              const pin = removeRef(b.pinnedKeys, b.pinnedCopyIds, copyId, cards);
+              const hasManual = (b.manualOrder?.length ?? 0) > 0 || (b.manualKeys?.length ?? 0) > 0;
+              const man = hasManual ? removeRef(b.manualKeys, b.manualOrder, copyId, cards) : null;
               return {
                 ...b,
-                pinnedCopyIds: nextPinned,
-                pinnedKeys: keysForIds(nextPinned, byId, b.pinnedCopyIds ?? [], b.pinnedKeys ?? []),
-                manualOrder: (b.manualOrder ?? []).filter((id) => id !== copyId),
+                pinnedCopyIds: pin.ids,
+                pinnedKeys: pin.keys,
+                ...(man ? { manualOrder: man.ids, manualKeys: man.keys } : {}),
                 updatedAt: Date.now(),
               };
             }
@@ -701,20 +706,15 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       restoreExcludedCard: (binderId, copyId) => {
-        const byId = new Map(get().cards.map((c) => [c.copyId, c]));
+        const cards = get().cards;
         set((s) => ({
           binders: s.binders.map((b) => {
             if (b.id !== binderId) return b;
-            const nextExcluded = (b.excludedCopyIds ?? []).filter((id) => id !== copyId);
+            const { keys, ids } = removeRef(b.excludedKeys, b.excludedCopyIds, copyId, cards);
             return {
               ...b,
-              excludedCopyIds: nextExcluded,
-              excludedKeys: keysForIds(
-                nextExcluded,
-                byId,
-                b.excludedCopyIds ?? [],
-                b.excludedKeys ?? []
-              ),
+              excludedCopyIds: ids,
+              excludedKeys: keys,
               updatedAt: Date.now(),
             };
           }),
@@ -730,18 +730,31 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       setBinderManualOrder: (binderId, order) => {
+        const cards = get().cards;
         set((s) => ({
-          binders: s.binders.map((b) =>
-            b.id !== binderId ? b : { ...b, manualOrder: order ?? undefined, updatedAt: Date.now() }
-          ),
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId) return b;
+            if (!order) {
+              // Clearing manual order → drop the durable shadow with it.
+              return { ...b, manualOrder: undefined, manualKeys: undefined, updatedAt: Date.now() };
+            }
+            // Capture the durable key shadow at order time so a custom
+            // arrangement survives a collection round-trip before the next
+            // reconcile. Order is preserved exactly; keys mirror it 1:1.
+            const { keys, ids } = setOrderRefs(order, cards);
+            return { ...b, manualOrder: ids, manualKeys: keys, updatedAt: Date.now() };
+          }),
         }));
       },
 
       seedManualOrder: (binderId, currentCardIds) => {
+        const cards = get().cards;
         set((s) => ({
-          binders: s.binders.map((b) =>
-            b.id !== binderId ? b : { ...b, manualOrder: currentCardIds, updatedAt: Date.now() }
-          ),
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId) return b;
+            const { keys, ids } = setOrderRefs(currentCardIds, cards);
+            return { ...b, manualOrder: ids, manualKeys: keys, updatedAt: Date.now() };
+          }),
         }));
       },
 
