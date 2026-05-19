@@ -83,9 +83,6 @@ export interface EnrichedCard {
   promoTypes?: string[];
 }
 
-/** Preset list kinds (purely cosmetic grouping; free strings also allowed). */
-export type ListKind = 'wishlist' | 'buylist' | 'deck' | 'trade';
-
 /**
  * One entry in a List — a reference to a card the user does NOT own. Carries a
  * concrete printing (defaults to the latest on add, editable via CardEditDialog).
@@ -108,12 +105,11 @@ export interface ListEntry {
 
 /**
  * A user-defined list of unowned cards. Rides inside StoredCollection (synced
- * with the collection blob). `kind` is cosmetic; `undefined` ⇒ generic list.
+ * with the collection blob).
  */
 export interface ListDef {
   id: string;
   name: string;
-  kind?: ListKind | string;
   entries: ListEntry[];
   order: number;
   createdAt: number;
