@@ -47,7 +47,6 @@ export function ownedCountForEntry(entry: ListEntry, owned: EnrichedCard[]): num
  * Converts an entry into `quantity` real EnrichedCards (fresh copyIds) for
  * "move to collection". Built from the entry's stored printing identity —
  * price/image are left unset (0); the user can refresh prices afterward.
- * Cards land in Main (no subCollectionId).
  */
 export function entryToCards(entry: ListEntry): EnrichedCard[] {
   const n = Math.max(1, Math.floor(entry.quantity) || 1);

@@ -6375,6 +6375,19 @@ hr {
   }
 }
 
+/* ── Collection hub tab strip ──────────────────────────────────────────────
+   Reuses .site-nav-link / .site-nav-count for the tab items; only the strip
+   wrapper is bespoke. Unlike .site-nav-links this stays visible on mobile
+   (it is the in-page section nav, not the header's primary nav). */
+.collection-hub-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
 .mobile-tab-bar {
   display: none;
@@ -7055,13 +7068,6 @@ hr {
   min-width: 12rem;
 }
 
-/* Sub-collection view filter — a chip row in the collection toolbar stack.
-   Reuses the shared .chip / .chip.active styling; only spacing is added so
-   it sits between the hero and the list like the bulk toolbar does. */
-.collection-subfilter {
-  margin-bottom: 0.6rem;
-}
-
 /* Set code + collector number (used in list view) */
 .card-list-foil-tag {
   display: inline-block;
@@ -7485,15 +7491,84 @@ hr {
   border: 1px solid var(--border);
 }
 
-/* Bulk-select checkbox — first cell of each list row. Sized to align with
-   the thumbnail and kept from shrinking so the column stays straight. */
-.collection-list-select {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  margin: 0;
+/* Select-mode toggle in the toolbar. Pressed = selection mode is active
+   (rows/cards become click-to-select instead of click-to-preview). */
+.card-list-select-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.card-list-select-toggle[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* While select mode is on, the whole row/card is the toggle target — kill
+   pointer events on the inner content (links, badges) so a click anywhere
+   selects rather than navigating, and never opens preview. */
+.collection-list-row.is-selectable,
+.collection-grid-item.is-selectable {
   cursor: pointer;
-  accent-color: var(--accent);
+}
+
+.collection-list-row.is-selectable > *,
+.collection-grid-item.is-selectable > * {
+  pointer-events: none;
+}
+
+.collection-list-row.is-selected {
+  background: var(--surface2);
+}
+
+.collection-grid-item.is-selected {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* Leading check indicator — replaces the old always-on checkbox. Only
+   rendered while select mode is on; sized to hold the list thumbnail
+   column straight. */
+.collection-list-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  color: #fff;
+}
+
+.collection-list-check[data-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Grid check badge — overlaid on the card corner so selection reads at a
+   glance against the art. */
+.collection-grid-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.collection-grid-check[data-checked='true'] {
+  background: var(--accent);
+  border-color: #fff;
 }
 
 .collection-list-main {

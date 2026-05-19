@@ -344,7 +344,7 @@ export function BindersIndexPage() {
               className="binders-index-card"
               style={{ ['--binder-color' as string]: b.def.color }}
             >
-              <Link to={`/binders/${b.def.id}`} className="binders-index-card-link">
+              <Link to={`/collection/binders/${b.def.id}`} className="binders-index-card-link">
                 <span
                   className="binders-index-card-swatch"
                   aria-hidden
