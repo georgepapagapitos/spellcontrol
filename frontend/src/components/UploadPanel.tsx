@@ -1,5 +1,5 @@
 import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText } from '../lib/api';
 import type { UploadResponse } from '../types';
@@ -7,11 +7,13 @@ import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import { findPriorImports } from '../lib/reimport';
 import type { ImportHistoryEntry } from '../lib/local-cards';
+import { summarizeImportRouting } from '../lib/import-routing';
 import { Modal } from './Modal';
 import { CardScanner } from './CardScanner';
 import { useCanScan } from '../lib/use-can-scan';
 import { ProgressBar } from './ProgressBar';
 import { StagedFileList } from './StagedFileList';
+import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 
@@ -36,6 +38,10 @@ export function UploadPanel() {
   const [stageNote, setStageNote] = useState<string | null>(null);
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  /** ImportIds from the most recent runImport invocation. Drives the
+   *  post-import "where did my cards go?" panel. Cleared whenever the user
+   *  starts a new import or dismisses the panel. */
+  const [recentImportIds, setRecentImportIds] = useState<Set<string>>(new Set());
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
@@ -57,6 +63,11 @@ export function UploadPanel() {
 
   const hasCollection = cards.length > 0;
   const { confirm, dialog: confirmDialog } = useConfirm();
+
+  const routingSummary = useMemo(
+    () => summarizeImportRouting(recentImportIds, cards, binders),
+    [recentImportIds, cards, binders]
+  );
 
   const handlePickFile = () => {
     if (isLoading) return;
@@ -117,7 +128,9 @@ export function UploadPanel() {
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
+    setRecentImportIds(new Set());
     setShowUnresolved(false);
+    const newImportIds = new Set<string>();
     try {
       if (p.files) {
         // Sequential batch: one history entry per file. For 'replace' the
@@ -129,10 +142,11 @@ export function UploadPanel() {
           const file = p.files[i];
           const result = await importFile(file);
           const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
-          await importCards(result, file.name, fileMode, {
+          const id = await importCards(result, file.name, fileMode, {
             isSample: p.isSample,
             binderName,
           });
+          newImportIds.add(id);
           totalCards += result.cards.length;
           totalUnresolved += result.unresolvedNames.length;
         }
@@ -144,14 +158,16 @@ export function UploadPanel() {
         setSuccessMsg(parts.join(' · '));
         setStagedFiles([]);
         setStageNote(null);
+        setRecentImportIds(newImportIds);
         return;
       }
 
       const result = await p.fn!();
-      await importCards(result, p.label, mode, {
+      const id = await importCards(result, p.label, mode, {
         isSample: p.isSample,
         binderName,
       });
+      newImportIds.add(id);
       const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
       if (result.scryfallHits > 0) {
         parts.push(`${result.scryfallHits.toLocaleString()} matched`);
@@ -164,6 +180,7 @@ export function UploadPanel() {
       }
       setSuccessMsg(parts.join(' · '));
       if (p.label === 'pasted-list') setPasteText('');
+      setRecentImportIds(newImportIds);
     } catch (err) {
       const fallback = 'Could not read that file. Double-check the format and try again.';
       setError(err instanceof Error ? err.message : fallback);
@@ -275,6 +292,13 @@ export function UploadPanel() {
             ×
           </button>
         </div>
+      )}
+
+      {!error && routingSummary.entries.length > 0 && (
+        <ImportRoutingSummary
+          summary={routingSummary}
+          onDismiss={() => setRecentImportIds(new Set())}
+        />
       )}
 
       {hasCollection && unresolvedNames.length > 0 && (
