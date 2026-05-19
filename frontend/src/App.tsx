@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { CollectionPage } from './pages/CollectionPage';
 import { BinderPage } from './pages/BinderPage';
 import { BindersIndexPage } from './pages/BindersIndexPage';
+import { ListsPage } from './pages/ListsPage';
 import { DecksIndexPage } from './pages/DecksIndexPage';
 import { DeckNewPage } from './pages/DeckNewPage';
 import { GuidedBuildPage } from './pages/GuidedBuildPage';
@@ -67,6 +68,8 @@ export default function App() {
         <Route path="/binder" element={<Navigate to="/binders" replace />} />
         <Route path="/binders" element={<BindersIndexPage />} />
         <Route path="/binders/:id" element={<BinderPage />} />
+        <Route path="/lists" element={<ListsPage />} />
+        <Route path="/lists/:id" element={<ListsPage />} />
         <Route path="/decks" element={<DecksIndexPage />} />
         <Route path="/decks/new" element={<DeckNewPage />} />
         <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
