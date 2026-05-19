@@ -4,6 +4,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderDef,
   BinderInput,
+  BinderReviewSnapshot,
   EnrichedCard,
   Finish,
   ListDef,
@@ -175,6 +176,10 @@ interface CollectionState {
   loadSampleBinders: (importResponse: UploadResponse | null) => Promise<string[]>;
   createBinder: (input: BinderInput) => BinderDef;
   updateBinder: (id: string, input: Partial<BinderInput>) => void;
+  /** Stamps a snapshot of the binder's current membership + volatile field
+   *  values (price, edhrecRank) so the next view can diff against it and
+   *  surface drift. See `lib/binder-drift.ts`. */
+  markBinderReviewed: (id: string, snapshot: BinderReviewSnapshot) => void;
   deleteBinder: (id: string) => void;
   /** Removes every binder. Cards are unaffected — they fall back to Uncategorized. */
   deleteAllBinders: () => void;
@@ -910,6 +915,14 @@ export const useCollectionStore = create<CollectionState>()(
         set((s) => ({
           binders: s.binders.map((b) =>
             b.id === id ? { ...b, ...input, id: b.id, updatedAt: Date.now() } : b
+          ),
+        }));
+      },
+
+      markBinderReviewed: (id, snapshot) => {
+        set((s) => ({
+          binders: s.binders.map((b) =>
+            b.id === id ? { ...b, lastReviewedSnapshot: snapshot, updatedAt: Date.now() } : b
           ),
         }));
       },

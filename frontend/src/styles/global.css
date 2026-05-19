@@ -1563,6 +1563,114 @@ input[type='search'] {
   outline: none;
 }
 
+/* Drift banner — informational tone, same accent-light palette as
+   `.success-banner`. Sits above the binder section list when membership has
+   shifted (or no baseline exists). */
+.binder-drift {
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--accent-hover);
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 1rem;
+}
+
+.binder-drift--neutral {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.binder-drift--neutral > span {
+  flex: 1;
+}
+
+.binder-drift-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Inline toggle — chevron + summary text, sized in line with the surrounding
+   button family. Uses the same `.section-chevron` element as binder section
+   headers so the rotate-on-collapse animation comes from one source. */
+.binder-drift-toggle {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.binder-drift-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.binder-drift.collapsed .binder-drift-toggle .section-chevron {
+  transform: rotate(-90deg);
+}
+
+.binder-drift-summary {
+  flex: 1;
+}
+
+.binder-drift-when {
+  color: var(--text3);
+}
+
+.binder-drift-details {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.75rem;
+  border-top: 0.5px dashed var(--accent);
+  padding-top: 0.6rem;
+}
+
+.binder-drift-list ul {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+
+.binder-drift-list li {
+  padding: 2px 0;
+  color: var(--text2);
+}
+
+.binder-drift-list-title {
+  font-weight: 600;
+  color: var(--accent-hover);
+}
+
+.binder-drift-list--added .binder-drift-list-title::before {
+  content: '+ ';
+}
+
+.binder-drift-list--removed .binder-drift-list-title::before {
+  content: '− ';
+  color: var(--err-text);
+}
+
+.binder-drift-card-name {
+  color: var(--text);
+}
+
+.binder-drift-card-reason {
+  color: var(--text3);
+}
+
 .binder-toolbar {
   /* Mirrors .deck-toolbar — a single horizontal row with controls on the
      left (view mode) and a flex-grow search on the right. The previous
