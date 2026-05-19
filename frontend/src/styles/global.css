@@ -4974,9 +4974,14 @@ hr {
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  /* Drawer model: no dim. The opaque .card-preview-sheet is the surface
+     that covers the grid as it rises; this layer is just a transparent
+     full-viewport hit area (so taps outside the card still close) and the
+     positioning context for the sheet. The collection stays at full
+     brightness underneath and is progressively covered, exactly like
+     ManaBox — not dimmed behind a floating card. */
+  background: transparent;
   z-index: var(--z-overlay);
-  animation: fade-in 0.15s ease-out;
 }
 
 .card-preview-sheet {
@@ -4985,6 +4990,28 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* The drawer surface — translucent, not opaque, so a hint of the
+     collection grid reads through behind the card while it still clearly
+     covers it as it rises (a smoked-glass drawer rather than a card over
+     a dim overlay). Deliberately NO backdrop-filter: blurring a
+     full-screen surface while it is mid-slide forces a per-frame backdrop
+     recompute and is the classic cause of a janky drawer. Plain alpha
+     composites cheaply and stays smooth. Tone matches the info panel so
+     the panel reads as part of the same surface. */
+  background: rgba(14, 15, 19, 0.76);
+  /* True bottom-sheet rise on open, modeled on ManaBox: the whole sheet
+     (card + flip row + info panel) translates up from fully off-screen as
+     one cohesive surface — no scale, no per-element fade, no dim —
+     progressively covering the grid. Longer + a smoother, fairly even
+     curve with a soft landing (not a front-loaded ease-out) so the eye
+     actually tracks the drawer gliding the full distance and settling,
+     instead of it covering most of the travel in the first ~80ms and
+     reading as a snap. Runs once on mount (the component remounts each
+     time the preview opens). `backwards` pins the off-screen start before
+     the first frame for a clean entrance, then releases transform control
+     when the one-shot ends so the swipe-down-dismiss inline translateY
+     still works (its value is 0 at mount, so there's no conflict). */
+  animation: card-preview-rise 0.5s cubic-bezier(0.32, 0.72, 0, 1) backwards;
   /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
      horizontal pans are owned by the nested .card-preview-track
      (which sets its own touch-action: pan-x). Telling the browser
@@ -5146,6 +5173,19 @@ hr {
 
   to {
     opacity: 1;
+  }
+}
+
+/* Full-height bottom-sheet slide. Pure transform (no opacity/scale) so
+   the sheet reads as one solid panel sliding up over the dimming
+   backdrop — the way ManaBox does it — rather than a fade. */
+@keyframes card-preview-rise {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
   }
 }
 
@@ -5321,6 +5361,43 @@ hr {
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+}
+
+/* Placeholder shown while the card art loads. Sits inside the clipped
+   face so it inherits the rounded card silhouette; a slow diagonal sheen
+   keeps it alive without being busy. Fades out as the image fades in. */
+.card-preview-image-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0.11) 50%,
+      rgba(255, 255, 255, 0) 65%
+    ),
+    rgba(20, 22, 28, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: card-preview-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes card-preview-skeleton {
+  from {
+    background-position:
+      180% 0,
+      0 0;
+  }
+
+  to {
+    background-position:
+      -60% 0,
+      0 0;
+  }
 }
 
 /* Holographic foil — minimal recipe.
@@ -5610,6 +5687,12 @@ hr {
   .card-preview-image-frame {
     transform: scale(var(--slide-scale, 1));
     transition: none;
+  }
+  .card-preview-sheet {
+    animation: none;
+  }
+  .card-preview-image-skeleton {
+    animation: none;
   }
 }
 
