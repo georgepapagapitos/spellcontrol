@@ -414,14 +414,7 @@ export const useCollectionStore = create<CollectionState>()(
           if (remainingCards.length === 0 && remainingHistory.length === 0) {
             await clearCollection();
           } else {
-            await saveCollection({
-              cards: remainingCards,
-              fileName: remainingHistory.length === 0 ? '' : s.fileName,
-              scryfallHits: s.scryfallHits,
-              scryfallMisses: s.scryfallMisses,
-              uploadedAt: s.uploadedAt ?? Date.now(),
-              importHistory: remainingHistory,
-            });
+            await saveCollection(buildStored({ ...get() }));
           }
         } catch (err) {
           console.warn('[store] Failed to persist after deleteImports:', err);
@@ -435,14 +428,7 @@ export const useCollectionStore = create<CollectionState>()(
         );
         set({ cards: updated });
         try {
-          await saveCollection({
-            cards: updated,
-            fileName: s.fileName,
-            scryfallHits: s.scryfallHits,
-            scryfallMisses: s.scryfallMisses,
-            uploadedAt: s.uploadedAt ?? Date.now(),
-            importHistory: s.importHistory,
-          });
+          await saveCollection(buildStored({ ...get() }));
         } catch (err) {
           console.warn('[store] Failed to persist card update:', err);
         }
@@ -458,14 +444,7 @@ export const useCollectionStore = create<CollectionState>()(
           remapBinderRefs(s.cards, cards);
         }
         try {
-          await saveCollection({
-            cards,
-            fileName: s.fileName,
-            scryfallHits: s.scryfallHits,
-            scryfallMisses: s.scryfallMisses,
-            uploadedAt: s.uploadedAt ?? Date.now(),
-            importHistory: s.importHistory,
-          });
+          await saveCollection(buildStored({ ...get() }));
         } catch (err) {
           console.warn('[store] Failed to persist after replaceAllCards:', err);
         }
@@ -477,14 +456,7 @@ export const useCollectionStore = create<CollectionState>()(
         const updated = [...s.cards, enriched];
         set({ cards: updated });
         try {
-          await saveCollection({
-            cards: updated,
-            fileName: s.fileName,
-            scryfallHits: s.scryfallHits,
-            scryfallMisses: s.scryfallMisses,
-            uploadedAt: s.uploadedAt ?? Date.now(),
-            importHistory: s.importHistory,
-          });
+          await saveCollection(buildStored({ ...get() }));
         } catch (err) {
           console.warn('[store] Failed to persist after addCard:', err);
         }
@@ -531,14 +503,7 @@ export const useCollectionStore = create<CollectionState>()(
           set({ cards: updated });
 
           try {
-            await saveCollection({
-              cards: updated,
-              fileName: get().fileName,
-              scryfallHits: get().scryfallHits,
-              scryfallMisses: get().scryfallMisses,
-              uploadedAt: get().uploadedAt ?? Date.now(),
-              importHistory: get().importHistory,
-            });
+            await saveCollection(buildStored({ ...get() }));
           } catch (err) {
             console.warn('[store] Failed to persist refreshed prices:', err);
           }
@@ -623,15 +588,7 @@ export const useCollectionStore = create<CollectionState>()(
 
         if (collection) {
           try {
-            await saveCollection({
-              cards: collection.cards,
-              fileName: collection.fileName,
-              scryfallHits: collection.scryfallHits,
-              scryfallMisses: collection.scryfallMisses,
-              uploadedAt,
-              importHistory: restoredHistory,
-              subCollections: collection?.subCollections ?? [],
-            });
+            await saveCollection(buildStored({ ...get() }));
           } catch (err) {
             console.warn('[store] Failed to persist restored collection:', err);
             set({
