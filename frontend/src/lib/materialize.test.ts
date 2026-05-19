@@ -495,4 +495,14 @@ describe('materializeBinders', () => {
       expect(binders[0].totalCards).toBe(1);
     });
   });
+
+  it('sub-collection assignment does not change binder membership (orthogonal)', () => {
+    const inBucket = makeCard({ rarity: 'rare', subCollectionId: 'sc1' });
+    const notInBucket = makeCard({ rarity: 'rare' });
+    const rareBinder = makeBinder({
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    });
+    const { binders } = materializeBinders([inBucket, notInBucket], [rareBinder], defaultOpts);
+    expect(binders[0].totalCards).toBe(2); // routed purely by the rarity filter
+  });
 });
