@@ -1,0 +1,10 @@
+{
+  // Production build typecheck gate (see package.json "build"). Same as
+  // tsconfig.json but WITHOUT test files: the frontend Docker image builds
+  // ./frontend in isolation, and a cross-package test import (e.g. the
+  // game-state parity guard reaching into ../../../backend) is unresolvable
+  // there. Tests are never shipped and are still fully type-checked by the
+  // full-repo CI "typecheck" script (tsc -b on tsconfig.json).
+  "extends": "./tsconfig.json",
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}
