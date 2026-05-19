@@ -62,6 +62,16 @@ export interface EnrichedCard {
   imageNormal?: string;
   /** Back-face normal image for two-sided layouts (transform / modal_dfc / reversible / double_faced_token). */
   imageNormalBack?: string;
+  /**
+   * Hero-resolution front art (Scryfall `large`, 672×936) — only consumed by
+   * the full-screen CardPreview so the desktop drawer can grow without
+   * upscaling `normal`. Everything else (grids, binder pockets, thumbnails)
+   * keeps using imageNormal. Absent on cards enriched before this field
+   * existed; consumers must fall back to imageNormal.
+   */
+  imageLarge?: string;
+  /** Back-face hero-resolution image, paired with imageLarge for two-sided layouts. */
+  imageLargeBack?: string;
   /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
   frameEffects?: string[];
   /** True when the printing is a full-art treatment (covers both Scryfall's full_art flag and the 'fullart' frame effect). */
@@ -350,8 +360,19 @@ export interface BinderDef {
   excludedKeys?: string[];
   /** When set, explicit card order overrides the binder's sort fields.
    *  Cards not in this list (new additions) are appended at the end.
-   *  Undefined = use auto-sort (existing behavior). */
+   *  Undefined = use auto-sort (existing behavior).
+   *  Derived: re-resolved from `manualKeys` against the live collection on
+   *  every collection change, exactly like `pinnedCopyIds`. This is the array
+   *  materialize consumes. */
   manualOrder?: string[];
+  /** Durable natural-key shadow of `manualOrder` (printingFinishKey per slot,
+   *  same length & order, multiplicity preserved). copyIds are regenerated on
+   *  every import, so the key — not the copyId — is the persisted source of
+   *  truth that lets a hand-arranged order survive a collection round-trip
+   *  (re-upload after a cache/sync loss). Undefined on binders created before
+   *  this existed or with no manual order; backfilled on the next reconcile
+   *  while the old copyIds still resolve. See `pinnedKeys`. */
+  manualKeys?: string[];
   /** When false, cards allocated to any deck are excluded from this binder's
    *  view and membership entirely (no fallback binder, no Uncategorized).
    *  Pin/exclusion/manualOrder metadata is preserved — cards return when the
