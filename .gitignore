@@ -52,3 +52,7 @@ coverage/
 *.pid
 *.seed
 *.pid.lock
+
+# Agent-generated brainstorming/spec/plan docs — keep them out of the repo.
+# (`docs/` itself stays usable for real project docs.)
+docs/superpowers/
