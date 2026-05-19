@@ -20,6 +20,33 @@ export const userData = pgTable('user_data', {
 });
 
 /**
+ * Pre-overwrite safety net for the collection-wipe path. A PUT /api/sync that
+ * replaces a non-empty stored collection with null/empty is the documented
+ * destructive-wipe hazard; before applying it the route stashes the prior
+ * full snapshot here so the user can restore it. Bounded to the 3 most recent
+ * per user (ring) by the route — old rows are pruned on insert.
+ */
+export const userDataBackups = pgTable(
+  'user_data_backups',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Full prior SyncSnapshot (collection/binders/decks/games/version/updatedAt). */
+    snapshot: jsonb('snapshot').notNull(),
+    /** Why the backup was taken — currently always 'collection-wipe'. */
+    reason: text('reason').notNull(),
+    priorVersion: integer('prior_version').notNull(),
+    priorCardCount: integer('prior_card_count').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    userIdx: index('user_data_backups_user_idx').on(t.userId, t.createdAt),
+  })
+);
+
+/**
  * Live multi-device game sessions. The full game state (players, life totals,
  * commander damage, event log) lives in `state` JSONB; clients poll GET and
  * mutate via PATCH with optimistic concurrency on `version`. Finished sessions
@@ -94,6 +121,7 @@ export const comboIngestRuns = pgTable('combo_ingest_runs', {
 
 export type UserRow = typeof users.$inferSelect;
 export type UserDataRow = typeof userData.$inferSelect;
+export type UserDataBackupRow = typeof userDataBackups.$inferSelect;
 export type GameSessionRow = typeof gameSessions.$inferSelect;
 export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;

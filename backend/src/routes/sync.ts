@@ -1,10 +1,13 @@
 import { Router, type Request, type Response } from 'express';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 import { getDb } from '../db';
-import { userData } from '../db/schema';
+import { userData, userDataBackups } from '../db/schema';
 
 export const syncRouter: Router = Router();
+
+/** Pre-wipe snapshots retained per user (ring). Oldest pruned on insert. */
+const MAX_BACKUPS_PER_USER = 3;
 
 // Per-user stored-snapshot cap. Still a real anti-abuse bound (every GET/PUT
 // round-trips the blob through the container), but the old 10MB figure was
@@ -72,6 +75,50 @@ async function loadSnapshot(userId: string): Promise<SyncSnapshot> {
     version: row.version ?? 0,
     updatedAt: row.updatedAt ?? Date.now(),
   };
+}
+
+/**
+ * Stash the prior snapshot before a destructive overwrite, then prune the
+ * user's backup ring to the most recent MAX_BACKUPS_PER_USER. Best-effort:
+ * a failure here must NOT fail the user's PUT (their action still proceeds),
+ * but it is logged loudly because it means the safety net didn't catch.
+ */
+async function stashBackup(
+  userId: string,
+  prior: SyncSnapshot,
+  priorCards: number,
+  reason: string
+): Promise<void> {
+  try {
+    const db = getDb();
+    await db.insert(userDataBackups).values({
+      id: crypto.randomUUID(),
+      userId,
+      snapshot: prior,
+      reason,
+      priorVersion: prior.version,
+      priorCardCount: priorCards,
+      createdAt: Date.now(),
+    });
+    const rows = await db
+      .select({ id: userDataBackups.id })
+      .from(userDataBackups)
+      .where(eq(userDataBackups.userId, userId))
+      .orderBy(desc(userDataBackups.createdAt));
+    const stale = rows.slice(MAX_BACKUPS_PER_USER).map((r) => r.id);
+    if (stale.length > 0) {
+      await db.delete(userDataBackups).where(inArray(userDataBackups.id, stale));
+    }
+    console.log(
+      `[sync] BACKUP user=${userId} reason=${reason} priorCards=${priorCards} ` +
+        `priorVersion=${prior.version} kept<=${MAX_BACKUPS_PER_USER}`
+    );
+  } catch (err) {
+    console.error(
+      `[sync] BACKUP.fail user=${userId} reason=${reason} — wipe proceeded WITHOUT a safety net`,
+      err
+    );
+  }
 }
 
 syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
@@ -166,9 +213,99 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
     return res.status(409).json({ error: 'Version conflict.', current });
   }
 
+  // The overwrite committed. If it destroyed a non-empty stored collection,
+  // stash the prior snapshot so it can be restored. Done after the update so
+  // a 409 (no overwrite) never produces a spurious backup.
+  if (wipe) {
+    await stashBackup(req.user!.id, prior, priorCards, 'collection-wipe');
+  }
+
   console.log(
     `[sync] PUT.ok user=${req.user!.id} v=${updated[0].version} ` +
       `collection=${body.collection == null ? 'null' : `${incomingCards}cards`}`
   );
   res.json({ version: updated[0].version, updatedAt: updated[0].updatedAt });
+});
+
+/**
+ * List the user's available pre-wipe backups (metadata only — the snapshot
+ * blob is large and only materialized on restore). Most recent first.
+ */
+syncRouter.get('/backups', requireAuth, async (req: Request, res: Response) => {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: userDataBackups.id,
+      reason: userDataBackups.reason,
+      priorVersion: userDataBackups.priorVersion,
+      priorCardCount: userDataBackups.priorCardCount,
+      createdAt: userDataBackups.createdAt,
+    })
+    .from(userDataBackups)
+    .where(eq(userDataBackups.userId, req.user!.id))
+    .orderBy(desc(userDataBackups.createdAt));
+  res.json({ backups: rows });
+});
+
+/**
+ * Restore a backup as the current snapshot. Same optimistic-concurrency
+ * contract as PUT: the client passes its `baseVersion`; a mismatch returns
+ * 409 with the current snapshot so the client rebases instead of silently
+ * clobbering a newer state. The backup row is kept (restore is repeatable).
+ */
+syncRouter.post('/restore', requireAuth, async (req: Request, res: Response) => {
+  const body = req.body as { backupId?: unknown; baseVersion?: unknown };
+  if (typeof body.backupId !== 'string') {
+    return res.status(400).json({ error: 'backupId is required.' });
+  }
+  if (typeof body.baseVersion !== 'number') {
+    return res.status(400).json({ error: 'baseVersion is required.' });
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(userDataBackups)
+    .where(and(eq(userDataBackups.id, body.backupId), eq(userDataBackups.userId, req.user!.id)))
+    .limit(1);
+  const backup = rows[0];
+  if (!backup) {
+    return res.status(404).json({ error: 'Backup not found.' });
+  }
+
+  const snap = backup.snapshot as SyncSnapshot;
+  const now = Date.now();
+  const updated = await db
+    .update(userData)
+    .set({
+      collection: snap.collection ?? null,
+      binders: Array.isArray(snap.binders) ? snap.binders : [],
+      decks: Array.isArray(snap.decks) ? snap.decks : [],
+      games: Array.isArray(snap.games) ? snap.games : [],
+      version: body.baseVersion + 1,
+      updatedAt: now,
+    })
+    .where(and(eq(userData.userId, req.user!.id), eq(userData.version, body.baseVersion)))
+    .returning({ version: userData.version, updatedAt: userData.updatedAt });
+
+  if (updated.length === 0) {
+    const current = await loadSnapshot(req.user!.id);
+    console.log(
+      `[sync] RESTORE.409 user=${req.user!.id} base=${body.baseVersion} dbv=${current.version}`
+    );
+    return res.status(409).json({ error: 'Version conflict.', current });
+  }
+
+  console.log(
+    `[sync] RESTORE.ok user=${req.user!.id} backup=${body.backupId} ` +
+      `v=${updated[0].version} cards=${collectionCardCount(snap.collection)}`
+  );
+  res.json({
+    collection: snap.collection ?? null,
+    binders: Array.isArray(snap.binders) ? snap.binders : [],
+    decks: Array.isArray(snap.decks) ? snap.decks : [],
+    games: Array.isArray(snap.games) ? snap.games : [],
+    version: updated[0].version,
+    updatedAt: updated[0].updatedAt,
+  });
 });
