@@ -610,4 +610,91 @@ describe('allocation invariants', () => {
     expect(new Set(allocated).size).toBe(allocated.length); // unique
     expect(allocated).toHaveLength(2); // third slot unowned
   });
+
+  it('reconciles a persisted cross-deck double-claim through remap (first deck wins)', () => {
+    // A manual mutation / generated-deck save in a prior session bound the
+    // SAME physical copy to two decks. The copy still exists in the
+    // collection, so a naive pass-1 "keep current binding" would preserve
+    // both. The dedupe folded into remap must collapse it to one.
+    useDecksStore.setState({
+      decks: [
+        baseDeck({ id: 'd1', name: 'A', cards: [slot('Sol Ring', 'shared', 'sf-1')] }),
+        baseDeck({ id: 'd2', name: 'B', cards: [slot('Sol Ring', 'shared', 'sf-1')] }),
+      ],
+    });
+
+    const collection = [enriched({ copyId: 'shared', name: 'Sol Ring', scryfallId: 'sf-1' })];
+    useDecksStore.getState().remapAllocations(collection);
+    assertInvariants(collection);
+
+    const [d1, d2] = useDecksStore.getState().decks;
+    expect(d1.cards[0].allocatedCopyId).toBe('shared');
+    expect(d2.cards[0].allocatedCopyId).toBeNull(); // only one copy is owned
+  });
+
+  it('no copyId resolves into two decks across 300 random remap sequences', () => {
+    // Deterministic LCG so a failure reproduces (same pattern as
+    // binder-refs.test.ts's property test).
+    let seed = 0x1234abcd >>> 0;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+    const NAMES = ['Sol Ring', 'Mana Crypt', 'Lightning Bolt', 'Plains'];
+    const PRINTINGS = ['p1', 'p2'];
+
+    for (let trial = 0; trial < 300; trial++) {
+      // Random collection: 0..3 copies per (name, printing), fresh copyIds.
+      let uid = 0;
+      const collection: EnrichedCard[] = [];
+      for (const name of NAMES)
+        for (const sf of PRINTINGS) {
+          const n = Math.floor(rnd() * 4);
+          for (let i = 0; i < n; i++)
+            collection.push(enriched({ copyId: `c${trial}_${uid++}`, name, scryfallId: sf }));
+        }
+      const ids = collection.map((c) => c.copyId);
+
+      // 1..3 decks, each 0..6 slots. Allocations are deliberately drawn from
+      // the same id pool (with replacement) so duplicates are common —
+      // including the same id reused across decks and within a deck.
+      const pickId = (): string | null => {
+        if (ids.length === 0 || rnd() < 0.25) return null;
+        return ids[Math.floor(rnd() * ids.length)];
+      };
+      const deckCount = 1 + Math.floor(rnd() * 3);
+      const decks: Deck[] = [];
+      for (let d = 0; d < deckCount; d++) {
+        const slotCount = Math.floor(rnd() * 7);
+        const cards: DeckCard[] = [];
+        for (let s = 0; s < slotCount; s++) {
+          const name = NAMES[Math.floor(rnd() * NAMES.length)];
+          cards.push({
+            slotId: `t${trial}_d${d}_s${s}`,
+            card: sfCard(name, PRINTINGS[Math.floor(rnd() * PRINTINGS.length)]),
+            allocatedCopyId: pickId(),
+          });
+        }
+        decks.push(baseDeck({ id: `t${trial}_d${d}`, name: `D${d}`, cards }));
+      }
+
+      useDecksStore.setState({ decks });
+      useDecksStore.getState().remapAllocations(collection);
+
+      const out = useDecksStore.getState().decks;
+      const seen = new Set<string>();
+      for (const deck of out) {
+        const all = [
+          deck.commanderAllocatedCopyId,
+          deck.partnerCommanderAllocatedCopyId,
+          ...deck.cards.map((c) => c.allocatedCopyId),
+          ...(deck.sideboard ?? []).map((c) => c.allocatedCopyId),
+        ];
+        for (const id of all) {
+          if (!id) continue;
+          expect(seen.has(id), `trial ${trial}: copyId ${id} double-claimed`).toBe(false);
+          seen.add(id);
+          // And every surviving binding points at a real owned copy.
+          expect(ids.includes(id)).toBe(true);
+        }
+      }
+    }
+  });
 });

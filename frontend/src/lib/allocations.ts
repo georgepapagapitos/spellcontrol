@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useDecksStore, type Deck } from '../store/decks';
+import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import type { EnrichedCard } from '../types';
 
@@ -105,6 +105,79 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
     }
   }
   return m;
+}
+
+/**
+ * Strip cross-slot double-claims so one physical copy (`copyId`) is allocated
+ * to at most one deck slot. First-claim-wins in a deterministic order: deck
+ * array order, then within a deck commander → partnerCommander → cards →
+ * sideboard. Any later slot holding an already-claimed `copyId` is reset to
+ * `null` (the deck still lists the card — only the impossible physical claim is
+ * dropped; the next `remapAllocations` re-picks a free copy if one is owned).
+ *
+ * Pure and reference-stable: returns the original `decks` array (and the
+ * original `Deck`/`DeckCard` objects) when nothing was contested, so selector
+ * identity, React memoization, and the sync subscriber don't see a spurious
+ * change. Mirrors `reconcileBinderRefs`'s contract for the deck side. Does not
+ * bump `updatedAt`: clearing a slot that never had a valid claim restores the
+ * truthful state rather than recording a user edit.
+ *
+ * Collection-independent by design — it never inspects the collection, so it is
+ * safe to run at deck-store hydration (decks hydrate independently of, and
+ * usually before, the collection).
+ *
+ * This is the steady-state safety net. `remapAllocations` already enforces
+ * first-claim-wins, but it only runs on collection replace; mutations like
+ * `setCardAllocation` / `setCommander` / `addCard(…, copyId)` and
+ * generated-deck saves can introduce a double-claim that otherwise persists —
+ * and, in prod, is invisible (`buildAllocationMap`'s warn is dev-only) — until
+ * the next import. Running this on every hydrate makes a persisted double-claim
+ * self-heal, and folding it into `remapAllocations`'s output makes the
+ * no-double-claim invariant hold by construction.
+ */
+export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: boolean } {
+  const claimed = new Set<string>();
+  let anyChanged = false;
+
+  const claimOne = (copyId: string | null): { copyId: string | null; changed: boolean } => {
+    if (!copyId) return { copyId, changed: false };
+    if (claimed.has(copyId)) return { copyId: null, changed: true };
+    claimed.add(copyId);
+    return { copyId, changed: false };
+  };
+
+  const claimSlots = (slots: DeckCard[]): { slots: DeckCard[]; changed: boolean } => {
+    let listChanged = false;
+    const next = slots.map((c) => {
+      if (!c.allocatedCopyId) return c;
+      if (claimed.has(c.allocatedCopyId)) {
+        listChanged = true;
+        return { ...c, allocatedCopyId: null };
+      }
+      claimed.add(c.allocatedCopyId);
+      return c;
+    });
+    return listChanged ? { slots: next, changed: true } : { slots, changed: false };
+  };
+
+  const out = decks.map((deck) => {
+    const cmd = claimOne(deck.commanderAllocatedCopyId);
+    const partner = claimOne(deck.partnerCommanderAllocatedCopyId);
+    const cards = claimSlots(deck.cards);
+    const sideboard = claimSlots(deck.sideboard ?? []);
+    const deckChanged = cmd.changed || partner.changed || cards.changed || sideboard.changed;
+    if (!deckChanged) return deck;
+    anyChanged = true;
+    return {
+      ...deck,
+      commanderAllocatedCopyId: cmd.copyId,
+      partnerCommanderAllocatedCopyId: partner.copyId,
+      cards: cards.slots,
+      sideboard: sideboard.slots,
+    };
+  });
+
+  return { decks: anyChanged ? out : decks, changed: anyChanged };
 }
 
 /**
