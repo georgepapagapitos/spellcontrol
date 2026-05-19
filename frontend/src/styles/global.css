@@ -3470,6 +3470,21 @@ hr {
   line-height: 1.5;
 }
 
+.choice-dialog-warning {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-text);
+}
+
+.choice-dialog-warning strong {
+  color: var(--warn-text);
+}
+
 .choice-dialog-options {
   display: flex;
   flex-direction: column;
