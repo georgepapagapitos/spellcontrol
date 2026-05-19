@@ -8040,13 +8040,17 @@ hr {
 .auth-form {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 14px;
 }
 
 .auth-field {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 6px;
+  width: 100%;
+  min-width: 0;
 }
 
 .auth-field span {
@@ -8056,6 +8060,10 @@ hr {
 }
 
 .auth-field input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   appearance: none;
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -8075,6 +8083,68 @@ hr {
 .auth-hint {
   color: var(--text3);
   font-size: var(--text-xs);
+}
+
+.auth-hint-error {
+  color: var(--err-text);
+}
+
+.auth-rules {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.auth-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text3);
+  transition: color 120ms ease;
+}
+
+.auth-rule-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  line-height: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+.auth-rule.is-met {
+  color: var(--text2);
+}
+
+.auth-rule.is-met .auth-rule-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.auth-rule.is-error {
+  color: var(--err-text);
+}
+
+.auth-rule.is-error .auth-rule-mark {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+.auth-rule-note .auth-rule-mark {
+  background: transparent;
+  border-color: var(--border);
 }
 
 .auth-error {
