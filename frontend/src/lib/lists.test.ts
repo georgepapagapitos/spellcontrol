@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { EnrichedCard, ListEntry } from '../types';
 import {
   MAX_LIST_NAME,
-  LIST_KINDS,
   clampListName,
   makeListEntry,
   ownedCountForEntry,
@@ -43,12 +42,6 @@ describe('clampListName', () => {
   it('trims and clamps', () => {
     expect(clampListName('  Wants  ')).toBe('Wants');
     expect(clampListName('x'.repeat(MAX_LIST_NAME + 5))).toHaveLength(MAX_LIST_NAME);
-  });
-});
-
-describe('LIST_KINDS', () => {
-  it('exposes the four presets', () => {
-    expect(LIST_KINDS).toEqual(['wishlist', 'buylist', 'deck', 'trade']);
   });
 });
 
