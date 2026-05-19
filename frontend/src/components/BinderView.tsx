@@ -15,6 +15,7 @@ import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { BinderPagePreview } from './BinderPagePreview';
+import { BinderDriftBanner } from './BinderDriftBanner';
 import { Legend } from './Legend';
 import { useConfirm } from '../lib/use-confirm';
 import { useAllocations } from '../lib/allocations';
@@ -105,6 +106,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
 
   return (
     <>
+      <BinderDriftBanner binder={active} />
       <SectionList
         viewKey={active.def.id}
         binderName={active.def.name}
