@@ -92,13 +92,13 @@ export function useHolographic(enabled: boolean, options: HolographicOptions = {
       // Clamp to viewport in case of subpixel overshoot.
       const cx = Math.max(0, Math.min(1, x));
       const cy = Math.max(0, Math.min(1, y));
-      // Tilt range: ±18° matches the codepen reference — strong enough to read
-      // as a real tilt without going past the card's plausible motion arc.
+      // Tilt range: ±7° — a subtle parallax that reads as a real tilt without
+      // the exaggerated swing of the codepen reference (±18°).
       // Suppressed during parent-owned swipe gestures so the tilt doesn't fight
       // the navigation/dismiss flick.
       const suppressed = suppressRef.current?.() === true;
-      target.ry = suppressed ? 0 : (cx - 0.5) * 36;
-      target.rx = suppressed ? 0 : (0.5 - cy) * 36;
+      target.ry = suppressed ? 0 : (cx - 0.5) * 14;
+      target.rx = suppressed ? 0 : (0.5 - cy) * 14;
       target.mx = cx * 100;
       target.my = cy * 100;
       // Hypotenuse: 0 at center, 1 at corner — used to crank up shimmer near edges.
