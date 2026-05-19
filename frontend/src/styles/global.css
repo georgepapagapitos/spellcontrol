@@ -7068,6 +7068,38 @@ hr {
   min-width: 12rem;
 }
 
+/* The bar's actions are .toolbar-pill (same language as the Sort/view
+   controls above). toolbar-pill has no disabled/variant states of its
+   own, so the few this bar needs are layered on here, scoped to the bar. */
+.card-list-bulk-toolbar .toolbar-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Destructive action: neutral until intent, then the app's error tint —
+   keeps the bar calm rather than a permanently-red button. */
+.card-list-bulk-danger:hover:not(:disabled),
+.card-list-bulk-danger:focus-visible:not(:disabled) {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+/* "Done" is the bar's primary (exit) action — accent-filled like the
+   active select toggle / view-toggle segment so it anchors the row. */
+.card-list-bulk-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.card-list-bulk-done:hover,
+.card-list-bulk-done:focus-visible {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
 /* Set code + collector number (used in list view) */
 .card-list-foil-tag {
   display: inline-block;
@@ -7491,18 +7523,20 @@ hr {
   border: 1px solid var(--border);
 }
 
-/* Select-mode toggle in the toolbar. Pressed = selection mode is active
-   (rows/cards become click-to-select instead of click-to-preview). */
-.card-list-select-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
+/* Select-mode toggle — a .toolbar-pill (matches the Sort menu + view
+   toggle it sits beside). Active = selection mode is on; it fills with
+   accent like the segmented view toggle's active segment so an enabled
+   mode reads at a glance. Theme-aware (--on-accent, not hardcoded #fff). */
 .card-list-select-toggle[aria-pressed='true'] {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
+}
+
+.card-list-select-toggle[aria-pressed='true']:hover,
+.card-list-select-toggle[aria-pressed='true']:focus-visible {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 /* While select mode is on, the whole row/card is the toggle target — kill

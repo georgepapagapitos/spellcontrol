@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
-import { LIST_KINDS } from '../lib/lists';
 import { ListEntriesView } from '../components/ListEntriesView';
 
 export function ListsPage() {
@@ -22,14 +21,12 @@ export function ListsPage() {
   );
 
   const [newName, setNewName] = useState('');
-  const [newKind, setNewKind] = useState('');
 
   const handleCreate = () => {
     const name = newName.trim();
     if (!name) return;
-    const id = createList(name, newKind || undefined);
+    const id = createList(name);
     setNewName('');
-    setNewKind('');
     navigate(`/collection/lists/${id}`);
   };
 
@@ -91,18 +88,6 @@ export function ListsPage() {
             if (e.key === 'Enter') handleCreate();
           }}
         />
-        <select
-          value={newKind}
-          onChange={(e) => setNewKind(e.target.value)}
-          aria-label="New list kind"
-        >
-          <option value="">No kind</option>
-          {LIST_KINDS.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
         <button
           type="button"
           className="pill-btn pill-btn-primary"
@@ -130,7 +115,6 @@ export function ListsPage() {
                 <div className="binders-index-card-body">
                   <div className="binders-index-card-name">{l.name}</div>
                   <div className="binders-index-card-meta">
-                    {l.kind && <span className="binders-index-card-tag">{l.kind}</span>}
                     <span className="binders-index-card-cards">
                       {l.entries.length.toLocaleString()}{' '}
                       {l.entries.length === 1 ? 'entry' : 'entries'}

@@ -39,23 +39,22 @@ beforeEach(async () => {
 });
 
 describe('list CRUD', () => {
-  it('creates a list with clamped name + kind, returns id', () => {
-    const id = useCollectionStore.getState().createList('  Wants  ', 'wishlist');
+  it('creates a list with clamped name, returns id', () => {
+    const id = useCollectionStore.getState().createList('  Wants  ');
     const lists = useCollectionStore.getState().lists;
     expect(lists).toHaveLength(1);
-    expect(lists[0]).toMatchObject({ id, name: 'Wants', kind: 'wishlist', order: 0 });
+    expect(lists[0]).toMatchObject({ id, name: 'Wants', order: 0 });
     expect(lists[0].entries).toEqual([]);
   });
 
-  it('renames, sets kind, reorders, deletes', () => {
+  it('renames, reorders, deletes', () => {
     const a = useCollectionStore.getState().createList('A');
     const b = useCollectionStore.getState().createList('B');
     useCollectionStore.getState().renameList(a, 'A2');
-    useCollectionStore.getState().setListKind(a, 'buylist');
     useCollectionStore.getState().reorderLists([b, a]);
     let lists = useCollectionStore.getState().lists;
     expect(lists.map((l) => l.id)).toEqual([b, a]);
-    expect(lists.find((l) => l.id === a)).toMatchObject({ name: 'A2', kind: 'buylist', order: 1 });
+    expect(lists.find((l) => l.id === a)).toMatchObject({ name: 'A2', order: 1 });
     useCollectionStore.getState().deleteList(b);
     lists = useCollectionStore.getState().lists;
     expect(lists.map((l) => l.id)).toEqual([a]);

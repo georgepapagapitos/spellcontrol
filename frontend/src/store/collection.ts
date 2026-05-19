@@ -136,9 +136,8 @@ interface CollectionState {
   seedManualOrder: (binderId: string, currentCardIds: string[]) => void;
 
   // List actions
-  createList: (name: string, kind?: string) => string;
+  createList: (name: string) => string;
   renameList: (id: string, name: string) => void;
-  setListKind: (id: string, kind: string) => void;
   reorderLists: (orderedIds: string[]) => void;
   deleteList: (id: string) => void;
   addListEntry: (
@@ -747,7 +746,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       // List actions
-      createList: (name, kind) => {
+      createList: (name) => {
         const id =
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
@@ -761,7 +760,6 @@ export const useCollectionStore = create<CollectionState>()(
           order: lists.length,
           createdAt: now,
           updatedAt: now,
-          ...(kind ? { kind } : {}),
         };
         set({ lists: [...lists, def] });
         void get().persistCollection();
@@ -772,12 +770,6 @@ export const useCollectionStore = create<CollectionState>()(
           lists: get().lists.map((l) =>
             l.id === id ? { ...l, name: clampListName(name) || l.name, updatedAt: Date.now() } : l
           ),
-        });
-        void get().persistCollection();
-      },
-      setListKind: (id, kind) => {
-        set({
-          lists: get().lists.map((l) => (l.id === id ? { ...l, kind, updatedAt: Date.now() } : l)),
         });
         void get().persistCollection();
       },
