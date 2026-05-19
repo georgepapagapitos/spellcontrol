@@ -2,7 +2,12 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
-import { isBasicLandName, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
+import {
+  dedupeDeckAllocations,
+  isBasicLandName,
+  pickCollectionCopy,
+  type AllocationInfo,
+} from '../lib/allocations';
 import { markDestructive } from '../lib/sync-intent';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 
@@ -646,7 +651,11 @@ export const useDecksStore = create<DecksState>()(
             });
           });
 
-          return { decks: remappedDecks };
+          // Belt-and-suspenders: the 4 passes above already enforce
+          // first-claim-wins via `allocated`, but funnel the result through
+          // the shared dedupe so the no-double-claim invariant holds by
+          // construction (and stays green if the pass logic ever regresses).
+          return { decks: dedupeDeckAllocations(remappedDecks).decks };
         }),
     }),
     {
@@ -654,7 +663,15 @@ export const useDecksStore = create<DecksState>()(
       version: 4,
       storage: createJSONStorage(() => decksIdbStorage),
       onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+        if (state) {
+          state.hydrated = true;
+          // Self-heal a persisted cross-deck double-claim from a prior session
+          // (introduced by a manual allocation mutation or generated-deck save,
+          // which — unlike collection replace — never ran the remap). Pure and
+          // collection-independent, so it is safe here even though the
+          // collection store hydrates separately.
+          state.decks = dedupeDeckAllocations(state.decks).decks;
+        }
       },
       partialize: (s) => ({ decks: s.decks }),
       /**
