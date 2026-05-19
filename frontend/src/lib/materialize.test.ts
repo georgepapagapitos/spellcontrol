@@ -506,3 +506,123 @@ describe('materializeBinders', () => {
     expect(binders[0].totalCards).toBe(2); // routed purely by the rarity filter
   });
 });
+
+describe('keepPrintingsTogether', () => {
+  const copyIds = (b: { sections: { cards: EnrichedCard[] }[] }) =>
+    b.sections.flatMap((s) => s.cards.map((c) => c.copyId)).sort();
+
+  // A legendary creature owned in two printings: a pricey one and a bulk one.
+  const pricey = () =>
+    makeCard({
+      copyId: 'pricey',
+      name: 'Atraxa',
+      oracleId: 'atx',
+      scryfallId: 'atx-set1',
+      purchasePrice: 3,
+    });
+  const bulk = () =>
+    makeCard({
+      copyId: 'bulk',
+      name: 'Atraxa',
+      oracleId: 'atx',
+      scryfallId: 'atx-set2',
+      purchasePrice: 0.1,
+    });
+
+  it('flag off: only the matching printing lands in the binder (unchanged)', () => {
+    const binder = makeBinder({ filter: { priceMin: 0.5 } });
+    const { binders, uncategorized } = materializeBinders(
+      [pricey(), bulk()],
+      [binder],
+      defaultOpts
+    );
+    expect(copyIds(binders[0])).toEqual(['pricey']);
+    expect(uncategorized.sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual(['bulk']);
+  });
+
+  it('flag on: a matching printing pulls in all owned copies; none left uncategorized', () => {
+    const binder = makeBinder({ filter: { priceMin: 0.5 }, keepPrintingsTogether: true });
+    const { binders, uncategorized } = materializeBinders(
+      [pricey(), bulk()],
+      [binder],
+      defaultOpts
+    );
+    expect(copyIds(binders[0])).toEqual(['bulk', 'pricey']);
+    expect(uncategorized.totalCards).toBe(0);
+  });
+
+  it('does not steal a copy already routed to an earlier binder (no duplication)', () => {
+    const cheapBinder = makeBinder({ id: 'cheap', position: 0, filter: { priceMax: 0.5 } });
+    const cmdrBinder = makeBinder({
+      id: 'cmdr',
+      position: 1,
+      filter: { priceMin: 0.5 },
+      keepPrintingsTogether: true,
+    });
+    const { binders } = materializeBinders(
+      [pricey(), bulk()],
+      [cheapBinder, cmdrBinder],
+      defaultOpts
+    );
+    const byId = Object.fromEntries(binders.map((b) => [b.def.id, copyIds(b)]));
+    expect(byId.cheap).toEqual(['bulk']); // bulk stays where it first matched
+    expect(byId.cmdr).toEqual(['pricey']); // not promoted — precedence preserved
+  });
+
+  it('does not promote copies that lack an oracleId', () => {
+    const a = makeCard({ copyId: 'a', name: 'X', purchasePrice: 3 }); // no oracleId
+    const b = makeCard({ copyId: 'b', name: 'X', purchasePrice: 0.1 }); // no oracleId
+    const binder = makeBinder({ filter: { priceMin: 0.5 }, keepPrintingsTogether: true });
+    const { binders, uncategorized } = materializeBinders([a, b], [binder], defaultOpts);
+    expect(copyIds(binders[0])).toEqual(['a']);
+    expect(uncategorized.sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual(['b']);
+  });
+
+  it('swallows a promoted copy that is deck-allocated when hideDeckAllocated=false', () => {
+    const binder = makeBinder({
+      filter: { priceMin: 0.5 },
+      keepPrintingsTogether: true,
+      hideDeckAllocated: false,
+    });
+    const { binders, uncategorized } = materializeBinders([pricey(), bulk()], [binder], {
+      ...defaultOpts,
+      allocatedCopyIds: new Set(['bulk']),
+    });
+    expect(copyIds(binders[0])).toEqual(['pricey']); // bulk not shown
+    expect(uncategorized.totalCards).toBe(0); // bulk swallowed, not dumped to uncategorized
+  });
+
+  it('two flagged binders: earlier (by position) reclaims; later does not double-claim', () => {
+    const b1 = makeBinder({
+      id: 'b1',
+      position: 0,
+      filter: { priceMin: 0.5 },
+      keepPrintingsTogether: true,
+    });
+    const b2 = makeBinder({
+      id: 'b2',
+      position: 1,
+      filter: { priceMin: 0.5 },
+      keepPrintingsTogether: true,
+    });
+    const { binders } = materializeBinders([pricey(), bulk()], [b1, b2], defaultOpts);
+    const byId = Object.fromEntries(binders.map((b) => [b.def.id, copyIds(b)]));
+    expect(byId.b1).toEqual(['bulk', 'pricey']);
+    expect(byId.b2).toEqual([]);
+  });
+
+  it('manual-mode binders do not promote (no rules)', () => {
+    const binder = makeBinder({
+      mode: 'manual',
+      keepPrintingsTogether: true,
+      pinnedCopyIds: ['pricey'],
+    });
+    const { binders, uncategorized } = materializeBinders(
+      [pricey(), bulk()],
+      [binder],
+      defaultOpts
+    );
+    expect(copyIds(binders[0])).toEqual(['pricey']); // only the pin
+    expect(uncategorized.sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual(['bulk']);
+  });
+});

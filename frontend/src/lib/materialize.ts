@@ -113,6 +113,37 @@ export function materializeBinders(
     if (!matched && !swallowed) uncategorized.push(card);
   }
 
+  // "Keep all printings together": for each opted-in binder (rules mode only),
+  // a card that matched its rules via any owned copy reclaims that card's
+  // OTHER owned copies (same Scryfall oracleId) from Uncategorized. We only
+  // reclaim from Uncategorized — copies already routed to another binder keep
+  // first-match-wins precedence, so a card is never duplicated across binders.
+  // Pinned copies don't trigger promotion (pins are explicit). Processing
+  // binders in position order lets an earlier opted-in binder reclaim first.
+  for (let i = 0; i < orderedDefs.length; i++) {
+    const def = orderedDefs[i];
+    if (!def.keepPrintingsTogether || def.mode === 'manual') continue;
+    const bucket = buckets.get(def.id)!;
+    const pinned = new Set(def.pinnedCopyIds ?? []);
+    const wanted = new Set<string>();
+    for (const c of bucket) {
+      if (c.oracleId && !pinned.has(c.copyId)) wanted.add(c.oracleId);
+    }
+    if (wanted.size === 0) continue;
+    const kept: EnrichedCard[] = [];
+    for (const card of uncategorized) {
+      if (card.oracleId !== undefined && wanted.has(card.oracleId)) {
+        // Mirror the main loop's swallow rule for deck-allocated copies.
+        if (allocated.has(card.copyId) && def.hideDeckAllocated === false) continue;
+        bucket.push(card);
+      } else {
+        kept.push(card);
+      }
+    }
+    uncategorized.length = 0;
+    for (const c of kept) uncategorized.push(c);
+  }
+
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
     const rawCards = buildBinderCards(def, buckets.get(def.id)!, cardsByCopyId);
     const effectivePocketSize = (def.pocketSize ??
