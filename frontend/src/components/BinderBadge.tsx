@@ -48,7 +48,7 @@ export function BinderBadge({ binders }: Props) {
         aria-label={label}
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/binders/${b.id}`);
+          navigate(`/collection/binders/${b.id}`);
         }}
       >
         <Notebook width={11} height={11} strokeWidth={2} aria-hidden />

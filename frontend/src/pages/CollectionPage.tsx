@@ -13,14 +13,11 @@ import { CardListTable } from '../components/CardListTable';
 export function CollectionPage() {
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
-  const subCollections = useCollectionStore((s) => s.subCollections);
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
   const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
   const [addCardOpen, setAddCardOpen] = useState(false);
-  // '' = all, '__main' = Main (no id or an id that no longer resolves), else id
-  const [subFilter, setSubFilter] = useState<string>('');
 
   const [statsOpen, setStatsOpen] = useState(false);
 
@@ -44,24 +41,6 @@ export function CollectionPage() {
     });
     return { materialized: result.binders };
   }, [cards, binders, allocatedCopyIds, setMap]);
-
-  // Sub-collection view filter. Scopes ONLY the list rendered in the table;
-  // binder materialization above keeps reading the full `cards` array
-  // (orthogonality — guarded by lib/materialize.test.ts).
-  const validIds = useMemo(() => new Set(subCollections.map((d) => d.id)), [subCollections]);
-  const countFor = (id: string | null) =>
-    cards.filter((c) =>
-      id === null
-        ? !c.subCollectionId || !validIds.has(c.subCollectionId)
-        : c.subCollectionId === id
-    ).length;
-  const visibleCards = useMemo(() => {
-    if (subFilter === '') return cards;
-    if (subFilter === '__main') {
-      return cards.filter((c) => !c.subCollectionId || !validIds.has(c.subCollectionId));
-    }
-    return cards.filter((c) => c.subCollectionId === subFilter);
-  }, [cards, subFilter, validIds]);
 
   return (
     <>
@@ -128,42 +107,7 @@ export function CollectionPage() {
               </button>
             </div>
           </header>
-          {subCollections.length > 0 && (
-            <div
-              className="collection-subfilter chip-group"
-              role="group"
-              aria-label="Sub-collection filter"
-            >
-              <button
-                type="button"
-                className={`chip${subFilter === '' ? ' active' : ''}`}
-                aria-pressed={subFilter === ''}
-                onClick={() => setSubFilter('')}
-              >
-                All ({cards.length})
-              </button>
-              <button
-                type="button"
-                className={`chip${subFilter === '__main' ? ' active' : ''}`}
-                aria-pressed={subFilter === '__main'}
-                onClick={() => setSubFilter('__main')}
-              >
-                Main ({countFor(null)})
-              </button>
-              {subCollections.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`chip${subFilter === s.id ? ' active' : ''}`}
-                  aria-pressed={subFilter === s.id}
-                  onClick={() => setSubFilter(s.id)}
-                >
-                  {s.name} ({countFor(s.id)})
-                </button>
-              ))}
-            </div>
-          )}
-          <CardListTable cards={visibleCards} binders={materialized} setMap={setMap} />
+          <CardListTable cards={cards} binders={materialized} setMap={setMap} />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
           <ImportSheet />
           {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}

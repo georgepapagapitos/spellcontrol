@@ -1,4 +1,4 @@
-import { Boxes, MoreVertical, Notebook, Pencil, Trash2 } from 'lucide-react';
+import { MoreVertical, Notebook, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AddToBinderSheet } from './AddToBinderSheet';
@@ -13,20 +13,11 @@ interface Props {
    *  "Move to binder" vs "Add to binder" label and the disabled row in the
    *  sheet. */
   currentBinder?: { id: string; name: string; color: string | null } | null;
-  /** Open the sub-collection picker scoped to this row's copies. Omit to
-   *  hide the action (e.g. non-collection usages with no sub-collections). */
-  onMoveToSubCollection?: () => void;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
 
-export function CardRowMenu({
-  card,
-  onEditCard,
-  onDelete,
-  currentBinder,
-  onMoveToSubCollection,
-}: Props) {
+export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -164,21 +155,6 @@ export function CardRowMenu({
           <Notebook width={12} height={12} strokeWidth={1.6} aria-hidden />
           {currentBinder ? 'Move to binder' : 'Add to binder'}
         </button>
-        {onMoveToSubCollection && (
-          <button
-            type="button"
-            role="menuitem"
-            className="deck-row-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenuOpen(false);
-              onMoveToSubCollection();
-            }}
-          >
-            <Boxes width={12} height={12} strokeWidth={1.6} aria-hidden />
-            Move to sub-collection…
-          </button>
-        )}
         {onDelete && (
           <button
             type="button"

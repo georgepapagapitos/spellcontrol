@@ -1,4 +1,11 @@
-import { AlignJustify, LayoutGrid, List as ListIconLucide, Search } from 'lucide-react';
+import {
+  AlignJustify,
+  Check,
+  CheckSquare,
+  LayoutGrid,
+  List as ListIconLucide,
+  Search,
+} from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
@@ -14,7 +21,8 @@ import { CardRowMenu } from './CardRowMenu';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { RemoveCopiesDialog } from './RemoveCopiesDialog';
-import { Modal } from './Modal';
+import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
+import { useConfirm } from '../lib/use-confirm';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
@@ -283,9 +291,6 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   // and the same one handleDeleteRow resolves to underlying copies. Each
   // selected row is expanded to its physical copyIds only at move time.
   const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set());
-  const subCollections = useCollectionStore((s) => s.subCollections);
-  const moveCardsToSubCollection = useCollectionStore((s) => s.moveCardsToSubCollection);
-  const createSubCollection = useCollectionStore((s) => s.createSubCollection);
   const toggleRow = useCallback((key: string) => {
     setSelectedRowKeys((prev) => {
       const next = new Set(prev);
@@ -295,6 +300,16 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     });
   }, []);
   const clearSelection = useCallback(() => setSelectedRowKeys(new Set()), []);
+  // Selection is a deliberate mode the user opts into (toggle in the toolbar),
+  // not an always-on affordance: rows/cards stay clean until "Select" is on,
+  // then a row/card click toggles its selection instead of opening preview.
+  const [selectMode, setSelectMode] = useState(false);
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    clearSelection();
+  }, [clearSelection]);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
@@ -720,17 +735,6 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     }
 
     replaceAllCards([...otherCards, ...updatedExisting, ...newCopies]);
-
-    // The dialog edits a whole printing/finish stack, so a sub-collection
-    // choice applies to every resulting copy of that stack (preserved +
-    // freshly-created copyIds). `undefined` ⇒ the picker wasn't shown
-    // (non-collection usage) — leave existing assignments untouched.
-    if (selection.subCollectionId !== undefined) {
-      const editedCopyIds = [...updatedExisting, ...newCopies].map((c) => c.copyId);
-      void useCollectionStore
-        .getState()
-        .moveCardsToSubCollection(editedCopyIds, selection.subCollectionId);
-    }
     setEditingCard(null);
   };
 
@@ -794,61 +798,44 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     [deletingRow, allCards, allocatedCopyIds, applyRemoval]
   );
 
-  // Resolve a displayed row to the physical copyIds it represents — mirrors
-  // handleDeleteRow's resolution exactly: ungrouped, a row is one physical
-  // copy; grouped, a row stands for every copy sharing its printing+finish.
-  // Moving only the representative copy would strand the rest of a stack in
-  // the old bucket, so a "move this row" must hit the whole stack.
-  const rowCopyIds = useCallback(
-    (row: Row): string[] => {
-      if (!groupPrintings) return [row.card.copyId];
-      const key = printingFinishKey(row.card);
-      return allCards.filter((c) => printingFinishKey(c) === key).map((c) => c.copyId);
-    },
-    [groupPrintings, allCards]
-  );
-
-  // Expand the selected rows (by row.key) to copyIds, restricting to the
-  // currently-rendered rows so a stale key from a filter change can't move
-  // something no longer on screen.
+  // Expand the row-keyed selection into concrete physical copyIds. When
+  // grouping is on, each key is a printing+finish key that fans out to every
+  // matching copy in the full collection (same idiom handleDeleteRow uses);
+  // when grouping is off the key already IS a copyId. Deduped.
   const selectedCopyIds = useCallback((): string[] => {
-    if (selectedRowKeys.size === 0) return [];
-    const ids: string[] = [];
-    for (const r of sorted) {
-      if (selectedRowKeys.has(r.key)) ids.push(...rowCopyIds(r));
-    }
-    return ids;
-  }, [selectedRowKeys, sorted, rowCopyIds]);
-
-  // Shared move path used by both the bulk toolbar and the per-row menu item.
-  // `value` is the <select>/menu choice: '' = no-op, '__main' = back to Main,
-  // '__new' = prompt + create, otherwise an existing sub-collection id.
-  const moveToSubCollection = useCallback(
-    async (copyIds: string[], value: string) => {
-      if (!value || copyIds.length === 0) return;
-      let targetId: string | null;
-      if (value === '__main') {
-        targetId = null;
-      } else if (value === '__new') {
-        const name = window.prompt('New sub-collection name')?.trim();
-        if (!name) return;
-        targetId = createSubCollection(name);
+    const ids = new Set<string>();
+    for (const key of selectedRowKeys) {
+      if (groupPrintings) {
+        for (const c of allCards) {
+          if (printingFinishKey(c) === key) ids.add(c.copyId);
+        }
       } else {
-        targetId = value;
+        ids.add(key);
       }
-      await moveCardsToSubCollection(copyIds, targetId);
-    },
-    [createSubCollection, moveCardsToSubCollection]
-  );
+    }
+    return [...ids];
+  }, [selectedRowKeys, groupPrintings, allCards]);
 
-  // The per-row menu item lacks a <select>; reuse the bulk picker by stashing
-  // the row's copyIds and rendering the same toolbar-style chooser as a small
-  // popover anchored to nothing (a lightweight prompt-driven fallback keeps
-  // the surface tiny and avoids a second portal/positioning system).
-  const [rowMovePicker, setRowMovePicker] = useState<{
-    cardName: string;
-    copyIds: string[];
-  } | null>(null);
+  const handleBulkDelete = useCallback(async () => {
+    const ids = selectedCopyIds();
+    const idSet = new Set(ids);
+    const removable = allCards.filter(
+      (c) => idSet.has(c.copyId) && !allocatedCopyIds.has(c.copyId)
+    );
+    const skipped = ids.length - removable.length;
+    const ok = await confirm({
+      title: `Delete ${removable.length} selected ${removable.length === 1 ? 'copy' : 'copies'}?`,
+      body:
+        skipped > 0
+          ? `${skipped} copy(ies) reserved by a deck will be kept. This can be undone.`
+          : `The selected copies will be removed from your collection. This can be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok || removable.length === 0) return;
+    applyRemoval(removable);
+    clearSelection();
+  }, [selectedCopyIds, allCards, allocatedCopyIds, confirm, applyRemoval, clearSelection]);
 
   // Count active filter *groups*, not individual chips — five colors
   // selected is still one filter group, so the badge stays glanceable.
@@ -928,6 +915,17 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
 
       <div className="card-list-summary-line">
         <div className="card-list-summary-actions">
+          {sorted.length > 0 && (
+            <button
+              type="button"
+              className="btn card-list-select-toggle"
+              aria-pressed={selectMode}
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            >
+              <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+              <span>{selectMode ? 'Done' : 'Select'}</span>
+            </button>
+          )}
           <SelectMenu
             ariaLabel="Sort"
             value={sortKey}
@@ -981,32 +979,34 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         </div>
       </div>
 
-      {selectedRowKeys.size > 0 && (
+      {selectMode && (
         <div className="card-list-bulk-toolbar" role="region" aria-label="Bulk actions">
-          <span className="card-list-bulk-count">{selectedRowKeys.size} selected</span>
-          <select
-            className="binder-name-input"
-            aria-label="Move selected to sub-collection"
-            value=""
-            onChange={async (e) => {
-              const value = e.target.value;
-              e.target.value = '';
-              if (!value) return;
-              await moveToSubCollection(selectedCopyIds(), value);
-              clearSelection();
-            }}
+          <span className="card-list-bulk-count">
+            {selectedRowKeys.size > 0 ? `${selectedRowKeys.size} selected` : 'Select cards…'}
+          </span>
+          <button
+            type="button"
+            className="btn"
+            disabled={selectedRowKeys.size === 0}
+            onClick={() => setBulkMoveOpen(true)}
           >
-            <option value="">Move to…</option>
-            <option value="__main">Main</option>
-            {subCollections.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-            <option value="__new">+ New sub-collection…</option>
-          </select>
-          <button type="button" className="btn" onClick={clearSelection}>
-            Clear
+            Move to…
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={selectedRowKeys.size === 0}
+            onClick={handleBulkDelete}
+          >
+            Delete selected
+          </button>
+          {selectedRowKeys.size > 0 && (
+            <button type="button" className="btn" onClick={clearSelection}>
+              Clear
+            </button>
+          )}
+          <button type="button" className="btn" onClick={exitSelectMode}>
+            Done
           </button>
         </div>
       )}
@@ -1091,21 +1091,33 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                   const r = sorted[idx];
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
+                  const selected = selectedRowKeys.has(r.key);
                   return (
                     <div
                       key={r.key}
                       role="button"
                       tabIndex={0}
-                      className={`collection-grid-item grid-${effectiveGridSize}${foilClass}`}
-                      onClick={() => setPreviewIndex(idx)}
+                      aria-pressed={selectMode ? selected : undefined}
+                      className={`collection-grid-item grid-${effectiveGridSize}${foilClass}${
+                        selectMode ? ' is-selectable' : ''
+                      }${selected ? ' is-selected' : ''}`}
+                      onClick={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
-                          setPreviewIndex(idx);
+                          if (selectMode) toggleRow(r.key);
+                          else setPreviewIndex(idx);
                         }
                       }}
-                      aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}`}
+                      aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}${
+                        selectMode ? (selected ? ', selected' : ', not selected') : ''
+                      }`}
                     >
+                      {selectMode && (
+                        <span className="collection-grid-check" data-checked={selected} aria-hidden>
+                          {selected && <Check width={14} height={14} strokeWidth={3} />}
+                        </span>
+                      )}
                       {r.card.imageNormal ? (
                         <img
                           src={r.card.imageNormal}
@@ -1153,6 +1165,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           {listVirtualizer.getVirtualItems().map((virtualRow) => {
             const r = sorted[virtualRow.index];
             const colorKey = getColorKey(r.card);
+            const selected = selectedRowKeys.has(r.key);
             return (
               <div
                 key={virtualRow.key}
@@ -1169,25 +1182,26 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                 <div
                   className={`collection-list-row${
                     virtualRow.index === sorted.length - 1 ? ' is-last-row' : ''
-                  }`}
+                  }${selectMode ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}`}
                   role="row"
                   tabIndex={0}
-                  onClick={() => setPreviewIndex(virtualRow.index)}
+                  aria-pressed={selectMode ? selected : undefined}
+                  onClick={() =>
+                    selectMode ? toggleRow(r.key) : setPreviewIndex(virtualRow.index)
+                  }
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setPreviewIndex(virtualRow.index);
+                      if (selectMode) toggleRow(r.key);
+                      else setPreviewIndex(virtualRow.index);
                     }
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    className="collection-list-select"
-                    aria-label={`Select ${r.card.name}`}
-                    checked={selectedRowKeys.has(r.key)}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => toggleRow(r.key)}
-                  />
+                  {selectMode && (
+                    <span className="collection-list-check" data-checked={selected} aria-hidden>
+                      {selected && <Check width={13} height={13} strokeWidth={3} />}
+                    </span>
+                  )}
                   {r.card.imageSmall ? (
                     <img
                       src={r.card.imageSmall}
@@ -1220,9 +1234,6 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
                       card={r.card}
                       onEditCard={() => setEditingCard(r.card)}
                       onDelete={() => handleDeleteRow(r)}
-                      onMoveToSubCollection={() =>
-                        setRowMovePicker({ cardName: r.card.name, copyIds: rowCopyIds(r) })
-                      }
                       currentBinder={
                         r.binderId && r.binderName
                           ? { id: r.binderId, name: r.binderName, color: r.binderColor }
@@ -1295,8 +1306,6 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
           currentScryfallId={editingCard.scryfallId}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingQty}
-          subCollections={useCollectionStore.getState().subCollections}
-          currentSubCollectionId={editingCard.subCollectionId}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
@@ -1311,45 +1320,17 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         />
       )}
 
-      {rowMovePicker && (
-        <Modal onClose={() => setRowMovePicker(null)} labelledBy="row-move-sub-title">
-          <h2 id="row-move-sub-title" className="choice-dialog-title">
-            Move {rowMovePicker.cardName}
-          </h2>
-          <p className="choice-dialog-body">
-            Move{' '}
-            {rowMovePicker.copyIds.length === 1
-              ? 'this copy'
-              : `all ${rowMovePicker.copyIds.length} copies`}{' '}
-            to a sub-collection.
-          </p>
-          <select
-            className="binder-name-input"
-            aria-label="Target sub-collection"
-            defaultValue=""
-            onChange={async (e) => {
-              const value = e.target.value;
-              if (!value) return;
-              await moveToSubCollection(rowMovePicker.copyIds, value);
-              setRowMovePicker(null);
-            }}
-          >
-            <option value="">Choose…</option>
-            <option value="__main">Main</option>
-            {subCollections.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-            <option value="__new">+ New sub-collection…</option>
-          </select>
-          <div className="choice-dialog-actions">
-            <button type="button" className="btn" onClick={() => setRowMovePicker(null)}>
-              Cancel
-            </button>
-          </div>
-        </Modal>
+      {bulkMoveOpen && (
+        <BulkMoveToBinderSheet
+          copyIds={selectedCopyIds()}
+          onClose={() => {
+            setBulkMoveOpen(false);
+            clearSelection();
+          }}
+        />
       )}
+
+      {confirmDialog}
     </div>
   );
 }

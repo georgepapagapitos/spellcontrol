@@ -55,7 +55,7 @@ export function BinderTabs({ binders }: Props) {
               className={`tab ${isActive ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab(b.def.id);
-                navigate(`/binders/${b.def.id}`);
+                navigate(`/collection/binders/${b.def.id}`);
               }}
               style={
                 isActive

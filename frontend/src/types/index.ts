@@ -78,35 +78,9 @@ export interface EnrichedCard {
   legalities?: Record<string, string>;
   /** Available finishes for this printing — subset of ["nonfoil","foil","etched"]. */
   finishes?: string[];
-  /**
-   * Which SubCollectionDef.id this physical copy lives in. Undefined ⇒ the
-   * synthetic built-in "Main" bucket (never stored as a SubCollectionDef).
-   */
-  subCollectionId?: string;
-  /**
-   * Durable natural-key shadow of subCollectionId (= printingFinishKey).
-   * copyIds are regenerated on every import; this key is what lets the
-   * assignment survive a re-import, exactly like BinderDef.pinnedKeys.
-   */
-  subCollectionKey?: string;
   /** Promo treatments — specialty foil variants like "textured", "surgefoil", "halofoil",
    *  "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
   promoTypes?: string[];
-}
-
-/**
- * A user-defined physical storage location (e.g. "Bulk", "Rares+Mythics").
- * A partition: every card is in exactly one. The synthetic "Main" bucket is
- * NOT represented here — it is `EnrichedCard.subCollectionId === undefined`.
- */
-export interface SubCollectionDef {
-  id: string;
-  /** User label. Trimmed + length-clamped client-side (see clampSubCollectionName). */
-  name: string;
-  /** Optional hex for UI badging (mirrors BinderDef.color). */
-  color?: string;
-  /** Display order, ascending. */
-  order: number;
 }
 
 /** Preset list kinds (purely cosmetic grouping; free strings also allowed). */
@@ -134,7 +108,7 @@ export interface ListEntry {
 
 /**
  * A user-defined list of unowned cards. Rides inside StoredCollection (synced
- * like subCollections). `kind` is cosmetic; `undefined` ⇒ generic list.
+ * with the collection blob). `kind` is cosmetic; `undefined` ⇒ generic list.
  */
 export interface ListDef {
   id: string;

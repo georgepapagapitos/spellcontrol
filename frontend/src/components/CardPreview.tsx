@@ -487,7 +487,7 @@ export function CardPreview({
                       <span key={`b-${b.id}`}>
                         {i > 0 && ' · '}
                         <Link
-                          to={`/binders/${b.id}`}
+                          to={`/collection/binders/${b.id}`}
                           className="card-preview-context-pill card-preview-context-pill--binder"
                           style={
                             {
