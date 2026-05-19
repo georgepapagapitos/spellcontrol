@@ -11,7 +11,7 @@
     "predev": "node scripts/refresh-tagger.mjs",
     "prebuild": "node scripts/refresh-tagger.mjs",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
