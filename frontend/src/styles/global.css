@@ -4974,12 +4974,19 @@ hr {
 .card-preview-backdrop {
   /* The card image is the hero of this view. Three constraints compete
      for the slide width: (a) viewport width — fill nicely on phones,
-     (b) absolute reading ceiling so tablets/desktop don't blow it up
-     to a billboard, (c) viewport height — must not overflow the track
-     row above the info panel. min() picks the smallest so the card
+     (b) a width-scaled reading ceiling so it grows on desktop but never
+     becomes a billboard, (c) viewport height — must not overflow the
+     track row above the info panel. min() picks the smallest so the card
      stays whole on every aspect ratio. 0.72 matches the 488:680 card
-     aspect — limiting height by that ratio yields the matching width. */
-  --slide-size: min(94vw, 460px, calc((100dvh - 13rem) * 0.72));
+     aspect — limiting height by that ratio yields the matching width.
+     The ceiling is clamp(460,56vw,620): phones stay 94vw-bound (the
+     460 floor never engages there), desktop scales with the window up
+     to 620px. 620 is the resolution-honest max — the hero now renders
+     Scryfall `large` (672w, via imageLarge), so up to ~620 CSS-px it
+     stays sharp; beyond that even `large` upscales. On typical laptops
+     the height term still governs (~520–580); 620 is realized on tall
+     monitors. */
+  --slide-size: min(94vw, calc((100dvh - 13rem) * 0.72), clamp(460px, 56vw, 620px));
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
@@ -5020,7 +5027,7 @@ hr {
      the first frame for a clean entrance, then releases transform control
      when the one-shot ends so the swipe-down-dismiss inline translateY
      still works (its value is 0 at mount, so there's no conflict). */
-  animation: card-preview-rise 0.5s var(--ease-drawer) backwards;
+  animation: sheet-rise 0.5s var(--ease-drawer) backwards;
   /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
      horizontal pans are owned by the nested .card-preview-track
      (which sets its own touch-action: pan-x). Telling the browser
@@ -5185,10 +5192,12 @@ hr {
   }
 }
 
-/* Full-height bottom-sheet slide. Pure transform (no opacity/scale) so
-   the sheet reads as one solid panel sliding up over the dimming
-   backdrop — the way ManaBox does it — rather than a fade. */
-@keyframes card-preview-rise {
+/* Full-height bottom-sheet rise. Pure transform (no opacity/scale) so
+   the translucent sheet reads as one cohesive surface gliding up and
+   progressively covering the grid — the way ManaBox does it — rather
+   than a fade. Shared by the card preview and the binder-pages flipbook
+   (their sheets are structurally the same surface). */
+@keyframes sheet-rise {
   from {
     transform: translateY(100%);
   }
@@ -5196,6 +5205,28 @@ hr {
   to {
     transform: translateY(0);
   }
+}
+
+/* Mirror of sheet-rise for dismissal — the sheet slides back off-screen
+   instead of vanishing, so close is symmetric with open on every path
+   (button / Escape / backdrop / tap / swipe-fling). Driven by the
+   .is-closing class (see useSheetExit); transform sits in the CSS
+   Animation origin so it overrides the swipe gesture's inline
+   translateY during the exit. A touch quicker than the 0.5s rise —
+   exits reading slightly faster than entrances feels responsive. */
+@keyframes sheet-fall {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.card-preview-sheet.is-closing,
+.binder-pages-sheet.is-closing {
+  animation: sheet-fall 0.34s var(--ease-drawer) forwards;
 }
 
 .card-preview-track {
@@ -5392,10 +5423,13 @@ hr {
     220% 100%,
     100% 100%;
   background-repeat: no-repeat;
-  animation: card-preview-skeleton 1.4s ease-in-out infinite;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
-@keyframes card-preview-skeleton {
+/* Diagonal sheen sweep for any loading placeholder (hero card art or a
+   binder pocket thumbnail). Pure background-position so it composites
+   cheaply. */
+@keyframes skeleton-shimmer {
   from {
     background-position:
       180% 0,
@@ -5697,10 +5731,12 @@ hr {
     transform: scale(var(--slide-scale, 1));
     transition: none;
   }
-  .card-preview-sheet {
+  .card-preview-sheet,
+  .binder-pages-sheet {
     animation: none;
   }
-  .card-preview-image-skeleton {
+  .card-preview-image-skeleton,
+  .binder-pages-cell-skeleton {
     animation: none;
   }
 }
@@ -5911,18 +5947,42 @@ hr {
 
 /* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
 .binder-pages-backdrop {
-  /* Same sizing strategy as .card-preview-backdrop but the height bound
-     scales by the actual page aspect (--page-w-ratio = cols×5 / rows×7).
-     A 9-pocket / 4-pocket page is 5:7 like a card (ratio ≈ 0.714); a
-     12-pocket page is 20:21 (ratio ≈ 0.952), so the same vertical room
-     allows a wider slide. The 15rem reservation covers panel + page label. */
-  --slide-size: min(94vw, 460px, calc((100dvh - 15rem) * var(--page-w-ratio, 0.72)));
+  /* A binder page is a grid of downscaled thumbnails — unlike the
+     single-card hero there is NO source-resolution ceiling, so the only
+     limits are layout. Height bound scales by the actual page aspect
+     (--page-w-ratio = cols×5 / rows×7): a 9-/4-pocket page is 5:7 like a
+     card (ratio ≈ 0.714); a 12-pocket page is 20:21 (≈ 0.952).
+       • 10rem reservation — a SINGLE count of the bottom chrome, valid
+         now that .binder-pages-panel is in normal grid flow (the `auto`
+         row) rather than position:absolute over the track. The track is
+         the remaining `1fr`; the slide centers within it, fully clear of
+         the panel below — so the old 2×panel double-count is gone.
+         Budget: panel ≈ 6.1rem (≈7.3 with a notch's safe-area inset) +
+         page-label ≈ 0.9rem + slide gap + track pad ≈ 1.8rem ⇒ ~9rem
+         worst case; 10rem keeps ~1rem cushion. The panel height is held
+         deterministic by the nowrap+ellipsis on .binder-pages-name /
+         -context, so this stays exact. (Shrinking further risks the
+         centered page overflowing the `1fr` track and clipping
+         top+bottom — the previous 11rem regression, see git log.)
+       • clamp(460,64vw,820) replaces the old flat 460 cap so desktop
+         grows with the window; phones stay 94vw-bound. min() still picks
+         the height term whenever a wider slide would imply a too-tall
+         page, so no overflow regardless. */
+  --slide-size: min(
+    94vw,
+    calc((100dvh - 10rem) * var(--page-w-ratio, 0.72)),
+    clamp(460px, 64vw, 820px)
+  );
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  /* Drawer model, same as .card-preview-backdrop: no dim. The translucent
+     .binder-pages-sheet is the surface that covers the grid as it rises;
+     this layer is just a transparent full-viewport hit area (taps outside
+     the page still close) and the positioning context + sizing-var carrier
+     for the sheet. */
+  background: transparent;
   z-index: var(--z-overlay);
-  animation: fade-in 0.15s ease-out;
 }
 
 .binder-pages-sheet {
@@ -5931,6 +5991,20 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* The drawer surface — translucent, not opaque, so a hint of the grid
+     reads through behind the page while it still clearly covers it as it
+     rises (smoked-glass drawer, not a page over a dim overlay). Same tone
+     as .card-preview-sheet so the two previews read as one system; no
+     backdrop-filter for the same reason (a full-screen blur recompute
+     mid-slide is the classic janky-drawer cause). */
+  background: rgba(14, 15, 19, 0.76);
+  /* Bottom-sheet rise on open — identical to .card-preview-sheet (shared
+     keyframe + easing token). Runs once on mount (the component remounts
+     each time the flipbook opens); `backwards` pins the off-screen start
+     before the first frame, then releases transform control so the
+     swipe-down-dismiss inline translateY still works (0 at mount, so no
+     conflict). */
+  animation: sheet-rise 0.5s var(--ease-drawer) backwards;
   /* Same touch contract as .card-preview-sheet — vertical = JS, horizontal
      = native pan-x on the nested track. */
   touch-action: pan-x;
@@ -5942,10 +6016,13 @@ hr {
 
 .binder-pages-track {
   display: flex;
-  /* Center vertically — unlike a single card, a binder slide is label +
-     page so its total height is taller than the page rectangle. flex-end
-     would pin the bottom of the page to the panel and clip the label /
-     top of the grid on shorter viewports. */
+  /* This track is the sheet's `1fr` grid row; the panel is the `auto`
+     row directly below it (no longer overlapping). Center the slide
+     vertically within that remaining space — a binder slide is label +
+     page, so centering keeps the label and page balanced in the gap
+     above the panel on every viewport. min-height:0 lets the `1fr`
+     actually shrink so the page is bounded by --slide-size, not by the
+     intrinsic slide height. */
   align-items: center;
   gap: var(--slide-spacing);
   width: 100%;
@@ -6050,6 +6127,31 @@ hr {
   border-color: rgba(255, 255, 255, 0.04);
 }
 
+/* Per-pocket loading placeholder — the grid analogue of
+   .card-preview-image-skeleton (shared skeleton-shimmer keyframe). Fills
+   the cell behind the thumbnail until it loads so a rising page has
+   substance instead of empty pockets popping in. border-radius: inherit
+   matches the cell's clipped 5px corners. */
+.binder-pages-cell-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 65%
+    ),
+    rgba(20, 22, 28, 0.85);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
 .binder-pages-cell img {
   width: 100%;
   height: 100%;
@@ -6070,10 +6172,12 @@ hr {
 }
 
 .binder-pages-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* In normal grid flow — the `auto` row of .binder-pages-sheet's
+     `grid-template-rows: 1fr auto`. (Was position:absolute over the
+     bottom, which forced the centered track to reserve ~2× the panel's
+     height from BOTH ends to avoid the page sliding under it. In flow,
+     the track is the remaining `1fr` and the page centers cleanly above
+     the panel — single-count reservation, ~5rem more page on desktop.) */
   background: rgba(15, 15, 18, 0.92);
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
   padding: 0.9rem 1.1rem;
@@ -6090,12 +6194,23 @@ hr {
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
+  /* One line, ellipsis — keeps the panel a deterministic height so the
+     --slide-size reservation below is exact. A wrapped 2-line name would
+     grow the panel past the reservation and (with the centered track)
+     clip the page top+bottom. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .binder-pages-context {
   font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.7);
   font-family: var(--font-mono);
+  /* Same determinism contract as .binder-pages-name. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .binder-pages-counter {
