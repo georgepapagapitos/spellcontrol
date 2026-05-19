@@ -29,6 +29,7 @@ pnpm-debug.log*
 # Claude Code
 .claude/
 CLAUDE.md
+docs/
 
 # Editor / IDE
 .vscode/*
