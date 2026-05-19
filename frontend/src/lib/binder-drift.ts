@@ -1,5 +1,6 @@
 import type { BinderDef, BinderReviewSnapshot, EnrichedCard, MaterializedBinder } from '../types';
 import { printingFinishKey } from './collection-mutations';
+import type { ImportHistoryEntry } from './local-cards';
 
 /**
  * Drift attribution for a single card that moved in or out of a binder since
@@ -14,14 +15,18 @@ import { printingFinishKey } from './collection-mutations';
  *     it without re-running rules at snapshot time, so we report the raw delta
  *     and let the user judge — "price 6.20 → 4.80" is enough signal in practice.
  *   - `edhrec`: same idea for EDHREC rank.
- *   - `collection`: the card was added/removed from the user's collection
- *     between snapshot and now (no longer owned, or newly imported).
+ *   - `imported`: the card was added by an import that happened after the
+ *     snapshot was captured. Distinct from `collection` because we know
+ *     *which* import brought it in, so we can show "from manabox.csv" rather
+ *     than the generic "no longer in collection" / "rule change".
+ *   - `collection`: the card was removed from the user's collection between
+ *     snapshot and now (no longer owned). Only used for removed cards.
  *   - `other`: snapshot/current values are unchanged on the volatile fields
- *     we track, so the cause is something else — typically the user edited
- *     the binder rules. Cheaper than full rule attribution and almost always
- *     self-evident in context ("I just edited this binder").
+ *     we track and no import explains it, so the cause is something else —
+ *     typically the user edited the binder rules. Cheaper than full rule
+ *     attribution and almost always self-evident ("I just edited this binder").
  */
-export type DriftReasonKind = 'price' | 'edhrec' | 'collection' | 'other';
+export type DriftReasonKind = 'price' | 'edhrec' | 'imported' | 'collection' | 'other';
 
 export interface DriftReason {
   kind: DriftReasonKind;
@@ -31,6 +36,10 @@ export interface DriftReason {
     priceAfter?: number;
     edhrecBefore?: number;
     edhrecAfter?: number;
+    /** For `imported` reasons: the human-readable source label (filename or
+     *  "pasted-list") and the time of the import. */
+    importName?: string;
+    importedAt?: number;
   };
 }
 
@@ -95,9 +104,18 @@ const PRICE_EPSILON = 0.01;
  * at the snapshot's pinned volatile values and compare to the live card (if
  * still in the user's collection). If price or EDHREC moved meaningfully,
  * that's the reason; otherwise we report "other" (rule edit / something we
- * don't track). For added cards we do the symmetric check.
+ * don't track). For added cards we do the symmetric check, plus a check
+ * against post-snapshot imports — if the card came in with a recent import,
+ * that's the most informative reason.
+ *
+ * `importHistory` is optional so callers without it (tests, future helpers)
+ * still get a meaningful result — they just lose the `imported` attribution.
  */
-export function computeDrift(binder: MaterializedBinder, allCards: EnrichedCard[]): DriftResult {
+export function computeDrift(
+  binder: MaterializedBinder,
+  allCards: EnrichedCard[],
+  importHistory: ImportHistoryEntry[] = []
+): DriftResult {
   const snapshot = binder.def.lastReviewedSnapshot;
   if (!snapshot) {
     return { added: [], removed: [], neverReviewed: true };
@@ -120,6 +138,15 @@ export function computeDrift(binder: MaterializedBinder, allCards: EnrichedCard[
     if (!liveByKey.has(k)) liveByKey.set(k, c);
   }
 
+  // Index imports newer than the snapshot. Imports that pre-date the snapshot
+  // can't explain a card's arrival in the binder (the snapshot would have
+  // captured it), so we skip them up front rather than re-checking per card.
+  const recentImports = new Map<string, ImportHistoryEntry>();
+  for (const h of importHistory) {
+    if (!h.id) continue;
+    if (h.addedAt > snapshot.at) recentImports.set(h.id, h);
+  }
+
   const added: DriftCard[] = [];
   for (const [key, card] of currentByKey) {
     if (previousKeys.has(key)) continue;
@@ -127,7 +154,7 @@ export function computeDrift(binder: MaterializedBinder, allCards: EnrichedCard[
       key,
       name: card.name,
       card,
-      reason: attributeAdded(key, card, snapshot),
+      reason: attributeAdded(key, card, snapshot, recentImports),
     });
   }
 
@@ -157,28 +184,39 @@ export function computeDrift(binder: MaterializedBinder, allCards: EnrichedCard[
 function attributeAdded(
   key: string,
   card: EnrichedCard,
-  snapshot: BinderReviewSnapshot
+  snapshot: BinderReviewSnapshot,
+  recentImports: Map<string, ImportHistoryEntry>
 ): DriftReason {
   const prev = snapshot.cardSnapshots[key];
-  if (!prev) {
-    // We didn't know about this card at snapshot time. Either the user just
-    // imported it, or it existed but didn't match — we can't distinguish
-    // without a separate collection snapshot. Treat as a collection change
-    // unless we have a baseline price to compare against from any other
-    // snapshot entry (we don't), so report "other".
+  if (prev) {
+    if (priceMoved(prev.price, card.purchasePrice)) {
+      return {
+        kind: 'price',
+        detail: { priceBefore: prev.price, priceAfter: card.purchasePrice },
+      };
+    }
+    if (edhrecMoved(prev.edhrecRank, card.edhrecRank)) {
+      return {
+        kind: 'edhrec',
+        detail: { edhrecBefore: prev.edhrecRank, edhrecAfter: card.edhrecRank },
+      };
+    }
+    // Card was known at snapshot time, value-stable, but now matches —
+    // most likely the rules were edited.
     return { kind: 'other' };
   }
-  if (priceMoved(prev.price, card.purchasePrice)) {
-    return {
-      kind: 'price',
-      detail: { priceBefore: prev.price, priceAfter: card.purchasePrice },
-    };
-  }
-  if (edhrecMoved(prev.edhrecRank, card.edhrecRank)) {
-    return {
-      kind: 'edhrec',
-      detail: { edhrecBefore: prev.edhrecRank, edhrecAfter: card.edhrecRank },
-    };
+
+  // Card was *unknown* at snapshot time: either freshly imported, or already
+  // in the collection but didn't match. Prefer the import attribution when
+  // we can prove it via a post-snapshot import id.
+  if (card.importId) {
+    const imp = recentImports.get(card.importId);
+    if (imp) {
+      return {
+        kind: 'imported',
+        detail: { importName: imp.name, importedAt: imp.addedAt },
+      };
+    }
   }
   return { kind: 'other' };
 }
@@ -237,6 +275,11 @@ export function formatDriftReason(reason: DriftReason): string {
       if (a !== undefined && b === undefined) return `EDHREC rank removed (was ${a})`;
       if (a === undefined || b === undefined) return 'EDHREC rank changed';
       return `EDHREC rank ${a} → ${b}`;
+    }
+    case 'imported': {
+      const name = reason.detail?.importName;
+      if (!name) return 'newly imported';
+      return `newly imported from ${name}`;
     }
     case 'collection':
       return 'no longer in collection';
