@@ -6,8 +6,12 @@ const DISMISS_DISTANCE_PX = 120;
 const DISMISS_VELOCITY = 0.6;
 
 interface Options {
-  /** Called when the user has dragged far enough or flicked down hard enough to dismiss. */
-  onDismiss: () => void;
+  /**
+   * Called when the user has dragged far enough or flicked down hard enough
+   * to dismiss. Receives the release offset in px so the exit slide can
+   * continue from where the finger left off instead of snapping back to 0.
+   */
+  onDismiss: (fromY: number) => void;
   /**
    * Optional reference to a horizontally-scrolling element nested inside the
    * sheet (e.g. a card carousel). While the gesture is locked vertical, the
@@ -114,10 +118,13 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
     const dy = t.clientY - start.y;
     const dt = Math.max(1, Date.now() - start.t);
     const velocity = dy / dt;
-    // Dismiss if dragged far enough OR flicked down hard.
+    // Dismiss if dragged far enough OR flicked down hard. Capture the release
+    // offset before reset() zeroes dragY, then hand it to onDismiss so the
+    // exit slide continues from there rather than jerking back to the top.
     if (dy > DISMISS_DISTANCE_PX || velocity > DISMISS_VELOCITY) {
+      const fromY = Math.max(0, dy);
       reset();
-      onDismiss();
+      onDismiss(fromY);
     } else {
       reset();
     }
