@@ -1,8 +1,14 @@
 import type { EnrichedCard } from '../types';
 
 /**
- * Color-identity grouping key. Lands group by their color identity too —
- * Forest → G, Plains → W, Wastes → C, dual lands → M.
+ * Color grouping key. Non-land cards bucket by their *printed color* (mana
+ * cost / color indicator / characteristic-defining ability), matching ManaBox:
+ * a mono-white card with a `{4}{G}{G}:` activated ability (e.g. Shalai, Voice
+ * of Plenty) groups under White, not Multicolor. Color identity pulled from
+ * rules text does NOT promote a card to multicolor here.
+ *
+ * Lands are colorless by rule, so they instead bucket by color identity —
+ * Forest → G, Plains → W, Wastes → C, dual / fetch lands → M.
  *
  * Returns:
  *   'W'/'U'/'B'/'R'/'G' for monocolor (or mono-color-identity lands)
@@ -11,14 +17,17 @@ import type { EnrichedCard } from '../types';
  *   '?' if Scryfall data is missing (so user knows lookup failed)
  */
 export function getColorKey(card: EnrichedCard): string {
-  if (!card.colorIdentity) {
+  // Lands key off color identity; everything else off the card's own colors.
+  // `colors` falls back to `colorIdentity` for cards enriched before the
+  // dedicated field existed, then to a basic-land name guess.
+  const palette = isLand(card) ? card.colorIdentity : (card.colors ?? card.colorIdentity);
+
+  if (!palette) {
     // Scryfall lookup missed — basic lands have well-known names so we can still bucket those.
     return basicLandColorByName(card.name) ?? '?';
   }
-
-  const ci = card.colorIdentity;
-  if (ci.length === 0) return 'C';
-  if (ci.length === 1) return ci[0];
+  if (palette.length === 0) return 'C';
+  if (palette.length === 1) return palette[0];
   return 'M';
 }
 
