@@ -5,6 +5,7 @@ import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import 'mana-font/css/mana.min.css';
 import './styles/global.css';
+import './styles/holographic.css';
 import './styles/themes.css';
 import './styles/deck-builder.css';
 import './styles/play.css';
