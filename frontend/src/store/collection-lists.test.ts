@@ -30,7 +30,6 @@ beforeEach(async () => {
   useCollectionStore.setState({
     cards: [],
     binders: [],
-    subCollections: [],
     lists: [],
     fileName: '',
     importHistory: [],
@@ -84,14 +83,13 @@ describe('list entries', () => {
     expect(useCollectionStore.getState().lists[0].entries).toHaveLength(0);
   });
 
-  it('moveListEntryToCollection adds owned cards (Main) and removes the entry', async () => {
+  it('moveListEntryToCollection adds owned cards and removes the entry', async () => {
     const id = useCollectionStore.getState().createList('Wants');
     await useCollectionStore.getState().addListEntry(id, enriched('c1', 'sf1'), 3);
     const entryId = useCollectionStore.getState().lists[0].entries[0].id;
     await useCollectionStore.getState().moveListEntryToCollection(id, entryId);
     const cards = useCollectionStore.getState().cards;
     expect(cards.filter((c) => c.scryfallId === 'sf1')).toHaveLength(3);
-    expect(cards.every((c) => c.subCollectionId === undefined)).toBe(true);
     expect(useCollectionStore.getState().lists[0].entries).toHaveLength(0);
     const stored = await loadCollection();
     expect(stored?.cards.filter((c) => c.scryfallId === 'sf1')).toHaveLength(3);
@@ -99,8 +97,7 @@ describe('list entries', () => {
 });
 
 describe('persistence regression (buildStored coverage)', () => {
-  it('addCard preserves subCollections AND lists in the cache', async () => {
-    const scId = useCollectionStore.getState().createSubCollection('Bulk');
+  it('addCard preserves lists in the cache', async () => {
     const listId = useCollectionStore.getState().createList('Wants');
     // addCard takes a ScryfallCard; minimal shape is enough for scryfallToEnrichedCard.
     await useCollectionStore.getState().addCard({
@@ -113,7 +110,6 @@ describe('persistence regression (buildStored coverage)', () => {
       oracle_id: 'o1',
     } as never);
     const stored = await loadCollection();
-    expect(stored?.subCollections?.some((s) => s.id === scId)).toBe(true);
     expect(stored?.lists?.some((l) => l.id === listId)).toBe(true);
     expect(stored?.cards.some((c) => c.scryfallId === 'sfX')).toBe(true);
   });

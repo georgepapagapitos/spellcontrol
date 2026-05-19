@@ -125,7 +125,7 @@ export function ListEntriesView({ list }: Props) {
           </p>
         </div>
         <div className="binders-index-actions">
-          <Link to="/lists" className="pill-btn">
+          <Link to="/collection/lists" className="pill-btn">
             <span>Back to lists</span>
           </Link>
         </div>

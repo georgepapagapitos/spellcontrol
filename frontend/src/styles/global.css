@@ -6375,6 +6375,19 @@ hr {
   }
 }
 
+/* ── Collection hub tab strip ──────────────────────────────────────────────
+   Reuses .site-nav-link / .site-nav-count for the tab items; only the strip
+   wrapper is bespoke. Unlike .site-nav-links this stays visible on mobile
+   (it is the in-page section nav, not the header's primary nav). */
+.collection-hub-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
 .mobile-tab-bar {
   display: none;
@@ -7053,13 +7066,6 @@ hr {
 .card-list-bulk-toolbar .binder-name-input {
   width: auto;
   min-width: 12rem;
-}
-
-/* Sub-collection view filter — a chip row in the collection toolbar stack.
-   Reuses the shared .chip / .chip.active styling; only spacing is added so
-   it sits between the hero and the list like the bulk toolbar does. */
-.collection-subfilter {
-  margin-bottom: 0.6rem;
 }
 
 /* Set code + collector number (used in list view) */

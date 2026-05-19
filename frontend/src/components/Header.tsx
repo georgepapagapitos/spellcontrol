@@ -6,8 +6,6 @@ import { usePlayStore } from '../store/play';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
-  const binderCount = useCollectionStore((s) => s.binders.length);
-  const listCount = useCollectionStore((s) => s.lists.length);
   const deckCount = useDecksStore((s) => s.decks.length);
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   return (
@@ -28,28 +26,6 @@ export function Header() {
             {cardCount > 0 && (
               <span className="site-nav-count" aria-label={`${cardCount} cards`}>
                 {formatCount(cardCount)}
-              </span>
-            )}
-          </NavLink>
-          <NavLink
-            to="/binders"
-            className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
-          >
-            <span>Binders</span>
-            {binderCount > 0 && (
-              <span className="site-nav-count" aria-label={`${binderCount} binders`}>
-                {binderCount}
-              </span>
-            )}
-          </NavLink>
-          <NavLink
-            to="/lists"
-            className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
-          >
-            <span>Lists</span>
-            {listCount > 0 && (
-              <span className="site-nav-count" aria-label={`${listCount} lists`}>
-                {listCount}
               </span>
             )}
           </NavLink>

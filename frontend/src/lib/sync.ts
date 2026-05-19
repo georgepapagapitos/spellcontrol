@@ -139,7 +139,6 @@ function buildCollection(): StoredCollection | null {
     scryfallMisses: s.scryfallMisses,
     uploadedAt: s.uploadedAt ?? Date.now(),
     importHistory: s.importHistory,
-    subCollections: s.subCollections,
     lists: s.lists,
   };
 }
@@ -300,7 +299,6 @@ async function hydrateFromCache(): Promise<void> {
         scryfallMisses: stored.scryfallMisses,
         uploadedAt: stored.uploadedAt,
         importHistory: stored.importHistory ?? [],
-        subCollections: stored.subCollections ?? [],
         lists: stored.lists ?? [],
         hydrating: false,
       });
@@ -378,7 +376,6 @@ async function applyServerSnapshot(
       scryfallMisses: remoteCollection?.scryfallMisses ?? 0,
       uploadedAt: remoteCollection?.uploadedAt ?? null,
       importHistory: remoteCollection?.importHistory ?? [],
-      subCollections: remoteCollection?.subCollections ?? [],
       lists: remoteCollection?.lists ?? [],
       hydrating: false,
     });

@@ -101,7 +101,6 @@ describe('entryToCards', () => {
       foil: false,
       oracleId: 'oracle-solring',
     });
-    expect(cards[0].subCollectionId).toBeUndefined(); // lands in Main
   });
   it('sets foil=true for foil/etched finishes', () => {
     expect(entryToCards({ ...entry, finish: 'foil', quantity: 1 })[0].foil).toBe(true);
