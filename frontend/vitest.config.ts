@@ -51,10 +51,10 @@ export default defineConfig({
           lines: 80,
         },
         'src/store/**': {
-          statements: 40,
-          branches: 27,
-          functions: 38,
-          lines: 43,
+          statements: 65,
+          branches: 58,
+          functions: 60,
+          lines: 68,
         },
         'src/deck-builder/**': {
           statements: 38,
