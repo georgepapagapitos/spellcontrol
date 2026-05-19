@@ -625,4 +625,54 @@ describe('keepPrintingsTogether', () => {
     expect(copyIds(binders[0])).toEqual(['pricey']); // only the pin
     expect(uncategorized.sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual(['bulk']);
   });
+
+  it('lists are inert: list associations on cards/opts never change binder membership', () => {
+    const rareFilter = {
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    };
+    const rareBinder = makeBinder(rareFilter);
+
+    // Baseline: pure rule routing with no list data anywhere.
+    const baseline = materializeBinders(
+      [makeCard({ rarity: 'rare' }), makeCard({ rarity: 'rare' })],
+      [rareBinder],
+      defaultOpts
+    );
+    expect(baseline.binders[0].totalCards).toBe(2);
+
+    // Same two rare cards, but now each carries list-like associations a future
+    // list↔card link could plausibly attach, and opts carries list-shaped extra
+    // keys. Cast through unknown because none of these fields exist on the public
+    // types today — that absence is exactly the contract under guard.
+    const linkedRare = makeCard({
+      rarity: 'rare',
+      ...({ listIds: ['wishlist-1', 'buylist-2'], listEntryId: 'entry-9' } as object),
+    } as Partial<EnrichedCard>);
+    const unlinkedRare = makeCard({ rarity: 'rare' });
+    const optsWithListData = {
+      ...defaultOpts,
+      ...({
+        lists: [
+          {
+            id: 'wishlist-1',
+            name: 'Wants',
+            entries: [{ id: 'entry-9', name: linkedRare.name, scryfallId: linkedRare.scryfallId }],
+          },
+        ],
+      } as object),
+    } as typeof defaultOpts;
+
+    const withListData = materializeBinders(
+      [linkedRare, unlinkedRare],
+      [rareBinder],
+      optsWithListData
+    );
+
+    // Membership is identical to the baseline: both rares are still routed purely
+    // by the rarity rule. The list link on a card and the list payload in opts
+    // changed nothing — neither suppressed nor re-routed a card.
+    expect(withListData.binders[0].totalCards).toBe(baseline.binders[0].totalCards);
+    expect(withListData.binders[0].totalCards).toBe(2);
+    expect(withListData.uncategorized.totalCards).toBe(0);
+  });
 });
