@@ -62,6 +62,16 @@ export interface EnrichedCard {
   imageNormal?: string;
   /** Back-face normal image for two-sided layouts (transform / modal_dfc / reversible / double_faced_token). */
   imageNormalBack?: string;
+  /**
+   * Hero-resolution front art (Scryfall `large`, 672×936) — only consumed by
+   * the full-screen CardPreview so the desktop drawer can grow without
+   * upscaling `normal`. Everything else (grids, binder pockets, thumbnails)
+   * keeps using imageNormal. Absent on cards enriched before this field
+   * existed; consumers must fall back to imageNormal.
+   */
+  imageLarge?: string;
+  /** Back-face hero-resolution image, paired with imageLarge for two-sided layouts. */
+  imageLargeBack?: string;
   /** Cosmetic treatments — fullart, extendedart, showcase, etched, inverted, etc. */
   frameEffects?: string[];
   /** True when the printing is a full-art treatment (covers both Scryfall's full_art flag and the 'fullart' frame effect). */

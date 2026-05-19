@@ -16,6 +16,7 @@ import { classifyFoil } from '../lib/foil-style';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
 
@@ -230,10 +231,13 @@ export function CardPreview({
 
   useLockBodyScroll();
 
+  // Symmetric exit: every dismiss path plays sheet-fall, then unmounts.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        beginClose();
         return;
       }
       let next: number | null = null;
@@ -245,10 +249,10 @@ export function CardPreview({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, selected, cards.length]);
+  }, [beginClose, selected, cards.length]);
 
   const { dragY, isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
-    onDismiss: onClose,
+    onDismiss: beginClose,
     trackRef,
   });
 
@@ -273,10 +277,13 @@ export function CardPreview({
   } as React.CSSProperties;
 
   return (
-    <div className="card-preview-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="card-preview-backdrop" onClick={beginClose} role="dialog" aria-modal="true">
       <div
-        className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}`}
+        className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}${
+          isClosing ? ' is-closing' : ''
+        }`}
         style={sheetStyle}
+        onAnimationEnd={onAnimationEnd}
         {...touchHandlers}
       >
         <button
@@ -284,7 +291,7 @@ export function CardPreview({
           className="card-preview-close"
           onClick={(e) => {
             e.stopPropagation();
-            onClose();
+            beginClose();
           }}
           aria-label="Close preview"
         >
@@ -340,7 +347,7 @@ export function CardPreview({
                   } else {
                     // Tap the active card to close — matches the natural
                     // "tap to dismiss" expectation on mobile and desktop alike.
-                    onClose();
+                    beginClose();
                   }
                 }}
               >
@@ -359,7 +366,12 @@ export function CardPreview({
                               <div className="card-preview-image-skeleton" aria-hidden="true" />
                             )}
                             <img
-                              src={c.imageNormal}
+                              // Hero drawer can grow to ~620px on desktop;
+                              // `large` (672w) stays sharp there where
+                              // `normal` (488w) would upscale. Falls back to
+                              // normal for cards enriched before imageLarge
+                              // existed. Grids/thumbnails keep using normal.
+                              src={c.imageLarge || c.imageNormal}
                               alt={c.name}
                               className="card-preview-image"
                               draggable={false}
@@ -391,7 +403,7 @@ export function CardPreview({
                       {c.imageNormalBack && (
                         <div className="card-preview-face card-preview-face-back">
                           <img
-                            src={c.imageNormalBack}
+                            src={c.imageLargeBack || c.imageNormalBack}
                             alt={`${c.name} (back)`}
                             className="card-preview-image"
                             draggable={false}
