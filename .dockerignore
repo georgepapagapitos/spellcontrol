@@ -1,0 +1,17 @@
+# Root build context (docker-publish.yml builds with context: .).
+# Keep the context lean and never ship host artifacts into images.
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+.git
+.github
+**/*.log
+npm-debug.log*
+.DS_Store
+**/.env
+**/.env.*
+docker-compose*.yml
+**/Dockerfile
+.dockerignore
+.claude

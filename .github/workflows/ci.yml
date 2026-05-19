@@ -10,6 +10,35 @@ permissions:
   contents: read
 
 jobs:
+  game-core:
+    name: game-core — typecheck & test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/game-core
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: packages/game-core/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
   frontend:
     name: Frontend — typecheck & test
     runs-on: ubuntu-latest
@@ -26,6 +55,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      # Build the shared file: dependency before installing the consumer:
+      # game-core's dist is gitignored, so a fresh checkout has none and the
+      # consumer's `npm ci` would otherwise run game-core's build with no
+      # devDeps. Building it here makes the dist-guarded prepare a no-op.
+      - name: Build shared game-core
+        working-directory: packages/game-core
+        run: npm ci && npm run build
 
       - name: Install dependencies
         run: npm ci
@@ -77,6 +114,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: backend/package-lock.json
+
+      # See the frontend job: build the shared file: dependency before the
+      # consumer install so its dist-guarded prepare is a no-op.
+      - name: Build shared game-core
+        working-directory: packages/game-core
+        run: npm ci && npm run build
 
       - name: Install dependencies
         run: npm ci

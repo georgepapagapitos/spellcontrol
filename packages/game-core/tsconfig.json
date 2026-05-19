@@ -1,0 +1,26 @@
+{
+  // Base config: editor + `typecheck`. game-core has zero imports (a single
+  // self-contained module using only globals), so moduleResolution never
+  // actually resolves anything — these values just need to be non-deprecated
+  // under TypeScript 6. The CJS/ESM emit configs extend this.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist/cjs",
+    "declarationDir": "dist/types"
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
+}
