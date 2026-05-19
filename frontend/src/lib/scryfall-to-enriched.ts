@@ -46,6 +46,7 @@ export function scryfallToEnrichedCard(
     edhrecRank: scryfall.edhrec_rank,
     imageSmall: scryfall.image_uris?.small || firstFace?.image_uris?.small,
     imageNormal: scryfall.image_uris?.normal || firstFace?.image_uris?.normal,
+    imageLarge: scryfall.image_uris?.large || firstFace?.image_uris?.large,
     frameEffects: scryfall.frame_effects,
     fullArt: scryfall.full_art === true || scryfall.frame_effects?.includes('fullart'),
     borderColor: scryfall.border_color,
@@ -59,6 +60,10 @@ export function scryfallToEnrichedCard(
 
   if (backFace?.image_uris?.normal) {
     card.imageNormalBack = backFace.image_uris.normal;
+  }
+
+  if (backFace?.image_uris?.large) {
+    card.imageLargeBack = backFace.image_uris.large;
   }
 
   if (scryfall.mana_cost) {
