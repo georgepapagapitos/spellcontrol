@@ -1,5 +1,21 @@
 import type { ScryfallCard, ScryfallSearchResponse } from '@/deck-builder/types';
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
+import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
+import { shouldUseOfflineData, useOfflineStore } from '@/store/offline';
+
+/**
+ * Cheap synchronous gate used to short-circuit every Scryfall call when the
+ * user has opted into offline mode AND the local oracle store has been
+ * populated. Reads zustand state outside React — same pattern the sync
+ * module uses for collection/decks stores.
+ */
+function offlineActive(): boolean {
+  try {
+    return shouldUseOfflineData(useOfflineStore.getState());
+  } catch {
+    return false;
+  }
+}
 
 const BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https://api.scryfall.com';
 const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec)
@@ -110,6 +126,11 @@ async function scryfallFetch<T>(endpoint: string): Promise<T> {
 export async function searchCommanders(query: string): Promise<ScryfallCard[]> {
   if (!query.trim()) return [];
 
+  if (offlineActive()) {
+    const resp = await offlineSearchCards(`is:commander ${query}`, { order: 'edhrec' });
+    return resp.data;
+  }
+
   try {
     const encodedQuery = encodeURIComponent(`is:commander f:commander ${query}`);
     const response = await scryfallFetch<ScryfallSearchResponse>(
@@ -133,6 +154,17 @@ export async function searchCards(
   } = {}
 ): Promise<ScryfallSearchResponse> {
   const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
+
+  if (offlineActive()) {
+    return offlineSearchCards(query, {
+      colorIdentity,
+      order,
+      page,
+      skipFormatFilter,
+      skipColorFilter,
+    });
+  }
+
   const colorFilter =
     !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
   const formatFilter = skipFormatFilter ? '' : 'f:commander';
@@ -159,6 +191,15 @@ export async function getCardByName(name: string, exact = true): Promise<Scryfal
   // Check cache first
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);
+
+  if (offlineActive()) {
+    const card = await offlineGetCardByName(name);
+    if (!card) {
+      throw new Error(`Card "${name}" not found in offline data.`);
+    }
+    cardCache.set(card.name, card);
+    return freshCopy(card);
+  }
 
   const param = exact ? 'exact' : 'fuzzy';
   const encodedName = encodeURIComponent(name);
@@ -257,6 +298,24 @@ export async function getCardsByNames(
 
   // If all cards were cached, return early
   if (uncachedNames.length === 0) return result;
+
+  // Offline path: resolve everything against the local oracle store. We
+  // ignore `preferredSet` (slim payload keeps a single representative
+  // printing per oracle) — degradation is acceptable for offline mode.
+  if (offlineActive()) {
+    const found = await offlineGetCardsByNames(uncachedNames);
+    for (const [name, card] of found) {
+      cardCache.set(name, card);
+      result.set(name, freshCopy(card));
+      if (card.name.includes(' // ')) {
+        const front = card.name.split(' // ')[0];
+        result.set(front, freshCopy(card));
+        cardCache.set(front, card);
+      }
+    }
+    onProgress?.(uncachedNames.length, uncachedNames.length);
+    return result;
+  }
 
   console.log(
     `[Scryfall] Fetching ${uncachedNames.length} cards via /cards/collection${preferredSet ? ` (set: ${preferredSet})` : ''}...`
@@ -427,6 +486,12 @@ export async function upgradeCardPrintings(
 ): Promise<void> {
   if (!scryfallQuery) return;
 
+  // Offline: the slim payload stores one representative printing per oracle,
+  // so we can't upgrade to a specific frame/treatment. Skip silently — cards
+  // keep their default printing. Strict mode also degrades to a no-op since
+  // we can't reliably detect "no matching printing exists" without the data.
+  if (offlineActive()) return;
+
   // Strip set filters — already handled by getCardsByNames' preferredSet
   const filters = scryfallQuery
     .replace(/\b(?:set|s|e|edition):["']?[a-zA-Z0-9_]+["']?/gi, '')
@@ -577,6 +642,16 @@ export async function getGameChangerNames(): Promise<Set<string>> {
     return gameChangerNamesCache;
   }
 
+  // Offline: the slim payload doesn't carry the `is:gamechanger` bit (Scryfall
+  // computes it dynamically). Return the empty set so deck-gen treats no card
+  // as a "game changer" rather than blocking on a network call that can't
+  // complete. Acceptable degradation per the offline-mode contract.
+  if (offlineActive()) {
+    gameChangerNamesCache = new Set();
+    gameChangerCacheTimestamp = Date.now();
+    return gameChangerNamesCache;
+  }
+
   const names = new Set<string>();
   let page = 1;
   let hasMore = true;
@@ -620,6 +695,19 @@ export async function getBanList(format: string): Promise<string[]> {
     return cached.names;
   }
 
+  // Offline: walk the local oracle store and pluck rows where the format's
+  // legality is "banned". Single pass, no pagination.
+  if (offlineActive()) {
+    const resp = await offlineSearchCards(`banned:${format}`, {
+      skipFormatFilter: true,
+      skipColorFilter: true,
+      order: 'name',
+    });
+    const names = resp.data.map((c) => c.name);
+    banListCache.set(format, { names, timestamp: Date.now() });
+    return names;
+  }
+
   const names: string[] = [];
   let page = 1;
   let hasMore = true;
@@ -650,6 +738,26 @@ export async function getCommanderBanList(): Promise<string[]> {
 
 export async function autocompleteCardName(query: string): Promise<string[]> {
   if (!query.trim() || query.length < 2) return [];
+
+  if (offlineActive()) {
+    // Local prefix-and-contains autocomplete: prefixes ranked above substring
+    // hits, capped at 20 so the dropdown stays tight.
+    const lower = query.toLowerCase();
+    const resp = await offlineSearchCards(lower, {
+      skipFormatFilter: true,
+      skipColorFilter: true,
+      order: 'name',
+    });
+    const prefix: string[] = [];
+    const contains: string[] = [];
+    for (const card of resp.data) {
+      const lc = card.name.toLowerCase();
+      if (lc.startsWith(lower)) prefix.push(card.name);
+      else if (lc.includes(lower)) contains.push(card.name);
+      if (prefix.length >= 20) break;
+    }
+    return [...prefix, ...contains].slice(0, 20);
+  }
 
   const encodedQuery = encodeURIComponent(query);
   const response = await scryfallFetch<{ data: string[] }>(`/cards/autocomplete?q=${encodedQuery}`);
@@ -911,6 +1019,24 @@ export async function fetchMultiCopyCardNames(): Promise<Map<string, number | nu
   if (multiCopyCardsCache) return multiCopyCardsCache;
 
   const result = new Map<string, number | null>();
+
+  if (offlineActive()) {
+    const resp = await offlineSearchCards('o:"a deck can have"', { skipColorFilter: true });
+    for (const card of resp.data) {
+      const oracle = (card.oracle_text || card.card_faces?.[0]?.oracle_text || '').toLowerCase();
+      if (oracle.includes('any number of cards named')) {
+        result.set(card.name, null);
+        continue;
+      }
+      const capMatch = oracle.match(/a deck can have up to (\w+) cards named/);
+      if (capMatch) {
+        const num = WORD_TO_NUMBER[capMatch[1]] ?? parseInt(capMatch[1], 10);
+        result.set(card.name, isNaN(num) ? null : num);
+      }
+    }
+    multiCopyCardsCache = result;
+    return result;
+  }
 
   try {
     const encodedQuery = encodeURIComponent('o:"a deck can have" f:commander');

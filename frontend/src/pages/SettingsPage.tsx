@@ -9,6 +9,7 @@ import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { fetchBackups, fetchSync, restoreBackup, type SyncBackupMeta } from '../lib/auth-api';
+import { OfflineModeSettings } from '../components/OfflineModeSettings';
 
 export function SettingsPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -198,6 +199,8 @@ export function SettingsPage() {
           </ul>
         </div>
       </section>
+
+      <OfflineModeSettings />
 
       <section className="settings-card" aria-labelledby="settings-data-title">
         <header className="settings-card-header">
