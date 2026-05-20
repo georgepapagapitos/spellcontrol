@@ -134,5 +134,16 @@ export async function ensureSchema(): Promise<void> {
       source TEXT NOT NULL,
       error TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS shares (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      resource_id TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      revoked_at BIGINT
+    );
+    CREATE INDEX IF NOT EXISTS shares_user_idx ON shares(user_id);
+    CREATE INDEX IF NOT EXISTS shares_resource_idx ON shares(user_id, kind, resource_id);
   `);
 }

@@ -1,9 +1,11 @@
 import { Plus } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
 import { ListEntriesView } from '../components/ListEntriesView';
+import { ShareDialog } from '../components/ShareDialog';
+import { useAuth } from '../store/auth';
 
 export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
@@ -13,6 +15,8 @@ export function ListsPage() {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
+  const user = useAuth((s) => s.user);
+  const [shareList, setShareList] = useState<{ id: string; name: string } | null>(null);
 
   const sorted = useMemo(() => [...lists].sort((a, b) => a.order - b.order), [lists]);
   const activeList = useMemo(
@@ -116,6 +120,15 @@ export function ListsPage() {
                 >
                   Rename
                 </button>
+                {user && (
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => setShareList({ id: l.id, name: l.name })}
+                  >
+                    Share
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-link"
@@ -130,6 +143,14 @@ export function ListsPage() {
       )}
 
       {confirmDialog}
+      {shareList && (
+        <ShareDialog
+          kind="list"
+          resourceId={shareList.id}
+          resourceLabel={shareList.name}
+          onClose={() => setShareList(null)}
+        />
+      )}
     </div>
   );
 }

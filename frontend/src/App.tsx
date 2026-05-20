@@ -15,6 +15,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
+import { SharedView } from './pages/SharedView';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync } from './lib/sync';
@@ -69,14 +70,28 @@ export default function App() {
   }, [status, userId]);
 
   if (status === 'unknown' || status === 'loading') {
-    return <div className="auth-page" aria-busy="true" />;
+    // Public share links must remain reachable while auth bootstraps and
+    // when no user is signed in — render the SharedView routes outside the
+    // auth gate so a friend with a link doesn't get bounced to /auth.
+    return (
+      <Routes>
+        <Route path="/s/:token" element={<SharedView />} />
+        <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
+      </Routes>
+    );
   }
   if (status === 'guest') {
-    return <AuthPage />;
+    return (
+      <Routes>
+        <Route path="/s/:token" element={<SharedView />} />
+        <Route path="*" element={<AuthPage />} />
+      </Routes>
+    );
   }
 
   return (
     <Routes>
+      <Route path="/s/:token" element={<SharedView />} />
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
 
