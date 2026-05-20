@@ -11,7 +11,7 @@
  *
  * Re-exports the runtime shape we use. Mirrors the upstream `.d.ts` minimally.
  */
-declare module 'stream-json/streamers/stream-array' {
+declare module 'stream-json/streamers/stream-array.js' {
   import { Duplex } from 'node:stream';
 
   interface StreamArrayItem<T = unknown> {
