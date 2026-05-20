@@ -1,12 +1,27 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <!--
+            Disable Google's Auto Backup / Restore for this app. Auto Backup
+            quietly snapshots the WebView's IndexedDB + SharedPreferences to
+            the user's Google Drive every 24h and silently restores them on
+            reinstall. Because the sync layer's "local cache wins over an
+            empty server" invariant treats restored data as the source of
+            truth, a reinstall against a different backend (e.g. moving the
+            user from a dev environment to production) ends up pushing stale
+            binders/decks into the new account. Turning auto-backup off makes
+            reinstall behave like a true clean install. If we ever want
+            opt-in backup of a small subset (e.g. theme settings only), do
+            it via android:dataExtractionRules + a backup_rules.xml allow-list
+            and keep WebView storage excluded.
+        -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
