@@ -119,6 +119,34 @@ export const comboIngestRuns = pgTable('combo_ingest_runs', {
   error: text('error'),
 });
 
+/**
+ * Public share links. Each row maps an unguessable token to a slice of a user's
+ * data: the whole collection, a single binder, a single deck, or a single list.
+ * The public read route looks up the row, loads that user's user_data, projects
+ * the requested slice through the public-projection layer, and returns it.
+ * Revoking sets revokedAt; revoked tokens 404.
+ *
+ * `resourceId` is the in-blob id of the binder/deck/list. For kind='collection'
+ * it is unused (stored as empty string) — there's only one collection per user.
+ */
+export const shares = pgTable(
+  'shares',
+  {
+    token: text('token').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().$type<'collection' | 'binder' | 'deck' | 'list'>(),
+    resourceId: text('resource_id').notNull().default(''),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    revokedAt: bigint('revoked_at', { mode: 'number' }),
+  },
+  (t) => ({
+    userIdx: index('shares_user_idx').on(t.userId),
+    resourceIdx: index('shares_resource_idx').on(t.userId, t.kind, t.resourceId),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type UserDataRow = typeof userData.$inferSelect;
 export type UserDataBackupRow = typeof userDataBackups.$inferSelect;
@@ -126,3 +154,4 @@ export type GameSessionRow = typeof gameSessions.$inferSelect;
 export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
+export type ShareRow = typeof shares.$inferSelect;
