@@ -9,12 +9,14 @@ import {
 } from '@dnd-kit/core';
 import type { PlaytestState, Zone } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
+import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { ZonePile } from './ZonePile';
 import { ZoneViewerModal } from './ZoneViewerModal';
 import { ActionBar } from './ActionBar';
 import { CardContextMenu } from './CardContextMenu';
+import { MobileZonesPanel } from './MobileZonesPanel';
 import { TokenCreator } from './TokenCreator';
 
 interface Props {
@@ -36,9 +38,10 @@ export function PlaytestBoard({ state }: Props) {
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
+  const isNarrow = useNarrowViewport();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -97,8 +100,22 @@ export function PlaytestBoard({ state }: Props) {
     setCtx({ cardId, x: e.clientX, y: e.clientY });
   }
 
+  function handleCardLongPress(cardId: string, x: number, y: number) {
+    setCtx({ cardId, x, y });
+  }
+
+  function handleHandCardClick(cardId: string) {
+    // Tap-to-play: cascade onto the battlefield so multiple plays don't stack.
+    const offset = state.battlefield.length;
+    const x = 40 + (offset % 8) * 30;
+    const y = 40 + Math.floor(offset / 8) * 30;
+    dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y });
+  }
+
+  const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
+
   return (
-    <div className="playtest-board">
+    <div className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}`}>
       <ActionBar
         turn={state.turn}
         libraryCount={state.zones.library.length}
@@ -124,37 +141,49 @@ export function PlaytestBoard({ state }: Props) {
               cards={state.battlefield}
               onCardClick={handleCardClick}
               onCardContextMenu={handleCardContext}
+              onCardLongPress={isNarrow ? handleCardLongPress : undefined}
             />
           </div>
-          <aside className="playtest-piles">
-            <ZonePile
-              zone="library"
-              label="Library"
-              cards={state.zones.library}
-              onClick={() => setViewer({ zone: 'library' })}
-            />
-            <ZonePile
-              zone="graveyard"
-              label="Graveyard"
-              cards={state.zones.graveyard}
-              onClick={() => setViewer({ zone: 'graveyard' })}
-            />
-            <ZonePile
-              zone="exile"
-              label="Exile"
-              cards={state.zones.exile}
-              onClick={() => setViewer({ zone: 'exile' })}
-            />
-            <ZonePile
-              zone="command"
-              label="Command"
-              cards={state.zones.command}
-              onClick={() => setViewer({ zone: 'command' })}
-            />
-          </aside>
+          {!isNarrow && (
+            <aside className="playtest-piles">
+              <ZonePile
+                zone="library"
+                label="Library"
+                cards={state.zones.library}
+                onClick={() => setViewer({ zone: 'library' })}
+              />
+              <ZonePile
+                zone="graveyard"
+                label="Graveyard"
+                cards={state.zones.graveyard}
+                onClick={() => setViewer({ zone: 'graveyard' })}
+              />
+              <ZonePile
+                zone="exile"
+                label="Exile"
+                cards={state.zones.exile}
+                onClick={() => setViewer({ zone: 'exile' })}
+              />
+              <ZonePile
+                zone="command"
+                label="Command"
+                cards={state.zones.command}
+                onClick={() => setViewer({ zone: 'command' })}
+              />
+            </aside>
+          )}
         </div>
-        <Hand cards={state.zones.hand} />
+        <Hand cards={state.zones.hand} onCardClick={handleHandCardClick} />
       </DndContext>
+
+      {isNarrow && (
+        <MobileZonesPanel
+          zones={state.zones}
+          onOpenZone={(zone) => setViewer({ zone })}
+          onShuffleLibrary={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
+          onScry={() => setViewer({ zone: 'library', topN: 3 })}
+        />
+      )}
 
       {viewer && (
         <ZoneViewerModal
@@ -181,39 +210,33 @@ export function PlaytestBoard({ state }: Props) {
         />
       )}
 
-      {ctx &&
-        (() => {
-          const bf = state.battlefield.find((b) => b.card.id === ctx.cardId);
-          if (!bf) {
+      {ctx && ctxCard && (
+        <CardContextMenu
+          x={ctx.x}
+          y={ctx.y}
+          cardName={ctxCard.card.name}
+          variant={isNarrow ? 'sheet' : 'floating'}
+          onClose={() => setCtx(null)}
+          onTap={() => {
+            dispatch({ type: 'TAP', cardId: ctx.cardId });
             setCtx(null);
-            return null;
+          }}
+          onFlip={() => {
+            dispatch({ type: 'FLIP_FACE', cardId: ctx.cardId });
+            setCtx(null);
+          }}
+          onAddCounter={(k) =>
+            dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: 1 })
           }
-          return (
-            <CardContextMenu
-              x={ctx.x}
-              y={ctx.y}
-              onClose={() => setCtx(null)}
-              onTap={() => {
-                dispatch({ type: 'TAP', cardId: ctx.cardId });
-                setCtx(null);
-              }}
-              onFlip={() => {
-                dispatch({ type: 'FLIP_FACE', cardId: ctx.cardId });
-                setCtx(null);
-              }}
-              onAddCounter={(k) =>
-                dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: 1 })
-              }
-              onRemoveCounter={(k) =>
-                dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: -1 })
-              }
-              onMoveTo={(zone) => {
-                dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone });
-                setCtx(null);
-              }}
-            />
-          );
-        })()}
+          onRemoveCounter={(k) =>
+            dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: -1 })
+          }
+          onMoveTo={(zone) => {
+            dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone });
+            setCtx(null);
+          }}
+        />
+      )}
 
       {tokenCreator && (
         <TokenCreator
