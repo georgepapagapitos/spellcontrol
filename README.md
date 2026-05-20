@@ -125,6 +125,18 @@ Backend and frontend images are tagged `ghcr.io/georgepapagapitos/spellcontrol-{
 
 For local development, `docker-compose.dev.yml` runs just the Postgres container. Use `npm run db:up` and `npm run db:down` to start and stop it.
 
+#### Offline mode
+
+Card data is always-on. After sign-in, the frontend silently downloads a slim Scryfall oracle bulk (~7 MB gzipped, ~35k cards) and the Commander Spellbook combo dataset into IndexedDB. Card search, deck generation, and combo matching prefer the local copy whenever it's populated — the live Scryfall API is the fallback, not the primary. There is no toggle. The Settings page shows a one-line status (`35,329 cards · 7.3 MB · updated 2 days ago`) and an escape-hatch "Clear cached card data" button; otherwise the user shouldn't have to think about it.
+
+How the freshness loop works:
+
+- The backend builds the bulk lazily on the first request to `/api/offline/oracle-cards` and persists the gzipped blob to `/data` so container recreates short-circuit on disk. A daily refresh runs only while a payload is in memory — never on a fresh boot.
+- The frontend asks the browser for `navigator.storage.persist()` so the cached blob isn't first-in-line for eviction. It also checks the server manifest at most once per 24h (localStorage timestamp); if the version differs, it re-downloads.
+- iOS Safari purges IndexedDB after ~14 days of inactivity. The frontend detects this on the next authed mount (manifest survives in zustand but `cardCount === 0`) and silently re-downloads — the user sees no error, just a brief warm-up before searches are back to local-speed. Watch the browser console for `[offline] cache miss …` if you're debugging.
+
+Tweak `OFFLINE_BULK_DISABLED=1` on the backend (see "Required environment") to opt out of the daily refresh on a tightly memory-constrained host.
+
 #### Postgres backups
 
 The data lives in the `spellcontrol-postgres` named volume. A nightly logical backup is recommended:

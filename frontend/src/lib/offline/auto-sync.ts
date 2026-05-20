@@ -11,12 +11,17 @@ const ONCE_PER_DAY_MS = 24 * 60 * 60 * 1000;
  *   1. **Bootstrap.** Hydrate the in-memory store from IndexedDB so the
  *      Scryfall/combos read paths can short-circuit immediately. Cheap; runs
  *      every authed mount.
- *   2. **Refresh.** If no manifest yet (first-ever sign-in on this device),
- *      OR the last successful check was more than 24h ago, kick off a
- *      `sync()` against the server. The server-side manifest endpoint is
- *      cheap (~5min Cache-Control) and the bulk endpoint short-circuits on
- *      ETag, so an up-to-date device pays one tiny HEAD-ish request and
- *      nothing else.
+ *   2. **Refresh.** Triggered when local IDB has no card rows (first
+ *      sign-in OR the OS evicted the database — iOS Safari purges IDB
+ *      after ~14 days of inactivity) OR the last successful manifest check
+ *      was more than 24h ago. The server-side manifest endpoint is cheap
+ *      (~5min Cache-Control) and the bulk endpoint short-circuits on ETag,
+ *      so an up-to-date device pays one tiny HEAD-ish request and nothing
+ *      else.
+ *
+ * Critically, the data-availability check looks at the *actual* IDB card
+ * count (`stats.cardCount`), not the manifest. A leftover manifest from a
+ * partial eviction would otherwise hide the fact that the cards are gone.
  *
  * Fully fire-and-forget. Failures land in `useOfflineStore.error` for
  * diagnostics; no toasts, no blocking, no retries — the next sign-in will
@@ -41,11 +46,25 @@ export async function autoSyncOfflineData(): Promise<void> {
   }
 
   const fresh = useOfflineStore.getState();
-  const hasManifest = !!fresh.manifest && fresh.manifest.oracleCardCount > 0;
+  const localCardCount = fresh.stats?.cardCount ?? 0;
+  const hasLocalData = localCardCount > 0;
   const lastCheck = readLastCheck();
   const stale = !lastCheck || Date.now() - lastCheck > ONCE_PER_DAY_MS;
 
-  if (!hasManifest || stale) {
+  if (!hasLocalData) {
+    // A manifest without cards is the eviction tell — IDB was wiped but the
+    // zustand persist (or a stale read) left the manifest behind. Logged
+    // separately so the cause is obvious in DevTools.
+    if (fresh.manifest && fresh.manifest.oracleCardCount > 0) {
+      console.info('[offline] cache miss (manifest present, no cards in IDB) — re-downloading');
+    } else {
+      console.info('[offline] no local card data — downloading');
+    }
+  } else if (stale) {
+    console.info('[offline] cache stale (>24h since last check) — refreshing');
+  }
+
+  if (!hasLocalData || stale) {
     try {
       await fresh.sync();
       writeLastCheck(Date.now());
