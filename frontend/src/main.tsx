@@ -9,6 +9,7 @@ import './styles/holographic.css';
 import './styles/themes.css';
 import './styles/deck-builder.css';
 import './styles/play.css';
+import './styles/shared.css';
 import { bootstrapTheme } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 
