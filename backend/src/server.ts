@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
+import { sharesRouter } from './routes/shares';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
 import { getSetMap } from './sets';
@@ -47,6 +48,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/games', gamesRouter);
 app.use('/api/combos', combosRouter);
+app.use('/api/shares', sharesRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
