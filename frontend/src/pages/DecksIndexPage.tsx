@@ -29,6 +29,8 @@ import {
   validateDeck,
   countFlaggedCards,
 } from '../lib/deck-validation';
+import { useAuth } from '../store/auth';
+import { ShareDialog } from '../components/ShareDialog';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
 
@@ -259,6 +261,8 @@ export function DecksIndexPage() {
   const [showImport, setShowImport] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [shareDeck, setShareDeck] = useState<Deck | null>(null);
+  const user = useAuth((s) => s.user);
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
@@ -544,6 +548,7 @@ export function DecksIndexPage() {
                 <DeckCardMenu
                   canRegenerate={deck.source === 'generated' && !!deck.commander}
                   onRegenerate={() => handleRegenerate(deck)}
+                  onShare={user ? () => setShareDeck(deck) : undefined}
                   onDelete={() => handleDelete(deck)}
                 />
               </li>
@@ -563,6 +568,14 @@ export function DecksIndexPage() {
           </button>
         </div>
       )}
+      {shareDeck && (
+        <ShareDialog
+          kind="deck"
+          resourceId={shareDeck.id}
+          resourceLabel={shareDeck.name}
+          onClose={() => setShareDeck(null)}
+        />
+      )}
     </div>
   );
 }
@@ -570,10 +583,12 @@ export function DecksIndexPage() {
 function DeckCardMenu({
   canRegenerate,
   onRegenerate,
+  onShare,
   onDelete,
 }: {
   canRegenerate: boolean;
   onRegenerate: () => void;
+  onShare?: () => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -626,6 +641,21 @@ function DeckCardMenu({
               }}
             >
               Re-generate
+            </button>
+          )}
+          {onShare && (
+            <button
+              type="button"
+              role="menuitem"
+              className="decks-index-card-menu-item"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+                onShare();
+              }}
+            >
+              Share
             </button>
           )}
           <button
