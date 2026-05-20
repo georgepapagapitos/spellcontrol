@@ -7,9 +7,10 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import type { PlaytestState, Zone } from '@/lib/playtest';
+import type { PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
+import { autoPlace } from '../lib/auto-place';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { ZonePile } from './ZonePile';
@@ -17,6 +18,7 @@ import { ZoneViewerModal } from './ZoneViewerModal';
 import { ActionBar } from './ActionBar';
 import { CardContextMenu } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
+import { OpeningHandSheet } from './OpeningHandSheet';
 import { TokenCreator } from './TokenCreator';
 
 interface Props {
@@ -34,6 +36,11 @@ function parseDraggable(id: string): { source: 'bf' | 'hand' | 'zone'; cardId: s
 
 export function PlaytestBoard({ state }: Props) {
   const dispatch = usePlaytestStore((s) => s.dispatch);
+  const phase = usePlaytestStore((s) => s.phase);
+  const mulliganCount = usePlaytestStore((s) => s.mulliganCount);
+  const keepOpeningHand = usePlaytestStore((s) => s.keepOpeningHand);
+  const mulliganOpeningHand = usePlaytestStore((s) => s.mulliganOpeningHand);
+  const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
   const battlefieldRef = useRef<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
@@ -104,11 +111,18 @@ export function PlaytestBoard({ state }: Props) {
     setCtx({ cardId, x, y });
   }
 
+  function getBattlefieldRect() {
+    return battlefieldRef.current?.getBoundingClientRect() ?? null;
+  }
+
+  function placeOnBattlefield(card: PlaytestCard) {
+    return autoPlace(card, state.battlefield, getBattlefieldRect());
+  }
+
   function handleHandCardClick(cardId: string) {
-    // Tap-to-play: cascade onto the battlefield so multiple plays don't stack.
-    const offset = state.battlefield.length;
-    const x = 40 + (offset % 8) * 30;
-    const y = 40 + Math.floor(offset / 8) * 30;
+    const handCard = state.zones.hand.find((c) => c.id === cardId);
+    if (!handCard) return;
+    const { x, y } = placeOnBattlefield(handCard);
     dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y });
   }
 
@@ -194,7 +208,9 @@ export function PlaytestBoard({ state }: Props) {
           onClose={() => setViewer(null)}
           onMove={(cardId, to) => {
             if (to === 'battlefield') {
-              dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x: 60, y: 60 });
+              const c = state.zones[viewer.zone].find((card) => card.id === cardId) ?? null;
+              const pos = c ? placeOnBattlefield(c) : { x: 60, y: 60 };
+              dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x: pos.x, y: pos.y });
             } else {
               dispatch({ type: 'MOVE_TO_ZONE', cardId, to });
             }
@@ -243,14 +259,22 @@ export function PlaytestBoard({ state }: Props) {
           onClose={() => setTokenCreator(false)}
           onCreate={(name) => {
             const id = `tok-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-            dispatch({
-              type: 'CREATE_TOKEN',
-              card: { id, name, isToken: true },
-              x: 60,
-              y: 60,
-            });
+            const tokenCard: PlaytestCard = { id, name, isToken: true };
+            const { x, y } = placeOnBattlefield(tokenCard);
+            dispatch({ type: 'CREATE_TOKEN', card: tokenCard, x, y });
             setTokenCreator(false);
           }}
+        />
+      )}
+
+      {phase !== 'playing' && (
+        <OpeningHandSheet
+          phase={phase}
+          hand={state.zones.hand}
+          mulliganCount={mulliganCount}
+          onKeep={keepOpeningHand}
+          onMulligan={mulliganOpeningHand}
+          onConfirmBottom={finalizeBottom}
         />
       )}
     </div>
