@@ -3,7 +3,7 @@ import { gzipSync } from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import streamArray from 'stream-json/streamers/stream-array';
+import streamArray from 'stream-json/streamers/stream-array.js';
 import type { SlimCard } from './types';
 
 /**
