@@ -10499,3 +10499,58 @@ hr {
 .list-entry-actions {
   gap: 0.3rem;
 }
+
+/* ---------- Admin panel (Settings page, role=admin only) ---------- */
+
+.admin-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-users-table th,
+.admin-users-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.admin-users-table th {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+  font-weight: 600;
+}
+
+.admin-users-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-users-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-role-pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--surface2);
+  color: var(--text3);
+}
+
+.admin-role-pill.is-admin {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.admin-delete-actions {
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

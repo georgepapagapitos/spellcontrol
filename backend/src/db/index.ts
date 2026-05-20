@@ -52,8 +52,10 @@ export async function ensureSchema(): Promise<void> {
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
       created_at BIGINT NOT NULL
     );
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
     CREATE TABLE IF NOT EXISTS user_data (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       collection JSONB,

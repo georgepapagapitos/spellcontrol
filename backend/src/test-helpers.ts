@@ -6,6 +6,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './db/schema';
 import { setDbForTesting, closeDb } from './db';
 import { authRouter } from './routes/auth';
+import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
@@ -69,6 +70,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
       created_at BIGINT NOT NULL
     );
     CREATE TABLE user_data (
@@ -149,6 +151,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use(cookieParser());
   app.use(express.json({ limit: '10mb' }));
   app.use('/api/auth', authRouter);
+  app.use('/api/admin', adminRouter);
   app.use('/api/sync', syncRouter);
   app.use('/api/games', gamesRouter);
   app.use('/api/combos', combosRouter);
