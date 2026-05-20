@@ -16,8 +16,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    // Release signing reads from env vars so the keystore + passwords stay out
+    // of the repo. Set SPELLCONTROL_KEYSTORE_PATH / _PASSWORD / _KEY_PASSWORD
+    // (and optionally _KEY_ALIAS, defaults to "spellcontrol") before running
+    // `./gradlew bundleRelease`. Without them the release buildType has no
+    // signingConfig attached — debug builds are unaffected.
+    def releaseKeystorePath = System.getenv("SPELLCONTROL_KEYSTORE_PATH")
+    signingConfigs {
+        release {
+            if (releaseKeystorePath) {
+                storeFile file(releaseKeystorePath)
+                storePassword System.getenv("SPELLCONTROL_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("SPELLCONTROL_KEY_ALIAS") ?: "spellcontrol"
+                keyPassword System.getenv("SPELLCONTROL_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (releaseKeystorePath) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
