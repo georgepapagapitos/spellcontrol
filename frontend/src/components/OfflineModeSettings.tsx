@@ -139,6 +139,8 @@ function phaseLabel(phase: string): string {
   switch (phase) {
     case 'fetching-manifest':
       return 'Checking server…';
+    case 'waiting-for-server':
+      return 'Server is preparing data…';
     case 'downloading-cards':
       return 'Downloading card catalog…';
     case 'storing-cards':

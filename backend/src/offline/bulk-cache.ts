@@ -68,6 +68,12 @@ interface BulkPayload {
 let current: BulkPayload | null = null;
 let inflight: Promise<BulkPayload> | null = null;
 let refreshTimer: NodeJS.Timeout | null = null;
+/**
+ * Most recent build failure. When a build throws, callers can ask `bulkStatus()`
+ * for a structured signal instead of having to await another failing build.
+ * Cleared on the next successful build.
+ */
+let lastError: { message: string; at: number } | null = null;
 
 interface BulkIndexEntry {
   type: string;
@@ -232,6 +238,10 @@ async function loadFromDisk(): Promise<BulkPayload | null> {
 /**
  * Return the current bulk payload, building it if missing. Concurrent callers
  * share the same in-flight promise so we never download twice in parallel.
+ *
+ * Heavy first call (~30-60s to download + parse + slim + gzip ~200MB of
+ * Scryfall JSON). For HTTP routes prefer `getOracleBulkIfReady()` so the
+ * request returns 503 instead of risking an nginx timeout.
  */
 export async function getOracleBulk(): Promise<BulkPayload> {
   if (current) return current;
@@ -240,32 +250,77 @@ export async function getOracleBulk(): Promise<BulkPayload> {
       const fromDisk = await loadFromDisk();
       if (fromDisk) {
         current = fromDisk;
+        lastError = null;
         return fromDisk;
       }
       const fresh = await buildPayload();
       current = fresh;
+      lastError = null;
       return fresh;
-    })().finally(() => {
-      inflight = null;
-    });
+    })()
+      .catch((err) => {
+        lastError = { message: err instanceof Error ? err.message : String(err), at: Date.now() };
+        throw err;
+      })
+      .finally(() => {
+        inflight = null;
+      });
   }
   return inflight;
 }
 
-export async function refreshOracleBulk(): Promise<BulkPayload> {
-  inflight = buildPayload().finally(() => {
-    inflight = null;
-  });
-  const fresh = await inflight;
-  current = fresh;
-  return fresh;
+/**
+ * Status snapshot for the HTTP layer — never blocks. Routes use this to
+ * decide between serving the bulk or returning 503 with a Retry-After hint.
+ */
+export interface BulkStatus {
+  state: 'ready' | 'building' | 'error' | 'idle';
+  payload: BulkPayload | null;
+  error: { message: string; at: number } | null;
+}
+
+export function getOracleBulkStatus(): BulkStatus {
+  if (current) return { state: 'ready', payload: current, error: null };
+  if (inflight) return { state: 'building', payload: null, error: lastError };
+  if (lastError) return { state: 'error', payload: null, error: lastError };
+  return { state: 'idle', payload: null, error: null };
 }
 
 /**
- * Kick off a once-a-day refresh in the background. Idempotent — safe to call
- * once at server boot.
+ * Kick off a build in the background if one isn't already in flight. Fire-
+ * and-forget — callers don't wait on the result. Used at server boot so the
+ * very first manifest request doesn't pay the full 30-60s build cost.
+ */
+export function ensureOracleBulkBuilding(): void {
+  if (current || inflight) return;
+  void getOracleBulk().catch((err) => {
+    console.warn('[offline] background oracle build failed:', err);
+  });
+}
+
+export async function refreshOracleBulk(): Promise<BulkPayload> {
+  inflight = buildPayload()
+    .then((fresh) => {
+      current = fresh;
+      lastError = null;
+      return fresh;
+    })
+    .catch((err) => {
+      lastError = { message: err instanceof Error ? err.message : String(err), at: Date.now() };
+      throw err;
+    })
+    .finally(() => {
+      inflight = null;
+    });
+  return inflight;
+}
+
+/**
+ * Kick off the initial build (in the background) and schedule a daily refresh.
+ * Idempotent — safe to call once at server boot.
  */
 export function scheduleOracleRefresh(): void {
+  ensureOracleBulkBuilding();
   if (refreshTimer) return;
   refreshTimer = setInterval(() => {
     refreshOracleBulk().catch((err) => {
@@ -278,6 +333,7 @@ export function scheduleOracleRefresh(): void {
 export function __resetOracleBulkForTesting(): void {
   current = null;
   inflight = null;
+  lastError = null;
   if (refreshTimer) {
     clearInterval(refreshTimer);
     refreshTimer = null;
