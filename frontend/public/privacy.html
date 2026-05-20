@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SpellControl — Privacy Policy</title>
+    <meta name="robots" content="index,follow" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        line-height: 1.55;
+      }
+      body {
+        margin: 0;
+        background: #0a1f3d;
+        color: #f5f5f5;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      h1 {
+        margin: 0 0 0.25rem;
+        font-size: 1.75rem;
+      }
+      p.updated {
+        margin: 0 0 2rem;
+        opacity: 0.7;
+        font-size: 0.95rem;
+      }
+      h2 {
+        margin: 2rem 0 0.5rem;
+        font-size: 1.2rem;
+      }
+      a {
+        color: #8fb4ff;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin-bottom: 0.35rem;
+      }
+      footer {
+        margin-top: 3rem;
+        opacity: 0.7;
+        font-size: 0.9rem;
+      }
+      code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>SpellControl Privacy Policy</h1>
+      <p class="updated">Last updated: 2026-05-20.</p>
+
+      <p>
+        SpellControl is a tool for organizing physical Magic: The Gathering
+        collections, building decks, and tracking multiplayer games. This page
+        describes what data the app collects, where it's stored, and who it's
+        shared with. We don't sell your data and we don't share it with
+        advertisers.
+      </p>
+
+      <h2>What we store</h2>
+      <ul>
+        <li>
+          <strong>If you use the app without an account</strong>: your
+          collection, binders, decks, and game history stay on your device
+          (browser <code>localStorage</code> and <code>IndexedDB</code>, or
+          the on-device equivalent in the mobile app). Nothing leaves your
+          device.
+        </li>
+        <li>
+          <strong>If you create an account</strong>: we store your username,
+          a hashed password (we never see the plaintext), and the collection
+          / deck / binder / game data you choose to sync. This is so you can
+          sign in on another device and see the same data. Data is held on
+          our server at <code>api.spellcontrol.com</code> (hosted on Fly.io,
+          with a managed Postgres database on Neon).
+        </li>
+        <li>
+          <strong>Shared content</strong>: if you generate a share link for a
+          binder or deck, the contents of that share live on our server and
+          are accessible to anyone with the link until you delete the share.
+        </li>
+        <li>
+          <strong>Multiplayer game sessions</strong>: when you start an online
+          game, the game state (life totals, board snapshot, turn) lives on
+          our server so other players can join. Sessions are removed when the
+          game ends.
+        </li>
+      </ul>
+
+      <h2>What we don't do</h2>
+      <ul>
+        <li>We don't sell your data.</li>
+        <li>We don't share it with advertisers or third-party trackers.</li>
+        <li>We don't run analytics, ad networks, or behavioral tracking SDKs.</li>
+        <li>
+          We don't access your phone's photo library or contacts. The camera
+          permission is used only for the in-app card scanner, and the
+          recognized text never leaves your device during scanning (OCR runs
+          on-device via Google ML Kit on Android).
+        </li>
+      </ul>
+
+      <h2>Third-party services we read from</h2>
+      <p>
+        To work, the app reads public data from third-party Magic: The
+        Gathering sources. These services don't receive any of your
+        collection data, only generic card-lookup requests:
+      </p>
+      <ul>
+        <li>Scryfall — card catalog and oracle data.</li>
+        <li>EDHRec — Commander deck recommendations.</li>
+        <li>Commander Spellbook — combo dataset.</li>
+        <li>Tagger — card role/archetype tags.</li>
+      </ul>
+
+      <h2>Cookies and local storage</h2>
+      <p>
+        We use one cookie: a session cookie set when you sign in, used to
+        keep you signed in. We don't use cookies for tracking. Most of the
+        app's state lives in browser <code>localStorage</code> and
+        <code>IndexedDB</code> on your device.
+      </p>
+
+      <h2>Data deletion</h2>
+      <p>
+        You can delete your account from the in-app settings, which removes
+        your username, hashed password, and all synced data from our server.
+        Local data can be cleared by signing out and clearing site data in
+        your browser settings (or uninstalling the mobile app).
+      </p>
+
+      <h2>Children</h2>
+      <p>
+        SpellControl is intended for users aged 13 and older. We don't
+        knowingly collect personal information from children under 13. If
+        you believe a child has created an account, please email us at the
+        address below and we'll remove the account.
+      </p>
+
+      <h2>Security</h2>
+      <p>
+        All traffic to <code>api.spellcontrol.com</code> uses HTTPS.
+        Passwords are stored using a one-way salted hash (bcrypt) — we
+        cannot recover or read your password. We make a reasonable effort to
+        keep the server up to date, but no online service can promise
+        perfect security; please use a unique password.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If we materially change what we collect or how we use it, we'll
+        update this page and the "last updated" date at the top.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions or data-deletion requests:
+        <a href="mailto:spellcontrolapp@gmail.com">spellcontrolapp@gmail.com</a>.
+      </p>
+
+      <footer>
+        SpellControl is an independent project and is not affiliated with,
+        endorsed, or sponsored by Wizards of the Coast.
+      </footer>
+    </main>
+  </body>
+</html>
