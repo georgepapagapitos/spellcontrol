@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
   __getRefreshTimerForTesting,
   __resetOracleBulkForTesting,
@@ -101,5 +104,70 @@ describe('bulk-cache scheduling', () => {
     // Give the in-flight refresh a microtask to start.
     await Promise.resolve();
     expect(fetchSpy).toHaveBeenCalled();
+  });
+});
+
+describe('bulk-cache disk persistence', () => {
+  const originalOfflineDir = process.env.OFFLINE_DATA_DIR;
+  const originalDbPath = process.env.DB_PATH;
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    await __resetOracleBulkForTesting();
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bulk-cache-test-'));
+    process.env.OFFLINE_DATA_DIR = tmpDir;
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await __resetOracleBulkForTesting();
+    if (originalOfflineDir === undefined) {
+      delete process.env.OFFLINE_DATA_DIR;
+    } else {
+      process.env.OFFLINE_DATA_DIR = originalOfflineDir;
+    }
+    if (originalDbPath === undefined) {
+      delete process.env.DB_PATH;
+    } else {
+      process.env.DB_PATH = originalDbPath;
+    }
+    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('persists bulk + meta to OFFLINE_DATA_DIR after a fresh build', async () => {
+    mockScryfallFetch();
+    await getOracleBulk();
+    // persistToDisk is fire-and-forget — let the microtask queue drain.
+    await new Promise((r) => setTimeout(r, 50));
+    const blob = await fs.promises.stat(path.join(tmpDir, 'offline-oracle.json.gz'));
+    const meta = await fs.promises.stat(path.join(tmpDir, 'offline-oracle.meta.json'));
+    expect(blob.size).toBeGreaterThan(0);
+    expect(meta.size).toBeGreaterThan(0);
+  });
+
+  it('loads from disk on the next getOracleBulk without re-fetching Scryfall', async () => {
+    mockScryfallFetch();
+    await getOracleBulk();
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Drop in-memory state but keep disk cache. Next getOracleBulk should
+    // hit loadFromDisk and skip the network entirely.
+    await __resetOracleBulkForTesting();
+    const fetchSpy = globalThis.fetch as unknown as ReturnType<typeof vi.spyOn>;
+    fetchSpy.mockClear();
+
+    const fromDisk = await getOracleBulk();
+    expect(fromDisk.cardCount).toBeGreaterThan(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to dirname(DB_PATH) when OFFLINE_DATA_DIR is unset', async () => {
+    delete process.env.OFFLINE_DATA_DIR;
+    process.env.DB_PATH = path.join(tmpDir, 'scryfall-cache.db');
+    mockScryfallFetch();
+    await getOracleBulk();
+    await new Promise((r) => setTimeout(r, 50));
+    const blob = await fs.promises.stat(path.join(tmpDir, 'offline-oracle.json.gz'));
+    expect(blob.size).toBeGreaterThan(0);
   });
 });
