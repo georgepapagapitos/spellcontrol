@@ -850,17 +850,20 @@
 
 .playtest-opening-cards {
   display: flex;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1rem 0.5rem 1.25rem;
+  padding: 1.25rem 0.5rem 1.5rem;
   overflow-x: auto;
 }
 
 .playtest-opening-card {
   position: relative;
+  display: block;
+  box-sizing: border-box;
   flex: 0 0 auto;
-  width: 88px;
-  height: 124px;
-  margin-left: -16px;
+  width: 104px;
+  aspect-ratio: 5 / 7;
+  margin-left: -20px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -936,8 +939,7 @@
 
 @media (max-width: 480px) {
   .playtest-opening-card {
-    width: 64px;
-    height: 90px;
-    margin-left: -22px;
+    width: 72px;
+    margin-left: -26px;
   }
 }
