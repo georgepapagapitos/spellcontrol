@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
+import { sharesRouter } from './routes/shares';
 
 /**
  * Default connection string for the local dev Postgres (docker-compose.dev.yml
@@ -128,6 +129,16 @@ export async function createTestEnv(): Promise<TestEnv> {
       source TEXT NOT NULL,
       error TEXT
     );
+    CREATE TABLE shares (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      resource_id TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      revoked_at BIGINT
+    );
+    CREATE INDEX shares_user_idx ON shares(user_id);
+    CREATE INDEX shares_resource_idx ON shares(user_id, kind, resource_id);
   `);
 
   const db = drizzle(pool, { schema });
@@ -140,6 +151,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/sync', syncRouter);
   app.use('/api/games', gamesRouter);
   app.use('/api/combos', combosRouter);
+  app.use('/api/shares', sharesRouter);
 
   return {
     app,

@@ -1,4 +1,4 @@
-import { BarChart3, Download, Plus } from 'lucide-react';
+import { BarChart3, Download, Plus, Share2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
@@ -9,6 +9,8 @@ import { ImportSheet } from '../components/ImportSheet';
 import { AddCardSheet } from '../components/AddCardSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
+import { ShareDialog } from '../components/ShareDialog';
+import { useAuth } from '../store/auth';
 
 export function CollectionPage() {
   const cards = useCollectionStore((s) => s.cards);
@@ -18,6 +20,8 @@ export function CollectionPage() {
   const setError = useCollectionStore((s) => s.setError);
   const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const user = useAuth((s) => s.user);
 
   const [statsOpen, setStatsOpen] = useState(false);
 
@@ -105,12 +109,31 @@ export function CollectionPage() {
                 <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
                 <span>Import cards</span>
               </button>
+              {user && (
+                <button
+                  type="button"
+                  className="pill-btn collection-hero-action"
+                  aria-haspopup="dialog"
+                  onClick={() => setShareOpen(true)}
+                  title="Share a read-only link to this collection"
+                >
+                  <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  <span>Share</span>
+                </button>
+              )}
             </div>
           </header>
           <CardListTable cards={cards} binders={materialized} setMap={setMap} />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
           <ImportSheet />
           {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}
+          {shareOpen && (
+            <ShareDialog
+              kind="collection"
+              resourceLabel="your collection"
+              onClose={() => setShareOpen(false)}
+            />
+          )}
         </>
       )}
     </>
