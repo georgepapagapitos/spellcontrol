@@ -518,6 +518,7 @@ export function DeckEditorPage() {
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
+            onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
           />
         </div>
       </header>
@@ -779,10 +780,12 @@ function DeckEditorOverflowMenu({
   onDuplicate,
   onDelete,
   onExport,
+  onPlaytest,
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
+  onPlaytest: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -818,6 +821,17 @@ function DeckEditorOverflowMenu({
       {open && (
         <>
           <div className="deck-editor-overflow-panel" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onPlaytest();
+              }}
+            >
+              Playtest
+            </button>
             <button
               type="button"
               role="menuitem"

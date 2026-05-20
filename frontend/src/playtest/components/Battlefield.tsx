@@ -6,9 +6,10 @@ interface Props {
   cards: BattlefieldCard[];
   onCardClick(cardId: string): void;
   onCardContextMenu(cardId: string, e: React.MouseEvent): void;
+  onCardLongPress?(cardId: string, clientX: number, clientY: number): void;
 }
 
-export function Battlefield({ cards, onCardClick, onCardContextMenu }: Props) {
+export function Battlefield({ cards, onCardClick, onCardContextMenu, onCardLongPress }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: 'battlefield' });
   return (
     <div
@@ -28,6 +29,7 @@ export function Battlefield({ cards, onCardClick, onCardContextMenu }: Props) {
           positioned
           onClick={() => onCardClick(bf.card.id)}
           onContextMenu={(e) => onCardContextMenu(bf.card.id, e)}
+          onLongPress={onCardLongPress ? (x, y) => onCardLongPress(bf.card.id, x, y) : undefined}
         />
       ))}
     </div>
