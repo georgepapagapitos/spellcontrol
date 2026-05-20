@@ -82,8 +82,21 @@ npm install                              # root dev tools (concurrently, husky, 
 npm install --prefix packages/game-core  # shared reducer — installs + builds its dist
 npm install --prefix frontend            # resolves the @spellcontrol/game-core file: dep
 npm install --prefix backend             # resolves the @spellcontrol/game-core file: dep
+npm run db:up                            # dev Postgres on :5432 (docker-compose.dev.yml)
 npm run dev                              # backend on :3737, frontend on :5173
 ```
+
+The backend reads its dev env from `backend/.env` (gitignored). Create it once with the matching dev Postgres creds:
+
+```bash
+cat > backend/.env <<'EOF'
+DATABASE_URL=postgres://mtguser:mtgpassword@localhost:5432/spellcontrol
+JWT_SECRET=dev-jwt-secret-please-change-in-prod
+NODE_ENV=development
+EOF
+```
+
+(These match the credentials in `docker-compose.dev.yml`. Don't reuse these values in production — production env lives in the root `.env` next to `docker-compose.yml`; see `.env.example`.)
 
 Open http://localhost:5173. Vite proxies `/api` to the backend.
 
