@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../store/auth';
 
 type Mode = 'login' | 'register';
@@ -9,6 +10,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const error = useAuth((s) => s.error);
   const clearError = useAuth((s) => s.clearError);
@@ -37,6 +40,8 @@ export default function AuthPage() {
     setMode(next);
     setConfirm('');
     setConfirmError(null);
+    setShowPassword(false);
+    setShowConfirm(false);
     clearError();
   }
 
@@ -92,14 +97,26 @@ export default function AuthPage() {
 
           <label className="auth-field">
             <span>Password</span>
-            <input
-              type="password"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={mode === 'register' ? 10 : 1}
-            />
+            <div className="auth-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={mode === 'register' ? 10 : 1}
+              />
+              <button
+                type="button"
+                className="auth-reveal"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+              </button>
+            </div>
             {mode === 'register' ? (
               <ul className="auth-rules" aria-label="Password requirements">
                 <li
@@ -125,18 +142,30 @@ export default function AuthPage() {
           {mode === 'register' ? (
             <label className="auth-field">
               <span>Confirm password</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => {
-                  setConfirm(e.target.value);
-                  if (confirmError) setConfirmError(null);
-                }}
-                required
-                minLength={10}
-                aria-invalid={confirmError ? true : undefined}
-              />
+              <div className="auth-input-wrap">
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirm}
+                  onChange={(e) => {
+                    setConfirm(e.target.value);
+                    if (confirmError) setConfirmError(null);
+                  }}
+                  required
+                  minLength={10}
+                  aria-invalid={confirmError ? true : undefined}
+                />
+                <button
+                  type="button"
+                  className="auth-reveal"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  aria-pressed={showConfirm}
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+                </button>
+              </div>
               <ul className="auth-rules" aria-label="Confirm requirements">
                 <li
                   className={`auth-rule${confirm.length > 0 && confirm === password ? ' is-met' : ''}${confirmError ? ' is-error' : ''}`}
