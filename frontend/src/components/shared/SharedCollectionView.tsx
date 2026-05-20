@@ -10,6 +10,7 @@ import {
 } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardModal } from './SharedCardModal';
+import { SearchPill } from '../SearchPill';
 
 interface Props {
   data: PublicCollection;
@@ -73,53 +74,56 @@ export function SharedCollectionView({ data }: Props) {
       </header>
 
       <div className="shared-toolbar">
-        <input
-          type="search"
-          className="shared-search"
+        <SearchPill
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
           placeholder="Search cards…"
-          aria-label="Search cards"
+          ariaLabel="Search cards"
+          className="shared-toolbar-search"
         />
-        <div className="shared-sort">
-          <label className="shared-sort-label">
-            Sort
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SharedSortKey)}
-              aria-label="Sort by"
-            >
-              {SORT_OPTIONS.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="shared-sort-dir"
-            onClick={() => setDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-            aria-label={`Sort direction: ${dir}ending`}
-            title={`Direction: ${dir}ending`}
+        <label className="shared-sort-label">
+          Sort
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SharedSortKey)}
+            aria-label="Sort by"
           >
-            {dir === 'asc' ? '↑' : '↓'}
-          </button>
-        </div>
-        <div className="shared-color-chips" role="group" aria-label="Filter by color">
-          {COLOR_CHIPS.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              className={`shared-color-chip${colors.has(c.key) ? ' is-active' : ''} shared-color-chip--${c.key.toLowerCase()}`}
-              onClick={() => toggleColor(c.key)}
-              aria-pressed={colors.has(c.key)}
-              aria-label={c.label}
-              title={c.label}
-            >
-              {c.key}
-            </button>
-          ))}
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="btn shared-sort-dir"
+          onClick={() => setDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+          aria-label={`Sort direction: ${dir}ending`}
+          title={`Direction: ${dir}ending`}
+        >
+          {dir === 'asc' ? '↑' : '↓'}
+        </button>
+        <div className="color-filter-row" role="group" aria-label="Filter by color">
+          {COLOR_CHIPS.map((c) => {
+            const active = colors.has(c.key);
+            return (
+              <button
+                key={c.key}
+                type="button"
+                className={`color-filter-btn${active ? ' is-active' : ''}`}
+                onClick={() => toggleColor(c.key)}
+                aria-pressed={active}
+                aria-label={c.label}
+                title={c.label}
+              >
+                <i
+                  className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
+                  aria-hidden
+                />
+              </button>
+            );
+          })}
         </div>
       </div>
 
