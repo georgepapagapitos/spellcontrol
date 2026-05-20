@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, dbTestsEnabled } from '../test-helpers';
-import { __resetOracleBulkForTesting } from '../offline/bulk-cache';
+import { __resetOracleBulkForTesting, refreshOracleBulk } from '../offline/bulk-cache';
 import { __resetCombosBulkForTesting } from '../offline/combos-export';
 
 const d = dbTestsEnabled ? describe : describe.skip;
@@ -61,6 +61,11 @@ beforeAll(async () => {
     }
     throw new Error(`Unexpected fetch in test: ${u}`);
   });
+
+  // Build the bulk synchronously so the route tests get a 200 path. The
+  // separate "bulk-still-building" suite below resets state to test the
+  // 503 fast path.
+  await refreshOracleBulk();
 });
 
 afterAll(async () => {
@@ -69,7 +74,7 @@ afterAll(async () => {
 });
 
 d('GET /api/offline/manifest', () => {
-  it('returns versions, counts, and byte sizes', async () => {
+  it('returns versions, counts, and byte sizes when the bulk is ready', async () => {
     const res = await request(app).get('/api/offline/manifest');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -133,5 +138,30 @@ d('POST /api/offline/admin/refresh-oracle', () => {
       cardCount: expect.any(Number),
       gzippedBytes: expect.any(Number),
     });
+  });
+});
+
+/**
+ * Separate suite for the 503-fast-path: reset the in-memory bulk so the
+ * route sees `state === 'idle'/'building'`. Must run after the happy-path
+ * tests since it tears down the cached payload.
+ */
+d('GET /api/offline/manifest before the bulk is ready', () => {
+  it('returns 503 with Retry-After and kicks off a background build', async () => {
+    __resetOracleBulkForTesting();
+    const res = await request(app).get('/api/offline/manifest');
+    expect(res.status).toBe(503);
+    expect(res.headers['retry-after']).toBeDefined();
+    expect(res.body).toMatchObject({ state: expect.any(String) });
+    // Re-prime so trailing tests in this file aren't affected.
+    await refreshOracleBulk();
+  });
+
+  it('oracle-cards returns 503 fast (no body) when bulk is rebuilding', async () => {
+    __resetOracleBulkForTesting();
+    const res = await request(app).get('/api/offline/oracle-cards');
+    expect(res.status).toBe(503);
+    expect(res.headers['retry-after']).toBeDefined();
+    await refreshOracleBulk();
   });
 });

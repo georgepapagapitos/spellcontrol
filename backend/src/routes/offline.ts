@@ -1,6 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { getOracleBulk, refreshOracleBulk } from '../offline/bulk-cache';
+import {
+  ensureOracleBulkBuilding,
+  getOracleBulkStatus,
+  refreshOracleBulk,
+  type BulkStatus,
+} from '../offline/bulk-cache';
 import { getCombosBulk } from '../offline/combos-export';
 import type { OfflineManifest } from '../offline/types';
 
@@ -15,17 +20,40 @@ const bulkLimiter = isTest
   : rateLimit({ windowMs: 60_000, max: 10 });
 
 /**
+ * Tell the client to retry in a few seconds rather than blocking the request
+ * while a 30-60s Scryfall bulk download + parse is in flight. Without this
+ * the very first manifest request after a fresh deploy tripped nginx's
+ * upstream timeout → 502 to the user. Kicks off a build in the background
+ * if one isn't already running so the next retry has a chance to succeed.
+ */
+function sendBuilding(res: Response, status: BulkStatus): void {
+  ensureOracleBulkBuilding();
+  res.set('Retry-After', '5');
+  res.status(503).json({
+    error: 'Offline data is still being prepared on the server. Retry in a few seconds.',
+    state: status.state,
+    lastError: status.error?.message,
+  });
+}
+
+/**
  * Manifest: tells the client which version of the oracle/combos bulks are
- * available so it can decide whether to re-download. Cheap and frequent.
+ * available so it can decide whether to re-download. Cheap and frequent —
+ * MUST NOT block on a 30-60s bulk build (see sendBuilding).
  */
 offlineRouter.get('/manifest', async (_req: Request, res: Response) => {
+  const oracleStatus = getOracleBulkStatus();
+  if (oracleStatus.state !== 'ready' || !oracleStatus.payload) {
+    sendBuilding(res, oracleStatus);
+    return;
+  }
   try {
-    const [oracle, combos] = await Promise.all([getOracleBulk(), getCombosBulk()]);
+    const combos = await getCombosBulk();
     const manifest: OfflineManifest = {
-      oracleVersion: oracle.version,
-      oracleCardCount: oracle.cardCount,
-      oracleByteSize: oracle.gzippedBytes,
-      oracleUpdatedAt: oracle.updatedAt,
+      oracleVersion: oracleStatus.payload.version,
+      oracleCardCount: oracleStatus.payload.cardCount,
+      oracleByteSize: oracleStatus.payload.gzippedBytes,
+      oracleUpdatedAt: oracleStatus.payload.updatedAt,
       combosVersion: combos.version,
       combosCount: combos.comboCount,
       combosByteSize: combos.gzippedBytes,
@@ -41,29 +69,30 @@ offlineRouter.get('/manifest', async (_req: Request, res: Response) => {
 
 /**
  * Slim oracle bulk, gzipped. ETag matches `oracleVersion` from the manifest
- * so an If-None-Match request short-circuits with 304.
+ * so an If-None-Match request short-circuits with 304. Returns 503 fast if
+ * the bulk hasn't finished building yet — frontend retries with backoff.
  */
-offlineRouter.get('/oracle-cards', bulkLimiter, async (req: Request, res: Response) => {
-  try {
-    const bulk = await getOracleBulk();
-    const etag = `"${bulk.version}"`;
-    if (req.headers['if-none-match'] === etag) {
-      res.status(304).end();
-      return;
-    }
-    res.set({
-      ETag: etag,
-      'Cache-Control': 'public, max-age=3600',
-      'Content-Type': 'application/json; charset=utf-8',
-      'Content-Encoding': 'gzip',
-      'X-Offline-Version': bulk.version,
-      'X-Offline-Card-Count': String(bulk.cardCount),
-    });
-    res.send(bulk.gzipped);
-  } catch (err) {
-    console.error('[offline] oracle-cards failed:', err);
-    res.status(503).json({ error: 'Offline oracle bulk not yet available.' });
+offlineRouter.get('/oracle-cards', bulkLimiter, (req: Request, res: Response) => {
+  const status = getOracleBulkStatus();
+  if (status.state !== 'ready' || !status.payload) {
+    sendBuilding(res, status);
+    return;
   }
+  const bulk = status.payload;
+  const etag = `"${bulk.version}"`;
+  if (req.headers['if-none-match'] === etag) {
+    res.status(304).end();
+    return;
+  }
+  res.set({
+    ETag: etag,
+    'Cache-Control': 'public, max-age=3600',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Encoding': 'gzip',
+    'X-Offline-Version': bulk.version,
+    'X-Offline-Card-Count': String(bulk.cardCount),
+  });
+  res.send(bulk.gzipped);
 });
 
 offlineRouter.get('/combos', bulkLimiter, async (req: Request, res: Response) => {
