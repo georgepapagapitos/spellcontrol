@@ -2,6 +2,7 @@ import { handleResponse } from '../fetch-utils';
 import { matchCombosLocal } from '../offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';
+import { apiUrl } from '../api-base';
 
 function offlineActive(): boolean {
   try {
@@ -26,12 +27,14 @@ async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal }).catch((err) => {
-      if (err && (err as Error).name === 'AbortError') {
-        throw new Error('Combos request timed out — the server is taking too long. Try again.');
+    const response = await fetch(apiUrl(url), { ...init, signal: controller.signal }).catch(
+      (err) => {
+        if (err && (err as Error).name === 'AbortError') {
+          throw new Error('Combos request timed out — the server is taking too long. Try again.');
+        }
+        throw new Error('The server is not responding. Try again in a moment.');
       }
-      throw new Error('The server is not responding. Try again in a moment.');
-    });
+    );
     return await handleResponse<T>(response);
   } finally {
     clearTimeout(timer);

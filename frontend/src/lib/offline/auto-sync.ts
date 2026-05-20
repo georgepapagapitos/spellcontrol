@@ -1,4 +1,5 @@
 import { useOfflineStore } from '@/store/offline';
+import { isNativePlatform } from '@/lib/platform';
 
 const LAST_CHECK_KEY = 'spellcontrol-offline-last-check';
 const ONCE_PER_DAY_MS = 24 * 60 * 60 * 1000;
@@ -6,7 +7,15 @@ const ONCE_PER_DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * Silently keep the local card catalog + combo dataset fresh in the
  * background. Called from `App.tsx` whenever the auth store flips to
- * `authed`. Two passes:
+ * `authed`.
+ *
+ * **Native-only.** The bundled Android/iOS app has no live backend at the
+ * relative `/api/*` paths it would otherwise reach, so a populated local
+ * cache is the only way the deck builder and combo matcher work offline.
+ * In the browser the backend is always one round-trip away, so the silent
+ * ~30 MB IDB seed is pure bandwidth tax — we skip it entirely on web.
+ *
+ * Two passes when we do run:
  *
  *   1. **Bootstrap.** Hydrate the in-memory store from IndexedDB so the
  *      Scryfall/combos read paths can short-circuit immediately. Cheap; runs
@@ -32,6 +41,8 @@ const ONCE_PER_DAY_MS = 24 * 60 * 60 * 1000;
  * may grant or silently deny; we don't care which.
  */
 export async function autoSyncOfflineData(): Promise<void> {
+  if (!isNativePlatform()) return;
+
   // Persistent-storage hint runs unconditionally — cheap, idempotent, browser
   // remembers the answer across reloads.
   void requestPersistentStorage();

@@ -1,17 +1,15 @@
 import type { Worker } from 'tesseract.js';
+import { isNativePlatform } from './platform';
 
 /**
- * In-browser OCR for the card scanner. We lazy-load Tesseract.js so the ~2MB
- * worker bundle never touches the initial page load — it's only fetched when
- * the user actually opens the scanner.
- *
- * Why Tesseract over a perceptual-hash matcher (Manabox/Delver Lens style):
- * shipping a ~30k-image hash database to the browser isn't viable, but MTG
- * card titles are large, high-contrast, in a single bold font — Tesseract
- * with the default English model recognizes them reliably from a ~300px-wide
- * crop. The OCR output is then handed to Scryfall's fuzzy /cards/named
- * endpoint, which is purpose-built for human-imperfect input and forgives the
- * occasional misread character.
+ * Card-scanner OCR. Two implementations behind a single API:
+ *   • Web: lazy-loaded Tesseract.js (~2MB WASM worker, fetched only when the
+ *     scanner opens).
+ *   • Native (Capacitor): Google ML Kit text recognition via a native plugin.
+ *     Pre-installed with the OS, dramatically faster, much more accurate
+ *     than Tesseract on phone-camera captures.
+ * The branch happens inside each exported function so callers see the same
+ * surface regardless of platform.
  */
 
 let workerPromise: Promise<Worker> | null = null;
@@ -41,9 +39,11 @@ async function getWorker(): Promise<Worker> {
 
 /**
  * Eagerly warms the OCR worker. Call this when the scanner UI opens so the
- * first capture isn't blocked on a cold-start download.
+ * first capture isn't blocked on a cold-start download. ML Kit on native is
+ * preloaded by the OS, so this is a no-op there.
  */
 export function warmOcr(): void {
+  if (isNativePlatform()) return;
   void getWorker().catch(() => {
     workerPromise = null;
   });
@@ -51,6 +51,7 @@ export function warmOcr(): void {
 
 /** Releases the worker. Call on scanner unmount to free memory. */
 export async function disposeOcr(): Promise<void> {
+  if (isNativePlatform()) return;
   if (!workerPromise) return;
   try {
     const worker = await workerPromise;
@@ -62,14 +63,40 @@ export async function disposeOcr(): Promise<void> {
   }
 }
 
+function canvasToBase64Png(canvas: HTMLCanvasElement): string {
+  // dataURL is "data:image/png;base64,XXXX" — the plugin wants just XXXX.
+  const dataUrl = canvas.toDataURL('image/png');
+  const comma = dataUrl.indexOf(',');
+  return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+}
+
 /**
  * Runs OCR on an image (canvas, blob, or data URL) and returns the recognised
  * text plus a 0–100 confidence score. The caller is responsible for cropping
- * to the title region before calling — feeding the whole card hurts accuracy.
+ * to the title region before calling — feeding the whole card hurts accuracy
+ * on Tesseract and is wasted resolution on ML Kit.
+ *
+ * On native ML Kit doesn't expose a per-result confidence; we surface a high
+ * fixed value (95) because in practice its empty/garbage outputs are caught
+ * by the downstream `text.length < 2` guard rather than by a threshold.
  */
 export async function recognizeText(
   source: HTMLCanvasElement | Blob | string
 ): Promise<{ text: string; confidence: number }> {
+  if (isNativePlatform()) {
+    if (!(source instanceof HTMLCanvasElement)) {
+      throw new Error('Native OCR currently expects an HTMLCanvasElement source.');
+    }
+    const { CapacitorPluginMlKitTextRecognition } =
+      await import('@pantrist/capacitor-plugin-ml-kit-text-recognition');
+    const { text } = await CapacitorPluginMlKitTextRecognition.detectText({
+      base64Image: canvasToBase64Png(source),
+    });
+    return {
+      text: (text || '').replace(/\s+/g, ' ').trim(),
+      confidence: text ? 95 : 0,
+    };
+  }
   const worker = await getWorker();
   const { data } = await worker.recognize(source);
   return {

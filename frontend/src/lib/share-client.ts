@@ -1,4 +1,5 @@
 import type { PublicShareResponse, ShareKind, ShareRow } from './shared-types';
+import { apiUrl } from './api-base';
 
 async function readError(res: Response, fallback: string): Promise<string> {
   try {
@@ -14,7 +15,7 @@ export async function createShare(input: {
   kind: ShareKind;
   resourceId?: string;
 }): Promise<ShareRow> {
-  const res = await fetch('/api/shares', {
+  const res = await fetch(apiUrl('/api/shares'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -29,7 +30,7 @@ export async function createShare(input: {
 
 /** List the authenticated user's active shares. */
 export async function listShares(): Promise<ShareRow[]> {
-  const res = await fetch('/api/shares', { credentials: 'include' });
+  const res = await fetch(apiUrl('/api/shares'), { credentials: 'include' });
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to list shares.'));
   }
@@ -39,7 +40,7 @@ export async function listShares(): Promise<ShareRow[]> {
 
 /** Revoke a share by token. Silently no-ops if already gone. */
 export async function revokeShare(token: string): Promise<void> {
-  const res = await fetch(`/api/shares/${encodeURIComponent(token)}`, {
+  const res = await fetch(apiUrl(`/api/shares/${encodeURIComponent(token)}`), {
     method: 'DELETE',
     credentials: 'include',
   });
@@ -50,7 +51,7 @@ export async function revokeShare(token: string): Promise<void> {
 
 /** Public read — no auth required. */
 export async function fetchPublicShare(token: string): Promise<PublicShareResponse> {
-  const res = await fetch(`/api/shares/public/${encodeURIComponent(token)}`);
+  const res = await fetch(apiUrl(`/api/shares/public/${encodeURIComponent(token)}`));
   if (res.status === 404) {
     throw new ShareNotFoundError();
   }

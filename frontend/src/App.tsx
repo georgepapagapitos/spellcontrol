@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 import { CollectionPage } from './pages/CollectionPage';
@@ -20,6 +20,7 @@ import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync } from './lib/sync';
 import { autoSyncOfflineData } from './lib/offline/auto-sync';
+import { initDeepLinks } from './lib/deep-links';
 
 // Back-compat redirects for the pre-hub flat paths. Param-preserving so deep
 // links / bookmarks to /binders/:id and /lists/:id still land on the right
@@ -39,10 +40,17 @@ export default function App() {
   const userId = useAuth((s) => s.user?.id);
   const bootstrap = useAuth((s) => s.bootstrap);
   const syncStartedFor = useRef<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  // Subscribe to native deep links once per mount. `initDeepLinks` is a
+  // no-op on web, so the listener is only ever registered inside the
+  // Capacitor APK. The teardown drops the listener if React ever remounts
+  // App (StrictMode, fast-refresh) so we don't double-handle URLs.
+  useEffect(() => initDeepLinks(navigate), [navigate]);
 
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
   // on every status change while still firing again if a different user logs in

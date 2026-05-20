@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import type { DeckImportResponse, UploadResponse } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { handleResponse } from './fetch-utils';
+import { apiUrl } from './api-base';
 
 const TIMEOUT_MS = 120_000;
 
 function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  return fetch(url, { ...opts, signal: controller.signal })
+  return fetch(apiUrl(url), { ...opts, signal: controller.signal })
     .catch((err) => {
       if (err.name === 'AbortError') {
         throw new Error(

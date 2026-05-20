@@ -1,8 +1,9 @@
 import { handleResponse } from './fetch-utils';
 import type { GameAction, GameState } from './game-state';
+import { apiUrl } from './api-base';
 
 function authedFetch(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(url, { credentials: 'same-origin', ...init });
+  return fetch(apiUrl(url), { credentials: 'same-origin', ...init });
 }
 
 export interface CreateGameInput {
