@@ -2208,6 +2208,29 @@ input.toolbar-search-input {
   padding: 0.6rem 0.85rem 0.75rem;
 }
 
+/* Fallback banner for grid tiles whose deck has no commander art_crop —
+   non-commander decks (Standard, Modern, Pauper, …) and incomplete
+   commander decks both fall through to this. Same height as the art
+   banner so tiles in a row stay uniform; deck.color (via --deck-color
+   from the li) becomes the band fill so every deck reads as "its
+   color". Mirrors the binder grid header treatment. */
+.decks-index-list.is-grid .decks-index-card-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: clamp(7rem, 22vw, 10rem);
+  background: var(--deck-color, var(--accent));
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+.decks-index-list.is-grid .decks-index-card-banner-pips {
+  display: inline-flex;
+  gap: 0.45rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
+
 /* List: art on the left, name + meta on the right — a single dense
    row per deck, full viewport width. Distinct from Grid (art on top)
    on every breakpoint. */
