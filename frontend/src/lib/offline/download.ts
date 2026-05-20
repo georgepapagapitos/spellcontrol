@@ -4,6 +4,7 @@ import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
 export type DownloadPhase =
   | 'idle'
   | 'fetching-manifest'
+  | 'waiting-for-server'
   | 'downloading-cards'
   | 'storing-cards'
   | 'downloading-combos'
@@ -21,14 +22,59 @@ export interface DownloadProgress {
 
 export type ProgressFn = (p: DownloadProgress) => void;
 
-async function fetchManifest(): Promise<OfflineManifest> {
-  const res = await fetch('/api/offline/manifest', {
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch offline manifest (${res.status})`);
+/**
+ * Status codes that mean "the server is preparing the bulk; come back soon".
+ * 503 is what our backend returns intentionally; 502/504 are what nginx
+ * returns when an upstream is slow or unreachable — same retry strategy
+ * applies (server boot is still warming).
+ */
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+
+/** Total wall-clock cap on a single sync attempt's manifest-warm-up retries. */
+const MAX_RETRY_WINDOW_MS = 180_000; // 3 minutes — server usually warms in <60s
+const INITIAL_BACKOFF_MS = 2_000;
+const MAX_BACKOFF_MS = 15_000;
+
+function parseRetryAfter(headerVal: string | null): number | null {
+  if (!headerVal) return null;
+  // RFC 7231: either an integer (seconds) or an HTTP-date. We only emit the
+  // integer form server-side, but handle both defensively.
+  const secs = Number(headerVal);
+  if (Number.isFinite(secs)) return Math.max(0, secs * 1000);
+  const ts = Date.parse(headerVal);
+  return Number.isFinite(ts) ? Math.max(0, ts - Date.now()) : null;
+}
+
+async function fetchManifest(onProgress?: ProgressFn): Promise<OfflineManifest> {
+  const started = Date.now();
+  let backoffMs = INITIAL_BACKOFF_MS;
+  let attempt = 0;
+  while (true) {
+    attempt += 1;
+    // Network-layer failures (DNS down, browser offline) bubble up as
+    // thrown errors — those aren't retryable from this layer; the caller
+    // surfaces them as a sync error.
+    const res = await fetch('/api/offline/manifest', {
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) return (await res.json()) as OfflineManifest;
+    if (!RETRYABLE_STATUSES.has(res.status) || Date.now() - started > MAX_RETRY_WINDOW_MS) {
+      throw new Error(`Failed to fetch offline manifest (${res.status})`);
+    }
+    const retryAfter = parseRetryAfter(res.headers.get('Retry-After'));
+    const wait = retryAfter ?? backoffMs;
+    onProgress?.({
+      phase: 'waiting-for-server',
+      fraction: null,
+      detail: `Server is preparing data (attempt ${attempt})… retrying in ${Math.round(wait / 1000)}s`,
+    });
+    await sleep(wait);
+    backoffMs = Math.min(MAX_BACKOFF_MS, backoffMs * 2);
   }
-  return (await res.json()) as OfflineManifest;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function fetchJsonWithProgress<T>(
@@ -93,7 +139,7 @@ export async function syncOfflineData(opts: {
   const { force = false, onProgress } = opts;
 
   onProgress?.({ phase: 'fetching-manifest', fraction: null });
-  const server = await fetchManifest();
+  const server = await fetchManifest(onProgress);
   const local = await readManifest();
 
   const cardsUpToDate =
