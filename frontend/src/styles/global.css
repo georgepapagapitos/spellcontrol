@@ -1944,6 +1944,79 @@ input[type='search'] {
   line-height: 1.35;
 }
 
+/* Decks-index variant: wider panel, sectioned chip rows for Format /
+   Source / Color. Reuses .filter-popover-panel for the surface so
+   shadow/border/position match the binder filter popover. */
+.deck-filters-panel {
+  width: max-content;
+  min-width: min(20rem, calc(100vw - 2rem));
+  max-width: min(24rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.deck-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.deck-filters-section-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.deck-filters-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.deck-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text2);
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.deck-filter-chip:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.deck-filter-chip.is-active {
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  border-color: var(--accent);
+}
+
+.deck-filters-footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 0.5px solid var(--border2);
+  padding-top: 0.6rem;
+}
+
+.deck-filters-clear {
+  font-size: var(--text-xs);
+}
+
 /* In-view sort control on the binder summary line — a breadcrumb chip
    that opens the shared SortEditor in a popover. */
 .sort-popover {
