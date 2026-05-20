@@ -43,7 +43,7 @@ export async function clearAppCaches(): Promise<ResetResult> {
       const registrations = await navigator.serviceWorker.getRegistrations();
       const results = await Promise.allSettled(registrations.map((r) => r.unregister()));
       serviceWorkersUnregistered = results.filter(
-        (r) => r.status === 'fulfilled' && r.value,
+        (r) => r.status === 'fulfilled' && r.value
       ).length;
     } catch (err) {
       console.warn('[reset-cache] failed to unregister service workers:', err);
@@ -58,7 +58,7 @@ export async function clearAppCaches(): Promise<ResetResult> {
  * so the reload step can be stubbed in tests.
  */
 export async function resetAppCacheAndReload(
-  reload: () => void = () => window.location.reload(),
+  reload: () => void = () => window.location.reload()
 ): Promise<ResetResult> {
   const result = await clearAppCaches();
   reload();

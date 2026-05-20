@@ -132,7 +132,7 @@ export function SettingsPage() {
 
   async function handleResetAppCache() {
     const ok = window.confirm(
-      'Reset the cached app version and reload? Your decks, collection, and binders are kept.',
+      'Reset the cached app version and reload? Your decks, collection, and binders are kept.'
     );
     if (!ok) return;
     setResetCacheBusy(true);
@@ -305,8 +305,8 @@ export function SettingsPage() {
             Troubleshooting
           </h2>
           <p className="settings-card-hint">
-            If the app feels stuck on an old version after an update, reset the cached app shell
-            to fetch the latest from the server.
+            If the app feels stuck on an old version after an update, reset the cached app shell to
+            fetch the latest from the server.
           </p>
         </header>
         <div className="settings-card-body">
