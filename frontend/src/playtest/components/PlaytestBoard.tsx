@@ -104,6 +104,14 @@ export function PlaytestBoard({ state }: Props) {
     setCtx({ cardId, x, y });
   }
 
+  function handleHandCardClick(cardId: string) {
+    // Tap-to-play: cascade onto the battlefield so multiple plays don't stack.
+    const offset = state.battlefield.length;
+    const x = 40 + (offset % 8) * 30;
+    const y = 40 + Math.floor(offset / 8) * 30;
+    dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId, x, y });
+  }
+
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
 
   return (
@@ -165,7 +173,7 @@ export function PlaytestBoard({ state }: Props) {
             </aside>
           )}
         </div>
-        <Hand cards={state.zones.hand} />
+        <Hand cards={state.zones.hand} onCardClick={handleHandCardClick} />
       </DndContext>
 
       {isNarrow && (
