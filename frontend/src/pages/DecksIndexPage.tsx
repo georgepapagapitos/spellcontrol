@@ -17,10 +17,11 @@ import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
+import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
-import type { Deck } from '../store/decks';
-import type { ScryfallCard } from '../deck-builder/types';
+import type { Deck, DeckSource } from '../store/decks';
+import type { DeckFormat, ScryfallCard } from '../deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import {
   effectiveDeckColors,
@@ -68,6 +69,45 @@ function deckValue(deck: Deck): number {
 
 const STORAGE_KEY = 'decks-index-sort';
 const VIEW_KEY = 'mtg-decks-view-mode';
+const FILTERS_KEY = 'decks-index-filters';
+
+type StoredFilters = {
+  formats: DeckFormat[];
+  sources: DeckSource[];
+  colors: string[];
+};
+
+function loadFilters(): StoredFilters {
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<StoredFilters>;
+      return {
+        formats: Array.isArray(parsed.formats) ? (parsed.formats as DeckFormat[]) : [],
+        sources: Array.isArray(parsed.sources) ? (parsed.sources as DeckSource[]) : [],
+        colors: Array.isArray(parsed.colors) ? parsed.colors : [],
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { formats: [], sources: [], colors: [] };
+}
+
+function persistFilters(formats: Set<DeckFormat>, sources: Set<DeckSource>, colors: Set<string>) {
+  try {
+    localStorage.setItem(
+      FILTERS_KEY,
+      JSON.stringify({
+        formats: Array.from(formats),
+        sources: Array.from(sources),
+        colors: Array.from(colors),
+      } satisfies StoredFilters)
+    );
+  } catch {
+    /* ignore */
+  }
+}
 
 type DecksViewMode = 'grid' | 'list' | 'compact';
 
@@ -121,6 +161,27 @@ export function DecksIndexPage() {
   const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
+  const [formatFilter, setFormatFilterRaw] = useState<Set<DeckFormat>>(
+    () => new Set(loadFilters().formats)
+  );
+  const [sourceFilter, setSourceFilterRaw] = useState<Set<DeckSource>>(
+    () => new Set(loadFilters().sources)
+  );
+  const [colorFilter, setColorFilterRaw] = useState<Set<string>>(
+    () => new Set(loadFilters().colors)
+  );
+  const setFormatFilter = (next: Set<DeckFormat>) => {
+    setFormatFilterRaw(next);
+    persistFilters(next, sourceFilter, colorFilter);
+  };
+  const setSourceFilter = (next: Set<DeckSource>) => {
+    setSourceFilterRaw(next);
+    persistFilters(formatFilter, next, colorFilter);
+  };
+  const setColorFilter = (next: Set<string>) => {
+    setColorFilterRaw(next);
+    persistFilters(formatFilter, sourceFilter, next);
+  };
   const [view, setViewRaw] = useState<DecksViewMode>(readStoredView);
   const setView = (v: DecksViewMode) => {
     setViewRaw(v);
@@ -158,14 +219,34 @@ export function DecksIndexPage() {
 
   const sorted = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
-    const filtered = q
-      ? decks.filter(
-          (d) =>
-            d.name.toLowerCase().includes(q) ||
-            (d.commander?.name ?? '').toLowerCase().includes(q) ||
-            (d.partnerCommander?.name ?? '').toLowerCase().includes(q)
-        )
-      : decks;
+    const hasFormatFilter = formatFilter.size > 0;
+    const hasSourceFilter = sourceFilter.size > 0;
+    const hasColorFilter = colorFilter.size > 0;
+    const filtered = decks.filter((d) => {
+      if (q) {
+        const matchesSearch =
+          d.name.toLowerCase().includes(q) ||
+          (d.commander?.name ?? '').toLowerCase().includes(q) ||
+          (d.partnerCommander?.name ?? '').toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+      if (hasFormatFilter && !formatFilter.has(d.format)) return false;
+      if (hasSourceFilter && !sourceFilter.has(d.source)) return false;
+      if (hasColorFilter) {
+        const deckColors = effectiveDeckColors(d);
+        // "C" means colorless — match decks whose effective identity is empty.
+        // Any selected color must be present (intersection semantics: picking
+        // R + G shows red AND green decks, matching collection-page behavior).
+        for (const c of colorFilter) {
+          if (c === 'C') {
+            if (deckColors.size !== 0) return false;
+          } else if (!deckColors.has(c)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
     return [...filtered].sort((a, b) => {
       const va = deckSortValue(a, sortField);
       const vb = deckSortValue(b, sortField);
@@ -173,7 +254,7 @@ export function DecksIndexPage() {
       if (va > vb) return sortDir === 'desc' ? -1 : 1;
       return 0;
     });
-  }, [decks, sortField, sortDir, debouncedSearch]);
+  }, [decks, sortField, sortDir, debouncedSearch, formatFilter, sourceFilter, colorFilter]);
 
   const [showImport, setShowImport] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
@@ -247,6 +328,16 @@ export function DecksIndexPage() {
             onChange={setSearch}
             placeholder="Search decks"
             ariaLabel="Search decks"
+            trailing={
+              <DeckFiltersPopover
+                formats={formatFilter}
+                setFormats={setFormatFilter}
+                sources={sourceFilter}
+                setSources={setSourceFilter}
+                colors={colorFilter}
+                setColors={setColorFilter}
+              />
+            }
           />
         </div>
       )}
@@ -325,7 +416,11 @@ export function DecksIndexPage() {
         </div>
       ) : sorted.length === 0 ? (
         <div className="empty-state">
-          <p className="empty-state-tagline">No decks match "{debouncedSearch}".</p>
+          <p className="empty-state-tagline">
+            {debouncedSearch
+              ? `No decks match "${debouncedSearch}".`
+              : 'No decks match the current filters.'}
+          </p>
         </div>
       ) : (
         <ul className={`decks-index-list is-${view}`}>
@@ -371,6 +466,24 @@ export function DecksIndexPage() {
                 <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
                   {view !== 'compact' && art && (
                     <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
+                  )}
+                  {view === 'grid' && !art && (
+                    /* Fallback banner for non-commander decks (no art_crop
+                       available). Same height as the commander art banner
+                       so grid tiles stay uniform; mirrors binders grid
+                       header treatment. */
+                    <span className="decks-index-card-banner" aria-hidden>
+                      {colorIdentity.length > 0 && (
+                        <span className="decks-index-card-banner-pips">
+                          {colorIdentity.map((c) => (
+                            <i
+                              key={c}
+                              className={`ms ms-${c.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
+                            />
+                          ))}
+                        </span>
+                      )}
+                    </span>
                   )}
                   <div className="decks-index-card-body">
                     <div className="decks-index-card-name">
