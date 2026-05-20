@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@capacitor-community/camera-preview": "^8.0.1"
+  }
+}

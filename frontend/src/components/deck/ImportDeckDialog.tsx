@@ -13,6 +13,10 @@ import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
 import { isValidCommander } from '../../lib/commanders';
+import { isNativePlatform } from '../../lib/platform';
+import { pickNativeFiles } from '../../lib/native-file-picker';
+
+const DECK_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import {
   MAX_STAGED_FILES as MAX_FILES,
   mergeStagedFiles,
@@ -416,6 +420,20 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     },
     [acceptFiles]
   );
+
+  const handlePickFile = useCallback(async () => {
+    if (isLoading) return;
+    if (isNativePlatform()) {
+      try {
+        const files = await pickNativeFiles({ types: DECK_IMPORT_MIME, multiple: true });
+        acceptFiles(files);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not open file picker');
+      }
+      return;
+    }
+    fileInputRef.current?.click();
+  }, [acceptFiles, isLoading]);
 
   const handleDragEnter = useCallback(
     (e: React.DragEvent) => {
@@ -929,7 +947,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           <button
             type="button"
             className="btn"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handlePickFile}
             disabled={isLoading}
             title="Choose one or more files — each becomes its own deck"
           >

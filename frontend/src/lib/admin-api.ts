@@ -1,5 +1,6 @@
 import { handleResponse } from './fetch-utils';
 import type { UserRole } from './auth-api';
+import { apiUrl } from './api-base';
 
 export interface AdminUserSummary {
   id: string;
@@ -11,13 +12,13 @@ export interface AdminUserSummary {
 }
 
 export async function listUsers(): Promise<AdminUserSummary[]> {
-  const res = await fetch('/api/admin/users', { credentials: 'same-origin' });
+  const res = await fetch(apiUrl('/api/admin/users'), { credentials: 'same-origin' });
   const data = await handleResponse<{ users: AdminUserSummary[] }>(res);
   return data.users;
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  const res = await fetch(`/api/admin/users/${encodeURIComponent(id)}`, {
+  const res = await fetch(apiUrl(`/api/admin/users/${encodeURIComponent(id)}`), {
     method: 'DELETE',
     credentials: 'same-origin',
   });

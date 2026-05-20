@@ -1,4 +1,5 @@
 import { fetchSync, putSync, type SyncSnapshot } from './auth-api';
+import { apiUrl } from './api-base';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
@@ -430,7 +431,7 @@ function keepaliveFlush(): void {
       games,
       baseVersion: currentVersion,
     });
-    fetch('/api/sync', {
+    fetch(apiUrl('/api/sync'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: payload,
