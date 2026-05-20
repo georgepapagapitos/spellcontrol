@@ -34,7 +34,14 @@ export async function pickNativeFiles(options: PickOptions = {}): Promise<File[]
   const result = await FilePicker.pickFiles({
     types: options.types,
     limit: options.multiple ? 0 : 1,
-    readData: false,
+    // Read bytes natively and hand them back as base64. We used to fetch
+    // the returned `content://` / `file://` URI to materialise a Blob,
+    // but `CapacitorHttp.enabled: true` intercepts window.fetch and only
+    // understands http(s) — non-HTTP schemes fail with "Failed to fetch".
+    // Going through readData keeps everything inside the plugin's JS↔native
+    // bridge, no fetch involved. Memory cost: ~33% inflation for base64
+    // transport; fine for the CSV/TSV/TXT/JSON files this picker imports.
+    readData: true,
   });
 
   return Promise.all(
@@ -46,14 +53,17 @@ export async function pickNativeFiles(options: PickOptions = {}): Promise<File[]
           lastModified: picked.modifiedAt ?? Date.now(),
         });
       }
-      if (picked.path) {
-        // On Android/iOS the path is a content:// or file:// URI that the
-        // WebView's fetch can read directly. Materializing into a Blob
-        // matches the shape `File.text()` and the parser pipeline expect.
-        const resp = await fetch(picked.path);
-        const blob = await resp.blob();
+      if (picked.data) {
+        // Native path: base64 → bytes → Blob → File. `atob` decodes the
+        // base64 envelope; the loop builds a Uint8Array because Blob()
+        // wants array-buffer-like input, not a binary string.
+        const binary = atob(picked.data);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const mime = picked.mimeType || 'application/octet-stream';
+        const blob = new Blob([bytes], { type: mime });
         return new File([blob], picked.name, {
-          type: picked.mimeType || blob.type || 'application/octet-stream',
+          type: mime,
           lastModified: picked.modifiedAt ?? Date.now(),
         });
       }
