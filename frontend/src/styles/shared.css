@@ -31,7 +31,7 @@
 .shared-view-title {
   margin: 0 0 0.25rem;
   font-family: var(--font-serif);
-  font-size: 1.8rem;
+  font-size: var(--text-xl);
   font-weight: 600;
 }
 
@@ -311,7 +311,7 @@
 
 .shared-deck-section-heading {
   font-family: var(--font-serif);
-  font-size: 1.1rem;
+  font-size: var(--text-md);
   margin: 0 0 0.6rem;
   padding-bottom: 0.3rem;
   border-bottom: 0.5px solid var(--border);
