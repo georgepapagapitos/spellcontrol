@@ -37,6 +37,25 @@ export function parseSetFromQuery(scryfallQuery: string): string | undefined {
   return match ? match[1].toLowerCase() : undefined;
 }
 
+// Scryfall layouts that aren't real game pieces (art cards, tokens, emblems, etc.).
+// These can sneak in via /cards/collection with a set preference or via the
+// `unique=prints` upgrade search when a treatment filter (e.g. is:full-art) matches
+// an art-series printing — they have legalities.commander === 'not_legal' and would
+// otherwise be flagged after the deck is generated.
+const NON_PLAYABLE_LAYOUTS = new Set([
+  'art_series',
+  'token',
+  'double_faced_token',
+  'emblem',
+  'scheme',
+  'planar',
+  'vanguard',
+]);
+
+export function isPlayableCard(card: ScryfallCard): boolean {
+  return !card.layout || !NON_PLAYABLE_LAYOUTS.has(card.layout);
+}
+
 /** Return a shallow copy with deck-generation flags stripped so cached objects stay clean. */
 function freshCopy(card: ScryfallCard): ScryfallCard {
   const {
@@ -227,12 +246,13 @@ async function fetchCardByNameThrottled(name: string, retries = 2): Promise<Scry
 
     if (response.ok) {
       const searchResult = (await response.json()) as ScryfallSearchResponse;
-      if (searchResult.data.length > 0) {
+      const playable = searchResult.data.filter(isPlayableCard);
+      if (playable.length > 0) {
         // Prefer a printing with a normal USD price, then any price, then first result
         const card =
-          searchResult.data.find((c) => c.prices?.usd) ||
-          searchResult.data.find((c) => getCardPrice(c)) ||
-          searchResult.data[0];
+          playable.find((c) => c.prices?.usd) ||
+          playable.find((c) => getCardPrice(c)) ||
+          playable[0];
         cardCache.set(name, card);
         // Also cache under Scryfall's canonical name if different
         if (card.name !== name) cardCache.set(card.name, card);
@@ -256,6 +276,7 @@ async function fetchCardByNameThrottled(name: string, retries = 2): Promise<Scry
       );
       if (!namedResponse.ok) return null;
       const card = (await namedResponse.json()) as ScryfallCard;
+      if (!isPlayableCard(card)) return null;
       cardCache.set(card.name, card);
       return card;
     }
@@ -348,6 +369,7 @@ export async function getCardsByNames(
           not_found: Array<{ name?: string; set?: string }>;
         };
         for (const card of data.data) {
+          if (!isPlayableCard(card)) continue;
           const cacheKey = preferredSet ? `${card.name}|${preferredSet}` : card.name;
           cardCache.set(cacheKey, card);
           if (!preferredSet) cardCache.set(card.name, card); // also cache under plain name when no set preference
@@ -412,6 +434,7 @@ export async function getCardsByNames(
             not_found: Array<{ name?: string }>;
           };
           for (const card of data.data) {
+            if (!isPlayableCard(card)) continue;
             cardCache.set(card.name, card);
             const copy = freshCopy(card);
             result.set(card.name, copy);
@@ -548,9 +571,12 @@ export async function upgradeCardPrintings(
 
       if (response.ok) {
         const data = (await response.json()) as ScryfallSearchResponse;
-        // Build a name -> first matching card map (most recent printing first due to order=released desc)
+        // Build a name -> first matching card map (most recent printing first due to order=released desc).
+        // Skip art-series and other non-playable layouts — `unique=prints` includes them,
+        // and they often match treatment filters like is:full-art / frame:extendedart.
         const matchMap = new Map<string, ScryfallCard>();
         for (const card of data.data) {
+          if (!isPlayableCard(card)) continue;
           const frontName = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
           if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
             matchMap.set(card.name, card);
