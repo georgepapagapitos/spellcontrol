@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
+import { Readable } from 'node:stream';
+import streamArray from 'stream-json/streamers/stream-array';
 import type { SlimCard } from './types';
 
 /**
@@ -148,14 +150,26 @@ async function buildPayload(): Promise<BulkPayload> {
   const { url, updatedAt } = await fetchOracleBulkUrl();
   console.log('[offline] downloading Scryfall oracle bulk from', url);
   const dlRes = await fetch(url);
-  if (!dlRes.ok) {
+  if (!dlRes.ok || !dlRes.body) {
     throw new Error(`Scryfall oracle bulk download returned ${dlRes.status}`);
   }
-  const fullText = await dlRes.text();
-  const fullArr = JSON.parse(fullText) as ScryfallBulkCard[];
+
+  // Stream-parse the response so we never hold the full ~200MB Scryfall
+  // JSON in memory. Without this V8 OOMs at ~384MB heap inside
+  // JSON.parse even on a 768MB container — bulk + parse tree peak around
+  // 500-700MB. Pulling one card at a time off the JSON-array stream keeps
+  // the working set under ~50MB.
+  //
+  // `Readable.fromWeb` adapts the WHATWG ReadableStream (whatwg-fetch) into
+  // a Node Readable so it can be piped through stream-json.
+  const nodeStream = Readable.fromWeb(dlRes.body as Parameters<typeof Readable.fromWeb>[0]);
+  // `withParserAsStream` is the combined parser + streamArray Duplex; emits
+  // one `{ key, value }` per top-level array element.
+  const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
 
   const slims: SlimCard[] = [];
-  for (const card of fullArr) {
+  for await (const entry of pipeline) {
+    const card = (entry as { value: ScryfallBulkCard }).value;
     const s = slimCard(card);
     if (s) slims.push(s);
   }
@@ -299,6 +313,17 @@ export function ensureOracleBulkBuilding(): void {
 }
 
 export async function refreshOracleBulk(): Promise<BulkPayload> {
+  // If a build is already in flight (e.g. kicked off by ensureOracleBulkBuilding),
+  // wait for it to settle before starting a new one. Without this, the new
+  // promise overwrites `inflight` but the old promise keeps running in the
+  // background and can restore `current` after a caller has cleared it.
+  if (inflight) {
+    try {
+      await inflight;
+    } catch {
+      // Existing build failed — that's recorded in lastError; we'll retry below.
+    }
+  }
   inflight = buildPayload()
     .then((fresh) => {
       current = fresh;
@@ -330,7 +355,18 @@ export function scheduleOracleRefresh(): void {
   if (typeof refreshTimer.unref === 'function') refreshTimer.unref();
 }
 
-export function __resetOracleBulkForTesting(): void {
+export async function __resetOracleBulkForTesting(): Promise<void> {
+  // Drain any in-flight build first so its `.then` doesn't restore `current`
+  // after we've cleared it — otherwise tests that flip between reset and an
+  // immediate HTTP request race with a still-running build kicked off by a
+  // prior `sendBuilding()` call.
+  if (inflight) {
+    try {
+      await inflight;
+    } catch {
+      // ignore — failures are already recorded in lastError
+    }
+  }
   current = null;
   inflight = null;
   lastError = null;
