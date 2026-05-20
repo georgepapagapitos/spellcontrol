@@ -128,6 +128,7 @@ The backend reads:
 
 - `DATABASE_URL` — Postgres connection string. Required.
 - `JWT_SECRET` — 16+ character random string used to sign session tokens. Required. Rotating it invalidates every session.
+- `ALLOWED_USERNAMES` — optional, comma-separated allowlist that gates `POST /api/auth/register`. Unset or empty → registration is open. When set, only matching usernames (case-insensitive, whitespace tolerated) may sign up; everyone else gets a 403. Existing accounts are unaffected. Edit your `.env` and restart the backend container to add or remove a name.
 - `PORT` (default `3737`), `DB_PATH` (default `backend/data/scryfall-cache.db`).
 
 ## Architecture

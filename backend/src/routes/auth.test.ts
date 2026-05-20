@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
@@ -62,6 +62,46 @@ d('POST /api/auth/register', () => {
       .post('/api/auth/register')
       .send({ username: 'DAN', password: 'correct horse battery' });
     expect(res.status).toBe(409);
+  });
+});
+
+d('POST /api/auth/register — ALLOWED_USERNAMES allowlist', () => {
+  afterEach(() => {
+    delete process.env.ALLOWED_USERNAMES;
+  });
+
+  it('rejects a username not on the allowlist with 403', async () => {
+    process.env.ALLOWED_USERNAMES = 'charlie,david';
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'eve', password: 'correct horse battery' });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/invite-only/i);
+  });
+
+  it('allows a username on the allowlist', async () => {
+    process.env.ALLOWED_USERNAMES = 'charlie,david';
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'charlie', password: 'correct horse battery' });
+    expect(res.status).toBe(201);
+    expect(res.body.user.username).toBe('charlie');
+  });
+
+  it('matches case-insensitively and tolerates whitespace', async () => {
+    process.env.ALLOWED_USERNAMES = '  Pat , QUINN ';
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'quinn', password: 'correct horse battery' });
+    expect(res.status).toBe(201);
+  });
+
+  it('leaves registration open when the env var is empty', async () => {
+    process.env.ALLOWED_USERNAMES = '';
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'jamie', password: 'correct horse battery' });
+    expect(res.status).toBe(201);
   });
 });
 

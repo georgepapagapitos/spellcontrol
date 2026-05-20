@@ -29,6 +29,24 @@ const loginLimiter = isTest
 
 export const authRouter: Router = Router();
 
+/**
+ * Optional invite-only gate. When `ALLOWED_USERNAMES` is set, registration is
+ * limited to a comma-separated allowlist of usernames (case-insensitive,
+ * compared after `normalizeUsername`). Unset or empty → registration is open,
+ * preserving prior behavior for any existing deploy that hasn't opted in.
+ * Read per-request so operators can update `.env` and restart the container
+ * without a code change, and so tests can flip the gate per-case.
+ */
+function getRegistrationAllowlist(): Set<string> | null {
+  const raw = process.env.ALLOWED_USERNAMES;
+  if (!raw) return null;
+  const list = raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return list.length > 0 ? new Set(list) : null;
+}
+
 authRouter.post('/register', registerLimiter, async (req: Request, res: Response) => {
   const username = normalizeUsername(req.body?.username);
   const password = validatePassword(req.body?.password);
@@ -41,6 +59,11 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
     return res
       .status(400)
       .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
+
+  const allowlist = getRegistrationAllowlist();
+  if (allowlist && !allowlist.has(username)) {
+    return res.status(403).json({ error: 'Registration is invite-only.' });
   }
 
   const db = getDb();
