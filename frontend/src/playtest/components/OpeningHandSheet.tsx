@@ -58,7 +58,7 @@ export function OpeningHandSheet({
   const previewCards = useMemo(() => previewable.map((p) => p.enriched), [previewable]);
   const previewLabels = useMemo(
     () => previewable.map(() => (isMulliganBottom ? 'Bottom of library' : 'Opening hand')),
-    [previewable, isMulliganBottom],
+    [previewable, isMulliganBottom]
   );
   const previewPages = useMemo(() => previewable.map(() => 1), [previewable]);
 
@@ -108,8 +108,8 @@ export function OpeningHandSheet({
           </div>
           {isMulliganBottom ? (
             <p className="playtest-opening-hint">
-              Choose {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom
-              of your library, in the order you tap them.{' '}
+              Choose {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom of
+              your library, in the order you tap them.{' '}
               <strong>
                 {selected.length}/{requiredBottom} selected
               </strong>

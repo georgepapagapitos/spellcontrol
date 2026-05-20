@@ -45,7 +45,7 @@ export function PlaytestBoard({ state }: Props) {
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   const deck = useDecksStore((s) =>
-    playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined,
+    playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
   );
 
   // Build a map from each PlaytestCard instance id back to the underlying
@@ -60,8 +60,7 @@ export function PlaytestBoard({ state }: Props) {
       map.set(`${slot.slotId}#${i}`, slot.card);
     });
     if (deck.commander) map.set(`cmd-${deck.commander.id}`, deck.commander);
-    if (deck.partnerCommander)
-      map.set(`cmd-${deck.partnerCommander.id}`, deck.partnerCommander);
+    if (deck.partnerCommander) map.set(`cmd-${deck.partnerCommander.id}`, deck.partnerCommander);
     return map;
   }, [deck]);
 
