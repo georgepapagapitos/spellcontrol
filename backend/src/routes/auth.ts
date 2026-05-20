@@ -4,6 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import {
   clearSessionCookie,
+  getAdminUsernames,
   hashPassword,
   loadAuthedUser,
   MIN_PASSWORD_LENGTH,
@@ -14,6 +15,7 @@ import {
   signSession,
   validatePassword,
   verifyPassword,
+  type UserRole,
 } from '../auth';
 import { getDb } from '../db';
 import { users, userData } from '../db/schema';
@@ -56,7 +58,11 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   const id = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
   const now = Date.now();
-  await db.insert(users).values({ id, username, passwordHash, createdAt: now });
+  // If the new username is in ADMIN_USERNAMES, promote on insert so the first
+  // login already carries admin privileges. The boot-time bootstrap covers the
+  // case where the env var is added *after* the user already exists.
+  const role: UserRole = getAdminUsernames().has(username) ? 'admin' : 'user';
+  await db.insert(users).values({ id, username, passwordHash, role, createdAt: now });
   await db.insert(userData).values({
     userId: id,
     collection: null,
@@ -66,9 +72,9 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
     updatedAt: now,
   });
 
-  const token = signSession({ id, username });
+  const token = signSession({ id, username, role });
   setSessionCookie(res, token);
-  res.status(201).json({ user: { id, username } });
+  res.status(201).json({ user: { id, username, role } });
 });
 
 authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
@@ -82,7 +88,12 @@ authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
 
   const db = getDb();
   const rows = await db
-    .select({ id: users.id, username: users.username, passwordHash: users.passwordHash })
+    .select({
+      id: users.id,
+      username: users.username,
+      passwordHash: users.passwordHash,
+      role: users.role,
+    })
     .from(users)
     .where(eq(users.username, username))
     .limit(1);
@@ -96,9 +107,10 @@ authRouter.post('/login', loginLimiter, async (req: Request, res: Response) => {
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) return failure();
 
-  const token = signSession({ id: user.id, username: user.username });
+  const role: UserRole = user.role === 'admin' ? 'admin' : 'user';
+  const token = signSession({ id: user.id, username: user.username, role });
   setSessionCookie(res, token);
-  res.json({ user: { id: user.id, username: user.username } });
+  res.json({ user: { id: user.id, username: user.username, role } });
 });
 
 authRouter.post('/logout', (_req: Request, res: Response) => {

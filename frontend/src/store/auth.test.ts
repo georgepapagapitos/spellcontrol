@@ -10,7 +10,7 @@ beforeEach(() => {
 
 describe('bootstrap', () => {
   it('moves to authed when /me returns a user', async () => {
-    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({ id: 'u1', username: 'alice' });
+    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({ id: 'u1', username: 'alice', role: 'user' });
     await useAuth.getState().bootstrap();
     expect(useAuth.getState().status).toBe('authed');
     expect(useAuth.getState().user?.username).toBe('alice');
@@ -31,7 +31,7 @@ describe('bootstrap', () => {
 
 describe('login / register', () => {
   it('login success sets the user and clears errors', async () => {
-    vi.spyOn(authApi, 'login').mockResolvedValue({ id: 'u2', username: 'bob' });
+    vi.spyOn(authApi, 'login').mockResolvedValue({ id: 'u2', username: 'bob', role: 'user' });
     const ok = await useAuth.getState().login('bob', 'correct horse battery');
     expect(ok).toBe(true);
     expect(useAuth.getState().status).toBe('authed');
@@ -46,7 +46,7 @@ describe('login / register', () => {
   });
 
   it('register success sets the user', async () => {
-    vi.spyOn(authApi, 'register').mockResolvedValue({ id: 'u3', username: 'cory' });
+    vi.spyOn(authApi, 'register').mockResolvedValue({ id: 'u3', username: 'cory', role: 'user' });
     const ok = await useAuth.getState().register('cory', 'correct horse battery');
     expect(ok).toBe(true);
     expect(useAuth.getState().user?.id).toBe('u3');
@@ -55,7 +55,7 @@ describe('login / register', () => {
 
 describe('logout', () => {
   it('clears user and triggers sync teardown even if API fails', async () => {
-    useAuth.setState({ user: { id: 'u', username: 'eve' }, status: 'authed' });
+    useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });
     vi.spyOn(authApi, 'logout').mockRejectedValue(new Error('offline'));
     const flushSpy = vi.spyOn(sync, 'flushSync').mockResolvedValue();
     const stopSpy = vi.spyOn(sync, 'stopSyncAndWipeLocal').mockResolvedValue();
