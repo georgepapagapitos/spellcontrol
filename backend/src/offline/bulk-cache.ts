@@ -265,11 +265,13 @@ export async function getOracleBulk(): Promise<BulkPayload> {
       if (fromDisk) {
         current = fromDisk;
         lastError = null;
+        scheduleDailyRefresh();
         return fromDisk;
       }
       const fresh = await buildPayload();
       current = fresh;
       lastError = null;
+      scheduleDailyRefresh();
       return fresh;
     })()
       .catch((err) => {
@@ -341,18 +343,37 @@ export async function refreshOracleBulk(): Promise<BulkPayload> {
 }
 
 /**
- * Kick off the initial build (in the background) and schedule a daily refresh.
- * Idempotent — safe to call once at server boot.
+ * Register the daily refresh interval. Called automatically by `getOracleBulk`
+ * after the first successful build/load so the interval only ever runs while
+ * a payload is in memory — avoids paying the 30-60s rebuild cost on a server
+ * whose users never asked for the offline bundle. Idempotent.
  */
-export function scheduleOracleRefresh(): void {
-  ensureOracleBulkBuilding();
+function scheduleDailyRefresh(): void {
   if (refreshTimer) return;
-  refreshTimer = setInterval(() => {
-    refreshOracleBulk().catch((err) => {
-      console.warn('[offline] scheduled oracle refresh failed:', err);
-    });
-  }, REFRESH_INTERVAL_MS);
+  if (process.env.OFFLINE_BULK_DISABLED === '1') return;
+  refreshTimer = setInterval(runDailyRefreshTick, REFRESH_INTERVAL_MS);
   if (typeof refreshTimer.unref === 'function') refreshTimer.unref();
+}
+
+/**
+ * Periodic-refresh body, factored out so tests can drive it directly. The
+ * `current !== null` gate is the safety net that ensures we never start a
+ * 30-60s rebuild on a payload nobody has asked for yet — also covers the
+ * race where a test resets state while the timer is still armed.
+ */
+function runDailyRefreshTick(): void {
+  if (!current) return;
+  refreshOracleBulk().catch((err) => {
+    console.warn('[offline] scheduled oracle refresh failed:', err);
+  });
+}
+
+export function __getRefreshTimerForTesting(): NodeJS.Timeout | null {
+  return refreshTimer;
+}
+
+export function __runDailyRefreshTickForTesting(): void {
+  runDailyRefreshTick();
 }
 
 export async function __resetOracleBulkForTesting(): Promise<void> {
