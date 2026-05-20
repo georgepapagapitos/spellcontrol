@@ -483,6 +483,13 @@ export function DeckEditorPage() {
             )}
             {showAddPanel ? 'Hide cards panel' : 'Add cards'}
           </button>
+          <button
+            type="button"
+            className="btn deck-editor-action-btn"
+            onClick={() => navigate(`/decks/${deck.id}/playtest`)}
+          >
+            Playtest
+          </button>
           <button type="button" className="btn deck-editor-action-btn" onClick={handleDuplicate}>
             <Copy width={14} height={14} strokeWidth={2} aria-hidden />
             Duplicate

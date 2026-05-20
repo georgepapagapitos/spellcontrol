@@ -10,6 +10,7 @@ import { DecksIndexPage } from './pages/DecksIndexPage';
 import { DeckNewPage } from './pages/DeckNewPage';
 import { GuidedBuildPage } from './pages/GuidedBuildPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
+import { PlaytestPage } from './pages/PlaytestPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
@@ -98,6 +99,7 @@ export default function App() {
         <Route path="/decks/new" element={<DeckNewPage />} />
         <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
         <Route path="/decks/:id" element={<DeckEditorPage />} />
+        <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
         <Route path="/play" element={<PlayPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
