@@ -142,6 +142,8 @@ The backend reads:
 - `DATABASE_URL` — Postgres connection string. Required.
 - `JWT_SECRET` — 16+ character random string used to sign session tokens. Required. Rotating it invalidates every session.
 - `ADMIN_USERNAMES` — optional, comma-separated list of usernames that should hold the `admin` role. On boot, any matching existing user is promoted (additively — names removed from the list keep their role). New registrations matching this list are promoted at insert time. Admins see an extra "Admin — manage users" card on the Settings page, where they can list users, see per-account storage size, and delete accounts.
+- `OFFLINE_BULK_DISABLED` — optional. Set to `1` to disable the daily Scryfall oracle bulk refresh. The bulk itself is built lazily on the first request to `/api/offline/oracle-cards`; this flag opts out of the once-a-day rebuild thereafter (the cached payload keeps serving). Useful on tightly memory-constrained hosts where the periodic ~1GB peak isn't worth it.
+- `COMBOS_INGEST_DISABLED` — optional. Set to `1` to skip the nightly Commander Spellbook ingest. The existing dataset keeps serving.
 - `PORT` (default `3737`), `DB_PATH` (default `backend/data/scryfall-cache.db`).
 
 ## Architecture
