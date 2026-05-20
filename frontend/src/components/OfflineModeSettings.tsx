@@ -2,20 +2,16 @@ import { useEffect } from 'react';
 import { useOfflineStore } from '@/store/offline';
 
 /**
- * Settings panel for offline mode: opt-in toggle, dataset status, manual
- * sync trigger, and clear-data button. Drops into SettingsPage as a sibling
- * of the appearance / data-management sections.
+ * Read-only status for the always-on local card data, plus an escape-hatch
+ * "Clear" button. The download itself runs silently in the background after
+ * sign-in (see `lib/offline/auto-sync.ts`); there is no toggle and no
+ * "Download now" — the user shouldn't have to think about this.
  */
 export function OfflineModeSettings(): React.ReactElement {
-  const enabled = useOfflineStore((s) => s.enabled);
   const manifest = useOfflineStore((s) => s.manifest);
   const stats = useOfflineStore((s) => s.stats);
-  const progress = useOfflineStore((s) => s.progress);
-  const error = useOfflineStore((s) => s.error);
   const bootstrapped = useOfflineStore((s) => s.bootstrapped);
-  const setEnabled = useOfflineStore((s) => s.setEnabled);
   const bootstrap = useOfflineStore((s) => s.bootstrap);
-  const sync = useOfflineStore((s) => s.sync);
   const clear = useOfflineStore((s) => s.clear);
 
   useEffect(() => {
@@ -23,139 +19,47 @@ export function OfflineModeSettings(): React.ReactElement {
   }, [bootstrap, bootstrapped]);
 
   const hasData = !!manifest && manifest.oracleCardCount > 0;
-  const isSyncing =
-    !!progress &&
-    progress.phase !== 'idle' &&
-    progress.phase !== 'done' &&
-    progress.phase !== 'error';
+  const cardCount = stats?.cardCount ?? manifest?.oracleCardCount ?? 0;
+  const sizeBytes = manifest ? manifest.oracleByteSize + manifest.combosByteSize : 0;
 
   return (
     <section className="settings-card" aria-labelledby="settings-offline-title">
       <header className="settings-card-header">
         <h2 id="settings-offline-title" className="settings-card-title">
-          Offline mode
+          Card data
         </h2>
         <p className="settings-card-hint">
-          Plan decks, search cards, and analyze combos without a network. A one-time download (~10
-          MB) keeps a local copy of the card catalog and combo dataset. EDHREC-driven deck
-          generation falls back to local heuristics — quality is reduced, but generation still
-          works.
+          A local copy of the Scryfall card catalog and combo dataset is kept on this device so
+          searches, deck generation, and combo matching work without a network round-trip. It
+          refreshes silently in the background — there's nothing to configure.
         </p>
       </header>
       <div className="settings-card-body">
         <div className="settings-row">
           <div className="settings-row-text">
-            <div className="settings-row-label">Use offline data when available</div>
-            <div className="settings-row-value">
-              {enabled
-                ? hasData
-                  ? 'Enabled — searches read from the local catalog.'
-                  : 'Enabled, but no data is downloaded yet.'
-                : 'Disabled — searches use the live Scryfall API.'}
-            </div>
-          </div>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              aria-label="Use offline data when available"
-            />
-            <span aria-hidden="true">{enabled ? 'On' : 'Off'}</span>
-          </label>
-        </div>
-
-        <div className="settings-row">
-          <div className="settings-row-text">
-            <div className="settings-row-label">Local dataset</div>
+            <div className="settings-row-label">Status</div>
             <div className="settings-row-value">
               {hasData
-                ? `${formatNumber(stats?.cardCount ?? manifest!.oracleCardCount)} cards · ${formatNumber(stats?.comboCount ?? manifest!.combosCount)} combos · ${formatBytes(manifest!.oracleByteSize + manifest!.combosByteSize)} on the server`
-                : 'No data downloaded yet.'}
+                ? `${formatNumber(cardCount)} cards · ${formatBytes(sizeBytes)} · updated ${formatRelative(manifest!.oracleUpdatedAt)}`
+                : 'Downloading… searches will use the live API until this finishes.'}
             </div>
-            {manifest && (
-              <div className="settings-row-meta">
-                Last updated {formatDate(manifest.oracleUpdatedAt)} · catalog version{' '}
-                <code>{manifest.oracleVersion.slice(0, 8)}</code>
-              </div>
-            )}
           </div>
-          <div className="settings-row-actions">
-            <button
-              type="button"
-              className="btn"
-              onClick={() => void sync({ force: false })}
-              disabled={isSyncing}
-            >
-              {hasData ? 'Check for updates' : 'Download now'}
-            </button>
-            {hasData && (
+          {hasData && (
+            <div className="settings-row-actions">
               <button
                 type="button"
                 className="btn btn-quiet"
                 onClick={() => void clear()}
-                disabled={isSyncing}
+                title="Wipe the local card catalog. It will re-download on next sign-in."
               >
-                Clear
+                Clear cached card data
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-
-        {progress && (
-          <div className="settings-row" aria-live="polite">
-            <div className="settings-row-text">
-              <div className="settings-row-label">{phaseLabel(progress.phase)}</div>
-              <div className="settings-row-value">{progress.detail ?? ''}</div>
-              {typeof progress.fraction === 'number' && (
-                <div
-                  className="settings-progress"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(progress.fraction * 100)}
-                >
-                  <span style={{ width: `${Math.round(progress.fraction * 100)}%` }} />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="settings-row settings-row-error" role="alert">
-            <div className="settings-row-text">
-              <div className="settings-row-label">Sync failed</div>
-              <div className="settings-row-value">{error}</div>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );
-}
-
-function phaseLabel(phase: string): string {
-  switch (phase) {
-    case 'fetching-manifest':
-      return 'Checking server…';
-    case 'waiting-for-server':
-      return 'Server is preparing data…';
-    case 'downloading-cards':
-      return 'Downloading card catalog…';
-    case 'storing-cards':
-      return 'Saving cards locally…';
-    case 'downloading-combos':
-      return 'Downloading combos…';
-    case 'storing-combos':
-      return 'Saving combos locally…';
-    case 'done':
-      return 'Up to date.';
-    case 'error':
-      return 'Sync error';
-    default:
-      return phase;
-  }
 }
 
 function formatNumber(n: number): string {
@@ -168,11 +72,23 @@ function formatBytes(b: number): string {
   return `${b} B`;
 }
 
-function formatDate(ms: number): string {
+/**
+ * "2 days ago" / "just now" style — matches the casual tone of the rest of
+ * the settings page. Falls back to a locale date for stale data.
+ */
+function formatRelative(ms: number): string {
   if (!ms) return 'never';
+  const deltaSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (deltaSec < 60) return 'just now';
+  const deltaMin = Math.floor(deltaSec / 60);
+  if (deltaMin < 60) return `${deltaMin} minute${deltaMin === 1 ? '' : 's'} ago`;
+  const deltaHr = Math.floor(deltaMin / 60);
+  if (deltaHr < 24) return `${deltaHr} hour${deltaHr === 1 ? '' : 's'} ago`;
+  const deltaDay = Math.floor(deltaHr / 24);
+  if (deltaDay < 30) return `${deltaDay} day${deltaDay === 1 ? '' : 's'} ago`;
   try {
-    return new Date(ms).toLocaleString();
+    return new Date(ms).toLocaleDateString();
   } catch {
-    return 'unknown';
+    return 'a while ago';
   }
 }
