@@ -1,11 +1,11 @@
 import { handleResponse } from '../fetch-utils';
 import { matchCombosLocal } from '../offline';
-import { shouldUseOfflineData, useOfflineStore } from '@/store/offline';
+import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';
 
 function offlineActive(): boolean {
   try {
-    return shouldUseOfflineData(useOfflineStore.getState());
+    return offlineDataAvailable(useOfflineStore.getState());
   } catch {
     return false;
   }

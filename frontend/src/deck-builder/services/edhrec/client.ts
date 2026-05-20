@@ -9,23 +9,24 @@ import type {
   BudgetOption,
   BracketLevel,
 } from '@/deck-builder/types';
-import { shouldUseOfflineData, useOfflineStore } from '@/store/offline';
 import { offlineSearchCards } from '@/lib/offline';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
 
 /**
- * Offline-mode short circuit. EDHREC is online-only — when the user is in
- * offline mode we hand back empty data and let the deck generator's
- * Scryfall-driven fallback fill slots from the local oracle store. Quality
- * drops vs. EDHREC suggestions, but generation completes instead of failing.
+ * Network short-circuit for EDHREC. Unlike Scryfall + combos (which mirror
+ * a local cache and always work either way), EDHREC has no offline shadow —
+ * when the browser reports no network we hand back empty results so the deck
+ * generator falls through to its Scryfall-driven heuristic fallback. Quality
+ * drops vs. EDHREC suggestions, but generation completes instead of throwing.
+ *
+ * `navigator.onLine === false` is a coarse signal (it only knows the OS
+ * thinks the interface is down, not whether EDHREC itself is reachable), but
+ * it's good enough for the fast-path; genuine fetch failures still bubble up
+ * to the caller-side error handling.
  */
 function offlineActive(): boolean {
-  try {
-    return shouldUseOfflineData(useOfflineStore.getState());
-  } catch {
-    return false;
-  }
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
 const EMPTY_STATS: EDHRECCommanderStats = {
