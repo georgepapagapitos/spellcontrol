@@ -199,12 +199,28 @@ async function buildPayload(): Promise<BulkPayload> {
   return payload;
 }
 
+/**
+ * Where the persisted bulk + meta live. Priority:
+ *   1. `OFFLINE_DATA_DIR` — explicit opt-in for custom layouts.
+ *   2. `dirname(DB_PATH)` — by default we co-locate with the SQLite cache so
+ *      a single `/data` volume mount (the Docker default) survives across
+ *      container recreates. Without this fallback the bulk landed at
+ *      `/app/data/...` inside the container layer and was lost on every
+ *      restart, forcing a fresh 30-60s rebuild + ~700MB heap peak.
+ *   3. The dev-mode `backend/data/` path next to the source tree.
+ */
+function offlineDataDir(): string {
+  if (process.env.OFFLINE_DATA_DIR) return process.env.OFFLINE_DATA_DIR;
+  if (process.env.DB_PATH) return path.dirname(process.env.DB_PATH);
+  return path.join(__dirname, '..', '..', 'data');
+}
+
 function diskPath(): string {
-  return path.join(__dirname, '..', '..', 'data', 'offline-oracle.json.gz');
+  return path.join(offlineDataDir(), 'offline-oracle.json.gz');
 }
 
 function diskMetaPath(): string {
-  return path.join(__dirname, '..', '..', 'data', 'offline-oracle.meta.json');
+  return path.join(offlineDataDir(), 'offline-oracle.meta.json');
 }
 
 interface PersistedMeta {
