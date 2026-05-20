@@ -25,6 +25,13 @@ services:
       DATABASE_URL: postgres://spellcontrol:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/spellcontrol
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (32+ random chars)}
       NODE_ENV: production
+      # Optional. Comma-separated usernames that the backend promotes to admin
+      # on boot. Empty by default — set in .env to enable the admin panel.
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      # Give V8 enough old-space to slim and gzip the Scryfall oracle bulk
+      # without OOM-ing. Stays well under the cgroup mem_limit so the kernel
+      # never kills the process before V8 gets to recover.
+      NODE_OPTIONS: --max-old-space-size=1536
     # Backend is no longer exposed to the host — the frontend container's
     # nginx proxies /api/ to it on the docker-compose network.
     expose:
@@ -36,7 +43,11 @@ services:
         condition: service_healthy
     labels:
       - 'com.centurylinklabs.watchtower.enable=true'
-    mem_limit: 256m
+    # The first build of the Scryfall oracle bulk briefly peaks ~1GB while it
+    # streams in, slims, and gzips ~200MB of JSON. Subsequent boots reuse the
+    # persisted blob and idle around 200-300MB. 2g leaves headroom for V8 +
+    # native deps (better-sqlite3, pg).
+    mem_limit: 2g
     cpus: 0.5
 
   frontend:
