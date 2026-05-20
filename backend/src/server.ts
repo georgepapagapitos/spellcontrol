@@ -14,7 +14,6 @@ import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
 import { offlineRouter } from './routes/offline';
-import { scheduleOracleRefresh } from './offline/bulk-cache';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
 import { getSetMap } from './sets';
@@ -513,9 +512,11 @@ async function start() {
     scheduleComboIngest();
   }
 
-  if (process.env.OFFLINE_BULK_DISABLED !== '1') {
-    scheduleOracleRefresh();
-  }
+  // The Scryfall oracle bulk is built lazily on the first request to
+  // /api/offline/oracle-cards (the route returns 503 + Retry-After while it
+  // streams in). The daily refresh interval is armed automatically by
+  // bulk-cache after that first successful build, so there's no boot-time
+  // hook here. Set OFFLINE_BULK_DISABLED=1 to opt out of the daily refresh.
 
   function shutdown() {
     console.log('\n[server] shutting down...');
