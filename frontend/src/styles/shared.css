@@ -1,0 +1,443 @@
+/* Shared-view styles for /s/:token public pages.
+ * Self-contained so the share page doesn't depend on the rest of the app's
+ * layout chrome (Layout component is gated by auth). Uses the same CSS
+ * variables as the rest of the app for consistent theming.
+ */
+
+.shared-view {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.shared-view-header {
+  margin: 0 0 1.5rem;
+  padding: 0 0 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.shared-view-owner {
+  margin: 0 0 0.25rem;
+  color: var(--text3);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shared-view-title {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.shared-view-subtitle {
+  margin: 0;
+  color: var(--text2);
+  font-size: var(--text-sm);
+}
+
+/* ── Loading / error / 404 states ─────────────────────────────────────── */
+
+.shared-view--loading,
+.shared-view--missing,
+.shared-view--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 60vh;
+}
+
+.shared-view--missing h1,
+.shared-view--error h1 {
+  font-family: var(--font-serif);
+  margin-bottom: 0.5rem;
+}
+
+/* ── Toolbar (search / sort / color chips) ────────────────────────────── */
+
+.shared-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.shared-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  padding: 0.5rem 0.75rem;
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-base);
+}
+
+.shared-search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.shared-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.shared-sort-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+.shared-sort select {
+  padding: 0.4rem 0.5rem;
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.shared-sort-dir {
+  width: 32px;
+  height: 32px;
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-md);
+  cursor: pointer;
+  padding: 0;
+}
+
+.shared-sort-dir:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+/* ── Color chips ──────────────────────────────────────────────────────── */
+
+.shared-color-chips {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.shared-color-chip {
+  width: 32px;
+  height: 32px;
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--text2);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform 80ms,
+    background 80ms,
+    border-color 80ms;
+}
+
+.shared-color-chip:hover {
+  transform: translateY(-1px);
+}
+
+.shared-color-chip.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+/* MTG color tint when active. The bare letters work as labels but the
+   active state gets a canonical pip color for instant recognition. */
+.shared-color-chip--w.is-active {
+  background: #f3e6b3;
+  color: #4a4220;
+  border-color: #d8c87a;
+}
+.shared-color-chip--u.is-active {
+  background: #aedaff;
+  color: #0a2c5a;
+  border-color: #5ca7e2;
+}
+.shared-color-chip--b.is-active {
+  background: #2a2a2a;
+  color: #d8d8d8;
+  border-color: #555;
+}
+.shared-color-chip--r.is-active {
+  background: #f7a39a;
+  color: #4a1a14;
+  border-color: #d96456;
+}
+.shared-color-chip--g.is-active {
+  background: #b3dab0;
+  color: #1c3a18;
+  border-color: #65a55f;
+}
+.shared-color-chip--c.is-active {
+  background: #d8d8e0;
+  color: #2a2a3a;
+  border-color: #8c8ca0;
+}
+
+/* ── Card grid ────────────────────────────────────────────────────────── */
+
+.shared-card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.shared-card-grid--small {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .shared-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.45rem;
+  }
+  .shared-card-grid--small {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+}
+
+.shared-tile {
+  position: relative;
+  aspect-ratio: 488 / 680;
+  border-radius: 4.5% / 3.2%;
+  overflow: hidden;
+  background: var(--surface);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+  display: block;
+}
+
+.shared-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.shared-tile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shared-tile-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  text-align: center;
+  background: var(--surface2);
+  box-sizing: border-box;
+}
+
+.shared-tile-qty {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.shared-tile-qty-x {
+  opacity: 0.7;
+  margin-right: 0.15em;
+  font-weight: 600;
+}
+
+/* Subtle foil tint — distinguishes foil/etched copies in the grid. */
+.shared-tile.is-foil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 200, 240, 0.15),
+    rgba(180, 220, 255, 0.1) 35%,
+    rgba(255, 220, 180, 0.15) 70%
+  );
+  pointer-events: none;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.shared-empty {
+  text-align: center;
+  color: var(--text2);
+  font-size: var(--text-base);
+  padding: 2rem 1rem;
+}
+
+/* ── Deck section headings ────────────────────────────────────────────── */
+
+.shared-deck-section {
+  margin: 0 0 1.5rem;
+}
+
+.shared-deck-section-heading {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 0.5px solid var(--border);
+  color: var(--text);
+}
+
+/* ── List table ───────────────────────────────────────────────────────── */
+
+.shared-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.shared-list-table th,
+.shared-list-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 0.5px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.shared-list-table th {
+  background: var(--surface);
+  color: var(--text2);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shared-list-table tbody tr:hover {
+  background: var(--surface2);
+}
+
+.shared-list-sort-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+
+.shared-list-sort-btn:hover {
+  color: var(--accent);
+}
+
+/* ── Card preview modal ──────────────────────────────────────────────── */
+
+.shared-card-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.shared-card-modal {
+  background: var(--surface);
+  border-radius: 12px;
+  border: 0.5px solid var(--border);
+  padding: 1.25rem;
+  max-width: 460px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.shared-card-modal-img {
+  width: 100%;
+  border-radius: 4.5% / 3.2%;
+  display: block;
+}
+
+.shared-card-modal-placeholder {
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  border-radius: 4.5% / 3.2%;
+  font-size: var(--text-md);
+  color: var(--text2);
+}
+
+.shared-card-modal-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.shared-card-modal-meta dt {
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.shared-card-modal-meta dd {
+  margin: 0;
+  color: var(--text);
+}
+
+.shared-card-modal-close {
+  align-self: flex-end;
+  padding: 0.4rem 0.9rem;
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.shared-card-modal-close:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
