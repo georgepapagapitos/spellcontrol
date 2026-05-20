@@ -1,0 +1,4 @@
+# SPA fallback: every non-asset path falls back to index.html so
+# react-router can take over. Cloudflare Pages reads this file
+# verbatim; Vite copies it from public/ into dist/ at build time.
+/*    /index.html   200
