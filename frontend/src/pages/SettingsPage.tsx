@@ -10,6 +10,7 @@ import { buildBackup, downloadBackup } from '../lib/backup';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { fetchBackups, fetchSync, restoreBackup, type SyncBackupMeta } from '../lib/auth-api';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
+import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 
 export function SettingsPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -31,6 +32,7 @@ export function SettingsPage() {
 
   const [wipeStep, setWipeStep] = useState<0 | 1 | 2>(0);
   const [wipeBusy, setWipeBusy] = useState(false);
+  const [resetCacheBusy, setResetCacheBusy] = useState(false);
 
   const [backups, setBackups] = useState<SyncBackupMeta[]>([]);
   const [restorePending, setRestorePending] = useState<SyncBackupMeta | null>(null);
@@ -126,6 +128,25 @@ export function SettingsPage() {
 
   async function handleLogout() {
     await logout();
+  }
+
+  async function handleResetAppCache() {
+    const ok = window.confirm(
+      'Reset the cached app version and reload? Your decks, collection, and binders are kept.',
+    );
+    if (!ok) return;
+    setResetCacheBusy(true);
+    try {
+      await resetAppCacheAndReload();
+      // resetAppCacheAndReload triggers location.reload(); nothing below runs.
+    } catch (err) {
+      console.warn('[settings] reset app cache failed:', err);
+      toast.show({
+        message: 'Failed to reset the app cache. Try clearing site data from your browser.',
+        tone: 'error',
+      });
+      setResetCacheBusy(false);
+    }
   }
 
   return (
@@ -273,6 +294,37 @@ export function SettingsPage() {
               disabled={cardCount === 0 || deckCount === 0}
             >
               Repair
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-card" aria-labelledby="settings-troubleshooting-title">
+        <header className="settings-card-header">
+          <h2 id="settings-troubleshooting-title" className="settings-card-title">
+            Troubleshooting
+          </h2>
+          <p className="settings-card-hint">
+            If the app feels stuck on an old version after an update, reset the cached app shell
+            to fetch the latest from the server.
+          </p>
+        </header>
+        <div className="settings-card-body">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-value">Reset app cache</div>
+              <div className="settings-row-hint">
+                Clears the cached HTML / JS / CSS bundles and unregisters the offline service
+                worker, then reloads. Your decks, collection, and binders are not affected.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="pill-btn"
+              onClick={() => void handleResetAppCache()}
+              disabled={resetCacheBusy}
+            >
+              {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
             </button>
           </div>
         </div>
