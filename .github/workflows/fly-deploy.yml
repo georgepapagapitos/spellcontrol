@@ -1,0 +1,39 @@
+name: Deploy to Fly
+
+# Chained off the CI workflow's success on `main`. Pushing to main triggers
+# CI; once CI's typecheck + lint + tests all pass, this workflow fires and
+# `flyctl deploy --remote-only` ships the new image to the spellcontrol-api
+# app. PRs do not deploy — they only run CI.
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+  # Manual fallback for re-deploying without a code change (e.g. after a
+  # rotated secret) and for the first run before CI catches up.
+  workflow_dispatch:
+
+# Only one Fly deploy may be in flight at a time. Queue rather than
+# cancel-in-progress: each push to main should be deployed in order.
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # workflow_run fires on both success and failure; gate on success only.
+    # The workflow_dispatch path has no workflow_run context, so allow it
+    # unconditionally.
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
