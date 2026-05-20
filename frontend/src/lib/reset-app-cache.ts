@@ -2,11 +2,11 @@
  * Force the PWA back to a clean state by clearing every service-worker-owned
  * cache, unregistering every active service worker, then reloading the page.
  *
- * This is the user-visible escape hatch for a Workbox `registerType: 'prompt'`
- * stale shell: the standard "update now" toast (see `register-pwa.ts`) only
- * fires if the user happens to be on the page when a new SW finishes
- * installing. Users who keep the PWA open between deploys, or who dismiss the
- * toast, can otherwise stay on an old bundle until the OS evicts the cache.
+ * This is the user-visible escape hatch for a stuck SW: `register-pwa.ts`
+ * normally auto-applies new builds on the next cold load (or via the
+ * "Update now" control in Settings if a game is active), but a wedged SW
+ * registration or corrupted precache won't recover on its own. This nukes
+ * everything and forces a clean re-fetch.
  *
  * The reload at the end is what actually picks up the new bundle — clearing
  * the caches without reloading still leaves the running JS unchanged.
