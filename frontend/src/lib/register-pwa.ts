@@ -1,11 +1,16 @@
 import { toast } from '@/store/toasts';
+import { usePlayStore } from '@/store/play';
+import { usePwaStore } from '@/store/pwa';
 
 /**
- * Wire the Workbox-generated service worker to our toast system.
+ * Wire the Workbox-generated service worker into our app.
  *
  * - `onNeedRefresh` fires when a new SW has finished installing in the
- *   background — we surface a non-auto-dismissing toast with an "Update now"
- *   action that swaps to the new SW and reloads.
+ *   background. In the common case (no fragile local state) we apply
+ *   silently — the SW swap reloads the tab, which is the only signal the
+ *   user gets. If a playtest is active we defer instead and surface a
+ *   passive "update available" control on the Settings page, so a tab
+ *   doesn't reload out from under someone mid-game.
  * - `onOfflineReady` fires the first time the SW finishes its initial
  *   precache, so the user gets a tiny confirmation that the app shell is
  *   now available without a network.
@@ -14,6 +19,13 @@ import { toast } from '@/store/toasts';
  * (HTML/JS/CSS), while the offline-mode toggle controls whether card data
  * comes from IndexedDB or the live API. Two layers, complementary.
  */
+function isPlaytestActive(): boolean {
+  const { local, online } = usePlayStore.getState();
+  const localActive = local && local.status !== 'finished';
+  const onlineActive = online && online.status !== 'finished';
+  return Boolean(localActive || onlineActive);
+}
+
 export async function registerPwa(): Promise<void> {
   if (typeof window === 'undefined') return;
   // The `virtual:pwa-register` module is injected by vite-plugin-pwa at
@@ -30,17 +42,12 @@ export async function registerPwa(): Promise<void> {
 
   const updateSW = registerSW({
     onNeedRefresh() {
-      toast.show({
-        message: 'A new version of SpellControl is ready.',
-        tone: 'info',
-        actionLabel: 'Update now',
-        // 0 → stay until the user dismisses or acts. The update isn't
-        // disruptive if ignored — the SW just swaps on the next cold load.
-        durationMs: 0,
-        onAction: () => {
-          void updateSW(true);
-        },
-      });
+      const apply = () => updateSW(true);
+      if (isPlaytestActive()) {
+        usePwaStore.getState().setPending(apply);
+        return;
+      }
+      void apply();
     },
     onOfflineReady() {
       toast.show({
