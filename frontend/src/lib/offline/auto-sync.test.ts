@@ -70,17 +70,57 @@ describe('autoSyncOfflineData', () => {
   });
 
   it('triggers sync when the last manifest check was more than 24h ago', async () => {
-    useOfflineStore.setState({ bootstrapped: true, manifest: fakeManifest() });
+    useOfflineStore.setState({
+      bootstrapped: true,
+      manifest: fakeManifest(),
+      stats: { cardCount: 100, comboCount: 50 },
+    });
     localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 25 * 60 * 60 * 1000));
     await autoSyncOfflineData();
     expect(sync).toHaveBeenCalledTimes(1);
   });
 
-  it('skips sync when the manifest is fresh and the last check is within 24h', async () => {
-    useOfflineStore.setState({ bootstrapped: true, manifest: fakeManifest() });
+  it('skips sync when local data is populated and the last check is within 24h', async () => {
+    useOfflineStore.setState({
+      bootstrapped: true,
+      manifest: fakeManifest(),
+      stats: { cardCount: 100, comboCount: 50 },
+    });
     localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 60 * 60 * 1000));
     await autoSyncOfflineData();
     expect(sync).not.toHaveBeenCalled();
+  });
+
+  it('triggers sync when IDB was evicted (manifest survived but cardCount is 0)', async () => {
+    // The iOS Safari ~14-day eviction signature: zustand still holds a
+    // manifest from a previous session but the IDB cards/combos stores are
+    // empty. Without this branch the staleness gate would happily skip a
+    // re-download for up to 24h after the eviction.
+    useOfflineStore.setState({
+      bootstrapped: true,
+      manifest: fakeManifest(),
+      stats: { cardCount: 0, comboCount: 0 },
+    });
+    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 60 * 60 * 1000));
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    await autoSyncOfflineData();
+    expect(sync).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledWith(expect.stringContaining('cache miss'));
+    info.mockRestore();
+  });
+
+  it('logs a stale-cache notice (but not a cache-miss notice) when refreshing a populated cache', async () => {
+    useOfflineStore.setState({
+      bootstrapped: true,
+      manifest: fakeManifest(),
+      stats: { cardCount: 100, comboCount: 50 },
+    });
+    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 25 * 60 * 60 * 1000));
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    await autoSyncOfflineData();
+    expect(info).toHaveBeenCalledWith(expect.stringContaining('cache stale'));
+    expect(info).not.toHaveBeenCalledWith(expect.stringContaining('cache miss'));
+    info.mockRestore();
   });
 
   it('records the lastCheck timestamp after a successful sync', async () => {
