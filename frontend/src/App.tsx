@@ -19,6 +19,7 @@ import { SharedView } from './pages/SharedView';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync } from './lib/sync';
+import { autoSyncOfflineData } from './lib/offline/auto-sync';
 
 // Back-compat redirects for the pre-hub flat paths. Param-preserving so deep
 // links / bookmarks to /binders/:id and /lists/:id still land on the right
@@ -67,6 +68,10 @@ export default function App() {
         useCollectionStore.setState({ hydrating: false });
       }
     });
+    // Silently keep the local card catalog fresh. No-op if it's already
+    // up to date (cheap manifest check). Runs alongside startSync so the
+    // user never waits on offline-data setup.
+    void autoSyncOfflineData();
   }, [status, userId]);
 
   if (status === 'unknown' || status === 'loading') {
