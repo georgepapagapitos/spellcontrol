@@ -8074,6 +8074,43 @@ hr {
   font-family: inherit;
 }
 
+.auth-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.auth-input-wrap input {
+  padding-right: 40px;
+}
+
+.auth-reveal {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text2);
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-reveal:hover {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.auth-reveal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .auth-field input:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
