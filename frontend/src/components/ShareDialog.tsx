@@ -68,47 +68,57 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
   };
 
   return (
-    <Modal onClose={onClose} label={`Share ${resourceLabel}`} dismissable={!working}>
-      <h2 id="share-dialog-title" style={{ marginTop: 0 }}>
+    <Modal
+      onClose={onClose}
+      labelledBy="share-dialog-title"
+      dismissable={!working}
+      className="choice-dialog share-dialog"
+    >
+      <h2 id="share-dialog-title" className="choice-dialog-title">
         Share {resourceLabel}
       </h2>
-      <p style={{ marginTop: 0, color: 'var(--text-muted, #888)' }}>
+      <p className="choice-dialog-body">
         Anyone with this link can view it. They don&apos;t need an account.
       </p>
 
-      {loading && <p>Generating link…</p>}
+      {loading && <p className="choice-dialog-body">Generating link…</p>}
       {error && (
-        <p role="alert" style={{ color: 'var(--danger, #c0392b)' }}>
+        <p role="alert" className="share-dialog-error">
           {error}
         </p>
       )}
 
       {share && (
         <>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+          <div className="share-dialog-link">
             <input
               type="text"
               value={url}
               readOnly
               onFocus={(e) => e.currentTarget.select()}
-              style={{ flex: 1, fontFamily: 'monospace' }}
+              className="share-dialog-url"
               aria-label="Share URL"
             />
-            <button type="button" onClick={handleCopy} disabled={working}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleCopy}
+              disabled={working}
+            >
               Copy
             </button>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <div className="choice-dialog-actions share-dialog-actions">
             <button
               type="button"
+              className="btn btn-danger"
               onClick={handleRevoke}
               disabled={working}
-              className="danger"
               aria-label="Revoke share link"
             >
               {working ? 'Revoking…' : 'Revoke link'}
             </button>
-            <button type="button" onClick={onClose} disabled={working}>
+            <button type="button" className="btn" onClick={onClose} disabled={working}>
               Done
             </button>
           </div>

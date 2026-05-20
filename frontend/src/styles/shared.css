@@ -60,7 +60,11 @@
   margin-bottom: 0.5rem;
 }
 
-/* ── Toolbar (search / sort / color chips) ────────────────────────────── */
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+
+/* The toolbar embeds the shared <SearchPill> and the global .color-filter-row
+   pattern (with mana-font glyphs) so it matches every other index page in
+   the app. Sort label/select use the globally-styled <select>. */
 
 .shared-toolbar {
   display: flex;
@@ -70,26 +74,9 @@
   margin-bottom: 1.25rem;
 }
 
-.shared-search {
+.shared-toolbar-search {
   flex: 1 1 240px;
   min-width: 200px;
-  padding: 0.5rem 0.75rem;
-  border: 0.5px solid var(--border2);
-  border-radius: 6px;
-  background: var(--surface2);
-  color: var(--text);
-  font-size: var(--text-base);
-}
-
-.shared-search:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.shared-sort {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
 }
 
 .shared-sort-label {
@@ -100,97 +87,9 @@
   color: var(--text2);
 }
 
-.shared-sort select {
-  padding: 0.4rem 0.5rem;
-  border: 0.5px solid var(--border2);
-  border-radius: 6px;
-  background: var(--surface2);
-  color: var(--text);
-  font-size: var(--text-sm);
-}
-
 .shared-sort-dir {
-  width: 32px;
-  height: 32px;
-  border: 0.5px solid var(--border2);
-  border-radius: 6px;
-  background: var(--surface2);
-  color: var(--text);
-  font-size: var(--text-md);
-  cursor: pointer;
-  padding: 0;
-}
-
-.shared-sort-dir:hover {
-  background: var(--accent-light);
-  border-color: var(--accent);
-}
-
-/* ── Color chips ──────────────────────────────────────────────────────── */
-
-.shared-color-chips {
-  display: flex;
-  gap: 0.35rem;
-}
-
-.shared-color-chip {
-  width: 32px;
-  height: 32px;
-  border: 0.5px solid var(--border2);
-  border-radius: 999px;
-  background: var(--surface2);
-  color: var(--text2);
-  font-weight: 700;
-  font-size: var(--text-sm);
-  cursor: pointer;
-  padding: 0;
-  transition:
-    transform 80ms,
-    background 80ms,
-    border-color 80ms;
-}
-
-.shared-color-chip:hover {
-  transform: translateY(-1px);
-}
-
-.shared-color-chip.is-active {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-}
-
-/* MTG color tint when active. The bare letters work as labels but the
-   active state gets a canonical pip color for instant recognition. */
-.shared-color-chip--w.is-active {
-  background: #f3e6b3;
-  color: #4a4220;
-  border-color: #d8c87a;
-}
-.shared-color-chip--u.is-active {
-  background: #aedaff;
-  color: #0a2c5a;
-  border-color: #5ca7e2;
-}
-.shared-color-chip--b.is-active {
-  background: #2a2a2a;
-  color: #d8d8d8;
-  border-color: #555;
-}
-.shared-color-chip--r.is-active {
-  background: #f7a39a;
-  color: #4a1a14;
-  border-color: #d96456;
-}
-.shared-color-chip--g.is-active {
-  background: #b3dab0;
-  color: #1c3a18;
-  border-color: #65a55f;
-}
-.shared-color-chip--c.is-active {
-  background: #d8d8e0;
-  color: #2a2a3a;
-  border-color: #8c8ca0;
+  min-width: 2.1rem;
+  padding: 0 0.6rem;
 }
 
 /* ── Card grid ────────────────────────────────────────────────────────── */
@@ -362,33 +261,44 @@
   color: var(--accent);
 }
 
-/* ── Card preview modal ──────────────────────────────────────────────── */
+/* ── Share dialog (link mint/copy/revoke) ────────────────────────────── */
 
-.shared-card-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+/* The dialog itself reuses .choice-dialog from global.css; these rules just
+   style the link-copy row and the error banner that .choice-dialog doesn't
+   already cover. */
+
+.share-dialog-link {
   display: flex;
+  gap: 0.5rem;
   align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
 }
 
-.shared-card-modal {
-  background: var(--surface);
-  border-radius: 12px;
-  border: 0.5px solid var(--border);
-  padding: 1.25rem;
-  max-width: 460px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.share-dialog-url {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
 }
+
+.share-dialog-error {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--err-bg);
+  border: 1px solid var(--err-border);
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+.share-dialog-actions {
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* ── Card preview modal (riding on .choice-dialog) ───────────────────── */
+
+/* Component uses <Modal> with className="choice-dialog shared-card-modal".
+   The shared rules below only add card-specific layout (image, meta dl)
+   that the base dialog doesn't provide. */
 
 .shared-card-modal-img {
   width: 100%;
@@ -424,20 +334,4 @@
 .shared-card-modal-meta dd {
   margin: 0;
   color: var(--text);
-}
-
-.shared-card-modal-close {
-  align-self: flex-end;
-  padding: 0.4rem 0.9rem;
-  border: 0.5px solid var(--border2);
-  border-radius: 6px;
-  background: var(--surface2);
-  color: var(--text);
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-
-.shared-card-modal-close:hover {
-  background: var(--accent-light);
-  border-color: var(--accent);
 }
