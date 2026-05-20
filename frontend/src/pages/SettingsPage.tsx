@@ -11,9 +11,12 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { fetchBackups, fetchSync, restoreBackup, type SyncBackupMeta } from '../lib/auth-api';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
+import { AdminPanel } from '../components/AdminPanel';
 
 export function SettingsPage() {
   const username = useAuth((s) => s.user?.username ?? null);
+  const userId = useAuth((s) => s.user?.id ?? null);
+  const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const logout = useAuth((s) => s.logout);
 
   const theme = useThemeStore((s) => s.theme);
@@ -186,6 +189,8 @@ export function SettingsPage() {
           )}
         </div>
       </section>
+
+      {isAdmin && userId && <AdminPanel currentUserId={userId} />}
 
       <section className="settings-card" aria-labelledby="settings-appearance-title">
         <header className="settings-card-header">

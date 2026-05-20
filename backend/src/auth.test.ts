@@ -23,8 +23,8 @@ describe('password hashing', () => {
 
 describe('session tokens', () => {
   it('round-trips a user', () => {
-    const token = signSession({ id: 'u1', username: 'alice' });
-    expect(verifySession(token)).toEqual({ id: 'u1', username: 'alice' });
+    const token = signSession({ id: 'u1', username: 'alice', role: 'user' });
+    expect(verifySession(token)).toEqual({ id: 'u1', username: 'alice', role: 'user' });
   });
 
   it('rejects garbage tokens', () => {
