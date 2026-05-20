@@ -434,7 +434,19 @@ export async function ingestCombos(
           continue;
         }
         queue.push(parsed);
-        if (queue.length >= FLUSH_AT) await flush();
+        if (queue.length >= FLUSH_AT) {
+          await flush();
+          // Yield to the event loop so the HTTP server can answer health
+          // checks (and any in-flight user requests) between batches. The
+          // ingest itself runs at roughly the same wall-clock as before;
+          // it just stops monopolising the worker, which is what lets a
+          // shared-cpu-1x VM survive a full bulk run without flapping its
+          // Fly healthchecks. Tested empirically — every flush is ~80-150ms
+          // of CPU work, so a single setImmediate per ~500-combo batch is
+          // enough breathing room for /health to come back well under the
+          // 5s probe timeout.
+          await new Promise<void>((resolve) => setImmediate(resolve));
+        }
       }
       await flush();
     });
