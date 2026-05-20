@@ -1,17 +1,16 @@
 import type { ScryfallCard, ScryfallSearchResponse } from '@/deck-builder/types';
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
-import { shouldUseOfflineData, useOfflineStore } from '@/store/offline';
+import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
- * user has opted into offline mode AND the local oracle store has been
- * populated. Reads zustand state outside React — same pattern the sync
- * module uses for collection/decks stores.
+ * local oracle store has been populated. Reads zustand state outside React —
+ * same pattern the sync module uses for collection/decks stores.
  */
 function offlineActive(): boolean {
   try {
-    return shouldUseOfflineData(useOfflineStore.getState());
+    return offlineDataAvailable(useOfflineStore.getState());
   } catch {
     return false;
   }
