@@ -1,0 +1,44 @@
+# Fly.io config for the SpellControl backend.
+# Build context is the repo root; `backend/Dockerfile` is referenced below.
+# Run `fly deploy` from this directory.
+
+app = "spellcontrol-api"
+primary_region = "ord"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  # PORT is also baked into the Dockerfile (ENV PORT=3737); set here for
+  # explicitness so any future re-tagged image still listens on the same port.
+  PORT = "3737"
+  # V8 old-space cap. Matches the docker-compose value — gives the Scryfall
+  # oracle-bulk slim + gzip job headroom without OOM-ing the 1GB VM.
+  NODE_OPTIONS = "--max-old-space-size=1536"
+
+[http_service]
+  internal_port = 3737
+  force_https = true
+  # Keep at least one machine warm. The combos-ingest scheduler in server.ts
+  # uses setInterval, so a fully-stopped machine would miss the cadence.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
+
+[mounts]
+  source = "spellcontrol_data"
+  destination = "/data"
+  initial_size = "1gb"
