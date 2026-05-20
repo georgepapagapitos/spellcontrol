@@ -811,11 +811,13 @@
  *  from the app design system so this matches every other sheet in the app.
  */
 
-.playtest-opening-sheet {
-  /* Override the shared 480px desktop width — the seven-card hand needs room. */
-  width: min(680px, 100%);
-}
-
+/*
+ * No mobile/tablet width override — the shared `.card-picker-sheet` already
+ * spans full width via `left:0; right:0; bottom:0`. Setting an explicit width
+ * here would pin the sheet to the left edge on viewports wider than its
+ * width but narrower than the desktop centered-modal breakpoint (1024px).
+ * Desktop is the only case that needs widening past the shared 480px default.
+ */
 @media (min-width: 1024px) {
   .playtest-opening-sheet {
     width: 680px;
@@ -939,7 +941,11 @@
 
 @media (max-width: 480px) {
   .playtest-opening-card {
-    width: 72px;
+    width: 68px;
     margin-left: -26px;
+  }
+
+  .playtest-opening-cards {
+    padding: 1rem 0.25rem 1.25rem;
   }
 }
