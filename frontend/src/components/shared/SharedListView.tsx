@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PublicList, PublicListEntry } from '../../lib/shared-types';
+import { SearchPill } from '../SearchPill';
 
 interface Props {
   data: PublicList;
@@ -69,13 +70,12 @@ export function SharedListView({ data }: Props) {
       </header>
 
       <div className="shared-toolbar">
-        <input
-          type="search"
-          className="shared-search"
+        <SearchPill
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
           placeholder="Search entries or notes…"
-          aria-label="Search entries"
+          ariaLabel="Search entries"
+          className="shared-toolbar-search"
         />
       </div>
 
