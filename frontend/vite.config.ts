@@ -7,9 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // 'prompt' lets us show an "update available" toast and let the user
-      // decide when to swap — important for an app that may have unsaved
-      // local-only state (in-progress deck edits, ongoing playtest).
+      // 'prompt' hands control of the SW swap to us so we can apply it
+      // silently in the common case but defer (see `register-pwa.ts`) when
+      // a local playtest is active — auto-reload mid-game would be hostile.
       registerType: 'prompt',
       injectRegister: 'auto',
       includeAssets: ['tagger-tags.json', 'sc-icon.svg'],
