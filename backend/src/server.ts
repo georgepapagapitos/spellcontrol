@@ -6,7 +6,9 @@ import multer from 'multer';
 import path from 'path';
 import { ScryfallCache } from './cache';
 import { closeDb, ensureSchema } from './db';
+import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
+import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
@@ -47,6 +49,7 @@ const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 app.use(express.json({ limit: '72mb' }));
 
 app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/games', gamesRouter);
 app.use('/api/combos', combosRouter);
@@ -499,6 +502,7 @@ function scheduleComboIngest(): void {
 
 async function start() {
   await ensureSchema();
+  await promoteAdminsAtBoot();
   const server = app.listen(PORT, () => {
     console.log(`[server] listening on http://localhost:${PORT}`);
     console.log(`[server] cache db: ${DB_PATH}`);

@@ -128,6 +128,7 @@ The backend reads:
 
 - `DATABASE_URL` — Postgres connection string. Required.
 - `JWT_SECRET` — 16+ character random string used to sign session tokens. Required. Rotating it invalidates every session.
+- `ADMIN_USERNAMES` — optional, comma-separated list of usernames that should hold the `admin` role. On boot, any matching existing user is promoted (additively — names removed from the list keep their role). New registrations matching this list are promoted at insert time. Admins see an extra "Admin — manage users" card on the Settings page, where they can list users, see per-account storage size, and delete accounts.
 - `PORT` (default `3737`), `DB_PATH` (default `backend/data/scryfall-cache.db`).
 
 ## Architecture

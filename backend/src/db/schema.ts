@@ -4,6 +4,9 @@ export const users = pgTable('users', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  // 'user' (default) or 'admin'. Admin grants access to /api/admin/*; promoted
+  // at boot for any username in ADMIN_USERNAMES, additively (never demotes).
+  role: text('role').notNull().default('user'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
