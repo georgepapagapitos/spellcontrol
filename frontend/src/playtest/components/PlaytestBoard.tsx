@@ -13,6 +13,7 @@ import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { autoPlace } from '../lib/auto-place';
+import { haptics } from '@/lib/haptics';
 import { Battlefield } from './Battlefield';
 import { Hand } from './Hand';
 import { ZonePile } from './ZonePile';
@@ -157,12 +158,21 @@ export function PlaytestBoard({ state }: Props) {
         turn={state.turn}
         libraryCount={state.zones.library.length}
         canUndo={state.past.length > 0}
-        onDraw={() => dispatch({ type: 'DRAW', n: 1 })}
+        onDraw={() => {
+          haptics.tap();
+          dispatch({ type: 'DRAW', n: 1 });
+        }}
         onShuffle={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-        onMulligan={() => dispatch({ type: 'MULLIGAN' })}
+        onMulligan={() => {
+          haptics.warning();
+          dispatch({ type: 'MULLIGAN' });
+        }}
         onUntapAll={() => dispatch({ type: 'UNTAP_ALL' })}
         onNextTurn={() => dispatch({ type: 'NEXT_TURN' })}
-        onUndo={() => dispatch({ type: 'UNDO' })}
+        onUndo={() => {
+          haptics.tap();
+          dispatch({ type: 'UNDO' });
+        }}
         onReset={() => {
           if (window.confirm('Reset the game? This clears history.')) {
             dispatch({ type: 'RESET' });

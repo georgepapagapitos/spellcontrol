@@ -90,6 +90,26 @@
   --z-overlay: 1100;
   --z-tooltip: 9999;
 
+  /* ── Safe-area insets ─────────────────────────────────────────────────────
+     Single source of truth for system-chrome padding. Resolves to 0 on
+     desktop browsers and most mobile browsers; non-zero in a Capacitor
+     WebView and on iOS Safari with viewport-fit=cover (set in index.html).
+     Two helpers built on top:
+       --overlay-pad-{top,bottom}: padding for backdrops that center a
+         child modal. max(base, safe + cushion) keeps web behavior
+         unchanged while clearing the status bar / home gesture on native.
+       --vh-safe: dvh minus the top+bottom insets — use this in place of
+         100dvh inside lightboxes / sheets whose geometry is computed from
+         the viewport height, so their math stays correct on native.
+     Add new overlays by using these vars rather than env() inline. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --overlay-pad-top: max(3rem, calc(var(--safe-top) + 1rem));
+  --overlay-pad-bottom: max(3rem, calc(var(--safe-bottom) + 1rem));
+  --vh-safe: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+
   /* ── Magic colors (MTG-canonical, do not retheme) ─────────────────────── */
   --rarity-mythic-from: #ffd090;
   --rarity-mythic-to: #e88020;
@@ -141,6 +161,10 @@ body {
   flex-direction: column;
   height: 100dvh;
   overflow: hidden;
+  /* Reserve the device's top safe-area strip (status bar / notch). Zero on
+     desktop and most mobile browsers; non-zero in a Capacitor WebView and
+     on iOS Safari with notched devices. */
+  padding-top: var(--safe-top);
 }
 
 .app-main {
@@ -491,6 +515,9 @@ select {
   box-shadow: var(--shadow-sheet);
   display: flex;
   flex-direction: column;
+  /* Pattern B — sheet child. Pad the top so the header clears the status
+     bar; the body already pads its own bottom for the home gesture. */
+  padding-top: var(--safe-top);
   animation: stats-drawer-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
@@ -552,7 +579,7 @@ select {
 .stats-drawer-body {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 0.85rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 0.85rem 1rem calc(1rem + var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -3313,7 +3340,7 @@ hr {
     border: none;
     border-top: 0.5px solid var(--border2);
     box-shadow: var(--shadow-sheet);
-    padding: 0.5rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
+    padding: 0.5rem 0.5rem calc(0.75rem + var(--safe-bottom));
     gap: 2px;
     animation: binder-sheet-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
   }
@@ -3387,8 +3414,8 @@ hr {
     border-top: 0.5px solid var(--border2);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow-sheet);
-    padding: 0.25rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
-    max-height: 75dvh;
+    padding: 0.25rem 0.5rem calc(0.75rem + var(--safe-bottom));
+    max-height: calc(var(--vh-safe) * 0.75);
     display: flex;
     flex-direction: column;
     animation: binder-sheet-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -3629,7 +3656,11 @@ hr {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 3rem 1rem;
+  /* Pattern A — centered-content backdrop. --overlay-pad-* defaults to 3rem
+     on web (no insets) so the visual is unchanged; on native it expands to
+     clear the status bar / home gesture. Any new backdrop that centers a
+     child surface should use this exact rule. */
+  padding: var(--overlay-pad-top) 1rem var(--overlay-pad-bottom);
   overflow-y: auto;
 }
 
@@ -3639,7 +3670,7 @@ hr {
   box-shadow: var(--shadow-modal);
   max-width: 720px;
   width: 100%;
-  max-height: calc(100vh - 6rem);
+  max-height: calc(var(--vh-safe) - 6rem);
   display: flex;
   flex-direction: column;
 }
@@ -5257,7 +5288,7 @@ hr {
      stays sharp; beyond that even `large` upscales. On typical laptops
      the height term still governs (~520–580); 620 is realized on tall
      monitors. */
-  --slide-size: min(94vw, calc((100dvh - 13rem) * 0.72), clamp(460px, 56vw, 620px));
+  --slide-size: min(94vw, calc((var(--vh-safe) - 13rem) * 0.72), clamp(460px, 56vw, 620px));
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
@@ -5277,6 +5308,10 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
+  /* Pattern B — sheet child. Pad the visible surface so the card slot and
+     info panel clear the status bar / home gesture on native. Zero on web. */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
   /* The drawer surface — translucent, not opaque, so a hint of the
      collection grid reads through behind the card while it still clearly
      covers it as it rises (a smoked-glass drawer rather than a card over
@@ -5313,8 +5348,8 @@ hr {
 
 .card-preview-close {
   position: absolute;
-  top: max(0.75rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
+  top: max(0.75rem, var(--safe-top));
+  right: max(0.75rem, var(--safe-right));
   z-index: 2;
   width: 2.25rem;
   height: 2.25rem;
@@ -5390,11 +5425,11 @@ hr {
 }
 
 .carousel-nav-prev {
-  left: max(1rem, env(safe-area-inset-left));
+  left: max(1rem, var(--safe-left));
 }
 
 .carousel-nav-next {
-  right: max(1rem, env(safe-area-inset-right));
+  right: max(1rem, var(--safe-right));
 }
 
 /* Small screens: shrink arrows and pull them closer to the edge so they
@@ -5411,10 +5446,10 @@ hr {
     background: rgba(0, 0, 0, 0.6);
   }
   .carousel-nav-prev {
-    left: max(0.4rem, env(safe-area-inset-left));
+    left: max(0.4rem, var(--safe-left));
   }
   .carousel-nav-next {
-    right: max(0.4rem, env(safe-area-inset-right));
+    right: max(0.4rem, var(--safe-right));
   }
 }
 
@@ -5434,7 +5469,7 @@ hr {
 
 .card-preview-grabber {
   position: absolute;
-  top: max(0.5rem, env(safe-area-inset-top));
+  top: max(0.5rem, var(--safe-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
@@ -5747,7 +5782,7 @@ hr {
   background: rgba(15, 15, 18, 0.92);
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
   padding: 0.9rem 1.1rem;
-  padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.9rem, var(--safe-bottom));
   color: #fff;
   /* Fixed height = the panel never grows or shrinks between cards or
      callers. Tuned to the collapsed content (role/synergy live behind
@@ -5964,7 +5999,7 @@ hr {
          page, so no overflow regardless. */
   --slide-size: min(
     94vw,
-    calc((100dvh - 10rem) * var(--page-w-ratio, 0.72)),
+    calc((var(--vh-safe) - 10rem) * var(--page-w-ratio, 0.72)),
     clamp(460px, 64vw, 820px)
   );
   --slide-spacing: 0.5rem;
@@ -5984,6 +6019,9 @@ hr {
   inset: 0;
   display: grid;
   grid-template-rows: 1fr auto;
+  /* Pattern B — sheet child (see .card-preview-sheet). */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
   will-change: transform;
   /* The drawer surface — translucent, not opaque, so a hint of the grid
      reads through behind the page while it still clearly covers it as it
@@ -6175,7 +6213,7 @@ hr {
   background: rgba(15, 15, 18, 0.92);
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
   padding: 0.9rem 1.1rem;
-  padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.9rem, var(--safe-bottom));
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -6232,8 +6270,8 @@ hr {
 @media (max-width: 900px) {
   body {
     padding: 0 0.85rem 1.25rem;
-    padding-left: max(0.85rem, env(safe-area-inset-left));
-    padding-right: max(0.85rem, env(safe-area-inset-right));
+    padding-left: max(0.85rem, var(--safe-left));
+    padding-right: max(0.85rem, var(--safe-right));
   }
 
   .site-header {
@@ -6265,8 +6303,8 @@ hr {
 @media (max-width: 1024px) {
   body {
     padding: 0 0.65rem 0.85rem;
-    padding-left: max(0.65rem, env(safe-area-inset-left));
-    padding-right: max(0.65rem, env(safe-area-inset-right));
+    padding-left: max(0.65rem, var(--safe-left));
+    padding-right: max(0.65rem, var(--safe-right));
   }
 
   .site-header {
@@ -6436,14 +6474,19 @@ hr {
     width: 100%;
   }
 
-  /* Modal: full-bleed-ish on phones */
+  /* Modal: full-bleed-ish on phones. The full-bleed look is intentional
+     (align-items: stretch + tight 0.5rem side padding) — but the top/
+     bottom edges still need to clear the system chrome on native, so the
+     padding floor here mirrors --overlay-pad-*'s pattern with a smaller
+     base. Web phones (no insets) get the original 0.75rem / 0.5rem look. */
   .modal-backdrop {
-    padding: 0.75rem 0.5rem;
+    padding: max(0.75rem, calc(var(--safe-top) + 0.5rem)) max(0.5rem, var(--safe-right))
+      max(0.75rem, calc(var(--safe-bottom) + 0.5rem)) max(0.5rem, var(--safe-left));
     align-items: stretch;
   }
 
   .modal {
-    max-height: calc(100vh - 1.5rem);
+    max-height: calc(var(--vh-safe) - 1.5rem);
   }
 
   .modal-header,
@@ -6593,7 +6636,7 @@ hr {
 
 @media (max-width: 1024px) {
   /* A normal flex child at the bottom of the non-scrolling shell — not
-     position:fixed. Deliberately NO env(safe-area-inset-bottom): on
+     position:fixed. Deliberately NO var(--safe-bottom): on
      Firefox/Chrome for Android that value is ~0 on load and jumps to a
      non-zero gesture-area inset after the first scroll (when the URL bar
      collapses), then stays. Tied to padding it shifts the centered icons
@@ -6609,6 +6652,15 @@ hr {
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
+  /* The URL-bar quirk that motivated omitting var(--safe-bottom)
+     doesn't apply inside the Capacitor WebView — there's no URL bar to
+     collapse, and the inset reports a stable non-zero value for the
+     gesture/home-indicator area. Pad below the icons so they don't sit
+     under the system gesture strip. */
+  .capacitor .mobile-tab-bar {
+    height: calc(3.5rem + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
   }
 
   .mobile-tab-bar-link {
@@ -6798,7 +6850,9 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  /* Pattern A — centered-content backdrop (see .modal-backdrop). */
+  padding: max(1rem, calc(var(--safe-top) + 0.5rem)) max(1rem, var(--safe-right))
+    max(1rem, calc(var(--safe-bottom) + 0.5rem)) max(1rem, var(--safe-left));
 }
 
 .collection-filters-dialog-backdrop {
@@ -8910,7 +8964,11 @@ hr {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   border-top: 0.5px solid var(--border);
   box-shadow: var(--shadow-sheet);
-  max-height: 85dvh;
+  /* Cap height against the safe viewport so the sheet's top edge clears
+     the status bar even when fully expanded; pad the bottom so its inner
+     content sits above the home gesture. Both are no-ops on web. */
+  max-height: calc(var(--vh-safe) * 0.85);
+  padding-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
   animation: binder-sheet-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -8931,6 +8989,11 @@ hr {
   }
 }
 
+/* Drag-handle affordance for bottom sheets. Convention: only render this
+   on sheets that can be dismissed by a gesture (tap-backdrop and/or
+   swipe-down). Non-dismissable sheets (e.g. an opening-hand prompt that
+   requires Keep / Mulligan) must NOT include this — users read the
+   handle as "drag down to dismiss" and get stuck when it doesn't work. */
 .card-picker-handle {
   width: 2.25rem;
   height: 4px;
@@ -9995,8 +10058,8 @@ hr {
   overscroll-behavior: contain;
   touch-action: none;
   /* Honor iOS notch / Android nav bar. */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 
 .scanner-video {
@@ -10012,6 +10075,24 @@ hr {
      a UI element. */
   object-fit: contain;
   background: #000;
+}
+
+/* In the Capacitor WebView we don't use the <video> element at all — the
+   native camera-preview plugin renders behind the (transparent) WebView.
+   When the scanner is active we hide the rest of the app entirely so the
+   WebView paints only the scanner overlay (viewfinder, hints, buttons),
+   and everywhere else is transparent — letting the native preview show
+   through. The scanner is portalled to document.body so it lives outside
+   #root and stays visible. */
+.capacitor.scanner-active,
+.capacitor.scanner-active body {
+  background: transparent;
+}
+.capacitor.scanner-active #root {
+  visibility: hidden;
+}
+.capacitor .scanner-root {
+  background: transparent;
 }
 
 .scanner-overlay {

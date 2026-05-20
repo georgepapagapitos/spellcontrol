@@ -1,9 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, Flashlight, FlashlightOff, RotateCcw, ScanLine, Trash2, X } from 'lucide-react';
+import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { identifyCard } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
+import { isNativePlatform } from '../lib/platform';
+import { haptics } from '../lib/haptics';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+/**
+ * Compute the on-screen rectangle of the visible video band given a fit mode.
+ * `contain` letterboxes (rect may be smaller than the container);
+ * `cover` fills the container (rect may extend outside it — dispX/dispY can
+ * be negative). The capture and viewfinder math both branch on this so the
+ * cropped pixels stay aligned with what the user actually sees.
+ */
+function computeDisplayRect(
+  vW: number,
+  vH: number,
+  cW: number,
+  cH: number,
+  fit: 'contain' | 'cover'
+): { dispX: number; dispY: number; dispW: number; dispH: number } {
+  const videoAspect = vW / vH;
+  const containerAspect = cW / cH;
+  const fillsWidth =
+    fit === 'contain' ? videoAspect > containerAspect : videoAspect < containerAspect;
+  if (fillsWidth) {
+    const dispW = cW;
+    const dispH = cW / videoAspect;
+    return { dispX: 0, dispY: (cH - dispH) / 2, dispW, dispH };
+  }
+  const dispH = cH;
+  const dispW = cH * videoAspect;
+  return { dispX: (cW - dispW) / 2, dispY: 0, dispW, dispH };
+}
 
 interface Props {
   onClose: () => void;
@@ -93,6 +125,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   }, []);
 
   const stopCamera = useCallback(() => {
+    if (isNativePlatform()) {
+      void CameraPreview.stop().catch(() => {
+        /* idempotent — fine to ignore if already stopped */
+      });
+      document.documentElement.classList.remove('scanner-active');
+      return;
+    }
     if (streamRef.current) {
       for (const track of streamRef.current.getTracks()) track.stop();
       streamRef.current = null;
@@ -103,6 +142,30 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const startCamera = useCallback(async () => {
     setStatus('starting');
     setErrorMsg(null);
+    if (isNativePlatform()) {
+      try {
+        await CameraPreview.start({
+          position: 'rear',
+          // Render the native preview behind the (transparent) WebView so
+          // the HTML overlay (viewfinder, hints, controls) layers on top.
+          toBack: true,
+          disableAudio: true,
+          // Lock to portrait — we don't want the preview rotating mid-scan,
+          // and the viewfinder geometry assumes a portrait viewport.
+          lockAndroidOrientation: true,
+        });
+        document.documentElement.classList.add('scanner-active');
+        setCameraInfo('native preview');
+        setStatus('ready');
+        warmOcr();
+      } catch (err) {
+        console.error('[scanner] native preview failed:', err);
+        const msg = err instanceof Error ? err.message : 'Could not start the camera.';
+        setErrorMsg(msg);
+        setStatus('error');
+      }
+      return;
+    }
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera is not available in this browser.');
@@ -244,69 +307,72 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   useEffect(() => {
     const video = videoRef.current;
     const root = rootRef.current;
-    if (!video || !root) return;
+    if (!root) return;
 
     const recompute = () => {
-      const vW = video.videoWidth;
-      const vH = video.videoHeight;
-      if (!vW || !vH) return;
       const cW = root.clientWidth;
       const cH = root.clientHeight;
       if (!cW || !cH) return;
 
-      const videoAspect = vW / vH;
-      const containerAspect = cW / cH;
-      let dispW: number;
-      let dispH: number;
+      // On native the preview cover-fits the sensor to the screen, so the
+      // visible band IS the screen — no need to consult video.videoWidth
+      // (which doesn't exist anyway, there's no <video> element).
       let dispX: number;
       let dispY: number;
-      if (videoAspect > containerAspect) {
-        // Video is relatively wider: fill width, letterbox top/bottom.
-        dispW = cW;
-        dispH = cW / videoAspect;
+      let dispW: number;
+      let dispH: number;
+      if (isNativePlatform()) {
         dispX = 0;
-        dispY = (cH - dispH) / 2;
-      } else {
-        // Video is relatively taller: fill height, letterbox sides.
-        dispH = cH;
-        dispW = cH * videoAspect;
-        dispX = (cW - dispW) / 2;
         dispY = 0;
+        dispW = cW;
+        dispH = cH;
+      } else {
+        if (!video) return;
+        const vW = video.videoWidth;
+        const vH = video.videoHeight;
+        if (!vW || !vH) return;
+        ({ dispX, dispY, dispW, dispH } = computeDisplayRect(vW, vH, cW, cH, 'contain'));
       }
+      const fit: 'contain' | 'cover' = isNativePlatform() ? 'cover' : 'contain';
 
       // 5:7 portrait card. Cap to ~78% of the smaller axis of the visible
-      // video — leaves enough margin for the user to recognise the box
-      // and to see their fingers framing the card.
+      // viewport — leaves enough margin for the user to recognise the box
+      // and to see their fingers framing the card. In cover mode the
+      // visible viewport IS the container; in contain mode it's the
+      // letterboxed video band.
       const FILL = 0.78;
+      const visW = fit === 'cover' ? cW : dispW;
+      const visH = fit === 'cover' ? cH : dispH;
+      const visX = fit === 'cover' ? 0 : dispX;
+      const visY = fit === 'cover' ? 0 : dispY;
       let vfW: number;
       let vfH: number;
-      const dispAspect = dispW / dispH;
-      if (dispAspect > CARD_ASPECT) {
-        vfH = dispH * FILL;
+      if (visW / visH > CARD_ASPECT) {
+        vfH = visH * FILL;
         vfW = vfH * CARD_ASPECT;
       } else {
-        vfW = dispW * FILL;
+        vfW = visW * FILL;
         vfH = vfW / CARD_ASPECT;
       }
       setViewfinderRect({
-        left: dispX + (dispW - vfW) / 2,
-        top: dispY + (dispH - vfH) / 2,
+        left: visX + (visW - vfW) / 2,
+        top: visY + (visH - vfH) / 2,
         width: vfW,
         height: vfH,
       });
     };
 
     const onMeta = () => recompute();
-    video.addEventListener('loadedmetadata', onMeta);
+    if (video) video.addEventListener('loadedmetadata', onMeta);
     const ro = new ResizeObserver(() => recompute());
     ro.observe(root);
     recompute();
 
     return () => {
-      video.removeEventListener('loadedmetadata', onMeta);
+      if (video) video.removeEventListener('loadedmetadata', onMeta);
       ro.disconnect();
     };
-  }, []);
+  }, [status]);
 
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -333,45 +399,45 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    */
   const captureAndIdentify = useCallback(async () => {
     if (busyRef.current) return;
+    const native = isNativePlatform();
     const video = videoRef.current;
-    if (!video || video.readyState < 2) return;
+    if (!native && (!video || video.readyState < 2)) return;
     busyRef.current = true;
     setStatus('scanning');
     try {
-      // Crop region in *raw video* coords = the on-screen viewfinder
-      // rectangle, scaled by the video's pixel-to-screen factor. Because
-      // we render with `object-fit: contain`, there's no cropping in the
-      // display pipeline — the mapping is a pure linear scale. This
-      // guarantees the cropped pixels are exactly what the user saw
-      // inside the viewfinder box.
+      // Crop region in *raw frame* coords = the on-screen viewfinder
+      // rectangle, mapped through the same fit-rect math as the recompute
+      // effect. This guarantees the cropped pixels are exactly what the
+      // user saw inside the viewfinder box, in both contain (web video
+      // element) and cover (native preview captureSample) modes.
       const root = rootRef.current;
       const viewfinder = viewfinderRef.current;
       if (!root || !viewfinder || !viewfinderRect) {
         return;
       }
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      // Recompute the displayed video rect inline; cheap and avoids a
-      // separate ref. Keeps capture independent of layout-effect timing.
+      // Acquire a frame: on native this is a still snapshot from the live
+      // preview; on web it's the current frame of the playing <video>.
+      let frameSource: CanvasImageSource;
+      let vw: number;
+      let vh: number;
+      if (native) {
+        const { value } = await CameraPreview.captureSample({ quality: 85 });
+        const frameImg = new Image();
+        frameImg.src = `data:image/jpeg;base64,${value}`;
+        await (frameImg.decode?.() ??
+          new Promise<void>((resolve) => (frameImg.onload = () => resolve())));
+        frameSource = frameImg;
+        vw = frameImg.naturalWidth;
+        vh = frameImg.naturalHeight;
+      } else {
+        frameSource = video!;
+        vw = video!.videoWidth;
+        vh = video!.videoHeight;
+      }
       const cW = root.clientWidth;
       const cH = root.clientHeight;
-      const videoAspect = vw / vh;
-      const containerAspect = cW / cH;
-      let dispW: number;
-      let dispH: number;
-      let dispX: number;
-      let dispY: number;
-      if (videoAspect > containerAspect) {
-        dispW = cW;
-        dispH = cW / videoAspect;
-        dispX = 0;
-        dispY = (cH - dispH) / 2;
-      } else {
-        dispH = cH;
-        dispW = cH * videoAspect;
-        dispX = (cW - dispW) / 2;
-        dispY = 0;
-      }
+      const fit = isNativePlatform() ? 'cover' : 'contain';
+      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
       const scale = vw / dispW;
       const cardX = (viewfinderRect.left - dispX) * scale;
       const cardY = (viewfinderRect.top - dispY) * scale;
@@ -393,7 +459,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       canvas.height = Math.round(titleH * SCALE);
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error('Could not get canvas context.');
-      ctx.drawImage(video, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frameSource, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
 
       // Light preprocessing: grayscale + contrast boost around the mean.
       // A cheap stand-in for adaptive thresholding that meaningfully
@@ -450,7 +516,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         },
       ]);
       playBeep();
-      if (navigator.vibrate) navigator.vibrate(40);
+      haptics.success();
     } catch (err) {
       console.error('[scanner] capture failed:', err);
       showHint('Scan failed — try again.');
@@ -501,7 +567,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     onConfirm(lines.join('\n'), queue.length);
   };
 
-  return (
+  const scannerNode = (
     <div
       ref={rootRef}
       className="scanner-root"
@@ -509,7 +575,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       aria-label="Card scanner"
       aria-modal="true"
     >
-      <video ref={videoRef} className="scanner-video" playsInline muted />
+      {!isNativePlatform() && <video ref={videoRef} className="scanner-video" playsInline muted />}
 
       <div className="scanner-overlay" aria-hidden="true">
         <div
@@ -658,6 +724,11 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       </footer>
     </div>
   );
+
+  // Portal to document.body so the scanner escapes the app's DOM tree. On
+  // native that lets us hide #root while the camera-preview plugin's native
+  // preview shows through the (transparent) WebView. On web it's harmless.
+  return createPortal(scannerNode, document.body);
 }
 
 function truncate(s: string, max: number): string {

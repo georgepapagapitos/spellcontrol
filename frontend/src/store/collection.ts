@@ -20,6 +20,7 @@ import {
 } from '../lib/local-cards';
 import { buildBackup, normalizeSortEntries, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { apiUrl } from '../lib/api-base';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { markDestructive } from '../lib/sync-intent';
@@ -517,7 +518,7 @@ export const useCollectionStore = create<CollectionState>()(
 
         set({ isRefreshingPrices: true });
         try {
-          const res = await fetch('/api/refresh-prices', {
+          const res = await fetch(apiUrl('/api/refresh-prices'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ scryfallIds: ids }),

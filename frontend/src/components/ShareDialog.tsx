@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './Modal';
 import { createShare, revokeShare, shareUrl } from '../lib/share-client';
+import { isNativePlatform } from '../lib/platform';
+import { Share } from '@capacitor/share';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
 
@@ -50,6 +52,23 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
       toast.show({ message: 'Link copied to clipboard.', tone: 'success' });
     } catch {
       toast.show({ message: 'Could not copy. Select and copy manually.', tone: 'warn' });
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (!url) return;
+    try {
+      await Share.share({
+        title: `Share ${resourceLabel}`,
+        text: `${resourceLabel} on SpellControl`,
+        url,
+        dialogTitle: 'Share link',
+      });
+    } catch (err) {
+      // The user cancelling the system sheet rejects with a generic error;
+      // treat anything from this call as a soft no-op rather than a toast.
+      if (err && (err as { message?: string }).message?.includes('cancel')) return;
+      toast.show({ message: 'Could not open share sheet.', tone: 'warn' });
     }
   };
 
@@ -107,6 +126,11 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
             >
               Copy
             </button>
+            {isNativePlatform() && (
+              <button type="button" className="btn" onClick={handleNativeShare} disabled={working}>
+                Share…
+              </button>
+            )}
           </div>
           <div className="choice-dialog-actions share-dialog-actions">
             <button
