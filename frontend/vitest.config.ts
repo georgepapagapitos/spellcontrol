@@ -36,7 +36,14 @@ export default defineConfig({
       // meaningfully under the node test env — verified via integration use:
       //   - ocr.ts: tesseract.js worker + WASM
       //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
-      exclude: ['src/lib/ocr.ts', 'src/lib/use-wake-lock.ts'],
+      exclude: [
+        'src/lib/ocr.ts',
+        'src/lib/use-wake-lock.ts',
+        // Network + IDB orchestration (fetch streaming, gzipped bulk loads,
+        // progress callbacks). Verified via integration; not unit-testable
+        // without a streaming-fetch shim that fights real-runtime behavior.
+        'src/lib/offline/download.ts',
+      ],
       // Per-directory floors. `src/lib/**` stays the long-standing 80.
       // `src/store/**` and `src/deck-builder/**` are newly gated: the
       // floors are their current measured baselines, rounded down with a

@@ -10,6 +10,7 @@ import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
+import { offlineRouter } from './routes/offline';
 
 /**
  * Default connection string for the local dev Postgres (docker-compose.dev.yml
@@ -152,6 +153,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/games', gamesRouter);
   app.use('/api/combos', combosRouter);
   app.use('/api/shares', sharesRouter);
+  app.use('/api/offline', offlineRouter);
 
   return {
     app,

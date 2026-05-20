@@ -1,5 +1,15 @@
 import { handleResponse } from '../fetch-utils';
+import { matchCombosLocal } from '../offline';
+import { shouldUseOfflineData, useOfflineStore } from '@/store/offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';
+
+function offlineActive(): boolean {
+  try {
+    return shouldUseOfflineData(useOfflineStore.getState());
+  } catch {
+    return false;
+  }
+}
 
 export interface MatchRequest {
   ownedOracleIds: string[];
@@ -29,6 +39,13 @@ async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse> {
+  if (offlineActive()) {
+    return matchCombosLocal({
+      ownedOracleIds: req.ownedOracleIds,
+      deckOracleIds: req.deckOracleIds,
+      format: req.format,
+    });
+  }
   return fetchJson<ComboMatchResponse>('/api/combos/match', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -53,6 +53,11 @@ export default defineConfig(async () => {
           // Pure type / table declarations; v8 reports them as 0% even
           // though they have no executable code in the build output.
           'src/db/schema.ts',
+          // Network + disk IO (Scryfall bulk fetch, gzip-and-write). Verified
+          // via integration: the offline route tests stub fetch and walk the
+          // build path; the schedule-refresh timer can't be unit-tested
+          // without a fake clock that fights the real-DB suite.
+          'src/offline/bulk-cache.ts',
         ],
         // Coverage thresholds are only enforced when the DB-backed tests
         // can run — otherwise auth/sync/games route coverage is structurally

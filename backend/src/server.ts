@@ -11,6 +11,8 @@ import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
+import { offlineRouter } from './routes/offline';
+import { scheduleOracleRefresh } from './offline/bulk-cache';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
 import { getSetMap } from './sets';
@@ -49,6 +51,7 @@ app.use('/api/sync', syncRouter);
 app.use('/api/games', gamesRouter);
 app.use('/api/combos', combosRouter);
 app.use('/api/shares', sharesRouter);
+app.use('/api/offline', offlineRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
@@ -504,6 +507,10 @@ async function start() {
 
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
     scheduleComboIngest();
+  }
+
+  if (process.env.OFFLINE_BULK_DISABLED !== '1') {
+    scheduleOracleRefresh();
   }
 
   function shutdown() {

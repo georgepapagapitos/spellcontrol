@@ -9,8 +9,60 @@ import type {
   BudgetOption,
   BracketLevel,
 } from '@/deck-builder/types';
+import { shouldUseOfflineData, useOfflineStore } from '@/store/offline';
+import { offlineSearchCards } from '@/lib/offline';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
+
+/**
+ * Offline-mode short circuit. EDHREC is online-only — when the user is in
+ * offline mode we hand back empty data and let the deck generator's
+ * Scryfall-driven fallback fill slots from the local oracle store. Quality
+ * drops vs. EDHREC suggestions, but generation completes instead of failing.
+ */
+function offlineActive(): boolean {
+  try {
+    return shouldUseOfflineData(useOfflineStore.getState());
+  } catch {
+    return false;
+  }
+}
+
+const EMPTY_STATS: EDHRECCommanderStats = {
+  avgPrice: 0,
+  numDecks: 0,
+  deckSize: 99,
+  manaCurve: {},
+  typeDistribution: {
+    creature: 0,
+    instant: 0,
+    sorcery: 0,
+    artifact: 0,
+    enchantment: 0,
+    land: 0,
+    planeswalker: 0,
+    battle: 0,
+  },
+  landDistribution: { basic: 0, nonbasic: 0, total: 0 },
+};
+
+function emptyCommanderData(): EDHRECCommanderData {
+  return {
+    themes: [],
+    stats: EMPTY_STATS,
+    cardlists: {
+      creatures: [],
+      instants: [],
+      sorceries: [],
+      artifacts: [],
+      enchantments: [],
+      planeswalkers: [],
+      lands: [],
+      allNonLand: [],
+    },
+    similarCommanders: [],
+  };
+}
 const MIN_REQUEST_DELAY = 100; // 100ms between requests
 
 class RateLimiter {
@@ -531,11 +583,15 @@ export async function fetchCommanderData(
   const budgetSuffix = getBudgetSuffix(budgetOption);
   const cacheKey = `${formattedName}${bracketSuffix}${budgetSuffix}`;
 
-  // Check cache first
+  // Check cache first — important: a populated cache entry from a prior online
+  // session is still valuable when offline, so we check it before the offline
+  // short-circuit.
   const cached = commanderCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
+
+  if (offlineActive()) return emptyCommanderData();
 
   try {
     const response = await edhrecFetch<RawEDHRECResponse>(
@@ -571,6 +627,8 @@ export async function fetchPartnerCommanderData(
       return cached.data;
     }
   }
+
+  if (offlineActive()) return emptyCommanderData();
 
   // Try both orderings - EDHREC doesn't always use alphabetical order
   // (redirects are detected and thrown by edhrecFetch)
@@ -697,6 +755,8 @@ export async function fetchCommanderThemeData(
     return cached.data;
   }
 
+  if (offlineActive()) return emptyCommanderData();
+
   try {
     const response = await edhrecFetch<RawEDHRECResponse>(
       `/pages/commanders/${formattedName}${bracketSuffix}/${themeSlug}${budgetSuffix}.json`
@@ -768,6 +828,8 @@ export async function fetchPartnerThemeData(
       return cached.data;
     }
   }
+
+  if (offlineActive()) return emptyCommanderData();
 
   // Try both orderings
   for (const slug of [slugA, slugB]) {
@@ -845,6 +907,8 @@ export async function fetchPartnerPopularity(commanderName: string): Promise<Map
     return cached.data;
   }
 
+  if (offlineActive()) return new Map();
+
   try {
     const response = await edhrecFetch<{ partnercounts?: Array<{ value: string; count: number }> }>(
       `/pages/partners/${formattedName}.json`
@@ -880,6 +944,10 @@ let saltIndexPromise: Promise<Map<string, number>> | null = null;
 
 export function fetchSaltIndex(): Promise<Map<string, number>> {
   if (saltIndexPromise) return saltIndexPromise;
+  if (offlineActive()) {
+    saltIndexPromise = Promise.resolve(new Map<string, number>());
+    return saltIndexPromise;
+  }
   saltIndexPromise = (async () => {
     try {
       const raw = await edhrecFetch<RawEDHRECResponse>('/pages/top/salt.json');
@@ -969,6 +1037,13 @@ const TOP_COMMANDER_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 let allCommanderNamesCache: string[] | null = null;
 export async function fetchAllCommanderNames(): Promise<string[]> {
   if (allCommanderNamesCache) return allCommanderNamesCache;
+  if (offlineActive()) {
+    // Offline: derive the commander list from the local oracle store. Cached
+    // so subsequent calls within the session don't re-scan.
+    const resp = await offlineSearchCards('is:commander', { skipColorFilter: true });
+    allCommanderNamesCache = resp.data.map((c) => c.name);
+    return allCommanderNamesCache;
+  }
   await rateLimiter.throttle();
   const res = await fetch(`${BASE_URL}/static/typeahead/commanders`);
   if (!res.ok) throw new Error(`EDHREC typeahead failed: ${res.status}`);
@@ -995,6 +1070,8 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
   if (cached && Date.now() - cached.timestamp < TOP_COMMANDER_CACHE_TTL) {
     return cached.data;
   }
+
+  if (offlineActive()) return [];
 
   try {
     const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/commanders/${slug}.json`);
@@ -1058,6 +1135,8 @@ export async function fetchPlaystyleCommanders(tagSlug: string): Promise<EDHRECT
   if (cached && Date.now() - cached.timestamp < TOP_COMMANDER_CACHE_TTL) {
     return cached.data;
   }
+
+  if (offlineActive()) return [];
 
   try {
     const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/tags/${key}.json`);
@@ -1163,6 +1242,8 @@ async function fetchAllCommandersForColor(colors: string[]): Promise<EDHRECTopCo
     return cached.data;
   }
 
+  if (offlineActive()) return [];
+
   try {
     const response = await edhrecFetch<RawTopCommandersResponse>(`/pages/commanders/${slug}.json`);
     const cardviews = response.container?.json_dict?.cardlists?.[0]?.cardviews ?? [];
@@ -1195,6 +1276,8 @@ export async function fetchAverageDeckMultiCopies(
   cardNamesToCheck: string[],
   themeSlug?: string
 ): Promise<Map<string, number> | null> {
+  if (offlineActive()) return null;
+
   try {
     await rateLimiter.throttle();
 
@@ -1288,6 +1371,8 @@ export async function fetchCommanderCombos(commanderName: string): Promise<EDHRE
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
+
+  if (offlineActive()) return [];
 
   try {
     const response = await edhrecFetch<RawComboResponse>(`/pages/combos/${slug}.json`);
