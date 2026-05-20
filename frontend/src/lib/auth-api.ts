@@ -17,9 +17,10 @@ export interface SyncSnapshot {
 }
 
 import { handleResponse } from './fetch-utils';
+import { apiUrl } from './api-base';
 
 function authedFetch(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(url, { credentials: 'same-origin', ...init });
+  return fetch(apiUrl(url), { credentials: 'same-origin', ...init });
 }
 
 export async function register(username: string, password: string): Promise<AuthUser> {

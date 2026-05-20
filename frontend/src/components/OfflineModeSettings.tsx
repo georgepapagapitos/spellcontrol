@@ -1,13 +1,18 @@
 import { useEffect } from 'react';
 import { useOfflineStore } from '@/store/offline';
+import { isNativePlatform } from '@/lib/platform';
 
 /**
  * Read-only status for the always-on local card data, plus an escape-hatch
  * "Clear" button. The download itself runs silently in the background after
  * sign-in (see `lib/offline/auto-sync.ts`); there is no toggle and no
  * "Download now" — the user shouldn't have to think about this.
+ *
+ * Native-only — the browser app always reaches the backend directly, so
+ * there's no local cache to surface and the section is hidden.
  */
-export function OfflineModeSettings(): React.ReactElement {
+export function OfflineModeSettings(): React.ReactElement | null {
+  const native = isNativePlatform();
   const manifest = useOfflineStore((s) => s.manifest);
   const stats = useOfflineStore((s) => s.stats);
   const bootstrapped = useOfflineStore((s) => s.bootstrapped);
@@ -15,8 +20,10 @@ export function OfflineModeSettings(): React.ReactElement {
   const clear = useOfflineStore((s) => s.clear);
 
   useEffect(() => {
-    if (!bootstrapped) void bootstrap();
-  }, [bootstrap, bootstrapped]);
+    if (native && !bootstrapped) void bootstrap();
+  }, [native, bootstrap, bootstrapped]);
+
+  if (!native) return null;
 
   const hasData = !!manifest && manifest.oracleCardCount > 0;
   const cardCount = stats?.cardCount ?? manifest?.oracleCardCount ?? 0;

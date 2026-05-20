@@ -1,5 +1,6 @@
 import { readManifest, replaceCombos, replaceOracleCards, writeManifest } from './db';
 import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
+import { apiUrl } from '../api-base';
 
 export type DownloadPhase =
   | 'idle'
@@ -54,7 +55,7 @@ async function fetchManifest(onProgress?: ProgressFn): Promise<OfflineManifest> 
     // Network-layer failures (DNS down, browser offline) bubble up as
     // thrown errors — those aren't retryable from this layer; the caller
     // surfaces them as a sync error.
-    const res = await fetch('/api/offline/manifest', {
+    const res = await fetch(apiUrl('/api/offline/manifest'), {
       headers: { Accept: 'application/json' },
     });
     if (res.ok) return (await res.json()) as OfflineManifest;
@@ -85,7 +86,7 @@ async function fetchJsonWithProgress<T>(
   // The server sends gzipped bodies with `Content-Encoding: gzip`; the browser
   // transparently decodes. The reported Content-Length is the *compressed*
   // size, which is exactly what we want for the progress bar's denominator.
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const res = await fetch(apiUrl(url), { headers: { Accept: 'application/json' } });
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url} (${res.status})`);
   }

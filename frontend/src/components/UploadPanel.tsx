@@ -16,6 +16,11 @@ import { StagedFileList } from './StagedFileList';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
+import { isNativePlatform } from '../lib/platform';
+import { pickNativeFiles } from '../lib/native-file-picker';
+
+const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
+const JSON_MIME_TYPES = ['application/json'];
 
 interface PendingImport {
   /** Runs the actual import call. Omitted for staged-file batches. */
@@ -69,8 +74,17 @@ export function UploadPanel() {
     [recentImportIds, cards, binders]
   );
 
-  const handlePickFile = () => {
+  const handlePickFile = async () => {
     if (isLoading) return;
+    if (isNativePlatform()) {
+      try {
+        const files = await pickNativeFiles({ types: CSV_MIME_TYPES, multiple: true });
+        stageIncoming(files);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not open file picker');
+      }
+      return;
+    }
     fileInputRef.current?.click();
   };
 
@@ -237,14 +251,19 @@ export function UploadPanel() {
       });
       if (!ok) return;
     }
+    if (isNativePlatform()) {
+      try {
+        const [file] = await pickNativeFiles({ types: JSON_MIME_TYPES, multiple: false });
+        if (file) await applyBackupFile(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Restore failed');
+      }
+      return;
+    }
     backupInputRef.current?.click();
   };
 
-  const handleBackupChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (backupInputRef.current) backupInputRef.current.value = '';
-    if (!file) return;
-
+  const applyBackupFile = async (file: File) => {
     setLoading(true);
     setError(null);
     setSuccessMsg(null);
@@ -264,6 +283,12 @@ export function UploadPanel() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBackupChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (backupInputRef.current) backupInputRef.current.value = '';
+    if (file) await applyBackupFile(file);
   };
 
   return (

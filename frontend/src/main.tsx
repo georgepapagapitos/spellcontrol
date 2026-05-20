@@ -10,11 +10,20 @@ import './styles/themes.css';
 import './styles/deck-builder.css';
 import './styles/play.css';
 import './styles/shared.css';
-import { bootstrapTheme } from './store/theme';
+import { bootstrapTheme, useThemeStore } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { registerPwa } from './lib/register-pwa';
+import { tagPlatform, syncStatusBar, initKeyboard } from './lib/platform';
 
+tagPlatform();
 bootstrapTheme();
+void syncStatusBar();
+void initKeyboard();
+// Re-sync the native status bar icons whenever the user switches themes;
+// no-op on web.
+useThemeStore.subscribe(() => {
+  void syncStatusBar();
+});
 // Kick off tagger data load eagerly so the deck generator can attach role
 // counts on the first build. Safe to call multiple times — the client caches.
 void loadTaggerData();

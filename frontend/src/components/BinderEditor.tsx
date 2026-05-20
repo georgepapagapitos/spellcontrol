@@ -14,6 +14,10 @@ import { SelectMenu } from './SelectMenu';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { ColorPicker } from './ColorPicker';
 import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
+import { isNativePlatform } from '../lib/platform';
+import { pickNativeFiles } from '../lib/native-file-picker';
+
+const BINDER_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import type {
   BinderFilter,
   BinderFilterGroup,
@@ -874,7 +878,23 @@ export function BinderEditor() {
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => importFileRef.current?.click()}
+                    onClick={async () => {
+                      if (isNativePlatform()) {
+                        try {
+                          const files = await pickNativeFiles({
+                            types: BINDER_IMPORT_MIME,
+                            multiple: true,
+                          });
+                          stageIncoming(files);
+                        } catch (err) {
+                          setErrorMsg(
+                            err instanceof Error ? err.message : 'Could not open file picker'
+                          );
+                        }
+                        return;
+                      }
+                      importFileRef.current?.click();
+                    }}
                     disabled={saving}
                   >
                     Upload files
