@@ -96,7 +96,10 @@ export function OpeningHandSheet({
         aria-modal="true"
         aria-labelledby="playtest-opening-title"
       >
-        <div className="card-picker-handle" aria-hidden />
+        {/* No drag-handle: this sheet is non-dismissable — the user must
+            choose Keep or Mulligan (or select N cards for the bottom in
+            the mulligan-bottom phase). Showing the swipe-affordance handle
+            here was misleading users into trying to drag-down to dismiss. */}
         <div className="card-picker-header">
           <div className="playtest-opening-titleRow">
             <h2 id="playtest-opening-title" className="card-picker-title">

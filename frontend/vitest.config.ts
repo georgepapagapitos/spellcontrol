@@ -43,6 +43,20 @@ export default defineConfig({
         // progress callbacks). Verified via integration; not unit-testable
         // without a streaming-fetch shim that fights real-runtime behavior.
         'src/lib/offline/download.ts',
+        // Capacitor plugin wrappers + DOM probing — paths are
+        // platform-branched (`isNativePlatform()`) and the native side
+        // calls plugins that don't exist outside the Capacitor WebView.
+        // Verified on-device, not in the node test env:
+        //   - platform.ts: StatusBar / Keyboard + theme luminance probe
+        //   - native-file-picker.ts: FilePicker + fetch(content://)
+        //   - haptics.ts: Capacitor Haptics + navigator.vibrate
+        //   - deep-links.ts: App.appUrlOpen / getLaunchUrl listener glue
+        //     (`parseDeepLink` is still unit-tested separately —
+        //     excluding the file drops the measurement, not the test.)
+        'src/lib/platform.ts',
+        'src/lib/native-file-picker.ts',
+        'src/lib/haptics.ts',
+        'src/lib/deep-links.ts',
       ],
       // Per-directory floors. `src/lib/**` stays the long-standing 80.
       // `src/store/**` and `src/deck-builder/**` are newly gated: the

@@ -7,7 +7,7 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist', 'coverage', 'node_modules'] },
+  { ignores: ['dist', 'coverage', 'node_modules', 'android'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

@@ -4,6 +4,13 @@ import { autoSyncOfflineData } from './auto-sync';
 import { useOfflineStore } from '@/store/offline';
 import type { OfflineManifest } from './types';
 
+vi.mock('@/lib/platform', () => ({
+  isNativePlatform: vi.fn(() => true),
+}));
+
+const platform = await import('@/lib/platform');
+const isNativePlatform = vi.mocked(platform.isNativePlatform);
+
 const LAST_CHECK_KEY = 'spellcontrol-offline-last-check';
 
 function fakeManifest(): OfflineManifest {
@@ -44,6 +51,7 @@ describe('autoSyncOfflineData', () => {
       true
     );
     localStorage.clear();
+    isNativePlatform.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -159,5 +167,21 @@ describe('autoSyncOfflineData', () => {
     });
     await expect(autoSyncOfflineData()).resolves.toBeUndefined();
     setItem.mockRestore();
+  });
+
+  describe('web platform gate', () => {
+    beforeEach(() => {
+      isNativePlatform.mockReturnValue(false);
+    });
+
+    it('skips everything on web (no bootstrap, no sync, no persistent-storage ask)', async () => {
+      const persist = vi.fn().mockResolvedValue(true);
+      vi.stubGlobal('navigator', { storage: { persist }, onLine: true });
+      await autoSyncOfflineData();
+      expect(bootstrap).not.toHaveBeenCalled();
+      expect(sync).not.toHaveBeenCalled();
+      expect(persist).not.toHaveBeenCalled();
+      expect(localStorage.getItem(LAST_CHECK_KEY)).toBeNull();
+    });
   });
 });

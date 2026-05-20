@@ -2088,7 +2088,7 @@ input.toolbar-search-input {
      imperceptible. */
   .decks-index-page {
     gap: 1rem;
-    min-height: calc(100dvh - 8.5rem - env(safe-area-inset-bottom));
+    min-height: calc(var(--vh-safe) - 8.5rem - var(--safe-top));
   }
   .decks-index-actions > .pill-btn {
     flex: 1 1 0;
@@ -3530,7 +3530,7 @@ input.toolbar-search-input {
 .export-dialog {
   max-width: 720px;
   width: 100%;
-  max-height: calc(100vh - 6rem);
+  max-height: calc(var(--vh-safe) - 6rem);
   display: flex;
   flex-direction: column;
   padding: 1.25rem 1.5rem;
