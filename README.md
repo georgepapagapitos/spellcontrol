@@ -145,6 +145,7 @@ The backend reads:
 - `OFFLINE_BULK_DISABLED` — optional. Set to `1` to disable the daily Scryfall oracle bulk refresh. The bulk itself is built lazily on the first request to `/api/offline/oracle-cards`; this flag opts out of the once-a-day rebuild thereafter (the cached payload keeps serving). Useful on tightly memory-constrained hosts where the periodic ~1GB peak isn't worth it.
 - `COMBOS_INGEST_DISABLED` — optional. Set to `1` to skip the nightly Commander Spellbook ingest. The existing dataset keeps serving.
 - `PORT` (default `3737`), `DB_PATH` (default `backend/data/scryfall-cache.db`).
+- `OFFLINE_DATA_DIR` — optional. Directory where the persisted Scryfall oracle bulk (`offline-oracle.json.gz` + `offline-oracle.meta.json`) is written and read. Defaults to `dirname(DB_PATH)` so the bulk co-locates with the SQLite cache (a single `/data` mount survives container recreates). Set explicitly only for custom layouts.
 
 ## Architecture
 
