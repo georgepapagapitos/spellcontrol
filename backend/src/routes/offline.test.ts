@@ -19,7 +19,7 @@ beforeAll(async () => {
   // Stub the Scryfall bulk index + download so the route tests don't hit
   // the live API. Returns a single-card bulk so the slim projection has
   // something to work with.
-  __resetOracleBulkForTesting();
+  await __resetOracleBulkForTesting();
   __resetCombosBulkForTesting();
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const u = typeof input === 'string' ? input : input.toString();
@@ -148,7 +148,7 @@ d('POST /api/offline/admin/refresh-oracle', () => {
  */
 d('GET /api/offline/manifest before the bulk is ready', () => {
   it('returns 503 with Retry-After and kicks off a background build', async () => {
-    __resetOracleBulkForTesting();
+    await __resetOracleBulkForTesting();
     const res = await request(app).get('/api/offline/manifest');
     expect(res.status).toBe(503);
     expect(res.headers['retry-after']).toBeDefined();
@@ -158,7 +158,7 @@ d('GET /api/offline/manifest before the bulk is ready', () => {
   });
 
   it('oracle-cards returns 503 fast (no body) when bulk is rebuilding', async () => {
-    __resetOracleBulkForTesting();
+    await __resetOracleBulkForTesting();
     const res = await request(app).get('/api/offline/oracle-cards');
     expect(res.status).toBe(503);
     expect(res.headers['retry-after']).toBeDefined();
