@@ -44,12 +44,13 @@ services:
     labels:
       - 'com.centurylinklabs.watchtower.enable=true'
     # The Scryfall oracle bulk is built lazily on first request (and refreshed
-    # daily afterwards). The build briefly peaks ~1GB while it streams in,
-    # slims, and gzips ~200MB of JSON, which is why NODE_OPTIONS asks V8 for
-    # a 1.5GB old-space — but the cgroup only needs to cover steady state
-    # (200-300MB) plus headroom for native deps (better-sqlite3, pg). If the
-    # daily refresh tick is ever OOM-killed, raise this and the heap together.
-    mem_limit: 768m
+    # daily afterwards). Measured peak on the beelink is ~710MB during the
+    # build while it streams in, slims, and gzips ~200MB of JSON; steady state
+    # idles around 70-100MB. 1g gives ~300MB of headroom over the measured
+    # peak — enough cushion for V8 GC variance and concurrent native-dep
+    # allocations (better-sqlite3, pg) without being a foot-gun. Tested at
+    # 768m and it ran at 92% utilization during the build, which is too close.
+    mem_limit: 1g
     cpus: 0.5
 
   frontend:
