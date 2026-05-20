@@ -3,6 +3,7 @@ import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardModal } from './SharedCardModal';
+import { SearchPill } from '../SearchPill';
 import type { PublicCard } from '../../lib/shared-types';
 
 interface Props {
@@ -114,13 +115,12 @@ export function SharedDeckView({ data }: Props) {
       </header>
 
       <div className="shared-toolbar">
-        <input
-          type="search"
-          className="shared-search"
+        <SearchPill
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
           placeholder="Search cards in this deck…"
-          aria-label="Search cards"
+          ariaLabel="Search cards"
+          className="shared-toolbar-search"
         />
       </div>
 
