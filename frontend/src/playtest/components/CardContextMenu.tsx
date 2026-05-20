@@ -1,8 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Zone } from '@/lib/playtest';
 
 interface Props {
   x: number;
   y: number;
+  cardName: string;
+  variant?: 'floating' | 'sheet';
   onClose(): void;
   onTap(): void;
   onAddCounter(kind: string): void;
@@ -20,9 +23,13 @@ const ZONES: { key: Zone; label: string }[] = [
   { key: 'command', label: 'Command' },
 ];
 
+const MENU_MARGIN = 8;
+
 export function CardContextMenu({
   x,
   y,
+  cardName,
+  variant = 'floating',
   onClose,
   onTap,
   onAddCounter,
@@ -30,10 +37,78 @@ export function CardContextMenu({
   onFlip,
   onMoveTo,
 }: Props) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
+
+  useEffect(() => {
+    if (variant !== 'floating') return;
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const left = Math.max(MENU_MARGIN, Math.min(x, vw - rect.width - MENU_MARGIN));
+    const top = Math.max(MENU_MARGIN, Math.min(y, vh - rect.height - MENU_MARGIN));
+    setClamped({ left, top });
+  }, [x, y, variant]);
+
+  if (variant === 'sheet') {
+    return (
+      <>
+        <div className="playtest-ctx__backdrop" onClick={onClose} />
+        <div className="playtest-ctx playtest-ctx--sheet" role="menu" aria-label={cardName}>
+          <div className="playtest-ctx__sheetHandle" aria-hidden />
+          <div className="playtest-ctx__sheetTitle">{cardName}</div>
+          <button type="button" onClick={onTap}>
+            Tap / Untap
+          </button>
+          <button type="button" onClick={onFlip}>
+            Flip face
+          </button>
+          <div className="playtest-ctx__group">
+            <div className="playtest-ctx__heading">Counters</div>
+            {COUNTER_KINDS.map((k) => (
+              <div key={k} className="playtest-ctx__counterRow">
+                <span>{k}</span>
+                <button type="button" onClick={() => onRemoveCounter(k)} aria-label={`remove ${k}`}>
+                  −
+                </button>
+                <button type="button" onClick={() => onAddCounter(k)} aria-label={`add ${k}`}>
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="playtest-ctx__group">
+            <div className="playtest-ctx__heading">Move to</div>
+            {ZONES.map((z) => (
+              <button key={z.key} type="button" onClick={() => onMoveTo(z.key)}>
+                {z.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="playtest-ctx__sheetClose" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="playtest-ctx__backdrop" onClick={onClose} />
-      <div className="playtest-ctx" style={{ left: x, top: y }} role="menu">
+      <div
+        ref={menuRef}
+        className="playtest-ctx"
+        style={{
+          left: clamped?.left ?? x,
+          top: clamped?.top ?? y,
+          visibility: clamped ? 'visible' : 'hidden',
+        }}
+        role="menu"
+        aria-label={cardName}
+      >
         <button type="button" onClick={onTap}>
           Tap / Untap
         </button>

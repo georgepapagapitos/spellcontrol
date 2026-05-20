@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
+import { useLongPress } from '../hooks/use-long-press';
 
 interface Props {
   card: PlaytestCard;
@@ -8,6 +9,7 @@ interface Props {
   draggableId: string;
   onClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  onLongPress?: (clientX: number, clientY: number) => void;
   /** When true, positions the card absolutely using bf.x/bf.y. */
   positioned?: boolean;
   size?: 'sm' | 'md' | 'lg';
@@ -19,12 +21,17 @@ export function PlaytestCardView({
   draggableId,
   onClick,
   onContextMenu,
+  onLongPress,
   positioned = false,
   size = 'md',
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: draggableId,
     data: { cardId: card.id },
+  });
+
+  const longPress = useLongPress({
+    onLongPress: (x, y) => onLongPress?.(x, y),
   });
 
   const tapped = bf?.tapped ?? false;
@@ -50,8 +57,15 @@ export function PlaytestCardView({
       className={`playtest-card playtest-card--${size}${tapped ? ' playtest-card--tapped' : ''}`}
       {...attributes}
       {...listeners}
-      onClick={onClick}
+      onClick={() => {
+        if (onLongPress && longPress.consumedClick()) return;
+        onClick?.();
+      }}
       onContextMenu={onContextMenu}
+      onTouchStart={onLongPress ? longPress.onTouchStart : undefined}
+      onTouchMove={onLongPress ? longPress.onTouchMove : undefined}
+      onTouchEnd={onLongPress ? longPress.onTouchEnd : undefined}
+      onTouchCancel={onLongPress ? longPress.onTouchCancel : undefined}
       role="button"
       tabIndex={0}
       aria-label={card.name}
