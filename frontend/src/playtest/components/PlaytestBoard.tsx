@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -8,6 +8,8 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import type { PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
 import { useNarrowViewport } from '../hooks/use-narrow-viewport';
 import { autoPlace } from '../lib/auto-place';
@@ -41,6 +43,28 @@ export function PlaytestBoard({ state }: Props) {
   const keepOpeningHand = usePlaytestStore((s) => s.keepOpeningHand);
   const mulliganOpeningHand = usePlaytestStore((s) => s.mulliganOpeningHand);
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
+  const playtestDeckId = usePlaytestStore((s) => s.deckId);
+  const deck = useDecksStore((s) =>
+    playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined,
+  );
+
+  // Build a map from each PlaytestCard instance id back to the underlying
+  // ScryfallCard, so the OpeningHandSheet can pass full card data to the
+  // shared CardPreview component without changing reducer types. The keys
+  // mirror what `deckToPlaytestInit` produces (slotId#copy for mainboard,
+  // cmd-<scryfallId> for commanders).
+  const cardLookup = useMemo(() => {
+    if (!deck) return undefined;
+    const map = new Map<string, ScryfallCard>();
+    deck.cards.forEach((slot, i) => {
+      map.set(`${slot.slotId}#${i}`, slot.card);
+    });
+    if (deck.commander) map.set(`cmd-${deck.commander.id}`, deck.commander);
+    if (deck.partnerCommander)
+      map.set(`cmd-${deck.partnerCommander.id}`, deck.partnerCommander);
+    return map;
+  }, [deck]);
+
   const battlefieldRef = useRef<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
@@ -272,6 +296,8 @@ export function PlaytestBoard({ state }: Props) {
           phase={phase}
           hand={state.zones.hand}
           mulliganCount={mulliganCount}
+          cardLookup={cardLookup}
+          deckName={deck?.name}
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}
           onConfirmBottom={finalizeBottom}
