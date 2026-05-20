@@ -1,23 +1,21 @@
-import { toast } from '@/store/toasts';
 import { usePlayStore } from '@/store/play';
 import { usePwaStore } from '@/store/pwa';
 
 /**
  * Wire the Workbox-generated service worker into our app.
  *
- * - `onNeedRefresh` fires when a new SW has finished installing in the
- *   background. In the common case (no fragile local state) we apply
- *   silently — the SW swap reloads the tab, which is the only signal the
- *   user gets. If a playtest is active we defer instead and surface a
- *   passive "update available" control on the Settings page, so a tab
- *   doesn't reload out from under someone mid-game.
- * - `onOfflineReady` fires the first time the SW finishes its initial
- *   precache, so the user gets a tiny confirmation that the app shell is
- *   now available without a network.
+ * Only `onNeedRefresh` is handled. It fires when a new SW has finished
+ * installing in the background — in the common case (no fragile local
+ * state) we apply silently and the SW swap reloads the tab. If a
+ * playtest is active we defer instead and surface a passive "update
+ * available" control on the Settings page so a tab doesn't reload out
+ * from under someone mid-game.
  *
- * Plays nicely with the offline-mode feature: the SW caches the *app shell*
- * (HTML/JS/CSS), while the offline-mode toggle controls whether card data
- * comes from IndexedDB or the live API. Two layers, complementary.
+ * `onOfflineReady` is intentionally omitted: with always-on card data
+ * (see `lib/offline/auto-sync`), the app just works offline, full stop —
+ * a "now available offline" confirmation toast is redundant, and it
+ * tended to re-fire on every watchtower-driven SW update which looked
+ * like a bug to the user.
  */
 function isPlaytestActive(): boolean {
   const { local, online } = usePlayStore.getState();
@@ -48,13 +46,6 @@ export async function registerPwa(): Promise<void> {
         return;
       }
       void apply();
-    },
-    onOfflineReady() {
-      toast.show({
-        message: 'SpellControl is now available offline.',
-        tone: 'success',
-        durationMs: 4000,
-      });
     },
     onRegisterError(error) {
       console.warn('[pwa] service worker registration failed:', error);
