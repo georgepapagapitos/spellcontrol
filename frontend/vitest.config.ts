@@ -36,9 +36,11 @@ export default defineConfig({
       // meaningfully under the node test env — verified via integration use:
       //   - ocr.ts: tesseract.js worker + WASM
       //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
+      //   - use-visual-viewport.ts: window.visualViewport resize/scroll glue
       exclude: [
         'src/lib/ocr.ts',
         'src/lib/use-wake-lock.ts',
+        'src/lib/use-visual-viewport.ts',
         // Network + IDB orchestration (fetch streaming, gzipped bulk loads,
         // progress callbacks). Verified via integration; not unit-testable
         // without a streaming-fetch shim that fights real-runtime behavior.

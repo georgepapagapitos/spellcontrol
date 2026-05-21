@@ -154,12 +154,10 @@ export function BinderPagePreview({
 
   if (pages.length === 0) return null;
 
-  // Drawer model (ManaBox-style), same as CardPreview: the translucent
-  // .binder-pages-sheet is the opaque surface that covers the grid as it
-  // rises, so there is no separate dimmed backdrop to interpolate. The
-  // backdrop only carries the sizing var (--page-w-ratio drives
-  // --slide-size). Swiping down just translates the sheet back off-screen,
-  // revealing the undimmed grid underneath.
+  // Same model as CardPreview: the sheet is a transparent transform carrier
+  // (only the opaque binder page + info panel rise); the dim sits on the
+  // backdrop, which stays put, fades in/out (.is-closing), and carries the
+  // sizing var (--page-w-ratio drives --slide-size).
   const sheetStyle = {
     transform: `translateY(${dragY}px)`,
     ...exitStyle,
@@ -174,7 +172,7 @@ export function BinderPagePreview({
   return (
     <>
       <div
-        className="binder-pages-backdrop"
+        className={`binder-pages-backdrop${isClosing ? ' is-closing' : ''}`}
         onClick={() => beginClose()}
         role="dialog"
         aria-modal="true"
