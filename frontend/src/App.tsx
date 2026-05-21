@@ -19,7 +19,7 @@ import { SharedView } from './pages/SharedView';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync } from './lib/sync';
-import { autoSyncOfflineData } from './lib/offline/auto-sync';
+import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
 
 // Back-compat redirects for the pre-hub flat paths. Param-preserving so deep
@@ -51,6 +51,12 @@ export default function App() {
   // Capacitor APK. The teardown drops the listener if React ever remounts
   // App (StrictMode, fast-refresh) so we don't double-handle URLs.
   useEffect(() => initDeepLinks(navigate), [navigate]);
+
+  // Re-check the offline card catalog whenever the app returns to the
+  // foreground. No-op on web; throttled so frequent resumes don't spam the
+  // manifest endpoint. Keeps a long-lived native session from drifting onto
+  // stale data between cold starts.
+  useEffect(() => registerOfflineSyncOnResume(), []);
 
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
   // on every status change while still firing again if a different user logs in
