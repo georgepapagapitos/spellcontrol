@@ -9,15 +9,22 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# Shared package first: install (no scripts), then build its dist. Kept as
-# its own layers so a backend-only src change doesn't rebuild game-core.
+# Shared packages first: install (no scripts), then build each dist. Kept as
+# their own layers so a backend-only src change doesn't rebuild them. Both
+# apps depend on both packages via `file:` deps, so both dists must exist
+# before any `npm ci` below.
 COPY packages/game-core/package.json packages/game-core/package-lock.json packages/game-core/tsconfig*.json ./packages/game-core/
 RUN npm --prefix packages/game-core ci --ignore-scripts
 COPY packages/game-core/src ./packages/game-core/src
 RUN npm --prefix packages/game-core run build
 
-# Backend deps (resolves file:../packages/game-core — dir present + built, so
-# game-core's dist-guarded `prepare` is a no-op), then compile.
+COPY packages/binder-routing/package.json packages/binder-routing/package-lock.json packages/binder-routing/tsconfig*.json ./packages/binder-routing/
+RUN npm --prefix packages/binder-routing ci --ignore-scripts
+COPY packages/binder-routing/src ./packages/binder-routing/src
+RUN npm --prefix packages/binder-routing run build
+
+# Backend deps (resolves file:../packages/{game-core,binder-routing} — dirs
+# present + built, so their dist-guarded `prepare` is a no-op), then compile.
 COPY backend/package.json backend/package-lock.json ./backend/
 RUN npm --prefix backend ci
 COPY backend/tsconfig.json ./backend/
@@ -42,11 +49,13 @@ ENV NODE_ENV=production \
     DB_PATH=/data/scryfall-cache.db \
     PORT=3737
 
-# Shared package: ship package.json + prebuilt dist only (no sources/devDeps).
+# Shared packages: ship package.json + prebuilt dist only (no sources/devDeps).
 # Copied BEFORE the backend install so the dist-guarded `prepare` stays a
-# no-op when npm links the file: dependency.
+# no-op when npm links the file: dependencies.
 COPY packages/game-core/package.json ./packages/game-core/
 COPY --from=build /app/packages/game-core/dist ./packages/game-core/dist
+COPY packages/binder-routing/package.json ./packages/binder-routing/
+COPY --from=build /app/packages/binder-routing/dist ./packages/binder-routing/dist
 
 # Prod-only backend deps (better-sqlite3's native install script still runs;
 # game-core is linked from the path above).
