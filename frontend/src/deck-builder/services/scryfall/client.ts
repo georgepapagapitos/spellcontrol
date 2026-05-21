@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { ScryfallCard, ScryfallSearchResponse } from '@/deck-builder/types';
 import type { CardRepository, CardSearchOptions, CardFetchProgress } from './card-repository';
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
@@ -283,7 +284,7 @@ async function fetchCardByNameThrottled(name: string, retries = 2): Promise<Scry
 
     if (response.status === 429 && retries > 0) {
       const backoffMs = 1000 * (3 - retries);
-      console.warn(`[Scryfall] Rate limited, backing off ${backoffMs}ms...`);
+      logger.warn(`[Scryfall] Rate limited, backing off ${backoffMs}ms...`);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
       return fetchCardByNameThrottled(name, retries - 1);
     }
@@ -367,7 +368,7 @@ async function liveGetCardsByNames(
   const { result, uncachedNames } = partitionCachedCards(names, preferredSet);
   if (uncachedNames.length === 0) return result;
 
-  console.log(
+  logger.debug(
     `[Scryfall] Fetching ${uncachedNames.length} cards via /cards/collection${preferredSet ? ` (set: ${preferredSet})` : ''}...`
   );
 
@@ -420,18 +421,18 @@ async function liveGetCardsByNames(
               if (nf.name) setNotFoundNames.push(nf.name);
             }
           } else {
-            console.warn(`[Scryfall] ${data.not_found.length} cards not found in collection batch`);
+            logger.warn(`[Scryfall] ${data.not_found.length} cards not found in collection batch`);
           }
         }
       } else if (response.status === 429) {
         // Rate limited - back off and retry this batch
-        console.warn('[Scryfall] Rate limited on collection fetch, backing off...');
+        logger.warn('[Scryfall] Rate limited on collection fetch, backing off...');
         await new Promise((resolve) => setTimeout(resolve, 1500));
         i -= COLLECTION_BATCH_SIZE; // retry this batch
         continue;
       }
     } catch (err) {
-      console.warn('[Scryfall] Collection batch failed:', err);
+      logger.warn('[Scryfall] Collection batch failed:', err);
     }
 
     onProgress?.(Math.min(i + COLLECTION_BATCH_SIZE, uncachedNames.length), uncachedNames.length);
@@ -439,7 +440,7 @@ async function liveGetCardsByNames(
 
   // Fallback pass: re-fetch cards not found in the preferred set without set constraint
   if (preferredSet && setNotFoundNames.length > 0) {
-    console.log(
+    logger.debug(
       `[Scryfall] ${setNotFoundNames.length} cards not in set "${preferredSet}", re-fetching without set constraint...`
     );
     for (let i = 0; i < setNotFoundNames.length; i += COLLECTION_BATCH_SIZE) {
@@ -475,13 +476,13 @@ async function liveGetCardsByNames(
             }
           }
         } else if (response.status === 429) {
-          console.warn('[Scryfall] Rate limited on fallback collection fetch, backing off...');
+          logger.warn('[Scryfall] Rate limited on fallback collection fetch, backing off...');
           await new Promise((resolve) => setTimeout(resolve, 1500));
           i -= COLLECTION_BATCH_SIZE;
           continue;
         }
       } catch (err) {
-        console.warn('[Scryfall] Fallback collection batch failed:', err);
+        logger.warn('[Scryfall] Fallback collection batch failed:', err);
       }
     }
   }
@@ -494,7 +495,7 @@ async function liveGetCardsByNames(
       return card && !getCardPrice(card);
     });
     if (noPriceNames.length > 0) {
-      console.log(
+      logger.debug(
         `[Scryfall] Re-fetching ${noPriceNames.length} cards with no price for older printings...`
       );
       for (const name of noPriceNames) {
@@ -510,7 +511,7 @@ async function liveGetCardsByNames(
   // For any names not found via collection, try individual fallback
   const notFound = uncachedNames.filter((name) => !result.has(name));
   if (notFound.length > 0) {
-    console.log(`[Scryfall] Retrying ${notFound.length} not-found cards individually...`);
+    logger.debug(`[Scryfall] Retrying ${notFound.length} not-found cards individually...`);
     for (const name of notFound) {
       const card = await fetchCardByNameThrottled(name);
       if (card) {
@@ -519,7 +520,7 @@ async function liveGetCardsByNames(
     }
   }
 
-  console.log(`[Scryfall] Batch fetch complete: ${result.size} cards found`);
+  logger.debug(`[Scryfall] Batch fetch complete: ${result.size} cards found`);
   return result;
 }
 
@@ -571,7 +572,7 @@ async function liveUpgradeCardPrintings(
 
   if (entries.length === 0) return;
 
-  console.log(
+  logger.debug(
     `[Scryfall] Upgrading printings for ${entries.length} cards with filters: ${filters}${strict ? ' (strict)' : ''}`
   );
   const cacheKeyPrefix = `upgrade|${filters}|`;
@@ -662,14 +663,14 @@ async function liveUpgradeCardPrintings(
       }
     }
     if (removed.length > 0) {
-      console.log(
+      logger.debug(
         `[Scryfall] Strict filter removed ${removed.length} cards with no "${filters}" printing`
       );
     }
   }
 
   if (upgraded > 0) {
-    console.log(`[Scryfall] Upgraded ${upgraded}/${entries.length} cards to match "${filters}"`);
+    logger.debug(`[Scryfall] Upgraded ${upgraded}/${entries.length} cards to match "${filters}"`);
   }
 }
 
@@ -741,7 +742,7 @@ async function liveGetGameChangerNames(): Promise<Set<string>> {
 
   gameChangerNamesCache = names;
   gameChangerCacheTimestamp = Date.now();
-  console.log(`[Scryfall] Cached ${names.size} game changer card names`);
+  logger.debug(`[Scryfall] Cached ${names.size} game changer card names`);
   return names;
 }
 
@@ -1143,7 +1144,7 @@ async function liveFetchMultiCopyCardNames(): Promise<Map<string, number | null>
       );
     }
   } catch (error) {
-    console.warn('[Scryfall] Failed to fetch multi-copy card list:', error);
+    logger.warn('[Scryfall] Failed to fetch multi-copy card list:', error);
   }
   multiCopyCardsCache = result;
   return result;

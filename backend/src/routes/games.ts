@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
@@ -157,7 +158,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
       ? body.hostName.trim().slice(0, 40)
       : req.user!.username;
 
-  void sweepStale().catch((err) => console.warn('[games] sweep failed', err));
+  void sweepStale().catch((err) => logger.warn('[games] sweep failed', err));
 
   const code = await generateUniqueCode();
   const id = crypto.randomUUID();

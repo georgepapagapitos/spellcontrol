@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -72,7 +73,7 @@ export default function App() {
     if (syncStartedFor.current === userId) return;
     syncStartedFor.current = userId;
     void startSync(userId).catch((err) => {
-      console.warn('[sync] startSync failed:', err);
+      logger.warn('[sync] startSync failed:', err);
       // Backstop: hydration is owned by the sync layer, but a failure here
       // (network down, wipeLocal throwing, etc.) must NOT leave the UI stuck
       // on "still hydrating" forever — the local IndexedDB cache is loaded

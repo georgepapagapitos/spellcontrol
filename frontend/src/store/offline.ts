@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import {
   clearOfflineData,
@@ -47,7 +48,7 @@ export const useOfflineStore = create<OfflineState>()((set, get) => ({
       const [manifest, stats] = await Promise.all([readOfflineManifest(), getOfflineDataStats()]);
       set({ manifest, stats, bootstrapped: true });
     } catch (err) {
-      console.warn('[offline] bootstrap failed:', err);
+      logger.warn('[offline] bootstrap failed:', err);
       set({ bootstrapped: true, error: errorMessage(err) });
     }
   },
@@ -66,7 +67,7 @@ export const useOfflineStore = create<OfflineState>()((set, get) => ({
         progress: { phase: 'done', fraction: 1 },
       });
     } catch (err) {
-      console.warn('[offline] sync failed:', err);
+      logger.warn('[offline] sync failed:', err);
       set({ progress: { phase: 'error', fraction: null }, error: errorMessage(err) });
     }
   },

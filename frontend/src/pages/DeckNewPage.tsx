@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
@@ -208,7 +209,7 @@ export function DeckNewPage() {
       );
       navigate(`/decks/${id}`);
     } catch (e) {
-      console.error('[DeckBuilder] generation failed:', e);
+      logger.error('[DeckBuilder] generation failed:', e);
       setError(e instanceof Error ? e.message : 'Could not build the deck.');
     } finally {
       setIsGenerating(false);

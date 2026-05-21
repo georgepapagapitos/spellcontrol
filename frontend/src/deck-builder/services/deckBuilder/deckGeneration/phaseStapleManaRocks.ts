@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import {
@@ -66,7 +67,7 @@ export async function stapleManaRocksPhase(state: GenerationState): Promise<void
           card.deckRole = role;
           stampRoleSubtypes(card);
         }
-        console.log(`[DeckGen] Auto-included staple: ${staple.name}`);
+        logger.debug(`[DeckGen] Auto-included staple: ${staple.name}`);
       } catch {
         // Ignore if not found
       }

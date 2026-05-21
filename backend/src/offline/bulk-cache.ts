@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import fs from 'node:fs';
@@ -177,7 +178,7 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
 
 async function buildPayload(): Promise<BulkPayload> {
   const { url, updatedAt } = await fetchOracleBulkUrl();
-  console.log('[offline] downloading Scryfall oracle bulk from', url);
+  logger.info('[offline] downloading Scryfall oracle bulk from', url);
   const dlRes = await fetch(url);
   if (!dlRes.ok || !dlRes.body) {
     throw new Error(`Scryfall oracle bulk download returned ${dlRes.status}`);
@@ -208,7 +209,7 @@ async function buildPayload(): Promise<BulkPayload> {
   const gz = gzipSync(raw);
   const version = createHash('sha1').update(raw).digest('hex').slice(0, 16);
 
-  console.log(
+  logger.info(
     `[offline] slim oracle bulk built: ${slims.length} cards, ${(raw.byteLength / 1_000_000).toFixed(1)}MB raw, ${(gz.byteLength / 1_000_000).toFixed(1)}MB gzipped`
   );
 
@@ -222,7 +223,7 @@ async function buildPayload(): Promise<BulkPayload> {
   };
 
   void persistToDisk(payload).catch((err) => {
-    console.warn('[offline] failed to persist bulk to disk:', err);
+    logger.warn('[offline] failed to persist bulk to disk:', err);
   });
 
   return payload;
@@ -286,7 +287,7 @@ async function loadFromDisk(): Promise<BulkPayload | null> {
     // Discard a payload built by an older slimCard() — forces a fresh rebuild
     // on deploy when the projection/filtering logic has changed.
     if (meta.builderVersion !== BUILDER_VERSION) {
-      console.log(
+      logger.info(
         `[offline] persisted bulk built by builder v${meta.builderVersion ?? 'pre-versioning'}, current is v${BUILDER_VERSION} — rebuilding`
       );
       return null;
@@ -365,7 +366,7 @@ export function getOracleBulkStatus(): BulkStatus {
 export function ensureOracleBulkBuilding(): void {
   if (current || inflight) return;
   void getOracleBulk().catch((err) => {
-    console.warn('[offline] background oracle build failed:', err);
+    logger.warn('[offline] background oracle build failed:', err);
   });
 }
 
@@ -419,7 +420,7 @@ function scheduleDailyRefresh(): void {
 function runDailyRefreshTick(): void {
   if (!current) return;
   refreshOracleBulk().catch((err) => {
-    console.warn('[offline] scheduled oracle refresh failed:', err);
+    logger.warn('[offline] scheduled oracle refresh failed:', err);
   });
 }
 

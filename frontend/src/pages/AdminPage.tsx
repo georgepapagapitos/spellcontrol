@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
@@ -100,7 +101,7 @@ export function AdminPage() {
           decks.find((d) => d.id === query) ||
           decks.find((d) => d.name.toLowerCase().includes(lower));
         if (!deck) {
-          console.warn(`[debug] no deck matching "${query}"`);
+          logger.warn(`[debug] no deck matching "${query}"`);
           return null;
         }
         const rows = deck.cards.map((c) => {
@@ -116,7 +117,7 @@ export function AdminPage() {
             nameMismatch: copy ? copy.name !== c.card.name : false,
           };
         });
-        console.table(rows);
+        logger.table(rows);
         return { deck, rows };
       },
     };
@@ -896,7 +897,7 @@ function RawTab({
 }) {
   const copy = (label: string, value: unknown) => {
     void navigator.clipboard.writeText(JSON.stringify(value, null, 2));
-    console.log(`[admin] copied ${label}:`, value);
+    logger.debug(`[admin] copied ${label}:`, value);
   };
   const download = (filename: string, value: unknown) => {
     const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });

@@ -1,5 +1,6 @@
 // Scryfall-search fallback fill: used when EDHREC pools can't satisfy a slot
 // target. Extracted verbatim from deckGenerator.ts.
+import { logger } from '@/lib/logger';
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { BudgetTracker } from './budgetTracker';
@@ -81,7 +82,7 @@ export async function fillWithScryfall(
 
     return result;
   } catch (error) {
-    console.error(`Scryfall fallback failed for query "${query}":`, error);
+    logger.error(`Scryfall fallback failed for query "${query}":`, error);
     return [];
   }
 }
