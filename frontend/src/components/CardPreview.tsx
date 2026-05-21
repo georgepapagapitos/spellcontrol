@@ -268,10 +268,9 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
-  // Drawer model (ManaBox-style): the sheet itself is the opaque surface
-  // that covers the grid, so there is no separate dimmed backdrop. Swiping
-  // down just translates the opaque sheet back off-screen, revealing the
-  // undimmed collection underneath — no dim to interpolate.
+  // The sheet is a transparent transform carrier: only its opaque children
+  // (card image + info panel) visibly rise. The dim sits on the backdrop,
+  // which stays put and just fades in/out (.is-closing).
   const sheetStyle = {
     transform: `translateY(${dragY}px)`,
     ...exitStyle,
@@ -279,7 +278,7 @@ export function CardPreview({
 
   return (
     <div
-      className="card-preview-backdrop"
+      className={`card-preview-backdrop${isClosing ? ' is-closing' : ''}`}
       onClick={() => beginClose()}
       role="dialog"
       aria-modal="true"
