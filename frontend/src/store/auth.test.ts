@@ -66,3 +66,31 @@ describe('logout', () => {
     expect(stopSpy).toHaveBeenCalled();
   });
 });
+
+describe('deleteAccount', () => {
+  it('signs out and wipes local state on success', async () => {
+    useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });
+    const delSpy = vi.spyOn(authApi, 'deleteAccount').mockResolvedValue();
+    const flushSpy = vi.spyOn(sync, 'flushSync').mockResolvedValue();
+    const stopSpy = vi.spyOn(sync, 'stopSyncAndWipeLocal').mockResolvedValue();
+    const ok = await useAuth.getState().deleteAccount();
+    expect(ok).toBe(true);
+    expect(delSpy).toHaveBeenCalled();
+    // Must NOT flush pending writes — that would re-push deleted data.
+    expect(flushSpy).not.toHaveBeenCalled();
+    expect(stopSpy).toHaveBeenCalled();
+    expect(useAuth.getState().status).toBe('guest');
+    expect(useAuth.getState().user).toBeNull();
+  });
+
+  it('keeps the user signed in and surfaces the error when the API fails', async () => {
+    useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });
+    vi.spyOn(authApi, 'deleteAccount').mockRejectedValue(new Error('Not authenticated.'));
+    const stopSpy = vi.spyOn(sync, 'stopSyncAndWipeLocal').mockResolvedValue();
+    const ok = await useAuth.getState().deleteAccount();
+    expect(ok).toBe(false);
+    expect(stopSpy).not.toHaveBeenCalled();
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().error).toMatch(/not authenticated/i);
+  });
+});

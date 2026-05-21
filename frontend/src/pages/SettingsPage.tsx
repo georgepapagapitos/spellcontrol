@@ -20,6 +20,7 @@ export function SettingsPage() {
   const userId = useAuth((s) => s.user?.id ?? null);
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const logout = useAuth((s) => s.logout);
+  const deleteAccount = useAuth((s) => s.deleteAccount);
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -37,6 +38,8 @@ export function SettingsPage() {
 
   const [wipeStep, setWipeStep] = useState<0 | 1 | 2>(0);
   const [wipeBusy, setWipeBusy] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
 
@@ -137,6 +140,26 @@ export function SettingsPage() {
 
   async function handleLogout() {
     await logout();
+  }
+
+  async function handleConfirmDelete() {
+    setDeleteBusy(true);
+    try {
+      const ok = await deleteAccount();
+      if (ok) {
+        // The store has already wiped local state and signed out; the app will
+        // route back to the auth screen. A toast would unmount with the page.
+        setDeleteStep(0);
+      } else {
+        toast.show({
+          message: useAuth.getState().error ?? 'Could not delete account.',
+          tone: 'error',
+        });
+        setDeleteStep(0);
+      }
+    } finally {
+      setDeleteBusy(false);
+    }
   }
 
   async function handleApplyUpdate() {
@@ -452,6 +475,25 @@ export function SettingsPage() {
               Delete collection
             </button>
           </div>
+
+          {username && (
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value">Delete account</div>
+                <div className="settings-row-hint">
+                  Permanently deletes your account and all server-side data — collection, binders,
+                  decks, games, backups, and share links. This cannot be undone.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="pill-btn pill-btn-danger"
+                onClick={() => setDeleteStep(1)}
+              >
+                Delete account
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -471,6 +513,24 @@ export function SettingsPage() {
           busy={wipeBusy}
           onAdvance={() => void handleConfirmWipe()}
           onCancel={() => setWipeStep(0)}
+        />
+      )}
+      {deleteStep === 1 && (
+        <DeleteAccountDialog
+          username={username ?? ''}
+          step={1}
+          busy={deleteBusy}
+          onAdvance={() => setDeleteStep(2)}
+          onCancel={() => setDeleteStep(0)}
+        />
+      )}
+      {deleteStep === 2 && (
+        <DeleteAccountDialog
+          username={username ?? ''}
+          step={2}
+          busy={deleteBusy}
+          onAdvance={() => void handleConfirmDelete()}
+          onCancel={() => setDeleteStep(0)}
         />
       )}
       {restorePending && (
@@ -530,6 +590,74 @@ function RestoreConfirmDialog({ backup, busy, onConfirm, onCancel }: RestoreConf
             autoFocus
           >
             {busy ? 'Restoring…' : 'Restore'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface DeleteAccountDialogProps {
+  username: string;
+  step: 1 | 2;
+  busy: boolean;
+  onAdvance: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * Two-step confirmation for permanent account deletion. Step 1 spells out the
+ * scope (every server-side record); step 2 is the final irreversible gate.
+ * Mirrors WipeConfirmDialog so the destructive-action UX is consistent.
+ */
+function DeleteAccountDialog({
+  username,
+  step,
+  busy,
+  onAdvance,
+  onCancel,
+}: DeleteAccountDialogProps) {
+  useLockBodyScroll();
+  const isFinal = step === 2;
+  return (
+    <div className="modal-backdrop" onClick={busy ? undefined : onCancel} role="presentation">
+      <div
+        className="choice-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-account-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="delete-account-title" className="choice-dialog-title">
+          {isFinal ? 'Last chance — delete your account?' : 'Delete your account?'}
+        </h2>
+        <p className="choice-dialog-body">
+          {isFinal ? (
+            <>
+              This permanently deletes <strong>{username}</strong> and erases every server-side
+              record — collection, binders, decks, games, backups, and share links. There is no
+              undo.
+            </>
+          ) : (
+            <>
+              This permanently deletes the account <strong>{username}</strong> and all of its data
+              from the server. Export a backup first (Data → Export full collection) if you want to
+              keep your collection.
+            </>
+          )}
+        </p>
+        <div className="choice-dialog-actions">
+          <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={isFinal ? 'btn btn-danger' : 'btn'}
+            onClick={onAdvance}
+            disabled={busy}
+            autoFocus
+          >
+            {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Continue'}
           </button>
         </div>
       </div>
