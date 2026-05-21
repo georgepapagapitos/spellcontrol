@@ -3,6 +3,7 @@ import {
   register,
   login,
   logout,
+  deleteAccount,
   fetchMe,
   fetchSync,
   putSync,
@@ -61,6 +62,24 @@ describe('logout', () => {
       '/api/auth/logout',
       expect.objectContaining({ method: 'POST' })
     );
+  });
+});
+
+describe('deleteAccount', () => {
+  it('DELETEs /api/auth/me', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ ok: true }));
+    await deleteAccount();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/auth/me',
+      expect.objectContaining({ method: 'DELETE', credentials: 'same-origin' })
+    );
+  });
+
+  it('throws with the server error message on failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'Not authenticated.' }, { status: 401 })
+    );
+    await expect(deleteAccount()).rejects.toThrow(/not authenticated/i);
   });
 });
 

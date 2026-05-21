@@ -47,6 +47,17 @@ export async function logout(): Promise<void> {
   await authedFetch('/api/auth/logout', { method: 'POST' });
 }
 
+/**
+ * Permanently delete the current account and all server-side data. The backend
+ * deletes the `users` row; every user-owned table cascades. The session cookie
+ * is cleared by the response. Callers must NOT flush pending sync writes first
+ * — that would re-push data the user just asked to destroy.
+ */
+export async function deleteAccount(): Promise<void> {
+  const res = await authedFetch('/api/auth/me', { method: 'DELETE' });
+  await handleResponse<{ ok: true }>(res);
+}
+
 export async function fetchMe(): Promise<AuthUser | null> {
   const res = await authedFetch('/api/auth/me', { method: 'GET' });
   if (res.status === 401) return null;
