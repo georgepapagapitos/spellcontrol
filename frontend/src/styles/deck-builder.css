@@ -57,6 +57,22 @@
   overflow-y: auto;
 }
 
+/* Mobile: results dock as a tray pinned above the on-screen keyboard rather
+   than as a popover under the input. The default `resizes-visual` keyboard
+   floats over the layout viewport, so an under-the-input popover would render
+   behind it. `bottom` is set inline from the measured keyboard inset
+   (useVisualViewport); `max-height` is capped to the visible viewport. */
+.commander-search-results--tray {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 50dvh;
+  border-radius: var(--radius) var(--radius) 0 0;
+  z-index: var(--z-keyboard-tray);
+}
+
 .commander-search-loading {
   padding: 0.5rem 0.75rem;
   color: var(--text3);

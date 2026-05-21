@@ -75,10 +75,18 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const collectionCards = useCollectionStore((s) => s.cards);
-  const collectionLegends = useMemo(
-    () => collectionCards.filter(isLegendaryCreature),
-    [collectionCards]
-  );
+  // De-dup by name: the collection stores one row per physical copy, so a
+  // card owned in multiples would otherwise inflate the legend count.
+  const collectionLegends = useMemo(() => {
+    const seen = new Set<string>();
+    const out: EnrichedCard[] = [];
+    for (const c of collectionCards) {
+      if (!isLegendaryCreature(c) || seen.has(c.name)) continue;
+      seen.add(c.name);
+      out.push(c);
+    }
+    return out;
+  }, [collectionCards]);
   const ownedNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name)),
     [collectionLegends]

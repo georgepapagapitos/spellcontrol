@@ -88,6 +88,9 @@
   --z-suggest: 200;
   --z-modal: 1000;
   --z-overlay: 1100;
+  /* Keyboard-docked tray (mobile commander search) — portaled to <body>, so it
+     must clear modal content/overlay it may be opened from inside. */
+  --z-keyboard-tray: 1200;
   --z-tooltip: 9999;
 
   /* ── Safe-area insets ─────────────────────────────────────────────────────
@@ -5292,13 +5295,13 @@ hr {
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
-  /* Drawer model: no dim. The opaque .card-preview-sheet is the surface
-     that covers the grid as it rises; this layer is just a transparent
-     full-viewport hit area (so taps outside the card still close) and the
-     positioning context for the sheet. The collection stays at full
-     brightness underneath and is progressively covered, exactly like
-     ManaBox — not dimmed behind a floating card. */
-  background: transparent;
+  /* Dim scrim. The sheet above is transparent, so this layer supplies the
+     dim that lifts the rising card + panel off the collection grid behind.
+     It fades in on open / out on close (.is-closing) but does NOT slide —
+     only the card and info panel travel, which reads cleaner than the old
+     full-surface drawer. */
+  background: var(--overlay);
+  animation: fade-in 0.3s var(--ease-drawer) backwards;
   z-index: var(--z-overlay);
 }
 
@@ -5312,19 +5315,13 @@ hr {
      info panel clear the status bar / home gesture on native. Zero on web. */
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
-  /* The drawer surface — translucent, not opaque, so a hint of the
-     collection grid reads through behind the card while it still clearly
-     covers it as it rises (a smoked-glass drawer rather than a card over
-     a dim overlay). Deliberately NO backdrop-filter: blurring a
-     full-screen surface while it is mid-slide forces a per-frame backdrop
-     recompute and is the classic cause of a janky drawer. Plain alpha
-     composites cheaply and stays smooth. Tone matches the info panel so
-     the panel reads as part of the same surface. */
-  background: rgba(14, 15, 19, 0.76);
-  /* True bottom-sheet rise on open, modeled on ManaBox: the whole sheet
-     (card + flip row + info panel) translates up from fully off-screen as
-     one cohesive surface — no scale, no per-element fade, no dim —
-     progressively covering the grid. Longer + a smoother, fairly even
+  /* Transparent: the sheet is just the transform carrier. Only its opaque
+     children — the card image and the info panel — visibly rise; the dim
+     behind them is .card-preview-backdrop, which stays put. */
+  background: transparent;
+  /* True bottom-sheet rise on open, modeled on ManaBox: the card + flip row
+     + info panel translate up from fully off-screen together — no scale,
+     no per-element fade. Longer + a smoother, fairly even
      curve with a soft landing (not a front-loaded ease-out) so the eye
      actually tracks the drawer gliding the full distance and settling,
      instead of it covering most of the travel in the first ~80ms and
@@ -5498,6 +5495,18 @@ hr {
   }
 }
 
+/* Backdrop dismissal — mirrors fade-in so the scrim fades out as the sheet
+   slides back down (.is-closing). */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
 /* Full-height bottom-sheet rise. Pure transform (no opacity/scale) so
    the translucent sheet reads as one cohesive surface gliding up and
    progressively covering the grid — the way ManaBox does it — rather
@@ -5538,6 +5547,11 @@ hr {
 .card-preview-sheet.is-closing,
 .binder-pages-sheet.is-closing {
   animation: sheet-fall 0.34s var(--ease-drawer) forwards;
+}
+
+.card-preview-backdrop.is-closing,
+.binder-pages-backdrop.is-closing {
+  animation: fade-out 0.34s var(--ease-drawer) forwards;
 }
 
 .card-preview-track {
@@ -5761,7 +5775,9 @@ hr {
     transition: none;
   }
   .card-preview-sheet,
-  .binder-pages-sheet {
+  .binder-pages-sheet,
+  .card-preview-backdrop,
+  .binder-pages-backdrop {
     animation: none;
   }
   .card-preview-image-skeleton,
@@ -6005,12 +6021,12 @@ hr {
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
-  /* Drawer model, same as .card-preview-backdrop: no dim. The translucent
-     .binder-pages-sheet is the surface that covers the grid as it rises;
-     this layer is just a transparent full-viewport hit area (taps outside
-     the page still close) and the positioning context + sizing-var carrier
-     for the sheet. */
-  background: transparent;
+  /* Dim scrim, same as .card-preview-backdrop: the sheet above is
+     transparent, so this layer supplies the dim and also carries the
+     sizing var (--page-w-ratio drives --slide-size). Fades in/out; does
+     not slide. */
+  background: var(--overlay);
+  animation: fade-in 0.3s var(--ease-drawer) backwards;
   z-index: var(--z-overlay);
 }
 
@@ -6023,13 +6039,9 @@ hr {
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
   will-change: transform;
-  /* The drawer surface — translucent, not opaque, so a hint of the grid
-     reads through behind the page while it still clearly covers it as it
-     rises (smoked-glass drawer, not a page over a dim overlay). Same tone
-     as .card-preview-sheet so the two previews read as one system; no
-     backdrop-filter for the same reason (a full-screen blur recompute
-     mid-slide is the classic janky-drawer cause). */
-  background: rgba(14, 15, 19, 0.76);
+  /* Transparent — see .card-preview-sheet. Only the opaque binder page and
+     info panel visibly rise; the dim is .binder-pages-backdrop. */
+  background: transparent;
   /* Bottom-sheet rise on open — identical to .card-preview-sheet (shared
      keyframe + easing token). Runs once on mount (the component remounts
      each time the flipbook opens); `backwards` pins the off-screen start
