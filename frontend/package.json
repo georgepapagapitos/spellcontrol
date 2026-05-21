@@ -37,6 +37,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@pantrist/capacitor-plugin-ml-kit-text-recognition": "^8.0.0",
+    "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/game-core": "file:../packages/game-core",
     "@tanstack/react-virtual": "^3.13.24",
     "idb": "^8.0.0",

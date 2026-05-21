@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { materializeBinders } from './materialize';
-import type { EnrichedCard, BinderDef, BinderFilter, BinderFilterGroup } from '../types';
+import { materializeBinders } from './materialize.js';
+import type { EnrichedCard, BinderDef, BinderFilter, BinderFilterGroup } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {

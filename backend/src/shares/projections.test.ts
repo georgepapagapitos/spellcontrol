@@ -1,12 +1,51 @@
 import { describe, it, expect } from 'vitest';
 import {
+  findBinderById,
   findDeckById,
   findListById,
+  projectBinder,
   projectCard,
   projectCollection,
   projectDeck,
   projectList,
 } from './projections';
+
+function binderDef(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
+  return {
+    id: 'b-1',
+    name: 'Artifacts',
+    position: 0,
+    filterGroups: [
+      { filter: { typeChips: { chips: [{ value: 'artifact', negate: false }], joiners: [] } } },
+    ],
+    sorts: [{ field: 'color', dir: 'asc' }],
+    pocketSize: 9,
+    doubleSided: false,
+    fixedCapacity: null,
+    color: '#c2a14a',
+    createdAt: 1,
+    updatedAt: 2,
+    ...overrides,
+  };
+}
+
+function card(name: string, typeLine: string): Record<string, unknown> {
+  return {
+    copyId: `copy-${name}`,
+    name,
+    scryfallId: `sf-${name}`,
+    setCode: 'cmr',
+    setName: 'Commander Legends',
+    collectorNumber: '1',
+    rarity: 'uncommon',
+    finish: 'nonfoil',
+    foil: false,
+    purchasePrice: 2,
+    typeLine,
+    sourceFormat: 'manabox',
+    sourceCategory: 'Box',
+  };
+}
 
 describe('projectCard', () => {
   it('returns null on non-objects', () => {
@@ -120,16 +159,74 @@ describe('projectDeck', () => {
   });
 });
 
-describe('findListById / findDeckById', () => {
+describe('findListById / findDeckById / findBinderById', () => {
   it('finds nested resources by id', () => {
     const col = { lists: [{ id: 'a' }, { id: 'b', name: 'b' }] };
     expect(findListById(col, 'b')).toMatchObject({ id: 'b' });
     expect(findListById(col, 'missing')).toBeUndefined();
+    expect(findBinderById([{ id: 'b-1' }, { id: 'b-2' }], 'b-2')).toMatchObject({ id: 'b-2' });
+    expect(findBinderById([{ id: 'b-1' }], 'nope')).toBeUndefined();
   });
 
   it('returns null for malformed inputs', () => {
     expect(findListById(null, 'x')).toBeNull();
     expect(findDeckById(null, 'x')).toBeNull();
     expect(findDeckById('not-an-array', 'x')).toBeNull();
+    expect(findBinderById(null, 'x')).toBeNull();
+    expect(findBinderById('not-an-array', 'x')).toBeNull();
+  });
+});
+
+describe('projectBinder', () => {
+  const collection = {
+    cards: [
+      card('Sol Ring', 'Artifact'),
+      card('Arcane Signet', 'Artifact'),
+      card('Llanowar Elves', 'Creature — Elf Druid'),
+    ],
+  };
+
+  it('returns null for a malformed or missing binders array', () => {
+    expect(projectBinder('alice', 'b-1', collection, null)).toBeNull();
+    expect(projectBinder('alice', 'b-1', collection, 'nope')).toBeNull();
+    expect(projectBinder('alice', 'missing', collection, [binderDef()])).toBeNull();
+  });
+
+  it('materializes the binder and projects only its matched cards', () => {
+    const out = projectBinder('alice', 'b-1', collection, [binderDef()]);
+    expect(out).not.toBeNull();
+    const o = out!;
+    expect(o.ownerUsername).toBe('alice');
+    expect(o.name).toBe('Artifacts');
+    expect(o.color).toBe('#c2a14a');
+    expect(o.updatedAt).toBe(2);
+    // The artifact filter routes the two artifacts in, not the creature.
+    expect(o.totalCards).toBe(2);
+    const names = o.sections.flatMap((s) => s.cards.map((c) => c.name)).sort();
+    expect(names).toEqual(['Arcane Signet', 'Sol Ring']);
+    expect(o.totalValue).toBe(4);
+    // Internal per-copy fields are stripped by projectCard.
+    const first = o.sections[0].cards[0];
+    expect('copyId' in first).toBe(false);
+    expect('sourceFormat' in first).toBe(false);
+  });
+
+  it('honors first-match-wins routing across multiple binders', () => {
+    // An earlier (lower position) catch-all binder claims the artifacts, so
+    // the shared b-1 binder ends up empty.
+    const catchAll = binderDef({
+      id: 'b-0',
+      name: 'Everything',
+      position: -1,
+      filterGroups: [{ filter: {} }],
+    });
+    const out = projectBinder('alice', 'b-1', collection, [catchAll, binderDef()]);
+    expect(out?.totalCards).toBe(0);
+  });
+
+  it('returns an empty binder when the owner has no collection', () => {
+    const out = projectBinder('alice', 'b-1', null, [binderDef()]);
+    expect(out?.totalCards).toBe(0);
+    expect(out?.sections).toEqual([]);
   });
 });
