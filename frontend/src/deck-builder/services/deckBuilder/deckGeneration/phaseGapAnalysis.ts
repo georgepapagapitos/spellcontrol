@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import { getCardsByNames, getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
@@ -57,7 +58,7 @@ export async function gapAnalysisPhase(
         })
         .filter((c) => c.price !== null);
 
-      console.log(
+      logger.debug(
         `[DeckGen] Gap analysis: ${gapAnalysis.length} cards suggested (${gapAnalysis.filter((c) => c.isOwned).length} owned)`
       );
     }

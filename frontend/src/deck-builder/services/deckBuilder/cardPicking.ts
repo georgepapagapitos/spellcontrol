@@ -1,5 +1,6 @@
 // EDHREC card-pool selection: priority scoring and the two prefetched-map
 // pickers (flat + curve-aware). Extracted verbatim from deckGenerator.ts.
+import { logger } from '@/lib/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
@@ -221,7 +222,7 @@ export function pickFromPrefetchedWithCurve(
 
   // Log high synergy card info for debugging
   if (highSynergyCards.length > 0 && expectedType) {
-    console.log(
+    logger.debug(
       `[DeckGen] ${expectedType}: Found ${highSynergyCards.length} high-synergy cards:`,
       highSynergyCards
         .slice(0, 5)

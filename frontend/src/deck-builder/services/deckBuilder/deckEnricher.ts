@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type {
   ScryfallCard,
   DeckCategory,
@@ -342,11 +343,11 @@ export async function enrichDeckCards(
       }
       cardRelevancyMap = relMap;
 
-      console.log(
+      logger.debug(
         `[Enricher] Built inclusion map (${Object.keys(inclMap).length} cards, score ${deckScore}) + relevancy map (${Object.keys(relMap).length} cards) from EDHREC`
       );
     } catch (err) {
-      console.warn(
+      logger.warn(
         '[Enricher] Failed to fetch EDHREC data — skipping inclusion/relevancy maps',
         err
       );

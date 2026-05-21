@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import type {
   AppState,
@@ -220,7 +221,7 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
     if (result.success) {
       set({ generatedDeck: result.deck });
     } else {
-      console.warn('[DeckBuilder] swap failed:', result.error);
+      logger.warn('[DeckBuilder] swap failed:', result.error);
     }
   },
 

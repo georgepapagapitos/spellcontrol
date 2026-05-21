@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type {
   EDHRECTheme,
   EDHRECCard,
@@ -409,8 +410,8 @@ function parseEdhrecResponse(response: RawEDHRECResponse, cacheKey: string): EDH
  */
 function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardlists'] {
   const rawCardLists = response.container?.json_dict?.cardlists || [];
-  console.log('[EDHREC] Raw cardlists count:', rawCardLists.length);
-  console.log(
+  logger.debug('[EDHREC] Raw cardlists count:', rawCardLists.length);
+  logger.debug(
     '[EDHREC] Available tags:',
     rawCardLists.map((l: RawCardList) => l.tag)
   );
@@ -435,7 +436,7 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
     if (!list.cardviews || list.cardviews.length === 0) continue;
 
     const tag = list.tag.toLowerCase();
-    console.log(`[EDHREC] Processing list "${list.tag}" with ${list.cardviews.length} cards`);
+    logger.debug(`[EDHREC] Processing list "${list.tag}" with ${list.cardviews.length} cards`);
 
     // Determine the type this tag implies (if any)
     const TAG_TYPE_MAP: Record<string, string> = {
@@ -523,7 +524,7 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
     cardlists[key].sort((a, b) => b.inclusion - a.inclusion);
   }
 
-  console.log('[EDHREC] Categorized cards by tag:', {
+  logger.debug('[EDHREC] Categorized cards by tag:', {
     creatures: cardlists.creatures.length,
     instants: cardlists.instants.length,
     sorceries: cardlists.sorceries.length,
@@ -535,7 +536,7 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
   });
 
   if (cardlists.creatures.length > 0) {
-    console.log('[EDHREC] Sample creature:', cardlists.creatures[0]);
+    logger.debug('[EDHREC] Sample creature:', cardlists.creatures[0]);
   }
 
   return cardlists;
@@ -601,7 +602,7 @@ export async function fetchCommanderData(
 
     return parseEdhrecResponse(response, cacheKey);
   } catch (error) {
-    console.error('Failed to fetch EDHREC commander data:', error);
+    logger.error('Failed to fetch EDHREC commander data:', error);
     throw error;
   }
 }
@@ -639,16 +640,16 @@ export async function fetchPartnerCommanderData(
       const response = await edhrecFetch<RawEDHRECResponse>(
         `/pages/commanders/${slug}${bracketSuffix}${budgetSuffix}.json`
       );
-      console.log(
+      logger.debug(
         `[EDHREC] Found partner page: /pages/commanders/${slug}${bracketSuffix}${budgetSuffix}.json`
       );
       return parseEdhrecResponse(response, cacheKey);
     } catch {
-      console.log(`[EDHREC] No partner page at ${slug}${bracketSuffix}${budgetSuffix}`);
+      logger.debug(`[EDHREC] No partner page at ${slug}${bracketSuffix}${budgetSuffix}`);
     }
   }
 
-  console.log(`[EDHREC] No partner page found, merging individual data`);
+  logger.debug(`[EDHREC] No partner page found, merging individual data`);
 
   // Fallback: fetch both individually and merge
   const [data1, data2] = await Promise.all([
@@ -801,7 +802,7 @@ export async function fetchCommanderThemeData(
 
     return data;
   } catch (error) {
-    console.error(`Failed to fetch EDHREC theme data for ${themeSlug}:`, error);
+    logger.error(`Failed to fetch EDHREC theme data for ${themeSlug}:`, error);
     throw error;
   }
 }
@@ -839,7 +840,7 @@ export async function fetchPartnerThemeData(
       const response = await edhrecFetch<RawEDHRECResponse>(
         `/pages/commanders/${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}.json`
       );
-      console.log(
+      logger.debug(
         `[EDHREC] Found partner theme page: ${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}`
       );
 
@@ -881,7 +882,7 @@ export async function fetchPartnerThemeData(
     }
   }
 
-  console.log(`[EDHREC] No partner theme page found, falling back to primary commander`);
+  logger.debug(`[EDHREC] No partner theme page found, falling back to primary commander`);
   // Fallback: use primary commander's theme data
   return fetchCommanderThemeData(commander1, themeSlug, budgetOption, bracketLevel);
 }
@@ -923,7 +924,7 @@ export async function fetchPartnerPopularity(commanderName: string): Promise<Map
     partnerPopularityCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   } catch (error) {
-    console.error(`[EDHREC] Failed to fetch partner popularity for ${commanderName}:`, error);
+    logger.error(`[EDHREC] Failed to fetch partner popularity for ${commanderName}:`, error);
     return new Map();
   }
 }
@@ -960,7 +961,7 @@ export function fetchSaltIndex(): Promise<Map<string, number>> {
       }
       return out;
     } catch (err) {
-      console.warn('[EDHREC] Failed to fetch salt index:', err);
+      logger.warn('[EDHREC] Failed to fetch salt index:', err);
       saltIndexPromise = null; // allow retry next time
       return new Map<string, number>();
     }
@@ -1114,7 +1115,7 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
     topCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
     return commanders;
   } catch (error) {
-    console.warn(`[EDHREC] Failed to fetch top commanders for "${slug}":`, error);
+    logger.warn(`[EDHREC] Failed to fetch top commanders for "${slug}":`, error);
     return cached?.data ?? [];
   }
 }
@@ -1178,7 +1179,7 @@ export async function fetchPlaystyleCommanders(tagSlug: string): Promise<EDHRECT
     playstyleCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
     return commanders;
   } catch (error) {
-    console.warn(`[EDHREC] Failed to fetch play-style commanders for "${key}":`, error);
+    logger.warn(`[EDHREC] Failed to fetch play-style commanders for "${key}":`, error);
     return cached?.data ?? [];
   }
 }
@@ -1261,7 +1262,7 @@ async function fetchAllCommandersForColor(colors: string[]): Promise<EDHRECTopCo
     fullCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
     return commanders;
   } catch (error) {
-    console.warn(`[EDHREC] Failed to fetch all commanders for "${slug}":`, error);
+    logger.warn(`[EDHREC] Failed to fetch all commanders for "${slug}":`, error);
     return cached?.data ?? [];
   }
 }
@@ -1286,11 +1287,11 @@ export async function fetchAverageDeckMultiCopies(
     const themePart = themeSlug ? `/${themeSlug}` : '';
     const url = `${BASE_URL}/pages/average-decks/${formatted}${themePart}.json`;
 
-    console.log(`[EDHREC] Fetching average deck from: ${url}`);
+    logger.debug(`[EDHREC] Fetching average deck from: ${url}`);
 
     const response = await fetch(url);
     if (!response.ok) {
-      console.warn(
+      logger.warn(
         `[EDHREC] Average deck fetch failed (${response.status}) for ${formatted}${themePart}`
       );
       return null;
@@ -1300,7 +1301,7 @@ export async function fetchAverageDeckMultiCopies(
     const deckList: string[] = data?.deck || data?.decklist || [];
 
     if (!Array.isArray(deckList) || deckList.length === 0) {
-      console.warn('[EDHREC] Average deck has no deck array');
+      logger.warn('[EDHREC] Average deck has no deck array');
       return null;
     }
 
@@ -1318,7 +1319,7 @@ export async function fetchAverageDeckMultiCopies(
           // Use the original casing from cardNamesToCheck
           const originalName = cardNamesToCheck.find((n) => n.toLowerCase() === name.toLowerCase());
           result.set(originalName ?? name, quantity);
-          console.log(
+          logger.debug(
             `[EDHREC] Found ${quantity} copies of "${originalName ?? name}" in average deck`
           );
         }
@@ -1327,7 +1328,7 @@ export async function fetchAverageDeckMultiCopies(
 
     return result;
   } catch (error) {
-    console.warn('[EDHREC] Failed to fetch average deck multi-copies:', error);
+    logger.warn('[EDHREC] Failed to fetch average deck multi-copies:', error);
     return null;
   }
 }
@@ -1399,7 +1400,7 @@ export async function fetchCommanderCombos(commanderName: string): Promise<EDHRE
     comboCache.set(slug, { data: combos, timestamp: Date.now() });
     return combos;
   } catch (error) {
-    console.error(`[EDHREC] Failed to fetch combos for ${commanderName}:`, error);
+    logger.error(`[EDHREC] Failed to fetch combos for ${commanderName}:`, error);
     return [];
   }
 }

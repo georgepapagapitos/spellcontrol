@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type {
   ScryfallCard,
   GeneratedDeck,
@@ -210,7 +211,7 @@ function isCacheValid(context: GenerationContext): boolean {
 
 export function clearGenerationCache(): void {
   generationCache = null;
-  console.log('[DeckGen] Generation cache cleared');
+  logger.debug('[DeckGen] Generation cache cleared');
 }
 
 /** Expose the cached EDHREC data from the most recent generation (avoids re-fetching). */
@@ -278,21 +279,21 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Merge temporary banned cards
   const tempBanned = customization.tempBannedCards ?? [];
   if (tempBanned.length > 0) {
-    console.log(`[DeckGen] Temp banned cards:`, tempBanned);
+    logger.debug(`[DeckGen] Temp banned cards:`, tempBanned);
     tempBanned.forEach(markBanned);
   }
-  console.log(
+  logger.debug(
     `[DeckGen] Budget settings: deckBudget=${deckBudget}, maxCardPrice=${maxCardPrice}, budgetOption=${budgetOption}, currency=${currency}${ignoreOwnedBudget ? ', ignoring owned for budget' : ''}${ignoreOwnedRarity ? ', ignoring owned for rarity' : ''}`
   );
 
   // Log banned cards if any
   if (bannedCards.size > 0) {
-    console.log(`[DeckGen] Excluding ${bannedCards.size} banned cards:`, [...bannedCards]);
+    logger.debug(`[DeckGen] Excluding ${bannedCards.size} banned cards:`, [...bannedCards]);
   }
 
   // Log collection mode
   if (context.collectionNames) {
-    console.log(
+    logger.debug(
       `[DeckGen] Collection mode (${collectionStrategy}${collectionStrategy === 'partial' ? `, ${collectionOwnedPercent}%` : ''}): ${collectionStrategy === 'full' ? 'restricting to' : 'prioritizing'} ${context.collectionNames.size} owned cards`
     );
   }
@@ -307,7 +308,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   const usingCache = isCacheValid(context);
 
   if (usingCache) {
-    console.log('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
+    logger.debug('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
     onProgress?.('Restarting from cached data', 5);
     state.gameChangerNames = generationCache!.gameChangerNames;
     state.combos = generationCache!.combos;
@@ -329,8 +330,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     state.gameChangerNames = fetchedGCNames;
     state.combos = fetchedCombos;
     onProgress?.('Loading card role data', 7);
-    console.log(`[DeckGen] Fetched ${state.combos.length} combos from EDHREC`);
-    console.log(
+    logger.debug(`[DeckGen] Fetched ${state.combos.length} combos from EDHREC`);
+    logger.debug(
       `[DeckGen] Tagger data: ${hasTaggerData() ? 'loaded' : 'unavailable (role detection disabled)'}`
     );
   }
@@ -373,7 +374,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       .sort((a, b) => b.score - a.score);
 
     const combosToAttempt = scoredCombos.slice(0, comboSliceCount).map((s) => s.combo);
-    console.log(
+    logger.debug(
       `[DeckGen] Combo selection (top ${comboSliceCount} of ${scoredCombos.length}):`,
       scoredCombos.slice(0, comboSliceCount).map((s) => {
         const avgIncl =
@@ -397,11 +398,11 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ([, boost]) => boost > staticBoost
     );
     if (multiComboCards.length > 0) {
-      console.log(
+      logger.debug(
         `[DeckGen] Multi-combo enablers: ${multiComboCards.map(([name, boost]) => `${name} (${boost / staticBoost} combos, ${boost}pts)`).join(', ')}`
       );
     }
-    console.log(
+    logger.debug(
       `[DeckGen] Combo priority boost applied to ${staticComboBoosts.size} unique cards from top ${combosToAttempt.length} combos (static boost: ${staticBoost}pts)`
     );
   }
@@ -442,7 +443,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Temporary must-include cards (from combo panel)
   const tempIncludes = customization.tempMustIncludeCards ?? [];
   if (tempIncludes.length > 0) {
-    console.log(`[DeckGen] Temp must-include cards:`, tempIncludes);
+    logger.debug(`[DeckGen] Temp must-include cards:`, tempIncludes);
     for (const name of tempIncludes) {
       addMustInclude(name, 'combo');
     }
@@ -450,7 +451,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
   if (mustIncludeNames.length > 0) {
     onProgress?.('Adding pinned cards', 3);
-    console.log(
+    logger.debug(
       `[DeckGen] Processing ${mustIncludeNames.length} must-include cards:`,
       mustIncludeNames
     );
@@ -461,7 +462,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     for (const name of mustIncludeNames) {
       const card = mustIncludeMap.get(name);
       if (!card) {
-        console.warn(`[DeckGen] Must-include card not found: "${name}"`);
+        logger.warn(`[DeckGen] Must-include card not found: "${name}"`);
         continue;
       }
 
@@ -471,20 +472,20 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         mustIncludeSources.get(name) === 'combo' &&
         notInCollection(name, context.collectionNames)
       ) {
-        console.log(`[DeckGen] Must-include combo card "${name}" skipped (not in collection)`);
+        logger.debug(`[DeckGen] Must-include combo card "${name}" skipped (not in collection)`);
         continue;
       }
 
       // Skip cards that don't fit the commander's color identity
       if (!fitsColorIdentity(card, colorIdentity)) {
-        console.log(`[DeckGen] Must-include card "${name}" skipped (color identity mismatch)`);
+        logger.debug(`[DeckGen] Must-include card "${name}" skipped (color identity mismatch)`);
         continue;
       }
 
       // Skip cards that exceed the max rarity limit
       if (!isOwnedRarityExempt(name, context.collectionNames, ignoreOwnedRarity)) {
         if (exceedsMaxRarity(card, maxRarity)) {
-          console.warn(
+          logger.warn(
             `[DeckGen] Must-include card "${name}" skipped (rarity "${card.rarity}" exceeds max "${maxRarity}")`
           );
           continue;
@@ -493,7 +494,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
       // Skip non-land cards that exceed the CMC cap (Tiny Leaders)
       if (exceedsCmcCap(card, maxCmc)) {
-        console.warn(
+        logger.warn(
           `[DeckGen] Must-include card "${name}" skipped (CMC ${card.cmc} exceeds max ${maxCmc})`
         );
         continue;
@@ -501,7 +502,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
       // Skip cards not available on Arena when arena-only mode is enabled
       if (notOnArena(card, arenaOnly)) {
-        console.warn(`[DeckGen] Must-include card "${name}" skipped (not available on Arena)`);
+        logger.warn(`[DeckGen] Must-include card "${name}" skipped (not available on Arena)`);
         continue;
       }
 
@@ -546,7 +547,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       }
     }
 
-    console.log(`[DeckGen] Added ${addedCount} must-include cards to deck`);
+    logger.debug(`[DeckGen] Added ${addedCount} must-include cards to deck`);
 
     // Cross-reference must-include cards with Scryfall game changer list
     const allAdded = Object.values(categories).flat();
@@ -557,7 +558,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       }
     }
     if (gameChangerCount.value > 0) {
-      console.log(`[DeckGen] ${gameChangerCount.value} must-include card(s) are game changers`);
+      logger.debug(`[DeckGen] ${gameChangerCount.value} must-include card(s) are game changers`);
     }
   }
 
@@ -606,7 +607,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       // lacks type distribution data (numDecks=0), fetch base commander stats instead
       let representativeStats = themeDataResults[0].stats;
       if (!representativeStats.numDecks || representativeStats.numDecks === 0) {
-        console.warn(
+        logger.warn(
           '[DeckGen] FALLBACK: Theme endpoint lacks stats (numDecks=0), fetching base commander stats'
         );
         try {
@@ -619,11 +620,11 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
               )
             : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
           representativeStats = baseStatsData.stats;
-          console.log('[DeckGen] FALLBACK: Got stats from base commander+bracket');
+          logger.debug('[DeckGen] FALLBACK: Got stats from base commander+bracket');
         } catch {
           // Try without bracket if bracket-specific base also fails
           if (bracketLevel) {
-            console.warn(
+            logger.warn(
               '[DeckGen] FALLBACK: Base commander+bracket stats failed, trying without bracket'
             );
             try {
@@ -635,14 +636,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
                   )
                 : await fetchCommanderData(commander.name, budgetOption);
               representativeStats = fallbackData.stats;
-              console.log('[DeckGen] FALLBACK: Got stats from base commander (no bracket)');
+              logger.debug('[DeckGen] FALLBACK: Got stats from base commander (no bracket)');
             } catch {
-              console.warn(
+              logger.warn(
                 '[DeckGen] FALLBACK: All stats fetches failed — will use fallback type targets'
               );
             }
           } else {
-            console.warn(
+            logger.warn(
               '[DeckGen] FALLBACK: Base commander stats fetch failed — will use fallback type targets'
             );
           }
@@ -660,7 +661,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       const themeNames = selectedThemesWithSlugs.map((t) => t.name).join(', ');
       onProgress?.(`Loading theme data: ${themeNames}...`, 12);
     } catch (error) {
-      console.warn(
+      logger.warn(
         '[DeckGen] FALLBACK: Theme-specific EDHREC fetch failed, trying base commander+bracket:',
         error
       );
@@ -675,12 +676,12 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             )
           : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
         state.dataSource = bracketLevel ? 'base+bracket' : 'base';
-        console.log('[DeckGen] FALLBACK: Using base commander data (with bracket)');
+        logger.debug('[DeckGen] FALLBACK: Using base commander data (with bracket)');
         onProgress?.('Loading commander data', 12);
       } catch {
         // Fall back to base commander without bracket
         if (bracketLevel) {
-          console.warn(
+          logger.warn(
             '[DeckGen] FALLBACK: Base commander+bracket also failed, trying without bracket'
           );
           try {
@@ -688,16 +689,16 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
               ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
               : await fetchCommanderData(commander.name, budgetOption);
             state.dataSource = 'base';
-            console.log('[DeckGen] FALLBACK: Using base commander data (no bracket)');
+            logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
             onProgress?.('Loading commander data', 12);
           } catch {
-            console.warn(
+            logger.warn(
               '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
             );
             onProgress?.('Falling back to Scryfall search', 12);
           }
         } else {
-          console.warn(
+          logger.warn(
             '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
           );
           onProgress?.('Falling back to Scryfall search', 12);
@@ -719,23 +720,23 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       state.dataSource = bracketLevel ? 'base+bracket' : 'base';
       onProgress?.('Commander data ready', 12);
     } catch (error) {
-      console.warn('[DeckGen] FALLBACK: Base commander+bracket fetch failed:', error);
+      logger.warn('[DeckGen] FALLBACK: Base commander+bracket fetch failed:', error);
       if (bracketLevel) {
         try {
           state.edhrecData = partnerCommander
             ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
             : await fetchCommanderData(commander.name, budgetOption);
           state.dataSource = 'base';
-          console.log('[DeckGen] FALLBACK: Using base commander data (no bracket)');
+          logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
           onProgress?.('Commander data ready', 12);
         } catch {
-          console.warn(
+          logger.warn(
             '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
           );
           onProgress?.('Falling back to Scryfall search', 12);
         }
       } else {
-        console.warn(
+        logger.warn(
           '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
         );
         onProgress?.('Falling back to Scryfall search', 12);
@@ -784,7 +785,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             }
           }
         }
-        console.log('[DeckGen] Salt tolerance "extra": boosting high-salt cards');
+        logger.debug('[DeckGen] Salt tolerance "extra": boosting high-salt cards');
       } else {
         state.edhrecData.cardlists.creatures = filterList(state.edhrecData.cardlists.creatures);
         state.edhrecData.cardlists.instants = filterList(state.edhrecData.cardlists.instants);
@@ -798,7 +799,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         );
         state.edhrecData.cardlists.lands = filterList(state.edhrecData.cardlists.lands);
         state.edhrecData.cardlists.allNonLand = filterList(state.edhrecData.cardlists.allNonLand);
-        console.log(
+        logger.debug(
           `[DeckGen] Salt tolerance "${saltTolerance}" (cap ${saltCap}): trimmed ${trimmed} card slots`
         );
       }
@@ -850,7 +851,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           penalized++;
         }
       }
-      console.log(
+      logger.debug(
         `[DeckGen] Hyper Focus (single theme, base pool: ${baseCardNames.size} cards): boosted ${boosted}, penalized ${penalized}`
       );
     } else {
@@ -869,7 +870,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         }
         staticComboBoosts.set(name, (staticComboBoosts.get(name) ?? 0) + boost);
       }
-      console.log(
+      logger.debug(
         `[DeckGen] Hyper Focus (${numThemes} themes, base pool: ${baseCardNames.size} cards): adjusted ${state.themeOverlapCounts.size} cards`
       );
     }
@@ -889,7 +890,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       representativeStats: state.edhrecData.stats,
       ...key,
     };
-    console.log('[DeckGen] Generation cache populated for fast regeneration');
+    logger.debug('[DeckGen] Generation cache populated for fast regeneration');
   }
 
   // Resolve pacing: user override > auto-detect from EDHREC stats > fallback
@@ -945,21 +946,25 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     // Replace curve targets
     for (const key of Object.keys(curveTargets)) delete curveTargets[parseInt(key)];
     Object.assign(curveTargets, compressed);
-    console.log('[DeckGen] Tiny Leaders: compressed curve targets to CMC <=', maxCmc, curveTargets);
+    logger.debug(
+      '[DeckGen] Tiny Leaders: compressed curve targets to CMC <=',
+      maxCmc,
+      curveTargets
+    );
   }
 
   // Debug: Log expected card counts
   const totalTypeTargets = Object.values(typeTargets).reduce((sum, v) => sum + v, 0);
-  console.log('[DeckGen] Target type counts:', typeTargets);
-  console.log(
+  logger.debug('[DeckGen] Target type counts:', typeTargets);
+  logger.debug(
     '[DeckGen] Total non-land target:',
     totalTypeTargets,
     '(should be ~',
     format === 99 ? 99 - targets.lands : format - 1 - targets.lands,
     ')'
   );
-  console.log('[DeckGen] Target curve:', curveTargets);
-  console.log('[DeckGen] Land target:', targets.lands);
+  logger.debug('[DeckGen] Target curve:', curveTargets);
+  logger.debug('[DeckGen] Land target:', targets.lands);
 
   // Create budget tracker if deck budget is set
   const mustIncludeCards = Object.values(categories).flat();
@@ -1065,7 +1070,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
   }
   if (Object.keys(preFilledTypeCounts).length > 0) {
-    console.log(
+    logger.debug(
       '[DeckGen] Pre-filled type counts (must-include + multi-copy):',
       preFilledTypeCounts
     );
@@ -1146,7 +1151,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       allCardNames.add(name);
     }
 
-    console.log(`[DeckGen] Batch fetching ${allCardNames.size} unique card names`);
+    logger.debug(`[DeckGen] Batch fetching ${allCardNames.size} unique card names`);
 
     // SINGLE BATCH FETCH for all non-land cards
     onProgress?.('Fetching card details from Scryfall', 25);
@@ -1166,7 +1171,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       }
     }
     await upgradeCardPrintings(cardMap, scryfallQuery, true);
-    console.log(`[DeckGen] Batch fetch returned ${cardMap.size} cards (after filtering)`);
+    logger.debug(`[DeckGen] Batch fetch returned ${cardMap.size} cards (after filtering)`);
     scryfallCardMap = cardMap;
 
     // Update generation cache with the cardMap (not used on fast path currently,
@@ -1188,7 +1193,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       }
     }
     if (mdfcLandCount > 0) {
-      console.log(
+      logger.debug(
         `[DeckGen] MDFC land boost applied to ${mdfcLandCount} spell/land cards (+${MDFC_LAND_BOOST} priority)`
       );
     }
@@ -1205,7 +1210,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       }
     }
     if (channelLandCount > 0) {
-      console.log(
+      logger.debug(
         `[DeckGen] Channel land boost applied to ${channelLandCount} Kamigawa lands (+${CHANNEL_LAND_BOOST} priority)`
       );
     }
@@ -1243,7 +1248,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         }
       }
       if (injected > 0) {
-        console.log(`[DeckGen] Injected ${injected} combo pieces into type pools`);
+        logger.debug(`[DeckGen] Injected ${injected} combo pieces into type pools`);
       }
     }
 
@@ -1316,11 +1321,11 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         }
       }
 
-      console.log(
+      logger.debug(
         `[DeckGen] Balanced Roles: ${cardRoleMap.size} candidates mapped, targets:`,
         roleTargets
       );
-      console.log(`[DeckGen] Balanced Roles: pre-filled counts:`, { ...currentRoleCounts });
+      logger.debug(`[DeckGen] Balanced Roles: pre-filled counts:`, { ...currentRoleCounts });
     }
     // ---- End balanced roles setup ----
 
@@ -1330,7 +1335,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
     // Now process each type synchronously using the pre-fetched cards
     // 1. Creatures
-    console.log(
+    logger.debug(
       `[DeckGen] Creatures: need ${creatureTarget}, pool has ${creaturePool.length} cards`
     );
     onProgress?.('Selecting creatures', 35);
@@ -1384,12 +1389,12 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
       }
     }
-    console.log(`[DeckGen] Creatures: got ${creatures.length} from EDHREC`);
+    logger.debug(`[DeckGen] Creatures: got ${creatures.length} from EDHREC`);
 
     // Fill remaining creatures from Scryfall if needed (use original target since categories include must-includes)
     if (categories.creatures.length < originalCreatureTarget) {
       const needed = originalCreatureTarget - categories.creatures.length;
-      console.log(`[DeckGen] FALLBACK: Need ${needed} more creatures from Scryfall`);
+      logger.debug(`[DeckGen] FALLBACK: Need ${needed} more creatures from Scryfall`);
       const moreCreatures = await fillWithScryfall(
         't:creature',
         colorIdentity,
@@ -1409,7 +1414,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         ignoreOwnedRarity
       );
       categories.creatures.push(...moreCreatures);
-      console.log(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
+      logger.debug(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
       for (const card of moreCreatures) {
         const cmc = Math.min(Math.floor(card.cmc), 7);
         currentCurveCounts[cmc] = (currentCurveCounts[cmc] ?? 0) + 1;
@@ -1417,7 +1422,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     // 2. Instants
-    console.log(`[DeckGen] Instants: need ${instantTarget}, pool has ${instantPool.length} cards`);
+    logger.debug(`[DeckGen] Instants: need ${instantTarget}, pool has ${instantPool.length} cards`);
     onProgress?.('Selecting instants', 45);
     const instantBoosts = roleTargets
       ? computeRoleBoosts(
@@ -1458,7 +1463,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedBudget,
       ignoreOwnedRarity
     );
-    console.log(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
+    logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
     for (const card of instants) {
       const role = cardRoleMap.get(card.name);
@@ -1472,7 +1477,9 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     // 3. Sorceries
-    console.log(`[DeckGen] Sorceries: need ${sorceryTarget}, pool has ${sorceryPool.length} cards`);
+    logger.debug(
+      `[DeckGen] Sorceries: need ${sorceryTarget}, pool has ${sorceryPool.length} cards`
+    );
     onProgress?.('Selecting sorceries', 55);
     const sorceryBoosts = roleTargets
       ? computeRoleBoosts(
@@ -1513,7 +1520,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedBudget,
       ignoreOwnedRarity
     );
-    console.log(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
+    logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
     for (const card of sorceries) {
       const role = cardRoleMap.get(card.name);
@@ -1527,7 +1534,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     // 4. Artifacts
-    console.log(
+    logger.debug(
       `[DeckGen] Artifacts: need ${artifactTarget}, pool has ${artifactPool.length} cards`
     );
     onProgress?.('Selecting artifacts', 62);
@@ -1570,7 +1577,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedBudget,
       ignoreOwnedRarity
     );
-    console.log(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
+    logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
     for (const card of artifacts) {
       const role = cardRoleMap.get(card.name);
@@ -1584,7 +1591,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     // 5. Enchantments
-    console.log(
+    logger.debug(
       `[DeckGen] Enchantments: need ${enchantmentTarget}, pool has ${enchantmentPool.length} cards`
     );
     onProgress?.('Selecting enchantments', 68);
@@ -1627,7 +1634,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedBudget,
       ignoreOwnedRarity
     );
-    console.log(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
+    logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
     for (const card of enchantments) {
       const role = cardRoleMap.get(card.name);
@@ -1641,7 +1648,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     // 6. Planeswalkers
-    console.log(
+    logger.debug(
       `[DeckGen] Planeswalkers: need ${planeswalkerTarget}, pool has ${planeswalkerPool.length} cards`
     );
     if (planeswalkerPool.length > 0 && planeswalkerTarget > 0) {
@@ -1685,7 +1692,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         ignoreOwnedBudget,
         ignoreOwnedRarity
       );
-      console.log(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
+      logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
       for (const card of planeswalkers) {
         const role = cardRoleMap.get(card.name);
@@ -1701,7 +1708,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
     // Log balanced roles result
     if (roleTargets) {
-      console.log(
+      logger.debug(
         `[DeckGen] Balanced Roles: final counts:`,
         { ...currentRoleCounts },
         'vs targets:',
@@ -1726,7 +1733,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     const nonbasicTarget = Math.min(remainingNonBasicBudget, adjustedLandTarget);
     const basicCount = Math.max(0, adjustedLandTarget - nonbasicTarget);
 
-    console.log('[DeckGen] Land targets (from user preference):', {
+    logger.debug('[DeckGen] Land targets (from user preference):', {
       totalLandTarget: targets.lands,
       mustIncludeLands: mustIncludeLands.length,
       adjustedLandTarget,
@@ -1736,7 +1743,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     });
 
     if (cardlists.lands.length > 0) {
-      console.log(
+      logger.debug(
         '[DeckGen] Sample EDHREC lands:',
         cardlists.lands.slice(0, 3).map((l) => l.name)
       );
@@ -1782,7 +1789,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     ];
 
     // Log category counts after EDHREC selection
-    console.log('[DeckGen] After EDHREC selection - Category counts:', {
+    logger.debug('[DeckGen] After EDHREC selection - Category counts:', {
       creatures: categories.creatures.length,
       ramp: categories.ramp.length,
       cardDraw: categories.cardDraw.length,
@@ -1810,7 +1817,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       15,
       ignoreOwnedRarity
     );
-    console.log(
+    logger.debug(
       `[DeckGen] Swap candidates: ${Object.entries(swapCandidates)
         .filter(([, v]) => v.length > 0)
         .map(([k, v]) => `${k}=${v.length}`)
@@ -1818,7 +1825,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     );
   } else {
     // Fallback to Scryfall-based generation (no EDHREC data available)
-    console.warn(
+    logger.warn(
       '[DeckGen] FALLBACK: No EDHREC data — using Scryfall-only generation with fallback type targets'
     );
     onProgress?.('Selecting ramp', 20);
@@ -2208,7 +2215,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   currentCount = countAllCards();
   if (currentCount < targetDeckSize) {
     const shortage = targetDeckSize - currentCount;
-    console.log(
+    logger.debug(
       `[DeckGen] Deck shortage: need ${shortage} more cards (have ${currentCount}, need ${targetDeckSize})`
     );
 
@@ -2226,7 +2233,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           )
         : maxCardPrice;
     if (budgetTracker) {
-      console.log(
+      logger.debug(
         `[DeckGen] Budget exhausted — filling remaining slots with relaxed cap: $${shortagePriceCap?.toFixed(2) ?? 'none'}`
       );
     }
@@ -2238,7 +2245,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
         .sort((a, b) => b.inclusion - a.inclusion);
 
-      console.log(
+      logger.debug(
         `[DeckGen] Found ${remainingEdhrecCards.length} remaining EDHREC cards to fill shortage`
       );
 
@@ -2361,14 +2368,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         }
       }
 
-      console.log(`[DeckGen] Filled ${filled} cards from remaining EDHREC suggestions`);
+      logger.debug(`[DeckGen] Filled ${filled} cards from remaining EDHREC suggestions`);
     }
 
     // If still short after EDHREC, use Scryfall — fill by type to stay balanced
     currentCount = countAllCards();
     if (currentCount < targetDeckSize) {
       const stillNeeded = targetDeckSize - currentCount;
-      console.log(`[DeckGen] Still need ${stillNeeded} more cards, using Scryfall fallback`);
+      logger.debug(`[DeckGen] Still need ${stillNeeded} more cards, using Scryfall fallback`);
 
       // Calculate current type counts to figure out which types are most under-target
       const currentTypeCounts: Record<string, number> = {};
@@ -2420,7 +2427,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         .filter((d) => d.deficit > 0)
         .sort((a, b) => b.deficit - a.deficit);
 
-      console.log(
+      logger.debug(
         '[DeckGen] Shortfall type deficits:',
         typeDeficits.map((d) => `${d.type}: ${d.deficit}`).join(', ') || 'none'
       );
@@ -2458,7 +2465,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       // If still short after typed fills, use generic query as absolute last resort
       if (filled < stillNeeded) {
         const remaining = stillNeeded - filled;
-        console.warn(
+        logger.warn(
           `[DeckGen] FALLBACK: Typed shortfall fills not enough (got ${filled}/${stillNeeded}), using generic query for ${remaining} remaining`
         );
         const moreCards = await fillWithScryfall(
@@ -2483,7 +2490,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         filled += moreCards.length;
       }
 
-      console.log(`[DeckGen] Filled ${filled} cards from Scryfall shortfall`);
+      logger.debug(`[DeckGen] Filled ${filled} cards from Scryfall shortfall`);
     }
 
     // If STILL short, add basic lands as absolute last resort
@@ -2491,7 +2498,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     if (currentCount < targetDeckSize) {
       const remainingShortage = targetDeckSize - currentCount;
       basicLandFillCount = remainingShortage;
-      console.log(`[DeckGen] Still need ${remainingShortage} more cards, adding basic lands`);
+      logger.debug(`[DeckGen] Still need ${remainingShortage} more cards, adding basic lands`);
 
       const basicTypes: Record<string, string> = {
         W: 'Plains',
@@ -2577,7 +2584,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Final verification - log warning if still wrong
   const finalCount = countAllCards();
   if (finalCount !== targetDeckSize) {
-    console.warn(
+    logger.warn(
       `[DeckGen] Final deck size mismatch: got ${finalCount}, expected ${targetDeckSize}`
     );
   }
@@ -2590,10 +2597,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       return sum + (p ? parseFloat(p) || 0 : 0);
     }, 0);
     const sym = currency === 'EUR' ? '€' : '$';
-    console.log(
+    logger.debug(
       `[BudgetTracker] Final: deck cards ${sym}${totalSpent.toFixed(2)} (budget: ${sym}${deckBudget}, excludes commander cost)`
     );
-    console.log(
+    logger.debug(
       `[BudgetTracker] Remaining: $${budgetTracker.remainingBudget.toFixed(2)}, cards left: ${budgetTracker.cardsRemaining}`
     );
   }
@@ -2734,7 +2741,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           for (const dc of detectedCombos) {
             if (dc.isComplete) for (const n of dc.cards) completeComboCards.add(n);
           }
-          console.log(
+          logger.debug(
             `[DeckGen] Combo audit: added multi-combo enabler ${name} (completes ${combosCompleted} combos) → evicted ${weak.card.name} (${auditInclusion.get(weak.card.name) ?? 0}%)`
           );
         }
@@ -2798,7 +2805,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           auditSwaps++;
         }
         if (ok) {
-          console.log(
+          logger.debug(
             `[DeckGen] Combo audit: completed combo ${dc.comboId} → added ${missingResolved.map((c) => c.name).join(', ')}`
           );
           dc.isComplete = true;
@@ -2830,7 +2837,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           auditRemove(found.card, found.category);
           auditAdd(scryfallCardMap.get(replacement.name)!);
           auditSwaps++;
-          console.log(
+          logger.debug(
             `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
           );
         }
@@ -2860,7 +2867,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         })
         .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
       if (detectedCombos.length === 0) detectedCombos = undefined;
-      console.log(`[DeckGen] Combo audit complete: ${auditSwaps} swap(s) applied`);
+      logger.debug(`[DeckGen] Combo audit complete: ${auditSwaps} swap(s) applied`);
     }
   }
 
@@ -3016,7 +3023,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     if (fixupSwaps > 0) {
-      console.log(`[DeckGen] Fixup pass: ${fixupSwaps} swap(s) applied`);
+      logger.debug(`[DeckGen] Fixup pass: ${fixupSwaps} swap(s) applied`);
     }
   }
 
@@ -3054,7 +3061,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     cardInclusionMap,
     colorIdentity: context.colorIdentity,
   });
-  console.log(
+  logger.debug(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
 

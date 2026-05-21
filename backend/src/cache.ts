@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -63,7 +64,7 @@ export class ScryfallCache {
       }
       return result;
     } catch (err) {
-      console.error('[cache] getMany failed, treating as cache miss:', err);
+      logger.error('[cache] getMany failed, treating as cache miss:', err);
       return new Map();
     }
   }
@@ -79,7 +80,7 @@ export class ScryfallCache {
       });
       insert(cards);
     } catch (err) {
-      console.error('[cache] setMany failed, cards will not be cached:', err);
+      logger.error('[cache] setMany failed, cards will not be cached:', err);
     }
   }
 
@@ -93,7 +94,7 @@ export class ScryfallCache {
       ).n;
       return { total, fresh };
     } catch (err) {
-      console.error('[cache] stats query failed:', err);
+      logger.error('[cache] stats query failed:', err);
       return { total: -1, fresh: -1 };
     }
   }

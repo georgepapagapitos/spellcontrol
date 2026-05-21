@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
@@ -62,7 +63,7 @@ offlineRouter.get('/manifest', async (_req: Request, res: Response) => {
     res.set('Cache-Control', 'public, max-age=300');
     res.json(manifest);
   } catch (err) {
-    console.error('[offline] manifest failed:', err);
+    logger.error('[offline] manifest failed:', err);
     res.status(503).json({ error: 'Offline data not yet available. Try again shortly.' });
   }
 });
@@ -113,7 +114,7 @@ offlineRouter.get('/combos', bulkLimiter, async (req: Request, res: Response) =>
     });
     res.send(bulk.gzipped);
   } catch (err) {
-    console.error('[offline] combos failed:', err);
+    logger.error('[offline] combos failed:', err);
     res.status(503).json({ error: 'Offline combos bulk not yet available.' });
   }
 });
@@ -131,7 +132,7 @@ offlineRouter.post('/admin/refresh-oracle', async (_req: Request, res: Response)
       gzippedBytes: bulk.gzippedBytes,
     });
   } catch (err) {
-    console.error('[offline] manual refresh failed:', err);
+    logger.error('[offline] manual refresh failed:', err);
     res.status(502).json({ error: 'Refresh failed.' });
   }
 });

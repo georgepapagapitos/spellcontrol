@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { Router, type Request, type Response } from 'express';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import { requireAuth } from '../auth';
@@ -109,12 +110,12 @@ async function stashBackup(
     if (stale.length > 0) {
       await db.delete(userDataBackups).where(inArray(userDataBackups.id, stale));
     }
-    console.log(
+    logger.debug(
       `[sync] BACKUP user=${userId} reason=${reason} priorCards=${priorCards} ` +
         `priorVersion=${prior.version} kept<=${MAX_BACKUPS_PER_USER}`
     );
   } catch (err) {
-    console.error(
+    logger.error(
       `[sync] BACKUP.fail user=${userId} reason=${reason} — wipe proceeded WITHOUT a safety net`,
       err
     );
@@ -127,7 +128,7 @@ syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   // collection=null while binders>0, the server has lost the collection and
   // the client's applyServerSnapshot will blank the in-memory cards (~2s
   // after the IndexedDB hydrate) — the reported "loads then wipes" symptom.
-  console.log(summarize('GET', req.user!.id, snap));
+  logger.debug(summarize('GET', req.user!.id, snap));
   res.json(snap);
 });
 
@@ -164,7 +165,7 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
     // Log it: an oversize push means sync is silently failing for this user,
     // and (until this commit) it never showed in the logs because PUT.in is
     // logged AFTER this check. Now it is visible.
-    console.log(
+    logger.debug(
       `[sync] PUT.reject user=${req.user!.id} reason=too-large bytes=${snapshotBytes} ` +
         `cap=${MAX_SNAPSHOT_BYTES}`
     );
@@ -179,7 +180,7 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
   const priorCards = collectionCardCount(prior.collection);
   const incomingCards = collectionCardCount(body.collection ?? null);
   const wipe = priorCards > 0 && (body.collection == null || incomingCards === 0);
-  console.log(
+  logger.debug(
     `${summarize('PUT.in', req.user!.id, { ...body, version: body.baseVersion as number })} ` +
       `prior.collection=${prior.collection ? `${priorCards}cards` : 'null'} prior.v=${prior.version}` +
       (wipe ? ' *** COLLECTION WIPE: null/empty push over a non-empty stored collection ***' : '')
@@ -206,7 +207,7 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
 
   if (updated.length === 0) {
     const current = await loadSnapshot(req.user!.id);
-    console.log(
+    logger.debug(
       `[sync] PUT.409 user=${req.user!.id} base=${body.baseVersion} dbv=${current.version} ` +
         `(client re-bases and retries; last-write-wins for fields it touched)`
     );
@@ -220,7 +221,7 @@ syncRouter.put('/', requireAuth, async (req: Request, res: Response) => {
     await stashBackup(req.user!.id, prior, priorCards, 'collection-wipe');
   }
 
-  console.log(
+  logger.debug(
     `[sync] PUT.ok user=${req.user!.id} v=${updated[0].version} ` +
       `collection=${body.collection == null ? 'null' : `${incomingCards}cards`}`
   );
@@ -290,13 +291,13 @@ syncRouter.post('/restore', requireAuth, async (req: Request, res: Response) => 
 
   if (updated.length === 0) {
     const current = await loadSnapshot(req.user!.id);
-    console.log(
+    logger.debug(
       `[sync] RESTORE.409 user=${req.user!.id} base=${body.baseVersion} dbv=${current.version}`
     );
     return res.status(409).json({ error: 'Version conflict.', current });
   }
 
-  console.log(
+  logger.debug(
     `[sync] RESTORE.ok user=${req.user!.id} backup=${body.backupId} ` +
       `v=${updated[0].version} cards=${collectionCardCount(snap.collection)}`
   );

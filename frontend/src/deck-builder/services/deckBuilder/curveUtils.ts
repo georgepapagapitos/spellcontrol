@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { EDHRECCommanderStats } from '@/deck-builder/types';
 import type { Pacing } from '@/deck-builder/types';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
@@ -152,12 +153,12 @@ export function calculateTypeTargets(
 ): Record<string, number> {
   const percentages = calculateTypePercentages(stats);
 
-  console.log('[CurveUtils] EDHREC type distribution:', stats.typeDistribution);
-  console.log('[CurveUtils] Calculated percentages:', percentages);
-  console.log('[CurveUtils] Total non-land cards to allocate:', totalNonLandCards);
+  logger.debug('[CurveUtils] EDHREC type distribution:', stats.typeDistribution);
+  logger.debug('[CurveUtils] Calculated percentages:', percentages);
+  logger.debug('[CurveUtils] Total non-land cards to allocate:', totalNonLandCards);
 
   if (Object.keys(percentages).length === 0) {
-    console.log('[CurveUtils] Using fallback defaults (no EDHREC data)');
+    logger.debug('[CurveUtils] Using fallback defaults (no EDHREC data)');
     // Fallback defaults
     return {
       creature: Math.round(totalNonLandCards * 0.45),
@@ -194,7 +195,7 @@ export function calculateTypeTargets(
     targets.creature = (targets.creature || 0) + diff;
   }
 
-  console.log(
+  logger.debug(
     '[CurveUtils] Final type targets:',
     targets,
     'Total:',

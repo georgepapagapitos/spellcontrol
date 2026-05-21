@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, Flashlight, FlashlightOff, RotateCcw, ScanLine, Trash2, X } from 'lucide-react';
@@ -159,7 +160,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         setStatus('ready');
         warmOcr();
       } catch (err) {
-        console.error('[scanner] native preview failed:', err);
+        logger.error('[scanner] native preview failed:', err);
         const msg = err instanceof Error ? err.message : 'Could not start the camera.';
         setErrorMsg(msg);
         setStatus('error');
@@ -241,7 +242,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       if (tuneConstraints.length > 0) {
         await track
           .applyConstraints({ advanced: tuneConstraints })
-          .catch((e) => console.warn('[scanner] could not tune camera:', e));
+          .catch((e) => logger.warn('[scanner] could not tune camera:', e));
       }
       // Surface what we actually got — invaluable when diagnosing "looks
       // weird on device X" reports without needing remote debugging.
@@ -252,12 +253,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const infoLine =
         `${settings.width}×${settings.height}` +
         ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`;
-      console.log(`[scanner] camera: ${infoLine}`);
+      logger.debug(`[scanner] camera: ${infoLine}`);
       setCameraInfo(infoLine);
       setStatus('ready');
       warmOcr();
     } catch (err) {
-      console.error('[scanner] camera failed:', err);
+      logger.error('[scanner] camera failed:', err);
       const msg =
         err instanceof Error
           ? err.name === 'NotAllowedError'
@@ -518,7 +519,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       playBeep();
       haptics.success();
     } catch (err) {
-      console.error('[scanner] capture failed:', err);
+      logger.error('[scanner] capture failed:', err);
       showHint('Scan failed — try again.');
     } finally {
       busyRef.current = false;

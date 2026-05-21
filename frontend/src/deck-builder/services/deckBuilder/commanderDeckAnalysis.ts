@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { ScryfallCard, EDHRECCommanderData, DetectedCombo } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 import {
@@ -281,7 +282,7 @@ export async function analyzeCommanderDeck(
       colorIdentity: params.colorIdentity,
     });
   } catch (err) {
-    console.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);
+    logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);
     return null;
   }
 }

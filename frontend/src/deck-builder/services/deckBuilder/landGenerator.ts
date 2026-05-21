@@ -1,6 +1,7 @@
 // Land base generation: non-basic land selection (EDHREC + Scryfall fallback),
 // channel/MDFC/tapland pacing boosts, and pip-proportional basics.
 // Extracted verbatim from deckGenerator.ts.
+import { logger } from '@/lib/logger';
 import type {
   EDHRECCard,
   ScryfallCard,
@@ -113,7 +114,7 @@ export async function generateLands(
   // Filter out basic lands from EDHREC suggestions - we add those separately
   const nonBasicEdhrecLands = edhrecLands.filter((land) => !BASIC_LAND_NAMES.has(land.name));
 
-  console.log('[DeckGen] generateLands:', {
+  logger.debug('[DeckGen] generateLands:', {
     totalEdhrecLands: edhrecLands.length,
     nonBasicEdhrecLands: nonBasicEdhrecLands.length,
     basicTarget: basicCount,
@@ -125,7 +126,7 @@ export async function generateLands(
 
   if (nonBasicTarget > 0 && nonBasicEdhrecLands.length > 0) {
     onProgress?.('Loading utility lands', 82);
-    console.log(
+    logger.debug(
       `[DeckGen] Picking ${nonBasicTarget} non-basic lands from ${nonBasicEdhrecLands.length} EDHREC suggestions`
     );
 
@@ -216,7 +217,7 @@ export async function generateLands(
       ignoreOwnedRarity
     );
     lands.push(...nonBasics);
-    console.log(
+    logger.debug(
       `[DeckGen] Got ${nonBasics.length} non-basic lands:`,
       nonBasics.map((l) => l.name)
     );
@@ -309,7 +310,7 @@ export async function generateLands(
       }
     }
 
-    console.log('[DeckGen] Basic land distribution by pips:', { pipCounts, landsPerColor });
+    logger.debug('[DeckGen] Basic land distribution by pips:', { pipCounts, landsPerColor });
 
     for (const color of colorsWithBasics) {
       const basicName = basicTypes[color];

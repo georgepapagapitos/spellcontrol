@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
@@ -43,7 +44,7 @@ export async function syncStatusBar(): Promise<void> {
     await StatusBar.setStyle({ style: lum < 0.5 ? Style.Dark : Style.Light });
     await StatusBar.setOverlaysWebView({ overlay: true });
   } catch (err) {
-    console.warn('[platform] status bar sync failed:', err);
+    logger.warn('[platform] status bar sync failed:', err);
   }
 }
 
@@ -81,7 +82,7 @@ export async function initKeyboard(): Promise<void> {
       document.documentElement.classList.remove('keyboard-open');
     });
   } catch (err) {
-    console.warn('[platform] keyboard init failed:', err);
+    logger.warn('[platform] keyboard init failed:', err);
   }
 }
 

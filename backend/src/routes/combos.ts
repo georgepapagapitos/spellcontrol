@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
@@ -276,7 +277,7 @@ combosRouter.post('/admin/refresh', requireAuth, async (req: Request, res: Respo
     const result = await ingestCombos(streamSpellbookVariants());
     res.json(result);
   } catch (err) {
-    console.error('[combos] admin refresh failed:', err);
+    logger.error('[combos] admin refresh failed:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: `Refresh failed: ${message}` });
   }
