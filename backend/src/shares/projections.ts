@@ -16,6 +16,12 @@
  * fields are guaranteed.
  */
 
+import {
+  materializeBinders,
+  type BinderDef,
+  type EnrichedCard,
+} from '@spellcontrol/binder-routing';
+
 export interface PublicCard {
   name: string;
   scryfallId: string;
@@ -92,6 +98,32 @@ export interface PublicDeck {
   averageSalt?: number;
   bracketEstimation?: unknown;
   deckGrade?: { letter: string; headline: string };
+  updatedAt?: number;
+}
+
+/** One grouped section of a shared binder (color / type / rarity / … bucket). */
+export interface PublicBinderSection {
+  key: string;
+  label: string;
+  /** Color-pip styling — present only when the binder groups by color. */
+  pip?: { background: string; border: string };
+  cards: PublicCard[];
+}
+
+export interface PublicBinder {
+  ownerUsername: string;
+  id: string;
+  name: string;
+  color: string;
+  /**
+   * The binder's live contents, grouped into the same sections the owner
+   * sees. Physical pagination (BinderPage) is dropped — a shared web view
+   * renders a sectioned grid, not a pocket layout.
+   */
+  sections: PublicBinderSection[];
+  totalCards: number;
+  /** Sum of purchasePrice across the binder — a Scryfall-snapshot approximation. */
+  totalValue: number;
   updatedAt?: number;
 }
 
@@ -264,4 +296,78 @@ export function findDeckById(decks: unknown, deckId: string): unknown {
     const r = asRecord(d);
     return r && asString(r.id) === deckId;
   });
+}
+
+/** Find a single binder def by id in the binders array. */
+export function findBinderById(binders: unknown, binderId: string): unknown {
+  if (!Array.isArray(binders)) return null;
+  return binders.find((b) => {
+    const r = asRecord(b);
+    return r && asString(r.id) === binderId;
+  });
+}
+
+/**
+ * Project a shared binder: route the owner's whole collection through ALL
+ * their binders with the isomorphic `@spellcontrol/binder-routing` engine
+ * (so first-match-wins priority matches the owner's own app), then pick out
+ * the shared binder's materialized contents.
+ *
+ * `bindersRaw` must be the full binders array, not just the shared one — a
+ * card that matches the shared binder might belong to a higher-priority
+ * binder, and only full-set materialization gets that right.
+ *
+ * Deck-allocation hiding (`hideDeckAllocated`) is best-effort here: the
+ * server passes no allocated-copy set, so a binder set to hide deck cards
+ * will still show them in the shared view. Acceptable for a live read-only
+ * projection; revisit if it matters.
+ */
+export function projectBinder(
+  ownerUsername: string,
+  binderId: string,
+  collection: unknown,
+  bindersRaw: unknown
+): PublicBinder | null {
+  if (!Array.isArray(bindersRaw)) return null;
+  const binders = bindersRaw.filter((b): b is AnyRecord => asRecord(b) !== null);
+  const target = binders.find((b) => asString(b.id) === binderId);
+  if (!target) return null;
+
+  const col = asRecord(collection);
+  const rawCards = col && Array.isArray(col.cards) ? col.cards : [];
+
+  let materialized;
+  try {
+    const result = materializeBinders(
+      rawCards as EnrichedCard[],
+      binders as unknown as BinderDef[],
+      { search: '' }
+    );
+    materialized = result.binders.find((b) => b.def.id === binderId);
+  } catch {
+    // Malformed binder/card JSONB — treat as not found rather than 500.
+    return null;
+  }
+  if (!materialized) return null;
+
+  const sections: PublicBinderSection[] = [];
+  for (const sec of materialized.sections) {
+    const cards: PublicCard[] = [];
+    for (const raw of sec.cards) {
+      const p = projectCard(raw);
+      if (p) cards.push(p);
+    }
+    sections.push({ key: sec.key, label: sec.label, pip: sec.pip, cards });
+  }
+
+  return {
+    ownerUsername,
+    id: binderId,
+    name: asString(target.name) ?? 'Binder',
+    color: asString(target.color) ?? '#888',
+    sections,
+    totalCards: materialized.totalCards,
+    totalValue: materialized.totalValue,
+    updatedAt: asNumber(target.updatedAt),
+  };
 }
