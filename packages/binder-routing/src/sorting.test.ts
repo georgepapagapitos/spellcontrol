@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { sortCards, cardSortValue, colorSortRank, CANONICAL_MULTICOLOR } from './sorting';
-import type { EnrichedCard } from '../types';
+import { sortCards, cardSortValue, colorSortRank, CANONICAL_MULTICOLOR } from './sorting.js';
+import type { EnrichedCard } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {

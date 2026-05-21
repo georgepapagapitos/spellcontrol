@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getColorKey, isLand, COLOR_INFO } from './colors';
-import type { EnrichedCard } from '../types';
+import { getColorKey, isLand, COLOR_INFO } from './colors.js';
+import type { EnrichedCard } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {

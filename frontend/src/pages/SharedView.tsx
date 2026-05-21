@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { fetchPublicShare, ShareNotFoundError } from '../lib/share-client';
 import type { PublicShareResponse } from '../lib/shared-types';
 import { SharedCollectionView } from '../components/shared/SharedCollectionView';
+import { SharedBinderView } from '../components/shared/SharedBinderView';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { SharedListView } from '../components/shared/SharedListView';
 
@@ -80,6 +81,9 @@ function SharedViewInner({ token }: { token: string }) {
   const { payload } = state;
   if (payload.kind === 'collection') {
     return <SharedCollectionView data={payload.data} />;
+  }
+  if (payload.kind === 'binder') {
+    return <SharedBinderView data={payload.data} />;
   }
   if (payload.kind === 'deck') {
     return <SharedDeckView data={payload.data} />;
