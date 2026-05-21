@@ -24,6 +24,18 @@ COPY backend/tsconfig.json ./backend/
 COPY backend/src ./backend/src
 RUN npm --prefix backend run build
 
+# Web frontend. Built here and served by Express from the runtime image so the
+# browser sees a single origin (spellcontrol.com) — the bundle calls relative
+# /api/* paths against its own origin, so the SameSite=lax session cookie
+# needs no CORS / SameSite=None rework. VITE_API_BASE_URL is intentionally
+# UNSET: an empty base makes apiUrl() a no-op. (The native APK is built
+# separately WITH VITE_API_BASE_URL set — see docs/native_handoff.md.)
+# frontend's file:../packages/game-core resolves to the dist built above.
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN npm --prefix frontend ci
+COPY frontend/ ./frontend/
+RUN npm --prefix frontend run build
+
 FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -41,6 +53,9 @@ COPY --from=build /app/packages/game-core/dist ./packages/game-core/dist
 COPY backend/package.json backend/package-lock.json ./backend/
 RUN npm --prefix backend ci --omit=dev && npm cache clean --force
 COPY --from=build /app/backend/dist ./backend/dist
+
+# Static web bundle, served by Express at runtime (server.ts: SPA_DIR).
+COPY --from=build /app/frontend/dist ./backend/public
 
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node

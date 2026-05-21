@@ -1,10 +1,11 @@
 import { logger } from './logger';
 import cookieParser from 'cookie-parser';
-import express, { type Request, type Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
+import { existsSync } from 'fs';
 import { ScryfallCache } from './cache';
 import { closeDb, ensureSchema } from './db';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
@@ -37,7 +38,48 @@ const cache = new ScryfallCache(DB_PATH);
 // closes the connection before sending a response and causes nginx to 502.
 app.set('trust proxy', 1);
 
-app.use(helmet());
+// This app serves both the JSON API and the static web SPA, so the CSP has
+// to cover the browser app. Ported from the old frontend/nginx.conf policy
+// (that nginx hop is retired now that Express serves the bundle directly).
+// Kept Report-Only — the SPA has an inline theme script + blob workers (OCR)
+// and pulls WASM / fonts / Scryfall imagery; observe violation reports before
+// promoting to an enforcing Content-Security-Policy.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      reportOnly: true,
+      directives: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", "'unsafe-inline'", 'blob:', "'wasm-unsafe-eval'"],
+        'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        'font-src': ["'self'", 'https://fonts.gstatic.com'],
+        'img-src': ["'self'", 'data:', 'blob:', 'https://*.scryfall.io', 'https://*.scryfall.com'],
+        'connect-src': [
+          "'self'",
+          'https://api.scryfall.com',
+          'https://json.edhrec.com',
+          'https://*.scryfall.io',
+          'https://cdn.jsdelivr.net',
+          'https://unpkg.com',
+          'https://tessdata.projectnaptha.com',
+        ],
+        'worker-src': ["'self'", 'blob:'],
+        'object-src': ["'none'"],
+        'base-uri': ["'self'"],
+        'frame-ancestors': ["'none'"],
+      },
+    },
+    hsts: { maxAge: 31_536_000, includeSubDomains: true },
+    frameguard: { action: 'deny' },
+  })
+);
+// Permissions-Policy isn't a helmet default. Mirror nginx.conf: deny what the
+// app never uses; camera stays default-allowed for the in-browser scanner.
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), payment=()');
+  next();
+});
 app.use(cookieParser());
 
 const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
@@ -461,6 +503,38 @@ function dedupePreservingOrder<T>(arr: T[]): T[] {
     }
   }
   return out;
+}
+
+/**
+ * Serve the built web SPA. The Dockerfile copies `frontend/dist` to
+ * `backend/public`; in local dev / tests that directory doesn't exist (Vite
+ * serves the frontend on its own port), so the whole block is skipped and the
+ * backend stays API-only. Registered AFTER every /api route so nothing here
+ * can shadow the API, and before the error handler so it stays last.
+ */
+const SPA_DIR = path.join(__dirname, '..', 'public');
+if (existsSync(SPA_DIR)) {
+  app.use(
+    express.static(SPA_DIR, {
+      setHeaders: (res, filePath) => {
+        // Hashed asset filenames are content-addressed → cache forever.
+        // index.html must always revalidate so a deploy's new bundle lands.
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    })
+  );
+  // SPA history fallback: any GET that didn't match a static file or an /api
+  // route gets index.html, so client-side routes (/s/<token>, /decks, …) and
+  // hard refreshes deep-link correctly. /api/* misses fall through to a 404.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(SPA_DIR, 'index.html'));
+  });
 }
 
 app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
