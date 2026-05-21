@@ -1,5 +1,7 @@
 import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useVisualViewport } from '@/lib/use-visual-viewport';
 import { searchCommanders, getCardByName } from '@/deck-builder/services/scryfall/client';
 import {
   fetchTopCommanders,
@@ -94,11 +96,35 @@ export function CommanderSearch({ value, onSelect }: Props) {
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
 
-  const collectionCards = useCollectionStore((s) => s.cards);
-  const collectionLegends = useMemo(
-    () => collectionCards.filter(isLegendaryCreature),
-    [collectionCards]
+  // On phones the results render as a tray docked above the on-screen
+  // keyboard (a popover under the input would sit behind the keyboard).
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
   );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsMobile(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const { keyboardInset, viewportHeight } = useVisualViewport();
+
+  const collectionCards = useCollectionStore((s) => s.cards);
+  // The collection stores one row per physical copy, so a card owned in
+  // multiples (or across printings) appears many times. Commander selection
+  // only cares about the card identity, so de-dup by name — otherwise the
+  // search dropdown, Random pool and suggestion chips all show repeats.
+  const collectionLegends = useMemo(() => {
+    const seen = new Set<string>();
+    const out: EnrichedCard[] = [];
+    for (const c of collectionCards) {
+      if (!isLegendaryCreature(c) || seen.has(c.name)) continue;
+      seen.add(c.name);
+      out.push(c);
+    }
+    return out;
+  }, [collectionCards]);
   const ownedNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name)),
     [collectionLegends]
@@ -183,7 +209,17 @@ export function CommanderSearch({ value, onSelect }: Props) {
       }
       if (ownedOnly) {
         const ql = q.toLowerCase();
-        const matched = collectionLegends.filter((c) => c.name.toLowerCase().includes(ql));
+        // Rank hits so the closest match leads: exact name, then prefix, then
+        // any substring; ties broken alphabetically.
+        const rank = (name: string): number => {
+          const n = name.toLowerCase();
+          if (n === ql) return 0;
+          if (n.startsWith(ql)) return 1;
+          return 2;
+        };
+        const matched = collectionLegends
+          .filter((c) => c.name.toLowerCase().includes(ql))
+          .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
         // Resolve full ScryfallCards lazily — we don't need them in the list,
         // just for the final selection. Show owned legends as a name+type list.
         // To keep typing snappy we don't pre-fetch; click handler hits Scryfall.
@@ -416,6 +452,64 @@ export function CommanderSearch({ value, onSelect }: Props) {
     query.trim().length >= 2 &&
     (searchLoading || (ownedOnly ? localResults.length > 0 : results.length > 0));
 
+  const resultList = (
+    <ul
+      className={`commander-search-results${isMobile ? ' commander-search-results--tray' : ''}`}
+      role="listbox"
+      // Mobile tray: dock just above the keyboard and cap height to the
+      // visible viewport so the list never hides behind the keyboard.
+      style={
+        isMobile
+          ? { bottom: keyboardInset, maxHeight: Math.round(viewportHeight * 0.55) }
+          : undefined
+      }
+    >
+      {searchLoading && <li className="commander-search-loading">Searching…</li>}
+      {!ownedOnly &&
+        results.map((card) => (
+          <li key={card.id}>
+            <button
+              type="button"
+              className="commander-search-item"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                selectCard(card);
+              }}
+            >
+              <span className="commander-search-item-name">{card.name}</span>
+              <span className="commander-search-item-type">{card.type_line}</span>
+            </button>
+          </li>
+        ))}
+      {ownedOnly &&
+        localResults.map((card) => (
+          <li key={card.scryfallId}>
+            <button
+              type="button"
+              className="commander-search-item"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                void selectByName(card.name);
+              }}
+            >
+              <span className="commander-search-item-name">{card.name}</span>
+              <span className="commander-search-item-type">
+                {card.typeLine ?? 'Legendary Creature'}
+              </span>
+            </button>
+          </li>
+        ))}
+    </ul>
+  );
+
+  // On phones the tray is portaled to <body> so it escapes any modal/overflow
+  // ancestor and can pin to the viewport above the keyboard.
+  const dropdown = !dropdownVisible
+    ? null
+    : isMobile
+      ? createPortal(resultList, document.body)
+      : resultList;
+
   return (
     <div className="commander-search">
       <input
@@ -463,45 +557,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
         </label>
       )}
 
-      {dropdownVisible && (
-        <ul className="commander-search-results" role="listbox">
-          {searchLoading && <li className="commander-search-loading">Searching…</li>}
-          {!ownedOnly &&
-            results.map((card) => (
-              <li key={card.id}>
-                <button
-                  type="button"
-                  className="commander-search-item"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectCard(card);
-                  }}
-                >
-                  <span className="commander-search-item-name">{card.name}</span>
-                  <span className="commander-search-item-type">{card.type_line}</span>
-                </button>
-              </li>
-            ))}
-          {ownedOnly &&
-            localResults.map((card) => (
-              <li key={card.scryfallId}>
-                <button
-                  type="button"
-                  className="commander-search-item"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    void selectByName(card.name);
-                  }}
-                >
-                  <span className="commander-search-item-name">{card.name}</span>
-                  <span className="commander-search-item-type">
-                    {card.typeLine ?? 'Legendary Creature'}
-                  </span>
-                </button>
-              </li>
-            ))}
-        </ul>
-      )}
+      {dropdown}
 
       {/* Suggestions section — only when the search box is empty. */}
       {query.trim().length === 0 && (
