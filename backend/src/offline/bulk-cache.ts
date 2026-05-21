@@ -52,6 +52,15 @@ const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
 /**
+ * Bumped whenever `slimCard()`'s projection or filtering logic changes. The
+ * persisted bulk lives on a volume that survives deploys, so without this a
+ * logic change wouldn't take effect until the next daily rebuild — `loadFromDisk`
+ * discards a payload built by an older builder and forces a fresh build.
+ *   2 — exclude non-playable layouts (art_series/token/...) + memorabilia.
+ */
+const BUILDER_VERSION = 2;
+
+/**
  * Persisted gzipped slim oracle bulk. We compute it once a day from Scryfall's
  * `oracle_cards` bulk file (one row per oracle_id) and serve the cached buffer
  * directly. The slim projection drops fields the offline frontend never reads
@@ -101,10 +110,30 @@ async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }>
   return { url: entry.download_uri, updatedAt: entry.updated_at };
 }
 
+// Scryfall layouts that aren't real game pieces (art cards, tokens, emblems,
+// schemes, planes, vanguards). They carry their own oracle_id so they land in
+// the oracle_cards bulk, and many share a `name` with the real card they depict
+// (e.g. the "Arcane Signet" art card vs. the real Arcane Signet). Since the
+// offline name index is keyed by name, an art card can shadow the real card —
+// so they must never enter the offline dataset.
+const NON_PLAYABLE_LAYOUTS = new Set([
+  'art_series',
+  'token',
+  'double_faced_token',
+  'emblem',
+  'scheme',
+  'planar',
+  'vanguard',
+]);
+
 function slimCard(card: ScryfallBulkCard): SlimCard | null {
   if (!card.oracle_id || !card.name) return null;
   // Skip non-paper digital-only cards and Alchemy duplicates we never want offline.
   if (card.set_type === 'alchemy') return null;
+  // Skip non-game-piece layouts (art cards, tokens, emblems, ...) and oversized
+  // memorabilia printings — none are deck-legal and they collide on `name`.
+  if (card.layout && NON_PLAYABLE_LAYOUTS.has(card.layout)) return null;
+  if (card.set_type === 'memorabilia') return null;
   if (card.games && Array.isArray(card.games) && !card.games.includes('paper')) {
     // Keep arena-only commanders (e.g. Brawl-only) out of offline lookups.
     return null;
@@ -229,6 +258,7 @@ interface PersistedMeta {
   rawBytes: number;
   gzippedBytes: number;
   updatedAt: number;
+  builderVersion?: number;
 }
 
 async function persistToDisk(payload: BulkPayload): Promise<void> {
@@ -241,6 +271,7 @@ async function persistToDisk(payload: BulkPayload): Promise<void> {
     rawBytes: payload.rawBytes,
     gzippedBytes: payload.gzippedBytes,
     updatedAt: payload.updatedAt,
+    builderVersion: BUILDER_VERSION,
   };
   await fs.promises.writeFile(diskMetaPath(), JSON.stringify(meta));
 }
@@ -252,6 +283,14 @@ async function loadFromDisk(): Promise<BulkPayload | null> {
       fs.promises.readFile(diskMetaPath(), 'utf-8'),
     ]);
     const meta = JSON.parse(metaText) as PersistedMeta;
+    // Discard a payload built by an older slimCard() — forces a fresh rebuild
+    // on deploy when the projection/filtering logic has changed.
+    if (meta.builderVersion !== BUILDER_VERSION) {
+      console.log(
+        `[offline] persisted bulk built by builder v${meta.builderVersion ?? 'pre-versioning'}, current is v${BUILDER_VERSION} — rebuilding`
+      );
+      return null;
+    }
     return {
       version: meta.version,
       cardCount: meta.cardCount,
