@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import type { ScryfallCard } from './types';
 import type { ScryfallCache } from './cache';
 import type { ImportRow } from './parsers/types';
@@ -91,7 +92,7 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
     return { resolved, unresolvedNames: [] };
   }
 
-  console.log(
+  logger.info(
     `[scryfall] resolving ${identifierByKey.size} unique identifiers across ${rows.length} rows`
   );
 
@@ -108,7 +109,7 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
     );
 
     if (!json) {
-      console.warn(
+      logger.warn(
         `[scryfall] batch ${batchNum} returned no data, skipping ${batch.length} identifiers`
       );
       continue;
@@ -206,13 +207,13 @@ async function fetchBatchWithRetry(
           : Math.min(MAX_BACKOFF_MS, backoff);
 
         if (attempt === MAX_RETRIES) {
-          console.error(
+          logger.error(
             `[scryfall] batch ${batchNum} gave up after ${MAX_RETRIES} retries (still 429)`
           );
           return null;
         }
 
-        console.warn(
+        logger.warn(
           `[scryfall] batch ${batchNum} hit 429, waiting ${wait}ms before retry ${attempt + 1}/${MAX_RETRIES}`
         );
         await sleep(wait);
@@ -221,10 +222,10 @@ async function fetchBatchWithRetry(
       }
 
       // Non-429 error — log and give up on this batch
-      console.error(`[scryfall] batch ${batchNum} failed: HTTP ${response.status}`);
+      logger.error(`[scryfall] batch ${batchNum} failed: HTTP ${response.status}`);
       return null;
     } catch (err) {
-      console.error(`[scryfall] batch ${batchNum} network error:`, err);
+      logger.error(`[scryfall] batch ${batchNum} network error:`, err);
       if (attempt === MAX_RETRIES) return null;
       await sleep(backoff);
       backoff *= 2;
@@ -341,16 +342,16 @@ async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | n
           ? Math.min(MAX_BACKOFF_MS, parseRetryAfter(retryAfter))
           : Math.min(MAX_BACKOFF_MS, backoff);
         if (attempt === MAX_RETRIES) return null;
-        console.warn(`[scryfall] search hit 429, waiting ${wait}ms`);
+        logger.warn(`[scryfall] search hit 429, waiting ${wait}ms`);
         await sleep(wait);
         backoff *= 2;
         continue;
       }
 
-      console.error(`[scryfall] search failed: HTTP ${response.status}`);
+      logger.error(`[scryfall] search failed: HTTP ${response.status}`);
       return null;
     } catch (err) {
-      console.error('[scryfall] search network error:', err);
+      logger.error('[scryfall] search network error:', err);
       if (attempt === MAX_RETRIES) return null;
       await sleep(backoff);
       backoff *= 2;
@@ -418,7 +419,7 @@ export async function identifyCardByName(query: string): Promise<ScryfallCard | 
       return null;
     } catch (err) {
       if (attempt === MAX_RETRIES) {
-        console.error('[scryfall] identify network error:', err);
+        logger.error('[scryfall] identify network error:', err);
         return null;
       }
       await sleep(backoff);

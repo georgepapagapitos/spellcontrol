@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { DetectedCombo } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 
@@ -81,7 +82,7 @@ export function detectCombosPhase(state: GenerationState): DetectedCombo[] | und
       return b.deckCount - a.deckCount;
     });
 
-    console.log(
+    logger.debug(
       `[DeckGen] Detected ${detectedCombos.filter((c) => c.isComplete).length} complete combos, ${detectedCombos.filter((c) => !c.isComplete).length} near-misses`
     );
 

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import {
   Archetype,
   type DeckSize,
@@ -347,7 +348,7 @@ export function getDynamicRoleTargets(
     }
   }
 
-  console.log(
+  logger.debug(
     `[DeckGen] Dynamic role targets: archetype=${archetype}, pacing=${pacing}, blend=${blendWeight}`,
     result,
     `(total=${Object.values(result).reduce((s, v) => s + v, 0)}, edhrecCounts=${edhrecCounts ? JSON.stringify(edhrecCounts) : 'null'})`

@@ -16,6 +16,7 @@
  * those concerns makes the helper testable: tests can assert "did we clear
  * everything" without actually navigating the test runner.
  */
+import { logger } from '@/lib/logger';
 export interface ResetResult {
   cachesCleared: number;
   serviceWorkersUnregistered: number;
@@ -34,7 +35,7 @@ export async function clearAppCaches(): Promise<ResetResult> {
       // Some browsers (Safari private mode, locked-down enterprise profiles)
       // throw on caches.keys(). Swallow — we still want to attempt SW
       // unregistration so the user gets at least partial benefit.
-      console.warn('[reset-cache] failed to enumerate caches:', err);
+      logger.warn('[reset-cache] failed to enumerate caches:', err);
     }
   }
 
@@ -46,7 +47,7 @@ export async function clearAppCaches(): Promise<ResetResult> {
         (r) => r.status === 'fulfilled' && r.value
       ).length;
     } catch (err) {
-      console.warn('[reset-cache] failed to unregister service workers:', err);
+      logger.warn('[reset-cache] failed to unregister service workers:', err);
     }
   }
 

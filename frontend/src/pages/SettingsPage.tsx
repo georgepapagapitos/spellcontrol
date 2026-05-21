@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -144,7 +145,7 @@ export function SettingsPage() {
       await applyPendingUpdate();
       // applyPendingUpdate reloads the tab; nothing below runs in practice.
     } catch (err) {
-      console.warn('[settings] apply update failed:', err);
+      logger.warn('[settings] apply update failed:', err);
       toast.show({
         message: 'Could not apply the update. Try reloading the page.',
         tone: 'error',
@@ -163,7 +164,7 @@ export function SettingsPage() {
       await resetAppCacheAndReload();
       // resetAppCacheAndReload triggers location.reload(); nothing below runs.
     } catch (err) {
-      console.warn('[settings] reset app cache failed:', err);
+      logger.warn('[settings] reset app cache failed:', err);
       toast.show({
         message: 'Failed to reset the app cache. Try clearing site data from your browser.',
         tone: 'error',

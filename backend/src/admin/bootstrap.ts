@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import { inArray } from 'drizzle-orm';
 import { getAdminUsernames } from '../auth';
 import { getDb } from '../db';
@@ -24,7 +25,7 @@ export async function promoteAdminsAtBoot(): Promise<void> {
     .where(inArray(users.username, [...names]))
     .returning({ username: users.username });
   if (result.length > 0) {
-    console.log(
+    logger.info(
       `[admin] promoted ${result.length} user(s) to admin: ${result.map((r) => r.username).join(', ')}`
     );
   }

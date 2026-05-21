@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 const TAG_REPO_URL =
   (import.meta.env.VITE_TAG_REPO_URL as string | undefined) ?? '/tagger-tags.json';
 
@@ -21,7 +22,7 @@ export async function loadTaggerData(): Promise<TaggerData | null> {
   if (cached) return cached;
   if (fetchPromise) return fetchPromise;
   if (!TAG_REPO_URL) {
-    console.warn('[Tagger] No VITE_TAG_REPO_URL configured, skipping tagger data');
+    logger.warn('[Tagger] No VITE_TAG_REPO_URL configured, skipping tagger data');
     return null;
   }
 
@@ -39,15 +40,12 @@ export async function loadTaggerData(): Promise<TaggerData | null> {
       const tagSummary = Object.entries(data.tags)
         .map(([k, v]) => `${k}:${v.length}`)
         .join(', ');
-      console.log(
+      logger.debug(
         `[Tagger] Loaded ${Object.keys(data.tags).length} tags (generated ${data.generatedAt}): ${tagSummary}`
       );
       return data;
     } catch (err) {
-      console.warn(
-        '[Tagger] Failed to load tagger data — role detection will be unavailable:',
-        err
-      );
+      logger.warn('[Tagger] Failed to load tagger data — role detection will be unavailable:', err);
       return null;
     } finally {
       fetchPromise = null;

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import { buildInclusionIndex, lookupInclusion } from '../commanderDeckAnalysis';
 import { BASIC_LAND_NAMES } from '../landGenerator';
@@ -50,7 +51,7 @@ export function deckScorePhase(
       (swapCandidates ? Object.values(swapCandidates).flat().length : 0) -
       (gapAnalysis?.length ?? 0);
     const avg = nonBasicCount > 0 ? score / nonBasicCount : 0;
-    console.log(
+    logger.debug(
       `[DeckGen] Deck score: ${deckScore} (avg ${avg.toFixed(1)}% across ${nonBasicCount} deck cards)`
     );
   }

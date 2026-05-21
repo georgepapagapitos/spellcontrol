@@ -34,11 +34,20 @@ export default [
       'react/no-unescaped-entities': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // Route all logging through src/lib/logger so debug chatter stays out of
+      // the production browser console; warn/error still surface in the field.
+      'no-console': 'error',
     },
+  },
+  {
+    // The logger wrapper is the one place console.* is allowed.
+    files: ['src/lib/logger.ts'],
+    rules: { 'no-console': 'off' },
   },
   {
     files: ['**/*.test.{ts,tsx}'],
     languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': 'off' },
   },
   {
     files: ['scripts/**/*.{js,mjs,cjs}'],

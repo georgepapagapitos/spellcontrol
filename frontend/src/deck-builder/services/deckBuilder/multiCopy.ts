@@ -1,5 +1,6 @@
 // Multi-copy card pipeline ("A deck can have any number of cards named ...").
 // Self-contained; extracted verbatim from deckGenerator.ts.
+import { logger } from '@/lib/logger';
 import type { ScryfallCard, MaxRarity } from '@/deck-builder/types';
 import { fetchMultiCopyCardNames, getCardByName } from '@/deck-builder/services/scryfall/client';
 import { fetchAverageDeckMultiCopies } from '@/deck-builder/services/edhrec/client';
@@ -46,7 +47,7 @@ export async function resolveMultiCopyCards(
   );
   if (matches.length === 0) return [];
 
-  console.log(`[DeckGen] Multi-copy cards detected in cardlist: ${matches.join(', ')}`);
+  logger.debug(`[DeckGen] Multi-copy cards detected in cardlist: ${matches.join(', ')}`);
 
   // Step 3: Fetch ALL quantities in one request (null = fetch failed entirely)
   const quantityMap = await fetchAverageDeckMultiCopies(commanderName, matches, themeSlug);
@@ -61,7 +62,7 @@ export async function resolveMultiCopyCards(
     if (fetchFailed) {
       // Endpoint unreachable — use a sensible fallback
       quantity = maxCopies ?? DEFAULT_MULTI_COPY_COUNT;
-      console.log(
+      logger.debug(
         `[DeckGen] Average deck unavailable, using fallback ${quantity} for "${cardName}"`
       );
     } else if (quantityMap.has(cardName)) {
@@ -69,7 +70,7 @@ export async function resolveMultiCopyCards(
       quantity = quantityMap.get(cardName)!;
     } else {
       // Fetch succeeded but card only has 1 copy in average deck — skip multi-copy
-      console.log(`[DeckGen] "${cardName}" not multi-copy in average deck, skipping`);
+      logger.debug(`[DeckGen] "${cardName}" not multi-copy in average deck, skipping`);
       continue;
     }
 
@@ -86,7 +87,7 @@ export async function resolveMultiCopyCards(
     const existingCount = usedNames.has(cardName) ? 1 : 0;
     const copiesToAdd = finalQuantity - existingCount;
     if (copiesToAdd <= 0) {
-      console.log(`[DeckGen] "${cardName}" already in deck, no extra copies needed`);
+      logger.debug(`[DeckGen] "${cardName}" already in deck, no extra copies needed`);
       continue;
     }
 
@@ -94,18 +95,18 @@ export async function resolveMultiCopyCards(
     try {
       const card = await getCardByName(cardName);
       if (!card) {
-        console.warn(`[DeckGen] Could not find "${cardName}" on Scryfall, skipping multi-copy`);
+        logger.warn(`[DeckGen] Could not find "${cardName}" on Scryfall, skipping multi-copy`);
         continue;
       }
 
       // Verify price/rarity constraints on the card itself
       if (exceedsMaxPrice(card, maxCardPrice, currency)) {
-        console.log(`[DeckGen] "${cardName}" exceeds max card price, skipping multi-copy`);
+        logger.debug(`[DeckGen] "${cardName}" exceeds max card price, skipping multi-copy`);
         continue;
       }
       if (!isOwnedRarityExempt(cardName, collectionNames, ignoreOwnedRarity)) {
         if (exceedsMaxRarity(card, maxRarity)) {
-          console.log(`[DeckGen] "${cardName}" exceeds max rarity, skipping multi-copy`);
+          logger.debug(`[DeckGen] "${cardName}" exceeds max rarity, skipping multi-copy`);
           continue;
         }
       }
@@ -116,12 +117,12 @@ export async function resolveMultiCopyCards(
         copies.push({ ...card, id: `${card.id}-multi-${i}` });
       }
 
-      console.log(
+      logger.debug(
         `[DeckGen] Adding ${copiesToAdd} copies of "${cardName}" (scaled from ${quantity} in 100-card to ${finalQuantity} in ${deckSize}-card deck)`
       );
       results.push({ card, copies });
     } catch (error) {
-      console.warn(`[DeckGen] Failed to fetch "${cardName}" for multi-copy:`, error);
+      logger.warn(`[DeckGen] Failed to fetch "${cardName}" for multi-copy:`, error);
     }
   }
 

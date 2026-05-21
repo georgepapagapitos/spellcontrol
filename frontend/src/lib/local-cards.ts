@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { openDB, type IDBPDatabase } from 'idb';
 import type { EnrichedCard, ListDef } from '../types';
 
@@ -106,7 +107,7 @@ export async function loadCollection(): Promise<StoredCollection | null> {
 
     return { ...result, cards: migratedCards };
   } catch (err) {
-    console.warn('[local-cards] Failed to load collection from IndexedDB:', err);
+    logger.warn('[local-cards] Failed to load collection from IndexedDB:', err);
     throw new Error(
       'Could not load your saved collection. This can happen in private browsing mode or if storage is full.'
     );
