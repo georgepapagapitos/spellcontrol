@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { fetchSync, putSync, type SyncSnapshot } from './auth-api';
 import { apiUrl } from './api-base';
 import { useCollectionStore } from '../store/collection';
@@ -197,7 +198,7 @@ async function pushNow(): Promise<void> {
     games.length === 0 &&
     !peekDestructive()
   ) {
-    console.warn('[sync] refused blank push (no explicit deletion) — server stays source of truth');
+    logger.warn('[sync] refused blank push (no explicit deletion) — server stays source of truth');
     // Don't spin retrying a push we will never send. Real local data will
     // re-arm the dirty flag through the normal subscriber path.
     clearDirty();
@@ -234,7 +235,7 @@ async function pushNow(): Promise<void> {
     } else {
       // Network or other failure — keep dirty. Retry on next mutation or
       // on the next online event.
-      console.warn('[sync] push failed:', err);
+      logger.warn('[sync] push failed:', err);
     }
   } finally {
     pushing = false;
@@ -294,7 +295,7 @@ async function hydrateFromCache(): Promise<void> {
       // Could not READ the cache (vs. cache being legitimately empty, which
       // resolves to null without throwing). The store is now NOT trustworthy.
       hydrateFailed = true;
-      console.warn('[sync] cache hydrate failed:', err);
+      logger.warn('[sync] cache hydrate failed:', err);
     }
     if (stored) {
       useCollectionStore.setState({
@@ -576,7 +577,7 @@ async function pullAndReconcile(): Promise<void> {
   try {
     snap = await fetchSync();
   } catch (err) {
-    console.warn('[sync] fetch failed:', err);
+    logger.warn('[sync] fetch failed:', err);
   }
   if (!snap) return;
 
@@ -656,7 +657,7 @@ export async function startSync(userId?: string): Promise<void> {
       try {
         await wipeLocal();
       } catch (err) {
-        console.warn('[sync] wipeLocal failed during startSync:', err);
+        logger.warn('[sync] wipeLocal failed during startSync:', err);
       }
     }
     try {
@@ -687,7 +688,7 @@ export async function startSync(userId?: string): Promise<void> {
   // sync push, no UI spinner; combo features just become more accurate as
   // ids land.
   void backfillOracleIds().catch((err) => {
-    console.warn('[sync] oracle-id backfill failed:', err);
+    logger.warn('[sync] oracle-id backfill failed:', err);
   });
 }
 
@@ -710,7 +711,7 @@ async function backfillOracleIds(): Promise<void> {
       const map = await fetchOracleIds(chunk);
       for (const [k, v] of Object.entries(map)) resolved.set(k, v);
     } catch (err) {
-      console.warn('[sync] oracle-id chunk failed:', err);
+      logger.warn('[sync] oracle-id chunk failed:', err);
       return;
     }
   }
@@ -734,7 +735,7 @@ async function backfillOracleIds(): Promise<void> {
       // without re-running the backfill.
       const stored = buildCollection();
       if (stored) await saveCollection(stored);
-      console.log(`[sync] oracle-id backfill enriched ${changed} cards`);
+      logger.debug(`[sync] oracle-id backfill enriched ${changed} cards`);
     }
   } finally {
     isApplyingServer = false;

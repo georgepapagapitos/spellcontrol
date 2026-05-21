@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useOfflineStore } from '@/store/offline';
 import { isNativePlatform } from '@/lib/platform';
@@ -78,12 +79,12 @@ export async function autoSyncOfflineData(): Promise<void> {
     // zustand persist (or a stale read) left the manifest behind. Logged
     // separately so the cause is obvious in DevTools.
     if (fresh.manifest && fresh.manifest.oracleCardCount > 0) {
-      console.info('[offline] cache miss (manifest present, no cards in IDB) — re-downloading');
+      logger.info('[offline] cache miss (manifest present, no cards in IDB) — re-downloading');
     } else {
-      console.info('[offline] no local card data — downloading');
+      logger.info('[offline] no local card data — downloading');
     }
   } else if (stale) {
-    console.info('[offline] cache stale — checking for a newer manifest');
+    logger.info('[offline] cache stale — checking for a newer manifest');
   }
 
   if (!hasLocalData || stale) {

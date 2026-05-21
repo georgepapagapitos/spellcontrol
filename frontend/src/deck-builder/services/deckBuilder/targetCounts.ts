@@ -1,6 +1,7 @@
 // Target-count computation: turns a Customization (+ optional EDHREC stats) into
 // per-type and per-CMC slot targets, applying any advanced user overrides.
 // Pure — extracted verbatim from deckGenerator.ts for isolation/testing.
+import { logger } from '@/lib/logger';
 import type {
   Customization,
   DeckComposition,
@@ -107,7 +108,7 @@ export function calculateTargetCounts(
   }
 
   // Fallback defaults for different formats (no usable EDHREC stats)
-  console.warn(
+  logger.warn(
     '[DeckGen] FALLBACK: No EDHREC stats (numDecks=0 or missing) — using fallback type/curve targets'
   );
   const knownDefaults: Record<number, DeckComposition> = {

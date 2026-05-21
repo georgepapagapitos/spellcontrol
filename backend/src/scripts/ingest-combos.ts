@@ -7,22 +7,23 @@
  * Usage:
  *   tsx --env-file .env src/scripts/ingest-combos.ts
  */
+import { logger } from '../logger';
 import { closeDb } from '../db';
 import { ingestCombos, streamSpellbookVariants } from '../combos/ingest';
 
 async function main(): Promise<void> {
-  console.log('[ingest-combos] streaming Spellbook bulk variants into db...');
+  logger.info('[ingest-combos] streaming Spellbook bulk variants into db...');
   const start = Date.now();
   const result = await ingestCombos(streamSpellbookVariants());
   const elapsed = Date.now() - start;
-  console.log(
+  logger.info(
     `[ingest-combos] done in ${elapsed}ms — wrote ${result.written}, skipped ${result.skipped} (run ${result.runId})`
   );
 }
 
 main()
   .catch((err) => {
-    console.error('[ingest-combos] failed:', err);
+    logger.error('[ingest-combos] failed:', err);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useMemo } from 'react';
 import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
@@ -60,7 +61,7 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
   const claim = (copyId: string, info: AllocationInfo) => {
     if (isDev && m.has(copyId)) {
       const prior = m.get(copyId)!;
-      console.warn(
+      logger.warn(
         `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" (${prior.deckId}) and "${info.cardName}" in "${info.deckName}" (${info.deckId})`
       );
     }

@@ -1,3 +1,4 @@
+import { logger } from '../logger';
 import crypto from 'crypto';
 import { Readable, Transform } from 'node:stream';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
@@ -473,13 +474,13 @@ export async function ingestCombos(
  */
 export async function runScheduledIngest(): Promise<void> {
   try {
-    console.log('[combos] starting scheduled ingest');
+    logger.info('[combos] starting scheduled ingest');
     const result = await ingestCombos(streamSpellbookVariants());
-    console.log(
+    logger.info(
       `[combos] scheduled ingest done — wrote ${result.written}, skipped ${result.skipped}`
     );
   } catch (err) {
-    console.error('[combos] scheduled ingest failed:', err);
+    logger.error('[combos] scheduled ingest failed:', err);
   }
 }
 

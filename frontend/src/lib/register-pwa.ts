@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { usePlayStore } from '@/store/play';
 import { usePwaStore } from '@/store/pwa';
 
@@ -48,7 +49,7 @@ export async function registerPwa(): Promise<void> {
       void apply();
     },
     onRegisterError(error) {
-      console.warn('[pwa] service worker registration failed:', error);
+      logger.warn('[pwa] service worker registration failed:', error);
     },
   });
 }
