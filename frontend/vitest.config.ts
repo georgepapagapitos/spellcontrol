@@ -59,6 +59,15 @@ export default defineConfig({
         'src/lib/native-file-picker.ts',
         'src/lib/haptics.ts',
         'src/lib/deep-links.ts',
+        // Deck-builder network service clients — large fetch wrappers around
+        // EDHREC / Scryfall / the tagger endpoint. Same rationale as ocr.ts:
+        // exercising them meaningfully needs a fetch shim that fights real
+        // runtime behavior, so they are integration-verified, not unit-gated.
+        // Excluding them lets the deck-builder floor reflect the testable
+        // pure helper + phase layer instead of being dragged by IO glue.
+        'src/deck-builder/services/edhrec/client.ts',
+        'src/deck-builder/services/scryfall/client.ts',
+        'src/deck-builder/services/tagger/client.ts',
       ],
       // Per-directory floors. `src/lib/**` stays the long-standing 80.
       // `src/store/**` and `src/deck-builder/**` are newly gated: the
@@ -74,16 +83,16 @@ export default defineConfig({
           lines: 80,
         },
         'src/store/**': {
-          statements: 65,
-          branches: 58,
-          functions: 60,
-          lines: 68,
+          statements: 89,
+          branches: 74,
+          functions: 92,
+          lines: 90,
         },
         'src/deck-builder/**': {
-          statements: 38,
-          branches: 30,
-          functions: 38,
-          lines: 40,
+          statements: 47,
+          branches: 38,
+          functions: 49,
+          lines: 49,
         },
       },
     },
