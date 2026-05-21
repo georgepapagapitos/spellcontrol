@@ -1,26 +1,17 @@
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { EnrichedCard } from '@/types';
+import { isCommanderEligibleFrom } from '@spellcontrol/binder-routing';
 
 /**
- * Shape-agnostic commander-eligibility core. A card is commander-eligible
- * iff it is a legendary creature (or its text declares "can be your
- * commander") AND it is legal/restricted in the Commander format.
+ * Commander-eligibility shim. The shape-agnostic core
+ * (`isCommanderEligibleFrom`) and the binder-path `EnrichedCard` overload
+ * (`isCommanderEligible`) live in the isomorphic `@spellcontrol/binder-routing`
+ * package — re-exported here so existing import paths stay stable.
  *
- * Every card-shaped caller (deck-builder ScryfallCard, binder EnrichedCard)
- * funnels through this so the two definitions cannot drift.
+ * `isValidCommander` stays frontend-only: it depends on the deck-builder's
+ * `ScryfallCard` type, which the zero-dep package can't reference. It
+ * delegates to the same core so the two definitions cannot drift.
  */
-export function isCommanderEligibleFrom(
-  typeLine: string,
-  oracleText: string,
-  commanderLegality: string | undefined
-): boolean {
-  const tl = typeLine.toLowerCase();
-  const ot = oracleText.toLowerCase();
-  const isLegendaryCreature = tl.includes('legendary') && tl.includes('creature');
-  const canBeCommander = ot.includes('can be your commander');
-  if (!isLegendaryCreature && !canBeCommander) return false;
-  return commanderLegality === 'legal' || commanderLegality === 'restricted';
-}
+export { isCommanderEligibleFrom, isCommanderEligible } from '@spellcontrol/binder-routing';
 
 /**
  * True if the card is a legal commander: a legendary creature (or a card
@@ -32,18 +23,4 @@ export function isValidCommander(card: ScryfallCard): boolean {
   const oracleText =
     card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
   return isCommanderEligibleFrom(typeLine, oracleText, card.legalities?.commander);
-}
-
-/**
- * Binder-path commander-eligibility check over an EnrichedCard. `typeLine` /
- * `oracleText` already join multi-face cards (per their type docs);
- * `oracleText` is stored lowercased but the core lowercases defensively.
- * Missing fields → not eligible.
- */
-export function isCommanderEligible(card: EnrichedCard): boolean {
-  return isCommanderEligibleFrom(
-    card.typeLine ?? '',
-    card.oracleText ?? '',
-    card.legalities?.commander
-  );
 }

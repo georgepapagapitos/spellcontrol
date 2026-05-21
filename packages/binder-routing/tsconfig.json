@@ -1,0 +1,26 @@
+{
+  // Base config: editor + `typecheck`. Unlike game-core, this package is a
+  // multi-file module graph, so `module: Node16` (in the CJS emit config)
+  // requires explicit `.js` extensions on every relative import. The
+  // CJS/ESM emit configs extend this.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": "dist/cjs",
+    "declarationDir": "dist/types"
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
+}

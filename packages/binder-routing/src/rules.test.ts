@@ -6,8 +6,8 @@ import {
   compileFilter,
   compileFilterGroups,
   isFilterEmpty,
-} from './rules';
-import type { EnrichedCard, BinderFilter, ChipExpression } from '../types';
+} from './rules.js';
+import type { EnrichedCard, BinderFilter, ChipExpression } from './types.js';
 
 /**
  * Test builders for `ChipExpression` — match the legacy chip()/chips()

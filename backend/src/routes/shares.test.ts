@@ -109,13 +109,33 @@ d('POST /api/shares', () => {
     const res = await request(app)
       .post('/api/shares')
       .set('Cookie', cookie)
-      .send({ kind: 'binder' });
+      .send({ kind: 'playmat' });
     expect(res.status).toBe(400);
   });
 
   it('requires resourceId for non-collection kinds', async () => {
     const cookie = await makeUser('share-dan');
     const res = await request(app).post('/api/shares').set('Cookie', cookie).send({ kind: 'deck' });
+    expect(res.status).toBe(400);
+  });
+
+  it('creates a binder share token', async () => {
+    const cookie = await makeUser('share-binder-create');
+    const res = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'binder', resourceId: 'b-1' });
+    expect(res.status).toBe(201);
+    expect(res.body.share.kind).toBe('binder');
+    expect(res.body.share.resourceId).toBe('b-1');
+  });
+
+  it('requires resourceId for kind=binder', async () => {
+    const cookie = await makeUser('share-binder-noid');
+    const res = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'binder' });
     expect(res.status).toBe(400);
   });
 });
@@ -304,6 +324,77 @@ d('GET /api/shares/public/:token — deck', () => {
       .post('/api/shares')
       .set('Cookie', cookie)
       .send({ kind: 'deck', resourceId: 'never-existed' });
+    const token = create.body.share.token as string;
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+function makeBinder(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
+  return {
+    id: 'b-1',
+    name: 'Artifacts',
+    position: 0,
+    filterGroups: [
+      { filter: { typeChips: { chips: [{ value: 'artifact', negate: false }], joiners: [] } } },
+    ],
+    sorts: [{ field: 'color', dir: 'asc' }],
+    pocketSize: 9,
+    doubleSided: false,
+    fixedCapacity: null,
+    color: '#c2a14a',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+    ...overrides,
+  };
+}
+
+d('GET /api/shares/public/:token — binder', () => {
+  it('materializes a single binder and projects its cards', async () => {
+    const cookie = await makeUser('share-pub-binder');
+    await setSnapshot(cookie, 0, {
+      collection: {
+        fileName: 'export.csv',
+        cards: [
+          makeCard({ name: 'Sol Ring', typeLine: 'Artifact' }),
+          makeCard({ name: 'Arcane Signet', typeLine: 'Artifact' }),
+          makeCard({ name: 'Llanowar Elves', typeLine: 'Creature — Elf Druid' }),
+        ],
+        scryfallHits: 3,
+        scryfallMisses: 0,
+        uploadedAt: 1700000000000,
+      },
+      binders: [makeBinder()],
+    });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'binder', resourceId: 'b-1' });
+    const token = create.body.share.token as string;
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.kind).toBe('binder');
+    expect(res.body.data.name).toBe('Artifacts');
+    // Only the two artifacts route into the binder; the creature does not.
+    expect(res.body.data.totalCards).toBe(2);
+    const allCards = res.body.data.sections.flatMap((s: { cards: unknown[] }) => s.cards);
+    expect(allCards).toHaveLength(2);
+    expect(allCards.map((c: { name: string }) => c.name).sort()).toEqual([
+      'Arcane Signet',
+      'Sol Ring',
+    ]);
+    // Internal per-copy fields are stripped.
+    expect(allCards[0].copyId).toBeUndefined();
+    expect(allCards[0].sourceFormat).toBeUndefined();
+  });
+
+  it('404s when the binder id is unknown', async () => {
+    const cookie = await makeUser('share-pub-binder-missing');
+    await setSnapshot(cookie, 0, { binders: [makeBinder()] });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'binder', resourceId: 'no-such-binder' });
     const token = create.body.share.token as string;
     const res = await request(app).get(`/api/shares/public/${token}`);
     expect(res.status).toBe(404);

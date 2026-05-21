@@ -8,6 +8,7 @@ import { shares, userData, users } from '../db/schema';
 import {
   findDeckById,
   findListById,
+  projectBinder,
   projectCollection,
   projectDeck,
   projectList,
@@ -15,9 +16,9 @@ import {
 
 /**
  * Public share-link routes. Token-gated, read-only views of a user's
- * collection / deck / list slice. Binders are intentionally not supported
- * in v1 — binder membership is computed by the frontend rules engine and
- * needs a shared-package extraction before the server can project it.
+ * collection / binder / deck / list slice. Binder membership is computed
+ * server-side via the isomorphic `@spellcontrol/binder-routing` engine —
+ * the same routing logic the frontend runs (see projectBinder).
  */
 export const sharesRouter: Router = Router();
 
@@ -26,10 +27,10 @@ const publicLimiter = isTest
   ? (_req: Request, _res: Response, next: () => void) => next()
   : rateLimit({ windowMs: 60_000, max: 60 });
 
-type ShareKind = 'collection' | 'deck' | 'list';
+type ShareKind = 'collection' | 'binder' | 'deck' | 'list';
 
 function isShareKind(x: unknown): x is ShareKind {
-  return x === 'collection' || x === 'deck' || x === 'list';
+  return x === 'collection' || x === 'binder' || x === 'deck' || x === 'list';
 }
 
 function newToken(): string {
@@ -46,14 +47,16 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   const body = req.body as { kind?: unknown; resourceId?: unknown };
   if (!isShareKind(body.kind)) {
     return res.status(400).json({
-      error: "kind must be one of 'collection', 'deck', or 'list'.",
+      error: "kind must be one of 'collection', 'binder', 'deck', or 'list'.",
     });
   }
   const kind = body.kind;
   const resourceId =
     kind === 'collection' ? '' : typeof body.resourceId === 'string' ? body.resourceId : '';
   if (kind !== 'collection' && !resourceId) {
-    return res.status(400).json({ error: 'resourceId is required for kind=deck and kind=list.' });
+    return res
+      .status(400)
+      .json({ error: 'resourceId is required for kind=binder, kind=deck, and kind=list.' });
   }
 
   const db = getDb();
@@ -173,6 +176,13 @@ sharesRouter.get('/public/:token', publicLimiter, async (req: Request, res: Resp
       return res.status(404).json({ error: 'Share not found.' });
     }
     return res.json({ kind: 'list' as const, data: projected });
+  }
+  if (share.kind === 'binder') {
+    const projected = projectBinder(username, share.resourceId, data.collection, data.binders);
+    if (!projected) {
+      return res.status(404).json({ error: 'Share not found.' });
+    }
+    return res.json({ kind: 'binder' as const, data: projected });
   }
   // Unknown kind in the DB — defensive, shouldn't happen post-validation.
   return res.status(404).json({ error: 'Share not found.' });
