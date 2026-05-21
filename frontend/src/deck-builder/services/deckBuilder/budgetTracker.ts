@@ -1,6 +1,7 @@
 // Tracks deck spend during generation and derives a dynamic per-card price cap.
 // Pure stateful helper (instance state only) — extracted verbatim from
 // deckGenerator.ts for isolation and unit testing.
+import { logger } from '@/lib/logger';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 
@@ -63,7 +64,7 @@ export class BudgetTracker {
       this.cardsRemaining = Math.max(0, this.cardsRemaining - 1);
     }
     const sym = this.currency === 'EUR' ? '€' : '$';
-    console.log(
+    logger.debug(
       `[BudgetTracker] After must-includes: ${sym}${this.remainingBudget.toFixed(2)} remaining for ${this.cardsRemaining} cards`
     );
   }

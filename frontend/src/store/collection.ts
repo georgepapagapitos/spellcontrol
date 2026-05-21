@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -418,7 +419,7 @@ export const useCollectionStore = create<CollectionState>()(
             })
           );
         } catch (err) {
-          console.warn('[store] Failed to persist collection:', err);
+          logger.warn('[store] Failed to persist collection:', err);
           set({
             error:
               'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
@@ -460,7 +461,7 @@ export const useCollectionStore = create<CollectionState>()(
             await saveCollection(buildStored({ ...get() }));
           }
         } catch (err) {
-          console.warn('[store] Failed to persist after deleteImports:', err);
+          logger.warn('[store] Failed to persist after deleteImports:', err);
         }
       },
 
@@ -473,7 +474,7 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
-          console.warn('[store] Failed to persist card update:', err);
+          logger.warn('[store] Failed to persist card update:', err);
         }
       },
 
@@ -489,7 +490,7 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
-          console.warn('[store] Failed to persist after replaceAllCards:', err);
+          logger.warn('[store] Failed to persist after replaceAllCards:', err);
         }
       },
 
@@ -501,7 +502,7 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
-          console.warn('[store] Failed to persist after addCard:', err);
+          logger.warn('[store] Failed to persist after addCard:', err);
         }
         return enriched.copyId;
       },
@@ -548,11 +549,11 @@ export const useCollectionStore = create<CollectionState>()(
           try {
             await saveCollection(buildStored({ ...get() }));
           } catch (err) {
-            console.warn('[store] Failed to persist refreshed prices:', err);
+            logger.warn('[store] Failed to persist refreshed prices:', err);
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Failed to refresh prices';
-          console.warn('[store] refreshPrices failed:', err);
+          logger.warn('[store] refreshPrices failed:', err);
           set({ error: msg });
         } finally {
           set({ isRefreshingPrices: false });
@@ -581,7 +582,7 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           await clearCollection();
         } catch (err) {
-          console.warn('[store] Failed to clear cache:', err);
+          logger.warn('[store] Failed to clear cache:', err);
         }
       },
 
@@ -633,7 +634,7 @@ export const useCollectionStore = create<CollectionState>()(
           try {
             await saveCollection(buildStored({ ...get() }));
           } catch (err) {
-            console.warn('[store] Failed to persist restored collection:', err);
+            logger.warn('[store] Failed to persist restored collection:', err);
             set({
               error:
                 'Backup restored to memory but could not be saved locally. It will be lost if you refresh the page.',
@@ -643,7 +644,7 @@ export const useCollectionStore = create<CollectionState>()(
           try {
             await clearCollection();
           } catch (err) {
-            console.warn('[store] Failed to clear cache during restore:', err);
+            logger.warn('[store] Failed to clear cache during restore:', err);
           }
         }
       },
@@ -869,7 +870,7 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
-          console.warn('[store] Failed to persist collection:', err);
+          logger.warn('[store] Failed to persist collection:', err);
           set({
             error:
               'Change saved in memory but could not be saved locally. It will be lost if you refresh the page.',

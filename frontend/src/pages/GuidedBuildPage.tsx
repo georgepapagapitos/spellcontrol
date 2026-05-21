@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BackLink } from '../components/BackLink';
@@ -194,7 +195,7 @@ export function GuidedBuildPage() {
       );
       navigate(`/decks/${id}`);
     } catch (e) {
-      console.error('[GuidedBuild] build failed:', e);
+      logger.error('[GuidedBuild] build failed:', e);
       setError(e instanceof Error ? e.message : 'Could not build the deck.');
     } finally {
       setIsBuilding(false);

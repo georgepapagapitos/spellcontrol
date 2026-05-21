@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import cookieParser from 'cookie-parser';
 import express, { type Request, type Response } from 'express';
 import helmet from 'helmet';
@@ -93,7 +94,7 @@ app.get('/api/sets', async (_req: Request, res: Response) => {
     res.set('Cache-Control', 'public, max-age=3600');
     res.json({ sets });
   } catch (err) {
-    console.error('[sets] fetch failed:', err);
+    logger.error('[sets] fetch failed:', err);
     res.status(502).json({ error: 'Failed to fetch set list from Scryfall.' });
   }
 });
@@ -153,7 +154,7 @@ app.post(
       if (err instanceof ImportTooLargeError) {
         return res.status(413).json({ error: err.message });
       }
-      console.error('[import] error:', err);
+      logger.error('[import] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({
         error: `Import failed: ${message}. Please check your file format and try again.`,
@@ -242,7 +243,7 @@ app.post(
       if (err instanceof ImportTooLargeError) {
         return res.status(413).json({ error: err.message });
       }
-      console.error('[import-deck] error:', err);
+      logger.error('[import-deck] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({
         error: `Deck import failed: ${message}. Please check the format and try again.`,
@@ -286,7 +287,7 @@ app.get(
 
       res.json({ printings: cards });
     } catch (err) {
-      console.error('[printings] error:', err);
+      logger.error('[printings] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({ error: `Failed to fetch printings: ${message}` });
     }
@@ -317,7 +318,7 @@ app.get(
       if (card) cache.setMany([card]);
       res.json({ card });
     } catch (err) {
-      console.error('[identify] error:', err);
+      logger.error('[identify] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({ error: `Identify failed: ${message}` });
     }
@@ -352,7 +353,7 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
 
     res.json({ prices });
   } catch (err) {
-    console.error('[refresh-prices] error:', err);
+    logger.error('[refresh-prices] error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ error: `Price refresh failed: ${message}.` });
   }
@@ -467,7 +468,7 @@ app.use((err: Error, _req: Request, res: Response, _next: unknown) => {
     res.status(413).json({ error: 'File is too large. Maximum size is 20 MB.' });
     return;
   }
-  console.error('[server] unhandled error:', err);
+  logger.error('[server] unhandled error:', err);
   res.status(500).json({ error: 'Something went wrong on the server. Try again in a moment.' });
 });
 
@@ -485,12 +486,12 @@ function scheduleComboIngest(): void {
     try {
       const lastAt = await lastSuccessfulIngestAt();
       if (lastAt && Date.now() - lastAt < TWENTY_HOURS) {
-        console.log('[combos] skipping ingest — last successful run was recent');
+        logger.info('[combos] skipping ingest — last successful run was recent');
       } else {
         await runScheduledIngest();
       }
     } catch (err) {
-      console.error('[combos] schedule tick failed:', err);
+      logger.error('[combos] schedule tick failed:', err);
     }
   };
 
@@ -503,9 +504,9 @@ async function start() {
   await ensureSchema();
   await promoteAdminsAtBoot();
   const server = app.listen(PORT, () => {
-    console.log(`[server] listening on http://localhost:${PORT}`);
-    console.log(`[server] cache db: ${DB_PATH}`);
-    console.log(`[server] cache stats:`, cache.stats());
+    logger.info(`[server] listening on http://localhost:${PORT}`);
+    logger.info(`[server] cache db: ${DB_PATH}`);
+    logger.info(`[server] cache stats:`, cache.stats());
   });
 
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
@@ -519,7 +520,7 @@ async function start() {
   // hook here. Set OFFLINE_BULK_DISABLED=1 to opt out of the daily refresh.
 
   function shutdown() {
-    console.log('\n[server] shutting down...');
+    logger.info('\n[server] shutting down...');
     server.closeAllConnections();
     server.close(async () => {
       cache.close();
@@ -533,6 +534,6 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error('[server] failed to start:', err);
+  logger.error('[server] failed to start:', err);
   process.exit(1);
 });

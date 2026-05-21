@@ -65,7 +65,7 @@ describe('BudgetTracker deductions', () => {
   });
 
   it('deductMustIncludes subtracts all costs and slots at once', () => {
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
     const t = new BudgetTracker(100, 10);
     t.deductMustIncludes([
       makeCard({ prices: { usd: '5.00' } }),

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import type { EDHRECCard, ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import {
@@ -171,7 +172,7 @@ export function cardRelevancyPhase(
       }
     }
     cardRelevancyMap = relMap;
-    console.log(`[DeckGen] Relevancy map: ${Object.keys(relMap).length} cards scored`);
+    logger.debug(`[DeckGen] Relevancy map: ${Object.keys(relMap).length} cards scored`);
   }
 
   return cardRelevancyMap;
