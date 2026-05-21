@@ -39,6 +39,35 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+  binder-routing:
+    name: binder-routing — typecheck & test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/binder-routing
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: packages/binder-routing/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
   frontend:
     name: Frontend — typecheck & test
     runs-on: ubuntu-latest
@@ -62,6 +91,10 @@ jobs:
       # devDeps. Building it here makes the dist-guarded prepare a no-op.
       - name: Build shared game-core
         working-directory: packages/game-core
+        run: npm ci && npm run build
+
+      - name: Build shared binder-routing
+        working-directory: packages/binder-routing
         run: npm ci && npm run build
 
       - name: Install dependencies
@@ -119,6 +152,10 @@ jobs:
       # consumer install so its dist-guarded prepare is a no-op.
       - name: Build shared game-core
         working-directory: packages/game-core
+        run: npm ci && npm run build
+
+      - name: Build shared binder-routing
+        working-directory: packages/binder-routing
         run: npm ci && npm run build
 
       - name: Install dependencies

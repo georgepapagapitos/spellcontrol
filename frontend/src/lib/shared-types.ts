@@ -4,7 +4,7 @@
  * file is what the frontend renders the SharedView page from.
  */
 
-export type ShareKind = 'collection' | 'deck' | 'list';
+export type ShareKind = 'collection' | 'binder' | 'deck' | 'list';
 
 export interface ShareRow {
   token: string;
@@ -104,7 +104,29 @@ export interface PublicDeck {
   updatedAt?: number;
 }
 
+/** One grouped section of a shared binder (color / type / rarity / … bucket). */
+export interface PublicBinderSection {
+  key: string;
+  label: string;
+  /** Color-pip styling — present only when the binder groups by color. */
+  pip?: { background: string; border: string };
+  cards: PublicCard[];
+}
+
+export interface PublicBinder {
+  ownerUsername: string;
+  id: string;
+  name: string;
+  color: string;
+  /** The binder's live contents, grouped into the owner's sections. */
+  sections: PublicBinderSection[];
+  totalCards: number;
+  totalValue: number;
+  updatedAt?: number;
+}
+
 export type PublicShareResponse =
   | { kind: 'collection'; data: PublicCollection }
+  | { kind: 'binder'; data: PublicBinder }
   | { kind: 'deck'; data: PublicDeck }
   | { kind: 'list'; data: PublicList };

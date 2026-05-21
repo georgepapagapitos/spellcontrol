@@ -217,6 +217,17 @@
   color: var(--text);
 }
 
+/* Color-grouping pip in a shared binder's section heading. */
+.shared-binder-section-pip {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-right: 0.4em;
+  border: 1px solid;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
 /* ── List table ───────────────────────────────────────────────────────── */
 
 .shared-list-table {
