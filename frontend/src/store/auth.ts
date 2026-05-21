@@ -19,6 +19,12 @@ interface AuthState {
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  /**
+   * Permanently delete the account: hit DELETE /api/auth/me, then tear down
+   * sync and wipe the local cache. Resolves to false (and sets `error`) if the
+   * server call fails, so the caller can keep the user signed in.
+   */
+  deleteAccount: () => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -79,6 +85,25 @@ export const useAuth = create<AuthState>((set) => ({
     }
     await stopSyncAndWipeLocal();
     set({ user: null, status: 'guest', error: null });
+  },
+
+  deleteAccount: async () => {
+    set({ error: null });
+    try {
+      // Delete server-side first. Crucially we do NOT flushSync() beforehand —
+      // unlike logout, pushing the soon-to-be-deleted snapshot is exactly the
+      // wrong move. If the call fails the user stays signed in with data intact.
+      await authApi.deleteAccount();
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Could not delete account.' });
+      return false;
+    }
+    // Server rows are gone and the cookie is cleared. stopSyncAndWipeLocal
+    // detaches subscribers (cancelling any pending debounced push) and clears
+    // the zustand-persist + IndexedDB cache so nothing can re-push it.
+    await stopSyncAndWipeLocal();
+    set({ user: null, status: 'guest', error: null });
+    return true;
   },
 
   clearError: () => set({ error: null }),
