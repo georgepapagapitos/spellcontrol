@@ -1,4 +1,5 @@
 import type { ScryfallCard, ScryfallSearchResponse } from '@/deck-builder/types';
+import type { CardRepository, CardSearchOptions, CardFetchProgress } from './card-repository';
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
@@ -141,14 +142,8 @@ async function scryfallFetch<T>(endpoint: string): Promise<T> {
   return response.json();
 }
 
-export async function searchCommanders(query: string): Promise<ScryfallCard[]> {
+async function liveSearchCommanders(query: string): Promise<ScryfallCard[]> {
   if (!query.trim()) return [];
-
-  if (offlineActive()) {
-    const resp = await offlineSearchCards(`is:commander ${query}`, { order: 'edhrec' });
-    return resp.data;
-  }
-
   try {
     const encodedQuery = encodeURIComponent(`is:commander f:commander ${query}`);
     const response = await scryfallFetch<ScryfallSearchResponse>(
@@ -161,27 +156,22 @@ export async function searchCommanders(query: string): Promise<ScryfallCard[]> {
   }
 }
 
-export async function searchCards(
+async function offlineSearchCommanders(query: string): Promise<ScryfallCard[]> {
+  if (!query.trim()) return [];
+  const resp = await offlineSearchCards(`is:commander ${query}`, { order: 'edhrec' });
+  return resp.data;
+}
+
+export async function searchCommanders(query: string): Promise<ScryfallCard[]> {
+  return getCardRepository().searchCommanders(query);
+}
+
+async function liveSearchCards(
   query: string,
   colorIdentity: string[],
-  options: {
-    order?: 'edhrec' | 'cmc' | 'name';
-    page?: number;
-    skipFormatFilter?: boolean;
-    skipColorFilter?: boolean;
-  } = {}
+  options: CardSearchOptions = {}
 ): Promise<ScryfallSearchResponse> {
   const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
-
-  if (offlineActive()) {
-    return offlineSearchCards(query, {
-      colorIdentity,
-      order,
-      page,
-      skipFormatFilter,
-      skipColorFilter,
-    });
-  }
 
   const colorFilter =
     !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
@@ -205,27 +195,58 @@ export async function searchCards(
   return result;
 }
 
-export async function getCardByName(name: string, exact = true): Promise<ScryfallCard> {
-  // Check cache first
+function offlineSearchCardsImpl(
+  query: string,
+  colorIdentity: string[],
+  options: CardSearchOptions = {}
+): Promise<ScryfallSearchResponse> {
+  const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
+  return offlineSearchCards(query, {
+    colorIdentity,
+    order,
+    page,
+    skipFormatFilter,
+    skipColorFilter,
+  });
+}
+
+export async function searchCards(
+  query: string,
+  colorIdentity: string[],
+  options: CardSearchOptions = {}
+): Promise<ScryfallSearchResponse> {
+  return getCardRepository().searchCards(query, colorIdentity, options);
+}
+
+async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCard> {
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);
-
-  if (offlineActive()) {
-    const card = await offlineGetCardByName(name);
-    if (!card) {
-      throw new Error(`Card "${name}" not found in offline data.`);
-    }
-    cardCache.set(card.name, card);
-    return freshCopy(card);
-  }
 
   const param = exact ? 'exact' : 'fuzzy';
   const encodedName = encodeURIComponent(name);
   const card = await scryfallFetch<ScryfallCard>(`/cards/named?${param}=${encodedName}`);
 
-  // Cache the result
   cardCache.set(card.name, card);
   return freshCopy(card);
+}
+
+async function offlineGetCardByNameImpl(name: string): Promise<ScryfallCard> {
+  const cached = cardCache.get(name);
+  if (cached) return freshCopy(cached);
+
+  const card = await offlineGetCardByName(name);
+  if (!card || !isPlayableCard(card)) {
+    // A non-playable hit means the offline name index resolved to an art card
+    // shadowing the real one (poisoned pre-#304 bulk). Treat it as a miss and
+    // don't cache it — resolved for good once the client re-syncs.
+    throw new Error(`Card "${name}" not found in offline data.`);
+  }
+  cardCache.set(card.name, card);
+  return freshCopy(card);
+}
+
+export async function getCardByName(name: string, exact = true): Promise<ScryfallCard> {
+  return getCardRepository().getCardByName(name, exact);
 }
 
 /**
@@ -287,55 +308,64 @@ async function fetchCardByNameThrottled(name: string, retries = 2): Promise<Scry
   }
 }
 
-/**
- * Batch fetch multiple cards by name using Scryfall's /cards/collection endpoint.
- * Fetches up to 75 cards per request, drastically reducing API calls vs individual lookups.
- *
- * @param names Array of card names to fetch
- * @returns Map of card name -> ScryfallCard for found cards
- */
-export async function getCardsByNames(
+/** Split requested names into already-cached results and the names still to fetch. */
+function partitionCachedCards(
   names: string[],
-  onProgress?: (fetched: number, total: number) => void,
   preferredSet?: string
-): Promise<Map<string, ScryfallCard>> {
+): { result: Map<string, ScryfallCard>; uncachedNames: string[] } {
   const result = new Map<string, ScryfallCard>();
-
-  if (names.length === 0) return result;
-
-  // Check cache first and collect uncached names
   const uncachedNames: string[] = [];
   for (const name of names) {
-    // When a preferred set is specified, use a composite cache key
+    // When a preferred set is specified, use a composite cache key.
     const cacheKey = preferredSet ? `${name}|${preferredSet}` : name;
     const cached = cardCache.get(cacheKey);
-    if (cached) {
-      result.set(name, freshCopy(cached));
-    } else {
-      uncachedNames.push(name);
-    }
+    if (cached) result.set(name, freshCopy(cached));
+    else uncachedNames.push(name);
   }
+  return { result, uncachedNames };
+}
 
-  // If all cards were cached, return early
+/**
+ * Offline batch resolve: walk the local oracle store. `preferredSet` is ignored
+ * — the slim payload keeps one representative printing per oracle, and that
+ * degradation is acceptable for offline mode.
+ */
+async function offlineGetCardsByNamesImpl(
+  names: string[],
+  onProgress?: CardFetchProgress
+): Promise<Map<string, ScryfallCard>> {
+  const { result, uncachedNames } = partitionCachedCards(names);
   if (uncachedNames.length === 0) return result;
 
-  // Offline path: resolve everything against the local oracle store. We
-  // ignore `preferredSet` (slim payload keeps a single representative
-  // printing per oracle) — degradation is acceptable for offline mode.
-  if (offlineActive()) {
-    const found = await offlineGetCardsByNames(uncachedNames);
-    for (const [name, card] of found) {
-      cardCache.set(name, card);
-      result.set(name, freshCopy(card));
-      if (card.name.includes(' // ')) {
-        const front = card.name.split(' // ')[0];
-        result.set(front, freshCopy(card));
-        cardCache.set(front, card);
-      }
+  const found = await offlineGetCardsByNames(uncachedNames);
+  for (const [name, card] of found) {
+    // Skip poisoned pre-#304 offline rows so they never enter the cache or result.
+    if (!isPlayableCard(card)) continue;
+    cardCache.set(name, card);
+    result.set(name, freshCopy(card));
+    if (card.name.includes(' // ')) {
+      const front = card.name.split(' // ')[0];
+      result.set(front, freshCopy(card));
+      cardCache.set(front, card);
     }
-    onProgress?.(uncachedNames.length, uncachedNames.length);
-    return result;
   }
+  onProgress?.(uncachedNames.length, uncachedNames.length);
+  return result;
+}
+
+/**
+ * Live batch fetch via Scryfall's /cards/collection endpoint.
+ * Fetches up to 75 cards per request, drastically reducing API calls vs individual lookups.
+ */
+async function liveGetCardsByNames(
+  names: string[],
+  onProgress?: CardFetchProgress,
+  preferredSet?: string
+): Promise<Map<string, ScryfallCard>> {
+  if (names.length === 0) return new Map();
+
+  const { result, uncachedNames } = partitionCachedCards(names, preferredSet);
+  if (uncachedNames.length === 0) return result;
 
   console.log(
     `[Scryfall] Fetching ${uncachedNames.length} cards via /cards/collection${preferredSet ? ` (set: ${preferredSet})` : ''}...`
@@ -493,7 +523,25 @@ export async function getCardsByNames(
   return result;
 }
 
+export async function getCardsByNames(
+  names: string[],
+  onProgress?: CardFetchProgress,
+  preferredSet?: string
+): Promise<Map<string, ScryfallCard>> {
+  return getCardRepository().getCardsByNames(names, onProgress, preferredSet);
+}
+
 const UPGRADE_BATCH_SIZE = 15; // Card names per search query for printing upgrades
+
+/**
+ * Offline upgrade: a no-op. The slim payload stores one representative printing
+ * per oracle, so we can't upgrade to a specific frame/treatment — cards keep
+ * their default printing. Strict mode also degrades to a no-op since we can't
+ * reliably detect "no matching printing exists" without the data.
+ */
+async function offlineUpgradeCardPrintings(): Promise<void> {
+  /* intentionally empty — see doc comment */
+}
 
 /**
  * Upgrade card printings in a map to match non-set Scryfall filters (e.g. is:full-art, frame:extendedart).
@@ -501,18 +549,12 @@ const UPGRADE_BATCH_SIZE = 15; // Card names per search query for printing upgra
  * Set-based filters (set:xxx) are stripped since those are handled by getCardsByNames.
  * When strict=true, cards without a matching printing are REMOVED from the map.
  */
-export async function upgradeCardPrintings(
+async function liveUpgradeCardPrintings(
   cards: Map<string, ScryfallCard>,
   scryfallQuery: string,
   strict: boolean = false
 ): Promise<void> {
   if (!scryfallQuery) return;
-
-  // Offline: the slim payload stores one representative printing per oracle,
-  // so we can't upgrade to a specific frame/treatment. Skip silently — cards
-  // keep their default printing. Strict mode also degrades to a no-op since
-  // we can't reliably detect "no matching printing exists" without the data.
-  if (offlineActive()) return;
 
   // Strip set filters — already handled by getCardsByNames' preferredSet
   const filters = scryfallQuery
@@ -631,6 +673,14 @@ export async function upgradeCardPrintings(
   }
 }
 
+export async function upgradeCardPrintings(
+  cards: Map<string, ScryfallCard>,
+  scryfallQuery: string,
+  strict: boolean = false
+): Promise<void> {
+  return getCardRepository().upgradeCardPrintings(cards, scryfallQuery, strict);
+}
+
 /**
  * Pre-cache basic lands for faster deck generation.
  * Call this once at the start of deck generation.
@@ -659,21 +709,10 @@ let gameChangerCacheTimestamp = 0;
 const GC_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 /**
- * Fetch all game changer card names from Scryfall.
- * Uses `is:gamechanger` search and paginates through all results.
+ * Live fetch of all `is:gamechanger` card names from Scryfall, paginated.
  */
-export async function getGameChangerNames(): Promise<Set<string>> {
+async function liveGetGameChangerNames(): Promise<Set<string>> {
   if (gameChangerNamesCache && Date.now() - gameChangerCacheTimestamp < GC_CACHE_TTL) {
-    return gameChangerNamesCache;
-  }
-
-  // Offline: the slim payload doesn't carry the `is:gamechanger` bit (Scryfall
-  // computes it dynamically). Return the empty set so deck-gen treats no card
-  // as a "game changer" rather than blocking on a network call that can't
-  // complete. Acceptable degradation per the offline-mode contract.
-  if (offlineActive()) {
-    gameChangerNamesCache = new Set();
-    gameChangerCacheTimestamp = Date.now();
     return gameChangerNamesCache;
   }
 
@@ -706,31 +745,36 @@ export async function getGameChangerNames(): Promise<Set<string>> {
   return names;
 }
 
+/**
+ * Offline game-changer names: the empty set. The slim payload doesn't carry the
+ * `is:gamechanger` bit (Scryfall computes it dynamically), so deck-gen treats no
+ * card as a game changer rather than blocking on an impossible network call.
+ * Acceptable degradation per the offline-mode contract.
+ */
+async function offlineGetGameChangerNames(): Promise<Set<string>> {
+  if (gameChangerNamesCache && Date.now() - gameChangerCacheTimestamp < GC_CACHE_TTL) {
+    return gameChangerNamesCache;
+  }
+  gameChangerNamesCache = new Set();
+  gameChangerCacheTimestamp = Date.now();
+  return gameChangerNamesCache;
+}
+
+export async function getGameChangerNames(): Promise<Set<string>> {
+  return getCardRepository().getGameChangerNames();
+}
+
 // Cached ban list results by format
 const banListCache = new Map<string, { names: string[]; timestamp: number }>();
 const BAN_CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 /**
- * Fetch all cards banned in a given format from Scryfall.
- * Uses `banned:<format>` search and paginates through all results.
+ * Live fetch of all cards banned in a given format, paginated.
  */
-export async function getBanList(format: string): Promise<string[]> {
+async function liveGetBanList(format: string): Promise<string[]> {
   const cached = banListCache.get(format);
   if (cached && Date.now() - cached.timestamp < BAN_CACHE_TTL) {
     return cached.names;
-  }
-
-  // Offline: walk the local oracle store and pluck rows where the format's
-  // legality is "banned". Single pass, no pagination.
-  if (offlineActive()) {
-    const resp = await offlineSearchCards(`banned:${format}`, {
-      skipFormatFilter: true,
-      skipColorFilter: true,
-      order: 'name',
-    });
-    const names = resp.data.map((c) => c.name);
-    banListCache.set(format, { names, timestamp: Date.now() });
-    return names;
   }
 
   const names: string[] = [];
@@ -756,38 +800,70 @@ export async function getBanList(format: string): Promise<string[]> {
   return names;
 }
 
+/**
+ * Offline ban list: walk the local oracle store and pluck rows where the
+ * format's legality is "banned". Single pass, no pagination.
+ */
+async function offlineGetBanList(format: string): Promise<string[]> {
+  const cached = banListCache.get(format);
+  if (cached && Date.now() - cached.timestamp < BAN_CACHE_TTL) {
+    return cached.names;
+  }
+  const resp = await offlineSearchCards(`banned:${format}`, {
+    skipFormatFilter: true,
+    skipColorFilter: true,
+    order: 'name',
+  });
+  const names = resp.data.map((c) => c.name);
+  banListCache.set(format, { names, timestamp: Date.now() });
+  return names;
+}
+
+/**
+ * Fetch all cards banned in a given format.
+ */
+export async function getBanList(format: string): Promise<string[]> {
+  return getCardRepository().getBanList(format);
+}
+
 /** Convenience alias for commander ban list */
 export async function getCommanderBanList(): Promise<string[]> {
   return getBanList('commander');
 }
 
-export async function autocompleteCardName(query: string): Promise<string[]> {
+async function liveAutocompleteCardName(query: string): Promise<string[]> {
   if (!query.trim() || query.length < 2) return [];
-
-  if (offlineActive()) {
-    // Local prefix-and-contains autocomplete: prefixes ranked above substring
-    // hits, capped at 20 so the dropdown stays tight.
-    const lower = query.toLowerCase();
-    const resp = await offlineSearchCards(lower, {
-      skipFormatFilter: true,
-      skipColorFilter: true,
-      order: 'name',
-    });
-    const prefix: string[] = [];
-    const contains: string[] = [];
-    for (const card of resp.data) {
-      const lc = card.name.toLowerCase();
-      if (lc.startsWith(lower)) prefix.push(card.name);
-      else if (lc.includes(lower)) contains.push(card.name);
-      if (prefix.length >= 20) break;
-    }
-    return [...prefix, ...contains].slice(0, 20);
-  }
-
   const encodedQuery = encodeURIComponent(query);
   const response = await scryfallFetch<{ data: string[] }>(`/cards/autocomplete?q=${encodedQuery}`);
-
   return response.data;
+}
+
+/**
+ * Offline autocomplete: local prefix-and-contains match against the oracle
+ * store. Prefixes rank above substring hits, capped at 20 so the dropdown
+ * stays tight.
+ */
+async function offlineAutocompleteCardName(query: string): Promise<string[]> {
+  if (!query.trim() || query.length < 2) return [];
+  const lower = query.toLowerCase();
+  const resp = await offlineSearchCards(lower, {
+    skipFormatFilter: true,
+    skipColorFilter: true,
+    order: 'name',
+  });
+  const prefix: string[] = [];
+  const contains: string[] = [];
+  for (const card of resp.data) {
+    const lc = card.name.toLowerCase();
+    if (lc.startsWith(lower)) prefix.push(card.name);
+    else if (lc.includes(lower)) contains.push(card.name);
+    if (prefix.length >= 20) break;
+  }
+  return [...prefix, ...contains].slice(0, 20);
+}
+
+export async function autocompleteCardName(query: string): Promise<string[]> {
+  return getCardRepository().autocompleteCardName(query);
 }
 
 // Helper to get image URL with fallback for double-faced cards
@@ -1035,60 +1111,161 @@ const WORD_TO_NUMBER: Record<string, number> = {
 // Cached result so we only query Scryfall once per session
 let multiCopyCardsCache: Map<string, number | null> | null = null;
 
-/**
- * Fetches all cards with "a deck can have any number/up to N" oracle text from Scryfall.
- * Returns a map of card name → maxCopies (null = unlimited).
- * Results are cached for the session — only one API call ever made.
- */
-export async function fetchMultiCopyCardNames(): Promise<Map<string, number | null>> {
-  if (multiCopyCardsCache) return multiCopyCardsCache;
-
-  const result = new Map<string, number | null>();
-
-  if (offlineActive()) {
-    const resp = await offlineSearchCards('o:"a deck can have"', { skipColorFilter: true });
-    for (const card of resp.data) {
-      const oracle = (card.oracle_text || card.card_faces?.[0]?.oracle_text || '').toLowerCase();
-      if (oracle.includes('any number of cards named')) {
-        result.set(card.name, null);
-        continue;
-      }
-      const capMatch = oracle.match(/a deck can have up to (\w+) cards named/);
-      if (capMatch) {
-        const num = WORD_TO_NUMBER[capMatch[1]] ?? parseInt(capMatch[1], 10);
-        result.set(card.name, isNaN(num) ? null : num);
-      }
-    }
-    multiCopyCardsCache = result;
-    return result;
+/** Parse a copy-limit phrase from oracle text into a map entry. */
+function recordMultiCopy(result: Map<string, number | null>, name: string, oracleText: string) {
+  const oracle = oracleText.toLowerCase();
+  // "a deck can have any number of cards named X" → unlimited
+  if (oracle.includes('any number of cards named')) {
+    result.set(name, null);
+    return;
   }
+  // "a deck can have up to seven cards named X" → parse the number
+  const capMatch = oracle.match(/a deck can have up to (\w+) cards named/);
+  if (capMatch) {
+    const num = WORD_TO_NUMBER[capMatch[1]] ?? parseInt(capMatch[1], 10);
+    result.set(name, isNaN(num) ? null : num);
+  }
+}
 
+async function liveFetchMultiCopyCardNames(): Promise<Map<string, number | null>> {
+  if (multiCopyCardsCache) return multiCopyCardsCache;
+  const result = new Map<string, number | null>();
   try {
     const encodedQuery = encodeURIComponent('o:"a deck can have" f:commander');
     const response = await scryfallFetch<ScryfallSearchResponse>(
       `/cards/search?q=${encodedQuery}&unique=cards`
     );
-
     for (const card of response.data) {
-      const oracle = (card.oracle_text || card.card_faces?.[0]?.oracle_text || '').toLowerCase();
-
-      // "a deck can have any number of cards named X" → unlimited
-      if (oracle.includes('any number of cards named')) {
-        result.set(card.name, null);
-        continue;
-      }
-
-      // "a deck can have up to seven cards named X" → parse the number
-      const capMatch = oracle.match(/a deck can have up to (\w+) cards named/);
-      if (capMatch) {
-        const num = WORD_TO_NUMBER[capMatch[1]] ?? parseInt(capMatch[1], 10);
-        result.set(card.name, isNaN(num) ? null : num);
-      }
+      recordMultiCopy(
+        result,
+        card.name,
+        card.oracle_text || card.card_faces?.[0]?.oracle_text || ''
+      );
     }
   } catch (error) {
     console.warn('[Scryfall] Failed to fetch multi-copy card list:', error);
   }
-
   multiCopyCardsCache = result;
   return result;
+}
+
+async function offlineFetchMultiCopyCardNames(): Promise<Map<string, number | null>> {
+  if (multiCopyCardsCache) return multiCopyCardsCache;
+  const result = new Map<string, number | null>();
+  const resp = await offlineSearchCards('o:"a deck can have"', { skipColorFilter: true });
+  for (const card of resp.data) {
+    recordMultiCopy(result, card.name, card.oracle_text || card.card_faces?.[0]?.oracle_text || '');
+  }
+  multiCopyCardsCache = result;
+  return result;
+}
+
+/**
+ * Fetches all cards with "a deck can have any number/up to N" oracle text.
+ * Returns a map of card name → maxCopies (null = unlimited).
+ * Results are cached for the session — only one lookup ever made.
+ */
+export async function fetchMultiCopyCardNames(): Promise<Map<string, number | null>> {
+  return getCardRepository().fetchMultiCopyCardNames();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Repository assembly — the ONLY live/offline fork
+//
+// Every exported card-fetch function above delegates to `getCardRepository()`.
+// That function is the single point where the live-vs-offline decision is made,
+// replacing what used to be an `if (offlineActive())` branch inside each
+// function (where a fix applied to one branch reliably missed the other — see
+// the art-series leak). Both implementations satisfy `CardRepository` and are
+// held to one shared contract test.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Live implementation — hits the Scryfall API. */
+export const liveCardRepository: CardRepository = {
+  searchCommanders: liveSearchCommanders,
+  searchCards: liveSearchCards,
+  getCardByName: liveGetCardByName,
+  getCardsByNames: liveGetCardsByNames,
+  upgradeCardPrintings: liveUpgradeCardPrintings,
+  getGameChangerNames: liveGetGameChangerNames,
+  getBanList: liveGetBanList,
+  autocompleteCardName: liveAutocompleteCardName,
+  fetchMultiCopyCardNames: liveFetchMultiCopyCardNames,
+};
+
+/** Offline implementation — reads the local IndexedDB oracle store. */
+export const offlineCardRepository: CardRepository = {
+  searchCommanders: offlineSearchCommanders,
+  searchCards: offlineSearchCardsImpl,
+  getCardByName: offlineGetCardByNameImpl,
+  getCardsByNames: offlineGetCardsByNamesImpl,
+  upgradeCardPrintings: offlineUpgradeCardPrintings,
+  getGameChangerNames: offlineGetGameChangerNames,
+  getBanList: offlineGetBanList,
+  autocompleteCardName: offlineAutocompleteCardName,
+  fetchMultiCopyCardNames: offlineFetchMultiCopyCardNames,
+};
+
+/**
+ * Wrap a repository so non-playable layouts (art cards, tokens, emblems, ...)
+ * can never escape *any* card-returning method. This is the single enforcement
+ * point for `isPlayableCard` — applied identically to both implementations, so
+ * a filter can no longer be half-applied to one path. Methods that return
+ * names/strings rather than card objects pass through untouched.
+ */
+export function withPlayableFilter(repo: CardRepository): CardRepository {
+  return {
+    getGameChangerNames: repo.getGameChangerNames,
+    getBanList: repo.getBanList,
+    autocompleteCardName: repo.autocompleteCardName,
+    fetchMultiCopyCardNames: repo.fetchMultiCopyCardNames,
+
+    async searchCommanders(query) {
+      return (await repo.searchCommanders(query)).filter(isPlayableCard);
+    },
+    async searchCards(query, colorIdentity, options) {
+      const res = await repo.searchCards(query, colorIdentity, options);
+      return { ...res, data: res.data.filter(isPlayableCard) };
+    },
+    async getCardByName(name, exact) {
+      const card = await repo.getCardByName(name, exact);
+      if (!isPlayableCard(card)) {
+        throw new Error(
+          `Card "${name}" resolved to a non-playable ${card.layout ?? 'unknown'} printing.`
+        );
+      }
+      return card;
+    },
+    async getCardsByNames(names, onProgress, preferredSet) {
+      const map = await repo.getCardsByNames(names, onProgress, preferredSet);
+      for (const [key, card] of map) {
+        if (!isPlayableCard(card)) map.delete(key);
+      }
+      return map;
+    },
+    async upgradeCardPrintings(cards, scryfallQuery, strict) {
+      await repo.upgradeCardPrintings(cards, scryfallQuery, strict);
+      for (const [key, card] of cards) {
+        if (!isPlayableCard(card)) cards.delete(key);
+      }
+    },
+  };
+}
+
+let wrappedLive: CardRepository | null = null;
+let wrappedOffline: CardRepository | null = null;
+
+/**
+ * The single live/offline fork. Returns the playable-filtered repository for
+ * the current mode. Selection is per-call because offline data can finish
+ * downloading mid-session; the wrapped repos are memoized so the wrapper isn't
+ * rebuilt on every card fetch.
+ */
+export function getCardRepository(): CardRepository {
+  if (offlineActive()) {
+    wrappedOffline ??= withPlayableFilter(offlineCardRepository);
+    return wrappedOffline;
+  }
+  wrappedLive ??= withPlayableFilter(liveCardRepository);
+  return wrappedLive;
 }
