@@ -7,6 +7,9 @@ import {
   ShareNotFoundError,
   shareUrl,
 } from './share-client';
+import { isNativePlatform } from './platform';
+
+vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => false) }));
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -86,7 +89,16 @@ describe('fetchPublicShare', () => {
 });
 
 describe('shareUrl', () => {
-  it('builds an absolute URL using window.location.origin', () => {
+  beforeEach(() => {
+    vi.mocked(isNativePlatform).mockReturnValue(false);
+  });
+
+  it('builds an absolute URL using window.location.origin on web', () => {
     expect(shareUrl('abc123')).toMatch(/\/s\/abc123$/);
+  });
+
+  it('uses the public web origin on native (WebView origin is unusable)', () => {
+    vi.mocked(isNativePlatform).mockReturnValue(true);
+    expect(shareUrl('abc123')).toBe('https://spellcontrol.com/s/abc123');
   });
 });

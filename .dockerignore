@@ -15,3 +15,6 @@ docker-compose*.yml
 **/Dockerfile
 .dockerignore
 .claude
+# Native Capacitor projects — not needed for the web build the image serves.
+frontend/android
+frontend/ios
