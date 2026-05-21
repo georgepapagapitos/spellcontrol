@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getSectionMeta, ALL_SECTION } from './sections';
-import type { EnrichedCard, SortField } from '../types';
+import { getSectionMeta, ALL_SECTION } from './sections.js';
+import type { EnrichedCard, SortField } from './types.js';
 
 function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {

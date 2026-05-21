@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getCardType, parseTypeLine, TYPE_ORDER } from './card-types';
-import type { EnrichedCard } from '../types';
+import { getCardType, parseTypeLine, TYPE_ORDER } from './card-types.js';
+import type { EnrichedCard } from './types.js';
 
 function makeCard(typeLine?: string): EnrichedCard {
   return {
