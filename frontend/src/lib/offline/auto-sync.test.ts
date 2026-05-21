@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { autoSyncOfflineData } from './auto-sync';
+import { autoSyncOfflineData, registerOfflineSyncOnResume } from './auto-sync';
 import { useOfflineStore } from '@/store/offline';
 import type { OfflineManifest } from './types';
 
@@ -8,8 +8,15 @@ vi.mock('@/lib/platform', () => ({
   isNativePlatform: vi.fn(() => true),
 }));
 
+vi.mock('@capacitor/app', () => ({
+  App: { addListener: vi.fn(async () => ({ remove: vi.fn() })) },
+}));
+
 const platform = await import('@/lib/platform');
 const isNativePlatform = vi.mocked(platform.isNativePlatform);
+
+const capacitorApp = await import('@capacitor/app');
+const addListener = vi.mocked(capacitorApp.App.addListener);
 
 const LAST_CHECK_KEY = 'spellcontrol-offline-last-check';
 
@@ -77,24 +84,24 @@ describe('autoSyncOfflineData', () => {
     expect(sync).toHaveBeenCalledTimes(1);
   });
 
-  it('triggers sync when the last manifest check was more than 24h ago', async () => {
+  it('triggers sync when the last manifest check is older than the recheck interval', async () => {
     useOfflineStore.setState({
       bootstrapped: true,
       manifest: fakeManifest(),
       stats: { cardCount: 100, comboCount: 50 },
     });
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 25 * 60 * 60 * 1000));
+    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 4 * 60 * 60 * 1000));
     await autoSyncOfflineData();
     expect(sync).toHaveBeenCalledTimes(1);
   });
 
-  it('skips sync when local data is populated and the last check is within 24h', async () => {
+  it('skips sync when local data is populated and the last check is recent', async () => {
     useOfflineStore.setState({
       bootstrapped: true,
       manifest: fakeManifest(),
       stats: { cardCount: 100, comboCount: 50 },
     });
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 60 * 60 * 1000));
+    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 30 * 60 * 1000));
     await autoSyncOfflineData();
     expect(sync).not.toHaveBeenCalled();
   });
@@ -123,7 +130,7 @@ describe('autoSyncOfflineData', () => {
       manifest: fakeManifest(),
       stats: { cardCount: 100, comboCount: 50 },
     });
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 25 * 60 * 60 * 1000));
+    localStorage.setItem(LAST_CHECK_KEY, String(Date.now() - 4 * 60 * 60 * 1000));
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     await autoSyncOfflineData();
     expect(info).toHaveBeenCalledWith(expect.stringContaining('cache stale'));
@@ -182,6 +189,41 @@ describe('autoSyncOfflineData', () => {
       expect(sync).not.toHaveBeenCalled();
       expect(persist).not.toHaveBeenCalled();
       expect(localStorage.getItem(LAST_CHECK_KEY)).toBeNull();
+    });
+  });
+
+  describe('registerOfflineSyncOnResume', () => {
+    beforeEach(() => {
+      addListener.mockClear();
+      addListener.mockResolvedValue({ remove: vi.fn() } as never);
+    });
+
+    it('does not register a listener on web', () => {
+      isNativePlatform.mockReturnValue(false);
+      const cleanup = registerOfflineSyncOnResume();
+      expect(addListener).not.toHaveBeenCalled();
+      expect(() => cleanup()).not.toThrow();
+    });
+
+    it('registers a resume listener on native', () => {
+      registerOfflineSyncOnResume();
+      expect(addListener).toHaveBeenCalledWith('resume', expect.any(Function));
+    });
+
+    it('re-runs the offline sync when the app resumes', async () => {
+      useOfflineStore.setState({ bootstrapped: true });
+      registerOfflineSyncOnResume();
+      const resumeCb = addListener.mock.calls[0][1] as () => void;
+      resumeCb();
+      await vi.waitFor(() => expect(sync).toHaveBeenCalled());
+    });
+
+    it('removes the listener on cleanup', async () => {
+      const remove = vi.fn();
+      addListener.mockResolvedValueOnce({ remove } as never);
+      const cleanup = registerOfflineSyncOnResume();
+      cleanup();
+      await vi.waitFor(() => expect(remove).toHaveBeenCalled());
     });
   });
 });

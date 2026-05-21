@@ -1,8 +1,15 @@
+import { App as CapacitorApp } from '@capacitor/app';
 import { useOfflineStore } from '@/store/offline';
 import { isNativePlatform } from '@/lib/platform';
 
 const LAST_CHECK_KEY = 'spellcontrol-offline-last-check';
-const ONCE_PER_DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Minimum gap between manifest checks. Short on purpose: the manifest request
+ * is tiny and ETag-cached, and `autoSyncOfflineData` also runs on every app
+ * resume — so a server-side data fix reaches an actively-used device within a
+ * few hours without the user ever touching a setting.
+ */
+const MIN_RECHECK_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Silently keep the local card catalog + combo dataset fresh in the
@@ -23,10 +30,14 @@ const ONCE_PER_DAY_MS = 24 * 60 * 60 * 1000;
  *   2. **Refresh.** Triggered when local IDB has no card rows (first
  *      sign-in OR the OS evicted the database — iOS Safari purges IDB
  *      after ~14 days of inactivity) OR the last successful manifest check
- *      was more than 24h ago. The server-side manifest endpoint is cheap
- *      (~5min Cache-Control) and the bulk endpoint short-circuits on ETag,
- *      so an up-to-date device pays one tiny HEAD-ish request and nothing
- *      else.
+ *      is older than `MIN_RECHECK_INTERVAL_MS`. The server-side manifest
+ *      endpoint is cheap (~5min Cache-Control) and the bulk endpoint
+ *      short-circuits on ETag, so an up-to-date device pays one tiny
+ *      HEAD-ish request and nothing else.
+ *
+ * Runs on every authed mount AND on every app resume (see
+ * `registerOfflineSyncOnResume`), so a server-side data fix propagates to an
+ * active device within `MIN_RECHECK_INTERVAL_MS` — no user action needed.
  *
  * Critically, the data-availability check looks at the *actual* IDB card
  * count (`stats.cardCount`), not the manifest. A leftover manifest from a
@@ -60,7 +71,7 @@ export async function autoSyncOfflineData(): Promise<void> {
   const localCardCount = fresh.stats?.cardCount ?? 0;
   const hasLocalData = localCardCount > 0;
   const lastCheck = readLastCheck();
-  const stale = !lastCheck || Date.now() - lastCheck > ONCE_PER_DAY_MS;
+  const stale = !lastCheck || Date.now() - lastCheck > MIN_RECHECK_INTERVAL_MS;
 
   if (!hasLocalData) {
     // A manifest without cards is the eviction tell — IDB was wiped but the
@@ -72,7 +83,7 @@ export async function autoSyncOfflineData(): Promise<void> {
       console.info('[offline] no local card data — downloading');
     }
   } else if (stale) {
-    console.info('[offline] cache stale (>24h since last check) — refreshing');
+    console.info('[offline] cache stale — checking for a newer manifest');
   }
 
   if (!hasLocalData || stale) {
@@ -83,6 +94,26 @@ export async function autoSyncOfflineData(): Promise<void> {
       // sync() already records errors on the store; swallow here.
     }
   }
+}
+
+/**
+ * Register a Capacitor `resume` listener that re-runs `autoSyncOfflineData`
+ * whenever the app returns to the foreground. Combined with the short
+ * `MIN_RECHECK_INTERVAL_MS` throttle this keeps the local catalog fresh
+ * without the user ever asking — the cold-mount check alone could leave a
+ * long-lived session stuck on stale data.
+ *
+ * Native-only and idempotent (the throttle no-ops resumes that are too close
+ * together). Returns a cleanup function for the caller's effect teardown.
+ */
+export function registerOfflineSyncOnResume(): () => void {
+  if (!isNativePlatform()) return () => {};
+  const handle = CapacitorApp.addListener('resume', () => {
+    void autoSyncOfflineData();
+  });
+  return () => {
+    void handle.then((h) => h.remove());
+  };
 }
 
 function readLastCheck(): number | null {
