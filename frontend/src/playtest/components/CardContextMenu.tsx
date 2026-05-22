@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
+import { useEscapeKey } from '@/lib/use-escape-key';
 import type { Zone } from '@/lib/playtest';
 
 interface Props {
@@ -40,6 +42,9 @@ export function CardContextMenu({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
 
+  useLockBodyScroll();
+  useEscapeKey(onClose);
+
   useEffect(() => {
     if (variant !== 'floating') return;
     const el = menuRef.current;
@@ -52,46 +57,69 @@ export function CardContextMenu({
     setClamped({ left, top });
   }, [x, y, variant]);
 
+  // Action list — identical markup in both variants; only the surrounding
+  // chrome differs (a cursor-anchored popover vs. the shared bottom sheet).
+  const items = (
+    <>
+      <button type="button" className="playtest-ctx-action" onClick={onTap}>
+        Tap / Untap
+      </button>
+      <button type="button" className="playtest-ctx-action" onClick={onFlip}>
+        Flip face
+      </button>
+      <div className="playtest-ctx-group">
+        <div className="playtest-ctx-heading">Counters</div>
+        {COUNTER_KINDS.map((k) => (
+          <div key={k} className="playtest-ctx-counter">
+            <span>{k}</span>
+            <button type="button" onClick={() => onRemoveCounter(k)} aria-label={`remove ${k}`}>
+              −
+            </button>
+            <button type="button" onClick={() => onAddCounter(k)} aria-label={`add ${k}`}>
+              +
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="playtest-ctx-group">
+        <div className="playtest-ctx-heading">Move to</div>
+        {ZONES.map((z) => (
+          <button
+            key={z.key}
+            type="button"
+            className="playtest-ctx-action"
+            onClick={() => onMoveTo(z.key)}
+          >
+            {z.label}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
   if (variant === 'sheet') {
     return (
-      <>
-        <div className="playtest-ctx__backdrop" onClick={onClose} />
-        <div className="playtest-ctx playtest-ctx--sheet" role="menu" aria-label={cardName}>
-          <div className="playtest-ctx__sheetHandle" aria-hidden />
-          <div className="playtest-ctx__sheetTitle">{cardName}</div>
-          <button type="button" onClick={onTap}>
-            Tap / Untap
-          </button>
-          <button type="button" onClick={onFlip}>
-            Flip face
-          </button>
-          <div className="playtest-ctx__group">
-            <div className="playtest-ctx__heading">Counters</div>
-            {COUNTER_KINDS.map((k) => (
-              <div key={k} className="playtest-ctx__counterRow">
-                <span>{k}</span>
-                <button type="button" onClick={() => onRemoveCounter(k)} aria-label={`remove ${k}`}>
-                  −
-                </button>
-                <button type="button" onClick={() => onAddCounter(k)} aria-label={`add ${k}`}>
-                  +
-                </button>
-              </div>
-            ))}
+      <div className="card-picker-root" role="presentation" onClick={onClose}>
+        <div className="card-picker-backdrop" />
+        <div
+          className="card-picker-sheet playtest-ctx-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={cardName}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="card-picker-handle" aria-hidden />
+          <div className="card-picker-header">
+            <h2 className="card-picker-title">{cardName}</h2>
           </div>
-          <div className="playtest-ctx__group">
-            <div className="playtest-ctx__heading">Move to</div>
-            {ZONES.map((z) => (
-              <button key={z.key} type="button" onClick={() => onMoveTo(z.key)}>
-                {z.label}
-              </button>
-            ))}
+          <div className="playtest-ctx-menu">{items}</div>
+          <div className="card-picker-footer">
+            <button type="button" className="btn" onClick={onClose}>
+              Close
+            </button>
           </div>
-          <button type="button" className="playtest-ctx__sheetClose" onClick={onClose}>
-            Close
-          </button>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -100,7 +128,7 @@ export function CardContextMenu({
       <div className="playtest-ctx__backdrop" onClick={onClose} />
       <div
         ref={menuRef}
-        className="playtest-ctx"
+        className="playtest-ctx playtest-ctx-menu"
         style={{
           left: clamped?.left ?? x,
           top: clamped?.top ?? y,
@@ -109,34 +137,7 @@ export function CardContextMenu({
         role="menu"
         aria-label={cardName}
       >
-        <button type="button" onClick={onTap}>
-          Tap / Untap
-        </button>
-        <button type="button" onClick={onFlip}>
-          Flip face
-        </button>
-        <div className="playtest-ctx__group">
-          <div className="playtest-ctx__heading">Counters</div>
-          {COUNTER_KINDS.map((k) => (
-            <div key={k} className="playtest-ctx__counterRow">
-              <span>{k}</span>
-              <button type="button" onClick={() => onRemoveCounter(k)} aria-label={`remove ${k}`}>
-                −
-              </button>
-              <button type="button" onClick={() => onAddCounter(k)} aria-label={`add ${k}`}>
-                +
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="playtest-ctx__group">
-          <div className="playtest-ctx__heading">Move to</div>
-          {ZONES.map((z) => (
-            <button key={z.key} type="button" onClick={() => onMoveTo(z.key)}>
-              {z.label}
-            </button>
-          ))}
-        </div>
+        {items}
       </div>
     </>
   );

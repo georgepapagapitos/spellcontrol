@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
+import { useEscapeKey } from '@/lib/use-escape-key';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 
 interface Props {
@@ -31,6 +33,8 @@ export function ZoneViewerModal({
   onMove,
   onShuffleAfter,
 }: Props) {
+  useLockBodyScroll();
+  useEscapeKey(onClose);
   const [filter, setFilter] = useState('');
 
   const visible = useMemo(() => {
@@ -44,44 +48,48 @@ export function ZoneViewerModal({
   const titleLabel = topN != null ? `Top ${topN} of ${zone}` : zone;
 
   return (
-    <div className="playtest-modal" role="dialog" aria-modal="true" aria-label={`${zone} viewer`}>
-      <div className="playtest-modal__backdrop" onClick={onClose} />
-      <div className="playtest-modal__panel">
-        <div className="playtest-modal__header">
-          <h2>{titleLabel}</h2>
-          <button type="button" onClick={onClose} aria-label="Close">
-            ×
-          </button>
+    <div className="card-picker-root" role="presentation" onClick={onClose}>
+      <div className="card-picker-backdrop" />
+      <div
+        className="card-picker-sheet playtest-zone-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${zone} viewer`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="card-picker-handle" aria-hidden />
+        <div className="card-picker-header">
+          <h2 className="card-picker-title playtest-zone-title">{titleLabel}</h2>
+          {topN == null && (
+            <input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder={`Search ${zone}…`}
+              className="card-picker-search"
+              autoFocus
+            />
+          )}
         </div>
-        {topN == null && (
-          <input
-            type="search"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder={`Search ${zone}…`}
-            className="playtest-modal__search"
-            autoFocus
-          />
-        )}
         {visible.length === 0 ? (
-          <p className="playtest-modal__empty">No cards.</p>
+          <p className="playtest-zone-empty">No cards.</p>
         ) : (
-          <ul className="playtest-modal__grid">
+          <ul className="playtest-zone-grid">
             {visible.map((c) => (
-              <li key={c.id} className="playtest-modal__card">
+              <li key={c.id} className="playtest-zone-card">
                 {c.imageUrl ? (
                   <img src={c.imageUrl} alt={c.name} draggable={false} />
                 ) : (
-                  <div className="playtest-modal__placeholder">{c.name}</div>
+                  <div className="playtest-zone-card__placeholder">{c.name}</div>
                 )}
-                <div className="playtest-modal__card-name">{c.name}</div>
-                <div className="playtest-modal__actions">
+                <div className="playtest-zone-card__name">{c.name}</div>
+                <div className="playtest-zone-card__actions">
                   {DESTINATIONS.filter((d) => d.key !== zone).map((d) => (
                     <button
                       key={d.key}
                       type="button"
                       onClick={() => onMove(c.id, d.key)}
-                      className="playtest-modal__action"
+                      className="playtest-zone-card__action"
                     >
                       → {d.label}
                     </button>
@@ -92,8 +100,8 @@ export function ZoneViewerModal({
           </ul>
         )}
         {onShuffleAfter && (
-          <div className="playtest-modal__footer">
-            <button type="button" onClick={onShuffleAfter}>
+          <div className="card-picker-footer">
+            <button type="button" className="btn btn-primary" onClick={onShuffleAfter}>
               Shuffle {zone} and close
             </button>
           </div>
