@@ -197,15 +197,6 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Once the sheet-rise (0.5s) has played, mount the rest of the slides so
-  // keyboard / button navigation and far swipes can reach the whole list.
-  // Deferred past the animation so the big reconcile never stutters the rise.
-  useEffect(() => {
-    if (renderAll) return;
-    const t = window.setTimeout(() => setRenderAll(true), 600);
-    return () => window.clearTimeout(t);
-  }, [renderAll]);
-
   const onIndexChangeRef = useRef(onIndexChange);
   useEffect(() => {
     onIndexChangeRef.current = onIndexChange;
@@ -310,6 +301,19 @@ export function CardPreview({
   const holoRef = useHolographic(true, {
     shouldSuppressTilt: () => axisLockRef.current !== null,
   });
+
+  // Once the sheet-rise (0.5s) has played, mount the rest of the slides so
+  // keyboard / button navigation and far swipes can reach the whole list.
+  // Gated on an idle sheet: mounting the full slide list is a heavy reconcile,
+  // and firing it mid-gesture stutters the swipe-down dismiss. While the user
+  // is dragging (or the sheet is closing) the timer is held; it (re)starts
+  // 600ms after the sheet goes idle, so the expansion always lands in a quiet
+  // moment — never during the rise and never during a drag.
+  useEffect(() => {
+    if (renderAll || isDragging || isClosing) return;
+    const t = window.setTimeout(() => setRenderAll(true), 600);
+    return () => window.clearTimeout(t);
+  }, [renderAll, isDragging, isClosing]);
 
   // Slide list lifted into a memo so a `dragY` re-render — useSwipeDownDismiss
   // fires setDragY on every touchmove during a dismiss drag — reuses these
