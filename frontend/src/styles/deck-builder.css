@@ -40,25 +40,35 @@
   width: 100%;
 }
 
-.commander-search-results {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  list-style: none;
-  margin: 0;
-  padding: 0.25rem;
+/* ── Stable search panel ───────────────────────────────────────────────
+   The input and this panel form a fixed-size unit. The panel's height does
+   not depend on how many results came back, so the input never moves and
+   the page never reflows as the user types. dvh shrinks with the layout
+   viewport when the keyboard opens; --keyboard-inset covers iOS Safari,
+   where the keyboard floats instead of resizing. The panel hosts whichever
+   state is active — results, a status line, or EDHREC suggestions — and
+   scrolls internally. */
+.commander-search-panel {
+  margin-top: 0.75rem;
+  height: clamp(12rem, calc(55dvh - var(--keyboard-inset)), 26rem);
+  overflow-y: auto;
   background: var(--surface2);
   border: 0.5px solid var(--border2);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-modal);
-  z-index: 20;
-  /* max-height is set inline by CommanderSearch — capped to the gap between
-     the input and the top of the on-screen keyboard so the list never
-     covers the input nor slides behind the keyboard. This is the no-JS
-     fallback. */
-  max-height: 320px;
-  overflow-y: auto;
+}
+
+.commander-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+}
+
+.commander-search-status {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text3);
 }
 
 .commander-search-loading {
@@ -277,8 +287,10 @@
 }
 
 /* ── Top-commanders suggestion section ──────────────────────────────── */
+/* Lives inside .commander-search-panel — no top margin; the panel's own
+   padding does the spacing. */
 .commander-suggestions {
-  margin-top: 1.25rem;
+  padding: 0.85rem 0.75rem;
   text-align: center;
   display: flex;
   flex-direction: column;
