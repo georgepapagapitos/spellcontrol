@@ -21,6 +21,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
+  Dices,
   Hand,
   Mountain,
   Plus,
@@ -31,7 +32,14 @@ import {
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { getCardRole, hasTaggerData, loadTaggerData } from '@/deck-builder/services/tagger/client';
+import { COLOR_INFO } from '../../lib/colors';
+import {
+  isKeepableHand,
+  simulateOpeningHands,
+  type SimCard,
+  type SimResult,
+} from '../../lib/opening-hand-sim';
 import { CardPreview } from '../CardPreview';
 
 export interface DeckTestHandPanelHandle {
@@ -123,6 +131,16 @@ function summarizeHand(hand: Array<{ card: ScryfallCard }>): HandBreakdown {
   };
 }
 
+/** Reduce a full card to the minimal shape the opening-hand simulator needs. */
+function toSimCard(card: ScryfallCard): SimCard {
+  return {
+    isLand: isLand(card),
+    cmc: cardCmc(card),
+    role: getCardRole(card.name),
+    colors: card.color_identity ?? [],
+  };
+}
+
 function cardImage(card: ScryfallCard): string | undefined {
   return (
     card.image_uris?.normal ??
@@ -155,6 +173,20 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
     useEffect(() => writeCollapsedPref(collapsed), [collapsed]);
 
+    // Load tagger data so role-based stats (ramp counts, keep verdicts) are
+    // accurate. Safe to call repeatedly — the client dedupes in-flight loads.
+    const [taggerVersion, setTaggerVersion] = useState(0);
+    useEffect(() => {
+      if (hasTaggerData()) return;
+      let cancelled = false;
+      void loadTaggerData().then(() => {
+        if (!cancelled && hasTaggerData()) setTaggerVersion((v) => v + 1);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []);
+
     useImperativeHandle(ref, () => ({
       reveal: () => {
         setCollapsed(false);
@@ -182,8 +214,19 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const avgLandsInOpeningHand =
       totalCards > 0 ? ((landCount / totalCards) * HAND_SIZE).toFixed(2) : '0.00';
 
+    // The library reduced to simulator inputs. Recomputed when tagger data
+    // arrives so ramp classification (which drives keep verdicts) is correct.
+    const simLibrary = useMemo(
+      () => library.map(toSimCard),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [library, taggerVersion]
+    );
+
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
+    // Monte-Carlo opening-hand stats — null until the user runs a simulation.
+    const [sim, setSim] = useState<SimResult | null>(null);
+    const [simulating, setSimulating] = useState(false);
     // Render-phase reset: deal on first mount AND whenever the deck shape
     // changes. Sentinel ensures the first render mismatches the real key so
     // the user always sees an opening hand without clicking Deal.
@@ -194,6 +237,8 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       const shuffled = shuffle(library);
       setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
       setPile(shuffled.slice(HAND_SIZE));
+      // Drop stale simulation results — they describe the previous deck shape.
+      setSim(null);
     }
 
     // The most-recently-drawn slot id. Only this card plays the slide-in
@@ -219,6 +264,33 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
         return rest;
       });
     };
+
+    const handleSimulate = () => {
+      setSimulating(true);
+      // Defer one frame so the button's "Simulating…" label paints before the
+      // (brief, synchronous) Monte-Carlo run occupies the main thread. 1,000
+      // hands of a ~100-card shuffle runs well under one frame even on phones.
+      window.requestAnimationFrame(() => {
+        setSim(simulateOpeningHands(simLibrary, { iterations: 1000 }));
+        setSimulating(false);
+      });
+    };
+
+    // The report renders below the run button — on a phone that's usually
+    // off-screen, so the tap looks like a no-op. Nudge it into view once it
+    // mounts (gently — `nearest` is a no-op when it's already visible — and
+    // instantly under reduced-motion). Focus deliberately stays on the button:
+    // "Re-run" is the likely repeat action. Screen readers get the result via
+    // the aria-live status node below instead.
+    const simReportRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+      if (!sim) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      simReportRef.current?.scrollIntoView({
+        behavior: reduce ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+    }, [sim]);
 
     // ── Drag-reorder via @dnd-kit ──────────────────────────────────────────
     // PointerSensor's `distance: 6` activation constraint distinguishes clicks
@@ -259,26 +331,15 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 
     const canDraw = pile.length > 0;
     const empty = totalCards === 0;
-    const breakdown = useMemo(() => summarizeHand(hand), [hand]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const breakdown = useMemo(() => summarizeHand(hand), [hand, taggerVersion]);
 
-    // "Keepable" heuristic. Treats ramp (mana dorks + rocks + cost reducers)
-    // as land-equivalent because they functionally accelerate your mana the
-    // same way an extra land does — a hand of "1 land + 2 mana rocks + a real
-    // play" is a clear keep, but the naive "2-4 lands" rule would mulligan it.
-    //
-    // Three rules, all must hold:
-    //   1. We're looking at a full 7-card hand (post-Draw counts don't fire a
-    //      verdict — those would always look keepable).
-    //   2. Effective mana sources (lands + ramp) is 2-4: not screwed, not
-    //      flooded.
-    //   3. At least one playable spell at CMC ≤ 3 — something to do in the
-    //      first three turns.
-    const effectiveLands = breakdown.lands + breakdown.ramp;
+    // Single-hand verdict. Post-Draw hands (>7 cards) don't fire a verdict —
+    // those would always look keepable. The keep heuristic itself lives in
+    // `isKeepableHand`, shared with the simulator so the dealt-hand chip and
+    // the simulated rate can never use different rules.
     const isKeepable =
-      hand.length >= HAND_SIZE &&
-      effectiveLands >= 2 &&
-      effectiveLands <= 4 &&
-      hand.some((s) => !isLand(s.card) && cardCmc(s.card) <= 3);
+      hand.length >= HAND_SIZE && isKeepableHand(hand.map((s) => toSimCard(s.card)));
 
     const slotIds = useMemo(() => hand.map((s) => s.id), [hand]);
 
@@ -437,6 +498,62 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                 Avg lands in opening hand: <strong>{avgLandsInOpeningHand}</strong>
                 {hand.length > HAND_SIZE && <> · After {hand.length - HAND_SIZE} draws</>}
               </p>
+
+              <section className="deck-test-hand-sim" aria-label="Opening hand simulation">
+                <div className="deck-test-hand-sim-bar">
+                  <button
+                    type="button"
+                    className="deck-test-hand-action deck-test-hand-sim-run"
+                    onClick={handleSimulate}
+                    disabled={simulating}
+                    title="Deal 1,000 hands and report how often this deck keeps"
+                  >
+                    <Dices width={14} height={14} aria-hidden />
+                    {simulating
+                      ? 'Simulating…'
+                      : sim
+                        ? 'Re-run 1,000 hands'
+                        : 'Simulate 1,000 hands'}
+                  </button>
+                  {!sim && !simulating && (
+                    <span className="deck-test-hand-sim-hint">
+                      One hand is luck — run a thousand to see the real odds.
+                    </span>
+                  )}
+                </div>
+
+                {sim && (
+                  <div className="deck-test-hand-sim-report" ref={simReportRef}>
+                    <ul className="deck-test-hand-sim-stats" aria-label="Simulation results">
+                      <SimStat label="Keepable" value={sim.keepableRate} tone="good" />
+                      <SimStat
+                        label="After a mull"
+                        value={sim.keepableWithinMulligansRate}
+                        tone="good"
+                      />
+                      <SimStat label="Has ramp" value={sim.rampRate} />
+                      <SimStat label="Mana screw" value={sim.screwRate} tone="warn" />
+                      <SimStat label="Mana flood" value={sim.floodRate} tone="warn" />
+                    </ul>
+                    <LandHistogram result={sim} />
+                    <p className="deck-test-hand-stat-secondary">
+                      Lands per opening hand across {sim.iterations.toLocaleString()} simulated
+                      draws · avg <strong>{sim.avgLands.toFixed(2)}</strong>
+                    </p>
+                  </div>
+                )}
+
+                {/* Focus stays on the run button (likely re-run); this polite
+                    live region is how a screen-reader user learns the result. */}
+                <p className="sr-only" role="status">
+                  {sim
+                    ? `Simulated ${sim.iterations.toLocaleString()} opening hands. ` +
+                      `${Math.round(sim.keepableRate * 100)} percent keepable, ` +
+                      `${Math.round(sim.keepableWithinMulligansRate * 100)} percent after a mulligan. ` +
+                      `Average ${sim.avgLands.toFixed(1)} lands.`
+                    : ''}
+                </p>
+              </section>
             </>
           )}
         </div>
@@ -507,5 +624,64 @@ function SortableCard({ slot, index, overlapRem, isNewlyDrawn, onPreview }: Sort
       </span>
       <span className="sr-only">{slot.card.name}</span>
     </li>
+  );
+}
+
+// ── Simulation report ──────────────────────────────────────────────────────
+
+function SimStat({ label, value, tone }: { label: string; value: number; tone?: 'good' | 'warn' }) {
+  return (
+    <li className={`deck-test-hand-sim-stat${tone ? ` is-${tone}` : ''}`}>
+      <strong>{Math.round(value * 100)}%</strong>
+      <span className="deck-test-hand-sim-stat-label">{label}</span>
+    </li>
+  );
+}
+
+function LandHistogram({ result }: { result: SimResult }) {
+  // Reuses the stats panel's `.deck-curve` chart. Bar height is the share of
+  // hands with that many lands; each bar is split into WUBRG segments by the
+  // colour identity of the lands actually drawn — same treatment, and same
+  // `COLOR_INFO` pip colours, as the mana curve chart.
+  const max = Math.max(1, ...result.landHistogram);
+  const order = ['W', 'U', 'B', 'R', 'G', 'C'];
+  return (
+    <div
+      className="deck-curve deck-test-hand-sim-curve"
+      role="img"
+      aria-label="Distribution of lands in the opening hand, coloured by land colour identity"
+    >
+      {result.landHistogram.map((count, lands) => {
+        const pct = result.iterations > 0 ? (count / result.iterations) * 100 : 0;
+        const byColor = result.landColorByCount[lands] ?? {};
+        const totalShares = Object.values(byColor).reduce((s, n) => s + n, 0);
+        const segments = order.map((k) => ({ k, n: byColor[k] ?? 0 })).filter((s) => s.n > 0);
+        return (
+          <div key={lands} className="deck-curve-col">
+            <div
+              className="deck-curve-bar"
+              style={{ height: `${(count / max) * 100}%` }}
+              title={`${lands} ${lands === 1 ? 'land' : 'lands'}: ${pct.toFixed(1)}% of hands`}
+            >
+              {segments.map((s) => (
+                <div
+                  key={s.k}
+                  className="deck-curve-bar-seg"
+                  style={{
+                    height: `${(s.n / totalShares) * 100}%`,
+                    background: COLOR_INFO[s.k]?.pip ?? 'var(--accent)',
+                  }}
+                />
+              ))}
+            </div>
+            <div className="deck-curve-label">{lands}</div>
+            <div className="deck-curve-count">{Math.round(pct)}%</div>
+            <span className="sr-only">
+              {lands} {lands === 1 ? 'land' : 'lands'}: {pct.toFixed(1)} percent of hands
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
