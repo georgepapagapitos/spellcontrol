@@ -253,18 +253,16 @@ Per workspace, both `frontend` and `backend` also expose `test:watch` and `test:
 
 `husky` + `lint-staged` run prettier on staged files before commit.
 
-## Contributing
-
-Issues and pull requests welcome. Especially helpful:
-
-- Sample CSV exports from collection tools that do not import cleanly (open an issue with a small redacted sample).
-- Bug reports for cards that fail to resolve via Scryfall — include the card name, set, collector number, and the source format.
-- New rule fields, sort options, or import formats.
+## Tests & CI
 
 To add a test, drop a `*.test.ts` (or `*.test.tsx`) file next to the module — Vitest picks it up automatically. CI runs lint, typecheck, tests, and coverage on every push and pull request via GitHub Actions, and Dependabot keeps deps current.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Proprietary — all rights reserved. See [LICENSE](./LICENSE). No permission is granted to copy, modify, redistribute, or resell this software.
 
-This tool is unofficial and not affiliated with Wizards of the Coast, Scryfall, or ManaBox. Magic: The Gathering and all related assets are property of Wizards of the Coast LLC.
+## Legal & attribution
+
+SpellControl is unofficial Fan Content permitted under the [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy). Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+
+Card data and images are provided by [Scryfall](https://scryfall.com). SpellControl is not affiliated with Scryfall, ManaBox, Moxfield, Archidekt, Deckbox, TCGplayer, or Cardsphere.

@@ -497,6 +497,37 @@ export function SettingsPage() {
         </div>
       </section>
 
+      <section className="settings-card" aria-labelledby="settings-about-title">
+        <header className="settings-card-header">
+          <h2 id="settings-about-title" className="settings-card-title">
+            About
+          </h2>
+          <p className="settings-card-hint">Legal &amp; attribution.</p>
+        </header>
+        <div className="settings-card-body">
+          <p className="settings-row-hint">
+            SpellControl is unofficial Fan Content permitted under the{' '}
+            <a
+              href="https://company.wizards.com/en/legal/fancontentpolicy"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Fan Content Policy
+            </a>
+            . Not approved/endorsed by Wizards. Portions of the materials used are property of
+            Wizards of the Coast. ©Wizards of the Coast LLC.
+          </p>
+          <p className="settings-row-hint">
+            Card data and images are provided by{' '}
+            <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
+              Scryfall
+            </a>
+            . SpellControl is not affiliated with Scryfall, ManaBox, Moxfield, Archidekt, Deckbox,
+            TCGplayer, or Cardsphere.
+          </p>
+        </div>
+      </section>
+
       {wipeStep === 1 && (
         <WipeConfirmDialog
           cardCount={cardCount}
