@@ -82,6 +82,10 @@
 
   /* ── Layout ───────────────────────────────────────────────────────────── */
   --page-max: 1400px;
+  /* Height of the sticky Collection hub-tabs strip — also the offset the
+     Collection search row pins below, so the two stack flush. Single
+     source of truth for both rules. */
+  --hub-tabs-sticky-h: 2.9rem;
 
   /* ── Z-index scale ───────────────────────────────────────────────────── */
   --z-dropdown: 50;
@@ -6704,13 +6708,23 @@ hr {
    Reuses .site-nav-link / .site-nav-count for the tab items; only the strip
    wrapper is bespoke. Unlike .site-nav-links this stays visible on mobile
    (it is the in-page section nav, not the header's primary nav). */
+/* Cards / Binders / Lists switcher — sticks to the top of the scroll region
+   so it never scrolls out of reach. On the Cards page the search row pins
+   flush beneath it (see `.collection-toolbar-row`), forming one 2-row
+   sticky toolbar; on Binders/Lists it pins on its own. Full-bleed to the
+   content edges, matching the search row. */
 .collection-hub-tabs {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-panel);
+  height: var(--hub-tabs-sticky-h);
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 1rem;
+  padding: 0 var(--page-gutter, 1rem);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0.5rem;
 }
 
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
@@ -7087,9 +7101,8 @@ hr {
   /* `.app-main` is the sole scroll container and the header is a
      non-scrolling flex sibling *outside* it (see Layout.tsx), so the
      scrollport's top edge already sits flush under the header at every
-     breakpoint — the bar pins at 0, not the header's height. (A prior
-     `top: 3.25rem` left a header-tall strip of scrolling cards visible
-     above the pinned bar.) */
+     breakpoint. The base `top` is 0; under the Collection hub the rule
+     below offsets it so it pins beneath the sticky hub-tabs strip. */
   top: 0;
   z-index: var(--z-panel);
   background: var(--bg);
@@ -7100,6 +7113,13 @@ hr {
   gap: 0.6rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
+}
+
+/* Under the Collection hub the search row pins beneath the sticky hub-tabs
+   strip rather than at the very top, so the two stack flush. Scoped to the
+   hub so a `.collection-toolbar-row` used elsewhere keeps `top: 0`. */
+.collection-hub-tabs ~ * .collection-toolbar-row {
+  top: var(--hub-tabs-sticky-h);
 }
 
 /* Collection hero meta — totals + Stats button sit under the Collection
