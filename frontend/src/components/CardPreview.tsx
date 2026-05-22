@@ -7,7 +7,15 @@ import {
   Pencil,
   RefreshCw,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getSetMap, type SetMap } from '../lib/api';
@@ -83,6 +91,12 @@ interface Props {
 }
 
 const PRELOAD_RADIUS = 2;
+// Slides rendered around the focused card while the open animation plays.
+// The sheet-rise is a 0.5s compositor transform; mounting the full slide list
+// in the same commit (a collection preview can be thousands of cards) stutters
+// it. Render a small window first, then expand to the full list once the rise
+// has finished — see the `renderAll` expansion effect below.
+const INITIAL_RENDER_RADIUS = 8;
 
 export function CardPreview({
   cards,
@@ -103,6 +117,14 @@ export function CardPreview({
   const trackRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
+  // Slides rendered during the open animation; expands to the full list once
+  // the rise settles (see the renderAll effect). Captured once at mount via a
+  // lazy initializer — the setter is intentionally unused.
+  const [initialWindow] = useState(() => ({
+    lo: Math.max(0, index - INITIAL_RENDER_RADIUS),
+    hi: index + INITIAL_RENDER_RADIUS,
+  }));
+  const [renderAll, setRenderAll] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   // Per-card art-loaded flag. Drives the skeleton→image cross-fade so the
   // hero image lands gracefully under the sheet's rise animation instead
@@ -175,6 +197,15 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Once the sheet-rise (0.5s) has played, mount the rest of the slides so
+  // keyboard / button navigation and far swipes can reach the whole list.
+  // Deferred past the animation so the big reconcile never stutters the rise.
+  useEffect(() => {
+    if (renderAll) return;
+    const t = window.setTimeout(() => setRenderAll(true), 600);
+    return () => window.clearTimeout(t);
+  }, [renderAll]);
+
   const onIndexChangeRef = useRef(onIndexChange);
   useEffect(() => {
     onIndexChangeRef.current = onIndexChange;
@@ -192,6 +223,19 @@ export function CardPreview({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Expanding the slide list (renderAll) inserts slides to the LEFT of the
+  // focused card, shifting it off-center. Re-center instantly, before paint,
+  // so the expansion is invisible.
+  useLayoutEffect(() => {
+    if (!renderAll) return;
+    slideRefs.current[selected]?.scrollIntoView({
+      inline: 'center',
+      block: 'nearest',
+      behavior: 'instant' as ScrollBehavior,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderAll]);
 
   useCenteredSlide(
     trackRef,
@@ -216,7 +260,9 @@ export function CardPreview({
         return next;
       });
     },
-    [cards]
+    // renderAll changes the rendered slide set — re-run so the observer picks
+    // up the slides mounted by the post-rise expansion.
+    [cards, renderAll]
   );
 
   // Sync parent → carousel if the parent index changes externally.
@@ -264,6 +310,128 @@ export function CardPreview({
   const holoRef = useHolographic(true, {
     shouldSuppressTilt: () => axisLockRef.current !== null,
   });
+
+  // Slide list lifted into a memo so a `dragY` re-render — useSwipeDownDismiss
+  // fires setDragY on every touchmove during a dismiss drag — reuses these
+  // elements instead of rebuilding one DOM subtree per card. For a large
+  // collection that per-frame rebuild is what made the dismiss drag choppy.
+  // Recomputes only when something the slides actually depend on changes.
+  const slideEls = useMemo(
+    () =>
+      cards.map((c, i) => {
+        // During the open animation only a window around the focused card is
+        // rendered; the rest mount once `renderAll` flips post-rise. Gate
+        // first so off-window cards skip all per-slide work.
+        const inWindow = renderAll || (i >= initialWindow.lo && i <= initialWindow.hi);
+        if (!inWindow) return null;
+        const errored = imgErrors[c.scryfallId];
+        const shouldMount = mounted.has(c.scryfallId);
+        const style = classifyFoil(c);
+        const foilClass = style !== 'none' ? ` is-foil foil-${style}` : '';
+        return (
+          <div
+            className={`card-preview-slide${i === selected ? ' is-active' : ''}`}
+            ref={(el) => {
+              slideRefs.current[i] = el;
+            }}
+            key={`${c.scryfallId}-${i}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (i !== selected) {
+                // Tap a peeking neighbor to advance to it.
+                slideRefs.current[i]?.scrollIntoView({
+                  inline: 'center',
+                  block: 'nearest',
+                  behavior: 'smooth',
+                });
+              } else {
+                // Tap the active card to close — matches the natural
+                // "tap to dismiss" expectation on mobile and desktop alike.
+                beginClose();
+              }
+            }}
+          >
+            <div
+              className={`card-preview-image-frame${foilClass}`}
+              ref={i === selected ? holoRef : undefined}
+            >
+              {shouldMount && (
+                <div
+                  className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
+                >
+                  <div className="card-preview-face card-preview-face-front">
+                    {c.imageNormal && !errored ? (
+                      <>
+                        {!imgLoaded[c.scryfallId] && (
+                          <div className="card-preview-image-skeleton" aria-hidden="true" />
+                        )}
+                        <img
+                          // Hero drawer can grow to ~620px on desktop;
+                          // `large` (672w) stays sharp there where
+                          // `normal` (488w) would upscale. Falls back to
+                          // normal for cards enriched before imageLarge
+                          // existed. Grids/thumbnails keep using normal.
+                          src={c.imageLarge || c.imageNormal}
+                          alt={c.name}
+                          className="card-preview-image"
+                          draggable={false}
+                          // All slides decode async: a synchronous
+                          // decode of the ~672×936 hero (a different,
+                          // usually-uncached URL than the grid's normal
+                          // art) lands mid-rise and stutters it. Let the
+                          // skeleton→image cross-fade cover the arrival
+                          // instead — that's what it's built for.
+                          decoding="async"
+                          loading={i === selected ? 'eager' : 'lazy'}
+                          fetchPriority={i === selected ? 'high' : 'auto'}
+                          // Cached images may already be complete before
+                          // onLoad can attach — mark them loaded on mount
+                          // so the skeleton doesn't linger forever.
+                          ref={(el) => {
+                            if (el?.complete && el.naturalWidth > 0) markLoaded(c.scryfallId);
+                          }}
+                          onLoad={() => markLoaded(c.scryfallId)}
+                          onError={() =>
+                            setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
+                          }
+                        />
+                      </>
+                    ) : c.imageNormal && errored ? (
+                      <div className="card-preview-image-fallback">Image unavailable</div>
+                    ) : null}
+                    {c.foil && (
+                      <>
+                        <div className="card-preview-foil-shine" aria-hidden="true" />
+                        <div className="card-preview-foil-glare" aria-hidden="true" />
+                      </>
+                    )}
+                  </div>
+                  {c.imageNormalBack && (
+                    <div className="card-preview-face card-preview-face-back">
+                      <img
+                        src={c.imageLargeBack || c.imageNormalBack}
+                        alt={`${c.name} (back)`}
+                        className="card-preview-image"
+                        draggable={false}
+                        decoding="async"
+                      />
+                      {c.foil && (
+                        <>
+                          <div className="card-preview-foil-shine" aria-hidden="true" />
+                          <div className="card-preview-foil-glare" aria-hidden="true" />
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cards, mounted, selected, imgErrors, imgLoaded, flipped, renderAll]
+  );
 
   if (!cards[selected]) return null;
   const current = cards[selected];
@@ -328,112 +496,7 @@ export function CardPreview({
           />
         )}
         <div className="card-preview-track" ref={trackRef}>
-          {cards.map((c, i) => {
-            const errored = imgErrors[c.scryfallId];
-            const shouldMount = mounted.has(c.scryfallId);
-            const style = classifyFoil(c);
-            const foilClass = style !== 'none' ? ` is-foil foil-${style}` : '';
-            return (
-              <div
-                className={`card-preview-slide${i === selected ? ' is-active' : ''}`}
-                ref={(el) => {
-                  slideRefs.current[i] = el;
-                }}
-                key={`${c.scryfallId}-${i}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (i !== selected) {
-                    // Tap a peeking neighbor to advance to it.
-                    slideRefs.current[i]?.scrollIntoView({
-                      inline: 'center',
-                      block: 'nearest',
-                      behavior: 'smooth',
-                    });
-                  } else {
-                    // Tap the active card to close — matches the natural
-                    // "tap to dismiss" expectation on mobile and desktop alike.
-                    beginClose();
-                  }
-                }}
-              >
-                <div
-                  className={`card-preview-image-frame${foilClass}`}
-                  ref={i === selected ? holoRef : undefined}
-                >
-                  {shouldMount && (
-                    <div
-                      className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
-                    >
-                      <div className="card-preview-face card-preview-face-front">
-                        {c.imageNormal && !errored ? (
-                          <>
-                            {!imgLoaded[c.scryfallId] && (
-                              <div className="card-preview-image-skeleton" aria-hidden="true" />
-                            )}
-                            <img
-                              // Hero drawer can grow to ~620px on desktop;
-                              // `large` (672w) stays sharp there where
-                              // `normal` (488w) would upscale. Falls back to
-                              // normal for cards enriched before imageLarge
-                              // existed. Grids/thumbnails keep using normal.
-                              src={c.imageLarge || c.imageNormal}
-                              alt={c.name}
-                              className="card-preview-image"
-                              draggable={false}
-                              // All slides decode async: a synchronous
-                              // decode of the ~672×936 hero (a different,
-                              // usually-uncached URL than the grid's normal
-                              // art) lands mid-rise and stutters it. Let the
-                              // skeleton→image cross-fade cover the arrival
-                              // instead — that's what it's built for.
-                              decoding="async"
-                              loading={i === selected ? 'eager' : 'lazy'}
-                              fetchPriority={i === selected ? 'high' : 'auto'}
-                              // Cached images may already be complete before
-                              // onLoad can attach — mark them loaded on mount
-                              // so the skeleton doesn't linger forever.
-                              ref={(el) => {
-                                if (el?.complete && el.naturalWidth > 0) markLoaded(c.scryfallId);
-                              }}
-                              onLoad={() => markLoaded(c.scryfallId)}
-                              onError={() =>
-                                setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
-                              }
-                            />
-                          </>
-                        ) : c.imageNormal && errored ? (
-                          <div className="card-preview-image-fallback">Image unavailable</div>
-                        ) : null}
-                        {c.foil && (
-                          <>
-                            <div className="card-preview-foil-shine" aria-hidden="true" />
-                            <div className="card-preview-foil-glare" aria-hidden="true" />
-                          </>
-                        )}
-                      </div>
-                      {c.imageNormalBack && (
-                        <div className="card-preview-face card-preview-face-back">
-                          <img
-                            src={c.imageLargeBack || c.imageNormalBack}
-                            alt={`${c.name} (back)`}
-                            className="card-preview-image"
-                            draggable={false}
-                            decoding="async"
-                          />
-                          {c.foil && (
-                            <>
-                              <div className="card-preview-foil-shine" aria-hidden="true" />
-                              <div className="card-preview-foil-glare" aria-hidden="true" />
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {slideEls}
         </div>
 
         {/* Always rendered so single-faced and transform cards reserve the
