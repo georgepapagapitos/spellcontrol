@@ -4,8 +4,9 @@ import type { SlimCard, SlimCardFace } from './types';
 /**
  * Inflate a SlimCard back into a ScryfallCard-shaped object so existing
  * consumers (deck builder, card lists, combo UI) don't need to learn about
- * the slim shape. Fields the slim payload doesn't carry (`rarity`,
- * `set_name`, the rich price object) are filled with safe defaults.
+ * the slim shape. Fields the slim payload doesn't carry (`set_name`, the
+ * rich price object) are filled with safe defaults. `rarity` is carried by
+ * slim payloads built by builder v3+; older payloads fall back to 'common'.
  */
 export function slimToScryfall(s: SlimCard): ScryfallCard {
   const card: ScryfallCard = {
@@ -20,7 +21,7 @@ export function slimToScryfall(s: SlimCard): ScryfallCard {
     color_identity: s.colorIdentity,
     keywords: s.keywords ?? [],
     produced_mana: s.producedMana,
-    rarity: 'common', // slim payload drops rarity; deck builder doesn't gate on it
+    rarity: s.rarity ?? 'common', // pre-v3 slim payloads dropped rarity
     layout: s.layout,
     set: s.set,
     set_name: s.setName ?? s.set,
