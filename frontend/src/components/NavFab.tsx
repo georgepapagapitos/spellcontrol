@@ -95,7 +95,9 @@ export function NavFab() {
 
   const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
-    fabRef.current?.setPointerCapture(e.pointerId);
+    // Optional-chain the method too: not every WebView / test DOM implements
+    // pointer capture, and a missing method must not abort the gesture.
+    fabRef.current?.setPointerCapture?.(e.pointerId);
     const press: PressState = {
       pointerId: e.pointerId,
       startX: e.clientX,
