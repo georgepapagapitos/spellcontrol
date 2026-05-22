@@ -15,9 +15,22 @@ class FakeIntersectionObserver {
   unobserve = vi.fn();
   disconnect = vi.fn();
   takeRecords = vi.fn(() => []);
-  trigger() {
-    this.callback([], this as unknown as IntersectionObserver);
+  /**
+   * Fire the observer callback. The hook is entries-driven — it tracks which
+   * slides are intersecting from the entries and only measures those — so the
+   * fake must report intersection state per slide. Defaults to "all visible".
+   */
+  trigger(entries?: Array<{ target: Element; isIntersecting: boolean }>) {
+    this.callback(
+      (entries ?? []) as unknown as IntersectionObserverEntry[],
+      this as unknown as IntersectionObserver
+    );
   }
+}
+
+/** Build "everything is intersecting" entries for a slide list. */
+function allVisible(slides: HTMLElement[]) {
+  return slides.map((target) => ({ target, isIntersecting: true }));
 }
 
 beforeEach(() => {
@@ -73,7 +86,72 @@ describe('useCenteredSlide', () => {
     const onCenter = vi.fn();
     renderHook(() => useCenteredSlide(trackRef, slideRefs, onCenter, []));
     expect(FakeIntersectionObserver.instances).toHaveLength(1);
-    FakeIntersectionObserver.instances[0].trigger();
+    FakeIntersectionObserver.instances[0].trigger(allVisible(slides));
     expect(onCenter).toHaveBeenCalledWith(1);
+  });
+
+  it('only measures slides the observer reports as intersecting', () => {
+    const track = document.createElement('div');
+    track.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        right: 300,
+        width: 300,
+        top: 0,
+        bottom: 0,
+        x: 0,
+        y: 0,
+        height: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    document.body.appendChild(track);
+    // Slide 1 is the true center, but it is offscreen (not reported as
+    // intersecting), so the hook must pick the closest *visible* slide.
+    const slides = [makeSlide(0, 100), makeSlide(120, 100), makeSlide(260, 100)];
+    // getBoundingClientRect on the offscreen slide must never be consulted.
+    slides[1].getBoundingClientRect = vi.fn(() => {
+      throw new Error('measured a non-intersecting slide');
+    }) as unknown as () => DOMRect;
+    const trackRef = createRef<HTMLElement | null>();
+    (trackRef as { current: HTMLElement | null }).current = track;
+    const slideRefs = { current: slides };
+    const onCenter = vi.fn();
+    renderHook(() => useCenteredSlide(trackRef, slideRefs, onCenter, []));
+    FakeIntersectionObserver.instances[0].trigger([
+      { target: slides[0], isIntersecting: true },
+      { target: slides[1], isIntersecting: false },
+      { target: slides[2], isIntersecting: true },
+    ]);
+    // Slide 0 center 50 (dist 100) beats slide 2 center 310 (dist 160).
+    expect(onCenter).toHaveBeenCalledWith(0);
+  });
+
+  it('drops a slide once it stops intersecting', () => {
+    const track = document.createElement('div');
+    track.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        right: 300,
+        width: 300,
+        top: 0,
+        bottom: 0,
+        x: 0,
+        y: 0,
+        height: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    document.body.appendChild(track);
+    const slides = [makeSlide(0, 100), makeSlide(120, 100), makeSlide(260, 100)];
+    const trackRef = createRef<HTMLElement | null>();
+    (trackRef as { current: HTMLElement | null }).current = track;
+    const slideRefs = { current: slides };
+    const onCenter = vi.fn();
+    renderHook(() => useCenteredSlide(trackRef, slideRefs, onCenter, []));
+    const observer = FakeIntersectionObserver.instances[0];
+    observer.trigger(allVisible(slides));
+    expect(onCenter).toHaveBeenLastCalledWith(1);
+    // Slide 1 scrolls out — the next callback only reports its exit.
+    observer.trigger([{ target: slides[1], isIntersecting: false }]);
+    expect(onCenter).toHaveBeenLastCalledWith(0);
   });
 });
