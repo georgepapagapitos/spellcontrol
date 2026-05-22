@@ -4259,6 +4259,98 @@ input.toolbar-search-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Opening-hand simulator ──────────────────────────────────────────────
+   Monte-Carlo report layered onto the test hand: a run button plus, once
+   simulated, a stat-tile row and a land-count histogram. Stat tiles wrap and
+   the histogram's eight bars are flex:1, so the whole block survives any
+   viewport down to ~300px without horizontal scroll. */
+.deck-test-hand-sim {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.6rem;
+  margin-top: 0.1rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-test-hand-sim-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.deck-test-hand-sim-hint {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-style: italic;
+}
+
+.deck-test-hand-sim-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck-test-hand-sim-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.deck-test-hand-sim-stat {
+  flex: 1 1 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.3rem;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.deck-test-hand-sim-stat strong {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.deck-test-hand-sim-stat.is-good strong {
+  color: var(--accent);
+}
+
+.deck-test-hand-sim-stat.is-warn strong {
+  color: var(--warn-text, #f0a000);
+}
+
+.deck-test-hand-sim-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  text-align: center;
+}
+
+/* Land-count histogram — reuses the stats-panel `.deck-curve` chart, bars
+   WUBRG-segmented by the colour identity of the lands drawn. Just shorter
+   than the deck curve. */
+.deck-test-hand-sim-curve {
+  height: clamp(5.5rem, 14vh, 9rem);
+}
+
+/* The 0-land bucket has no lands to colour, so its bar has no segments —
+   render it muted rather than the `.deck-curve-bar` default accent, which
+   would wrongly read as a healthy result. */
+.deck-test-hand-sim-curve .deck-curve-bar:empty {
+  background: color-mix(in srgb, var(--text3) 35%, transparent);
+}
+
 /* ── Deck combos panel ───────────────────────────────────────────────── */
 .deck-combos-panel {
   background: var(--surface);
