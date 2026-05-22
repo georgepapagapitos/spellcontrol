@@ -5961,6 +5961,17 @@ hr {
   color: #d8d8d8;
 }
 
+/* Deck role spelled out in full — the touch-friendly counterpart to the
+   cryptic 2-letter badge on the deck row. Shown only when showRole is set. */
+.card-preview-role {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: var(--font-mono);
+}
+
 .card-preview-set {
   font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
