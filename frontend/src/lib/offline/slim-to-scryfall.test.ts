@@ -19,6 +19,7 @@ describe('slimToScryfall', () => {
       set: 'mh3',
       setName: 'Modern Horizons 3',
       collectorNumber: '123',
+      rarity: 'rare',
       imageNormal: 'https://example/normal.jpg',
       usdPrice: '1.23',
     };
@@ -30,6 +31,23 @@ describe('slimToScryfall', () => {
     expect(card.legalities.commander).toBe('legal');
     expect(card.prices.usd).toBe('1.23');
     expect(card.image_uris?.normal).toBe('https://example/normal.jpg');
+    expect(card.rarity).toBe('rare');
+  });
+
+  it('falls back to common rarity for pre-v3 slim payloads without a rarity', () => {
+    const slim: SlimCard = {
+      oracleId: 'o',
+      scryfallId: 's',
+      name: 'Legacy Row',
+      cmc: 0,
+      typeLine: 'Artifact',
+      colors: [],
+      colorIdentity: [],
+      keywords: [],
+      legalities: {},
+      set: 'leg',
+    };
+    expect(slimToScryfall(slim).rarity).toBe('common');
   });
 
   it('omits image_uris when no image data is present (deck builder gracefully degrades)', () => {
