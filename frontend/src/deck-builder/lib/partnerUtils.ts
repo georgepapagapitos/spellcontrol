@@ -168,9 +168,9 @@ export function getPartnerTypeLabel(partnerType: PartnerType): string {
     case 'background':
       return 'Background';
     case 'doctors-companion':
-      return 'Doctor';
+      return "Doctor's companion";
     case 'doctor':
-      return "Doctor's Companion";
+      return 'Doctor';
     default:
       return '';
   }
