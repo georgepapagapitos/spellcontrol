@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { NavFab } from './NavFab';
 
 function renderFab() {
@@ -11,20 +11,6 @@ function renderFab() {
     </MemoryRouter>
   );
 }
-
-/** Tap the FAB the way a finger does: a paired pointerdown/up, no drift. */
-function tap(el: Element) {
-  fireEvent.pointerDown(el, { pointerId: 1, button: 0 });
-  fireEvent.pointerUp(el, { pointerId: 1, button: 0 });
-}
-
-afterEach(() => {
-  try {
-    localStorage.clear();
-  } catch {
-    // ignore
-  }
-});
 
 describe('NavFab', () => {
   it('renders the collapsed toggle without crashing', () => {
@@ -38,7 +24,7 @@ describe('NavFab', () => {
     // Collapsed: links are aria-hidden, so out of the accessibility tree.
     expect(screen.queryByRole('link', { name: 'Collection' })).toBeNull();
 
-    tap(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
 
     expect(
       screen.getByRole('button', { name: 'Close navigation' }).getAttribute('aria-expanded')
@@ -50,14 +36,14 @@ describe('NavFab', () => {
 
   it('toggles back closed on a second tap', () => {
     renderFab();
-    tap(screen.getByRole('button', { name: 'Open navigation' }));
-    tap(screen.getByRole('button', { name: 'Close navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
     expect(screen.getByRole('button', { name: 'Open navigation' })).toBeTruthy();
   });
 
   it('closes on Escape', () => {
     renderFab();
-    tap(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByRole('button', { name: 'Open navigation' })).toBeTruthy();
   });

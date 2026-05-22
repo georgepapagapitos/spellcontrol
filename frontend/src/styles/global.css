@@ -6788,10 +6788,10 @@ hr {
 
 /* ── Native floating nav FAB ────────────────────────────────────────────────
    The native-only replacement for the bottom tab bar (components/NavFab.tsx).
-   A hamburger FAB docks to a screen corner; tapping fans the destinations out
-   along the quadrant that opens into the screen, a long-press lets it be
-   dragged to another corner. position:absolute inside the stable .app-shell —
-   never position:fixed — so the URL-bar shift can't catch it. */
+   A hamburger FAB locked to the bottom-right corner; tapping fans the
+   destinations out along the quadrant that opens up-and-left into the
+   screen. position:absolute inside the stable .app-shell — never
+   position:fixed — so the URL-bar shift can't catch it. */
 .nav-fab-root {
   position: absolute;
   inset: 0;
@@ -6820,30 +6820,12 @@ hr {
   pointer-events: auto;
 }
 
-/* The FAB cluster — toggle button plus the fan — docked to one corner. */
+/* The FAB cluster — toggle button plus the fan — locked bottom-right. */
 .nav-fab {
   position: absolute;
   width: 3.5rem;
   height: 3.5rem;
-}
-
-.nav-fab--bl,
-.nav-fab--br {
   bottom: calc(1rem + var(--safe-bottom));
-}
-
-.nav-fab--tl,
-.nav-fab--tr {
-  top: calc(1rem + var(--safe-top));
-}
-
-.nav-fab--bl,
-.nav-fab--tl {
-  left: calc(1rem + var(--safe-left));
-}
-
-.nav-fab--br,
-.nav-fab--tr {
   right: calc(1rem + var(--safe-right));
 }
 
@@ -6859,18 +6841,13 @@ hr {
   color: var(--on-accent);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
-  /* Suppress native scroll/long-press gestures so our pointer logic owns it. */
-  touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  transition:
-    transform 0.16s ease,
-    box-shadow 0.16s ease;
+  transition: transform 0.12s ease;
 }
 
-/* Picked up for repositioning — lifts toward the finger. */
-.nav-fab.dragging .nav-fab-btn {
-  transform: scale(1.12);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+/* Tactile press feedback on the toggle. */
+.nav-fab-btn:active {
+  transform: scale(0.93);
 }
 
 .nav-fab-dot {
