@@ -40,6 +40,29 @@ beforeEach(() => {
   mockExchange.mockReset();
 });
 
+/** Run the Google callback for a given identity and return the 302 response. */
+function callback(sub: string, email: string, platform: 'web' | 'native' = 'web') {
+  mockExchange.mockResolvedValue({ sub, email, emailVerified: true, name: null });
+  return request(app)
+    .get('/api/auth/google/callback')
+    .query({ code: 'auth-code', state: signOAuthState(platform) });
+}
+
+/** Pull the signup token out of a first-time callback redirect (web hash). */
+function signupTokenFromWeb(location: string): string {
+  const hash = new URL(location, 'http://x').hash.slice(1);
+  return new URLSearchParams(hash).get('token')!;
+}
+
+/** Drive a first-time sign-in all the way through to a created account. */
+async function createGoogleAccount(sub: string, email: string, username: string) {
+  const cb = await callback(sub, email, 'web');
+  const token = signupTokenFromWeb(cb.headers.location);
+  return request(app)
+    .post('/api/auth/google/complete-signup')
+    .send({ signupToken: token, username });
+}
+
 d('GET /api/auth/providers', () => {
   it('reports Google as enabled when configured', async () => {
     const res = await request(app).get('/api/auth/providers');
@@ -56,58 +79,33 @@ d('GET /api/auth/google', () => {
   });
 });
 
-d('GET /api/auth/google/callback', () => {
-  it('creates an account and sets a session cookie (web)', async () => {
-    mockExchange.mockResolvedValue({
-      sub: 'web-sub-1',
-      email: 'webuser@example.com',
-      emailVerified: true,
-      name: 'Web User',
-    });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState('web') });
+d('GET /api/auth/google/callback — first-time sign-in', () => {
+  it('sends a new web user to the choose-username screen, creating no account', async () => {
+    const res = await callback('new-web-sub', 'newweb@example.com', 'web');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/');
-    expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
-  });
-
-  it('does not create a second account on a repeat sign-in', async () => {
-    mockExchange.mockResolvedValue({
-      sub: 'web-sub-repeat',
-      email: 'repeat@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'c1', state: signOAuthState('web') });
-    await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'c2', state: signOAuthState('web') });
-    const { rows } = await pool.query(
-      `SELECT count(*)::int AS n FROM auth_identities WHERE provider_subject = 'web-sub-repeat'`
-    );
-    expect(rows[0].n).toBe(1);
-  });
-
-  it('deep-links a handoff code back to the native app', async () => {
-    mockExchange.mockResolvedValue({
-      sub: 'native-sub-1',
-      email: 'nativeuser@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    const res = await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState('native') });
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^spellcontrol:\/\/oauth\/callback\?code=/);
-    // The native flow must NOT set a cookie — the system browser jar is dead-ended.
+    expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
+    expect(signupTokenFromWeb(res.headers.location)).toBeTruthy();
+    // No session yet — the account does not exist until a username is chosen.
     expect(extractSessionCookie(res.headers['set-cookie'])).toBeNull();
+    const { rows } = await pool.query(
+      `SELECT count(*)::int AS n FROM auth_identities WHERE provider_subject = 'new-web-sub'`
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  it('deep-links a signup token to a new native user', async () => {
+    const res = await callback('new-native-sub', 'newnative@example.com', 'native');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^spellcontrol:\/\/oauth\/callback\?signup=/);
   });
 
   it('redirects to an error page when the state is invalid', async () => {
+    mockExchange.mockResolvedValue({
+      sub: 's',
+      email: 'e@example.com',
+      emailVerified: true,
+      name: null,
+    });
     const res = await request(app)
       .get('/api/auth/google/callback')
       .query({ code: 'auth-code', state: 'not-a-real-state' });
@@ -116,29 +114,75 @@ d('GET /api/auth/google/callback', () => {
   });
 });
 
-d('POST /api/auth/google/exchange', () => {
-  it('trades a handoff code for a session cookie', async () => {
-    mockExchange.mockResolvedValue({
-      sub: 'native-sub-exchange',
-      email: 'exchange@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    const callback = await request(app)
-      .get('/api/auth/google/callback')
-      .query({ code: 'auth-code', state: signOAuthState('native') });
-    const code = new URL(callback.headers.location).searchParams.get('code')!;
+d('POST /api/auth/google/complete-signup', () => {
+  it('creates the account with the chosen username and sets a session', async () => {
+    const res = await createGoogleAccount('signup-sub', 'signup@example.com', 'picked-name');
+    expect(res.status).toBe(201);
+    expect(res.body.user.username).toBe('picked-name');
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
+  });
 
-    const res = await request(app).post('/api/auth/google/exchange').send({ code });
+  it('rejects a username that is already taken', async () => {
+    await createGoogleAccount('taken-sub-1', 'taken1@example.com', 'duplicate-name');
+    const cb = await callback('taken-sub-2', 'taken2@example.com', 'web');
+    const res = await request(app)
+      .post('/api/auth/google/complete-signup')
+      .send({ signupToken: signupTokenFromWeb(cb.headers.location), username: 'duplicate-name' });
+    expect(res.status).toBe(409);
+  });
+
+  it('rejects a malformed username', async () => {
+    const cb = await callback('badname-sub', 'badname@example.com', 'web');
+    const res = await request(app)
+      .post('/api/auth/google/complete-signup')
+      .send({ signupToken: signupTokenFromWeb(cb.headers.location), username: 'No Spaces!' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an invalid signup token', async () => {
+    const res = await request(app)
+      .post('/api/auth/google/complete-signup')
+      .send({ signupToken: 'not-a-token', username: 'whoever' });
+    expect(res.status).toBe(401);
+  });
+});
+
+d('GET /api/auth/google/callback — returning user', () => {
+  it('signs a returning web user straight in', async () => {
+    await createGoogleAccount('return-web-sub', 'returnweb@example.com', 'return-web');
+    const res = await callback('return-web-sub', 'returnweb@example.com', 'web');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/');
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
+  });
+
+  it('deep-links a handoff code to a returning native user, and exchange works', async () => {
+    await createGoogleAccount('return-native-sub', 'returnnative@example.com', 'return-native');
+    const cb = await callback('return-native-sub', 'returnnative@example.com', 'native');
+    expect(cb.headers.location).toMatch(/^spellcontrol:\/\/oauth\/callback\?code=/);
+    const handoff = new URL(cb.headers.location).searchParams.get('code')!;
+
+    const res = await request(app).post('/api/auth/google/exchange').send({ code: handoff });
     expect(res.status).toBe(200);
-    expect(res.body.user.username).toBe('exchange');
+    expect(res.body.user.username).toBe('return-native');
     expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
 
     // Single-use — a replay fails.
-    const replay = await request(app).post('/api/auth/google/exchange').send({ code });
+    const replay = await request(app).post('/api/auth/google/exchange').send({ code: handoff });
     expect(replay.status).toBe(401);
   });
 
+  it('does not create a duplicate account on repeat sign-in', async () => {
+    await createGoogleAccount('once-sub', 'once@example.com', 'once-only');
+    await callback('once-sub', 'once@example.com', 'web');
+    const { rows } = await pool.query(
+      `SELECT count(*)::int AS n FROM auth_identities WHERE provider_subject = 'once-sub'`
+    );
+    expect(rows[0].n).toBe(1);
+  });
+});
+
+d('POST /api/auth/google/exchange', () => {
   it('rejects an unknown handoff code', async () => {
     const res = await request(app).post('/api/auth/google/exchange').send({ code: 'never-minted' });
     expect(res.status).toBe(401);

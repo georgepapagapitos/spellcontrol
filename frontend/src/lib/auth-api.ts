@@ -93,6 +93,26 @@ export async function exchangeGoogleCode(code: string): Promise<AuthUser> {
 }
 
 /**
+ * Finish a first-time Google sign-in: the user picked `username` on the
+ * choose-username screen; `signupToken` is the short-lived token from the
+ * OAuth callback that carries their verified Google identity. Creates the
+ * account and returns the user. Throws with `.status === 409` if the username
+ * is taken so the screen can prompt for another.
+ */
+export async function completeGoogleSignup(
+  signupToken: string,
+  username: string
+): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/google/complete-signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signupToken, username }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+/**
  * Permanently delete the current account and all server-side data. The backend
  * deletes the `users` row; every user-owned table cascades. The session cookie
  * is cleared by the response. Callers must NOT flush pending sync writes first

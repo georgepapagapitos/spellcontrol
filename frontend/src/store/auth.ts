@@ -25,6 +25,13 @@ interface AuthState {
    * on the reload. Resolves to false (and sets `error`) on failure.
    */
   completeGoogleOAuth: (code: string) => Promise<boolean>;
+  /**
+   * Finish a first-time Google sign-in: create the account with the username
+   * the user chose, using the signup token from the OAuth callback. Used by
+   * the choose-username screen on both web and native. Resolves to false (and
+   * sets `error`) on failure — e.g. the username is taken.
+   */
+  completeGoogleSignup: (signupToken: string, username: string) => Promise<boolean>;
   logout: () => Promise<void>;
   /**
    * Permanently delete the account: hit DELETE /api/auth/me, then tear down
@@ -88,6 +95,18 @@ export const useAuth = create<AuthState>((set) => ({
         error: err instanceof Error ? err.message : 'Google sign-in failed.',
         status: 'guest',
       });
+      return false;
+    }
+  },
+
+  completeGoogleSignup: async (signupToken, username) => {
+    set({ error: null });
+    try {
+      const user = await authApi.completeGoogleSignup(signupToken, username);
+      set({ user, status: 'authed', error: null });
+      return true;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Could not finish sign-up.' });
       return false;
     }
   },

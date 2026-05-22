@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
+import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
@@ -117,6 +118,7 @@ export default function App() {
     <Routes>
       <Route path="/s/:token" element={<SharedView />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
 

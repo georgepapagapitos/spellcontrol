@@ -3,7 +3,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { and, eq, lt } from 'drizzle-orm';
 import { getDb } from '../db';
 import { users, userData, authIdentities, oauthHandoffCodes } from '../db/schema';
-import { generateUsername, getAdminUsernames, type AuthedUser, type OAuthPlatform } from '../auth';
+import { getAdminUsernames, type AuthedUser, type OAuthPlatform } from '../auth';
 
 /** Provider key stored in `auth_identities.provider`. */
 const PROVIDER = 'google';
@@ -102,39 +102,40 @@ export async function exchangeGoogleCode(
 }
 
 /**
- * Map a verified Google identity to a SpellControl user, creating a fresh
- * account on first sign-in.
+ * Look up the SpellControl user linked to a Google identity, or null when
+ * this is a first-time sign-in (no account yet — the caller then routes the
+ * user through the "choose a username" screen).
  *
- * v1 deliberately keeps Google accounts separate: it looks up the user *only*
- * by the Google identity, never by email, so an SSO login can never read or
- * merge into a password account. Linking ("same email = same account") is a
- * later additive change — the unique `users.email` column is already in place
- * for it.
+ * v1 deliberately keeps Google accounts separate: lookup is *only* by the
+ * Google identity, never by email, so an SSO login can never read or merge
+ * into a password account. Linking ("same email = same account") is a later
+ * additive change — the unique `users.email` column is already in place for it.
  */
-export async function resolveGoogleUser(identity: GoogleIdentity): Promise<AuthedUser> {
+export async function findGoogleUser(sub: string): Promise<AuthedUser | null> {
   const db = getDb();
-
-  // Returning user — an identity row already points at their account.
   const linked = await db
     .select({ id: users.id, username: users.username, role: users.role })
     .from(authIdentities)
     .innerJoin(users, eq(users.id, authIdentities.userId))
-    .where(
-      and(eq(authIdentities.provider, PROVIDER), eq(authIdentities.providerSubject, identity.sub))
-    )
+    .where(and(eq(authIdentities.provider, PROVIDER), eq(authIdentities.providerSubject, sub)))
     .limit(1);
-  if (linked[0]) {
-    const row = linked[0];
-    return {
-      id: row.id,
-      username: row.username,
-      role: row.role === 'admin' ? 'admin' : 'user',
-    };
-  }
+  const row = linked[0];
+  if (!row) return null;
+  return { id: row.id, username: row.username, role: row.role === 'admin' ? 'admin' : 'user' };
+}
 
-  // First sign-in — create the account, its data row, and the identity link.
+/**
+ * Create the account for a verified Google identity using the username the
+ * user chose on the first-run screen. Writes the user row, its data row, and
+ * the `(google, sub)` identity link. The caller has already checked the
+ * username is well-formed and free.
+ */
+export async function createGoogleUser(
+  identity: GoogleIdentity,
+  username: string
+): Promise<AuthedUser> {
+  const db = getDb();
   const id = crypto.randomUUID();
-  const username = await generateUsername(identity.email ?? 'player');
   const now = Date.now();
   const role = getAdminUsernames().has(username) ? 'admin' : 'user';
   await db.insert(users).values({

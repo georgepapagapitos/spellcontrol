@@ -26,7 +26,8 @@ import {
   isGoogleOAuthConfigured,
   buildGoogleAuthUrl,
   exchangeGoogleCode,
-  resolveGoogleUser,
+  findGoogleUser,
+  createGoogleUser,
   mintHandoffCode,
   consumeHandoffCode,
 } from './google';
@@ -117,52 +118,42 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
-d('resolveGoogleUser', () => {
-  it('creates a fresh account on first sign-in', async () => {
-    const user = await resolveGoogleUser({
-      sub: 'sub-new',
-      email: 'newcomer@example.com',
-      emailVerified: true,
-      name: 'New',
-    });
-    expect(user.username).toBe('newcomer');
+d('findGoogleUser / createGoogleUser', () => {
+  it('returns null before the account exists, the user after', async () => {
+    expect(await findGoogleUser('sub-new')).toBeNull();
+    const user = await createGoogleUser(
+      { sub: 'sub-new', email: 'newcomer@example.com', emailVerified: true, name: 'New' },
+      'chosen-name'
+    );
+    expect(user.username).toBe('chosen-name');
+    const found = await findGoogleUser('sub-new');
+    expect(found?.id).toBe(user.id);
+  });
+
+  it('persists the identity link and a passwordless account', async () => {
+    const user = await createGoogleUser(
+      { sub: 'sub-persist', email: 'persist@example.com', emailVerified: true, name: null },
+      'persist-user'
+    );
     const db = getDb();
     const rows = await db.select().from(users).where(eq(users.id, user.id));
-    expect(rows[0].email).toBe('newcomer@example.com');
+    expect(rows[0].email).toBe('persist@example.com');
     expect(rows[0].emailVerified).toBe(true);
     expect(rows[0].passwordHash).toBeNull();
     const ids = await db
       .select()
       .from(authIdentities)
-      .where(eq(authIdentities.providerSubject, 'sub-new'));
+      .where(eq(authIdentities.providerSubject, 'sub-persist'));
     expect(ids[0].userId).toBe(user.id);
-  });
-
-  it('returns the same account on a repeat sign-in', async () => {
-    const first = await resolveGoogleUser({
-      sub: 'sub-repeat',
-      email: 'repeat@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    const second = await resolveGoogleUser({
-      sub: 'sub-repeat',
-      email: 'repeat@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    expect(second.id).toBe(first.id);
   });
 });
 
 d('handoff codes', () => {
   it('round-trips a single-use code', async () => {
-    const user = await resolveGoogleUser({
-      sub: 'sub-handoff',
-      email: 'handoff@example.com',
-      emailVerified: true,
-      name: null,
-    });
+    const user = await createGoogleUser(
+      { sub: 'sub-handoff', email: 'handoff@example.com', emailVerified: true, name: null },
+      'handoff-user'
+    );
     const code = await mintHandoffCode(user.id);
     expect(await consumeHandoffCode(code)).toBe(user.id);
     // Single use — a second redemption fails.
@@ -180,13 +171,11 @@ d('generateUsername', () => {
   });
 
   it('suffixes on collision', async () => {
-    await resolveGoogleUser({
-      sub: 'sub-collide',
-      email: 'collide@example.com',
-      emailVerified: true,
-      name: null,
-    });
-    // 'collide' is now taken — the next derivation must differ.
+    await createGoogleUser(
+      { sub: 'sub-collide', email: 'collide@example.com', emailVerified: true, name: null },
+      'collide'
+    );
+    // 'collide' is now taken — the next suggestion must differ.
     const next = await generateUsername('collide@example.com');
     expect(next).not.toBe('collide');
     expect(next.startsWith('collide')).toBe(true);

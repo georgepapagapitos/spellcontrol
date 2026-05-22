@@ -6,6 +6,8 @@ import {
   verifySession,
   signOAuthState,
   verifyOAuthState,
+  signSignupToken,
+  verifySignupToken,
   normalizeUsername,
   validatePassword,
 } from './auth';
@@ -50,6 +52,29 @@ describe('OAuth state tokens', () => {
     const session = signSession({ id: 'u1', username: 'alice', role: 'user' });
     expect(verifyOAuthState(session)).toBeNull();
     expect(verifySession(signOAuthState('web'))).toBeNull();
+  });
+});
+
+describe('OAuth signup tokens', () => {
+  it('round-trips the verified identity', () => {
+    const token = signSignupToken({
+      provider: 'google',
+      sub: 'g-42',
+      email: 'pat@example.com',
+      emailVerified: true,
+    });
+    expect(verifySignupToken(token)).toEqual({
+      provider: 'google',
+      sub: 'g-42',
+      email: 'pat@example.com',
+      emailVerified: true,
+    });
+  });
+
+  it('rejects garbage and tokens of a different audience', () => {
+    expect(verifySignupToken('not-a-jwt')).toBeNull();
+    // A state token must not pass as a signup token.
+    expect(verifySignupToken(signOAuthState('web'))).toBeNull();
   });
 });
 

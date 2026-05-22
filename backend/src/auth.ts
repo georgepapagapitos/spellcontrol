@@ -246,3 +246,44 @@ export function verifyOAuthState(token: string): OAuthState | null {
     return null;
   }
 }
+
+const SIGNUP_TOKEN_TTL_SECONDS = 15 * 60; // 15 min — time to pick a username
+const SIGNUP_TOKEN_AUDIENCE = 'oauth-signup';
+
+/**
+ * The verified identity carried between a first-time OAuth callback and the
+ * "choose a username" screen. No account exists yet — the account is created
+ * only when the user submits a username to /google/complete-signup. Stateless
+ * (a signed JWT, distinct `aud`); replay is bounded because creating the
+ * account writes a unique `(provider, providerSubject)` row.
+ */
+export interface SignupToken {
+  provider: 'google';
+  sub: string;
+  email: string | null;
+  emailVerified: boolean;
+}
+
+export function signSignupToken(payload: SignupToken): string {
+  return jwt.sign(payload, getJwtSecret(), {
+    audience: SIGNUP_TOKEN_AUDIENCE,
+    expiresIn: SIGNUP_TOKEN_TTL_SECONDS,
+  });
+}
+
+export function verifySignupToken(token: string): SignupToken | null {
+  try {
+    const p = jwt.verify(token, getJwtSecret(), {
+      audience: SIGNUP_TOKEN_AUDIENCE,
+    }) as jwt.JwtPayload;
+    if (p.provider !== 'google' || typeof p.sub !== 'string') return null;
+    return {
+      provider: 'google',
+      sub: p.sub,
+      email: typeof p.email === 'string' ? p.email : null,
+      emailVerified: p.emailVerified === true,
+    };
+  } catch {
+    return null;
+  }
+}

@@ -4,6 +4,7 @@ import { rateLimit } from 'express-rate-limit';
 import { eq } from 'drizzle-orm';
 import {
   clearSessionCookie,
+  generateUsername,
   getAdminUsernames,
   hashPassword,
   loadAuthedUser,
@@ -15,20 +16,23 @@ import {
   setSessionCookie,
   signSession,
   signOAuthState,
+  signSignupToken,
   validatePassword,
   verifyOAuthState,
   verifyPassword,
+  verifySignupToken,
   type OAuthPlatform,
   type UserRole,
 } from '../auth';
 import {
   buildGoogleAuthUrl,
   consumeHandoffCode,
+  createGoogleUser,
   exchangeGoogleCode,
+  findGoogleUser,
   getGoogleConfig,
   isGoogleOAuthConfigured,
   mintHandoffCode,
-  resolveGoogleUser,
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb } from '../db';
@@ -148,19 +152,10 @@ function oauthPlatform(raw: unknown): OAuthPlatform {
   return raw === 'native' ? 'native' : 'web';
 }
 
-/** Where the callback sends the browser when the flow ends (success or error). */
-function oauthRedirect(
-  platform: OAuthPlatform,
-  outcome: 'ok-native' | 'error',
-  code?: string
-): string {
-  if (platform === 'native') {
-    return outcome === 'ok-native'
-      ? `${NATIVE_CALLBACK_SCHEME}?code=${encodeURIComponent(code ?? '')}`
-      : `${NATIVE_CALLBACK_SCHEME}?error=google`;
-  }
-  // Web is same-origin with the SPA (Vite proxy in dev, reverse proxy in prod).
-  return outcome === 'error' ? '/auth?error=google' : '/';
+function qs(params: Record<string, string>): string {
+  return Object.entries(params)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join('&');
 }
 
 /**
@@ -177,10 +172,15 @@ authRouter.get('/google', oauthLimiter, (req: Request, res: Response) => {
 });
 
 /**
- * Google redirects here with `?code&state`. Verifies the state, exchanges the
- * code, resolves/creates the user, then: web → sets the session cookie and
- * 302s to the app; native → mints a single-use handoff code and deep-links it
- * back into the app (the system browser cannot set the WebView's cookie).
+ * Google redirects here with `?code&state`. Verifies the state and exchanges
+ * the code, then branches on whether the account exists:
+ *
+ *   Returning user — web: set the session cookie, 302 to the app; native:
+ *     mint a single-use handoff code and deep-link it back (the system
+ *     browser cannot set the WebView's cookie).
+ *   First-time user — no account is created yet. The verified identity is
+ *     put in a short-lived signup token and the user is sent to the
+ *     "choose a username" screen; the account is created at /complete-signup.
  */
 authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Response) => {
   const cfg = getGoogleConfig();
@@ -191,6 +191,8 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
   const stateToken = typeof req.query.state === 'string' ? req.query.state : '';
   const state = verifyOAuthState(stateToken);
   const platform: OAuthPlatform = state?.platform ?? 'web';
+  const errorRedirect =
+    platform === 'native' ? `${NATIVE_CALLBACK_SCHEME}?error=google` : '/auth?error=google';
 
   try {
     if (!state) throw new Error('Invalid or expired OAuth state.');
@@ -199,18 +201,79 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
     if (!code) throw new Error('Missing authorization code.');
 
     const identity = await exchangeGoogleCode(cfg, platform, code);
-    const user = await resolveGoogleUser(identity);
+    const existing = await findGoogleUser(identity.sub);
 
-    if (platform === 'native') {
-      const handoff = await mintHandoffCode(user.id);
-      return res.redirect(oauthRedirect('native', 'ok-native', handoff));
+    if (existing) {
+      if (platform === 'native') {
+        const handoff = await mintHandoffCode(existing.id);
+        return res.redirect(`${NATIVE_CALLBACK_SCHEME}?${qs({ code: handoff })}`);
+      }
+      setSessionCookie(res, signSession(existing));
+      return res.redirect('/');
     }
-    setSessionCookie(res, signSession(user));
-    return res.redirect(oauthRedirect('web', 'ok-native'));
+
+    // First-time sign-in — defer account creation to the username screen.
+    const signupToken = signSignupToken({
+      provider: 'google',
+      sub: identity.sub,
+      email: identity.email,
+      emailVerified: identity.emailVerified,
+    });
+    const suggested = await generateUsername(identity.email ?? 'player');
+    if (platform === 'native') {
+      return res.redirect(`${NATIVE_CALLBACK_SCHEME}?${qs({ signup: signupToken, suggested })}`);
+    }
+    return res.redirect(`/auth/choose-username#${qs({ token: signupToken, suggested })}`);
   } catch (err) {
     logger.error('[auth] google callback failed:', err);
-    return res.redirect(oauthRedirect(platform, 'error'));
+    return res.redirect(errorRedirect);
   }
+});
+
+/**
+ * Finish a first-time Google sign-in: the user picked a username on the
+ * choose-username screen. Validates it, creates the account from the signup
+ * token's verified identity, and sets the session cookie.
+ */
+authRouter.post('/google/complete-signup', oauthLimiter, async (req: Request, res: Response) => {
+  const signupToken = typeof req.body?.signupToken === 'string' ? req.body.signupToken : '';
+  const identity = verifySignupToken(signupToken);
+  if (!identity) {
+    return res
+      .status(401)
+      .json({ error: 'Your sign-up link expired. Please sign in with Google again.' });
+  }
+
+  // Idempotency: if a previous submit already created the account (double
+  // click, retry), just sign the user in rather than erroring.
+  const existing = await findGoogleUser(identity.sub);
+  if (existing) {
+    setSessionCookie(res, signSession(existing));
+    return res.json({ user: existing });
+  }
+
+  const username = normalizeUsername(req.body?.username);
+  if (!username) {
+    return res.status(400).json({
+      error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
+    });
+  }
+  const db = getDb();
+  const taken = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+  if (taken.length > 0) {
+    return res.status(409).json({ error: 'That username is already taken.' });
+  }
+
+  const user = await createGoogleUser(
+    { sub: identity.sub, email: identity.email, emailVerified: identity.emailVerified, name: null },
+    username
+  );
+  setSessionCookie(res, signSession(user));
+  res.status(201).json({ user });
 });
 
 /**

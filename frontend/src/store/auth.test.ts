@@ -75,6 +75,29 @@ describe('completeGoogleOAuth', () => {
   });
 });
 
+describe('completeGoogleSignup', () => {
+  it('creates the account and authes on a chosen username', async () => {
+    vi.spyOn(authApi, 'completeGoogleSignup').mockResolvedValue({
+      id: 'g2',
+      username: 'picked',
+      role: 'user',
+    });
+    const ok = await useAuth.getState().completeGoogleSignup('signup-token', 'picked');
+    expect(ok).toBe(true);
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().user?.username).toBe('picked');
+  });
+
+  it('surfaces an error when the username is taken', async () => {
+    vi.spyOn(authApi, 'completeGoogleSignup').mockRejectedValue(
+      new Error('That username is already taken.')
+    );
+    const ok = await useAuth.getState().completeGoogleSignup('signup-token', 'taken');
+    expect(ok).toBe(false);
+    expect(useAuth.getState().error).toMatch(/taken/i);
+  });
+});
+
 describe('logout', () => {
   it('clears user and triggers sync teardown even if API fails', async () => {
     useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });

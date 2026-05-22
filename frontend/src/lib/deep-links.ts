@@ -66,17 +66,21 @@ function buildShareRoute(rawToken: string): string {
 
 /** Result of parsing an OAuth callback deep link. */
 export interface OAuthCallback {
-  /** Single-use handoff code to exchange for a session (success). */
+  /** Returning user: single-use handoff code to exchange for a session. */
   code?: string;
-  /** Set instead of `code` when the OAuth flow failed or was cancelled. */
+  /** First-time user: signup token to carry to the choose-username screen. */
+  signup?: string;
+  /** Suggested username that accompanies a `signup` token. */
+  suggested?: string;
+  /** Set instead of `code`/`signup` when the OAuth flow failed or was cancelled. */
   error?: string;
 }
 
 /**
  * Parse a `spellcontrol://oauth/callback` deep link — the hop the backend's
  * Google callback uses to return into the native app. Returns the handoff
- * code, or an error marker, or `null` for any URL that isn't an OAuth
- * callback. Exported for unit testing.
+ * code (returning user), a signup token (first-time user), an error marker,
+ * or `null` for any URL that isn't an OAuth callback. Exported for unit testing.
  */
 export function parseOAuthCallback(url: string): OAuthCallback | null {
   let parsed: URL;
@@ -90,6 +94,8 @@ export function parseOAuthCallback(url: string): OAuthCallback | null {
   if (host !== 'oauth') return null;
   const code = parsed.searchParams.get('code');
   if (code) return { code };
+  const signup = parsed.searchParams.get('signup');
+  if (signup) return { signup, suggested: parsed.searchParams.get('suggested') ?? undefined };
   return { error: parsed.searchParams.get('error') ?? 'google' };
 }
 
@@ -103,6 +109,13 @@ function handleDeepLink(url: string, navigate: Navigate): void {
   if (oauth) {
     // The flow is done — dismiss the system browser tab regardless of outcome.
     void Browser.close().catch(() => {});
+    if (oauth.signup) {
+      // First-time user — carry the signup token to the choose-username screen.
+      const params = new URLSearchParams({ token: oauth.signup });
+      if (oauth.suggested) params.set('suggested', oauth.suggested);
+      navigate(`/auth/choose-username#${params.toString()}`);
+      return;
+    }
     // Lazy import: keeps the auth store (and its sync dependency graph) out of
     // this module's import side, so parseDeepLink stays cheap to unit-test.
     void import('../store/auth').then(({ useAuth }) => {

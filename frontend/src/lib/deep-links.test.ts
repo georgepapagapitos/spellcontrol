@@ -51,6 +51,12 @@ describe('parseOAuthCallback', () => {
     });
   });
 
+  it('extracts the signup token and suggested username for a first-time user', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback?signup=tok-9&suggested=patg')).toEqual(
+      { signup: 'tok-9', suggested: 'patg' }
+    );
+  });
+
   it('reports an error when the callback carries one', () => {
     expect(parseOAuthCallback('spellcontrol://oauth/callback?error=access_denied')).toEqual({
       error: 'access_denied',
