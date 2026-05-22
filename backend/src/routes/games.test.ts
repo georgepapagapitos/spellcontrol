@@ -45,6 +45,39 @@ d('POST /api/games', () => {
   });
 });
 
+d('GET /api/games/:code', () => {
+  it('returns the full state with no knownVersion', async () => {
+    const cookie = await registerAndGetCookie('games_get_full');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).get(`/api/games/${code}`).set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.game.code).toBe(code);
+    expect(res.body.unchanged).toBeUndefined();
+  });
+
+  it('short-circuits to { unchanged: true } when knownVersion matches', async () => {
+    const cookie = await registerAndGetCookie('games_get_unchanged');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const version = created.body.game.version as number;
+    const res = await request(app)
+      .get(`/api/games/${code}?knownVersion=${version}`)
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ unchanged: true });
+  });
+
+  it('returns the full state when knownVersion is stale', async () => {
+    const cookie = await registerAndGetCookie('games_get_stale');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    const res = await request(app).get(`/api/games/${code}?knownVersion=999`).set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.game.code).toBe(code);
+  });
+});
+
 d('POST /api/games/:code/join + PATCH /:code', () => {
   it('joins a game and applies a life action', async () => {
     const hostCookie = await registerAndGetCookie('games_host');
