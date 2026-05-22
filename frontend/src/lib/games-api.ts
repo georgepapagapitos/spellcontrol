@@ -28,10 +28,19 @@ export async function createGame(input: CreateGameInput): Promise<GameState> {
   return data.game;
 }
 
-export async function getGame(code: string): Promise<GameState> {
-  const res = await authedFetch(`/api/games/${encodeURIComponent(code)}`);
-  const data = await handleResponse<{ game: GameState }>(res);
-  return data.game;
+/**
+ * Fetch a game's current state. When `knownVersion` is supplied the server may
+ * answer `{ unchanged: true }` (the version still matches), in which case this
+ * resolves to `null` so the caller can skip the update entirely — no full
+ * `GameState` payload crosses the wire. Call without `knownVersion` to always
+ * get the full state.
+ */
+export async function getGame(code: string, knownVersion?: number): Promise<GameState | null> {
+  const path = `/api/games/${encodeURIComponent(code)}`;
+  const url = knownVersion != null ? `${path}?knownVersion=${knownVersion}` : path;
+  const res = await authedFetch(url);
+  const data = await handleResponse<{ game?: GameState; unchanged?: boolean }>(res);
+  return data.unchanged ? null : (data.game ?? null);
 }
 
 export interface JoinGameInput {
