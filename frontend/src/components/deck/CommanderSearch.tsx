@@ -1,6 +1,5 @@
 import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useKeyboard } from '@/lib/keyboard';
 import { searchCommanders, getCardByName } from '@/deck-builder/services/scryfall/client';
 import {
   fetchTopCommanders,
@@ -86,21 +85,13 @@ function pickRandom<T>(arr: T[]): T | null {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Tallest the results popover ever grows on a roomy viewport; on smaller
-// screens it's capped further to the space above the keyboard.
-const RESULTS_MAX_HEIGHT = 320;
-
 export function CommanderSearch({ value, onSelect }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [open, setOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [randomLoading, setRandomLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const { viewportHeight } = useKeyboard();
 
   const collectionCards = useCollectionStore((s) => s.cards);
   // The collection stores one row per physical copy, so a card owned in
@@ -186,34 +177,10 @@ export function CommanderSearch({ value, onSelect }: Props) {
     if (!ownedOnly) setLocalResults([]);
   }
 
-  // Results render as a popover directly below the input. Its height is
-  // capped to the gap between the input and the top of the on-screen
-  // keyboard, so the list never covers the input above it nor slides behind
-  // the keyboard below it — the same behavior on every viewport.
-  const dropdownVisible =
-    open &&
-    query.trim().length >= 2 &&
-    (searchLoading || (ownedOnly ? localResults.length > 0 : results.length > 0));
-  const [resultsMaxHeight, setResultsMaxHeight] = useState(RESULTS_MAX_HEIGHT);
-  useEffect(() => {
-    if (!dropdownVisible) return;
-    const recompute = () => {
-      const input = inputRef.current;
-      if (!input) return;
-      // viewportHeight (from useKeyboard) is the area above the keyboard;
-      // leave a small gap below the list.
-      const available = viewportHeight - input.getBoundingClientRect().bottom - 12;
-      setResultsMaxHeight(Math.max(160, Math.min(RESULTS_MAX_HEIGHT, available)));
-    };
-    recompute();
-    // Capture-phase scroll catches scrolling inside .app-main, not just window.
-    window.addEventListener('scroll', recompute, true);
-    window.addEventListener('resize', recompute);
-    return () => {
-      window.removeEventListener('scroll', recompute, true);
-      window.removeEventListener('resize', recompute);
-    };
-  }, [dropdownVisible, viewportHeight]);
+  // The panel below the input sizes to its content and only grows downward,
+  // so the input never moves. `queried` decides *what* the panel shows —
+  // results vs. EDHREC suggestions.
+  const queried = query.trim().length >= 2;
 
   // Search effect — switches source by ownedOnly. Scryfall when off, local
   // collection-legend filter when on.
@@ -318,7 +285,6 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // ── Selection handlers ────────────────────────────────────────────────
   const selectCard = (card: ScryfallCard) => {
     onSelect(card);
-    setOpen(false);
     setQuery('');
     setResults([]);
     setLocalResults([]);
@@ -468,8 +434,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
   }
 
   // ── Search UI ─────────────────────────────────────────────────────────
-  const resultList = (
-    <ul className="commander-search-results" role="listbox" style={{ maxHeight: resultsMaxHeight }}>
+  const listboxId = 'commander-search-listbox';
+  const resultItems = (
+    <ul className="commander-search-results" role="listbox" id={listboxId}>
       {searchLoading && <li className="commander-search-loading">Searching…</li>}
       {!ownedOnly &&
         results.map((card) => (
@@ -477,10 +444,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
             <button
               type="button"
               className="commander-search-item"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                selectCard(card);
-              }}
+              onClick={() => selectCard(card)}
             >
               <span className="commander-search-item-name">{card.name}</span>
               <span className="commander-search-item-type">{card.type_line}</span>
@@ -493,10 +457,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
             <button
               type="button"
               className="commander-search-item"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                void selectByName(card.name);
-              }}
+              onClick={() => void selectByName(card.name)}
             >
               <span className="commander-search-item-name">{card.name}</span>
               <span className="commander-search-item-type">
@@ -507,23 +468,20 @@ export function CommanderSearch({ value, onSelect }: Props) {
         ))}
     </ul>
   );
-
-  const dropdown = dropdownVisible ? resultList : null;
+  const hasResults = (ownedOnly ? localResults.length : results.length) > 0;
 
   return (
     <div className="commander-search">
       <input
-        ref={inputRef}
         type="text"
         className="commander-search-input"
+        role="combobox"
+        aria-expanded={queried}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
         placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
         value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => setQuery(e.target.value)}
         aria-label={ownedOnly ? 'Search your commanders' : 'Search for a commander'}
       />
 
@@ -558,118 +516,128 @@ export function CommanderSearch({ value, onSelect }: Props) {
         </label>
       )}
 
-      {dropdown}
-
-      {/* Suggestions section — only when the search box is empty. */}
-      {query.trim().length === 0 && (
-        <div className="commander-suggestions">
-          <p className="commander-suggestions-label">
-            {getColorFilterLabel(colorFilter)} commanders on EDHREC
-            {ownedOnly ? ' (yours)' : ''}:
-          </p>
-          <div
-            className="commander-color-filter"
-            role="group"
-            aria-label="Filter by color identity"
-          >
-            {COLORS.map((c) => {
-              const active = colorFilter.has(c);
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  className={`commander-color-pip${active ? ' active' : ''}`}
-                  aria-pressed={active}
-                  aria-label={COLOR_LABEL[c]}
-                  title={COLOR_LABEL[c]}
-                  onClick={() =>
-                    setColorFilter((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(c)) {
-                        next.delete(c);
-                      } else {
-                        next.add(c);
-                        // Colorless and the WUBRG colors are mutually exclusive —
-                        // a colorless commander has no color identity.
-                        if (c === 'C') {
-                          for (const other of next) if (other !== 'C') next.delete(other);
-                        } else {
-                          next.delete('C');
-                        }
-                      }
-                      return next;
-                    })
-                  }
-                >
-                  <i className={`ms ms-${c.toLowerCase()} ms-cost`} aria-hidden />
-                </button>
-              );
-            })}
-            {colorFilter.size > 0 && (
-              <button
-                type="button"
-                className="commander-color-clear"
-                onClick={() => setColorFilter(new Set())}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-
-          {topLoading ? (
-            <p className="commander-suggestions-empty">Loading…</p>
-          ) : visibleTop.length === 0 ? (
-            <p className="commander-suggestions-empty">
-              {ownedOnly
-                ? 'You don’t own any of EDHREC’s top commanders for that filter.'
-                : 'No commanders found.'}
-            </p>
+      {/* Results panel: search results when a query is active, EDHREC
+          suggestions otherwise. Sizes to its content (capped, then scrolls)
+          and only grows downward, so the input above never moves. */}
+      <div className="commander-search-panel">
+        {queried ? (
+          hasResults ? (
+            resultItems
+          ) : searchLoading ? (
+            <p className="commander-search-status">Searching…</p>
           ) : (
-            <ul className="commander-suggestion-chips">
-              {visibleTop.slice(0, 12).map((c) => {
-                const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
+            <p className="commander-search-status">No commanders found.</p>
+          )
+        ) : (
+          <div className="commander-suggestions">
+            <p className="commander-suggestions-label">
+              {getColorFilterLabel(colorFilter)} commanders on EDHREC
+              {ownedOnly ? ' (yours)' : ''}:
+            </p>
+            <div
+              className="commander-color-filter"
+              role="group"
+              aria-label="Filter by color identity"
+            >
+              {COLORS.map((c) => {
+                const active = colorFilter.has(c);
                 return (
-                  <li key={c.sanitized}>
-                    <button
-                      type="button"
-                      className="commander-suggestion-chip"
-                      onClick={() => void selectByName(c.name)}
-                      disabled={searchLoading}
-                    >
-                      <span className="commander-suggestion-pips" aria-hidden>
-                        {colors.map((color) => (
-                          <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
-                        ))}
-                      </span>
-                      <span>{c.name}</span>
-                    </button>
-                  </li>
+                  <button
+                    key={c}
+                    type="button"
+                    className={`commander-color-pip${active ? ' active' : ''}`}
+                    aria-pressed={active}
+                    aria-label={COLOR_LABEL[c]}
+                    title={COLOR_LABEL[c]}
+                    onClick={() =>
+                      setColorFilter((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(c)) {
+                          next.delete(c);
+                        } else {
+                          next.add(c);
+                          // Colorless and the WUBRG colors are mutually exclusive —
+                          // a colorless commander has no color identity.
+                          if (c === 'C') {
+                            for (const other of next) if (other !== 'C') next.delete(other);
+                          } else {
+                            next.delete('C');
+                          }
+                        }
+                        return next;
+                      })
+                    }
+                  >
+                    <i className={`ms ms-${c.toLowerCase()} ms-cost`} aria-hidden />
+                  </button>
                 );
               })}
-            </ul>
-          )}
+              {colorFilter.size > 0 && (
+                <button
+                  type="button"
+                  className="commander-color-clear"
+                  onClick={() => setColorFilter(new Set())}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
 
-          <div className="commander-surprise">
-            <button
-              type="button"
-              className="commander-suggestion-chip commander-surprise-chip"
-              onClick={handleSurpriseMe}
-              disabled={
-                randomLoading || searchLoading || (ownedOnly && collectionLegends.length === 0)
-              }
-            >
-              <Shuffle
-                className="commander-surprise-icon"
-                width={14}
-                height={14}
-                strokeWidth={2}
-                aria-hidden
-              />
-              {randomLoading ? 'Picking…' : 'Random'}
-            </button>
+            {topLoading ? (
+              <p className="commander-suggestions-empty">Loading…</p>
+            ) : visibleTop.length === 0 ? (
+              <p className="commander-suggestions-empty">
+                {ownedOnly
+                  ? 'You don’t own any of EDHREC’s top commanders for that filter.'
+                  : 'No commanders found.'}
+              </p>
+            ) : (
+              <ul className="commander-suggestion-chips">
+                {visibleTop.slice(0, 12).map((c) => {
+                  const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
+                  return (
+                    <li key={c.sanitized}>
+                      <button
+                        type="button"
+                        className="commander-suggestion-chip"
+                        onClick={() => void selectByName(c.name)}
+                        disabled={searchLoading}
+                      >
+                        <span className="commander-suggestion-pips" aria-hidden>
+                          {colors.map((color) => (
+                            <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                          ))}
+                        </span>
+                        <span>{c.name}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="commander-surprise">
+              <button
+                type="button"
+                className="commander-suggestion-chip commander-surprise-chip"
+                onClick={handleSurpriseMe}
+                disabled={
+                  randomLoading || searchLoading || (ownedOnly && collectionLegends.length === 0)
+                }
+              >
+                <Shuffle
+                  className="commander-surprise-icon"
+                  width={14}
+                  height={14}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                {randomLoading ? 'Picking…' : 'Random'}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {error && <p className="commander-search-error">{error}</p>}
     </div>
