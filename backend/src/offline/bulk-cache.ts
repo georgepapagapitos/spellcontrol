@@ -25,6 +25,7 @@ interface ScryfallBulkCard {
   keywords?: string[];
   produced_mana?: string[];
   layout?: string;
+  rarity?: string;
   legalities?: Record<string, string>;
   edhrec_rank?: number;
   set: string;
@@ -58,8 +59,9 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  * logic change wouldn't take effect until the next daily rebuild — `loadFromDisk`
  * discards a payload built by an older builder and forces a fresh build.
  *   2 — exclude non-playable layouts (art_series/token/...) + memorabilia.
+ *   3 — carry `rarity` so consumers don't default everything to common.
  */
-const BUILDER_VERSION = 2;
+const BUILDER_VERSION = 3;
 
 /**
  * Persisted gzipped slim oracle bulk. We compute it once a day from Scryfall's
@@ -152,6 +154,7 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
     keywords: card.keywords ?? [],
     producedMana: card.produced_mana,
     layout: card.layout,
+    rarity: card.rarity,
     legalities: card.legalities ?? {},
     edhrecRank: card.edhrec_rank,
     set: card.set,
