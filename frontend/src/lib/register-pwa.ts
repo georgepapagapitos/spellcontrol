@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { isNativePlatform } from '@/lib/platform';
 import { usePlayStore } from '@/store/play';
 import { usePwaStore } from '@/store/pwa';
 
@@ -25,8 +26,39 @@ function isPlaytestActive(): boolean {
   return Boolean(localActive || onlineActive);
 }
 
+/**
+ * Tear down any service worker (and its caches) a previous build left
+ * registered for this origin. Best-effort: cleanup must never block boot.
+ */
+async function unregisterServiceWorkers(): Promise<void> {
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations?.()) ?? [];
+    await Promise.all(regs.map((r) => r.unregister()));
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (error) {
+    logger.warn('[pwa] service worker teardown failed:', error);
+  }
+}
+
 export async function registerPwa(): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  // The native (Capacitor) app bundles every asset in the APK and serves
+  // it from the local `https://localhost` origin, so a Workbox precache
+  // layer adds nothing — and it actively hurts: a freshly installed build
+  // boots the *previous* build's cached app-shell (a white screen until
+  // the SW silently updates). Skip registration on native, and tear down
+  // any SW/caches an earlier build left behind so existing installs
+  // self-heal. Native offline support is handled by lib/offline/auto-sync,
+  // independent of the service worker.
+  if (isNativePlatform()) {
+    await unregisterServiceWorkers();
+    return;
+  }
+
   // The `virtual:pwa-register` module is injected by vite-plugin-pwa at
   // build time. Dynamic import keeps the unit-test bundle from choking on
   // the unresolved specifier under Vitest's node environment.
