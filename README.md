@@ -107,6 +107,37 @@ npm run dev --prefix backend             # :3737
 npm run dev --prefix frontend            # :5173
 ```
 
+### Native app (Android)
+
+The Android app is a [Capacitor](https://capacitorjs.com/) shell around the same `frontend` bundle — there is no separate native UI. The native project lives in `frontend/android/`; building it needs the Android SDK and a JDK (the project builds with JDK 21) with `ANDROID_HOME`, `adb`, and `gradlew` available.
+
+Which backend the installed app talks to is baked in at build time via `VITE_API_BASE_URL`:
+
+| Build                     | `VITE_API_BASE_URL`            | Backend       | Database           |
+| ------------------------- | ------------------------------ | ------------- | ------------------ |
+| Native dev                | `http://localhost:3737`        | local backend | local dev Postgres |
+| Device check against prod | `https://api.spellcontrol.com` | production    | production (Neon)  |
+
+For everyday work, **build against the local backend** so the device runs on your dev stack and never touches production data:
+
+```bash
+# Local stack already running (npm run db:up + npm run dev).
+# Forward the dev ports to the USB-connected device (re-run after every replug):
+adb reverse tcp:3737 tcp:3737
+adb reverse tcp:5173 tcp:5173
+
+# Build the web bundle, sync it into the native project, build + install:
+cd frontend
+VITE_API_BASE_URL=http://localhost:3737 npm run build
+npx cap sync android
+cd android && ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Only build with `VITE_API_BASE_URL=https://api.spellcontrol.com` to validate a real device against production — that build reads and writes the live database.
+
+**Service-worker gotcha:** the frontend is a PWA, so its service worker precaches the app shell in the WebView's Cache Storage. That cache survives `adb install -r` (a reinstall keeps app data), so a freshly installed APK can keep serving the _old_ bundle. After installing a new build, clear the app's data once — `adb shell pm clear com.spellcontrol.app`, or Settings → Apps → SpellControl → Storage → Clear data — then relaunch. The local cache (decks/collection) is a write-through cache and the server is the source of truth, so it re-downloads on next sign-in.
+
 ### Docker
 
 A `docker-compose.yml` is included that runs Postgres + the backend + the frontend. Copy `.env.example` to `.env` and fill in `POSTGRES_PASSWORD` and `JWT_SECRET` first:
