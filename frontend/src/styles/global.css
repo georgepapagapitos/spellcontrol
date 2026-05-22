@@ -226,6 +226,31 @@ select {
   font-family: var(--font-serif);
 }
 
+/* ── Native (Capacitor WebView) touch polish ────────────────────────────
+   Strip the browser-grade touch chrome that looks wrong in a packaged
+   app: the blue/grey tap-highlight flash that paints behind every
+   tappable element (Play history toggle, collection grid cards), and the
+   long-press text-selection "carousel"/callout menu. Scoped to
+   `.capacitor` (set on <html> by lib/platform.ts) so the web build keeps
+   normal selection + accessibility affordances. Editable and explicitly
+   selectable elements opt back in below. */
+.capacitor,
+.capacitor * {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Re-enable selection/callout where it's genuinely useful — editable
+   fields and anything explicitly marked `.selectable`. */
+.capacitor input,
+.capacitor textarea,
+.capacitor [contenteditable='true'],
+.capacitor .selectable {
+  -webkit-touch-callout: default;
+  user-select: text;
+}
+
 .container {
   max-width: var(--page-max);
   margin: 0 auto;
