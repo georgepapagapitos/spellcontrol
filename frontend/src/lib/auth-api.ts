@@ -47,6 +47,51 @@ export async function logout(): Promise<void> {
   await authedFetch('/api/auth/logout', { method: 'POST' });
 }
 
+/** Which sign-in methods this deployment offers. Google is optional. */
+export interface AuthProviders {
+  password: boolean;
+  google: boolean;
+}
+
+/**
+ * Ask the backend which sign-in methods are enabled. Used by the auth screen
+ * to decide whether to render the "Continue with Google" button. Falls back to
+ * password-only if the request fails, so a network blip never strands the user.
+ */
+export async function fetchProviders(): Promise<AuthProviders> {
+  try {
+    const res = await authedFetch('/api/auth/providers', { method: 'GET' });
+    return await handleResponse<AuthProviders>(res);
+  } catch {
+    return { password: true, google: false };
+  }
+}
+
+/**
+ * Absolute URL that starts the Google OAuth flow. Web navigates the top-level
+ * page here; native opens it in the system browser. `platform=native` tells
+ * the backend callback to deep-link a handoff code back instead of setting a
+ * cookie (the system browser's cookie jar is unreachable from the WebView).
+ */
+export function googleSignInUrl(platform: 'web' | 'native'): string {
+  return apiUrl(`/api/auth/google${platform === 'native' ? '?platform=native' : ''}`);
+}
+
+/**
+ * Native only: trade the single-use handoff code from the OAuth deep link for
+ * a real session. The response's Set-Cookie lands in the native cookie jar
+ * because this request goes through the Capacitor HTTP bridge.
+ */
+export async function exchangeGoogleCode(code: string): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/google/exchange', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
 /**
  * Permanently delete the current account and all server-side data. The backend
  * deletes the `users` row; every user-owned table cascades. The session cookie

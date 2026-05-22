@@ -1,4 +1,5 @@
 import { App, type URLOpenListenerEvent } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { isNativePlatform } from './platform';
 
 type Navigate = (path: string) => void;
@@ -63,16 +64,70 @@ function buildShareRoute(rawToken: string): string {
   return `/s/${encodeURIComponent(decoded)}`;
 }
 
+/** Result of parsing an OAuth callback deep link. */
+export interface OAuthCallback {
+  /** Single-use handoff code to exchange for a session (success). */
+  code?: string;
+  /** Set instead of `code` when the OAuth flow failed or was cancelled. */
+  error?: string;
+}
+
 /**
- * Subscribe to native deep links and route them through react-router.
+ * Parse a `spellcontrol://oauth/callback` deep link — the hop the backend's
+ * Google callback uses to return into the native app. Returns the handoff
+ * code, or an error marker, or `null` for any URL that isn't an OAuth
+ * callback. Exported for unit testing.
+ */
+export function parseOAuthCallback(url: string): OAuthCallback | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'spellcontrol:') return null;
+  const host = parsed.hostname || parsed.pathname.replace(/^\/+/, '').split('/')[0] || '';
+  if (host !== 'oauth') return null;
+  const code = parsed.searchParams.get('code');
+  if (code) return { code };
+  return { error: parsed.searchParams.get('error') ?? 'google' };
+}
+
+/**
+ * Dispatch one inbound deep-link URL. OAuth callbacks finish the Google
+ * sign-in (and close the system browser); everything else routes through
+ * react-router as a share link.
+ */
+function handleDeepLink(url: string, navigate: Navigate): void {
+  const oauth = parseOAuthCallback(url);
+  if (oauth) {
+    // The flow is done — dismiss the system browser tab regardless of outcome.
+    void Browser.close().catch(() => {});
+    // Lazy import: keeps the auth store (and its sync dependency graph) out of
+    // this module's import side, so parseDeepLink stays cheap to unit-test.
+    void import('../store/auth').then(({ useAuth }) => {
+      if (oauth.code) {
+        void useAuth.getState().completeGoogleOAuth(oauth.code);
+      } else {
+        useAuth.setState({ error: 'Google sign-in was cancelled. Please try again.' });
+      }
+    });
+    return;
+  }
+  const target = parseDeepLink(url);
+  if (target) navigate(target);
+}
+
+/**
+ * Subscribe to native deep links.
  *
  * Two entry points:
  *   1. **Cold start** — `App.getLaunchUrl()` returns the URL that opened
  *      the app this session, if any. We give the router a tick to mount
  *      before navigating so the route push isn't lost.
  *   2. **Warm open** — `appUrlOpen` fires whenever the OS hands a new
- *      URL to the running app (e.g. user taps a share link while the
- *      app is backgrounded). Same routing path as cold start.
+ *      URL to the running app (a share link, or the OAuth callback
+ *      returning from the system browser). Same handling as cold start.
  *
  * Returns a teardown function; web is a no-op.
  */
@@ -81,15 +136,12 @@ export function initDeepLinks(navigate: Navigate): () => void {
 
   void App.getLaunchUrl()
     .then((res) => {
-      if (!res?.url) return;
-      const target = parseDeepLink(res.url);
-      if (target) navigate(target);
+      if (res?.url) handleDeepLink(res.url, navigate);
     })
     .catch(() => {});
 
   const handlePromise = App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
-    const target = parseDeepLink(event.url);
-    if (target) navigate(target);
+    handleDeepLink(event.url, navigate);
   });
 
   return () => {

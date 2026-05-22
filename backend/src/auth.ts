@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
@@ -124,11 +125,20 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 export async function loadAuthedUser(token: string): Promise<AuthedUser | null> {
   const claims = verifySession(token);
   if (!claims) return null;
+  return loadUserById(claims.id);
+}
+
+/**
+ * Loads an AuthedUser straight from the DB by id (current username + role).
+ * Used by the OAuth handoff exchange, where there is no session token yet —
+ * the user has just been resolved/created and we need to mint their session.
+ */
+export async function loadUserById(id: string): Promise<AuthedUser | null> {
   const db = getDb();
   const rows = await db
     .select({ id: users.id, username: users.username, role: users.role })
     .from(users)
-    .where(eq(users.id, claims.id))
+    .where(eq(users.id, id))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
@@ -172,4 +182,67 @@ export function validatePassword(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   if (raw.length < MIN_PASSWORD_LENGTH || raw.length > 200) return null;
   return raw;
+}
+
+/**
+ * Derive a unique, valid username for an SSO account from its email. The
+ * email local-part is lowercased and stripped to the USERNAME_REGEX charset,
+ * padded if too short, then collision-suffixed with a counter until free. The
+ * suffix is trimmed into the base so the result always stays within 32 chars.
+ */
+export async function generateUsername(email: string): Promise<string> {
+  const local = (email.split('@')[0] ?? '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  let base = local.length >= 3 ? local : `${local}player`;
+  base = base.slice(0, 32);
+  const db = getDb();
+  for (let i = 0; i < 10_000; i++) {
+    const suffix = i === 0 ? '' : String(i);
+    const candidate = suffix ? base.slice(0, 32 - suffix.length) + suffix : base;
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, candidate))
+      .limit(1);
+    if (existing.length === 0) return candidate;
+  }
+  // Pathological fallback — effectively unreachable with a 10k collision span.
+  return `player-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+const OAUTH_STATE_TTL_SECONDS = 10 * 60; // 10 minutes — covers a slow consent
+const OAUTH_STATE_AUDIENCE = 'oauth-state';
+
+export type OAuthPlatform = 'web' | 'native';
+
+export interface OAuthState {
+  platform: OAuthPlatform;
+  nonce: string;
+}
+
+/**
+ * Sign the CSRF `state` carried through the Google consent round-trip. It is
+ * a short-lived JWT (distinct `aud` so it can never be mistaken for a session
+ * token) recording which platform started the flow, so the callback knows
+ * whether to set a cookie (web) or hand back a deep-link code (native).
+ */
+export function signOAuthState(platform: OAuthPlatform): string {
+  return jwt.sign({ platform, nonce: crypto.randomUUID() }, getJwtSecret(), {
+    audience: OAUTH_STATE_AUDIENCE,
+    expiresIn: OAUTH_STATE_TTL_SECONDS,
+  });
+}
+
+/** Verify a `state` token from the Google callback; null if invalid/expired. */
+export function verifyOAuthState(token: string): OAuthState | null {
+  try {
+    const payload = jwt.verify(token, getJwtSecret(), {
+      audience: OAUTH_STATE_AUDIENCE,
+    }) as jwt.JwtPayload;
+    return {
+      platform: payload.platform === 'native' ? 'native' : 'web',
+      nonce: typeof payload.nonce === 'string' ? payload.nonce : '',
+    };
+  } catch {
+    return null;
+  }
 }

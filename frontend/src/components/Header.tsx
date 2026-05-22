@@ -1,13 +1,15 @@
-import { Settings } from 'lucide-react';
+import { LogIn, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
+import { useAuth } from '../store/auth';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const deckCount = useDecksStore((s) => s.decks.length);
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
+  const isGuest = useAuth((s) => s.status === 'guest');
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -49,6 +51,12 @@ export function Header() {
           </NavLink>
         </nav>
         <nav className="site-nav">
+          {isGuest && (
+            <NavLink to="/auth" className="site-nav-signin">
+              <LogIn width={16} height={16} strokeWidth={1.8} aria-hidden />
+              <span className="site-nav-signin-label">Sign in</span>
+            </NavLink>
+          )}
           <NavLink
             to="/settings"
             className={({ isActive }) =>

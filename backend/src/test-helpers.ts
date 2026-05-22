@@ -69,9 +69,25 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE TABLE users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
+      email TEXT,
+      email_verified BOOLEAN NOT NULL DEFAULT false,
       role TEXT NOT NULL DEFAULT 'user',
       created_at BIGINT NOT NULL
+    );
+    CREATE UNIQUE INDEX users_email_idx ON users(email);
+    CREATE TABLE auth_identities (
+      provider TEXT NOT NULL,
+      provider_subject TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (provider, provider_subject)
+    );
+    CREATE INDEX auth_identities_user_idx ON auth_identities(user_id);
+    CREATE TABLE oauth_handoff_codes (
+      code TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at BIGINT NOT NULL
     );
     CREATE TABLE user_data (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

@@ -227,8 +227,17 @@ export function SettingsPage() {
               </button>
             </div>
           ) : (
-            <div className="settings-row-text">
-              <div className="settings-row-label">Not signed in</div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-label">Not signed in</div>
+                <div className="settings-row-hint">
+                  Your collection, binders, and decks are saved on this device. Sign in to sync them
+                  across devices and back them up.
+                </div>
+              </div>
+              <Link to="/auth" className="pill-btn pill-btn-primary">
+                Sign in to sync
+              </Link>
             </div>
           )}
         </div>

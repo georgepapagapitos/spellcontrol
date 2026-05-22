@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDeepLink } from './deep-links';
+import { parseDeepLink, parseOAuthCallback } from './deep-links';
 
 describe('parseDeepLink', () => {
   it('routes spellcontrol://share/<token> to /s/<token>', () => {
@@ -37,5 +37,33 @@ describe('parseDeepLink', () => {
   it('returns null on garbage input', () => {
     expect(parseDeepLink('not a url')).toBeNull();
     expect(parseDeepLink('')).toBeNull();
+  });
+
+  it('ignores OAuth callback URLs (handled separately)', () => {
+    expect(parseDeepLink('spellcontrol://oauth/callback?code=abc')).toBeNull();
+  });
+});
+
+describe('parseOAuthCallback', () => {
+  it('extracts the handoff code on success', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback?code=handoff-123')).toEqual({
+      code: 'handoff-123',
+    });
+  });
+
+  it('reports an error when the callback carries one', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback?error=access_denied')).toEqual({
+      error: 'access_denied',
+    });
+  });
+
+  it('falls back to a generic error when neither code nor error is present', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback')).toEqual({ error: 'google' });
+  });
+
+  it('returns null for share links and non-OAuth URLs', () => {
+    expect(parseOAuthCallback('spellcontrol://share/abc123')).toBeNull();
+    expect(parseOAuthCallback('https://spellcontrol.app/s/xyz')).toBeNull();
+    expect(parseOAuthCallback('not a url')).toBeNull();
   });
 });

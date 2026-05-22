@@ -18,6 +18,13 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, password: string) => Promise<boolean>;
+  /**
+   * Native only: finish a Google sign-in by exchanging the handoff code that
+   * arrived on the OAuth deep link. The web flow needs no store method — its
+   * callback sets the session cookie server-side and `bootstrap()` picks it up
+   * on the reload. Resolves to false (and sets `error`) on failure.
+   */
+  completeGoogleOAuth: (code: string) => Promise<boolean>;
   logout: () => Promise<void>;
   /**
    * Permanently delete the account: hit DELETE /api/auth/me, then tear down
@@ -66,6 +73,21 @@ export const useAuth = create<AuthState>((set) => ({
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Registration failed.' });
+      return false;
+    }
+  },
+
+  completeGoogleOAuth: async (code) => {
+    set({ error: null });
+    try {
+      const user = await authApi.exchangeGoogleCode(code);
+      set({ user, status: 'authed', error: null });
+      return true;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Google sign-in failed.',
+        status: 'guest',
+      });
       return false;
     }
   },

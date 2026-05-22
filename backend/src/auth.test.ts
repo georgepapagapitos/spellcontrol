@@ -4,6 +4,8 @@ import {
   verifyPassword,
   signSession,
   verifySession,
+  signOAuthState,
+  verifyOAuthState,
   normalizeUsername,
   validatePassword,
 } from './auth';
@@ -29,6 +31,25 @@ describe('session tokens', () => {
 
   it('rejects garbage tokens', () => {
     expect(verifySession('not-a-jwt')).toBeNull();
+  });
+});
+
+describe('OAuth state tokens', () => {
+  it('round-trips the platform', () => {
+    expect(verifyOAuthState(signOAuthState('web'))?.platform).toBe('web');
+    expect(verifyOAuthState(signOAuthState('native'))?.platform).toBe('native');
+  });
+
+  it('rejects garbage', () => {
+    expect(verifyOAuthState('not-a-jwt')).toBeNull();
+  });
+
+  it('does not cross-validate with session tokens', () => {
+    // Different audiences: a session token must not pass as state, and a
+    // state token must not pass as a session.
+    const session = signSession({ id: 'u1', username: 'alice', role: 'user' });
+    expect(verifyOAuthState(session)).toBeNull();
+    expect(verifySession(signOAuthState('web'))).toBeNull();
   });
 });
 

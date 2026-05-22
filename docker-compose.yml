@@ -28,6 +28,12 @@ services:
       # Optional. Comma-separated usernames that the backend promotes to admin
       # on boot. Empty by default — set in .env to enable the admin panel.
       ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      # Optional. Google "Continue with Google" SSO — all four empty by
+      # default, which disables the feature cleanly. See .env.example.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OAUTH_WEB_REDIRECT_URI: ${OAUTH_WEB_REDIRECT_URI:-}
+      OAUTH_NATIVE_REDIRECT_URI: ${OAUTH_NATIVE_REDIRECT_URI:-}
       # Give V8 enough old-space to slim and gzip the Scryfall oracle bulk
       # without OOM-ing. Stays well under the cgroup mem_limit so the kernel
       # never kills the process before V8 gets to recover.
