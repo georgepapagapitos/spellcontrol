@@ -28,6 +28,7 @@ import {
   Shuffle,
   Sparkles,
   Sword,
+  X,
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
@@ -265,6 +266,8 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       });
     };
 
+    const simRunRef = useRef<HTMLButtonElement>(null);
+
     const handleSimulate = () => {
       setSimulating(true);
       // Defer one frame so the button's "Simulating…" label paints before the
@@ -274,6 +277,13 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
         setSim(simulateOpeningHands(simLibrary, { iterations: 1000 }));
         setSimulating(false);
       });
+    };
+
+    const handleClearSim = () => {
+      setSim(null);
+      // The Clear button is unmounting with the report — hand focus back to
+      // the run button so keyboard/SR users aren't dropped onto <body>.
+      window.requestAnimationFrame(() => simRunRef.current?.focus());
     };
 
     // The report renders below the run button — on a phone that's usually
@@ -503,6 +513,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                 <div className="deck-test-hand-sim-bar">
                   <button
                     type="button"
+                    ref={simRunRef}
                     className="deck-test-hand-action deck-test-hand-sim-run"
                     onClick={handleSimulate}
                     disabled={simulating}
@@ -515,6 +526,16 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                         ? 'Re-run 1,000 hands'
                         : 'Simulate 1,000 hands'}
                   </button>
+                  {sim && !simulating && (
+                    <button
+                      type="button"
+                      className="deck-test-hand-action"
+                      onClick={handleClearSim}
+                      title="Clear the simulation results"
+                    >
+                      <X width={14} height={14} aria-hidden /> Clear
+                    </button>
+                  )}
                   {!sim && !simulating && (
                     <span className="deck-test-hand-sim-hint">
                       One hand is luck — run a thousand to see the real odds.
