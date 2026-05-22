@@ -37,6 +37,12 @@ interface Props {
   qtyByCopyId?: Map<string, number>;
 }
 
+// Pages within this many slides of the focus mount their full pocket grid;
+// the rest render as bare placeholder slides that hold the scroll slot only.
+// Mirrors CardPreview's windowing — keeps the carousel light on large binders
+// without disturbing native scroll-snap (every page keeps a sized slide div).
+const PAGE_WINDOW_RADIUS = 5;
+
 export function BinderPagePreview({
   pages,
   pageLabels,
@@ -248,26 +254,43 @@ export function BinderPagePreview({
             </>
           )}
           <div className="binder-pages-track" ref={trackRef}>
-            {pages.map((page, i) => (
-              <div
-                className={`binder-pages-slide${i === selected ? ' is-active' : ''}`}
-                ref={(el) => {
-                  slideRefs.current[i] = el;
-                }}
-                key={`${page.pageNum}-${i}`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="binder-pages-slide-label">page {page.pageNum}</div>
-                <SlideGrid
-                  slots={page.slots}
-                  cols={cols}
-                  rows={rows}
-                  aspect={slideAspect}
-                  allocations={allocations}
-                  onTapCard={handleCardTap}
-                />
-              </div>
-            ))}
+            {pages.map((page, i) => {
+              const slideRef = (el: HTMLDivElement | null) => {
+                slideRefs.current[i] = el;
+              };
+              // Out-of-window pages render a bare placeholder: it keeps the
+              // slide's width/scroll-snap slot so native scrolling is intact,
+              // but skips the pocket grid (cols×rows cells) — a few thousand
+              // cells mounted at once is what would jank a large binder.
+              if (Math.abs(i - selected) > PAGE_WINDOW_RADIUS) {
+                return (
+                  <div
+                    className="binder-pages-slide"
+                    ref={slideRef}
+                    key={`${page.pageNum}-${i}`}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                );
+              }
+              return (
+                <div
+                  className={`binder-pages-slide${i === selected ? ' is-active' : ''}`}
+                  ref={slideRef}
+                  key={`${page.pageNum}-${i}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="binder-pages-slide-label">page {page.pageNum}</div>
+                  <SlideGrid
+                    slots={page.slots}
+                    cols={cols}
+                    rows={rows}
+                    aspect={slideAspect}
+                    allocations={allocations}
+                    onTapCard={handleCardTap}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           <div className="binder-pages-panel" onClick={(e) => e.stopPropagation()}>
