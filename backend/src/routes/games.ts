@@ -205,11 +205,36 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
   res.status(201).json({ game: state });
 });
 
-/** GET /api/games/:code — fetch the current state. Requires auth but not participation. */
+/**
+ * GET /api/games/:code — fetch the current state. Requires auth but not
+ * participation.
+ *
+ * The poll loop sends `?knownVersion=N`. When it matches the stored version we
+ * return `{ unchanged: true }` and — crucially — never SELECT the `state`
+ * JSONB column, so an idle poll costs a tiny `version`-only row read instead of
+ * shipping the whole game state out of the database on every 2.5s tick.
+ */
 gamesRouter.get('/:code', requireAuth, async (req: Request, res: Response) => {
   const code = String(req.params.code).toUpperCase();
   const db = getDb();
-  const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);
+  const meta = await db
+    .select({ version: gameSessions.version })
+    .from(gameSessions)
+    .where(eq(gameSessions.code, code))
+    .limit(1);
+  const metaRow = meta[0];
+  if (!metaRow) return res.status(404).json({ error: 'Game not found.' });
+
+  const knownVersion = Number(req.query.knownVersion);
+  if (Number.isFinite(knownVersion) && metaRow.version === knownVersion) {
+    return res.json({ unchanged: true });
+  }
+
+  const rows = await db
+    .select({ state: gameSessions.state })
+    .from(gameSessions)
+    .where(eq(gameSessions.code, code))
+    .limit(1);
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
   res.json({ game: row.state as GameState });
