@@ -6820,6 +6820,15 @@ hr {
   pointer-events: auto;
 }
 
+/* Tapping a destination navigates away — close the overlay instantly so its
+   retract animation doesn't play on top of the page just navigated to. The
+   animated close is kept for dismissals that stay on the page (X / scrim /
+   Escape). */
+.nav-fab-root.snap .nav-fab-scrim,
+.nav-fab-root.snap .nav-fab-item {
+  transition: none;
+}
+
 /* The FAB cluster — toggle button plus the stacked menu — locked bottom-right. */
 .nav-fab {
   position: absolute;

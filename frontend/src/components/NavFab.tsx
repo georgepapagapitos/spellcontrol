@@ -29,16 +29,34 @@ const ICON_PROPS = { width: 22, height: 22, strokeWidth: 1.7, 'aria-hidden': tru
 export function NavFab() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   const [expanded, setExpanded] = useState(false);
+  // `snap` skips the close animation: set when a destination is tapped, so
+  // the overlay vanishes at once instead of animating over the new page.
+  const [snap, setSnap] = useState(false);
 
   const fabRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLAnchorElement>(null);
+
+  const openMenu = () => {
+    setSnap(false);
+    setExpanded(true);
+  };
+  /** Dismiss without navigating — keeps the animated retract. */
+  const dismiss = () => {
+    setSnap(false);
+    setExpanded(false);
+  };
+  /** Close on navigation — instant, no retract animation. */
+  const closeForNav = () => {
+    setSnap(true);
+    setExpanded(false);
+  };
 
   // Escape closes the menu and returns focus to the toggle.
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setExpanded(false);
+        dismiss();
         fabRef.current?.focus();
       }
     };
@@ -53,10 +71,10 @@ export function NavFab() {
   }, [expanded]);
 
   return (
-    <div className="nav-fab-root">
+    <div className={`nav-fab-root${snap ? ' snap' : ''}`}>
       <div
         className={`nav-fab-scrim${expanded ? ' open' : ''}`}
-        onClick={() => setExpanded(false)}
+        onClick={dismiss}
         aria-hidden="true"
       />
       <div className={`nav-fab${expanded ? ' open' : ''}`}>
@@ -71,7 +89,7 @@ export function NavFab() {
                 tabIndex={expanded ? 0 : -1}
                 aria-hidden={!expanded}
                 className={({ isActive }) => (isActive ? 'nav-fab-item active' : 'nav-fab-item')}
-                onClick={() => setExpanded(false)}
+                onClick={closeForNav}
               >
                 <span className="nav-fab-item-label">{item.label}</span>
                 <span className="nav-fab-item-glyph">
@@ -92,7 +110,7 @@ export function NavFab() {
           aria-expanded={expanded}
           aria-haspopup="true"
           aria-controls="nav-fab-menu"
-          onClick={() => setExpanded((open) => !open)}
+          onClick={() => (expanded ? dismiss() : openMenu())}
         >
           {/* Three bars that morph between a hamburger and an X — see the
               `.nav-fab-burger` rules. The button's aria-label carries the
