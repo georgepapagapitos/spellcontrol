@@ -82,6 +82,10 @@
 
   /* ── Layout ───────────────────────────────────────────────────────────── */
   --page-max: 1400px;
+  /* Height of the sticky Collection hub-tabs strip — also the offset the
+     Collection search row pins below, so the two stack flush. Single
+     source of truth for both rules. */
+  --hub-tabs-sticky-h: 2.9rem;
 
   /* ── Z-index scale ───────────────────────────────────────────────────── */
   --z-dropdown: 50;
@@ -178,6 +182,10 @@ body {
   flex-direction: column;
   height: 100dvh;
   overflow: hidden;
+  /* Containing block for the native nav FAB (components/NavFab.tsx): it is
+     position:absolute against this stable 100dvh box rather than
+     position:fixed, so the URL-bar shift this layout dodges can't reach it. */
+  position: relative;
   /* Reserve the device's top safe-area strip (status bar / notch). Zero on
      desktop and most mobile browsers; non-zero in a Capacitor WebView and
      on iOS Safari with notched devices. */
@@ -214,6 +222,13 @@ body {
   .app-main {
     --page-gutter: 0.5rem;
   }
+}
+
+/* Native has no in-flow bottom tab bar — the nav FAB floats over content.
+   Reserve room at the bottom of the scroll region so the last row of any
+   page clears the docked FAB and the system gesture strip. */
+.capacitor .app-main {
+  padding-bottom: calc(5rem + var(--safe-bottom));
 }
 
 button {
@@ -6693,13 +6708,23 @@ hr {
    Reuses .site-nav-link / .site-nav-count for the tab items; only the strip
    wrapper is bespoke. Unlike .site-nav-links this stays visible on mobile
    (it is the in-page section nav, not the header's primary nav). */
+/* Cards / Binders / Lists switcher — sticks to the top of the scroll region
+   so it never scrolls out of reach. On the Cards page the search row pins
+   flush beneath it (see `.collection-toolbar-row`), forming one 2-row
+   sticky toolbar; on Binders/Lists it pins on its own. Full-bleed to the
+   content edges, matching the search row. */
 .collection-hub-tabs {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-panel);
+  height: var(--hub-tabs-sticky-h);
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 1rem;
+  padding: 0 var(--page-gutter, 1rem);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0.5rem;
 }
 
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
@@ -6775,6 +6800,246 @@ hr {
   }
 }
 
+/* ── Native floating nav FAB ────────────────────────────────────────────────
+   The native-only replacement for the bottom tab bar (components/NavFab.tsx).
+   A hamburger FAB locked to the bottom-right corner; tapping it raises the
+   destinations in a vertical stack above it (speed-dial style), each an
+   icon chip with a label pill. position:absolute inside the stable
+   .app-shell — never position:fixed — so the URL-bar shift can't catch it. */
+.nav-fab-root {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-panel);
+  /* The overlay layer is inert; only the FAB and (when open) the scrim and
+     fan items opt back into hit-testing. */
+  pointer-events: none;
+}
+
+/* Tap-catching scrim behind the open fan — also lightly dims the page.
+   position:fixed (not absolute) so it covers the true viewport: the app
+   sits inside `body`'s safe-area/gutter padding, and an absolute scrim
+   would stop ~10px short of each edge. A transient full-screen backdrop
+   is exactly the case where fixed is right — same as `.scanner-root`. */
+.nav-fab-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.nav-fab-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Tapping a destination navigates away — close the overlay instantly so its
+   retract animation doesn't play on top of the page just navigated to. The
+   animated close is kept for dismissals that stay on the page (X / scrim /
+   Escape). */
+.nav-fab-root.snap .nav-fab-scrim,
+.nav-fab-root.snap .nav-fab-item {
+  transition: none;
+}
+
+/* The FAB cluster — toggle button plus the stacked menu — locked bottom-right. */
+.nav-fab {
+  position: absolute;
+  width: 3.5rem;
+  height: 3.5rem;
+  bottom: calc(1rem + var(--safe-bottom));
+  right: calc(1rem + var(--safe-right));
+}
+
+.nav-fab-btn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+}
+
+/* Tactile press feedback on the toggle. */
+.nav-fab-btn:active {
+  transform: scale(0.93);
+}
+
+/* Hamburger ↔ X — three bars that morph on toggle: the outer two slide to
+   the centre line and rotate into the cross, the middle bar fades out. */
+.nav-fab-burger {
+  position: relative;
+  width: 22px;
+  height: 16px;
+}
+
+.nav-fab-burger span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform 0.24s cubic-bezier(0.4, 0.1, 0.2, 1),
+    opacity 0.12s ease;
+}
+
+.nav-fab-burger span:nth-child(1) {
+  top: 0;
+}
+
+.nav-fab-burger span:nth-child(2) {
+  top: 7px;
+}
+
+.nav-fab-burger span:nth-child(3) {
+  top: 14px;
+}
+
+.nav-fab.open .nav-fab-burger span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.nav-fab.open .nav-fab-burger span:nth-child(2) {
+  opacity: 0;
+}
+
+.nav-fab.open .nav-fab-burger span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.nav-fab-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--on-accent);
+}
+
+/* The menu container is inert; items opt into hit-testing when open. */
+.nav-fab-menu {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Each destination: a label pill + icon chip in a row. Anchored so the icon
+   chip sits exactly over the FAB, then raised by `--stack` rows when open.
+   `--stack` counts up FROM the FAB — the item nearest it (Settings) is 1,
+   the topmost (Collection) is 4 — so the column reads top-to-bottom in
+   ITEMS order while still stacking upward. */
+.nav-fab-item {
+  --pitch: 3.5rem;
+  position: absolute;
+  /* (3.5rem FAB − 3rem chip) / 2 — centres the chip on the FAB. */
+  right: 0.25rem;
+  bottom: 0.25rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-family: var(--font-serif);
+  -webkit-tap-highlight-color: transparent;
+  /* Collapsed: parked on the FAB, hidden — scales out of the icon centre. */
+  transform-origin: calc(100% - 1.5rem) center;
+  transform: translateY(0) scale(0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1),
+    opacity 0.16s ease;
+  /* Close: items fold back top-down — the mirror of the open stagger
+     (4 = item count; the topmost item retracts first). */
+  transition-delay: calc((4 - var(--stack)) * 0.04s);
+}
+
+.nav-fab-item:nth-child(1) {
+  --stack: 4;
+}
+
+.nav-fab-item:nth-child(2) {
+  --stack: 3;
+}
+
+.nav-fab-item:nth-child(3) {
+  --stack: 2;
+}
+
+.nav-fab-item:nth-child(4) {
+  --stack: 1;
+}
+
+.nav-fab.open .nav-fab-item {
+  transform: translateY(calc(var(--stack) * var(--pitch) * -1)) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  /* Stagger: items nearest the FAB emerge first. */
+  transition-delay: calc((var(--stack) - 1) * 0.04s);
+}
+
+.nav-fab-item-label {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.nav-fab-item-glyph {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  color: var(--text2);
+}
+
+.nav-fab-item.active .nav-fab-item-glyph {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.nav-fab-item.active .nav-fab-item-label {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-fab-item,
+  .nav-fab-burger span {
+    transition-duration: 0.01s;
+  }
+
+  .nav-fab-item,
+  .nav-fab.open .nav-fab-item {
+    transition-delay: 0s;
+  }
+}
+
 /* ── Collection card list (Collection page) ─────────────────────────────── */
 .card-list {
   margin-top: 1rem;
@@ -6836,9 +7101,8 @@ hr {
   /* `.app-main` is the sole scroll container and the header is a
      non-scrolling flex sibling *outside* it (see Layout.tsx), so the
      scrollport's top edge already sits flush under the header at every
-     breakpoint — the bar pins at 0, not the header's height. (A prior
-     `top: 3.25rem` left a header-tall strip of scrolling cards visible
-     above the pinned bar.) */
+     breakpoint. The base `top` is 0; under the Collection hub the rule
+     below offsets it so it pins beneath the sticky hub-tabs strip. */
   top: 0;
   z-index: var(--z-panel);
   background: var(--bg);
@@ -6849,6 +7113,13 @@ hr {
   gap: 0.6rem;
   mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
+}
+
+/* Under the Collection hub the search row pins beneath the sticky hub-tabs
+   strip rather than at the very top, so the two stack flush. Scoped to the
+   hub so a `.collection-toolbar-row` used elsewhere keeps `top: 0`. */
+.collection-hub-tabs ~ * .collection-toolbar-row {
+  top: var(--hub-tabs-sticky-h);
 }
 
 /* Collection hero meta — totals + Stats button sit under the Collection

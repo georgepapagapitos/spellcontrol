@@ -11,6 +11,10 @@ export default defineConfig({
     // appeared to work without this.
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // vite-plugin-pwa isn't loaded in the test config, so its
+      // `virtual:pwa-register` module doesn't exist — point it at a stub
+      // so `lib/register-pwa.ts` can be imported by tests.
+      'virtual:pwa-register': path.resolve(__dirname, './src/test/pwa-register-stub.ts'),
     },
   },
   test: {
