@@ -18,6 +18,7 @@ import {
 } from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
+import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { useHolographic } from '../lib/use-holographic';
 import { classifyFoil } from '../lib/foil-style';
@@ -88,6 +89,12 @@ interface Props {
    * row next to Flip/Edit; callers pass only what their surface needs.
    */
   getActions?: (i: number) => CardPreviewAction[];
+  /**
+   * When set, show the card's deck role (Ramp / Removal / …) spelled out
+   * in the detail panel. Opt-in so it only appears in the deck view,
+   * where roles are meaningful — not in collection/binder previews.
+   */
+  showRole?: boolean;
 }
 
 const PRELOAD_RADIUS = 2;
@@ -114,6 +121,7 @@ export function CardPreview({
   onIndexChange,
   onClose,
   onEdit,
+  showRole,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -636,6 +644,25 @@ export function CardPreview({
                 ) : null;
               })()}
             </div>
+            {showRole &&
+              (() => {
+                // Role decodes from the card name via the bundled tagger,
+                // so the preview needs no extra data plumbing.
+                const badge = getRoleBadge({ name: current.name });
+                if (!badge) return null;
+                const roleText =
+                  rolesForCard({ name: current.name }).length > 1
+                    ? multiRoleTitle({ name: current.name })
+                    : badge.title;
+                return (
+                  <div className="card-preview-role">
+                    <span className={`deck-row-role-badge deck-row-role-${badge.tone}`} aria-hidden>
+                      {badge.label}
+                    </span>
+                    <span>{roleText}</span>
+                  </div>
+                );
+              })()}
             <div className="card-preview-set">
               {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
                 <img
