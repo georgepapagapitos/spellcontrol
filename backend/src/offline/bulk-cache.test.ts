@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { gunzipSync } from 'node:zlib';
 import {
   __getRefreshTimerForTesting,
   __resetOracleBulkForTesting,
@@ -19,6 +20,7 @@ const DEFAULT_BULK_CARD = {
   color_identity: ['G'],
   keywords: [],
   legalities: { commander: 'legal' },
+  rarity: 'rare',
   set: 'tst',
   set_name: 'Test Set',
   collector_number: '1',
@@ -232,6 +234,19 @@ describe('bulk-cache slimCard filtering', () => {
     const bulk = await getOracleBulk();
     // Only the real Arcane Signet survives — art card / token / emblem dropped.
     expect(bulk.cardCount).toBe(1);
+  });
+
+  it('carries rarity through to the slim payload', async () => {
+    mockScryfallFetch([
+      { ...DEFAULT_BULK_CARD, id: 's-real', oracle_id: 'o-real', name: 'Beast Whisperer' },
+    ]);
+    const bulk = await getOracleBulk();
+    const slims = JSON.parse(gunzipSync(bulk.gzipped).toString('utf8')) as Array<{
+      name: string;
+      rarity?: string;
+    }>;
+    expect(slims).toHaveLength(1);
+    expect(slims[0].rarity).toBe('rare');
   });
 
   it('excludes memorabilia set_type (oversized / championship printings)', async () => {

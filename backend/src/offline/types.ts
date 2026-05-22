@@ -31,6 +31,7 @@ export interface SlimCard {
   keywords: string[];
   producedMana?: string[];
   layout?: string;
+  rarity?: string;
   legalities: Record<string, string>;
   edhrecRank?: number;
   set: string;
