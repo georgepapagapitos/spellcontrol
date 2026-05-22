@@ -95,6 +95,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   const [randomLoading, setRandomLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // On phones the results render as a tray docked above the on-screen
   // keyboard (a popover under the input would sit behind the keyboard).
@@ -193,6 +194,19 @@ export function CommanderSearch({ value, onSelect }: Props) {
     setPrevOwnedOnly(ownedOnly);
     if (!ownedOnly) setLocalResults([]);
   }
+
+  // On phones the results tray docks above the keyboard and grows upward, so
+  // a tall result list would cover the search input. When the tray opens,
+  // pull the input to the top of the scroll region so it stays visible above
+  // the tray.
+  const trayOpen =
+    isMobile &&
+    open &&
+    query.trim().length >= 2 &&
+    (searchLoading || (ownedOnly ? localResults.length > 0 : results.length > 0));
+  useEffect(() => {
+    if (trayOpen) inputRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [trayOpen]);
 
   // Search effect — switches source by ownedOnly. Scryfall when off, local
   // collection-legend filter when on.
@@ -513,6 +527,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   return (
     <div className="commander-search">
       <input
+        ref={inputRef}
         type="text"
         className="commander-search-input"
         placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
