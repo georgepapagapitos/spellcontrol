@@ -64,8 +64,21 @@ describe('games-api', () => {
   it('getGame URL-encodes the code', async () => {
     const game = mockState({ code: 'AB CD' });
     fetchSpy.mockResolvedValueOnce(json({ game }));
-    await getGame('AB CD');
+    expect(await getGame('AB CD')).toEqual(game);
     expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/AB%20CD');
+  });
+
+  it('getGame appends knownVersion and returns the full state when it changed', async () => {
+    const game = mockState({ version: 9 });
+    fetchSpy.mockResolvedValueOnce(json({ game }));
+    expect(await getGame('ABCD', 8)).toEqual(game);
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/ABCD?knownVersion=8');
+  });
+
+  it('getGame resolves to null when the server reports it is unchanged', async () => {
+    fetchSpy.mockResolvedValueOnce(json({ unchanged: true }));
+    expect(await getGame('ABCD', 5)).toBeNull();
+    expect(fetchSpy.mock.calls[0][0]).toBe('/api/games/ABCD?knownVersion=5');
   });
 
   it('joinGame POSTs payload to /join', async () => {
