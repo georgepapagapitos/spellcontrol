@@ -582,27 +582,30 @@ body:has(.playtest-page) .modal-backdrop {
 }
 
 .playtest-zones-tab.is-open {
-  right: min(92vw, 380px);
+  right: min(74vw, 240px);
 }
 
 .playtest-zones-panel {
   position: fixed;
-  top: 0;
+  /* A compact drawer sized to its 2x2 of zone tiles, anchored flush to the
+     right edge at the same vertical level as the toggle tab (the tab is its
+     handle). Squared off — NOT a full-height panel and NOT a free-floating
+     card — so it reads as a drawer attached to the screen edge while staying
+     clear of the status bar and home gesture. */
+  top: 50%;
   right: 0;
-  bottom: 0;
-  width: min(92vw, 380px);
+  transform: translateY(-50%);
+  width: min(74vw, 240px);
+  max-height: calc(var(--vh-safe) - 1.5rem);
   z-index: 901;
   background: var(--surface);
-  border-left: 0.5px solid var(--border);
-  box-shadow: var(--shadow-modal);
+  border: 0.5px solid var(--border);
+  border-right: none;
+  box-shadow: var(--shadow-sheet);
   display: none;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
   gap: 8px;
-  /* Pattern B — full-height side panel; pad against the status bar / home
-     gesture so the grid tiles stay clear of system chrome on native. */
-  padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right))
-    calc(12px + var(--safe-bottom)) 12px;
+  padding: 12px calc(12px + var(--safe-right)) 12px 12px;
   overflow-y: auto;
 }
 
@@ -637,7 +640,9 @@ body:has(.playtest-page) .modal-backdrop {
 }
 
 .playtest-zone-tile__body {
-  flex: 1;
+  /* Card-shaped peek; gives each tile (and so the auto-sized grid rows) a
+     definite height now that the panel no longer stretches to full screen. */
+  aspect-ratio: 5 / 7;
   background: var(--surface);
   border: none;
   border-top: 0.5px solid var(--border);
