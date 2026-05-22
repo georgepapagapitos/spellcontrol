@@ -10,7 +10,7 @@ const PRESETS = ['Treasure', 'Clue', 'Food', 'Soldier 1/1', 'Zombie 2/2', 'Spiri
 export function TokenCreator({ onCreate, onClose }: Props) {
   const [name, setName] = useState('');
   return (
-    <div className="playtest-modal" role="dialog" aria-label="Create token">
+    <div className="playtest-modal" role="dialog" aria-modal="true" aria-label="Create token">
       <div className="playtest-modal__backdrop" onClick={onClose} />
       <div className="playtest-modal__panel playtest-modal__panel--narrow">
         <div className="playtest-modal__header">

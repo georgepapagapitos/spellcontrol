@@ -13,12 +13,13 @@ import './styles/shared.css';
 import { bootstrapTheme, useThemeStore } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { registerPwa } from './lib/register-pwa';
-import { tagPlatform, syncStatusBar, initKeyboard } from './lib/platform';
+import { tagPlatform, syncStatusBar } from './lib/platform';
+import { initKeyboardLayer } from './lib/keyboard';
 
 tagPlatform();
 bootstrapTheme();
 void syncStatusBar();
-void initKeyboard();
+initKeyboardLayer();
 // Re-sync the native status bar icons whenever the user switches themes;
 // no-op on web.
 useThemeStore.subscribe(() => {

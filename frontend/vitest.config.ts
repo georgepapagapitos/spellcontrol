@@ -36,11 +36,12 @@ export default defineConfig({
       // meaningfully under the node test env — verified via integration use:
       //   - ocr.ts: tesseract.js worker + WASM
       //   - use-wake-lock.ts: navigator.wakeLock + visibilitychange
-      //   - use-visual-viewport.ts: window.visualViewport resize/scroll glue
+      //   - keyboard.ts: window.visualViewport resize/scroll glue +
+      //     Capacitor Keyboard plugin listeners (platform-branched)
       exclude: [
         'src/lib/ocr.ts',
         'src/lib/use-wake-lock.ts',
-        'src/lib/use-visual-viewport.ts',
+        'src/lib/keyboard.ts',
         // Network + IDB orchestration (fetch streaming, gzipped bulk loads,
         // progress callbacks). Verified via integration; not unit-testable
         // without a streaming-fetch shim that fights real-runtime behavior.
@@ -49,7 +50,7 @@ export default defineConfig({
         // platform-branched (`isNativePlatform()`) and the native side
         // calls plugins that don't exist outside the Capacitor WebView.
         // Verified on-device, not in the node test env:
-        //   - platform.ts: StatusBar / Keyboard + theme luminance probe
+        //   - platform.ts: StatusBar + theme luminance probe
         //   - native-file-picker.ts: FilePicker + fetch(content://)
         //   - haptics.ts: Capacitor Haptics + navigator.vibrate
         //   - deep-links.ts: App.appUrlOpen / getLaunchUrl listener glue
