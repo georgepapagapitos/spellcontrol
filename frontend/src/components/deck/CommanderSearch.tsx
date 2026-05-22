@@ -1,6 +1,5 @@
 import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useKeyboard } from '@/lib/keyboard';
 import { searchCommanders, getCardByName } from '@/deck-builder/services/scryfall/client';
 import {
@@ -87,6 +86,10 @@ function pickRandom<T>(arr: T[]): T | null {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Tallest the results popover ever grows on a roomy viewport; on smaller
+// screens it's capped further to the space above the keyboard.
+const RESULTS_MAX_HEIGHT = 320;
+
 export function CommanderSearch({ value, onSelect }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ScryfallCard[]>([]);
@@ -97,19 +100,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   const debounceRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // On phones the results render as a tray docked above the on-screen
-  // keyboard (a popover under the input would sit behind the keyboard).
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(max-width: 640px)');
-    const update = () => setIsMobile(mql.matches);
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, []);
-  const { inset: keyboardInset, viewportHeight } = useKeyboard();
+  const { viewportHeight } = useKeyboard();
 
   const collectionCards = useCollectionStore((s) => s.cards);
   // The collection stores one row per physical copy, so a card owned in
@@ -195,18 +186,34 @@ export function CommanderSearch({ value, onSelect }: Props) {
     if (!ownedOnly) setLocalResults([]);
   }
 
-  // On phones the results tray docks above the keyboard and grows upward, so
-  // a tall result list would cover the search input. When the tray opens,
-  // pull the input to the top of the scroll region so it stays visible above
-  // the tray.
-  const trayOpen =
-    isMobile &&
+  // Results render as a popover directly below the input. Its height is
+  // capped to the gap between the input and the top of the on-screen
+  // keyboard, so the list never covers the input above it nor slides behind
+  // the keyboard below it — the same behavior on every viewport.
+  const dropdownVisible =
     open &&
     query.trim().length >= 2 &&
     (searchLoading || (ownedOnly ? localResults.length > 0 : results.length > 0));
+  const [resultsMaxHeight, setResultsMaxHeight] = useState(RESULTS_MAX_HEIGHT);
   useEffect(() => {
-    if (trayOpen) inputRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  }, [trayOpen]);
+    if (!dropdownVisible) return;
+    const recompute = () => {
+      const input = inputRef.current;
+      if (!input) return;
+      // viewportHeight (from useKeyboard) is the area above the keyboard;
+      // leave a small gap below the list.
+      const available = viewportHeight - input.getBoundingClientRect().bottom - 12;
+      setResultsMaxHeight(Math.max(160, Math.min(RESULTS_MAX_HEIGHT, available)));
+    };
+    recompute();
+    // Capture-phase scroll catches scrolling inside .app-main, not just window.
+    window.addEventListener('scroll', recompute, true);
+    window.addEventListener('resize', recompute);
+    return () => {
+      window.removeEventListener('scroll', recompute, true);
+      window.removeEventListener('resize', recompute);
+    };
+  }, [dropdownVisible, viewportHeight]);
 
   // Search effect — switches source by ownedOnly. Scryfall when off, local
   // collection-legend filter when on.
@@ -461,23 +468,8 @@ export function CommanderSearch({ value, onSelect }: Props) {
   }
 
   // ── Search UI ─────────────────────────────────────────────────────────
-  const dropdownVisible =
-    open &&
-    query.trim().length >= 2 &&
-    (searchLoading || (ownedOnly ? localResults.length > 0 : results.length > 0));
-
   const resultList = (
-    <ul
-      className={`commander-search-results${isMobile ? ' commander-search-results--tray' : ''}`}
-      role="listbox"
-      // Mobile tray: dock just above the keyboard and cap height to the
-      // visible viewport so the list never hides behind the keyboard.
-      style={
-        isMobile
-          ? { bottom: keyboardInset, maxHeight: Math.round(viewportHeight * 0.55) }
-          : undefined
-      }
-    >
+    <ul className="commander-search-results" role="listbox" style={{ maxHeight: resultsMaxHeight }}>
       {searchLoading && <li className="commander-search-loading">Searching…</li>}
       {!ownedOnly &&
         results.map((card) => (
@@ -516,13 +508,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
     </ul>
   );
 
-  // On phones the tray is portaled to <body> so it escapes any modal/overflow
-  // ancestor and can pin to the viewport above the keyboard.
-  const dropdown = !dropdownVisible
-    ? null
-    : isMobile
-      ? createPortal(resultList, document.body)
-      : resultList;
+  const dropdown = dropdownVisible ? resultList : null;
 
   return (
     <div className="commander-search">
