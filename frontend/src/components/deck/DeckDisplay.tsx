@@ -42,6 +42,7 @@ import {
   type AllocationStatus,
 } from '../../lib/allocations';
 import { useDecksStore } from '../../store/decks';
+import { useRarityCorrections } from '../../lib/use-rarity-corrections';
 import type { EnrichedCard } from '../../types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
@@ -1188,6 +1189,13 @@ export function DeckDisplay({
   };
 
   // ── Card preview wiring ──────────────────────────────────────────────
+  // Re-resolve rarity for cards whose stored snapshot defaulted to 'common'
+  // (decks generated against the pre-#329 offline oracle). See the hook doc.
+  const previewCards = useMemo<ScryfallCard[]>(
+    () => visibleGroups.flatMap((g) => g.rows.map((r) => r.card)),
+    [visibleGroups]
+  );
+  const rarityCorrections = useRarityCorrections(previewCards);
   const flat = useMemo(() => {
     const enrichedCards: EnrichedCard[] = [];
     const labels: string[] = [];
@@ -1207,13 +1215,14 @@ export function DeckDisplay({
             setCode: row.setCode,
             setName: row.setName,
             collectorNumber: row.collectorNumber,
+            rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
           })
         );
         labels.push(g.title);
       }
     }
     return { cards: enrichedCards, labels, rows, indexByName };
-  }, [visibleGroups]);
+  }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const openPreview = (rowName: string) => {
@@ -1568,6 +1577,7 @@ interface EnrichedOverrides {
   setCode?: string;
   setName?: string;
   collectorNumber?: string;
+  rarity?: string;
 }
 
 function scryfallToEnriched(
@@ -1602,7 +1612,7 @@ function scryfallToEnriched(
     setCode: overrides?.setCode ?? card.set,
     setName: overrides?.setName ?? card.set_name,
     collectorNumber: overrides?.collectorNumber ?? card.collector_number ?? '',
-    rarity: card.rarity,
+    rarity: overrides?.rarity ?? card.rarity,
     scryfallId: card.id,
     purchasePrice: Number.isFinite(price) ? price : 0,
     sourceCategory: '',
