@@ -7,6 +7,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
+import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
@@ -33,6 +34,8 @@ export function DeckNewPage() {
   const prefill = (location.state as { prefill?: PrefillState } | null)?.prefill;
   const commander = useDeckBuilderStore((s) => s.commander);
   const setCommander = useDeckBuilderStore((s) => s.setCommander);
+  const partnerCommander = useDeckBuilderStore((s) => s.partnerCommander);
+  const setPartnerCommander = useDeckBuilderStore((s) => s.setPartnerCommander);
   const colorIdentity = useDeckBuilderStore((s) => s.colorIdentity);
   const customization = useDeckBuilderStore((s) => s.customization);
   const setEdhrecStats = useDeckBuilderStore((s) => s.setEdhrecStats);
@@ -129,24 +132,46 @@ export function DeckNewPage() {
   // ── Start-blank ───────────────────────────────────────────────────────
   const handleStartBlank = useCallback(() => {
     if (formatConfig.hasCommander && !commander) return;
+    const allocationMap = buildAllocationMap(decks);
     let commanderAlloc: string | null = null;
     if (commander) {
       const allocated = pickCollectionCopy(
         commander.name,
         collectionCards,
-        buildAllocationMap(decks),
+        allocationMap,
         commander.id
       );
       commanderAlloc = allocated?.copyId ?? null;
+    }
+    let partnerAlloc: string | null = null;
+    if (partnerCommander) {
+      const allocated = pickCollectionCopy(
+        partnerCommander.name,
+        collectionCards,
+        allocationMap,
+        partnerCommander.id
+      );
+      partnerAlloc = allocated?.copyId ?? null;
     }
     const id = createDeck({
       format: selectedFormat,
       source: 'manual',
       commander: commander ?? null,
       commanderAllocatedCopyId: commanderAlloc,
+      partnerCommander: partnerCommander ?? null,
+      partnerCommanderAllocatedCopyId: partnerAlloc,
     });
     navigate(`/decks/${id}`);
-  }, [commander, collectionCards, decks, createDeck, navigate, selectedFormat, formatConfig]);
+  }, [
+    commander,
+    partnerCommander,
+    collectionCards,
+    decks,
+    createDeck,
+    navigate,
+    selectedFormat,
+    formatConfig,
+  ]);
 
   // ── Generate ──────────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
@@ -188,7 +213,7 @@ export function DeckNewPage() {
 
       const deck = await generateDeck({
         commander,
-        partnerCommander: null,
+        partnerCommander,
         colorIdentity,
         customization,
         selectedThemes: themesForGenerator,
@@ -217,6 +242,7 @@ export function DeckNewPage() {
     }
   }, [
     commander,
+    partnerCommander,
     customization,
     colorIdentity,
     selectedThemes,
@@ -308,6 +334,16 @@ export function DeckNewPage() {
 
       {formatConfig.hasCommander && commander && commanderProfile && (
         <CommanderProfileCard profile={commanderProfile} />
+      )}
+
+      {formatConfig.hasCommander && commander && (
+        <PartnerCommanderSelector
+          key={commander.id}
+          commander={commander}
+          partner={partnerCommander}
+          onSelect={setPartnerCommander}
+          collectionMode={customization.collectionMode}
+        />
       )}
 
       {formatConfig.hasCommander && commander && (

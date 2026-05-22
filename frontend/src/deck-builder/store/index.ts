@@ -124,12 +124,14 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
   error: null,
 
   setCommander: (card) =>
-    set((state) => {
-      const partnerIdentity = state.partnerCommander?.color_identity || [];
-      const commanderIdentity = card?.color_identity || [];
-      const combined = [...new Set([...commanderIdentity, ...partnerIdentity])];
+    set(() => {
+      // Changing the primary commander invalidates any chosen partner
+      // (a "Partner with X" pairing, a Background, color identity, etc.),
+      // so the partner is cleared rather than carried over.
+      const combined = [...new Set(card?.color_identity || [])];
       return {
         commander: card,
+        partnerCommander: null,
         colorIdentity: combined,
         generatedDeck: null,
         edhrecThemes: [],

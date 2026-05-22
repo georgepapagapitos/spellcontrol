@@ -864,7 +864,11 @@ export function DeckDisplay({
     }
     const ordered: { title: string; icon: string; rows: Row[] }[] = [];
     if (commanderRows.length > 0) {
-      ordered.push({ title: 'Commander', icon: 'ms-commander', rows: commanderRows });
+      ordered.push({
+        title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
+        icon: 'ms-commander',
+        rows: commanderRows,
+      });
     }
     for (const t of DISPLAY_ORDER) {
       const r = buckets.get(t);
