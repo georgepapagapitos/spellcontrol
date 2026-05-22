@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useThemeStore } from '../store/theme';
 import { useCollectionStore } from '../store/collection';
@@ -21,6 +21,7 @@ export function SettingsPage() {
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const logout = useAuth((s) => s.logout);
   const deleteAccount = useAuth((s) => s.deleteAccount);
+  const navigate = useNavigate();
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -140,6 +141,9 @@ export function SettingsPage() {
 
   async function handleLogout() {
     await logout();
+    // Send the now-guest user to the sign-in screen. It's dismissable
+    // ("Continue without an account"), so this is a convenience, not a wall.
+    navigate('/auth');
   }
 
   async function handleConfirmDelete() {
@@ -147,9 +151,11 @@ export function SettingsPage() {
     try {
       const ok = await deleteAccount();
       if (ok) {
-        // The store has already wiped local state and signed out; the app will
-        // route back to the auth screen. A toast would unmount with the page.
+        // Account and local data are gone; drop the (now-guest) user on the
+        // sign-in screen so they can start fresh. A toast would unmount with
+        // the page, so the navigation is the feedback.
         setDeleteStep(0);
+        navigate('/auth');
       } else {
         toast.show({
           message: useAuth.getState().error ?? 'Could not delete account.',
