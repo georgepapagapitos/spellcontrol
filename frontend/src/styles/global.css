@@ -6801,11 +6801,15 @@ hr {
   pointer-events: none;
 }
 
-/* Tap-catching scrim behind the open fan — also dims the page. */
+/* Tap-catching scrim behind the open fan — also lightly dims the page.
+   position:fixed (not absolute) so it covers the true viewport: the app
+   sits inside `body`'s safe-area/gutter padding, and an absolute scrim
+   would stop ~10px short of each edge. A transient full-screen backdrop
+   is exactly the case where fixed is right — same as `.scanner-root`. */
 .nav-fab-scrim {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.34);
+  background: rgba(0, 0, 0, 0.18);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.18s ease;
