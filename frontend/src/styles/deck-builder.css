@@ -40,17 +40,17 @@
   width: 100%;
 }
 
-/* ── Stable search panel ───────────────────────────────────────────────
-   The input and this panel form a fixed-size unit. The panel's height does
-   not depend on how many results came back, so the input never moves and
-   the page never reflows as the user types. dvh shrinks with the layout
-   viewport when the keyboard opens; --keyboard-inset covers iOS Safari,
-   where the keyboard floats instead of resizing. The panel hosts whichever
-   state is active — results, a status line, or EDHREC suggestions — and
-   scrolls internally. */
+/* ── Search results panel ──────────────────────────────────────────────
+   Sits below the input and sizes to its content (one result → one short
+   row), so there's no dead space. It only ever grows *downward*, so the
+   input above it never moves no matter how many results come back. The
+   max-height caps it and switches on internal scroll for long lists; dvh
+   shrinks that cap with the layout viewport when the keyboard opens, and
+   --keyboard-inset covers iOS Safari, where the keyboard floats instead
+   of resizing. Hosts results, a status line, or EDHREC suggestions. */
 .commander-search-panel {
   margin-top: 0.75rem;
-  height: clamp(12rem, calc(55dvh - var(--keyboard-inset)), 26rem);
+  max-height: clamp(12rem, calc(55dvh - var(--keyboard-inset)), 26rem);
   overflow-y: auto;
   background: var(--surface2);
   border: 0.5px solid var(--border2);

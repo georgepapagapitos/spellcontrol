@@ -177,10 +177,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
     if (!ownedOnly) setLocalResults([]);
   }
 
-  // The search box and the region below it form a fixed-size panel: the
-  // input never moves and the panel never reflows. `queried` only decides
-  // *what* the panel shows (results vs. EDHREC suggestions), not its size —
-  // so a long or short result list no longer makes anything jump.
+  // The panel below the input sizes to its content and only grows downward,
+  // so the input never moves. `queried` decides *what* the panel shows —
+  // results vs. EDHREC suggestions.
   const queried = query.trim().length >= 2;
 
   // Search effect — switches source by ownedOnly. Scryfall when off, local
@@ -517,9 +516,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
         </label>
       )}
 
-      {/* Fixed-size panel below the input: search results when a query is
-          active, EDHREC suggestions otherwise. Its size never depends on how
-          many results came back, so the input and page never reflow. */}
+      {/* Results panel: search results when a query is active, EDHREC
+          suggestions otherwise. Sizes to its content (capped, then scrolls)
+          and only grows downward, so the input above never moves. */}
       <div className="commander-search-panel">
         {queried ? (
           hasResults ? (
