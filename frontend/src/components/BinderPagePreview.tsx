@@ -49,6 +49,7 @@ export function BinderPagePreview({
   qtyByCopyId,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   // Each page is one carousel slide. (Double-sided binders are modelled as
@@ -140,10 +141,21 @@ export function BinderPagePreview({
     return () => window.removeEventListener('keydown', onKey);
   }, [beginClose, selected, pages.length, innerCard]);
 
-  const { dragY, isDragging, touchHandlers } = useSwipeDownDismiss({
+  const { isDragging, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
+    sheetRef,
     trackRef,
   });
+
+  // The hook drives the drag offset imperatively on the sheet. Clear that
+  // inline transform once the gesture ends (and we're not dismissing) so the
+  // CSS snap-back transition animates the sheet home; a dismiss leaves it for
+  // the sheet-fall keyframe. Mirrors CardPreview.
+  useLayoutEffect(() => {
+    if (isDragging || isClosing) return;
+    const sheet = sheetRef.current;
+    if (sheet) sheet.style.transform = '';
+  }, [isDragging, isClosing]);
 
   const allocations = useAllocations();
 
@@ -158,10 +170,6 @@ export function BinderPagePreview({
   // (only the opaque binder page + info panel rise); the dim sits on the
   // backdrop, which stays put, fades in/out (.is-closing), and carries the
   // sizing var (--page-w-ratio drives --slide-size).
-  const sheetStyle = {
-    transform: `translateY(${dragY}px)`,
-    ...exitStyle,
-  } as React.CSSProperties;
   const backdropStyle = {
     ['--page-w-ratio' as string]: pageAspectRatio,
   } as React.CSSProperties;
@@ -179,10 +187,11 @@ export function BinderPagePreview({
         style={backdropStyle}
       >
         <div
+          ref={sheetRef}
           className={`binder-pages-sheet${isDragging ? ' is-dragging' : ''}${
             isClosing ? ' is-closing' : ''
           }`}
-          style={sheetStyle}
+          style={exitStyle}
           onAnimationEnd={onAnimationEnd}
           {...touchHandlers}
         >

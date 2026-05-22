@@ -115,6 +115,7 @@ export function CardPreview({
   onEdit,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
   // Slides rendered during the open animation; expands to the full list once
@@ -288,10 +289,22 @@ export function CardPreview({
     return () => window.removeEventListener('keydown', onKey);
   }, [beginClose, selected, cards.length]);
 
-  const { dragY, isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
+  const { isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
+    sheetRef,
     trackRef,
   });
+
+  // The drag offset is applied imperatively to the sheet by the hook. Once the
+  // gesture ends (isDragging false) and we're not mid-dismiss, clear that
+  // inline transform: `is-dragging` is gone, so the sheet's CSS transition is
+  // live and animates the snap-back to rest. A dismiss leaves the transform
+  // alone — the sheet-fall keyframe continues from where the finger let go.
+  useLayoutEffect(() => {
+    if (isDragging || isClosing) return;
+    const sheet = sheetRef.current;
+    if (sheet) sheet.style.transform = '';
+  }, [isDragging, isClosing]);
 
   // Tilt + cursor tracking applies to every card; the foil overlay is the
   // only thing gated to foil cards (handled in CSS via the .is-foil class).
@@ -440,14 +453,6 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
-  // The sheet is a transparent transform carrier: only its opaque children
-  // (card image + info panel) visibly rise. The dim sits on the backdrop,
-  // which stays put and just fades in/out (.is-closing).
-  const sheetStyle = {
-    transform: `translateY(${dragY}px)`,
-    ...exitStyle,
-  } as React.CSSProperties;
-
   return (
     <div
       className={`card-preview-backdrop${isClosing ? ' is-closing' : ''}`}
@@ -456,10 +461,11 @@ export function CardPreview({
       aria-modal="true"
     >
       <div
+        ref={sheetRef}
         className={`card-preview-sheet${isDragging ? ' is-dragging' : ''}${
           isClosing ? ' is-closing' : ''
         }`}
-        style={sheetStyle}
+        style={exitStyle}
         onAnimationEnd={onAnimationEnd}
         {...touchHandlers}
       >

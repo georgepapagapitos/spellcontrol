@@ -19,51 +19,82 @@ function evt(touches: React.Touch[], changedTouches: React.Touch[] = touches): R
   } as unknown as React.TouchEvent;
 }
 
+/** A real div so the hook's imperative `style.transform` writes are observable. */
+function sheet() {
+  return { current: document.createElement('div') };
+}
+
 describe('useSwipeDownDismiss', () => {
   it('ignores up-swipes', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     act(() => {
       result.current.touchHandlers.onTouchStart(evt([touch(50, 200)]));
       result.current.touchHandlers.onTouchMove(evt([touch(50, 50)]));
       result.current.touchHandlers.onTouchEnd(evt([], [touch(50, 50)]));
     });
     expect(onDismiss).not.toHaveBeenCalled();
+    // An up-swipe never commits a vertical lock, so the sheet is untouched.
+    expect(sheetRef.current.style.transform).toBe('');
   });
 
   it('locks horizontal when the user drags sideways', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     act(() => {
       result.current.touchHandlers.onTouchStart(evt([touch(50, 50)]));
       result.current.touchHandlers.onTouchMove(evt([touch(200, 55)]));
     });
     expect(result.current.axisLockRef.current).toBe('h');
+    // A horizontal lock must not drag the sheet — that belongs to the carousel.
+    expect(sheetRef.current.style.transform).toBe('');
     act(() => {
       result.current.touchHandlers.onTouchEnd(evt([], [touch(200, 55)]));
     });
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  it('writes the drag offset straight to the sheet element (no React state)', () => {
+    const onDismiss = vi.fn();
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
+    act(() => {
+      result.current.touchHandlers.onTouchStart(evt([touch(50, 0)]));
+      result.current.touchHandlers.onTouchMove(evt([touch(50, 90)]));
+    });
+    expect(sheetRef.current.style.transform).toBe('translateY(90px)');
+    // A further move updates the same node imperatively.
+    act(() => {
+      result.current.touchHandlers.onTouchMove(evt([touch(50, 140)]));
+    });
+    expect(sheetRef.current.style.transform).toBe('translateY(140px)');
+  });
+
   it('dismisses on a long downward drag', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     act(() => {
       result.current.touchHandlers.onTouchStart(evt([touch(50, 0)]));
       result.current.touchHandlers.onTouchMove(evt([touch(50, 200)]));
     });
     expect(result.current.axisLockRef.current).toBe('v');
-    expect(result.current.dragY).toBeGreaterThan(0);
+    expect(result.current.isDragging).toBe(true);
+    expect(sheetRef.current.style.transform).toBe('translateY(200px)');
     act(() => {
       result.current.touchHandlers.onTouchEnd(evt([], [touch(50, 200)]));
     });
     expect(onDismiss).toHaveBeenCalledTimes(1);
+    // Dismiss hands the release offset to onDismiss for the exit keyframe.
+    expect(onDismiss).toHaveBeenCalledWith(200);
   });
 
   it('dismisses on a fast flick', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
-    const start = performance.now;
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     let now = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
     act(() => {
@@ -75,12 +106,12 @@ describe('useSwipeDownDismiss', () => {
       result.current.touchHandlers.onTouchEnd(evt([], [touch(0, 80)]));
     });
     expect(onDismiss).toHaveBeenCalled();
-    void start;
   });
 
   it('does not dismiss a small drag with a slow release', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     let now = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
     act(() => {
@@ -96,7 +127,8 @@ describe('useSwipeDownDismiss', () => {
 
   it('handles touchEnd without a prior touchStart', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     act(() => {
       result.current.touchHandlers.onTouchEnd(evt([], [touch(0, 0)]));
     });
@@ -105,7 +137,8 @@ describe('useSwipeDownDismiss', () => {
 
   it('ignores multi-touch touchStart', () => {
     const onDismiss = vi.fn();
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss }));
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
     act(() => {
       result.current.touchHandlers.onTouchStart(evt([touch(0, 0), touch(50, 0)]));
       result.current.touchHandlers.onTouchEnd(evt([], [touch(0, 0)]));
@@ -115,10 +148,11 @@ describe('useSwipeDownDismiss', () => {
 
   it('pins nested track scroll while locked vertical', () => {
     const onDismiss = vi.fn();
+    const sheetRef = sheet();
     const track = document.createElement('div');
     track.scrollLeft = 42;
     const trackRef = { current: track };
-    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, trackRef }));
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef, trackRef }));
     act(() => {
       result.current.touchHandlers.onTouchStart(evt([touch(0, 0)]));
       result.current.touchHandlers.onTouchMove(evt([touch(5, 50)]));
