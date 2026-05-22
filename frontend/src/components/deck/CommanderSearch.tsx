@@ -1,7 +1,7 @@
 import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useVisualViewport } from '@/lib/use-visual-viewport';
+import { useKeyboard } from '@/lib/keyboard';
 import { searchCommanders, getCardByName } from '@/deck-builder/services/scryfall/client';
 import {
   fetchTopCommanders,
@@ -108,7 +108,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
-  const { keyboardInset, viewportHeight } = useVisualViewport();
+  const { inset: keyboardInset, viewportHeight } = useKeyboard();
 
   const collectionCards = useCollectionStore((s) => s.cards);
   // The collection stores one row per physical copy, so a card owned in

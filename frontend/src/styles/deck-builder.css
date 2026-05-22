@@ -61,7 +61,7 @@
    than as a popover under the input. The default `resizes-visual` keyboard
    floats over the layout viewport, so an under-the-input popover would render
    behind it. `bottom` is set inline from the measured keyboard inset
-   (useVisualViewport); `max-height` is capped to the visible viewport. */
+   (useKeyboard); `max-height` is capped to the visible viewport. */
 .commander-search-results--tray {
   position: fixed;
   top: auto;
@@ -5081,7 +5081,10 @@ input.deck-row-qty-input.deck-row-qty-missing {
 /* ── Toast viewport ────────────────────────────────────────────────── */
 .toast-viewport {
   position: fixed;
-  inset: auto 1rem 1rem 1rem;
+  /* Sit above whichever is taller: the device's home-gesture inset or the
+     on-screen keyboard. Keeps toasts visible while a form field is focused
+     and clear of the home indicator on notched devices. */
+  inset: auto 1rem calc(1rem + max(var(--safe-bottom), var(--keyboard-inset))) 1rem;
   pointer-events: none;
   display: flex;
   justify-content: center;

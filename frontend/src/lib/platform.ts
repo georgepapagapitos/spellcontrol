@@ -1,7 +1,6 @@
 import { logger } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { Keyboard } from '@capacitor/keyboard';
 
 export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform();
@@ -46,51 +45,4 @@ export async function syncStatusBar(): Promise<void> {
   } catch (err) {
     logger.warn('[platform] status bar sync failed:', err);
   }
-}
-
-// Wire the soft keyboard so it never covers focused inputs.
-//
-// The plugin config already does the heavy lifting (WebView resizes on
-// iOS via `resize: 'native'`; on Android the system keyboard-resize
-// callback is re-enabled with `resizeOnFullScreen: true`). This adds two
-// JS-side pieces:
-//
-//   - A `keyboard-open` class on <html> so CSS can adjust fixed/sticky
-//     surfaces (bottom sheets, sticky footers) that the WebView resize
-//     can't see.
-//   - A `scrollIntoView` fallback for the focused input on
-//     `keyboardWillShow` — covers inputs inside `position: fixed`
-//     containers (bottom sheets, modal headers) that the native resize
-//     repositions but doesn't auto-scroll within.
-//
-// Idempotent — safe to call once at boot. Errors are swallowed because
-// the keyboard plugin throws on web-debug builds.
-export async function initKeyboard(): Promise<void> {
-  if (!isNativePlatform()) return;
-  try {
-    await Keyboard.addListener('keyboardWillShow', () => {
-      document.documentElement.classList.add('keyboard-open');
-      // Defer one frame so layout has settled after the WebView resize.
-      requestAnimationFrame(() => {
-        const el = document.activeElement;
-        if (el instanceof HTMLElement && isTextInput(el)) {
-          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
-      });
-    });
-    await Keyboard.addListener('keyboardWillHide', () => {
-      document.documentElement.classList.remove('keyboard-open');
-    });
-  } catch (err) {
-    logger.warn('[platform] keyboard init failed:', err);
-  }
-}
-
-function isTextInput(el: HTMLElement): boolean {
-  if (el instanceof HTMLTextAreaElement) return true;
-  if (el instanceof HTMLInputElement) {
-    const skip = new Set(['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'range']);
-    return !skip.has(el.type);
-  }
-  return el.isContentEditable;
 }

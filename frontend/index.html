@@ -2,7 +2,16 @@
 <html lang="en" data-theme="azorius">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-content: when the soft keyboard shows,
+         shrink the layout viewport (so 100dvh / fixed bottom bars settle
+         above it) instead of letting it float over the content. Matches the
+         native WebView resize behavior; the keyboard layer (lib/keyboard.ts)
+         publishes any residual gap as --keyboard-inset for browsers (iOS
+         Safari) that don't honor this. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0a1f3d" />
     <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
