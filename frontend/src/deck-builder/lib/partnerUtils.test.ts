@@ -147,8 +147,8 @@ describe('getPartnerTypeLabel', () => {
     ['friends-forever', 'Friends forever'],
     ['choose-background', 'Choose a Background'],
     ['background', 'Background'],
-    ['doctors-companion', 'Doctor'],
-    ['doctor', "Doctor's Companion"],
+    ['doctors-companion', "Doctor's companion"],
+    ['doctor', 'Doctor'],
     ['none', ''],
   ])('labels %s as "%s"', (type, label) => {
     expect(getPartnerTypeLabel(type)).toBe(label);

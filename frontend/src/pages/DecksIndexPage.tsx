@@ -527,7 +527,11 @@ export function DecksIndexPage() {
                         {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
                       </span>
                       <span>
-                        {deck.commander ? `${deck.commander.name} · ` : ''}
+                        {deck.commander
+                          ? `${deck.commander.name}${
+                              deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
+                            } · `
+                          : ''}
                         {totalCards} cards · {deck.source === 'generated' ? 'Generated' : 'Manual'}
                       </span>
                     </div>

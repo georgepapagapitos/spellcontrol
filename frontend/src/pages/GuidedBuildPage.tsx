@@ -7,6 +7,7 @@ import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { PlaystylePicker } from '../components/deck/PlaystylePicker';
 import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
+import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
@@ -54,6 +55,8 @@ export function GuidedBuildPage() {
 
   const commander = useDeckBuilderStore((s) => s.commander);
   const setCommander = useDeckBuilderStore((s) => s.setCommander);
+  const partnerCommander = useDeckBuilderStore((s) => s.partnerCommander);
+  const setPartnerCommander = useDeckBuilderStore((s) => s.setPartnerCommander);
   const colorIdentity = useDeckBuilderStore((s) => s.colorIdentity);
   const customization = useDeckBuilderStore((s) => s.customization);
   const updateCustomization = useDeckBuilderStore((s) => s.updateCustomization);
@@ -175,7 +178,7 @@ export function GuidedBuildPage() {
 
       const deck = await generateDeck({
         commander,
-        partnerCommander: null,
+        partnerCommander,
         colorIdentity,
         customization,
         selectedThemes: themesForGenerator,
@@ -203,6 +206,7 @@ export function GuidedBuildPage() {
     }
   }, [
     commander,
+    partnerCommander,
     customization,
     colorIdentity,
     selectedThemes,
@@ -288,6 +292,15 @@ export function GuidedBuildPage() {
           {commander && commanderProfile && (
             <CommanderProfileCard profile={commanderProfile} themesLocation="next-step" />
           )}
+          {commander && (
+            <PartnerCommanderSelector
+              key={commander.id}
+              commander={commander}
+              partner={partnerCommander}
+              onSelect={setPartnerCommander}
+              collectionMode={customization.collectionMode}
+            />
+          )}
         </>
       )}
 
@@ -306,7 +319,8 @@ export function GuidedBuildPage() {
           <h2 className="deck-builder-section-title">Review</h2>
           <ul className="guided-review">
             <li>
-              <strong>Commander:</strong> {commander.name}
+              <strong>{partnerCommander ? 'Commanders:' : 'Commander:'}</strong> {commander.name}
+              {partnerCommander ? ` + ${partnerCommander.name}` : ''}
             </li>
             <li>
               <strong>Themes:</strong>{' '}
