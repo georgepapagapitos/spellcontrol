@@ -13,6 +13,13 @@ interface Options {
    */
   onDismiss: (fromY: number) => void;
   /**
+   * The sheet element being dragged. The hook writes `transform: translateY()`
+   * straight to this node on every touchmove — the per-frame drag never goes
+   * through React. Routing the offset through state would re-render the whole
+   * modal subtree ~60×/s, which is exactly what made the drag feel laggy.
+   */
+  sheetRef: RefObject<HTMLElement | null>;
+  /**
    * Optional reference to a horizontally-scrolling element nested inside the
    * sheet (e.g. a card carousel). While the gesture is locked vertical, the
    * hook pins this element's scrollLeft so sideways finger motion during a
@@ -22,9 +29,12 @@ interface Options {
 }
 
 interface Result {
-  /** Current vertical drag distance in px; 0 when the gesture is idle. */
-  dragY: number;
-  /** True while the user is actively dragging vertically. */
+  /**
+   * True while the user is actively dragging vertically. Drives the sheet's
+   * `is-dragging` class, which suppresses the snap-back CSS transition so the
+   * sheet tracks the finger 1:1. Toggles exactly twice per gesture (commit /
+   * release) — never per frame — so it stays clear of the hot path.
+   */
   isDragging: boolean;
   /**
    * Live read of the axis lock — `null` until the gesture commits, then `'v'`
@@ -49,9 +59,17 @@ interface Result {
  * move so horizontal swipes inside a nested carousel still drive its
  * native scroll-snap. Up swipes are intentionally ignored. The sheet is
  * dismissed if the user drags far enough OR flicks down hard.
+ *
+ * The drag offset is applied imperatively to `sheetRef` — no React state, no
+ * re-render per frame. The consumer is responsible for two things:
+ *  - render the `is-dragging` class while `isDragging` is true;
+ *  - once `isDragging` flips false (and the sheet is not closing), clear the
+ *    sheet's inline `transform` in a layout effect. With `is-dragging` gone
+ *    the CSS `:not(.is-dragging)` transition is live, so clearing it animates
+ *    the snap-back home. On a dismiss the transform is left in place for the
+ *    `sheet-fall` keyframe to take over from.
  */
-export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
-  const [dragY, setDragY] = useState(0);
+export function useSwipeDownDismiss({ onDismiss, sheetRef, trackRef }: Options): Result {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const axisLockRef = useRef<'h' | 'v' | null>(null);
@@ -61,7 +79,6 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
   const lockedScrollLeftRef = useRef<number | null>(null);
 
   const reset = () => {
-    setDragY(0);
     axisLockRef.current = null;
     lockedScrollLeftRef.current = null;
   };
@@ -84,7 +101,7 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
       // when the user is actually dragging DOWN. Otherwise an up-flick
       // would pin the carousel's horizontal scroll for the rest of the
       // gesture (and could leave the sheet in a "dragging" state with
-      // no visual movement, since dragY is clamped to ≥ 0).
+      // no visual movement, since the offset is clamped to ≥ 0).
       const hCommit = Math.abs(dx) > AXIS_LOCK_THRESHOLD_PX;
       const vCommit = dy > AXIS_LOCK_THRESHOLD_PX;
       if (hCommit || vCommit) {
@@ -93,8 +110,12 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
       }
     }
     if (axisLockRef.current === 'v') {
-      // Only respond to downward drag; ignore upward.
-      setDragY(Math.max(0, dy));
+      // Only respond to downward drag; ignore upward. Write the offset
+      // straight to the DOM — bypassing React keeps the drag a pure
+      // compositor transform with zero re-renders per frame.
+      const offset = Math.max(0, dy);
+      const sheet = sheetRef.current;
+      if (sheet) sheet.style.transform = `translateY(${offset}px)`;
       const track = trackRef?.current;
       if (track) {
         if (lockedScrollLeftRef.current === null) {
@@ -118,20 +139,19 @@ export function useSwipeDownDismiss({ onDismiss, trackRef }: Options): Result {
     const dy = t.clientY - start.y;
     const dt = Math.max(1, Date.now() - start.t);
     const velocity = dy / dt;
-    // Dismiss if dragged far enough OR flicked down hard. Capture the release
-    // offset before reset() zeroes dragY, then hand it to onDismiss so the
-    // exit slide continues from there rather than jerking back to the top.
+    reset();
+    // Dismiss if dragged far enough OR flicked down hard. Hand the release
+    // offset to onDismiss so the exit slide (sheet-fall keyframe) continues
+    // from there rather than jerking back to the top. The inline transform is
+    // intentionally left in place: the keyframe overrides it from `fromY`.
+    // On a non-dismiss release the consumer's layout effect clears it once
+    // `isDragging` flips false, letting the CSS transition animate it home.
     if (dy > DISMISS_DISTANCE_PX || velocity > DISMISS_VELOCITY) {
-      const fromY = Math.max(0, dy);
-      reset();
-      onDismiss(fromY);
-    } else {
-      reset();
+      onDismiss(Math.max(0, dy));
     }
   };
 
   return {
-    dragY,
     isDragging,
     axisLockRef,
     touchHandlers: {
