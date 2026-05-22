@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import type { PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -22,6 +24,7 @@ import { ActionBar } from './ActionBar';
 import { CardContextMenu } from './CardContextMenu';
 import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
+import { PlaytestCardFace } from './PlaytestCardFace';
 import { TokenCreator } from './TokenCreator';
 
 interface Props {
@@ -69,14 +72,37 @@ export function PlaytestBoard({ state }: Props) {
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
+
+  // The card currently under the pointer, resolved to its data + display
+  // size, so the top-level <DragOverlay> can render a moving copy that
+  // escapes the origin container's `overflow` clipping.
+  const activeDrag = useMemo(() => {
+    const parsed = activeId ? parseDraggable(activeId) : null;
+    if (!parsed) return null;
+    if (parsed.source === 'bf') {
+      const bf = state.battlefield.find((b) => b.card.id === parsed.cardId);
+      return bf ? { card: bf.card, bf, size: 'md' as const } : null;
+    }
+    if (parsed.source === 'hand') {
+      const c = state.zones.hand.find((card) => card.id === parsed.cardId);
+      return c ? { card: c, bf: undefined, size: 'sm' as const } : null;
+    }
+    return null;
+  }, [activeId, state.battlefield, state.zones.hand]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor)
   );
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
     const parsed = parseDraggable(String(event.active.id));
     if (!parsed) return;
     const overId = event.over?.id ? String(event.over.id) : null;
@@ -181,7 +207,12 @@ export function PlaytestBoard({ state }: Props) {
         onScry={() => setViewer({ zone: 'library', topN: 3 })}
         onCreateToken={() => setTokenCreator(true)}
       />
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveId(null)}
+      >
         <div className="playtest-main">
           <div ref={battlefieldRef} className="playtest-battlefield-wrap">
             <Battlefield
@@ -221,6 +252,17 @@ export function PlaytestBoard({ state }: Props) {
           )}
         </div>
         <Hand cards={state.zones.hand} onCardClick={handleHandCardClick} />
+        <DragOverlay dropAnimation={null}>
+          {activeDrag && (
+            <PlaytestCardFace
+              card={activeDrag.card}
+              bf={activeDrag.bf}
+              size={activeDrag.size}
+              className="playtest-card--dragging"
+              style={{ transform: activeDrag.bf?.tapped ? 'rotate(90deg)' : undefined }}
+            />
+          )}
+        </DragOverlay>
       </DndContext>
 
       {isNarrow && (
