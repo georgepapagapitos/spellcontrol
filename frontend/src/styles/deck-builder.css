@@ -841,6 +841,45 @@
   flex: 0 0 auto;
 }
 
+/* The role badge a user just tapped, highlighted in the popover key so
+   they can find it without re-reading every row. */
+.deck-role-legend-item--active {
+  margin: 0 -0.35rem;
+  padding: 0.15rem 0.35rem;
+  background: var(--accent-light);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+/* Tap-to-reveal role badge. The badge is now a <button> so touch users
+   (no hover → no native tooltip) can tap it to open the role key. This
+   strips the native button chrome; the .deck-row-role-* and
+   .deck-card-grid-role rules still own the badge's actual look. Defined
+   before .deck-card-grid-role so that rule's plate background + padding
+   win the cascade for grid badges, while list badges fall back here. */
+.role-badge-btn {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.role-badge-pop-wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Content inside the reused ToolbarPopover panel. */
+.role-badge-pop {
+  max-width: 15rem;
+}
+
+.role-badge-pop-head {
+  padding: 0.35rem 0.6rem 0.15rem;
+}
+
 /* Pill search input — magnifying-glass icon + flat input. */
 .toolbar-search {
   display: inline-flex;
@@ -1342,20 +1381,6 @@ input.toolbar-search-input {
      lets unbreakable strings wrap rather than overflowing. */
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.deck-row-foil {
-  display: inline-block;
-  margin-left: 0.35rem;
-  padding: 0 0.35rem;
-  font-size: var(--text-xs);
-  border-radius: 999px;
-  background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
-  color: #1a2438;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  vertical-align: 1px;
 }
 
 .deck-row-mana {

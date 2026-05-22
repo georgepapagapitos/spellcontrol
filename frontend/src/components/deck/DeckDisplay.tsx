@@ -51,15 +51,12 @@ import {
   whyCardMatches,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import {
-  cardMatchesRole,
-  getCardRole,
-  getRampSubtype,
-  getRemovalSubtype,
-  getBoardwipeSubtype,
-  getCardDrawSubtype,
-  hasMultipleRoles,
-  type RoleKey,
-} from '@/deck-builder/services/tagger/client';
+  getRoleBadge,
+  isMultiRole,
+  multiRoleTitle,
+  ROLE_BADGE_BY_TONE,
+  ROLE_BADGE_GROUPS,
+} from '../../lib/role-badges';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SelectMenu } from '../SelectMenu';
@@ -122,117 +119,10 @@ function fmtMoney(value: number, currency: CurrencyCode): string {
   return `${symbol}${value.toFixed(2)}`;
 }
 
-// Two-letter role badge mirroring the reference repo. Distinguishes
-// functional subtypes (Mana Producer / Spot Removal / Wheel / etc.) so
-// the eye can scan a deck list and see role coverage without reading.
-const ROLE_TITLES: Record<RoleKey, string> = {
-  ramp: 'Ramp',
-  removal: 'Removal',
-  boardwipe: 'Board Wipe',
-  cardDraw: 'Card Advantage',
-};
-function multiRoleTitle(card: ScryfallCard): string {
-  const roles: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
-  const matched = roles.filter((r) => cardMatchesRole(card.name, r));
-  return matched.map((r) => ROLE_TITLES[r]).join(' + ') || 'Multi-role';
-}
-
-type RoleBadge = { label: string; title: string; tone: string };
-
-// Single source of truth for the 2-letter role badges — consumed by
-// both the per-row badge (getRoleBadge) and the toolbar "Role badge
-// key" legend so the two can't drift apart.
-const ROLE_BADGE_BY_TONE: Record<string, { label: string; title: string }> = {
-  'mana-producer': { label: 'MP', title: 'Mana Producer' },
-  'mana-rock': { label: 'MR', title: 'Mana Rock' },
-  'cost-reducer': { label: 'CR', title: 'Cost Reducer' },
-  ramp: { label: 'RA', title: 'Ramp' },
-  counterspell: { label: 'CT', title: 'Counterspell' },
-  bounce: { label: 'BN', title: 'Bounce' },
-  'spot-removal': { label: 'SR', title: 'Spot Removal' },
-  removal: { label: 'RE', title: 'Removal' },
-  'bounce-wipe': { label: 'BW', title: 'Bounce Wipe' },
-  boardwipe: { label: 'WI', title: 'Board Wipe' },
-  tutor: { label: 'TU', title: 'Tutor' },
-  wheel: { label: 'WH', title: 'Wheel' },
-  cantrip: { label: 'CN', title: 'Cantrip' },
-  'card-draw': { label: 'DR', title: 'Card Draw' },
-  'card-advantage': { label: 'CA', title: 'Card Advantage' },
-};
-
-// Grouped ordering for the legend (by top-level role, matching the
-// Stats panel's Ramp / Removal / Board wipe / Card draw sections).
-const ROLE_BADGE_GROUPS: { group: string; tones: string[] }[] = [
-  { group: 'Ramp', tones: ['mana-producer', 'mana-rock', 'cost-reducer', 'ramp'] },
-  { group: 'Removal', tones: ['counterspell', 'bounce', 'spot-removal', 'removal'] },
-  { group: 'Board wipe', tones: ['bounce-wipe', 'boardwipe'] },
-  { group: 'Card draw', tones: ['tutor', 'wheel', 'cantrip', 'card-draw', 'card-advantage'] },
-];
-
-function badge(tone: string): RoleBadge {
-  return { ...ROLE_BADGE_BY_TONE[tone], tone };
-}
-// Manually-built decks don't go through the generator/enricher, so the
-// deckRole/*Subtype fields on the card are typically empty. Fall back to
-// the bundled tagger so badges show up the same way for both flows.
-function getRoleBadge(card: ScryfallCard): RoleBadge | null {
-  const role = card.deckRole ?? getCardRole(card.name);
-  if (!role) return null;
-  switch (role) {
-    case 'ramp': {
-      const sub = card.rampSubtype ?? getRampSubtype(card.name);
-      switch (sub) {
-        case 'mana-producer':
-          return badge('mana-producer');
-        case 'mana-rock':
-          return badge('mana-rock');
-        case 'cost-reducer':
-          return badge('cost-reducer');
-        default:
-          return badge('ramp');
-      }
-    }
-    case 'removal': {
-      const sub = card.removalSubtype ?? getRemovalSubtype(card.name);
-      switch (sub) {
-        case 'counterspell':
-          return badge('counterspell');
-        case 'bounce':
-          return badge('bounce');
-        case 'spot-removal':
-          return badge('spot-removal');
-        default:
-          return badge('removal');
-      }
-    }
-    case 'boardwipe': {
-      const sub = card.boardwipeSubtype ?? getBoardwipeSubtype(card.name);
-      switch (sub) {
-        case 'bounce-wipe':
-          return badge('bounce-wipe');
-        default:
-          return badge('boardwipe');
-      }
-    }
-    case 'cardDraw': {
-      const sub = card.cardDrawSubtype ?? getCardDrawSubtype(card.name);
-      switch (sub) {
-        case 'tutor':
-          return badge('tutor');
-        case 'wheel':
-          return badge('wheel');
-        case 'cantrip':
-          return badge('cantrip');
-        case 'card-draw':
-          return badge('card-draw');
-        default:
-          return badge('card-advantage');
-      }
-    }
-    default:
-      return null;
-  }
-}
+// Role-badge data + decoding (ROLE_BADGE_BY_TONE, getRoleBadge,
+// multiRoleTitle, …) lives in lib/role-badges so the deck list, grid
+// tiles, toolbar legend, tap-to-reveal popover, and card preview panel
+// all share one source of truth. See the `role-badges` import above.
 
 function frontFaceMana(card: ScryfallCard): string | undefined {
   return card.mana_cost ?? card.card_faces?.[0]?.mana_cost;
@@ -1396,6 +1286,7 @@ export function DeckDisplay({
         {previewIndex !== null && (
           <CardPreview
             cards={flat.cards}
+            showRole
             sectionLabels={flat.labels}
             pageNumbers={flat.cards.map(() => 0)}
             totalPages={1}
@@ -1669,6 +1560,35 @@ const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
   mana: 'Mana cost',
 };
 
+// The full role-badge key: every 2-letter abbreviation spelled out,
+// grouped by top-level role. Shared by the toolbar legend (below) and
+// the tap-to-reveal badge popover so the two can't drift. `highlightTone`
+// emphasises the row for the badge a user just tapped.
+function RoleBadgeKey({ highlightTone }: { highlightTone?: string }) {
+  return (
+    <div className="deck-role-legend-body" role="group" aria-label="Role badge key">
+      {ROLE_BADGE_GROUPS.map((g) => (
+        <div key={g.group} className="deck-role-legend-group">
+          <div className="deck-role-legend-group-title">{g.group}</div>
+          {g.tones.map((tone) => (
+            <div
+              key={tone}
+              className={`deck-role-legend-item${
+                tone === highlightTone ? ' deck-role-legend-item--active' : ''
+              }`}
+            >
+              <span className={`deck-row-role-badge deck-row-role-${tone}`} aria-hidden>
+                {ROLE_BADGE_BY_TONE[tone].label}
+              </span>
+              {ROLE_BADGE_BY_TONE[tone].title}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Collapsible key for the cryptic 2-letter role badges, surfaced from
 // the toolbar "Show" popover (next to the Roles toggle). Lives inside
 // that popover so it inherits its dismiss handling.
@@ -1689,24 +1609,40 @@ function RoleBadgeLegend() {
         )}
         What do the role badges mean?
       </button>
-      {open && (
-        <div className="deck-role-legend-body" role="group" aria-label="Role badge key">
-          {ROLE_BADGE_GROUPS.map((g) => (
-            <div key={g.group} className="deck-role-legend-group">
-              <div className="deck-role-legend-group-title">{g.group}</div>
-              {g.tones.map((tone) => (
-                <div key={tone} className="deck-role-legend-item">
-                  <span className={`deck-row-role-badge deck-row-role-${tone}`} aria-hidden>
-                    {ROLE_BADGE_BY_TONE[tone].label}
-                  </span>
-                  {ROLE_BADGE_BY_TONE[tone].title}
-                </div>
-              ))}
-            </div>
-          ))}
+      {open && <RoleBadgeKey />}
+    </div>
+  );
+}
+
+// A single deck-list / grid role badge, now tap-to-reveal: on touch (no
+// hover) the native `title` tooltip never appears, so tapping the badge
+// opens a popover with the full role key — the tapped role highlighted.
+// Desktop keeps the hover tooltip too, so the interaction is unified.
+function RoleBadge({ card, variant }: { card: ScryfallCard; variant: 'row' | 'grid' }) {
+  const roleBadge = getRoleBadge(card);
+  if (!roleBadge) return null;
+  const multi = variant === 'row' && isMultiRole(card);
+  const baseClass = variant === 'grid' ? 'deck-card-grid-role' : 'deck-row-role-badge';
+  const toneClass = multi ? 'deck-row-role-multi' : `deck-row-role-${roleBadge.tone}`;
+  // Native tooltip text — kept so desktop hover still works alongside tap.
+  const tipText = multi ? multiRoleTitle(card) : roleBadge.title;
+  return (
+    <ToolbarPopover
+      wrapperClassName="role-badge-pop-wrap"
+      triggerClassName={`role-badge-btn ${baseClass} ${toneClass}`}
+      triggerTitle={tipText}
+      triggerAriaLabel={`Role: ${tipText}. Tap to show the role key.`}
+      triggerContent={
+        multi ? <span className="deck-row-role-multi-dot" aria-hidden /> : roleBadge.label
+      }
+    >
+      {() => (
+        <div className="role-badge-pop">
+          <div className="deck-role-legend-group-title role-badge-pop-head">{tipText}</div>
+          <RoleBadgeKey highlightTone={multi ? undefined : roleBadge.tone} />
         </div>
       )}
-    </div>
+    </ToolbarPopover>
   );
 }
 
@@ -1829,11 +1765,25 @@ function ToolbarPopover({
   label,
   ariaLabel,
   icon,
+  triggerClassName,
+  triggerContent,
+  triggerTitle,
+  triggerAriaLabel,
+  wrapperClassName,
   children,
 }: {
   label?: string;
   ariaLabel?: string;
   icon?: React.ReactNode;
+  // Custom trigger styling/content. When set, replaces the default
+  // toolbar pill — ToolbarPopover still owns the <button> (and its
+  // ref), so non-toolbar callers (e.g. the tap-to-reveal role badge)
+  // reuse this popover's portal + viewport-clamping machinery.
+  triggerClassName?: string;
+  triggerContent?: React.ReactNode;
+  triggerTitle?: string;
+  triggerAriaLabel?: string;
+  wrapperClassName?: string;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -1896,7 +1846,10 @@ function ToolbarPopover({
     };
   }, [open]);
 
-  const handleToggle = () => {
+  const handleToggle = (e: React.MouseEvent) => {
+    // Keep the tap on the trigger — don't let it reach an ancestor
+    // handler (e.g. the deck row / grid tile that opens the card).
+    e.stopPropagation();
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
@@ -1932,19 +1885,26 @@ function ToolbarPopover({
     );
 
   return (
-    <div className="toolbar-popover" ref={wrapperRef}>
+    <div className={wrapperClassName ?? 'toolbar-popover'} ref={wrapperRef}>
       <button
         ref={buttonRef}
         type="button"
-        className={`toolbar-pill${open ? ' open' : ''}`}
-        aria-haspopup="menu"
+        className={triggerClassName ?? `toolbar-pill${open ? ' open' : ''}`}
+        aria-haspopup={triggerClassName ? 'dialog' : 'menu'}
         aria-expanded={open}
-        aria-label={!label ? ariaLabel : undefined}
+        aria-label={triggerAriaLabel ?? (!label ? ariaLabel : undefined)}
+        title={triggerTitle}
         onClick={handleToggle}
       >
-        {icon}
-        {label && <span className="toolbar-pill-label">{label}</span>}
-        <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
+        {triggerClassName ? (
+          triggerContent
+        ) : (
+          <>
+            {icon}
+            {label && <span className="toolbar-pill-label">{label}</span>}
+            <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
+          </>
+        )}
       </button>
       {panel}
     </div>
@@ -2100,16 +2060,7 @@ function DeckCardGrid({
                             ✦
                           </span>
                         )}
-                        {role && (
-                          <span
-                            className={`deck-card-grid-role deck-row-role-${role.tone}`}
-                            role="img"
-                            title={role.title}
-                            aria-label={role.title}
-                          >
-                            {role.label}
-                          </span>
-                        )}
+                        {role && <RoleBadge card={row.card} variant="grid" />}
                       </div>
                     )}
                   </li>
@@ -2337,29 +2288,12 @@ function DeckCardRow({
       )}
       {showPrefs.roles &&
         (roleBadge ? (
-          (row.card.multiRole ?? hasMultipleRoles(row.card.name)) ? (
-            <span
-              className="deck-row-role-badge deck-row-role-multi"
-              title={multiRoleTitle(row.card)}
-              aria-label={multiRoleTitle(row.card)}
-            >
-              <span className="deck-row-role-multi-dot" aria-hidden />
-            </span>
-          ) : (
-            <span
-              className={`deck-row-role-badge deck-row-role-${roleBadge.tone}`}
-              title={roleBadge.title}
-              aria-label={roleBadge.title}
-            >
-              {roleBadge.label}
-            </span>
-          )
+          <RoleBadge card={row.card} variant="row" />
         ) : (
           <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
         ))}
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
-        {row.foil && <span className="deck-row-foil">foil</span>}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
         <AllocationChip row={row} />
         {synergyReasons && synergyReasons.length > 0 && (
