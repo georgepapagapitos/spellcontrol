@@ -91,12 +91,13 @@ interface Props {
 }
 
 const PRELOAD_RADIUS = 2;
-// Slides rendered around the focused card while the open animation plays.
-// The sheet-rise is a 0.5s compositor transform; mounting the full slide list
-// in the same commit (a collection preview can be thousands of cards) stutters
-// it. Render a small window first, then expand to the full list once the rise
-// has finished — see the `renderAll` expansion effect below.
-const INITIAL_RENDER_RADIUS = 8;
+// Window of cards that get a *rich* slide (the 3D-transformed, box-shadowed
+// image frame). Every card still gets a bare placeholder div so the scroll
+// track keeps its full width and native scroll-snap is unaffected — but only
+// slides within WINDOW_RADIUS of the focused card mount the expensive frame.
+// Measured on-device: a few thousand rich frames drop the sheet to ~22fps;
+// keeping the rich set small holds 120fps. The window follows the focus.
+const WINDOW_RADIUS = 12;
 
 export function CardPreview({
   cards,
@@ -118,14 +119,6 @@ export function CardPreview({
   const sheetRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
-  // Slides rendered during the open animation; expands to the full list once
-  // the rise settles (see the renderAll effect). Captured once at mount via a
-  // lazy initializer — the setter is intentionally unused.
-  const [initialWindow] = useState(() => ({
-    lo: Math.max(0, index - INITIAL_RENDER_RADIUS),
-    hi: index + INITIAL_RENDER_RADIUS,
-  }));
-  const [renderAll, setRenderAll] = useState(false);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   // Per-card art-loaded flag. Drives the skeleton→image cross-fade so the
   // hero image lands gracefully under the sheet's rise animation instead
@@ -216,19 +209,6 @@ export function CardPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Expanding the slide list (renderAll) inserts slides to the LEFT of the
-  // focused card, shifting it off-center. Re-center instantly, before paint,
-  // so the expansion is invisible.
-  useLayoutEffect(() => {
-    if (!renderAll) return;
-    slideRefs.current[selected]?.scrollIntoView({
-      inline: 'center',
-      block: 'nearest',
-      behavior: 'instant' as ScrollBehavior,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renderAll]);
-
   useCenteredSlide(
     trackRef,
     slideRefs,
@@ -252,9 +232,9 @@ export function CardPreview({
         return next;
       });
     },
-    // renderAll changes the rendered slide set — re-run so the observer picks
-    // up the slides mounted by the post-rise expansion.
-    [cards, renderAll]
+    // Every card always has a placeholder slide div, so the observed set is
+    // stable for the life of the carousel — only `cards` identity matters.
+    [cards]
   );
 
   // Sync parent → carousel if the parent index changes externally.
@@ -315,32 +295,48 @@ export function CardPreview({
     shouldSuppressTilt: () => axisLockRef.current !== null,
   });
 
-  // Once the sheet-rise (0.5s) has played, mount the rest of the slides so
-  // keyboard / button navigation and far swipes can reach the whole list.
-  // Gated on an idle sheet: mounting the full slide list is a heavy reconcile,
-  // and firing it mid-gesture stutters the swipe-down dismiss. While the user
-  // is dragging (or the sheet is closing) the timer is held; it (re)starts
-  // 600ms after the sheet goes idle, so the expansion always lands in a quiet
-  // moment — never during the rise and never during a drag.
-  useEffect(() => {
-    if (renderAll || isDragging || isClosing) return;
-    const t = window.setTimeout(() => setRenderAll(true), 600);
-    return () => window.clearTimeout(t);
-  }, [renderAll, isDragging, isClosing]);
-
-  // Slide list lifted into a memo so a `dragY` re-render — useSwipeDownDismiss
-  // fires setDragY on every touchmove during a dismiss drag — reuses these
-  // elements instead of rebuilding one DOM subtree per card. For a large
-  // collection that per-frame rebuild is what made the dismiss drag choppy.
-  // Recomputes only when something the slides actually depend on changes.
+  // Slide list lifted into a memo so a re-render (e.g. the once-per-gesture
+  // isDragging toggle) reuses these elements instead of rebuilding one DOM
+  // subtree per card. Recomputes only when something the slides depend on
+  // changes — notably `selected`, which slides the rich-content window.
   const slideEls = useMemo(
     () =>
       cards.map((c, i) => {
-        // During the open animation only a window around the focused card is
-        // rendered; the rest mount once `renderAll` flips post-rise. Gate
-        // first so off-window cards skip all per-slide work.
-        const inWindow = renderAll || (i >= initialWindow.lo && i <= initialWindow.hi);
-        if (!inWindow) return null;
+        // Every card always renders a bare placeholder slide div: that keeps
+        // the scroll track full-width and native scroll-snap intact. Only
+        // cards within WINDOW_RADIUS of the focus mount the expensive image
+        // frame — a few thousand 3D-transformed frames is what crushed the
+        // compositor to ~22fps; keeping the rich set small holds 120fps.
+        const inWindow = Math.abs(i - selected) <= WINDOW_RADIUS;
+        const slideRef = (el: HTMLDivElement | null) => {
+          slideRefs.current[i] = el;
+        };
+        const onSlideClick = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          if (i !== selected) {
+            // Tap a peeking neighbor to advance to it.
+            slideRefs.current[i]?.scrollIntoView({
+              inline: 'center',
+              block: 'nearest',
+              behavior: 'smooth',
+            });
+          } else {
+            // Tap the active card to close — matches the natural
+            // "tap to dismiss" expectation on mobile and desktop alike.
+            beginClose();
+          }
+        };
+        if (!inWindow) {
+          // Placeholder: holds the slide's width/scroll-snap slot, nothing else.
+          return (
+            <div
+              className="card-preview-slide"
+              ref={slideRef}
+              key={`${c.scryfallId}-${i}`}
+              onClick={onSlideClick}
+            />
+          );
+        }
         const errored = imgErrors[c.scryfallId];
         const shouldMount = mounted.has(c.scryfallId);
         const style = classifyFoil(c);
@@ -348,25 +344,9 @@ export function CardPreview({
         return (
           <div
             className={`card-preview-slide${i === selected ? ' is-active' : ''}`}
-            ref={(el) => {
-              slideRefs.current[i] = el;
-            }}
+            ref={slideRef}
             key={`${c.scryfallId}-${i}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (i !== selected) {
-                // Tap a peeking neighbor to advance to it.
-                slideRefs.current[i]?.scrollIntoView({
-                  inline: 'center',
-                  block: 'nearest',
-                  behavior: 'smooth',
-                });
-              } else {
-                // Tap the active card to close — matches the natural
-                // "tap to dismiss" expectation on mobile and desktop alike.
-                beginClose();
-              }
-            }}
+            onClick={onSlideClick}
           >
             <div
               className={`card-preview-image-frame${foilClass}`}
@@ -447,7 +427,7 @@ export function CardPreview({
         );
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cards, mounted, selected, imgErrors, imgLoaded, flipped, renderAll]
+    [cards, mounted, selected, imgErrors, imgLoaded, flipped]
   );
 
   if (!cards[selected]) return null;
