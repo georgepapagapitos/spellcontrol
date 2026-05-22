@@ -285,6 +285,19 @@ export function BinderEditor() {
 
   useLockBodyScroll(isOpen);
 
+  // Close the topmost open dialog on Escape (collision prompt wins, since it
+  // renders above the editor).
+  useEffect(() => {
+    if (!isOpen && !collisionPrompt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (collisionPrompt) setCollisionPrompt(null);
+      else setEditingBinder(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, collisionPrompt, setEditingBinder]);
+
   // Over-capacity check uses the same estimate the editor shows: when
   // "keep all printings together" is on, count the printings it pulls in too,
   // so the warning doesn't silently under-count.
@@ -496,10 +509,16 @@ export function BinderEditor() {
 
   return (
     <>
-      <div className="modal-backdrop" onClick={() => setEditingBinder(null)}>
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-backdrop" role="presentation" onClick={() => setEditingBinder(null)}>
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="binder-editor-title"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="modal-header">
-            <h2>{existing ? 'Edit binder' : 'New binder'}</h2>
+            <h2 id="binder-editor-title">{existing ? 'Edit binder' : 'New binder'}</h2>
             <button
               className="modal-close"
               onClick={() => setEditingBinder(null)}
@@ -937,9 +956,21 @@ export function BinderEditor() {
       </div>
 
       {collisionPrompt && (
-        <div className="modal-backdrop" onClick={() => setCollisionPrompt(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="choice-dialog-title">Some binder names need a decision</h2>
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setCollisionPrompt(null)}
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="binder-collision-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="choice-dialog-title" id="binder-collision-title">
+              Some binder names need a decision
+            </h2>
             <ul className="choice-dialog-body" style={{ paddingLeft: '1.1rem' }}>
               {collisionPrompt.map((c) => (
                 <li key={c.name}>

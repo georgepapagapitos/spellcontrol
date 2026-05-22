@@ -32,6 +32,14 @@ export function Modal({
   useLockBodyScroll();
 
   useEffect(() => {
+    // Restore focus to whatever was focused before the modal opened, so
+    // keyboard / screen-reader users aren't dropped at the top of the page
+    // when it closes.
+    const prevFocused = document.activeElement as HTMLElement | null;
+    return () => prevFocused?.focus?.();
+  }, []);
+
+  useEffect(() => {
     if (!dismissable) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
