@@ -53,6 +53,11 @@
   --text-lg: 1.25rem; /* section titles */
   --text-xl: 1.5rem; /* page titles, taglines */
   --text-2xl: 2rem; /* hero */
+  /* Not a scale step — the iOS-zoom-safe floor for form controls. Mobile
+     Safari zooms the page on focus for any control under 16px (1rem at the
+     default root size) and never zooms back. Used only by the mobile input
+     rule in "Responsive enhancements" below. */
+  --text-input: 1rem;
 
   /* ── Effects ──────────────────────────────────────────────────────────── */
   --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -112,6 +117,15 @@
   --overlay-pad-top: max(3rem, calc(var(--safe-top) + 1rem));
   --overlay-pad-bottom: max(3rem, calc(var(--safe-bottom) + 1rem));
   --vh-safe: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+
+  /* ── Keyboard inset ───────────────────────────────────────────────────────
+     Pixels the on-screen keyboard occupies, published by lib/keyboard.ts.
+     ~0 on native (the WebView resizes) and on browsers honoring
+     interactive-widget=resizes-content; the real gap on iOS Safari. Surfaces
+     pinned to the bottom edge (sheets, the toast viewport) dock at
+     `var(--keyboard-inset)` so they ride above the keyboard; scroll regions
+     add it to `scroll-padding-bottom` so focused inputs scroll clear. */
+  --keyboard-inset: 0px;
 
   /* ── Magic colors (MTG-canonical, do not retheme) ─────────────────────── */
   --rarity-mythic-from: #ffd090;
@@ -187,6 +201,9 @@ body {
      content edge at every breakpoint. */
   --page-gutter: 1rem;
   padding: 0 var(--page-gutter) 2rem;
+  /* When a focused field is scrolled into view, keep it clear of the soft
+     keyboard (and leave a 1rem cushion). No-op when no keyboard is shown. */
+  scroll-padding-bottom: calc(var(--keyboard-inset) + 1rem);
 }
 
 /* Phones get a tighter gutter — every pixel of side padding eats ~9%
@@ -3409,7 +3426,8 @@ hr {
 
   .binder-picker-sheet {
     position: fixed;
-    bottom: 0;
+    /* Ride above the soft keyboard — see .card-picker-sheet. */
+    bottom: var(--keyboard-inset);
     left: 0;
     right: 0;
     z-index: var(--z-sheet-fg);
@@ -3418,7 +3436,7 @@ hr {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow-sheet);
     padding: 0.25rem 0.5rem calc(0.75rem + var(--safe-bottom));
-    max-height: calc(var(--vh-safe) * 0.75);
+    max-height: calc(var(--vh-safe) * 0.75 - var(--keyboard-inset));
     display: flex;
     flex-direction: column;
     animation: binder-sheet-slide 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -3673,7 +3691,9 @@ hr {
   box-shadow: var(--shadow-modal);
   max-width: 720px;
   width: 100%;
-  max-height: calc(var(--vh-safe) - 6rem);
+  /* Subtract the keyboard inset so a modal hosting a focused input never
+     extends behind the keyboard — its body just scrolls within what's left. */
+  max-height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
   display: flex;
   flex-direction: column;
 }
@@ -6266,15 +6286,20 @@ hr {
 }
 
 /* ── Responsive enhancements ────────────────────────────────────────────── */
-/* Prevent iOS auto-zoom on focused inputs (min 16px font size on mobile).
-   Textarea opts out — the chunky monospace at 16px crowds the paste area at
-   rest, and zoom-on-focus is acceptable since you're typing anyway. */
+/* Prevent iOS Safari / WKWebView auto-zoom on focus. Mobile Safari zooms the
+   page whenever a focused control's font-size is below 16px — and the page
+   never zooms back out, so it reads as a janky keyboard interaction. The body
+   token (--text-base ≈ 15.2px) is just under that line, so every field must
+   be pinned to exactly 16px on mobile. The `:not()` list keeps non-typing
+   controls (checkbox/radio/range/file/color) out of it; textarea is included
+   so the paste areas don't zoom either. */
 @media (max-width: 1024px) {
   select,
-  input[type='number'],
-  input[type='text'],
-  input[type='search'] {
-    font-size: var(--text-base);
+  textarea,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(
+      [type='color']
+    ) {
+    font-size: var(--text-input);
   }
 }
 
@@ -8969,7 +8994,9 @@ hr {
 
 .card-picker-sheet {
   position: absolute;
-  bottom: 0;
+  /* Dock above the on-screen keyboard (0 unless a browser floats it, e.g.
+     iOS Safari) so a focused search field inside the sheet stays visible. */
+  bottom: var(--keyboard-inset);
   left: 0;
   right: 0;
   background: var(--surface);
@@ -8978,8 +9005,9 @@ hr {
   box-shadow: var(--shadow-sheet);
   /* Cap height against the safe viewport so the sheet's top edge clears
      the status bar even when fully expanded; pad the bottom so its inner
-     content sits above the home gesture. Both are no-ops on web. */
-  max-height: calc(var(--vh-safe) * 0.85);
+     content sits above the home gesture. Both are no-ops on web. Subtract
+     the keyboard inset so the sheet shrinks rather than slide behind it. */
+  max-height: calc(var(--vh-safe) * 0.85 - var(--keyboard-inset));
   padding-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
