@@ -44,7 +44,7 @@ export function ZoneViewerModal({
   const titleLabel = topN != null ? `Top ${topN} of ${zone}` : zone;
 
   return (
-    <div className="playtest-modal" role="dialog" aria-label={`${zone} viewer`}>
+    <div className="playtest-modal" role="dialog" aria-modal="true" aria-label={`${zone} viewer`}>
       <div className="playtest-modal__backdrop" onClick={onClose} />
       <div className="playtest-modal__panel">
         <div className="playtest-modal__header">
