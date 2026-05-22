@@ -152,6 +152,13 @@ interface PlayState {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 /**
+ * Installed by startPolling, removed by stopPolling. Pauses the poll interval
+ * while the tab/app is backgrounded — a hidden game board has no reason to keep
+ * fetching state every 2.5s, and an abandoned-but-open tab would otherwise poll
+ * indefinitely. Re-shows trigger an immediate catch-up poll.
+ */
+let pollVisibilityHandler: (() => void) | null = null;
+/**
  * Online dispatch model: every dispatchOnline call applies optimistically to
  * the UI immediately, then appends to a pending queue. A single-flight
  * flusher drains the queue, sending each batch with the *server-confirmed*
@@ -294,13 +301,17 @@ export const usePlayStore = create<PlayState>()(
         const code = serverCode;
         if (!code) return;
         try {
-          const fresh = await apiGetGame(code);
+          // Pass our known version so an unchanged game short-circuits to a
+          // tiny `{ unchanged: true }` reply (resolves to null) instead of
+          // re-shipping the whole GameState on every 2.5s poll.
+          const fresh = await apiGetGame(code, serverVersion);
           // Don't clobber an in-flight optimistic state: if we're flushing,
           // skip this update — the flusher will adopt the server's reply.
           if (flushPromise) return;
           // Only adopt if it's newer than what we have. With no pending actions,
-          // server is authoritative.
-          if (pendingActions.length === 0 && fresh.version > serverVersion) {
+          // server is authoritative. A null reply means the version matched —
+          // nothing to do.
+          if (fresh && pendingActions.length === 0 && fresh.version > serverVersion) {
             serverVersion = fresh.version;
             set({ online: fresh, onlineError: null });
             recordIfFinished(fresh, set);
@@ -350,11 +361,15 @@ export const usePlayStore = create<PlayState>()(
                 const e = err as Error & { status?: number };
                 if (e.status === 409) {
                   // Server is ahead — drop the optimistic stack and refetch.
+                  // No knownVersion here, so apiGetGame always returns the full
+                  // state (never the null short-circuit).
                   pendingActions = [];
                   try {
                     const fresh = await apiGetGame(code);
-                    serverVersion = fresh.version;
-                    set({ online: fresh, onlineError: 'Action lost a race — refreshed.' });
+                    if (fresh) {
+                      serverVersion = fresh.version;
+                      set({ online: fresh, onlineError: 'Action lost a race — refreshed.' });
+                    }
                   } catch {
                     /* surfaced via subsequent poll */
                   }
@@ -362,8 +377,12 @@ export const usePlayStore = create<PlayState>()(
                   pendingActions = [];
                   try {
                     const fresh = await apiGetGame(code);
-                    serverVersion = fresh.version;
-                    set({ online: fresh, onlineError: e.message || 'Not allowed.' });
+                    if (fresh) {
+                      serverVersion = fresh.version;
+                      set({ online: fresh, onlineError: e.message || 'Not allowed.' });
+                    } else {
+                      set({ onlineError: e.message || 'Not allowed.' });
+                    }
                   } catch {
                     set({ onlineError: e.message || 'Not allowed.' });
                   }
@@ -406,11 +425,38 @@ export const usePlayStore = create<PlayState>()(
       },
 
       startPolling: () => {
-        if (pollTimer) return;
+        // `pollVisibilityHandler` (not `pollTimer`) is the "already polling"
+        // marker: while the tab is hidden the interval is torn down but the
+        // subscription is still logically active.
+        if (pollVisibilityHandler) return;
         set({ onlinePolling: true });
-        pollTimer = setInterval(() => {
-          void get().refreshOnline();
-        }, POLL_INTERVAL_MS);
+
+        const tick = () => void get().refreshOnline();
+        // Reconcile the interval with the current visibility state: run it
+        // while visible, tear it down (and do nothing) while hidden. `catchUp`
+        // fires one immediate poll when an interval is (re)created — used on a
+        // hidden→visible transition so a returning tab doesn't wait a full
+        // interval, but skipped on the initial start (callers already hold
+        // fresh state, or do their own first refresh).
+        const ensureInterval = (catchUp: boolean) => {
+          const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+          if (hidden) {
+            if (pollTimer) {
+              clearInterval(pollTimer);
+              pollTimer = null;
+            }
+          } else if (!pollTimer) {
+            pollTimer = setInterval(tick, POLL_INTERVAL_MS);
+            if (catchUp) tick();
+          }
+        };
+
+        const sync = () => ensureInterval(true);
+        pollVisibilityHandler = sync;
+        if (typeof document !== 'undefined') {
+          document.addEventListener('visibilitychange', sync);
+        }
+        ensureInterval(false);
       },
 
       stopPolling: () => {
@@ -418,6 +464,10 @@ export const usePlayStore = create<PlayState>()(
           clearInterval(pollTimer);
           pollTimer = null;
         }
+        if (pollVisibilityHandler && typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', pollVisibilityHandler);
+        }
+        pollVisibilityHandler = null;
         set({ onlinePolling: false });
       },
 
