@@ -1,4 +1,4 @@
-import { Layers, List, Menu, Settings, Users, X } from 'lucide-react';
+import { Layers, List, Settings, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
@@ -94,11 +94,14 @@ export function NavFab() {
           aria-controls="nav-fab-menu"
           onClick={() => setExpanded((open) => !open)}
         >
-          {expanded ? (
-            <X width={24} height={24} strokeWidth={2} aria-hidden="true" />
-          ) : (
-            <Menu width={24} height={24} strokeWidth={2} aria-hidden="true" />
-          )}
+          {/* Three bars that morph between a hamburger and an X — see the
+              `.nav-fab-burger` rules. The button's aria-label carries the
+              state for assistive tech. */}
+          <span className="nav-fab-burger" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
           {!expanded && hasActiveGame && <span className="nav-fab-dot" aria-hidden="true" />}
         </button>
       </div>
