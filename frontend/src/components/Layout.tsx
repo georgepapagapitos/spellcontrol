@@ -2,10 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
+import { NavFab } from './NavFab';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
 import { ScrollContainerContext } from '../lib/scroll-container';
+import { isNativePlatform } from '../lib/platform';
 
 export function Layout() {
   // Store hydration is owned by the sync layer (see startSync in lib/sync.ts).
@@ -54,7 +56,10 @@ export function Layout() {
           </div>
         </ScrollContainerContext.Provider>
       </main>
-      <MobileTabBar />
+      {/* Native uses a floating draggable nav FAB; web mobile keeps the
+          always-visible bottom tab bar (the more discoverable pattern for
+          the open web). */}
+      {isNativePlatform() ? <NavFab /> : <MobileTabBar />}
       <ToastViewport />
     </div>
   );
