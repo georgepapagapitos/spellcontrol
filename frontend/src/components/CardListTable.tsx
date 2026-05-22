@@ -567,6 +567,19 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
   }, [filtered, sortKey, sortDir, setMap]);
 
+  // Stable parallel arrays for the card preview carousel. Built inline in JSX,
+  // these would get a fresh identity on every render — and since each swipe
+  // re-renders this component (via onIndexChange → setPreviewIndex), that
+  // churned CardPreview's IntersectionObserver (deps: [cards]) on every swipe,
+  // re-observing every slide. Memoizing on `sorted` keeps the reference stable,
+  // matching how BinderView feeds its memoized flat arrays.
+  const previewCards = useMemo(() => sorted.map((r) => r.card), [sorted]);
+  const previewSectionLabels = useMemo(
+    () => sorted.map((r) => (r.binders.length === 0 ? 'Uncategorized' : '')),
+    [sorted]
+  );
+  const previewPageNumbers = useMemo(() => sorted.map(() => 0), [sorted]);
+
   // "Select all" is scoped to the rows currently shown (post-search/filter),
   // not the whole collection — selecting things you can't see would be a
   // footgun for the bulk delete/move actions. allSelected drives the toggle
@@ -1038,11 +1051,11 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
 
       {previewIndex !== null && sorted[previewIndex] && (
         <CardPreview
-          cards={sorted.map((r) => r.card)}
+          cards={previewCards}
           index={previewIndex}
           binderName="Collection"
-          sectionLabels={sorted.map((r) => (r.binders.length === 0 ? 'Uncategorized' : ''))}
-          pageNumbers={sorted.map(() => 0)}
+          sectionLabels={previewSectionLabels}
+          pageNumbers={previewPageNumbers}
           totalPages={0}
           getStackBinders={(i) => sorted[i]?.binders ?? []}
           getStackAllocations={(i) => (sorted[i] ? allocationsFor(sorted[i].card) : [])}
