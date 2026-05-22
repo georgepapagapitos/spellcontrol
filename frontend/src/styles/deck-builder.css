@@ -5088,7 +5088,9 @@ input.deck-row-qty-input.deck-row-qty-missing {
   pointer-events: none;
   display: flex;
   justify-content: center;
-  z-index: var(--z-modal);
+  /* Above --z-overlay (game board / playtest fullscreen) so toasts fired
+     during a game stay visible — at --z-modal they were occluded. */
+  z-index: var(--z-tooltip);
 }
 
 .toast-list {
