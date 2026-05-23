@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
@@ -124,11 +125,20 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 export async function loadAuthedUser(token: string): Promise<AuthedUser | null> {
   const claims = verifySession(token);
   if (!claims) return null;
+  return loadUserById(claims.id);
+}
+
+/**
+ * Loads an AuthedUser straight from the DB by id (current username + role).
+ * Used by the OAuth handoff exchange, where there is no session token yet —
+ * the user has just been resolved/created and we need to mint their session.
+ */
+export async function loadUserById(id: string): Promise<AuthedUser | null> {
   const db = getDb();
   const rows = await db
     .select({ id: users.id, username: users.username, role: users.role })
     .from(users)
-    .where(eq(users.id, claims.id))
+    .where(eq(users.id, id))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
@@ -172,4 +182,159 @@ export function validatePassword(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   if (raw.length < MIN_PASSWORD_LENGTH || raw.length > 200) return null;
   return raw;
+}
+
+/**
+ * Derive a unique, valid username for an SSO account from its email. The
+ * email local-part is lowercased and stripped to the USERNAME_REGEX charset,
+ * padded if too short, then collision-suffixed with a counter until free. The
+ * suffix is trimmed into the base so the result always stays within 32 chars.
+ */
+export async function generateUsername(email: string): Promise<string> {
+  const local = (email.split('@')[0] ?? '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  let base = local.length >= 3 ? local : `${local}player`;
+  base = base.slice(0, 32);
+  const db = getDb();
+  for (let i = 0; i < 10_000; i++) {
+    const suffix = i === 0 ? '' : String(i);
+    const candidate = suffix ? base.slice(0, 32 - suffix.length) + suffix : base;
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.username, candidate))
+      .limit(1);
+    if (existing.length === 0) return candidate;
+  }
+  // Pathological fallback — effectively unreachable with a 10k collision span.
+  return `player-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+const OAUTH_STATE_TTL_SECONDS = 10 * 60; // 10 minutes — covers a slow consent
+const OAUTH_STATE_AUDIENCE = 'oauth-state';
+
+export type OAuthPlatform = 'web' | 'native';
+/** 'signin' = a regular sign-in flow; 'link' = attach Google to the authed user. */
+export type OAuthMode = 'signin' | 'link';
+
+export interface OAuthState {
+  platform: OAuthPlatform;
+  nonce: string;
+  mode: OAuthMode;
+  /** Set only when mode === 'link': the user the callback should link to. */
+  userId?: string;
+}
+
+export interface OAuthStateInput {
+  platform: OAuthPlatform;
+  mode?: OAuthMode;
+  /** Required when mode === 'link'. */
+  userId?: string;
+}
+
+/**
+ * Sign the CSRF `state` carried through the Google consent round-trip. It is
+ * a short-lived JWT (distinct `aud` so it can never be mistaken for a session
+ * token) recording which platform started the flow and, for link-mode, which
+ * SpellControl user the callback should attach the Google identity to.
+ */
+export function signOAuthState(input: OAuthStateInput): string {
+  const payload: Record<string, unknown> = {
+    platform: input.platform,
+    nonce: crypto.randomUUID(),
+    mode: input.mode ?? 'signin',
+  };
+  if (input.userId) payload.userId = input.userId;
+  return jwt.sign(payload, getJwtSecret(), {
+    audience: OAUTH_STATE_AUDIENCE,
+    expiresIn: OAUTH_STATE_TTL_SECONDS,
+  });
+}
+
+/** Verify a `state` token from the Google callback; null if invalid/expired. */
+export function verifyOAuthState(token: string): OAuthState | null {
+  try {
+    const payload = jwt.verify(token, getJwtSecret(), {
+      audience: OAUTH_STATE_AUDIENCE,
+    }) as jwt.JwtPayload;
+    return {
+      platform: payload.platform === 'native' ? 'native' : 'web',
+      nonce: typeof payload.nonce === 'string' ? payload.nonce : '',
+      mode: payload.mode === 'link' ? 'link' : 'signin',
+      userId: typeof payload.userId === 'string' ? payload.userId : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const LINK_INTENT_TTL_SECONDS = 5 * 60; // 5 min — covers the trip through Browser.open
+const LINK_INTENT_AUDIENCE = 'oauth-link-intent';
+
+/**
+ * Native-only: a short-lived signed token that proves "the authed user
+ * approved a link-Google flow." The native app gets this via an authed
+ * fetch (cookie travels through CapacitorHttp), then opens the system browser
+ * pointed at /google/link?intent=<token>. The system browser has no app
+ * cookies, so this token is how the link route knows which user to link to.
+ * Web doesn't need this — its top-level navigation to /google/link sends the
+ * session cookie naturally.
+ */
+export function signLinkIntent(userId: string): string {
+  return jwt.sign({ userId }, getJwtSecret(), {
+    audience: LINK_INTENT_AUDIENCE,
+    expiresIn: LINK_INTENT_TTL_SECONDS,
+  });
+}
+
+export function verifyLinkIntent(token: string): { userId: string } | null {
+  try {
+    const payload = jwt.verify(token, getJwtSecret(), {
+      audience: LINK_INTENT_AUDIENCE,
+    }) as jwt.JwtPayload;
+    if (typeof payload.userId !== 'string') return null;
+    return { userId: payload.userId };
+  } catch {
+    return null;
+  }
+}
+
+const SIGNUP_TOKEN_TTL_SECONDS = 15 * 60; // 15 min — time to pick a username
+const SIGNUP_TOKEN_AUDIENCE = 'oauth-signup';
+
+/**
+ * The verified identity carried between a first-time OAuth callback and the
+ * "choose a username" screen. No account exists yet — the account is created
+ * only when the user submits a username to /google/complete-signup. Stateless
+ * (a signed JWT, distinct `aud`); replay is bounded because creating the
+ * account writes a unique `(provider, providerSubject)` row.
+ */
+export interface SignupToken {
+  provider: 'google';
+  sub: string;
+  email: string | null;
+  emailVerified: boolean;
+}
+
+export function signSignupToken(payload: SignupToken): string {
+  return jwt.sign(payload, getJwtSecret(), {
+    audience: SIGNUP_TOKEN_AUDIENCE,
+    expiresIn: SIGNUP_TOKEN_TTL_SECONDS,
+  });
+}
+
+export function verifySignupToken(token: string): SignupToken | null {
+  try {
+    const p = jwt.verify(token, getJwtSecret(), {
+      audience: SIGNUP_TOKEN_AUDIENCE,
+    }) as jwt.JwtPayload;
+    if (p.provider !== 'google' || typeof p.sub !== 'string') return null;
+    return {
+      provider: 'google',
+      sub: p.sub,
+      email: typeof p.email === 'string' ? p.email : null,
+      emailVerified: p.emailVerified === true,
+    };
+  } catch {
+    return null;
+  }
 }

@@ -692,6 +692,21 @@ export async function startSync(userId?: string): Promise<void> {
   });
 }
 
+/**
+ * Guest-mode hydration. Loads the locally-cached collection into the store
+ * WITHOUT starting sync — guests have no account, so no subscribers attach and
+ * nothing is ever pushed; their data lives only in this device's IndexedDB.
+ *
+ * When a guest later signs in, startSync() re-hydrates, attaches subscribers,
+ * and the guest-promotion branch in pullAndReconcile() pushes this local data
+ * up to the new (empty) account. Cards live in IndexedDB only, so without this
+ * step a guest's collection page would be stuck on its `hydrating` state.
+ */
+export async function hydrateLocal(): Promise<void> {
+  loadVersion();
+  await hydrateFromCache();
+}
+
 const ORACLE_BACKFILL_CHUNK = 1000;
 
 async function backfillOracleIds(): Promise<void> {

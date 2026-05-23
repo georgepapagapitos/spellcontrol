@@ -10,7 +10,6 @@ import { AddCardSheet } from '../components/AddCardSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
-import { useAuth } from '../store/auth';
 
 export function CollectionPage() {
   const cards = useCollectionStore((s) => s.cards);
@@ -21,7 +20,6 @@ export function CollectionPage() {
   const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
   const [addCardOpen, setAddCardOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const user = useAuth((s) => s.user);
 
   const [statsOpen, setStatsOpen] = useState(false);
 
@@ -109,18 +107,16 @@ export function CollectionPage() {
                 <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
                 <span>Import cards</span>
               </button>
-              {user && (
-                <button
-                  type="button"
-                  className="pill-btn collection-hero-action"
-                  aria-haspopup="dialog"
-                  onClick={() => setShareOpen(true)}
-                  title="Share a read-only link to this collection"
-                >
-                  <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                  <span>Share</span>
-                </button>
-              )}
+              <button
+                type="button"
+                className="pill-btn collection-hero-action"
+                aria-haspopup="dialog"
+                onClick={() => setShareOpen(true)}
+                title="Share a read-only link to this collection"
+              >
+                <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Share</span>
+              </button>
             </div>
           </header>
           <CardListTable cards={cards} binders={materialized} setMap={setMap} />
