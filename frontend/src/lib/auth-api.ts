@@ -113,6 +113,27 @@ export async function completeGoogleSignup(
 }
 
 /**
+ * Account linking, password-confirmed: the user picked a username that's
+ * already taken; if it's their existing account they can prove ownership by
+ * supplying the password, and the Google identity gets attached to it.
+ * Throws with `.status === 401` on bad credentials, `.status === 409` if that
+ * account already has a Google account linked.
+ */
+export async function linkGoogleWithPassword(
+  signupToken: string,
+  username: string,
+  password: string
+): Promise<AuthUser> {
+  const res = await authedFetch('/api/auth/google/link-with-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signupToken, username, password }),
+  });
+  const data = await handleResponse<{ user: AuthUser }>(res);
+  return data.user;
+}
+
+/**
  * Permanently delete the current account and all server-side data. The backend
  * deletes the `users` row; every user-owned table cascades. The session cookie
  * is cleared by the response. Callers must NOT flush pending sync writes first

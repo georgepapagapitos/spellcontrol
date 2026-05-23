@@ -10,6 +10,10 @@ const USERNAME_RE = /^[a-z0-9_-]{3,32}$/;
  * username before the account is created. Reached only via the OAuth callback,
  * which puts a short-lived signup token (and a suggested username) in the URL
  * hash — on web by a redirect, on native by the deep-link handler.
+ *
+ * If the chosen username is already taken, the screen also offers a
+ * password-confirmed link: prove ownership of the existing account and the
+ * Google identity gets attached to it instead of creating a duplicate.
  */
 export default function ChooseUsernamePage() {
   const location = useLocation();
@@ -25,30 +29,52 @@ export default function ChooseUsernamePage() {
   const error = useAuth((s) => s.error);
   const clearError = useAuth((s) => s.clearError);
   const completeGoogleSignup = useAuth((s) => s.completeGoogleSignup);
+  const linkGoogleWithPassword = useAuth((s) => s.linkGoogleWithPassword);
 
   const [username, setUsername] = useState(suggested);
   const [submitting, setSubmitting] = useState(false);
+  // The exact username that triggered a "taken" 409, plus the link panel's
+  // own state. Clearing `takenName` hides the panel; we clear it whenever the
+  // user edits the username away from it, so picking a new name returns to
+  // the plain create flow.
+  const [takenName, setTakenName] = useState<string | null>(null);
+  const [linkPassword, setLinkPassword] = useState('');
+  const [linking, setLinking] = useState(false);
 
   // No token → a stale or hand-typed URL; there's nothing to finish here.
   useEffect(() => {
     if (!token) navigate('/auth', { replace: true });
   }, [token, navigate]);
 
-  // Account created (here, or already authed) → into the app.
+  // Account created or linked (here, or already authed) → into the app.
   useEffect(() => {
     if (status === 'authed') navigate('/', { replace: true });
   }, [status, navigate]);
 
   const normalized = username.trim().toLowerCase();
   const valid = USERNAME_RE.test(normalized);
+  const showLinkPanel = takenName !== null && takenName === normalized;
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleCreate(e: FormEvent) {
     e.preventDefault();
     if (!valid || submitting) return;
     setSubmitting(true);
-    // On success the status effect navigates away; on failure `error` shows.
-    await completeGoogleSignup(token, normalized);
+    const result = await completeGoogleSignup(token, normalized);
     setSubmitting(false);
+    if (!result.ok && result.status === 409) {
+      setTakenName(normalized);
+      setLinkPassword('');
+    }
+    // On success the status effect navigates; on other failures `error` shows.
+  }
+
+  async function handleLink(e: FormEvent) {
+    e.preventDefault();
+    if (!takenName || !linkPassword || linking) return;
+    setLinking(true);
+    await linkGoogleWithPassword(token, takenName, linkPassword);
+    setLinking(false);
+    // Success → status effect navigates; failure → error displays.
   }
 
   if (!token) return null;
@@ -62,7 +88,7 @@ export default function ChooseUsernamePage() {
           to match your email.
         </p>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleCreate} className="auth-form">
           <label className="auth-field">
             <span>Username</span>
             <input
@@ -75,6 +101,10 @@ export default function ChooseUsernamePage() {
               onChange={(e) => {
                 setUsername(e.target.value);
                 if (error) clearError();
+                // Editing away from the taken name returns to plain create-mode.
+                if (takenName && e.target.value.trim().toLowerCase() !== takenName) {
+                  setTakenName(null);
+                }
               }}
               required
               minLength={3}
@@ -105,6 +135,38 @@ export default function ChooseUsernamePage() {
             {submitting ? 'Creating account…' : 'Create account'}
           </button>
         </form>
+
+        {showLinkPanel ? (
+          <>
+            <div className="auth-divider">or</div>
+            <form onSubmit={handleLink} className="auth-form">
+              <p className="auth-subtitle">
+                Already have a <strong>{takenName}</strong> account? Enter its password to link
+                Google to it instead of creating a new account.
+              </p>
+              <label className="auth-field">
+                <span>Password for {takenName}</span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={linkPassword}
+                  onChange={(e) => {
+                    setLinkPassword(e.target.value);
+                    if (error) clearError();
+                  }}
+                  required
+                />
+              </label>
+              <button
+                type="submit"
+                className="auth-submit"
+                disabled={linking || linkPassword.length === 0}
+              >
+                {linking ? 'Linking…' : `Link Google to ${takenName}`}
+              </button>
+            </form>
+          </>
+        ) : null}
       </div>
     </div>
   );

@@ -82,19 +82,44 @@ describe('completeGoogleSignup', () => {
       username: 'picked',
       role: 'user',
     });
-    const ok = await useAuth.getState().completeGoogleSignup('signup-token', 'picked');
-    expect(ok).toBe(true);
+    const result = await useAuth.getState().completeGoogleSignup('signup-token', 'picked');
+    expect(result.ok).toBe(true);
     expect(useAuth.getState().status).toBe('authed');
     expect(useAuth.getState().user?.username).toBe('picked');
   });
 
-  it('surfaces an error when the username is taken', async () => {
-    vi.spyOn(authApi, 'completeGoogleSignup').mockRejectedValue(
-      new Error('That username is already taken.')
-    );
-    const ok = await useAuth.getState().completeGoogleSignup('signup-token', 'taken');
-    expect(ok).toBe(false);
+  it('surfaces the 409 status so the page can offer the link flow', async () => {
+    const err = Object.assign(new Error('That username is already taken.'), { status: 409 });
+    vi.spyOn(authApi, 'completeGoogleSignup').mockRejectedValue(err);
+    const result = await useAuth.getState().completeGoogleSignup('signup-token', 'taken');
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(409);
     expect(useAuth.getState().error).toMatch(/taken/i);
+  });
+});
+
+describe('linkGoogleWithPassword', () => {
+  it('attaches Google to a verified existing account', async () => {
+    vi.spyOn(authApi, 'linkGoogleWithPassword').mockResolvedValue({
+      id: 'u1',
+      username: 'george',
+      role: 'user',
+    });
+    const ok = await useAuth
+      .getState()
+      .linkGoogleWithPassword('signup-token', 'george', 'correct horse battery');
+    expect(ok).toBe(true);
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().user?.username).toBe('george');
+  });
+
+  it('surfaces an error on a bad password', async () => {
+    vi.spyOn(authApi, 'linkGoogleWithPassword').mockRejectedValue(
+      new Error('Invalid username or password.')
+    );
+    const ok = await useAuth.getState().linkGoogleWithPassword('signup-token', 'george', 'wrong');
+    expect(ok).toBe(false);
+    expect(useAuth.getState().error).toMatch(/invalid/i);
   });
 });
 

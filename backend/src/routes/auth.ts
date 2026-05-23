@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
   clearSessionCookie,
   generateUsername,
@@ -36,7 +36,7 @@ import {
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb } from '../db';
-import { users, userData } from '../db/schema';
+import { authIdentities, users, userData } from '../db/schema';
 
 /** Custom-scheme deep link the native OAuth flow returns into the app. */
 const NATIVE_CALLBACK_SCHEME = 'spellcontrol://oauth/callback';
@@ -274,6 +274,84 @@ authRouter.post('/google/complete-signup', oauthLimiter, async (req: Request, re
   );
   setSessionCookie(res, signSession(user));
   res.status(201).json({ user });
+});
+
+/**
+ * Account linking, password-confirmed: when the username chosen on the
+ * sign-up screen is already taken, the user can prove they own that account
+ * by providing its password — this attaches the Google identity to it and
+ * signs them in (instead of creating a new account). The password is the
+ * ownership proof; we never link on email alone.
+ */
+authRouter.post('/google/link-with-password', oauthLimiter, async (req: Request, res: Response) => {
+  const signupToken = typeof req.body?.signupToken === 'string' ? req.body.signupToken : '';
+  const identity = verifySignupToken(signupToken);
+  if (!identity) {
+    return res
+      .status(401)
+      .json({ error: 'Your sign-up link expired. Please sign in with Google again.' });
+  }
+
+  // Race: if the Google identity got linked between this screen rendering
+  // and the user submitting (another tab, a retry), just sign them in.
+  const alreadyLinked = await findGoogleUser(identity.sub);
+  if (alreadyLinked) {
+    setSessionCookie(res, signSession(alreadyLinked));
+    return res.json({ user: alreadyLinked });
+  }
+
+  const username = normalizeUsername(req.body?.username);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  // Generic error on every credential-related failure so we never leak
+  // whether the username exists or how it authenticates.
+  const failure = () => res.status(401).json({ error: 'Invalid username or password.' });
+  if (!username || !password) return failure();
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: users.id,
+      username: users.username,
+      passwordHash: users.passwordHash,
+      role: users.role,
+    })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+  const user = rows[0];
+  if (!user || !user.passwordHash) {
+    // Dummy compare keeps timing roughly constant for unknown users and
+    // SSO-only accounts (no password).
+    await verifyPassword(password, '$2a$12$abcdefghijklmnopqrstuvCwVlH7bC/uHKRkEy0eOxn3oS2WfXm6Vu');
+    return failure();
+  }
+  const ok = await verifyPassword(password, user.passwordHash);
+  if (!ok) return failure();
+
+  // Refuse a second Google link on the same account — the user should sign
+  // in with the one already attached.
+  const existing = await db
+    .select({ providerSubject: authIdentities.providerSubject })
+    .from(authIdentities)
+    .where(and(eq(authIdentities.userId, user.id), eq(authIdentities.provider, 'google')))
+    .limit(1);
+  if (existing.length > 0) {
+    return res.status(409).json({
+      error: 'This account already has a Google account linked. Sign in with that one.',
+    });
+  }
+
+  await db.insert(authIdentities).values({
+    provider: 'google',
+    providerSubject: identity.sub,
+    userId: user.id,
+    createdAt: Date.now(),
+  });
+
+  const role: UserRole = user.role === 'admin' ? 'admin' : 'user';
+  const authed = { id: user.id, username: user.username, role };
+  setSessionCookie(res, signSession(authed));
+  res.json({ user: authed });
 });
 
 /**

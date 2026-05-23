@@ -182,6 +182,82 @@ d('GET /api/auth/google/callback — returning user', () => {
   });
 });
 
+d('POST /api/auth/google/link-with-password', () => {
+  /** Register a password-only account; returns the username. */
+  async function registerPassword(username: string, password = 'correct horse battery') {
+    const res = await request(app).post('/api/auth/register').send({ username, password });
+    expect(res.status).toBe(201);
+    return username;
+  }
+
+  /** Drive a Google callback for a fresh identity and return its signup token. */
+  async function freshSignupToken(sub: string) {
+    const cb = await callback(sub, `${sub}@example.com`, 'web');
+    return signupTokenFromWeb(cb.headers.location);
+  }
+
+  it('links a Google identity to a password account on a valid password', async () => {
+    await registerPassword('link-alice', 'correct horse battery');
+    const token = await freshSignupToken('link-alice-sub');
+    const res = await request(app)
+      .post('/api/auth/google/link-with-password')
+      .send({ signupToken: token, username: 'link-alice', password: 'correct horse battery' });
+    expect(res.status).toBe(200);
+    expect(res.body.user.username).toBe('link-alice');
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
+
+    const { rows } = await pool.query(
+      `SELECT user_id FROM auth_identities WHERE provider_subject = 'link-alice-sub'`
+    );
+    expect(rows.length).toBe(1);
+    // After linking, a follow-up Google callback for the same sub signs the
+    // user straight in to the *existing* account (no second account created).
+    const cb2 = await callback('link-alice-sub', 'link-alice-sub@example.com', 'web');
+    expect(cb2.headers.location).toBe('/');
+  });
+
+  it('rejects a wrong password with a generic 401', async () => {
+    await registerPassword('link-bob', 'correct horse battery');
+    const token = await freshSignupToken('link-bob-sub');
+    const res = await request(app)
+      .post('/api/auth/google/link-with-password')
+      .send({ signupToken: token, username: 'link-bob', password: 'wrong wrong wrong' });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/invalid/i);
+  });
+
+  it('returns the same generic 401 for an unknown username', async () => {
+    const token = await freshSignupToken('link-ghost-sub');
+    const res = await request(app)
+      .post('/api/auth/google/link-with-password')
+      .send({ signupToken: token, username: 'no-such-user', password: 'correct horse battery' });
+    expect(res.status).toBe(401);
+  });
+
+  it('refuses to add a second Google link to an already-linked account', async () => {
+    await registerPassword('link-twice', 'correct horse battery');
+    const t1 = await freshSignupToken('link-twice-sub-1');
+    await request(app)
+      .post('/api/auth/google/link-with-password')
+      .send({ signupToken: t1, username: 'link-twice', password: 'correct horse battery' });
+    const t2 = await freshSignupToken('link-twice-sub-2');
+    const res = await request(app)
+      .post('/api/auth/google/link-with-password')
+      .send({ signupToken: t2, username: 'link-twice', password: 'correct horse battery' });
+    expect(res.status).toBe(409);
+  });
+
+  it('rejects an expired or invalid signup token', async () => {
+    await registerPassword('link-stale', 'correct horse battery');
+    const res = await request(app).post('/api/auth/google/link-with-password').send({
+      signupToken: 'not-a-real-token',
+      username: 'link-stale',
+      password: 'correct horse battery',
+    });
+    expect(res.status).toBe(401);
+  });
+});
+
 d('POST /api/auth/google/exchange', () => {
   it('rejects an unknown handoff code', async () => {
     const res = await request(app).post('/api/auth/google/exchange').send({ code: 'never-minted' });
