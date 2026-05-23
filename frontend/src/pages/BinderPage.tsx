@@ -27,7 +27,6 @@ import { SearchPill } from '../components/SearchPill';
 import { FilterPopover } from '../components/FilterPopover';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
-import { useAuth } from '../store/auth';
 import { ShareDialog } from '../components/ShareDialog';
 
 type BinderViewMode = 'pages' | 'list' | 'compact';
@@ -63,7 +62,6 @@ export function BinderPage() {
     if (routeId) setActiveTab(routeId);
   }, [routeId, setActiveTab]);
 
-  const user = useAuth((s) => s.user);
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -255,18 +253,16 @@ export function BinderPage() {
               <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Edit binder</span>
             </button>
-            {user && (
-              <button
-                type="button"
-                className="pill-btn"
-                aria-haspopup="dialog"
-                onClick={() => setShareOpen(true)}
-                disabled={!activeId}
-              >
-                <Share2 width={14} height={14} strokeWidth={1.6} aria-hidden />
-                <span>Share</span>
-              </button>
-            )}
+            <button
+              type="button"
+              className="pill-btn"
+              aria-haspopup="dialog"
+              onClick={() => setShareOpen(true)}
+              disabled={!activeId}
+            >
+              <Share2 width={14} height={14} strokeWidth={1.6} aria-hidden />
+              <span>Share</span>
+            </button>
           </div>
         </header>
       )}

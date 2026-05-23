@@ -18,6 +18,34 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, password: string) => Promise<boolean>;
+  /**
+   * Native only: finish a Google sign-in by exchanging the handoff code that
+   * arrived on the OAuth deep link. The web flow needs no store method — its
+   * callback sets the session cookie server-side and `bootstrap()` picks it up
+   * on the reload. Resolves to false (and sets `error`) on failure.
+   */
+  completeGoogleOAuth: (code: string) => Promise<boolean>;
+  /**
+   * Finish a first-time Google sign-in: create the account with the username
+   * the user chose, using the signup token from the OAuth callback. Returns
+   * `{ ok, status }` so the choose-username screen can distinguish a "taken"
+   * 409 from other failures and offer the link-with-password flow.
+   */
+  completeGoogleSignup: (
+    signupToken: string,
+    username: string
+  ) => Promise<{ ok: boolean; status?: number }>;
+  /**
+   * Link a Google identity to an existing password account: when the chosen
+   * username is taken and it's the user's, they prove ownership with the
+   * password and the Google identity is attached. Resolves to false (and
+   * sets `error`) on failure.
+   */
+  linkGoogleWithPassword: (
+    signupToken: string,
+    username: string,
+    password: string
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
   /**
    * Permanently delete the account: hit DELETE /api/auth/me, then tear down
@@ -66,6 +94,46 @@ export const useAuth = create<AuthState>((set) => ({
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Registration failed.' });
+      return false;
+    }
+  },
+
+  completeGoogleOAuth: async (code) => {
+    set({ error: null });
+    try {
+      const user = await authApi.exchangeGoogleCode(code);
+      set({ user, status: 'authed', error: null });
+      return true;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Google sign-in failed.',
+        status: 'guest',
+      });
+      return false;
+    }
+  },
+
+  completeGoogleSignup: async (signupToken, username) => {
+    set({ error: null });
+    try {
+      const user = await authApi.completeGoogleSignup(signupToken, username);
+      set({ user, status: 'authed', error: null });
+      return { ok: true };
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      set({ error: err instanceof Error ? err.message : 'Could not finish sign-up.' });
+      return { ok: false, status };
+    }
+  },
+
+  linkGoogleWithPassword: async (signupToken, username, password) => {
+    set({ error: null });
+    try {
+      const user = await authApi.linkGoogleWithPassword(signupToken, username, password);
+      set({ user, status: 'authed', error: null });
+      return true;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Could not link the account.' });
       return false;
     }
   },

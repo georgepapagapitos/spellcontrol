@@ -8686,6 +8686,78 @@ hr {
   cursor: progress;
 }
 
+/* "Continue with Google" button — neutral surface so the coloured G mark
+   carries the branding, matching the auth-field/auth-submit metrics. */
+.auth-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  appearance: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.auth-google:hover:not(:disabled) {
+  background: var(--bg);
+  border-color: var(--border2);
+}
+
+.auth-google:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.auth-google svg {
+  flex-shrink: 0;
+}
+
+/* "─ or ─" separator between the Google button and the password form. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  color: var(--text3);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Dismiss link — guests can use the app without an account, so the auth
+   screen is always escapable. */
+.auth-back {
+  align-self: center;
+  margin-top: 16px;
+  padding: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--text2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.auth-back:hover {
+  color: var(--text);
+}
+
 /* Gear-icon Settings link in the desktop site header — sibling to the
    primary nav links, simpler than a popover since the page handles
    everything. */
@@ -8711,6 +8783,33 @@ hr {
 
 @media (max-width: 1024px) {
   .site-nav-settings-label {
+    display: none;
+  }
+}
+
+/* "Sign in" call-to-action shown in the header only for guests — links to
+   the /auth route. Mirrors the Settings link's shape with an accent tint so
+   it reads as an action, not just navigation. */
+.site-nav-signin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border2);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.site-nav-signin:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+@media (max-width: 1024px) {
+  .site-nav-signin-label {
     display: none;
   }
 }

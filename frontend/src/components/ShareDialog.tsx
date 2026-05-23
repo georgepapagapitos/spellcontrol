@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Modal } from './Modal';
 import { createShare, revokeShare, shareUrl } from '../lib/share-client';
 import { isNativePlatform } from '../lib/platform';
 import { Share } from '@capacitor/share';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
+import { useAuth } from '../store/auth';
 
 interface Props {
   kind: ShareKind;
@@ -21,12 +23,17 @@ interface Props {
  * open gets fresh state without re-running the fetch effect on prop changes.
  */
 export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props) {
+  // Share links are per-account (they stay tied to the owner and are
+  // revocable), so a guest can't mint one — prompt them to sign in instead.
+  const isGuest = useAuth((s) => s.status === 'guest');
   const [share, setShare] = useState<ShareRow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Guests take the sign-in branch below and never reach the loading state.
+  const [loading, setLoading] = useState(!isGuest);
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
+    if (isGuest) return;
     let cancelled = false;
     createShare({ kind, resourceId })
       .then((row) => {
@@ -41,7 +48,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
     return () => {
       cancelled = true;
     };
-  }, [kind, resourceId]);
+  }, [kind, resourceId, isGuest]);
 
   const url = share ? shareUrl(share.token) : '';
 
@@ -85,6 +92,28 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
       setWorking(false);
     }
   };
+
+  if (isGuest) {
+    return (
+      <Modal onClose={onClose} labelledBy="share-dialog-title" className="choice-dialog">
+        <h2 id="share-dialog-title" className="choice-dialog-title">
+          Share {resourceLabel}
+        </h2>
+        <p className="choice-dialog-body">
+          Sharing a public link needs an account, so the link stays tied to you and you can revoke
+          it later. Signing in also syncs your collection across devices.
+        </p>
+        <div className="choice-dialog-actions">
+          <button type="button" className="btn" onClick={onClose}>
+            Not now
+          </button>
+          <Link to="/auth" className="btn btn-primary" onClick={onClose}>
+            Sign in
+          </Link>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
