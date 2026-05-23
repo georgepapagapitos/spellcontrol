@@ -159,9 +159,20 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
     const front = partner.card_faces?.[0];
     const manaCost = partner.mana_cost ?? front?.mana_cost ?? '';
     const oracleText = partner.oracle_text ?? front?.oracle_text ?? '';
+    // Collection mode constrains the build to owned cards. If the partner
+    // was picked before collection mode was turned on (or the collection
+    // changed), warn so the user knows the generator can't actually build
+    // around this partner.
+    const partnerNotOwned = collectionMode && !ownedNames.has(partner.name);
     return (
       <section className="deck-builder-section partner-selector">
         <h2 className="deck-builder-section-title">Partner commander</h2>
+        {partnerNotOwned && (
+          <p className="partner-warning" role="status">
+            {partner.name} isn&rsquo;t in your collection. Pick a different partner, remove it, or
+            turn off &ldquo;Build from my collection&rdquo; to keep this pairing.
+          </p>
+        )}
         <div className="commander-pick">
           <img
             className="commander-pick-art"
