@@ -38,8 +38,8 @@ describe('session tokens', () => {
 
 describe('OAuth state tokens', () => {
   it('round-trips the platform', () => {
-    expect(verifyOAuthState(signOAuthState('web'))?.platform).toBe('web');
-    expect(verifyOAuthState(signOAuthState('native'))?.platform).toBe('native');
+    expect(verifyOAuthState(signOAuthState({ platform: 'web' }))?.platform).toBe('web');
+    expect(verifyOAuthState(signOAuthState({ platform: 'native' }))?.platform).toBe('native');
   });
 
   it('rejects garbage', () => {
@@ -51,7 +51,7 @@ describe('OAuth state tokens', () => {
     // state token must not pass as a session.
     const session = signSession({ id: 'u1', username: 'alice', role: 'user' });
     expect(verifyOAuthState(session)).toBeNull();
-    expect(verifySession(signOAuthState('web'))).toBeNull();
+    expect(verifySession(signOAuthState({ platform: 'web' }))).toBeNull();
   });
 });
 
@@ -74,7 +74,7 @@ describe('OAuth signup tokens', () => {
   it('rejects garbage and tokens of a different audience', () => {
     expect(verifySignupToken('not-a-jwt')).toBeNull();
     // A state token must not pass as a signup token.
-    expect(verifySignupToken(signOAuthState('web'))).toBeNull();
+    expect(verifySignupToken(signOAuthState({ platform: 'web' }))).toBeNull();
   });
 });
 

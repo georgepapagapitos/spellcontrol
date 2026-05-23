@@ -57,6 +57,18 @@ describe('parseOAuthCallback', () => {
     );
   });
 
+  it('reports a link-mode success from Settings linking', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback?linked=google')).toEqual({
+      linked: 'google',
+    });
+  });
+
+  it('reports a link-mode failure with the specific reason', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback?linkError=already_linked')).toEqual({
+      linkError: 'already_linked',
+    });
+  });
+
   it('reports an error when the callback carries one', () => {
     expect(parseOAuthCallback('spellcontrol://oauth/callback?error=access_denied')).toEqual({
       error: 'access_denied',

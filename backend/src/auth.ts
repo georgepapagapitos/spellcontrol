@@ -213,20 +213,38 @@ const OAUTH_STATE_TTL_SECONDS = 10 * 60; // 10 minutes — covers a slow consent
 const OAUTH_STATE_AUDIENCE = 'oauth-state';
 
 export type OAuthPlatform = 'web' | 'native';
+/** 'signin' = a regular sign-in flow; 'link' = attach Google to the authed user. */
+export type OAuthMode = 'signin' | 'link';
 
 export interface OAuthState {
   platform: OAuthPlatform;
   nonce: string;
+  mode: OAuthMode;
+  /** Set only when mode === 'link': the user the callback should link to. */
+  userId?: string;
+}
+
+export interface OAuthStateInput {
+  platform: OAuthPlatform;
+  mode?: OAuthMode;
+  /** Required when mode === 'link'. */
+  userId?: string;
 }
 
 /**
  * Sign the CSRF `state` carried through the Google consent round-trip. It is
  * a short-lived JWT (distinct `aud` so it can never be mistaken for a session
- * token) recording which platform started the flow, so the callback knows
- * whether to set a cookie (web) or hand back a deep-link code (native).
+ * token) recording which platform started the flow and, for link-mode, which
+ * SpellControl user the callback should attach the Google identity to.
  */
-export function signOAuthState(platform: OAuthPlatform): string {
-  return jwt.sign({ platform, nonce: crypto.randomUUID() }, getJwtSecret(), {
+export function signOAuthState(input: OAuthStateInput): string {
+  const payload: Record<string, unknown> = {
+    platform: input.platform,
+    nonce: crypto.randomUUID(),
+    mode: input.mode ?? 'signin',
+  };
+  if (input.userId) payload.userId = input.userId;
+  return jwt.sign(payload, getJwtSecret(), {
     audience: OAUTH_STATE_AUDIENCE,
     expiresIn: OAUTH_STATE_TTL_SECONDS,
   });
@@ -241,7 +259,40 @@ export function verifyOAuthState(token: string): OAuthState | null {
     return {
       platform: payload.platform === 'native' ? 'native' : 'web',
       nonce: typeof payload.nonce === 'string' ? payload.nonce : '',
+      mode: payload.mode === 'link' ? 'link' : 'signin',
+      userId: typeof payload.userId === 'string' ? payload.userId : undefined,
     };
+  } catch {
+    return null;
+  }
+}
+
+const LINK_INTENT_TTL_SECONDS = 5 * 60; // 5 min — covers the trip through Browser.open
+const LINK_INTENT_AUDIENCE = 'oauth-link-intent';
+
+/**
+ * Native-only: a short-lived signed token that proves "the authed user
+ * approved a link-Google flow." The native app gets this via an authed
+ * fetch (cookie travels through CapacitorHttp), then opens the system browser
+ * pointed at /google/link?intent=<token>. The system browser has no app
+ * cookies, so this token is how the link route knows which user to link to.
+ * Web doesn't need this — its top-level navigation to /google/link sends the
+ * session cookie naturally.
+ */
+export function signLinkIntent(userId: string): string {
+  return jwt.sign({ userId }, getJwtSecret(), {
+    audience: LINK_INTENT_AUDIENCE,
+    expiresIn: LINK_INTENT_TTL_SECONDS,
+  });
+}
+
+export function verifyLinkIntent(token: string): { userId: string } | null {
+  try {
+    const payload = jwt.verify(token, getJwtSecret(), {
+      audience: LINK_INTENT_AUDIENCE,
+    }) as jwt.JwtPayload;
+    if (typeof payload.userId !== 'string') return null;
+    return { userId: payload.userId };
   } catch {
     return null;
   }

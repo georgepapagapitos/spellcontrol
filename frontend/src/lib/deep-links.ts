@@ -72,7 +72,11 @@ export interface OAuthCallback {
   signup?: string;
   /** Suggested username that accompanies a `signup` token. */
   suggested?: string;
-  /** Set instead of `code`/`signup` when the OAuth flow failed or was cancelled. */
+  /** Link-mode success: the value names which provider got linked ('google'). */
+  linked?: string;
+  /** Link-mode failure marker (e.g. 'already_linked', 'has_google'). */
+  linkError?: string;
+  /** Set when sign-in itself failed or was cancelled. */
   error?: string;
 }
 
@@ -96,6 +100,10 @@ export function parseOAuthCallback(url: string): OAuthCallback | null {
   if (code) return { code };
   const signup = parsed.searchParams.get('signup');
   if (signup) return { signup, suggested: parsed.searchParams.get('suggested') ?? undefined };
+  const linked = parsed.searchParams.get('linked');
+  if (linked) return { linked };
+  const linkError = parsed.searchParams.get('linkError');
+  if (linkError) return { linkError };
   return { error: parsed.searchParams.get('error') ?? 'google' };
 }
 
@@ -114,6 +122,15 @@ function handleDeepLink(url: string, navigate: Navigate): void {
       const params = new URLSearchParams({ token: oauth.signup });
       if (oauth.suggested) params.set('suggested', oauth.suggested);
       navigate(`/auth/choose-username#${params.toString()}`);
+      return;
+    }
+    if (oauth.linked || oauth.linkError) {
+      // Settings-side link/unlink finished — surface the result there. Settings
+      // reads the query params on mount, toasts, and clears them.
+      const params = new URLSearchParams();
+      if (oauth.linked) params.set('linked', oauth.linked);
+      if (oauth.linkError) params.set('linkError', oauth.linkError);
+      navigate(`/settings?${params.toString()}`);
       return;
     }
     // Lazy import: keeps the auth store (and its sync dependency graph) out of

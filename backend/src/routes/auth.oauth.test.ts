@@ -45,7 +45,7 @@ function callback(sub: string, email: string, platform: 'web' | 'native' = 'web'
   mockExchange.mockResolvedValue({ sub, email, emailVerified: true, name: null });
   return request(app)
     .get('/api/auth/google/callback')
-    .query({ code: 'auth-code', state: signOAuthState(platform) });
+    .query({ code: 'auth-code', state: signOAuthState({ platform }) });
 }
 
 /** Pull the signup token out of a first-time callback redirect (web hash). */
@@ -61,6 +61,16 @@ async function createGoogleAccount(sub: string, email: string, username: string)
   return request(app)
     .post('/api/auth/google/complete-signup')
     .send({ signupToken: token, username });
+}
+
+/** Register a password account and return its session cookie + user id. */
+async function registerWithSession(username: string, password = 'correct horse battery') {
+  const res = await request(app).post('/api/auth/register').send({ username, password });
+  expect(res.status).toBe(201);
+  return {
+    cookie: extractSessionCookie(res.headers['set-cookie'])!,
+    userId: res.body.user.id as string,
+  };
 }
 
 d('GET /api/auth/providers', () => {
@@ -262,5 +272,219 @@ d('POST /api/auth/google/exchange', () => {
   it('rejects an unknown handoff code', async () => {
     const res = await request(app).post('/api/auth/google/exchange').send({ code: 'never-minted' });
     expect(res.status).toBe(401);
+  });
+});
+
+d('GET /api/auth/me/identities', () => {
+  it('reports password=true and google=null for a fresh password account', async () => {
+    const { cookie } = await registerWithSession('ident-alice');
+    const res = await request(app).get('/api/auth/me/identities').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ password: true, google: null });
+  });
+
+  it('returns the linked-at timestamp when Google is linked', async () => {
+    const { cookie, userId } = await registerWithSession('ident-bob');
+    mockExchange.mockResolvedValue({
+      sub: 'ident-bob-sub',
+      email: 'identbob@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'c',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    const res = await request(app).get('/api/auth/me/identities').set('Cookie', cookie);
+    expect(res.body.google?.linkedAt).toBeTypeOf('number');
+  });
+
+  it('401s without a session', async () => {
+    const res = await request(app).get('/api/auth/me/identities');
+    expect(res.status).toBe(401);
+  });
+});
+
+d('GET /api/auth/google/link', () => {
+  it('redirects an authed web user to the Google consent screen', async () => {
+    const { cookie } = await registerWithSession('linkstart-alice');
+    const res = await request(app).get('/api/auth/google/link').set('Cookie', cookie);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('accounts.google.com');
+  });
+
+  it('sends a web user with no session to /auth', async () => {
+    const res = await request(app).get('/api/auth/google/link');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/auth');
+  });
+
+  it('401s for native without an intent token', async () => {
+    const res = await request(app).get('/api/auth/google/link').query({ platform: 'native' });
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts a valid intent token for the native flow', async () => {
+    const { cookie } = await registerWithSession('linkstart-native');
+    const intentRes = await request(app).post('/api/auth/google/link-intent').set('Cookie', cookie);
+    expect(intentRes.status).toBe(200);
+    const intent = intentRes.body.intent;
+    const res = await request(app)
+      .get('/api/auth/google/link')
+      .query({ platform: 'native', intent });
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain('accounts.google.com');
+  });
+});
+
+d('GET /api/auth/google/callback — link mode', () => {
+  it('attaches a Google identity to the authed user (web)', async () => {
+    const { userId } = await registerWithSession('linkcb-alice');
+    mockExchange.mockResolvedValue({
+      sub: 'linkcb-alice-sub',
+      email: 'linkcb-alice@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'auth-code',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/settings?linked=google');
+    // No cookie is set/cleared — the user was already authed via their existing session.
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeNull();
+    const { rows } = await pool.query(
+      `SELECT user_id FROM auth_identities WHERE provider_subject = 'linkcb-alice-sub'`
+    );
+    expect(rows[0].user_id).toBe(userId);
+  });
+
+  it('refuses when the Google account is already linked to a different user', async () => {
+    const { userId } = await registerWithSession('linkcb-bob');
+    await createGoogleAccount('linkcb-shared-sub', 'shared@example.com', 'shared-google');
+    mockExchange.mockResolvedValue({
+      sub: 'linkcb-shared-sub',
+      email: 'shared@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'auth-code',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    expect(res.headers.location).toBe('/settings?linkError=already_linked');
+  });
+
+  it('refuses when the authed user already has a Google account linked', async () => {
+    const { userId } = await registerWithSession('linkcb-cara');
+    mockExchange.mockResolvedValue({
+      sub: 'linkcb-cara-1',
+      email: 'cara1@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'c1',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    mockExchange.mockResolvedValue({
+      sub: 'linkcb-cara-2',
+      email: 'cara2@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'c2',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    expect(res.headers.location).toBe('/settings?linkError=has_google');
+  });
+
+  it('is idempotent re-linking the same Google account to the same user', async () => {
+    const { userId } = await registerWithSession('linkcb-dan');
+    mockExchange.mockResolvedValue({
+      sub: 'linkcb-dan-sub',
+      email: 'dan@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'c1',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'c2',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+    expect(res.headers.location).toBe('/settings?linked=google');
+  });
+
+  it('deep-links success back to the native app', async () => {
+    const { userId } = await registerWithSession('linkcb-erin');
+    mockExchange.mockResolvedValue({
+      sub: 'linkcb-erin-sub',
+      email: 'erin@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'auth-code',
+        state: signOAuthState({ platform: 'native', mode: 'link', userId }),
+      });
+    expect(res.headers.location).toBe('spellcontrol://oauth/callback?linked=google');
+  });
+});
+
+d('DELETE /api/auth/me/identities/google', () => {
+  it('unlinks the Google identity from a password account', async () => {
+    const { cookie, userId } = await registerWithSession('unlink-alice');
+    mockExchange.mockResolvedValue({
+      sub: 'unlink-alice-sub',
+      email: 'unlinkalice@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    await request(app)
+      .get('/api/auth/google/callback')
+      .query({
+        code: 'c',
+        state: signOAuthState({ platform: 'web', mode: 'link', userId }),
+      });
+
+    const res = await request(app).delete('/api/auth/me/identities/google').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    const { rows } = await pool.query(
+      `SELECT count(*)::int AS n FROM auth_identities WHERE user_id = '${userId}'`
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  it('refuses to unlink the only sign-in method for an SSO-only account', async () => {
+    const created = await createGoogleAccount(
+      'unlink-sso-sub',
+      'unlinksso@example.com',
+      'unlink-sso'
+    );
+    const cookie = extractSessionCookie(created.headers['set-cookie'])!;
+    const res = await request(app).delete('/api/auth/me/identities/google').set('Cookie', cookie);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/password/i);
   });
 });

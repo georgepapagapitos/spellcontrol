@@ -133,6 +133,50 @@ export async function linkGoogleWithPassword(
   return data.user;
 }
 
+/** Which sign-in methods the authed user has set up. */
+export interface MyIdentities {
+  /** True if the account has a password (i.e. is not SSO-only). */
+  password: boolean;
+  /** Set when a Google identity is attached. */
+  google: { linkedAt: number } | null;
+}
+
+export async function fetchIdentities(): Promise<MyIdentities> {
+  const res = await authedFetch('/api/auth/me/identities', { method: 'GET' });
+  return handleResponse<MyIdentities>(res);
+}
+
+/**
+ * Absolute URL that starts the link-Google flow. Web navigates top-level here
+ * (the session cookie travels). Native must POST `requestGoogleLinkIntent`
+ * first and pass the returned token, because the system browser is cookieless.
+ */
+export function googleLinkUrl(platform: 'web' | 'native', intent?: string): string {
+  if (platform === 'native') {
+    return apiUrl(
+      `/api/auth/google/link?platform=native&intent=${encodeURIComponent(intent ?? '')}`
+    );
+  }
+  return apiUrl('/api/auth/google/link');
+}
+
+/**
+ * Native only: ask the backend for a short-lived "I approved linking" token
+ * to pass through the system browser. The POST runs through the Capacitor
+ * HTTP bridge so the session cookie travels.
+ */
+export async function requestGoogleLinkIntent(): Promise<string> {
+  const res = await authedFetch('/api/auth/google/link-intent', { method: 'POST' });
+  const data = await handleResponse<{ intent: string }>(res);
+  return data.intent;
+}
+
+/** Detach the Google identity from the authed user. */
+export async function unlinkGoogle(): Promise<void> {
+  const res = await authedFetch('/api/auth/me/identities/google', { method: 'DELETE' });
+  await handleResponse<{ ok: true }>(res);
+}
+
 /**
  * Permanently delete the current account and all server-side data. The backend
  * deletes the `users` row; every user-owned table cascades. The session cookie
