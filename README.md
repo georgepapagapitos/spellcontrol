@@ -138,25 +138,17 @@ Only build with `VITE_API_BASE_URL=https://api.spellcontrol.com` to validate a r
 
 **Service-worker gotcha:** the frontend is a PWA, so its service worker precaches the app shell in the WebView's Cache Storage. That cache survives `adb install -r` (a reinstall keeps app data), so a freshly installed APK can keep serving the _old_ bundle. After installing a new build, clear the app's data once — `adb shell pm clear com.spellcontrol.app`, or Settings → Apps → SpellControl → Storage → Clear data — then relaunch. The local cache (decks/collection) is a write-through cache and the server is the source of truth, so it re-downloads on next sign-in.
 
-### Docker
+### Deployment
 
-A `docker-compose.yml` is included that runs Postgres + the backend + the frontend. Copy `.env.example` to `.env` and fill in `POSTGRES_PASSWORD` and `JWT_SECRET` first:
+Production runs on [Fly.io](https://fly.io) — see `fly.toml` and `.github/workflows/fly-deploy.yml`. A push to `main` triggers CI; on green CI the fly-deploy workflow runs `flyctl deploy --remote-only`, which builds the image from `backend/Dockerfile` and ships it to the `spellcontrol-api` app. The backend container serves both `/api` and the SPA — the Dockerfile builds the frontend and copies `frontend/dist` into `backend/public` — so prod is a single origin.
 
-```bash
-cp .env.example .env
-# edit .env — generate a JWT secret with:  openssl rand -base64 48
-docker compose up -d                     # postgres (internal), backend (internal), frontend :8088
-```
+Environment is managed as Fly secrets (`fly secrets set FOO=bar`). The production Postgres is Neon (managed, with its own backups); the dev Postgres below is local-only.
 
-The backend container is no longer published to the host. The frontend container's nginx proxies `/api/` to it on the docker-compose network, so a single `spellcontrol.example.com` reverse-proxy entry is enough.
-
-Backend and frontend images are tagged `ghcr.io/georgepapagapitos/spellcontrol-{backend,frontend}:latest` and built by GitHub Actions on every push to `main`. Watchtower labels are set, so a Watchtower instance will auto-update both containers.
-
-#### Dev database
+### Local Postgres
 
 For local development, `docker-compose.dev.yml` runs just the Postgres container. Use `npm run db:up` and `npm run db:down` to start and stop it.
 
-#### Offline mode
+### Offline mode
 
 Card data is always-on. After sign-in, the frontend silently downloads a slim Scryfall oracle bulk (~7 MB gzipped, ~35k cards) and the Commander Spellbook combo dataset into IndexedDB. Card search, deck generation, and combo matching prefer the local copy whenever it's populated — the live Scryfall API is the fallback, not the primary. There is no toggle. The Settings page shows a one-line status (`35,329 cards · 7.3 MB · updated 2 days ago`) and an escape-hatch "Clear cached card data" button; otherwise the user shouldn't have to think about it.
 
@@ -167,16 +159,6 @@ How the freshness loop works:
 - iOS Safari purges IndexedDB after ~14 days of inactivity. The frontend detects this on the next authed mount (manifest survives in zustand but `cardCount === 0`) and silently re-downloads — the user sees no error, just a brief warm-up before searches are back to local-speed. Watch the browser console for `[offline] cache miss …` if you're debugging.
 
 Tweak `OFFLINE_BULK_DISABLED=1` on the backend (see "Required environment") to opt out of the daily refresh on a tightly memory-constrained host.
-
-#### Postgres backups
-
-The data lives in the `spellcontrol-postgres` named volume. A nightly logical backup is recommended:
-
-```bash
-docker exec spellcontrol-postgres pg_dump -U spellcontrol spellcontrol | gzip > /backups/spellcontrol-$(date +%F).sql.gz
-```
-
-Wire that into cron and rotate the files. Restore with `gunzip -c file.sql.gz | docker exec -i spellcontrol-postgres psql -U spellcontrol spellcontrol`.
 
 ### Required environment
 
@@ -189,6 +171,7 @@ The backend reads:
 - `COMBOS_INGEST_DISABLED` — optional. Set to `1` to skip the nightly Commander Spellbook ingest. The existing dataset keeps serving.
 - `PORT` (default `3737`), `DB_PATH` (default `backend/data/scryfall-cache.db`).
 - `OFFLINE_DATA_DIR` — optional. Directory where the persisted Scryfall oracle bulk (`offline-oracle.json.gz` + `offline-oracle.meta.json`) is written and read. Defaults to `dirname(DB_PATH)` so the bulk co-locates with the SQLite cache (a single `/data` mount survives container recreates). Set explicitly only for custom layouts.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `OAUTH_WEB_REDIRECT_URI`, `OAUTH_NATIVE_REDIRECT_URI` — optional. Enable "Continue with Google" SSO when all four are set; with any unset, the `/api/auth/google*` routes return 503 and the frontend hides the button. Create an OAuth 2.0 Client (Web application type) in the Google Cloud Console and register the redirect URIs you use. See `.env.example` for the values you'll want in dev vs prod.
 
 ## Architecture
 
