@@ -336,6 +336,13 @@ export function DeckNewPage() {
         <CommanderProfileCard profile={commanderProfile} />
       )}
 
+      {/* Customizer sits ahead of the partner picker so collection-mode is
+          decided before partner selection — the picker filters its
+          suggestions (and warns) based on what's owned. */}
+      {formatConfig.hasCommander && commander && (
+        <DeckCustomizer customization={customization} update={updateCustomization} />
+      )}
+
       {formatConfig.hasCommander && commander && (
         <PartnerCommanderSelector
           key={commander.id}
@@ -352,10 +359,6 @@ export function DeckNewPage() {
           selectedSlugs={selectedThemeSlugs}
           onToggle={handleToggleTheme}
         />
-      )}
-
-      {formatConfig.hasCommander && commander && (
-        <DeckCustomizer customization={customization} update={updateCustomization} />
       )}
 
       {formatConfig.hasCommander ? (

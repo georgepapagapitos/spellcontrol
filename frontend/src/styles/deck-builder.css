@@ -521,7 +521,7 @@
 }
 
 .partner-warning {
-  margin: 0.6rem 0 0;
+  margin: 0.6rem 0;
   padding: 0.55rem 0.75rem;
   font-size: var(--text-xs);
   color: var(--warn-text);
