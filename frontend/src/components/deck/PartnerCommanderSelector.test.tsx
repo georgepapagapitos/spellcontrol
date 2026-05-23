@@ -108,6 +108,35 @@ describe('PartnerCommanderSelector', () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
+  it('warns when an already-selected partner is not in the collection', () => {
+    // Collection mode is on but the chosen partner isn't owned — likely
+    // picked before the user turned collection mode on.
+    collectionCards = [{ name: 'Partner Cmdr' }];
+    render(
+      <PartnerCommanderSelector
+        commander={card({ name: 'Partner Cmdr', keywords: ['Partner'] })}
+        partner={card({ name: 'Unowned Partner', keywords: ['Partner'] })}
+        onSelect={vi.fn()}
+        collectionMode
+      />
+    );
+    expect(screen.getByRole('status').textContent).toContain('Unowned Partner');
+    expect(screen.getByRole('status').textContent).toContain('your collection');
+  });
+
+  it('does not warn when the selected partner is owned', () => {
+    collectionCards = [{ name: 'Owned Partner' }];
+    render(
+      <PartnerCommanderSelector
+        commander={card({ name: 'Partner Cmdr', keywords: ['Partner'] })}
+        partner={card({ name: 'Owned Partner', keywords: ['Partner'] })}
+        onSelect={vi.fn()}
+        collectionMode
+      />
+    );
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('warns when no legal partner is in the collection during a collection build', async () => {
     searchValidPartners.mockResolvedValue([
       card({ name: 'Unowned Partner', keywords: ['Partner'] }),
