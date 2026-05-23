@@ -29,7 +29,6 @@ import {
   validateDeck,
   countFlaggedCards,
 } from '../lib/deck-validation';
-import { useAuth } from '../store/auth';
 import { ShareDialog } from '../components/ShareDialog';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
@@ -262,7 +261,6 @@ export function DecksIndexPage() {
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [shareDeck, setShareDeck] = useState<Deck | null>(null);
-  const user = useAuth((s) => s.user);
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
@@ -552,7 +550,7 @@ export function DecksIndexPage() {
                 <DeckCardMenu
                   canRegenerate={deck.source === 'generated' && !!deck.commander}
                   onRegenerate={() => handleRegenerate(deck)}
-                  onShare={user ? () => setShareDeck(deck) : undefined}
+                  onShare={() => setShareDeck(deck)}
                   onDelete={() => handleDelete(deck)}
                 />
               </li>

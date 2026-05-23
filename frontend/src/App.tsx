@@ -16,10 +16,11 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
+import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
-import { startSync } from './lib/sync';
+import { startSync, hydrateLocal } from './lib/sync';
 import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
 
@@ -67,6 +68,15 @@ export default function App() {
   useEffect(() => {
     if (status === 'guest') {
       syncStartedFor.current = null;
+      // Guests run fully local — no account, no sync. Hydrate the cached
+      // collection from IndexedDB so the collection page isn't stuck on its
+      // loading state; signing in later promotes this data to the account.
+      void hydrateLocal().catch((err) => {
+        logger.warn('[sync] guest hydrate failed:', err);
+        if (useCollectionStore.getState().hydrating) {
+          useCollectionStore.setState({ hydrating: false });
+        }
+      });
       return;
     }
     if (status !== 'authed' || !userId) return;
@@ -100,18 +110,15 @@ export default function App() {
       </Routes>
     );
   }
-  if (status === 'guest') {
-    return (
-      <Routes>
-        <Route path="/s/:token" element={<SharedView />} />
-        <Route path="*" element={<AuthPage />} />
-      </Routes>
-    );
-  }
-
+  // Guests and signed-in users share the same app. Auth is opt-in (WotC Fan
+  // Content policy forbids a sign-up wall): a guest works fully offline from
+  // local storage; signing in only adds cross-device sync. AuthPage is a
+  // normal, dismissable route reached from the header / Settings.
   return (
     <Routes>
       <Route path="/s/:token" element={<SharedView />} />
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
 

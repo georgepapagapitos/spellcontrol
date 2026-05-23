@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useDecksStore, type Deck } from '../store/decks';
 import {
@@ -33,6 +33,7 @@ const FORMAT_OPTIONS: { value: GameFormat; label: string; defaultLife: number; c
 export function PlayPage() {
   const [params, setParams] = useSearchParams();
   const user = useAuth((s) => s.user);
+  const isGuest = useAuth((s) => s.status === 'guest');
   const decks = useDecksStore((s) => s.decks);
 
   const local = usePlayStore((s) => s.local);
@@ -173,6 +174,19 @@ export function PlayPage() {
                 </div>
               }
             />
+          ) : isGuest ? (
+            <div className="empty-state">
+              <p className="empty-state-tagline">Online games need an account</p>
+              <p className="empty-state-hint">
+                Sign in to host or join a multiplayer game so other players can sync to it. Local
+                games work without an account.
+              </p>
+              <div className="empty-state-actions">
+                <Link to="/auth" className="btn btn-primary">
+                  Sign in
+                </Link>
+              </div>
+            </div>
           ) : (
             <>
               {online && (

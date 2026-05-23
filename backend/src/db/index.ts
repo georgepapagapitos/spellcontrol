@@ -51,11 +51,34 @@ export async function ensureSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
+      email TEXT,
+      email_verified BOOLEAN NOT NULL DEFAULT false,
       role TEXT NOT NULL DEFAULT 'user',
       created_at BIGINT NOT NULL
     );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+    -- SSO support: password is now optional (Google-only accounts), and OAuth
+    -- accounts carry an email. Idempotent so existing deployments migrate on boot.
+    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
+    -- NULLs are distinct in a unique index, so password-only accounts (email
+    -- NULL) never collide; this only enforces one account per real email.
+    CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email);
+    CREATE TABLE IF NOT EXISTS auth_identities (
+      provider TEXT NOT NULL,
+      provider_subject TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (provider, provider_subject)
+    );
+    CREATE INDEX IF NOT EXISTS auth_identities_user_idx ON auth_identities(user_id);
+    CREATE TABLE IF NOT EXISTS oauth_handoff_codes (
+      code TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at BIGINT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS user_data (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       collection JSONB,
