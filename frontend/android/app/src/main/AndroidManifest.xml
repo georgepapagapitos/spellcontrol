@@ -48,6 +48,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="spellcontrol" android:host="share" />
             </intent-filter>
+
+            <!--
+                OAuth callback deep link: the backend's Google sign-in callback
+                302s to `spellcontrol://oauth/callback?code=<handoff>` to return
+                the system-browser flow into the app, where deep-links.ts trades
+                the code for a session. Custom scheme, so no domain verification.
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="spellcontrol" android:host="oauth" />
+            </intent-filter>
         </activity>
 
         <provider

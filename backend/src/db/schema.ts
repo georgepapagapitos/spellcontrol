@@ -1,13 +1,70 @@
-import { pgTable, text, integer, jsonb, bigint, primaryKey, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  integer,
+  jsonb,
+  bigint,
+  boolean,
+  primaryKey,
+  index,
+} from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
+  // Nullable: SSO-only accounts (Google) have no password. A null hash means
+  // the account can only be reached through an external provider — the login
+  // route treats a null hash as "no password set" and rejects the attempt.
+  passwordHash: text('password_hash'),
+  // Set for OAuth-created accounts (Google supplies it); null for username-only
+  // password accounts. Unique so a future "link by email" feature is purely
+  // additive — multiple NULLs are allowed (NULLs are distinct in the index).
+  email: text('email'),
+  emailVerified: boolean('email_verified').notNull().default(false),
   // 'user' (default) or 'admin'. Admin grants access to /api/admin/*; promoted
   // at boot for any username in ADMIN_USERNAMES, additively (never demotes).
   role: text('role').notNull().default('user'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+});
+
+/**
+ * External login providers linked to a user (Google today; the shape is
+ * provider-agnostic so GitHub/Apple slot in later). Password login is NOT a
+ * row here — it stays as the `users.password_hash` column. One user may have
+ * several identities; `(provider, providerSubject)` is globally unique so an
+ * external account maps to exactly one SpellControl user.
+ */
+export const authIdentities = pgTable(
+  'auth_identities',
+  {
+    /** 'google' — the OAuth provider key. */
+    provider: text('provider').notNull(),
+    /** The provider's stable user id (Google's `sub` claim). */
+    providerSubject: text('provider_subject').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.provider, t.providerSubject] }),
+    userIdx: index('auth_identities_user_idx').on(t.userId),
+  })
+);
+
+/**
+ * Single-use codes that bridge the native OAuth flow. The Google callback
+ * runs in the system browser, whose cookie jar the Capacitor WebView cannot
+ * read; instead the callback mints a code here and deep-links it back into the
+ * app, which exchanges it for a real session cookie. Rows are deleted on
+ * exchange and are short-lived (~60s) — see `routes/auth.ts`.
+ */
+export const oauthHandoffCodes = pgTable('oauth_handoff_codes', {
+  code: text('code').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
 });
 
 export const userData = pgTable('user_data', {
@@ -151,6 +208,8 @@ export const shares = pgTable(
 );
 
 export type UserRow = typeof users.$inferSelect;
+export type AuthIdentityRow = typeof authIdentities.$inferSelect;
+export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
 export type UserDataRow = typeof userData.$inferSelect;
 export type UserDataBackupRow = typeof userDataBackups.$inferSelect;
 export type GameSessionRow = typeof gameSessions.$inferSelect;

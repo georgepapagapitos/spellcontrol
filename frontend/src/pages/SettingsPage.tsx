@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
 import { useThemeStore } from '../store/theme';
 import { useCollectionStore } from '../store/collection';
@@ -9,7 +10,19 @@ import { THEMES } from '../lib/themes';
 import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { fetchBackups, fetchSync, restoreBackup, type SyncBackupMeta } from '../lib/auth-api';
+import {
+  fetchBackups,
+  fetchIdentities,
+  fetchSync,
+  googleLinkUrl,
+  requestGoogleLinkIntent,
+  restoreBackup,
+  unlinkGoogle,
+  type MyIdentities,
+  type SyncBackupMeta,
+} from '../lib/auth-api';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { isNativePlatform } from '../lib/platform';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
@@ -21,6 +34,7 @@ export function SettingsPage() {
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const logout = useAuth((s) => s.logout);
   const deleteAccount = useAuth((s) => s.deleteAccount);
+  const navigate = useNavigate();
 
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -50,6 +64,14 @@ export function SettingsPage() {
   const [restorePending, setRestorePending] = useState<SyncBackupMeta | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
 
+  // Sign-in methods state — what's linked, plus the in-flight states for the
+  // link-Google and unlink-Google flows.
+  const [identities, setIdentities] = useState<MyIdentities | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [unlinkBusy, setUnlinkBusy] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => {
     if (!username) return;
     let cancelled = false;
@@ -64,6 +86,102 @@ export function SettingsPage() {
       cancelled = true;
     };
   }, [username]);
+
+  // Fetch the user's linked sign-in methods once they're authed. Best-effort:
+  // a failure leaves `identities` null, which hides the section (the Settings
+  // page must never block on this).
+  useEffect(() => {
+    // Logout navigates away from Settings, so a null username just unmounts —
+    // no need to reset state here. Only fetch when there's an authed user.
+    if (!username) return;
+    let cancelled = false;
+    fetchIdentities()
+      .then((r) => {
+        if (!cancelled) setIdentities(r);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [username]);
+
+  // Toast on link-Google callback (web: arrives via redirect, native: via
+  // the deep-link handler navigating us here with the same query params)
+  // and clear the query string so a refresh doesn't re-fire the toast.
+  useEffect(() => {
+    const linked = searchParams.get('linked');
+    const linkError = searchParams.get('linkError');
+    if (!linked && !linkError) return;
+    if (linked === 'google') {
+      toast.show({ message: 'Google account linked.', tone: 'success' });
+      void fetchIdentities()
+        .then(setIdentities)
+        .catch(() => {});
+    } else if (linkError) {
+      const msg =
+        linkError === 'already_linked'
+          ? 'That Google account is already linked to a different SpellControl account.'
+          : linkError === 'has_google'
+            ? 'This account already has a Google account linked. Unlink it first.'
+            : 'Could not link Google account.';
+      toast.show({ message: msg, tone: 'error' });
+    }
+    setSearchParams(
+      (p) => {
+        p.delete('linked');
+        p.delete('linkError');
+        return p;
+      },
+      { replace: true }
+    );
+  }, [searchParams, setSearchParams]);
+
+  // Native: clear the linking "busy" state when the system browser closes for
+  // any reason (success, our close, or user cancel). No-op on web.
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    const handle = Browser.addListener('browserFinished', () => setLinkBusy(false));
+    return () => {
+      void handle.then((h) => h.remove()).catch(() => {});
+    };
+  }, []);
+
+  async function handleLinkGoogle() {
+    setLinkBusy(true);
+    if (isNativePlatform()) {
+      try {
+        const intent = await requestGoogleLinkIntent();
+        await Browser.open({ url: googleLinkUrl('native', intent) });
+      } catch (err) {
+        toast.show({
+          message: err instanceof Error ? err.message : 'Could not start linking.',
+          tone: 'error',
+        });
+        setLinkBusy(false);
+      }
+      // Stays busy until the system browser closes (browserFinished listener).
+    } else {
+      window.location.href = googleLinkUrl('web');
+    }
+  }
+
+  async function handleUnlinkGoogle() {
+    setUnlinkBusy(true);
+    try {
+      await unlinkGoogle();
+      const next = await fetchIdentities();
+      setIdentities(next);
+      toast.show({ message: 'Google account unlinked.', tone: 'success' });
+      setUnlinkOpen(false);
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : 'Could not unlink Google.',
+        tone: 'error',
+      });
+    } finally {
+      setUnlinkBusy(false);
+    }
+  }
 
   async function handleConfirmRestore() {
     if (!restorePending) return;
@@ -140,6 +258,9 @@ export function SettingsPage() {
 
   async function handleLogout() {
     await logout();
+    // Send the now-guest user to the sign-in screen. It's dismissable
+    // ("Continue without an account"), so this is a convenience, not a wall.
+    navigate('/auth');
   }
 
   async function handleConfirmDelete() {
@@ -147,9 +268,11 @@ export function SettingsPage() {
     try {
       const ok = await deleteAccount();
       if (ok) {
-        // The store has already wiped local state and signed out; the app will
-        // route back to the auth screen. A toast would unmount with the page.
+        // Account and local data are gone; drop the (now-guest) user on the
+        // sign-in screen so they can start fresh. A toast would unmount with
+        // the page, so the navigation is the feedback.
         setDeleteStep(0);
+        navigate('/auth');
       } else {
         toast.show({
           message: useAuth.getState().error ?? 'Could not delete account.',
@@ -227,12 +350,80 @@ export function SettingsPage() {
               </button>
             </div>
           ) : (
-            <div className="settings-row-text">
-              <div className="settings-row-label">Not signed in</div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-label">Not signed in</div>
+                <div className="settings-row-hint">
+                  Your collection, binders, and decks are saved on this device. Sign in to sync them
+                  across devices and back them up.
+                </div>
+              </div>
+              <Link to="/auth" className="pill-btn pill-btn-primary">
+                Sign in to sync
+              </Link>
             </div>
           )}
         </div>
       </section>
+
+      {username && identities && (
+        <section className="settings-card" aria-labelledby="settings-signin-title">
+          <header className="settings-card-header">
+            <h2 id="settings-signin-title" className="settings-card-title">
+              Sign-in methods
+            </h2>
+            <p className="settings-card-hint">
+              Add another way to sign in, or remove one. You always need at least one — the account
+              can&apos;t end up with no way to sign in.
+            </p>
+          </header>
+          <div className="settings-card-body">
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-label">Password</div>
+                <div className="settings-row-hint">{identities.password ? 'Set' : 'Not set'}</div>
+              </div>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-label">Google</div>
+                <div className="settings-row-hint">
+                  {identities.google ? 'Linked' : 'Not linked'}
+                </div>
+              </div>
+              {identities.google ? (
+                <button
+                  type="button"
+                  className="pill-btn pill-btn-danger"
+                  onClick={() => setUnlinkOpen(true)}
+                >
+                  Unlink
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="pill-btn"
+                  onClick={() => void handleLinkGoogle()}
+                  disabled={linkBusy}
+                >
+                  {linkBusy ? 'Opening Google…' : 'Link Google account'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {unlinkOpen && (
+        <ConfirmDialog
+          title="Unlink Google?"
+          body="You can re-link any time. Your account and data stay intact — only the Google sign-in shortcut is removed."
+          confirmLabel={unlinkBusy ? 'Unlinking…' : 'Unlink'}
+          danger
+          onConfirm={() => void handleUnlinkGoogle()}
+          onCancel={() => setUnlinkOpen(false)}
+        />
+      )}
 
       {isAdmin && userId && <AdminPanel currentUserId={userId} />}
 

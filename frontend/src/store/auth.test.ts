@@ -53,6 +53,76 @@ describe('login / register', () => {
   });
 });
 
+describe('completeGoogleOAuth', () => {
+  it('exchanges the handoff code and authes the user', async () => {
+    vi.spyOn(authApi, 'exchangeGoogleCode').mockResolvedValue({
+      id: 'g1',
+      username: 'googler',
+      role: 'user',
+    });
+    const ok = await useAuth.getState().completeGoogleOAuth('handoff-code');
+    expect(ok).toBe(true);
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().user?.username).toBe('googler');
+  });
+
+  it('surfaces an error and stays a guest when the exchange fails', async () => {
+    vi.spyOn(authApi, 'exchangeGoogleCode').mockRejectedValue(new Error('expired'));
+    const ok = await useAuth.getState().completeGoogleOAuth('stale-code');
+    expect(ok).toBe(false);
+    expect(useAuth.getState().status).toBe('guest');
+    expect(useAuth.getState().error).toMatch(/expired/i);
+  });
+});
+
+describe('completeGoogleSignup', () => {
+  it('creates the account and authes on a chosen username', async () => {
+    vi.spyOn(authApi, 'completeGoogleSignup').mockResolvedValue({
+      id: 'g2',
+      username: 'picked',
+      role: 'user',
+    });
+    const result = await useAuth.getState().completeGoogleSignup('signup-token', 'picked');
+    expect(result.ok).toBe(true);
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().user?.username).toBe('picked');
+  });
+
+  it('surfaces the 409 status so the page can offer the link flow', async () => {
+    const err = Object.assign(new Error('That username is already taken.'), { status: 409 });
+    vi.spyOn(authApi, 'completeGoogleSignup').mockRejectedValue(err);
+    const result = await useAuth.getState().completeGoogleSignup('signup-token', 'taken');
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(409);
+    expect(useAuth.getState().error).toMatch(/taken/i);
+  });
+});
+
+describe('linkGoogleWithPassword', () => {
+  it('attaches Google to a verified existing account', async () => {
+    vi.spyOn(authApi, 'linkGoogleWithPassword').mockResolvedValue({
+      id: 'u1',
+      username: 'george',
+      role: 'user',
+    });
+    const ok = await useAuth
+      .getState()
+      .linkGoogleWithPassword('signup-token', 'george', 'correct horse battery');
+    expect(ok).toBe(true);
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().user?.username).toBe('george');
+  });
+
+  it('surfaces an error on a bad password', async () => {
+    vi.spyOn(authApi, 'linkGoogleWithPassword').mockRejectedValue(
+      new Error('Invalid username or password.')
+    );
+    const ok = await useAuth.getState().linkGoogleWithPassword('signup-token', 'george', 'wrong');
+    expect(ok).toBe(false);
+    expect(useAuth.getState().error).toMatch(/invalid/i);
+  });
+});
+
 describe('logout', () => {
   it('clears user and triggers sync teardown even if API fails', async () => {
     useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });

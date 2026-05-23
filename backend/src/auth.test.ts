@@ -4,6 +4,10 @@ import {
   verifyPassword,
   signSession,
   verifySession,
+  signOAuthState,
+  verifyOAuthState,
+  signSignupToken,
+  verifySignupToken,
   normalizeUsername,
   validatePassword,
 } from './auth';
@@ -29,6 +33,48 @@ describe('session tokens', () => {
 
   it('rejects garbage tokens', () => {
     expect(verifySession('not-a-jwt')).toBeNull();
+  });
+});
+
+describe('OAuth state tokens', () => {
+  it('round-trips the platform', () => {
+    expect(verifyOAuthState(signOAuthState({ platform: 'web' }))?.platform).toBe('web');
+    expect(verifyOAuthState(signOAuthState({ platform: 'native' }))?.platform).toBe('native');
+  });
+
+  it('rejects garbage', () => {
+    expect(verifyOAuthState('not-a-jwt')).toBeNull();
+  });
+
+  it('does not cross-validate with session tokens', () => {
+    // Different audiences: a session token must not pass as state, and a
+    // state token must not pass as a session.
+    const session = signSession({ id: 'u1', username: 'alice', role: 'user' });
+    expect(verifyOAuthState(session)).toBeNull();
+    expect(verifySession(signOAuthState({ platform: 'web' }))).toBeNull();
+  });
+});
+
+describe('OAuth signup tokens', () => {
+  it('round-trips the verified identity', () => {
+    const token = signSignupToken({
+      provider: 'google',
+      sub: 'g-42',
+      email: 'pat@example.com',
+      emailVerified: true,
+    });
+    expect(verifySignupToken(token)).toEqual({
+      provider: 'google',
+      sub: 'g-42',
+      email: 'pat@example.com',
+      emailVerified: true,
+    });
+  });
+
+  it('rejects garbage and tokens of a different audience', () => {
+    expect(verifySignupToken('not-a-jwt')).toBeNull();
+    // A state token must not pass as a signup token.
+    expect(verifySignupToken(signOAuthState({ platform: 'web' }))).toBeNull();
   });
 });
 
