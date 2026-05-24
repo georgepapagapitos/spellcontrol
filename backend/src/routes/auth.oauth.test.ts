@@ -106,7 +106,7 @@ d('GET /api/auth/google/callback — first-time sign-in', () => {
   it('deep-links a signup token to a new native user', async () => {
     const res = await callback('new-native-sub', 'newnative@example.com', 'native');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^spellcontrol:\/\/oauth\/callback\?signup=/);
+    expect(res.headers.location).toMatch(/^https:\/\/spellcontrol\.com\/oauth\/callback\?signup=/);
   });
 
   it('redirects to an error page when the state is invalid', async () => {
@@ -169,7 +169,7 @@ d('GET /api/auth/google/callback — returning user', () => {
   it('deep-links a handoff code to a returning native user, and exchange works', async () => {
     await createGoogleAccount('return-native-sub', 'returnnative@example.com', 'return-native');
     const cb = await callback('return-native-sub', 'returnnative@example.com', 'native');
-    expect(cb.headers.location).toMatch(/^spellcontrol:\/\/oauth\/callback\?code=/);
+    expect(cb.headers.location).toMatch(/^https:\/\/spellcontrol\.com\/oauth\/callback\?code=/);
     const handoff = new URL(cb.headers.location).searchParams.get('code')!;
 
     const res = await request(app).post('/api/auth/google/exchange').send({ code: handoff });
@@ -448,7 +448,7 @@ d('GET /api/auth/google/callback — link mode', () => {
         code: 'auth-code',
         state: signOAuthState({ platform: 'native', mode: 'link', userId }),
       });
-    expect(res.headers.location).toBe('spellcontrol://oauth/callback?linked=google');
+    expect(res.headers.location).toBe('https://spellcontrol.com/oauth/callback?linked=google');
   });
 });
 
