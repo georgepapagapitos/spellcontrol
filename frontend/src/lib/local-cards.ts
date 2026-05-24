@@ -21,10 +21,9 @@ const CURRENT_KEY = 'current';
 export interface ImportHistoryEntry {
   /**
    * Stable identifier for this import. Cards added by the import are stamped
-   * with the same id so a user can delete just this batch later. Optional for
-   * back-compat with histories saved before this field existed.
+   * with the same id so a user can delete just this batch later.
    */
-  id?: string;
+  id: string;
   /** Source file name or "pasted-list". */
   name: string;
   /** Number of cards added by this individual import. */
@@ -48,13 +47,13 @@ export interface StoredCollection {
    * `replace` import this contains a single entry; after merges, one entry per
    * import in chronological order.
    */
-  importHistory?: ImportHistoryEntry[];
+  importHistory: ImportHistoryEntry[];
   /**
-   * User-defined lists of unowned cards. Optional for back-compat (treated as
-   * `[]`). Conceptually independent of owned cards; stored here only because
-   * this blob is the user's synced data envelope (rides the synced blob).
+   * User-defined lists of unowned cards. Conceptually independent of owned
+   * cards; stored here only because this blob is the user's synced data
+   * envelope (rides the synced blob).
    */
-  lists?: ListDef[];
+  lists: ListDef[];
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
@@ -83,29 +82,7 @@ export async function loadCollection(): Promise<StoredCollection | null> {
   try {
     const db = await getDB();
     const result = (await db.get(STORE_NAME, CURRENT_KEY)) as StoredCollection | undefined;
-    if (!result) return null;
-
-    // Migrate older records that used `binderName` instead of `sourceCategory`.
-    // Cheap inline transform — no need for a separate DB version bump.
-    const migratedCards = result.cards.map((c) => {
-      const anyCard = c as unknown as Record<string, unknown>;
-      if ('binderName' in anyCard && !('sourceCategory' in anyCard)) {
-        anyCard.sourceCategory = anyCard.binderName;
-        delete anyCard.binderName;
-      }
-      if (!('sourceFormat' in anyCard)) {
-        anyCard.sourceFormat = 'manabox'; // older imports were always ManaBox
-      }
-      if (!c.copyId) {
-        c.copyId = crypto.randomUUID();
-      }
-      if (!('finish' in anyCard)) {
-        anyCard.finish = c.foil ? 'foil' : 'nonfoil';
-      }
-      return c;
-    });
-
-    return { ...result, cards: migratedCards };
+    return result ?? null;
   } catch (err) {
     logger.warn('[local-cards] Failed to load collection from IndexedDB:', err);
     throw new Error(

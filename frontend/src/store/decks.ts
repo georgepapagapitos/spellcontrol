@@ -431,7 +431,7 @@ export const useDecksStore = create<DecksState>()(
                 slotId: c.slotId,
                 allocatedCopyId: c.allocatedCopyId,
               })),
-              sideboard: (deck.sideboard ?? []).map((c) => ({
+              sideboard: deck.sideboard.map((c) => ({
                 slotId: c.slotId,
                 allocatedCopyId: c.allocatedCopyId,
               })),
@@ -632,9 +632,7 @@ export const useDecksStore = create<DecksState>()(
               u.commanderAllocatedCopyId !== deck.commanderAllocatedCopyId ||
               u.partnerCommanderAllocatedCopyId !== deck.partnerCommanderAllocatedCopyId ||
               deck.cards.some((c, i) => u.cards[i]?.allocatedCopyId !== c.allocatedCopyId) ||
-              (deck.sideboard ?? []).some(
-                (c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId
-              );
+              deck.sideboard.some((c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId);
             if (!cardsChanged) return deck;
             return touch({
               ...deck,
@@ -644,7 +642,7 @@ export const useDecksStore = create<DecksState>()(
                 ...c,
                 allocatedCopyId: u.cards[i].allocatedCopyId,
               })),
-              sideboard: (deck.sideboard ?? []).map((c, i) => ({
+              sideboard: deck.sideboard.map((c, i) => ({
                 ...c,
                 allocatedCopyId: u.sideboard[i].allocatedCopyId,
               })),
