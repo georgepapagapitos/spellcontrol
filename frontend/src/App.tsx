@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 import { CollectionPage } from './pages/CollectionPage';
@@ -29,17 +29,48 @@ import { initDeepLinks } from './lib/deep-links';
 // the installed APK, where deep-links.ts finishes the sign-in — so this
 // component is never rendered. It exists for the rare case where App Link
 // verification glitches (cleared defaults, unverified install) and the URL
-// loads in the system browser SPA instead; without it the catch-all bounces
-// the visitor to /collection with no explanation. The same page is harmless
-// on web (a stray hit to /oauth/callback in a desktop browser).
+// loads in the system browser SPA instead.
+//
+// On Android we offer a Chrome-specific intent:// URL that explicitly names
+// the SpellControl package, which forces the OS to hand the URL to our APK
+// even when the App Link auto-verify chain didn't fire.
 function OAuthCallbackLanding() {
+  const [params] = useSearchParams();
+  const hasPayload = params.has('code') || params.has('signup');
+  const errored = params.has('error') || params.has('linkError');
+  const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+  const intentUrl = `intent://spellcontrol.com/oauth/callback?${params.toString()}#Intent;scheme=https;package=com.spellcontrol.app;end`;
+
+  let title: string;
+  let message: string;
+  if (errored) {
+    title = 'Sign-in didn’t finish';
+    message = 'Open SpellControl and try signing in again.';
+  } else if (!hasPayload) {
+    title = 'Nothing to finish here';
+    message = 'You can safely close this tab.';
+  } else if (isAndroid) {
+    title = 'Almost there';
+    message = 'Tap below to finish signing in inside SpellControl.';
+  } else {
+    title = 'Finish on your phone';
+    message = 'Open SpellControl on the device you started signing in on.';
+  }
+
   return (
-    <div className="auth-page" role="status">
-      <h1>Finishing sign-in…</h1>
-      <p>
-        If you’re on Android and SpellControl is installed, open it now to finish signing in. If
-        nothing happens, you can close this tab.
-      </p>
+    <div className="auth-page">
+      <div className="auth-card auth-callback-card" role="status">
+        <h1 className="auth-title">{title}</h1>
+        <p className="auth-subtitle">{message}</p>
+        {hasPayload && isAndroid ? (
+          <a className="auth-submit auth-submit-link" href={intentUrl}>
+            Open SpellControl
+          </a>
+        ) : null}
+        <a className="auth-back" href="/">
+          Continue on the web instead
+        </a>
+      </div>
     </div>
   );
 }

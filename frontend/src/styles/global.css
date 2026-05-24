@@ -8686,6 +8686,24 @@ hr {
   cursor: progress;
 }
 
+/* Anchor variant for the OAuth callback "Open SpellControl" intent link. */
+.auth-submit-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.auth-callback-card .auth-subtitle {
+  margin-bottom: 20px;
+}
+
+.auth-callback-card .auth-back {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-top: 18px;
+}
+
 /* "Continue with Google" button — neutral surface so the coloured G mark
    carries the branding, matching the auth-field/auth-submit metrics. */
 .auth-google {
