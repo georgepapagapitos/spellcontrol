@@ -65,7 +65,7 @@
   <body>
     <main>
       <h1>SpellControl Privacy Policy</h1>
-      <p class="updated">Last updated: 2026-05-20.</p>
+      <p class="updated">Last updated: 2026-05-23.</p>
 
       <p>
         SpellControl is a tool for organizing physical Magic: The Gathering
@@ -85,12 +85,23 @@
           device.
         </li>
         <li>
-          <strong>If you create an account</strong>: we store your username,
-          a hashed password (we never see the plaintext), and the collection
-          / deck / binder / game data you choose to sync. This is so you can
-          sign in on another device and see the same data. Data is held on
-          our server at <code>api.spellcontrol.com</code> (hosted on Fly.io,
-          with a managed Postgres database on Neon).
+          <strong>If you create a password account</strong>: we store your
+          username, a hashed password (we never see the plaintext), and the
+          collection / deck / binder / game data you choose to sync. This is
+          so you can sign in on another device and see the same data. Data
+          is held on our server at <code>api.spellcontrol.com</code> (hosted
+          on Fly.io, with a managed Postgres database on Neon).
+        </li>
+        <li>
+          <strong>If you sign in with Google</strong>: in addition to the
+          collection / deck / binder / game data above, we store your Google
+          account's email address, a flag indicating whether Google has
+          verified it, and the stable Google-issued account identifier
+          ("sub") that we use to recognize the same Google account on your
+          next sign-in. We do not receive your Google password and we do
+          not access any other Google service on your behalf — only the
+          basic profile (email + identifier) that Google returns at
+          sign-in. You can unlink Google from your account in Settings.
         </li>
         <li>
           <strong>Shared content</strong>: if you generate a share link for a
@@ -130,6 +141,18 @@
         <li>Commander Spellbook — combo dataset.</li>
         <li>Tagger — card role/archetype tags.</li>
       </ul>
+
+      <h2>Sign-in providers</h2>
+      <p>
+        Signing in with Google sends you to Google's OAuth consent screen
+        and returns a verified email and account identifier to
+        <code>api.spellcontrol.com</code>. Google receives the standard
+        information about that sign-in (which app, when); it does not
+        receive your collection data or any other app activity. Google's
+        own handling of that data is governed by their
+        <a href="https://policies.google.com/privacy" rel="noopener"
+          >privacy policy</a>.
+      </p>
 
       <h2>Cookies and local storage</h2>
       <p>

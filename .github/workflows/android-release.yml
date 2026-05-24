@@ -1,0 +1,182 @@
+name: Android release
+
+# Build + sign a release AAB and attach it to a GitHub Release, so the Play
+# Console internal-testing upload is a single drag-and-drop instead of a
+# multi-minute local Gradle build. Triggers:
+#
+#   - `git push origin v1.2.3` (any tag starting with `v`)
+#       → builds, creates Release `v1.2.3`, attaches `spellcontrol-v1.2.3.aab`,
+#         and sets `versionName` to `1.2.3`.
+#   - Actions tab → "Run workflow"
+#       → same build, but you pick the release tag and version name manually
+#         (useful for re-running a failed release or building from a branch
+#         without a tag).
+#
+# `versionCode` is always `github.run_number`, which auto-increments each run
+# so Play Store never sees a duplicate. If a manual upload already burned a
+# higher versionCode, kick the workflow once to "absorb" the gap (the rejected
+# run still bumps run_number) and the next run will be > the manual one.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64     base64-encoded release .jks file
+#                               (`base64 -i path/to/release.jks | pbcopy`)
+#   ANDROID_KEYSTORE_PASSWORD   the keystore's store password
+#   ANDROID_KEY_ALIAS           key alias inside the keystore (e.g. "spellcontrol")
+#   ANDROID_KEY_PASSWORD        the key's password (often the same as store password)
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tagName:
+        description: 'Release tag to create / attach the AAB to (e.g. v1.2.3)'
+        required: true
+        type: string
+      versionName:
+        description: 'Android versionName (e.g. 1.2.3). Defaults to tagName without leading v.'
+        required: false
+        type: string
+
+permissions:
+  contents: write # needed to create the GitHub Release and upload the AAB
+
+# Two release builds racing would both claim the same `github.run_number`
+# only if they're separate workflow runs (which get separate numbers), so
+# this is really about not interleaving uploads to the same release.
+concurrency:
+  group: android-release-${{ github.event.inputs.tagName || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build & publish release AAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Compute versionName + tag once so every later step reads the same
+      # values. Tag-push: strip leading `v`. Manual dispatch: use the
+      # provided versionName, or fall back to the tagName with `v` stripped.
+      # User-provided inputs go through env vars (not `${{ … }}` in run:) so
+      # a maliciously crafted tag/input can't break out of the shell.
+      - name: Resolve release identifiers
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tagName }}
+          INPUT_NAME: ${{ github.event.inputs.versionName }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            TAG="$INPUT_TAG"
+            NAME="$INPUT_NAME"
+            if [[ -z "$NAME" ]]; then NAME="${TAG#v}"; fi
+          else
+            TAG="$REF_NAME"
+            NAME="${TAG#v}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG  versionName: $NAME  versionCode: $GITHUB_RUN_NUMBER"
+
+      # Build the file: shared deps before the frontend install. Mirrors the
+      # frontend job in ci.yml — their `dist/` is gitignored and the consumer's
+      # `npm ci` would otherwise run their `prepare` with no devDeps.
+      - name: Build shared game-core
+        working-directory: packages/game-core
+        run: npm ci && npm run build
+
+      - name: Build shared binder-routing
+        working-directory: packages/binder-routing
+        run: npm ci && npm run build
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Native build always targets the production backend; the AAB is what
+      # ends up in the Play Store, where a localhost API would be useless.
+      - name: Build web bundle
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://spellcontrol.com
+        run: npm run build
+
+      - name: Capacitor sync (copy web bundle + plugin refresh)
+        working-directory: frontend
+        run: npx cap sync android
+
+      # Decode the keystore from the base64 secret into a tmp file outside the
+      # workspace so it never lands in the AAB or in artifact uploads.
+      - name: Decode signing keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          echo "path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble signed release AAB
+        working-directory: frontend/android
+        env:
+          # Picked up by frontend/android/app/build.gradle's signingConfigs block.
+          SPELLCONTROL_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          SPELLCONTROL_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SPELLCONTROL_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SPELLCONTROL_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APP_VERSION_CODE: ${{ github.run_number }}
+          APP_VERSION_NAME: ${{ steps.release.outputs.name }}
+        run: |
+          set -euo pipefail
+          ./gradlew bundleRelease \
+            "-PappVersionCode=$APP_VERSION_CODE" \
+            "-PappVersionName=$APP_VERSION_NAME" \
+            --no-daemon --stacktrace
+
+      # Rename the AAB so the release asset name carries the version. Gradle's
+      # default `app-release.aab` would shadow the previous release's asset if
+      # someone ever attaches two to the same Release.
+      - name: Stage AAB for upload
+        id: stage
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          SRC="frontend/android/app/build/outputs/bundle/release/app-release.aab"
+          DEST="spellcontrol-${RELEASE_TAG}.aab"
+          cp "$SRC" "$DEST"
+          echo "path=$DEST" >> "$GITHUB_OUTPUT"
+          ls -lh "$DEST"
+
+      # Always scrub the keystore even if a later step failed. The runner is
+      # ephemeral so this is defensive, not load-bearing.
+      - name: Remove keystore
+        if: always()
+        env:
+          KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+        run: rm -f "$KEYSTORE_PATH"
+
+      - name: Create / update GitHub Release with AAB
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.tag }}
+          generate_release_notes: true
+          files: ${{ steps.stage.outputs.path }}
+          fail_on_unmatched_files: true
