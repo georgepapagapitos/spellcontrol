@@ -11029,8 +11029,18 @@ hr {
 
 /* ---------- Admin panel (Settings page, role=admin only) ---------- */
 
+/* Horizontal scroll fallback so the actions column stays reachable on narrow
+   viewports instead of being clipped by the settings card. */
+.admin-users-table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .admin-users-table {
   width: 100%;
+  min-width: 26rem;
   border-collapse: collapse;
   font-size: var(--text-sm);
 }
@@ -11055,9 +11065,13 @@ hr {
   border-bottom: none;
 }
 
+.admin-users-table td,
+.admin-users-table th {
+  white-space: nowrap;
+}
+
 .admin-users-table td:last-child {
   text-align: right;
-  white-space: nowrap;
 }
 
 .admin-role-pill {
