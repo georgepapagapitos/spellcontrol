@@ -9,10 +9,6 @@ import type { StateStorage } from 'zustand/middleware';
  * pushes the serialized store past that cap and `setItem` throws
  * `QuotaExceededError: "The quota has been exceeded."`. IndexedDB has a far
  * larger quota and removes that ceiling.
- *
- * `getItem` migrates any existing localStorage value into IndexedDB on first
- * read, then clears the localStorage copy so prior decks are preserved and the
- * old quota is reclaimed.
  */
 export function createIndexedDbStorage(dbName: string): StateStorage {
   // Non-browser environments (SSR, unit tests under the `node` runtime) have
@@ -38,23 +34,7 @@ export function createIndexedDbStorage(dbName: string): StateStorage {
   };
 
   return {
-    getItem: async (name) => {
-      const existing = await get<string>(name, getStore());
-      if (existing != null) return existing;
-
-      // One-time migration from the previous localStorage backing.
-      try {
-        const legacy = localStorage.getItem(name);
-        if (legacy != null) {
-          await set(name, legacy, getStore());
-          localStorage.removeItem(name);
-          return legacy;
-        }
-      } catch {
-        // localStorage may be unavailable (private mode); nothing to migrate.
-      }
-      return null;
-    },
+    getItem: async (name) => (await get<string>(name, getStore())) ?? null,
     setItem: async (name, value) => {
       await set(name, value, getStore());
     },

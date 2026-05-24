@@ -81,12 +81,14 @@ function cardsAsCollection(cards: EnrichedCard[], label: string): StoredCollecti
     uploadedAt: Date.now(),
     importHistory: [
       {
+        id: crypto.randomUUID(),
         name: label,
         count: cards.length,
         format: 'export',
         addedAt: Date.now(),
       },
     ],
+    lists: [],
   };
 }
 
@@ -166,39 +168,9 @@ export function parseBackup(raw: string): Backup {
   }
 
   const binders = Array.isArray(obj.binders)
-    ? (obj.binders as Array<Record<string, unknown>>).map((b) => {
-        const raw = b as {
-          fixedCapacity?: number | null;
-          fixedPageCount?: number | null;
-          pocketSize?: number | null;
-          doubleSided?: boolean;
-        } & Record<string, unknown>;
-        // Split legacy 18/24 pocketSize → 9/12 + doubleSided flag.
-        let pocketSize: number | null = raw.pocketSize ?? null;
-        let doubleSided = !!raw.doubleSided;
-        if (pocketSize === 18) {
-          pocketSize = 9;
-          doubleSided = true;
-        } else if (pocketSize === 24) {
-          pocketSize = 12;
-          doubleSided = true;
-        }
-        const pocketForCapacity = pocketSize ?? 9;
-        const fixedCapacity =
-          typeof raw.fixedCapacity === 'number'
-            ? raw.fixedCapacity
-            : typeof raw.fixedPageCount === 'number'
-              ? raw.fixedPageCount * pocketForCapacity
-              : null;
-        const { fixedPageCount: _drop, ...rest } = raw;
-        return {
-          ...rest,
-          pocketSize,
-          doubleSided,
-          fixedCapacity,
-          sorts: normalizeSortEntries(rest.sorts),
-        } as BinderDef;
-      })
+    ? (obj.binders as Array<Record<string, unknown>>).map(
+        (b) => ({ ...b, sorts: normalizeSortEntries(b.sorts) }) as BinderDef
+      )
     : [];
   const collection =
     obj.collection && typeof obj.collection === 'object'
@@ -207,17 +179,6 @@ export function parseBackup(raw: string): Backup {
 
   if (collection && !Array.isArray(collection.cards)) {
     throw new Error('Backup collection is malformed (cards is not a list).');
-  }
-
-  if (collection) {
-    for (const card of collection.cards) {
-      if (!card.copyId) {
-        card.copyId = crypto.randomUUID();
-      }
-      if (!('finish' in (card as unknown as Record<string, unknown>))) {
-        (card as unknown as Record<string, unknown>).finish = card.foil ? 'foil' : 'nonfoil';
-      }
-    }
   }
 
   return {

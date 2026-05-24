@@ -611,7 +611,7 @@ export function UploadPanel() {
 
       {confirmingDeleteImports && (
         <DeleteImportsDialog
-          imports={importHistory.filter((h) => h.id && selectedHistoryIds.has(h.id))}
+          imports={importHistory.filter((h) => selectedHistoryIds.has(h.id))}
           onConfirm={handleDeleteSelected}
           onCancel={() => setConfirmingDeleteImports(false)}
         />
@@ -621,7 +621,7 @@ export function UploadPanel() {
 }
 
 interface DeleteImportsDialogProps {
-  imports: Array<{ id?: string; name: string; format: string; count: number }>;
+  imports: Array<{ id: string; name: string; format: string; count: number }>;
   onConfirm: () => void;
   onCancel: () => void;
 }

@@ -769,7 +769,7 @@ function StorageTab({
 }: {
   fileName: string;
   uploadedAt: number | null;
-  importHistory: { id?: string; name: string; count: number; format: string; addedAt: number }[];
+  importHistory: { id: string; name: string; count: number; format: string; addedAt: number }[];
   onClearCards: () => void;
   onClearBinders: () => void;
   onClearDecks: () => void;
@@ -809,13 +809,13 @@ function StorageTab({
           </tr>
         </thead>
         <tbody>
-          {importHistory.map((h, i) => (
-            <tr key={h.id ?? i}>
+          {importHistory.map((h) => (
+            <tr key={h.id}>
               <td>{new Date(h.addedAt).toLocaleString()}</td>
               <td>{h.name}</td>
               <td>{h.format}</td>
               <td>{h.count}</td>
-              <td className="admin-mono">{h.id?.slice(0, 8) ?? '(legacy)'}</td>
+              <td className="admin-mono">{h.id.slice(0, 8)}</td>
             </tr>
           ))}
         </tbody>

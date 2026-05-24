@@ -137,23 +137,6 @@ describe('hydrateCards', () => {
     ]);
   });
 
-  it('back-fills a single history entry for collections saved before importHistory', async () => {
-    await saveCollection({
-      fileName: 'legacy.csv',
-      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
-      scryfallHits: 1,
-      scryfallMisses: 0,
-      uploadedAt: 999,
-      importHistory: [],
-      lists: [],
-    });
-    await useCollectionStore.getState().hydrateCards();
-
-    expect(useCollectionStore.getState().importHistory).toEqual([
-      { name: 'legacy.csv', count: 1, format: '', addedAt: 999 },
-    ]);
-  });
-
   it('yields an empty history when nothing was ever imported', async () => {
     await saveCollection({
       fileName: '',
@@ -166,27 +149,6 @@ describe('hydrateCards', () => {
     });
     await useCollectionStore.getState().hydrateCards();
     expect(useCollectionStore.getState().importHistory).toEqual([]);
-  });
-
-  it('strips removed subCollection* legacy fields off loaded cards', async () => {
-    const legacy = {
-      ...enriched({ copyId: 'c1', scryfallId: 'sf1' }),
-      subCollectionId: 'old',
-      subCollectionKey: 'k',
-    } as EnrichedCard;
-    await saveCollection({
-      fileName: 'x',
-      cards: [legacy],
-      scryfallHits: 1,
-      scryfallMisses: 0,
-      uploadedAt: 1,
-      importHistory: [{ id: 'i', name: 'x', count: 1, format: '', addedAt: 1 }],
-      lists: [],
-    });
-    await useCollectionStore.getState().hydrateCards();
-    const card = useCollectionStore.getState().cards[0] as unknown as Record<string, unknown>;
-    expect('subCollectionId' in card).toBe(false);
-    expect('subCollectionKey' in card).toBe(false);
   });
 
   it('sets error and still clears hydrating when the load fails', async () => {
@@ -720,54 +682,5 @@ describe('UI / config setters', () => {
     expect(s.search).toBe('bolt');
     expect(s.isLoading).toBe(true);
     expect(s.error).toBe('boom');
-  });
-});
-
-describe('persist migrate', () => {
-  beforeEach(() => {
-    localStorage.removeItem('spellcontrol');
-  });
-
-  async function rehydrateWith(version: number, state: unknown) {
-    localStorage.setItem('spellcontrol', JSON.stringify({ state, version }));
-    await useCollectionStore.persist.rehydrate();
-  }
-
-  it('wipes binders from a pre-v5 store', async () => {
-    await rehydrateWith(4, { binders: [{ id: 'old', filter: {} }] });
-    expect(useCollectionStore.getState().binders).toEqual([]);
-  });
-
-  it('runs the full v5 transform chain (filter→groups, capacity, pockets, sorts)', async () => {
-    await rehydrateWith(5, {
-      binders: [
-        { id: 'a', filter: { x: 1 }, fixedPageCount: 2, pocketSize: 18, sorts: ['name'] },
-        {
-          id: 'b',
-          fixedCapacity: 40,
-          pocketSize: 24,
-          sorts: [{ field: 'set', dir: 'asc' }],
-        },
-        { id: 'c', pocketSize: 9 },
-      ],
-    });
-    // Every <15 store ultimately wipes binders; the value here is exercising
-    // the intermediate v6/v8/v10/v11/v14 transform branches without throwing.
-    expect(useCollectionStore.getState().binders).toEqual([]);
-  });
-
-  it('handles a v11 store: the non-array-sorts guard and the set→setReleaseDate map', async () => {
-    await rehydrateWith(11, {
-      binders: [
-        { id: 'a', sorts: 'not-an-array' },
-        { id: 'b', sorts: [{ field: 'set', dir: 'asc' }] },
-      ],
-    });
-    expect(useCollectionStore.getState().binders).toEqual([]);
-  });
-
-  it('tolerates a null persisted state', async () => {
-    await rehydrateWith(4, null);
-    expect(Array.isArray(useCollectionStore.getState().binders)).toBe(true);
   });
 });
