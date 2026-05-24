@@ -56,7 +56,7 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   status: 'unknown',
   error: null,
@@ -105,11 +105,17 @@ export const useAuth = create<AuthState>((set) => ({
       set({ user, status: 'authed', error: null });
       return true;
     } catch (err) {
+      // Don't downgrade an already-authed session: a replayed handoff code
+      // (e.g. the user taps "Open SpellControl" on the stranded /oauth/callback
+      // page after the first deep-link delivery already signed them in, or
+      // Android fires appUrlOpen twice) returns 401 because handoff codes are
+      // single-use — that must be a no-op, not a logout.
+      const stillAuthed = get().status === 'authed';
       set({
-        error: err instanceof Error ? err.message : 'Google sign-in failed.',
-        status: 'guest',
+        error: stillAuthed ? null : err instanceof Error ? err.message : 'Google sign-in failed.',
+        status: stillAuthed ? 'authed' : 'guest',
       });
-      return false;
+      return stillAuthed;
     }
   },
 
