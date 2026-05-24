@@ -125,9 +125,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                           type="button"
                           className="pill-btn pill-btn-danger"
                           disabled={isSelf}
-                          title={
-                            isSelf ? "You can't delete your own account here." : 'Delete user'
-                          }
+                          title={isSelf ? "You can't delete your own account here." : 'Delete user'}
                           onClick={() => setPending(u)}
                         >
                           Delete
