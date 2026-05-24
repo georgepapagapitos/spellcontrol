@@ -37,6 +37,26 @@ function RedirectList() {
   return <Navigate to={`/collection/lists/${id}`} replace />;
 }
 
+// Fallback for the OAuth App Link landing path. In the happy path Android
+// intercepts https://spellcontrol.com/oauth/callback and hands the URL to
+// the installed APK, where deep-links.ts finishes the sign-in — so this
+// component is never rendered. It exists for the rare case where App Link
+// verification glitches (cleared defaults, unverified install) and the URL
+// loads in the system browser SPA instead; without it the catch-all bounces
+// the visitor to /collection with no explanation. The same page is harmless
+// on web (a stray hit to /oauth/callback in a desktop browser).
+function OAuthCallbackLanding() {
+  return (
+    <div className="auth-page" role="status">
+      <h1>Finishing sign-in…</h1>
+      <p>
+        If you’re on Android and SpellControl is installed, open it now to finish signing in. If
+        nothing happens, you can close this tab.
+      </p>
+    </div>
+  );
+}
+
 export default function App() {
   const status = useAuth((s) => s.status);
   const userId = useAuth((s) => s.user?.id);
@@ -119,6 +139,7 @@ export default function App() {
       <Route path="/s/:token" element={<SharedView />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
+      <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
 
