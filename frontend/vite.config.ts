@@ -42,6 +42,14 @@ export default defineConfig({
         // alone push past Workbox's 2MB default.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         navigateFallback: '/index.html',
+        // Backend routes must reach the server. Without this, top-level
+        // navigations to /api/* (notably the Google OAuth start /api/auth/google
+        // and its callback /api/auth/google/callback) get the cached index.html
+        // instead — the backend never runs, no Set-Cookie ever happens, and
+        // the SPA's catch-all silently lands the user on /collection as a
+        // guest. Password login works only because it's an XHR (handled by
+        // runtimeCaching below), not a navigation.
+        navigateFallbackDenylist: [/^\/api\//],
         // Routes the SW handles at request time (vs. precache).
         runtimeCaching: [
           {
