@@ -466,13 +466,7 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
     return rows.filter((r) => {
-      if (
-        q &&
-        !r.card.name.toLowerCase().includes(q) &&
-        !r.card.setCode.toLowerCase().includes(q) &&
-        !(r.card.typeLine || '').toLowerCase().includes(q)
-      )
-        return false;
+      if (q && !r.card.name.toLowerCase().includes(q)) return false;
       if (compiledBinder) {
         const bname = r.binderName ?? '__uncategorized';
         if (!exactMatchesExpression(bname, compiledBinder)) return false;
