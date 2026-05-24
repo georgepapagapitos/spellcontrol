@@ -98,43 +98,45 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           <div className="settings-row-hint">No users yet.</div>
         )}
         {!loading && !error && users.length > 0 && (
-          <table className="admin-users-table">
-            <thead>
-              <tr>
-                <th scope="col">Username</th>
-                <th scope="col">Role</th>
-                <th scope="col">Registered</th>
-                <th scope="col">Data</th>
-                <th scope="col" aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => {
-                const isSelf = u.id === currentUserId;
-                return (
-                  <tr key={u.id}>
-                    <td>{u.username}</td>
-                    <td>
-                      <span className={`admin-role-pill is-${u.role}`}>{u.role}</span>
-                    </td>
-                    <td>{formatDate(u.createdAt)}</td>
-                    <td>{formatBytes(u.dataBytes)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="pill-btn pill-btn-danger"
-                        disabled={isSelf}
-                        title={isSelf ? "You can't delete your own account here." : 'Delete user'}
-                        onClick={() => setPending(u)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="admin-users-table-scroll">
+            <table className="admin-users-table">
+              <thead>
+                <tr>
+                  <th scope="col">Username</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Registered</th>
+                  <th scope="col">Data</th>
+                  <th scope="col" aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => {
+                  const isSelf = u.id === currentUserId;
+                  return (
+                    <tr key={u.id}>
+                      <td>{u.username}</td>
+                      <td>
+                        <span className={`admin-role-pill is-${u.role}`}>{u.role}</span>
+                      </td>
+                      <td>{formatDate(u.createdAt)}</td>
+                      <td>{formatBytes(u.dataBytes)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="pill-btn pill-btn-danger"
+                          disabled={isSelf}
+                          title={isSelf ? "You can't delete your own account here." : 'Delete user'}
+                          onClick={() => setPending(u)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
