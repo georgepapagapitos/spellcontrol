@@ -50,10 +50,33 @@
             </intent-filter>
 
             <!--
-                OAuth callback deep link: the backend's Google sign-in callback
-                302s to `spellcontrol://oauth/callback?code=<handoff>` to return
-                the system-browser flow into the app, where deep-links.ts trades
-                the code for a session. Custom scheme, so no domain verification.
+                OAuth callback deep link (Android App Link): the backend's
+                Google sign-in callback 302s to
+                `https://spellcontrol.com/oauth/callback?...` and the OS hands
+                the URL straight to this app, bypassing the system browser.
+                Requires a matching /.well-known/assetlinks.json on the host
+                listing this APK's signing cert fingerprints — Android
+                verifies this on install (autoVerify=true). Replaced the
+                previous spellcontrol://oauth custom-scheme hop, which
+                Firefox / Samsung Internet refused to follow.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="spellcontrol.com"
+                    android:pathPrefix="/oauth/callback" />
+            </intent-filter>
+
+            <!--
+                Legacy custom-scheme fallback: kept for one release cycle so
+                any APK out in the wild (or installed before the App Link
+                verification lands) still resolves spellcontrol://oauth/...
+                URLs locally. The backend no longer emits this scheme; remove
+                this filter (and the matching branch in deep-links.ts) in a
+                follow-up after the next signed release ships.
             -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />

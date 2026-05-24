@@ -40,8 +40,22 @@ import { logger } from '../logger';
 import { getDb } from '../db';
 import { authIdentities, users, userData } from '../db/schema';
 
-/** Custom-scheme deep link the native OAuth flow returns into the app. */
-const NATIVE_CALLBACK_SCHEME = 'spellcontrol://oauth/callback';
+/**
+ * HTTPS deep link the native OAuth flow returns into the app. An Android
+ * App Link intent filter (manifest + /.well-known/assetlinks.json) hands
+ * this URL straight to the installed APK, sidestepping the browser
+ * compatibility issues that the previous `spellcontrol://oauth/callback`
+ * custom scheme had (Firefox and Samsung Internet refused to follow the
+ * HTTPS → custom-scheme hop, dead-ending the flow). Override the host via
+ * `APP_HTTPS_DEEPLINK_BASE` (e.g. for a staging origin); default is prod.
+ */
+function nativeCallbackUrl(): string {
+  const base = (process.env.APP_HTTPS_DEEPLINK_BASE ?? 'https://spellcontrol.com').replace(
+    /\/+$/,
+    ''
+  );
+  return `${base}/oauth/callback`;
+}
 
 // Disable rate limiting in tests to avoid state persisting across test cases
 const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
@@ -176,13 +190,12 @@ async function handleLinkCallback(
   userId: string,
   providerSubject: string
 ): Promise<void> {
+  const callback = nativeCallbackUrl();
   const ok =
-    platform === 'native'
-      ? `${NATIVE_CALLBACK_SCHEME}?${qs({ linked: 'google' })}`
-      : '/settings?linked=google';
+    platform === 'native' ? `${callback}?${qs({ linked: 'google' })}` : '/settings?linked=google';
   const err = (reason: string): string =>
     platform === 'native'
-      ? `${NATIVE_CALLBACK_SCHEME}?${qs({ linkError: reason })}`
+      ? `${callback}?${qs({ linkError: reason })}`
       : `/settings?linkError=${encodeURIComponent(reason)}`;
 
   const existing = await findGoogleUser(providerSubject);
@@ -285,7 +298,7 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
   const state = verifyOAuthState(stateToken);
   const platform: OAuthPlatform = state?.platform ?? 'web';
   const errorRedirect =
-    platform === 'native' ? `${NATIVE_CALLBACK_SCHEME}?error=google` : '/auth?error=google';
+    platform === 'native' ? `${nativeCallbackUrl()}?error=google` : '/auth?error=google';
 
   try {
     if (!state) throw new Error('Invalid or expired OAuth state.');
@@ -306,7 +319,7 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
     if (existing) {
       if (platform === 'native') {
         const handoff = await mintHandoffCode(existing.id);
-        return res.redirect(`${NATIVE_CALLBACK_SCHEME}?${qs({ code: handoff })}`);
+        return res.redirect(`${nativeCallbackUrl()}?${qs({ code: handoff })}`);
       }
       setSessionCookie(res, signSession(existing));
       return res.redirect('/');
@@ -321,7 +334,7 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
     });
     const suggested = await generateUsername(identity.email ?? 'player');
     if (platform === 'native') {
-      return res.redirect(`${NATIVE_CALLBACK_SCHEME}?${qs({ signup: signupToken, suggested })}`);
+      return res.redirect(`${nativeCallbackUrl()}?${qs({ signup: signupToken, suggested })}`);
     }
     return res.redirect(`/auth/choose-username#${qs({ token: signupToken, suggested })}`);
   } catch (err) {

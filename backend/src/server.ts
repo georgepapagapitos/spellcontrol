@@ -130,6 +130,48 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ ok: true, cache: cache.stats() });
 });
 
+/**
+ * Digital Asset Links statement for the Android App Link that returns the
+ * Google OAuth callback into the installed APK. Android fetches this on
+ * install (and periodically) and verifies the SHA-256 fingerprints listed
+ * here against the APK's signing cert before the `autoVerify` intent
+ * filter is allowed to claim https://spellcontrol.com/oauth/callback URLs.
+ *
+ * Set `ANDROID_APP_FINGERPRINTS` to a comma-separated list of fingerprints
+ * (debug + release). Hex bytes may be upper- or lower-case, with or
+ * without colon separators — we normalize to the colon-separated upper
+ * form Google's tooling emits. If the env is unset the endpoint returns
+ * 404 so an unconfigured deployment doesn't advertise a half-broken
+ * statement (matches the opt-in shape of the `GOOGLE_*` SSO env).
+ */
+app.get('/.well-known/assetlinks.json', (_req: Request, res: Response) => {
+  const raw = process.env.ANDROID_APP_FINGERPRINTS;
+  if (!raw) return res.status(404).json({ error: 'Not configured.' });
+  const fingerprints = raw
+    .split(',')
+    .map((f) =>
+      f
+        .trim()
+        .replace(/[^0-9a-fA-F]/g, '')
+        .toUpperCase()
+    )
+    .filter((f) => f.length === 64)
+    .map((f) => f.match(/.{2}/g)!.join(':'));
+  if (fingerprints.length === 0) {
+    return res.status(404).json({ error: 'Not configured.' });
+  }
+  res.type('application/json').json([
+    {
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: {
+        namespace: 'android_app',
+        package_name: 'com.spellcontrol.app',
+        sha256_cert_fingerprints: fingerprints,
+      },
+    },
+  ]);
+});
+
 app.get('/api/sets', async (_req: Request, res: Response) => {
   try {
     const sets = await getSetMap();
