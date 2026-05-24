@@ -650,15 +650,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                     maxLength={120}
                   />
                 </label>
-                <p className="import-deck-hint">
-                  <strong>Select or drop several files at once</strong> (up to {MAX_FILES}) to
-                  create multiple decks in one go — each file becomes its own deck, and you can keep
-                  adding more before continuing. Or paste a single list below. Supports MTGA,
-                  ManaBox, Moxfield, Archidekt, and plain text formats.
-                  {formatConfig.hasCommander
-                    ? ' A "Commander" section header is detected automatically.'
-                    : ''}
-                </p>
                 <textarea
                   className="paste-textarea import-textarea"
                   value={pasteText}
