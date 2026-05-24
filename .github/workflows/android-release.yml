@@ -187,10 +187,27 @@ jobs:
       #
       # Skipped silently when PLAY_SERVICE_ACCOUNT_JSON isn't set, so the
       # workflow keeps working in forks / before the secret is provisioned.
-      # Requires a service account with the "Release manager" role on the
-      # SpellControl app (Play Console -> Setup -> API access).
+      # Requires a service account with the "Release apps to testing tracks"
+      # permission on the SpellControl app (Play Console -> Users and
+      # permissions; invite the service account email as a user).
+      #
+      # Step-level `if:` can't read `secrets.*` directly (GitHub blocks it as
+      # "Unrecognized named-value"), so the presence test is reflected into
+      # `env.HAS_PLAY_KEY` first and then read from `env` in the condition.
+      - name: Detect Play upload credentials
+        id: play_key
+        env:
+          PLAY_SA_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${PLAY_SA_JSON:-}" ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload AAB to Play Console (internal track)
-        if: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: steps.play_key.outputs.present == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
