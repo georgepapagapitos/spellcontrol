@@ -165,6 +165,16 @@ function handleDeepLink(url: string, navigate: Navigate): void {
     // this module's import side, so parseDeepLink stays cheap to unit-test.
     void import('../store/auth').then(({ useAuth }) => {
       if (oauth.code) {
+        // A second delivery of the same callback (Android occasionally fires
+        // appUrlOpen twice; the user can also tap the fallback page's "Open
+        // SpellControl" button after the first delivery already signed them
+        // in) would re-POST a handoff code that the backend has already
+        // consumed. Short-circuit on an already-authed session so the replay
+        // is a no-op instead of a logout.
+        if (useAuth.getState().status === 'authed') {
+          navigate('/');
+          return;
+        }
         void useAuth.getState().completeGoogleOAuth(oauth.code);
       } else {
         useAuth.setState({ error: 'Google sign-in was cancelled. Please try again.' });
