@@ -180,3 +180,21 @@ jobs:
           generate_release_notes: true
           files: ${{ steps.stage.outputs.path }}
           fail_on_unmatched_files: true
+
+      # Push the signed AAB to Play Console's Internal testing track and
+      # activate it (status=completed). Promotion to closed/open/production
+      # is a manual step in Play Console.
+      #
+      # Skipped silently when PLAY_SERVICE_ACCOUNT_JSON isn't set, so the
+      # workflow keeps working in forks / before the secret is provisioned.
+      # Requires a service account with the "Release manager" role on the
+      # SpellControl app (Play Console -> Setup -> API access).
+      - name: Upload AAB to Play Console (internal track)
+        if: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.spellcontrol.app
+          releaseFiles: ${{ steps.stage.outputs.path }}
+          track: internal
+          status: completed
