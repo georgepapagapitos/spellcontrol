@@ -19,7 +19,7 @@ import {
   type ImportHistoryEntry,
   type StoredCollection,
 } from '../lib/local-cards';
-import { buildBackup, normalizeSortEntries, type Backup } from '../lib/backup';
+import { buildBackup, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { apiUrl } from '../lib/api-base';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
@@ -233,26 +233,6 @@ function buildStored(s: {
   };
 }
 
-/**
- * Strips the removed `subCollectionId` / `subCollectionKey` fields off cards
- * loaded from an older blob, so they self-clean on the next save instead of
- * lingering forever in IndexedDB / the synced envelope. Only allocates a new
- * object when one of the legacy keys is actually present.
- */
-function stripLegacySubFields(cards: EnrichedCard[]): EnrichedCard[] {
-  return cards.map((card) => {
-    const raw = card as EnrichedCard & {
-      subCollectionId?: unknown;
-      subCollectionKey?: unknown;
-    };
-    if (!('subCollectionId' in raw) && !('subCollectionKey' in raw)) return card;
-    const next = { ...raw };
-    delete next.subCollectionId;
-    delete next.subCollectionKey;
-    return next;
-  });
-}
-
 function remapDeckAllocations(newCards: EnrichedCard[]): void {
   const { decks, remapAllocations } = useDecksStore.getState();
   if (decks.length > 0) {
@@ -305,28 +285,14 @@ export const useCollectionStore = create<CollectionState>()(
         try {
           const stored = await loadCollection();
           if (stored) {
-            // Back-fill history for collections saved before importHistory existed.
-            const history: ImportHistoryEntry[] =
-              stored.importHistory && stored.importHistory.length > 0
-                ? stored.importHistory
-                : stored.cards.length > 0
-                  ? [
-                      {
-                        name: stored.fileName || 'previous import',
-                        count: stored.cards.length,
-                        format: '',
-                        addedAt: stored.uploadedAt,
-                      },
-                    ]
-                  : [];
             set({
-              cards: stripLegacySubFields(stored.cards),
+              cards: stored.cards,
               fileName: stored.fileName,
               scryfallHits: stored.scryfallHits,
               scryfallMisses: stored.scryfallMisses,
               uploadedAt: stored.uploadedAt,
-              importHistory: history,
-              lists: stored.lists ?? [],
+              importHistory: stored.importHistory,
+              lists: stored.lists,
             });
           }
         } catch (err) {
@@ -434,7 +400,7 @@ export const useCollectionStore = create<CollectionState>()(
         const idSet = new Set(ids);
         const s = get();
         const remainingCards = s.cards.filter((c) => !c.importId || !idSet.has(c.importId));
-        const remainingHistory = s.importHistory.filter((h) => !h.id || !idSet.has(h.id));
+        const remainingHistory = s.importHistory.filter((h) => !idSet.has(h.id));
         set({
           cards: remainingCards,
           importHistory: remainingHistory,
@@ -980,115 +946,6 @@ export const useCollectionStore = create<CollectionState>()(
       partialize: (s) => ({
         binders: s.binders,
       }),
-      /**
-       * v5 reworks the rule schema entirely (BinderRule[] → single BinderFilter with
-       * IS/IS NOT chips, legalities, layouts, oracle text, etc). Older saved binders
-       * use a shape we no longer understand, so we wipe them. Users start fresh.
-       *
-       * v6 introduces OR-groups: `filter` becomes `filterGroups`, an array of
-       * `{ name?, filter }`. We wrap the existing single filter as a one-group
-       * list so behavior is preserved exactly.
-       *
-       * v15 swaps every chip field on BinderFilter from `NegatableChip[]` to
-       * `ChipExpression { chips, joiners }`. The new evaluator only handles
-       * the new shape and would crash reading `.chips.length` on a legacy
-       * array. We just drop binders — no UI for re-authoring lossy chip
-       * sets in-place, and re-creating a rule is fast.
-       */
-      migrate: (persistedState, fromVersion) => {
-        const state = persistedState as Record<string, unknown> | undefined;
-        if (!state) return state as never;
-        if (fromVersion < 5) {
-          state.binders = [];
-        }
-        if (fromVersion < 6 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
-            const { filter, ...rest } = b;
-            return {
-              ...rest,
-              filterGroups: [{ filter: filter ?? {} }],
-            };
-          });
-        }
-        // v7→v8: rename fixedPageCount (number of pages) → fixedCapacity (number
-        // of cards). Capacity = old pageCount × the binder's effective pocket size.
-        // Earlier v7 stores never shipped to users, but be defensive anyway.
-        if (fromVersion < 8 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
-            const { fixedPageCount, ...rest } = b as {
-              fixedPageCount?: number | null;
-              fixedCapacity?: number | null;
-              pocketSize?: number | null;
-            } & Record<string, unknown>;
-            const pocket = (rest.pocketSize as number | null) ?? 9;
-            const carriedCapacity =
-              typeof rest.fixedCapacity === 'number' ? rest.fixedCapacity : null;
-            const derivedCapacity =
-              typeof fixedPageCount === 'number' ? fixedPageCount * pocket : null;
-            return {
-              ...rest,
-              fixedCapacity: carriedCapacity ?? derivedCapacity ?? null,
-            };
-          });
-        }
-        // v8→v9: split pocketSize into per-page pockets (4 | 9 | 12) plus a
-        // separate `doubleSided` flag. Legacy 18 → {pocketSize 9, doubleSided},
-        // 24 → {pocketSize 12, doubleSided}. "Page" now uniformly means one
-        // side of a sheet, so totals and capacity divide cleanly by pocketSize.
-        if (fromVersion < 10 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
-            const raw = b as { pocketSize?: number | null; doubleSided?: boolean } & Record<
-              string,
-              unknown
-            >;
-            const ps = raw.pocketSize;
-            let pocketSize: number | null = ps ?? null;
-            let doubleSided = !!raw.doubleSided;
-            if (ps === 18) {
-              pocketSize = 9;
-              doubleSided = true;
-            } else if (ps === 24) {
-              pocketSize = 12;
-              doubleSided = true;
-            }
-            return { ...raw, pocketSize, doubleSided };
-          });
-        }
-        // v10→v11: sorts changed from SortField[] (string[]) to SortEntry[]
-        // ({ field, dir }[]). Price defaults to desc; everything else to asc.
-        if (fromVersion < 11 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => ({
-            ...b,
-            sorts: normalizeSortEntries(b.sorts),
-          }));
-        }
-        // v11→v12: added optional `mode` field to BinderDef. Undefined = 'rules'.
-        // v12→v13: added optional `hideDeckAllocated` field. Undefined = include
-        // deck-allocated cards (current behavior). No data transform needed.
-        // v13→v14: split 'set' sort into 'setReleaseDate' (chronological) and
-        // 'setName' (alphabetical). Existing 'set' entries map to
-        // 'setReleaseDate' since that matches the post-fix behavior (sets sort
-        // by Scryfall release date).
-        if (fromVersion < 14 && Array.isArray(state.binders)) {
-          state.binders = (state.binders as Array<Record<string, unknown>>).map((b) => {
-            const sorts = b.sorts as Array<{ field: string; dir: string }> | undefined;
-            if (!Array.isArray(sorts)) return b;
-            return {
-              ...b,
-              sorts: sorts.map((s) => (s.field === 'set' ? { ...s, field: 'setReleaseDate' } : s)),
-            };
-          });
-        }
-        // v14→v15: every chip field on BinderFilter shifted from
-        // `NegatableChip[]` to `ChipExpression { chips, joiners }`. Reading
-        // `.chips.length` on a legacy array would crash the new evaluator,
-        // and there's no faithful auto-conversion for mixed IS / IS NOT
-        // chips. Wipe and have the user re-author — fast and lossless.
-        if (fromVersion < 15) {
-          state.binders = [];
-        }
-        return state as never;
-      },
     }
   )
 );

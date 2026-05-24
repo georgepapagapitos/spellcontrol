@@ -166,63 +166,6 @@ describe('filename helpers', () => {
   });
 });
 
-describe('parseBackup migrations', () => {
-  it('upgrades 18-pocket binders to 9-pocket double-sided', () => {
-    const parsed = parseBackup(
-      JSON.stringify({
-        format: BACKUP_FORMAT,
-        version: BACKUP_VERSION,
-        binders: [{ ...sampleBinder, pocketSize: 18, doubleSided: false }],
-      })
-    );
-    expect(parsed.binders[0].pocketSize).toBe(9);
-    expect(parsed.binders[0].doubleSided).toBe(true);
-  });
-
-  it('upgrades 24-pocket binders to 12-pocket double-sided', () => {
-    const parsed = parseBackup(
-      JSON.stringify({
-        format: BACKUP_FORMAT,
-        version: BACKUP_VERSION,
-        binders: [{ ...sampleBinder, pocketSize: 24, doubleSided: false }],
-      })
-    );
-    expect(parsed.binders[0].pocketSize).toBe(12);
-    expect(parsed.binders[0].doubleSided).toBe(true);
-  });
-
-  it('derives fixedCapacity from legacy fixedPageCount', () => {
-    const legacy = { ...sampleBinder, pocketSize: 9, fixedPageCount: 5 };
-    delete (legacy as Record<string, unknown>).fixedCapacity;
-    const parsed = parseBackup(
-      JSON.stringify({ format: BACKUP_FORMAT, version: BACKUP_VERSION, binders: [legacy] })
-    );
-    expect(parsed.binders[0].fixedCapacity).toBe(45);
-    expect(
-      (parsed.binders[0] as unknown as Record<string, unknown>).fixedPageCount
-    ).toBeUndefined();
-  });
-
-  it('assigns missing copyIds to cards', () => {
-    const collection = {
-      fileName: 'x',
-      cards: [{ ...card(), copyId: '' }],
-      scryfallHits: 0,
-      scryfallMisses: 0,
-      uploadedAt: 0,
-    };
-    const parsed = parseBackup(
-      JSON.stringify({
-        format: BACKUP_FORMAT,
-        version: BACKUP_VERSION,
-        binders: [],
-        collection,
-      })
-    );
-    expect(parsed.collection?.cards[0].copyId.length).toBeGreaterThan(0);
-  });
-});
-
 describe('downloadBackup', () => {
   it('triggers a download via an anchor element', () => {
     const createObjectURL = vi.fn(() => 'blob:fake');
