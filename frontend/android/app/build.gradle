@@ -7,8 +7,15 @@ android {
         applicationId "com.spellcontrol.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // versionCode / versionName are overridable from the command line
+        // (`./gradlew bundleRelease -PappVersionCode=42 -PappVersionName=1.0.1`)
+        // so the release workflow can derive them from the CI run number and
+        // the git tag. Play Store rejects a duplicate versionCode for the same
+        // package, so each release upload must bump it monotonically — the
+        // GitHub Action passes `github.run_number`. Local debug builds use the
+        // fallbacks below.
+        versionCode (project.hasProperty('appVersionCode') ? (project.appVersionCode as Integer) : 1)
+        versionName (project.hasProperty('appVersionName') ? project.appVersionName : "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
