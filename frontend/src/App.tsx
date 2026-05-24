@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 import { CollectionPage } from './pages/CollectionPage';
@@ -23,19 +23,6 @@ import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
 import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
-
-// Back-compat redirects for the pre-hub flat paths. Param-preserving so deep
-// links / bookmarks to /binders/:id and /lists/:id still land on the right
-// detail page under the new /collection hub.
-function RedirectBinder() {
-  const { id } = useParams<{ id: string }>();
-  return <Navigate to={`/collection/binders/${id}`} replace />;
-}
-
-function RedirectList() {
-  const { id } = useParams<{ id: string }>();
-  return <Navigate to={`/collection/lists/${id}`} replace />;
-}
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
 // intercepts https://spellcontrol.com/oauth/callback and hands the URL to
@@ -150,13 +137,6 @@ export default function App() {
           <Route path="lists" element={<ListsPage />} />
           <Route path="lists/:id" element={<ListsPage />} />
         </Route>
-
-        {/* Back-compat permanent redirects (preserve old deep links). */}
-        <Route path="/binder" element={<Navigate to="/collection/binders" replace />} />
-        <Route path="/binders" element={<Navigate to="/collection/binders" replace />} />
-        <Route path="/binders/:id" element={<RedirectBinder />} />
-        <Route path="/lists" element={<Navigate to="/collection/lists" replace />} />
-        <Route path="/lists/:id" element={<RedirectList />} />
 
         <Route path="/decks" element={<DecksIndexPage />} />
         <Route path="/decks/new" element={<DeckNewPage />} />

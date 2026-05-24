@@ -3,7 +3,7 @@ import { findPriorImports } from './reimport';
 import type { ImportHistoryEntry } from './local-cards';
 
 function entry(over: Partial<ImportHistoryEntry> & { name: string }): ImportHistoryEntry {
-  return { count: 100, format: 'manabox', addedAt: 1, ...over };
+  return { id: 'imp', count: 100, format: 'manabox', addedAt: 1, ...over };
 }
 
 describe('findPriorImports', () => {
