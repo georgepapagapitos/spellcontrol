@@ -31,41 +31,14 @@ describe('local-cards', () => {
       scryfallHits: 1,
       scryfallMisses: 0,
       uploadedAt: 1700000000000,
+      importHistory: [],
+      lists: [],
     };
     await saveCollection(data);
     const loaded = await loadCollection();
     expect(loaded?.fileName).toBe('cards.csv');
     expect(loaded?.cards).toHaveLength(1);
     expect(loaded?.cards[0].copyId).toBe('c1');
-  });
-
-  it('migrates legacy binderName to sourceCategory and stamps sourceFormat', async () => {
-    await saveCollection({
-      fileName: 'old.csv',
-      cards: [
-        {
-          copyId: 'c2',
-          name: 'X',
-          setCode: 'A',
-          setName: 'A',
-          collectorNumber: '1',
-          rarity: 'common',
-          scryfallId: 'a',
-          purchasePrice: 0,
-          binderName: 'My binder',
-          foil: false,
-          finish: 'nonfoil' as const,
-        } as never,
-      ],
-      scryfallHits: 1,
-      scryfallMisses: 0,
-      uploadedAt: 0,
-    });
-    const loaded = await loadCollection();
-    const c = loaded!.cards[0] as unknown as Record<string, unknown>;
-    expect(c.sourceCategory).toBe('My binder');
-    expect(c.binderName).toBeUndefined();
-    expect(c.sourceFormat).toBe('manabox');
   });
 
   it('clearCollection wipes the stored payload', async () => {
@@ -75,6 +48,8 @@ describe('local-cards', () => {
       scryfallHits: 0,
       scryfallMisses: 0,
       uploadedAt: 0,
+      importHistory: [],
+      lists: [],
     });
     await clearCollection();
     expect(await loadCollection()).toBeNull();

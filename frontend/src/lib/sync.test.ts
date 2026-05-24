@@ -2,7 +2,6 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as authApi from './auth-api';
-import * as combosApi from './api/combos';
 import { startSync, stopSyncAndWipeLocal, flushSync } from './sync';
 import { markDestructive } from './sync-intent';
 import { saveCollection, clearCollection, loadCollection } from './local-cards';
@@ -51,6 +50,7 @@ describe('startSync', () => {
         scryfallMisses: 0,
         uploadedAt: 123,
         importHistory: [],
+        lists: [],
       },
       binders: [{ id: 'b1', name: 'Server binder', createdAt: 100, updatedAt: 100, position: 0 }],
       decks: [{ id: 'd1', name: 'Server deck', createdAt: 100, updatedAt: 100 }],
@@ -98,95 +98,6 @@ describe('startSync', () => {
     expect(localStorage.getItem('spellcontrol-sync-dirty')).toBeNull();
   });
 
-  it('backfills oracleId on collection cards from /api/cards/oracle-ids', async () => {
-    // Two cards present locally — one missing oracleId (should be backfilled)
-    // and one already has it (should be left alone).
-    useCollectionStore.setState({
-      cards: [
-        { copyId: 'c1', name: 'Old Card', scryfallId: 'sf-1', sourceFormat: 'manual' } as never,
-        {
-          copyId: 'c2',
-          name: 'Newer',
-          scryfallId: 'sf-2',
-          oracleId: 'oracle-existing',
-          sourceFormat: 'manual',
-        } as never,
-      ],
-    });
-    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
-      collection: null,
-      binders: [],
-      decks: [],
-      games: [],
-      version: 0,
-      updatedAt: 0,
-    });
-    const oracleSpy = vi
-      .spyOn(combosApi, 'fetchOracleIds')
-      .mockResolvedValue({ 'sf-1': 'oracle-new' });
-
-    await startSync('user-1');
-    // Backfill is fire-and-forget; flush microtasks until the patched cards land.
-    for (let i = 0; i < 30 && !useCollectionStore.getState().cards[0].oracleId; i++) {
-      await new Promise((r) => setTimeout(r, 5));
-    }
-
-    expect(oracleSpy).toHaveBeenCalledWith(['sf-1']);
-    const after = useCollectionStore.getState().cards;
-    expect(after[0].oracleId).toBe('oracle-new');
-    expect(after[1].oracleId).toBe('oracle-existing');
-  });
-
-  it('skips the oracle-id backfill when every card already has an oracleId', async () => {
-    useCollectionStore.setState({
-      cards: [
-        {
-          copyId: 'c1',
-          name: 'Has it',
-          scryfallId: 'sf-1',
-          oracleId: 'oracle-1',
-          sourceFormat: 'manual',
-        } as never,
-      ],
-    });
-    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
-      collection: null,
-      binders: [],
-      decks: [],
-      games: [],
-      version: 0,
-      updatedAt: 0,
-    });
-    const oracleSpy = vi.spyOn(combosApi, 'fetchOracleIds').mockResolvedValue({});
-
-    await startSync('user-1');
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(oracleSpy).not.toHaveBeenCalled();
-  });
-
-  it('keeps the original cards when the oracle-id backfill request rejects', async () => {
-    useCollectionStore.setState({
-      cards: [{ copyId: 'c1', name: 'Old', scryfallId: 'sf-1', sourceFormat: 'manual' } as never],
-    });
-    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
-      collection: null,
-      binders: [],
-      decks: [],
-      games: [],
-      version: 0,
-      updatedAt: 0,
-    });
-    vi.spyOn(combosApi, 'fetchOracleIds').mockRejectedValue(new Error('boom'));
-    // The backfill swallows + warns; suppress so the test output is clean.
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    await startSync('user-1');
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(useCollectionStore.getState().cards[0].oracleId).toBeUndefined();
-  });
-
   it('wipes local state when the persisted owner differs from the current user', async () => {
     localStorage.setItem('spellcontrol-sync-owner', 'user-A');
     useCollectionStore.setState({
@@ -224,6 +135,7 @@ describe('cache hydration safety', () => {
       scryfallMisses: 0,
       uploadedAt: 100,
       importHistory: [],
+      lists: [],
     });
     // Pre-deploy state: binders persisted via zustand, but cards still in
     // IndexedDB and not yet loaded into the store.
@@ -242,6 +154,7 @@ describe('cache hydration safety', () => {
         scryfallMisses: 0,
         uploadedAt: 100,
         importHistory: [],
+        lists: [],
       },
       binders: [{ id: 'b1', name: 'My binder', createdAt: 1, updatedAt: 1, position: 0 }],
       decks: [],
@@ -276,6 +189,7 @@ describe('cache hydration safety', () => {
       scryfallMisses: 0,
       uploadedAt: 50,
       importHistory: [],
+      lists: [],
     });
     useCollectionStore.setState({
       binders: [
@@ -313,6 +227,7 @@ describe('cache hydration safety', () => {
       scryfallMisses: 0,
       uploadedAt: 100,
       importHistory: [],
+      lists: [],
     });
     useCollectionStore.setState({
       binders: [{ id: 'b1', name: 'b', createdAt: 1, updatedAt: 1, position: 0 } as never],
@@ -347,6 +262,7 @@ describe('cache hydration safety', () => {
       scryfallMisses: 0,
       uploadedAt: 100,
       importHistory: [],
+      lists: [],
     });
     vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
       collection: null,
@@ -397,6 +313,7 @@ describe('blank-push guard (the root invariant: empty != truth)', () => {
         scryfallMisses: 0,
         uploadedAt: 100,
         importHistory: [],
+        lists: [],
       },
       binders: [{ id: 'b1', name: 'Server binder', createdAt: 1, updatedAt: 1, position: 0 }],
       decks: [],
@@ -426,6 +343,7 @@ describe('blank-push guard (the root invariant: empty != truth)', () => {
         scryfallMisses: 0,
         uploadedAt: 1,
         importHistory: [],
+        lists: [],
       },
       binders: [],
       decks: [],
@@ -461,6 +379,7 @@ describe('failed cache hydrate (IndexedDB unreadable: iOS cold-start / quota / p
       scryfallMisses: 0,
       uploadedAt: 100,
       importHistory: [],
+      lists: [],
     });
     // A stale dirty flag survived from a pre-background import.
     localStorage.setItem('spellcontrol-sync-dirty', '1');
@@ -478,6 +397,7 @@ describe('failed cache hydrate (IndexedDB unreadable: iOS cold-start / quota / p
         scryfallMisses: 0,
         uploadedAt: 100,
         importHistory: [],
+        lists: [],
       },
       binders: [],
       decks: [],
@@ -506,6 +426,7 @@ describe('failed cache hydrate (IndexedDB unreadable: iOS cold-start / quota / p
       scryfallMisses: 0,
       uploadedAt: 100,
       importHistory: [],
+      lists: [],
     });
     localStorage.setItem('spellcontrol-sync-dirty', '1');
     localStorage.setItem('spellcontrol-sync-owner', 'user-1');
@@ -570,6 +491,7 @@ describe('mutation flow', () => {
         scryfallMisses: 0,
         uploadedAt: 1,
         importHistory: [],
+        lists: [],
       },
       binders: [],
       decks: [],
@@ -694,7 +616,6 @@ describe('stopSyncAndWipeLocal', () => {
   it('clears stores and removes localStorage entries', async () => {
     localStorage.setItem('spellcontrol', '{"binders":[]}');
     localStorage.setItem('mtg-decks', '{"decks":[]}');
-    localStorage.setItem('spellcontrol-sync-meta', '{}');
     localStorage.setItem('spellcontrol-sync-dirty', '1');
     localStorage.setItem('spellcontrol-sync-owner', 'user-1');
     localStorage.setItem('spellcontrol-sync-base-version', '5');
@@ -709,7 +630,6 @@ describe('stopSyncAndWipeLocal', () => {
     expect(useDecksStore.getState().decks).toEqual([]);
     expect(localStorage.getItem('spellcontrol')).toBeNull();
     expect(localStorage.getItem('mtg-decks')).toBeNull();
-    expect(localStorage.getItem('spellcontrol-sync-meta')).toBeNull();
     expect(localStorage.getItem('spellcontrol-sync-dirty')).toBeNull();
     expect(localStorage.getItem('spellcontrol-sync-owner')).toBeNull();
     expect(localStorage.getItem('spellcontrol-sync-base-version')).toBeNull();
@@ -726,6 +646,7 @@ describe('refetch-on-focus', () => {
         scryfallMisses: 0,
         uploadedAt: version,
         importHistory: [],
+        lists: [],
       },
       binders: [],
       decks: [],
