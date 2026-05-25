@@ -47,98 +47,66 @@ describe('parseDeepLink', () => {
 
 describe('parseOAuthCallback', () => {
   it('extracts the handoff code on success', () => {
-    expect(parseOAuthCallback('spellcontrol://oauth/callback?code=handoff-123')).toEqual({
+    expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback?code=handoff-123')).toEqual({
       code: 'handoff-123',
     });
   });
 
   it('extracts the signup token and suggested username for a first-time user', () => {
-    expect(parseOAuthCallback('spellcontrol://oauth/callback?signup=tok-9&suggested=patg')).toEqual(
-      { signup: 'tok-9', suggested: 'patg' }
-    );
+    expect(
+      parseOAuthCallback('https://spellcontrol.com/oauth/callback?signup=tok-9&suggested=patg')
+    ).toEqual({ signup: 'tok-9', suggested: 'patg' });
   });
 
   it('reports a link-mode success from Settings linking', () => {
-    expect(parseOAuthCallback('spellcontrol://oauth/callback?linked=google')).toEqual({
+    expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback?linked=google')).toEqual({
       linked: 'google',
     });
   });
 
   it('reports a link-mode failure with the specific reason', () => {
-    expect(parseOAuthCallback('spellcontrol://oauth/callback?linkError=already_linked')).toEqual({
-      linkError: 'already_linked',
-    });
+    expect(
+      parseOAuthCallback('https://spellcontrol.com/oauth/callback?linkError=already_linked')
+    ).toEqual({ linkError: 'already_linked' });
   });
 
   it('reports an error when the callback carries one', () => {
-    expect(parseOAuthCallback('spellcontrol://oauth/callback?error=access_denied')).toEqual({
+    expect(
+      parseOAuthCallback('https://spellcontrol.com/oauth/callback?error=access_denied')
+    ).toEqual({
       error: 'access_denied',
     });
   });
 
   it('falls back to a generic error when neither code nor error is present', () => {
-    expect(parseOAuthCallback('spellcontrol://oauth/callback')).toEqual({ error: 'google' });
+    expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback')).toEqual({
+      error: 'google',
+    });
   });
 
-  it('returns null for share links and non-OAuth URLs', () => {
+  it('tolerates a trailing slash on the callback path', () => {
+    expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback/?code=abc')).toEqual({
+      code: 'abc',
+    });
+  });
+
+  it('rejects sibling paths on the production host', () => {
+    expect(parseOAuthCallback('https://spellcontrol.com/oauth/callbacks?code=abc')).toBeNull();
+    expect(parseOAuthCallback('https://spellcontrol.com/s/xyz')).toBeNull();
+  });
+
+  it('rejects the same path on other hosts', () => {
+    expect(parseOAuthCallback('https://evil.example.com/oauth/callback?code=abc')).toBeNull();
+  });
+
+  it('rejects the retired spellcontrol:// custom-scheme form', () => {
+    expect(parseOAuthCallback('spellcontrol://oauth/callback?code=abc')).toBeNull();
+    expect(parseOAuthCallback('spellcontrol://oauth/callback')).toBeNull();
+  });
+
+  it('returns null for share links and garbage input', () => {
     expect(parseOAuthCallback('spellcontrol://share/abc123')).toBeNull();
     expect(parseOAuthCallback('https://spellcontrol.app/s/xyz')).toBeNull();
     expect(parseOAuthCallback('not a url')).toBeNull();
-  });
-
-  // App Link form — what the backend emits after the App Links migration.
-  // Same query-string shapes as the legacy custom scheme above; only the
-  // origin changed (https://spellcontrol.com instead of spellcontrol://oauth).
-  describe('https form (Android App Link)', () => {
-    it('extracts the handoff code on success', () => {
-      expect(
-        parseOAuthCallback('https://spellcontrol.com/oauth/callback?code=handoff-123')
-      ).toEqual({ code: 'handoff-123' });
-    });
-
-    it('extracts the signup token and suggested username for a first-time user', () => {
-      expect(
-        parseOAuthCallback('https://spellcontrol.com/oauth/callback?signup=tok-9&suggested=patg')
-      ).toEqual({ signup: 'tok-9', suggested: 'patg' });
-    });
-
-    it('reports a link-mode success from Settings linking', () => {
-      expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback?linked=google')).toEqual({
-        linked: 'google',
-      });
-    });
-
-    it('reports a link-mode failure with the specific reason', () => {
-      expect(
-        parseOAuthCallback('https://spellcontrol.com/oauth/callback?linkError=already_linked')
-      ).toEqual({ linkError: 'already_linked' });
-    });
-
-    it('reports an error when the callback carries one', () => {
-      expect(
-        parseOAuthCallback('https://spellcontrol.com/oauth/callback?error=access_denied')
-      ).toEqual({ error: 'access_denied' });
-    });
-
-    it('falls back to a generic error when neither code nor error is present', () => {
-      expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback')).toEqual({
-        error: 'google',
-      });
-    });
-
-    it('tolerates a trailing slash on the callback path', () => {
-      expect(parseOAuthCallback('https://spellcontrol.com/oauth/callback/?code=abc')).toEqual({
-        code: 'abc',
-      });
-    });
-
-    it('rejects sibling paths on the production host', () => {
-      expect(parseOAuthCallback('https://spellcontrol.com/oauth/callbacks?code=abc')).toBeNull();
-      expect(parseOAuthCallback('https://spellcontrol.com/s/xyz')).toBeNull();
-    });
-
-    it('rejects the same path on other hosts', () => {
-      expect(parseOAuthCallback('https://evil.example.com/oauth/callback?code=abc')).toBeNull();
-    });
   });
 });
