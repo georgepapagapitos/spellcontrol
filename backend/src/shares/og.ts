@@ -8,6 +8,7 @@ import { findBinderById, findDeckById, findListById } from './projections';
 const ORIGIN = 'https://spellcontrol.com';
 const SITE_NAME = 'SpellControl';
 const FALLBACK_DESCRIPTION = 'A read-only view of a SpellControl Magic: The Gathering collection.';
+const OG_IMAGE_URL = `${ORIGIN}/og-image.png`;
 
 export interface ShareLandingMeta {
   title: string;
@@ -37,15 +38,18 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
     const title = escapeHtmlAttr(meta.title);
     const description = escapeHtmlAttr(meta.description);
     const url = escapeHtmlAttr(meta.url);
+    const image = escapeHtmlAttr(OG_IMAGE_URL);
     lines.push(
       `<meta property="og:type" content="website" />`,
       `<meta property="og:site_name" content="${SITE_NAME}" />`,
       `<meta property="og:title" content="${title}" />`,
       `<meta property="og:description" content="${description}" />`,
       `<meta property="og:url" content="${url}" />`,
+      `<meta property="og:image" content="${image}" />`,
       `<meta name="twitter:card" content="summary" />`,
       `<meta name="twitter:title" content="${title}" />`,
-      `<meta name="twitter:description" content="${description}" />`
+      `<meta name="twitter:description" content="${description}" />`,
+      `<meta name="twitter:image" content="${image}" />`
     );
   }
   return lines.join('\n    ');
