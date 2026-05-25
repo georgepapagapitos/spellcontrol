@@ -24,6 +24,7 @@ import {
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { isNativePlatform } from '../lib/platform';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
+import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
 import { usePwaStore } from '../store/pwa';
@@ -462,6 +463,8 @@ export function SettingsPage() {
       </section>
 
       <OfflineModeSettings />
+
+      <SharedLinksSettings />
 
       <section className="settings-card" aria-labelledby="settings-data-title">
         <header className="settings-card-header">
