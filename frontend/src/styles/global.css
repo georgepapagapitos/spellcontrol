@@ -6937,11 +6937,19 @@ hr {
 
 /* Each destination: a label pill + icon chip in a row. Anchored so the icon
    chip sits exactly over the FAB, then raised by `--stack` rows when open.
-   `--stack` counts up FROM the FAB — the item nearest it (Settings) is 1,
-   the topmost (Collection) is 4 — so the column reads top-to-bottom in
-   ITEMS order while still stacking upward. */
+   `--stack` counts up FROM the FAB — the item nearest it gets 1 and the
+   topmost gets the total count — so the column reads top-to-bottom in DOM
+   order while still stacking upward. The value is set inline per-item
+   from React (NavFab.tsx) so the layout adapts to a dynamic number of
+   items (e.g. the optional Scan action chip on devices that can scan).
+   `--menu-len` is the total item count, used to derive a stable
+   close-direction delay so retract always counts down from the top. */
 .nav-fab-item {
   --pitch: 3.5rem;
+  /* Defaults to 4; NavFab.tsx sets --nav-fab-menu-len on the menu
+     container so this picks up the live item count, including the
+     optional Scan action chip. */
+  --menu-len: var(--nav-fab-menu-len, 4);
   position: absolute;
   /* (3.5rem FAB − 3rem chip) / 2 — centres the chip on the FAB. */
   right: 0.25rem;
@@ -6952,6 +6960,9 @@ hr {
   gap: 0.5rem;
   text-decoration: none;
   font-family: var(--font-serif);
+  background: transparent;
+  border: 0;
+  padding: 0;
   -webkit-tap-highlight-color: transparent;
   /* Collapsed: parked on the FAB, hidden — scales out of the icon centre. */
   transform-origin: calc(100% - 1.5rem) center;
@@ -6962,24 +6973,8 @@ hr {
     transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1),
     opacity 0.16s ease;
   /* Close: items fold back top-down — the mirror of the open stagger
-     (4 = item count; the topmost item retracts first). */
-  transition-delay: calc((4 - var(--stack)) * 0.04s);
-}
-
-.nav-fab-item:nth-child(1) {
-  --stack: 4;
-}
-
-.nav-fab-item:nth-child(2) {
-  --stack: 3;
-}
-
-.nav-fab-item:nth-child(3) {
-  --stack: 2;
-}
-
-.nav-fab-item:nth-child(4) {
-  --stack: 1;
+     (the topmost item retracts first). */
+  transition-delay: calc((var(--menu-len) - var(--stack)) * 0.04s);
 }
 
 .nav-fab.open .nav-fab-item {
@@ -6988,6 +6983,24 @@ hr {
   pointer-events: auto;
   /* Stagger: items nearest the FAB emerge first. */
   transition-delay: calc((var(--stack) - 1) * 0.04s);
+}
+
+/* Action chip variant (e.g. Scan). Visually distinct from nav items —
+   filled with the accent so it reads as "do something" instead of
+   "go somewhere". Sits at the top of the stack in NavFab.tsx. */
+.nav-fab-item-action .nav-fab-item-glyph {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.nav-fab-item-action .nav-fab-item-label {
+  font-weight: 600;
+}
+
+.nav-fab-item-action:disabled {
+  cursor: progress;
+  opacity: 0.65;
 }
 
 .nav-fab-item-label {
@@ -9757,6 +9770,183 @@ hr {
 .add-card-sheet-added {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* ── Unified Add-cards modal (Search / Upload / Scan tabs) ───────
+   Hosts AddCardSearchPanel + UploadPanel + the scan launcher in one
+   modal so the Collection page has a single "Add cards" entry point.
+   Uses the standard .modal shell (mobile full-bleed, ≤720px centered
+   on desktop) with a tab strip injected between header and body. */
+
+.add-cards-modal {
+  max-width: 920px;
+}
+
+.add-cards-modal-header {
+  padding-bottom: 0.85rem;
+}
+
+.add-cards-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.65rem 1.5rem 0;
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.add-cards-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.add-cards-tab:hover:not([aria-selected='true']) {
+  color: var(--text);
+}
+
+.add-cards-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.add-cards-tab-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Zero the body padding because each panel handles its own gutters —
+   UploadPanel has its own internal grid spacing, the search panel
+   uses card-picker-search/body padding, and the scan tab centres
+   itself with its own padding. */
+.add-cards-modal-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-cards-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-cards-panel[hidden] {
+  display: none;
+}
+
+.add-cards-panel-search,
+.add-cards-panel-upload {
+  padding: 1rem 1.5rem 1.25rem;
+}
+
+.add-cards-panel-search .add-card-search-input-wrap {
+  padding-bottom: 0.5rem;
+}
+
+.add-cards-panel-search .add-card-sheet-body {
+  padding: 0;
+}
+
+/* The scan tab is a one-shot launcher: centred icon, brief copy,
+   prominent CTA. Banners stack below the CTA. */
+.add-cards-panel-scan {
+  padding: 2rem 1.5rem;
+}
+
+.scan-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.scan-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.scan-tab-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.scan-tab-desc {
+  font-size: var(--text-sm);
+  color: var(--text3);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.scan-tab-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.scan-tab-banner {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Mobile / phones: tighten chrome so as much of the body shows above the
+   on-screen keyboard as possible. Tabs scroll horizontally if they ever
+   overflow (they don't at 3 tabs but the rule keeps the layout robust
+   against future additions or very narrow displays). */
+@media (max-width: 720px) {
+  .add-cards-modal {
+    max-width: 100%;
+  }
+
+  .add-cards-tabs {
+    padding: 0.5rem 1rem 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .add-cards-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .add-cards-tab {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .add-cards-panel-search,
+  .add-cards-panel-upload {
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  .add-cards-panel-scan {
+    padding: 1.5rem 1rem;
+  }
 }
 
 /* ── Inline Scryfall search (collection add-from-Scryfall) ────── */
