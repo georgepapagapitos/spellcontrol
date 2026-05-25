@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
-
-const d = dbTestsEnabled ? describe : describe.skip;
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -26,7 +23,7 @@ async function registerAndGetCookie(username: string): Promise<string> {
   return extractSessionCookie(res.headers['set-cookie'])!;
 }
 
-d('GET /api/sync', () => {
+describe('GET /api/sync', () => {
   it('returns 401 unauthenticated', async () => {
     const res = await request(app).get('/api/sync');
     expect(res.status).toBe(401);
@@ -45,7 +42,7 @@ d('GET /api/sync', () => {
   });
 });
 
-d('PUT /api/sync', () => {
+describe('PUT /api/sync', () => {
   it('persists the snapshot and bumps the version', async () => {
     const cookie = await registerAndGetCookie('sync_bob');
     const put = await request(app)
@@ -107,7 +104,7 @@ d('PUT /api/sync', () => {
   });
 });
 
-d('collection-wipe backups', () => {
+describe('collection-wipe backups', () => {
   const coll = (n: number) => ({ fileName: 'c.csv', cards: Array.from({ length: n }, () => ({})) });
   const put = (cookie: string, body: object) =>
     request(app).put('/api/sync').set('Cookie', cookie).send(body);

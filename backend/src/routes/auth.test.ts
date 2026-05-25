@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
-
-const d = dbTestsEnabled ? describe : describe.skip;
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -19,7 +16,7 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
-d('POST /api/auth/register', () => {
+describe('POST /api/auth/register', () => {
   it('creates a user and returns a session cookie', async () => {
     const res = await request(app)
       .post('/api/auth/register')
@@ -65,7 +62,7 @@ d('POST /api/auth/register', () => {
   });
 });
 
-d('POST /api/auth/login', () => {
+describe('POST /api/auth/login', () => {
   it('returns a session cookie on valid credentials', async () => {
     await request(app)
       .post('/api/auth/register')
@@ -97,7 +94,7 @@ d('POST /api/auth/login', () => {
   });
 });
 
-d('GET /api/auth/me', () => {
+describe('GET /api/auth/me', () => {
   it('returns 401 without a session', async () => {
     const res = await request(app).get('/api/auth/me');
     expect(res.status).toBe(401);
@@ -114,7 +111,7 @@ d('GET /api/auth/me', () => {
   });
 });
 
-d('POST /api/auth/logout', () => {
+describe('POST /api/auth/logout', () => {
   it('clears the session cookie', async () => {
     const res = await request(app).post('/api/auth/logout');
     expect(res.status).toBe(200);
@@ -124,7 +121,7 @@ d('POST /api/auth/logout', () => {
   });
 });
 
-d('DELETE /api/auth/me', () => {
+describe('DELETE /api/auth/me', () => {
   it('deletes the account and invalidates the session', async () => {
     const reg = await request(app)
       .post('/api/auth/register')

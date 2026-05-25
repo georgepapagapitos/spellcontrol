@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import request from 'supertest';
 import type { Express } from 'express';
 import type { Pool } from 'pg';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 // Stub only the Google network call (`exchangeGoogleCode`); the user-resolution
 // and handoff-code helpers stay real so the DB-backed logic is exercised.
@@ -14,8 +14,6 @@ vi.mock('../oauth/google', async (importOriginal) => {
 
 import { signOAuthState } from '../auth';
 
-const d = dbTestsEnabled ? describe : describe.skip;
-
 let app: Express;
 let pool: Pool;
 let cleanup: () => Promise<void>;
@@ -25,7 +23,6 @@ beforeAll(async () => {
   process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
   process.env.OAUTH_WEB_REDIRECT_URI = 'http://localhost:5173/api/auth/google/callback';
   process.env.OAUTH_NATIVE_REDIRECT_URI = 'http://localhost:3737/api/auth/google/callback';
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   pool = env.pool;
@@ -73,7 +70,7 @@ async function registerWithSession(username: string, password = 'correct horse b
   };
 }
 
-d('GET /api/auth/providers', () => {
+describe('GET /api/auth/providers', () => {
   it('reports Google as enabled when configured', async () => {
     const res = await request(app).get('/api/auth/providers');
     expect(res.status).toBe(200);
@@ -81,7 +78,7 @@ d('GET /api/auth/providers', () => {
   });
 });
 
-d('GET /api/auth/google', () => {
+describe('GET /api/auth/google', () => {
   it('redirects to the Google consent screen', async () => {
     const res = await request(app).get('/api/auth/google');
     expect(res.status).toBe(302);
@@ -89,7 +86,7 @@ d('GET /api/auth/google', () => {
   });
 });
 
-d('GET /api/auth/google/callback — first-time sign-in', () => {
+describe('GET /api/auth/google/callback — first-time sign-in', () => {
   it('sends a new web user to the choose-username screen, creating no account', async () => {
     const res = await callback('new-web-sub', 'newweb@example.com', 'web');
     expect(res.status).toBe(302);
@@ -124,7 +121,7 @@ d('GET /api/auth/google/callback — first-time sign-in', () => {
   });
 });
 
-d('POST /api/auth/google/complete-signup', () => {
+describe('POST /api/auth/google/complete-signup', () => {
   it('creates the account with the chosen username and sets a session', async () => {
     const res = await createGoogleAccount('signup-sub', 'signup@example.com', 'picked-name');
     expect(res.status).toBe(201);
@@ -157,7 +154,7 @@ d('POST /api/auth/google/complete-signup', () => {
   });
 });
 
-d('GET /api/auth/google/callback — returning user', () => {
+describe('GET /api/auth/google/callback — returning user', () => {
   it('signs a returning web user straight in', async () => {
     await createGoogleAccount('return-web-sub', 'returnweb@example.com', 'return-web');
     const res = await callback('return-web-sub', 'returnweb@example.com', 'web');
@@ -192,7 +189,7 @@ d('GET /api/auth/google/callback — returning user', () => {
   });
 });
 
-d('POST /api/auth/google/link-with-password', () => {
+describe('POST /api/auth/google/link-with-password', () => {
   /** Register a password-only account; returns the username. */
   async function registerPassword(username: string, password = 'correct horse battery') {
     const res = await request(app).post('/api/auth/register').send({ username, password });
@@ -268,14 +265,14 @@ d('POST /api/auth/google/link-with-password', () => {
   });
 });
 
-d('POST /api/auth/google/exchange', () => {
+describe('POST /api/auth/google/exchange', () => {
   it('rejects an unknown handoff code', async () => {
     const res = await request(app).post('/api/auth/google/exchange').send({ code: 'never-minted' });
     expect(res.status).toBe(401);
   });
 });
 
-d('GET /api/auth/me/identities', () => {
+describe('GET /api/auth/me/identities', () => {
   it('reports password=true and google=null for a fresh password account', async () => {
     const { cookie } = await registerWithSession('ident-alice');
     const res = await request(app).get('/api/auth/me/identities').set('Cookie', cookie);
@@ -307,7 +304,7 @@ d('GET /api/auth/me/identities', () => {
   });
 });
 
-d('GET /api/auth/google/link', () => {
+describe('GET /api/auth/google/link', () => {
   it('redirects an authed web user to the Google consent screen', async () => {
     const { cookie } = await registerWithSession('linkstart-alice');
     const res = await request(app).get('/api/auth/google/link').set('Cookie', cookie);
@@ -339,7 +336,7 @@ d('GET /api/auth/google/link', () => {
   });
 });
 
-d('GET /api/auth/google/callback — link mode', () => {
+describe('GET /api/auth/google/callback — link mode', () => {
   it('attaches a Google identity to the authed user (web)', async () => {
     const { userId } = await registerWithSession('linkcb-alice');
     mockExchange.mockResolvedValue({
@@ -452,7 +449,7 @@ d('GET /api/auth/google/callback — link mode', () => {
   });
 });
 
-d('DELETE /api/auth/me/identities/google', () => {
+describe('DELETE /api/auth/me/identities/google', () => {
   it('unlinks the Google identity from a password account', async () => {
     const { cookie, userId } = await registerWithSession('unlink-alice');
     mockExchange.mockResolvedValue({
