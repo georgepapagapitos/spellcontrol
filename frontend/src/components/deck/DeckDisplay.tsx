@@ -1621,31 +1621,28 @@ function RoleBadgeLegend() {
 // A single deck-list / grid role badge, now tap-to-reveal: on touch (no
 // hover) the native `title` tooltip never appears, so tapping the badge
 // opens a popover with the full role key — the tapped role highlighted.
-// Desktop keeps the hover tooltip too, so the interaction is unified.
+// Tapping the badge on mobile shows just the role name — no legend.
+// The full legend is still reachable via the toolbar "Show" → "What do
+// the role badges mean?" disclosure. Desktop keeps the native title
+// hover tooltip so it still works without a tap.
 function RoleBadge({ card, variant }: { card: ScryfallCard; variant: 'row' | 'grid' }) {
   const roleBadge = getRoleBadge(card);
   if (!roleBadge) return null;
   const multi = variant === 'row' && isMultiRole(card);
   const baseClass = variant === 'grid' ? 'deck-card-grid-role' : 'deck-row-role-badge';
   const toneClass = multi ? 'deck-row-role-multi' : `deck-row-role-${roleBadge.tone}`;
-  // Native tooltip text — kept so desktop hover still works alongside tap.
   const tipText = multi ? multiRoleTitle(card) : roleBadge.title;
   return (
     <ToolbarPopover
       wrapperClassName="role-badge-pop-wrap"
       triggerClassName={`role-badge-btn ${baseClass} ${toneClass}`}
       triggerTitle={tipText}
-      triggerAriaLabel={`Role: ${tipText}. Tap to show the role key.`}
+      triggerAriaLabel={`Role: ${tipText}`}
       triggerContent={
         multi ? <span className="deck-row-role-multi-dot" aria-hidden /> : roleBadge.label
       }
     >
-      {() => (
-        <div className="role-badge-pop">
-          <div className="deck-role-legend-group-title role-badge-pop-head">{tipText}</div>
-          <RoleBadgeKey highlightTone={multi ? undefined : roleBadge.tone} />
-        </div>
-      )}
+      {() => <div className="role-badge-pop">{tipText}</div>}
     </ToolbarPopover>
   );
 }

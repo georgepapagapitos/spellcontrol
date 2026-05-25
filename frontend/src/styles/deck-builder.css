@@ -993,13 +993,13 @@
   flex: 0 0 auto;
 }
 
-/* Content inside the reused ToolbarPopover panel. */
+/* Compact tooltip shown when a role badge is tapped. The full legend
+   is in the toolbar "Show" popover via RoleBadgeLegend. */
 .role-badge-pop {
-  max-width: 15rem;
-}
-
-.role-badge-pop-head {
-  padding: 0.35rem 0.6rem 0.15rem;
+  padding: 0.35rem 0.65rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* Pill search input — magnifying-glass icon + flat input. */

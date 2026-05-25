@@ -8,12 +8,13 @@ import { toast } from '../store/toasts';
 import { importText } from '../lib/api';
 import { CardScanner } from './CardScanner';
 
-/** Navigation destinations, top-to-bottom as they stack above the FAB. */
+/** Navigation destinations, top-to-bottom as they stack above the FAB.
+ *  Last entry = closest to the FAB trigger (easiest one-thumb tap). */
 const NAV_ITEMS = [
-  { to: '/collection', label: 'Collection', Icon: List },
+  { to: '/settings', label: 'Settings', Icon: Settings },
   { to: '/decks', label: 'Decks', Icon: Layers },
   { to: '/play', label: 'Play', Icon: Users },
-  { to: '/settings', label: 'Settings', Icon: Settings },
+  { to: '/collection', label: 'Collection', Icon: List },
 ] as const;
 
 const ICON_PROPS = { width: 22, height: 22, strokeWidth: 1.7, 'aria-hidden': true } as const;
