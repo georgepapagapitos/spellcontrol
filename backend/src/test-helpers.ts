@@ -14,30 +14,21 @@ import { sharesRouter } from './routes/shares';
 import { offlineRouter } from './routes/offline';
 
 /**
- * Default connection string for the local dev Postgres (docker-compose.dev.yml
- * + the user's existing volume). Exported so the vitest globalSetup can probe
- * the same URL it falls back to here.
- */
-export const DEFAULT_TEST_DATABASE_URL =
-  'postgres://mtguser:mtgpassword@localhost:5432/spellcontrol';
-
-/**
- * Returns a Postgres connection string for tests. Prefers explicit
- * TEST_DATABASE_URL (CI sets this via its postgres service), then falls back
- * to the user's runtime DATABASE_URL, then to the dev-container default.
+ * Returns the Postgres connection string for tests. vitest.global-setup.ts
+ * guarantees `TEST_DATABASE_URL` is set before any worker spawns (explicit
+ * env → dev container → throwaway testcontainer), so this is always defined
+ * at test time.
  */
 export function testDatabaseUrl(): string {
-  return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_TEST_DATABASE_URL;
+  const url = process.env.TEST_DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      'TEST_DATABASE_URL is not set — vitest.global-setup.ts should have set it. ' +
+        'Did the testcontainer fail to start, or is this code running outside vitest?'
+    );
+  }
+  return url;
 }
-
-/**
- * True when DB-backed tests should run. Devs without a local Postgres can
- * leave these unset and the auth/sync test files will skip themselves; CI
- * sets TEST_DATABASE_URL via the workflow's postgres service.
- */
-export const dbTestsEnabled = Boolean(
-  process.env.TEST_DATABASE_URL || process.env.RUN_DB_TESTS === '1'
-);
 
 export interface TestEnv {
   app: Express;

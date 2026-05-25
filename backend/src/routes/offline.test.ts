@@ -1,17 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled } from '../test-helpers';
+import { createTestEnv } from '../test-helpers';
 import { __resetOracleBulkForTesting, refreshOracleBulk } from '../offline/bulk-cache';
 import { __resetCombosBulkForTesting } from '../offline/combos-export';
-
-const d = dbTestsEnabled ? describe : describe.skip;
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -73,7 +70,7 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
-d('GET /api/offline/manifest', () => {
+describe('GET /api/offline/manifest', () => {
   it('returns versions, counts, and byte sizes when the bulk is ready', async () => {
     const res = await request(app).get('/api/offline/manifest');
     expect(res.status).toBe(200);
@@ -87,7 +84,7 @@ d('GET /api/offline/manifest', () => {
   });
 });
 
-d('GET /api/offline/oracle-cards', () => {
+describe('GET /api/offline/oracle-cards', () => {
   it('serves gzipped JSON with an ETag', async () => {
     const res = await request(app)
       .get('/api/offline/oracle-cards')
@@ -109,7 +106,7 @@ d('GET /api/offline/oracle-cards', () => {
   });
 });
 
-d('GET /api/offline/combos', () => {
+describe('GET /api/offline/combos', () => {
   it('serves gzipped JSON with an ETag', async () => {
     const res = await request(app)
       .get('/api/offline/combos')
@@ -129,7 +126,7 @@ d('GET /api/offline/combos', () => {
   });
 });
 
-d('POST /api/offline/admin/refresh-oracle', () => {
+describe('POST /api/offline/admin/refresh-oracle', () => {
   it('returns version + counts after a refresh', async () => {
     const res = await request(app).post('/api/offline/admin/refresh-oracle');
     expect(res.status).toBe(200);
@@ -146,7 +143,7 @@ d('POST /api/offline/admin/refresh-oracle', () => {
  * route sees `state === 'idle'/'building'`. Must run after the happy-path
  * tests since it tears down the cached payload.
  */
-d('GET /api/offline/manifest before the bulk is ready', () => {
+describe('GET /api/offline/manifest before the bulk is ready', () => {
   it('returns 503 with Retry-After and kicks off a background build', async () => {
     await __resetOracleBulkForTesting();
     const res = await request(app).get('/api/offline/manifest');

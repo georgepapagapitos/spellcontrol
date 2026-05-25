@@ -2,11 +2,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { __resetMatchCacheForTesting } from './combos';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
 import { combos, comboCards } from '../db/schema';
-
-const d = dbTestsEnabled ? describe : describe.skip;
 
 let app: Express;
 let cleanup: () => Promise<void>;
@@ -77,7 +75,6 @@ async function seedCombos(): Promise<void> {
 }
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -92,7 +89,7 @@ beforeEach(() => {
   __resetMatchCacheForTesting();
 });
 
-d('POST /api/combos/match', () => {
+describe('POST /api/combos/match', () => {
   it('returns 401 without auth', async () => {
     const res = await request(app).post('/api/combos/match').send({ ownedOracleIds: [] });
     expect(res.status).toBe(401);
@@ -191,7 +188,7 @@ d('POST /api/combos/match', () => {
   });
 });
 
-d('GET /api/combos/:id', () => {
+describe('GET /api/combos/:id', () => {
   it('returns the combo with its full card list', async () => {
     const cookie = await registerAndGetCookie('combos_eve');
     const res = await request(app).get('/api/combos/combo-thoracle').set('Cookie', cookie);
@@ -208,7 +205,7 @@ d('GET /api/combos/:id', () => {
   });
 });
 
-d('POST /api/combos/admin/refresh', () => {
+describe('POST /api/combos/admin/refresh', () => {
   it('403s for non-admins', async () => {
     const cookie = await registerAndGetCookie('combos_grace');
     const res = await request(app).post('/api/combos/admin/refresh').set('Cookie', cookie);
