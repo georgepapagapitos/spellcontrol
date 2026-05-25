@@ -60,6 +60,7 @@ describe('ScannerQueueSheet', () => {
         onChangeQty={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     expect(screen.getByText(/Nothing scanned yet/)).toBeTruthy();
@@ -74,6 +75,7 @@ describe('ScannerQueueSheet', () => {
         onChangeQty={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     expect(screen.getByText('Lightning Bolt')).toBeTruthy();
@@ -92,6 +94,7 @@ describe('ScannerQueueSheet', () => {
         onChangeQty={onChangeQty}
         onRemove={onRemove}
         onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText(/Increase quantity of Lightning Bolt/));
@@ -111,6 +114,7 @@ describe('ScannerQueueSheet', () => {
         onChangeQty={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     const dec = screen.getByLabelText(/Decrease quantity of Lightning Bolt/) as HTMLButtonElement;
@@ -134,6 +138,7 @@ describe('ScannerQueueSheet', () => {
         onChangeQty={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText(/Change printing of Lightning Bolt/));
@@ -154,11 +159,29 @@ describe('ScannerQueueSheet', () => {
         onChangeQty={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={onClearAll}
+        onConfirm={vi.fn()}
       />
     );
     fireEvent.click(screen.getByText('Clear all'));
     expect(onClearAll).toHaveBeenCalled();
     fireEvent.click(screen.getByText('Continue scanning'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows an Add-N-cards CTA in the footer and fires onConfirm', () => {
+    const onConfirm = vi.fn();
+    render(
+      <ScannerQueueSheet
+        entries={[makeEntry({ qty: 3 })]}
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+    fireEvent.click(screen.getByText('Add 3 cards'));
+    expect(onConfirm).toHaveBeenCalled();
   });
 });
