@@ -1,12 +1,11 @@
-import { BarChart3, Download, Plus, Share2 } from 'lucide-react';
+import { BarChart3, Plus, Share2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
 import { UploadPanel } from '../components/UploadPanel';
-import { ImportSheet } from '../components/ImportSheet';
-import { AddCardSheet } from '../components/AddCardSheet';
+import { AddCardsSheet } from '../components/AddCardsSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
@@ -17,8 +16,7 @@ export function CollectionPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
-  const setImportSheetOpen = useCollectionStore((s) => s.setImportSheetOpen);
-  const [addCardOpen, setAddCardOpen] = useState(false);
+  const [addCardsOpen, setAddCardsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
   const [statsOpen, setStatsOpen] = useState(false);
@@ -93,19 +91,10 @@ export function CollectionPage() {
                 type="button"
                 className="pill-btn collection-hero-action"
                 aria-haspopup="dialog"
-                onClick={() => setAddCardOpen(true)}
+                onClick={() => setAddCardsOpen(true)}
               >
                 <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Add card</span>
-              </button>
-              <button
-                type="button"
-                className="pill-btn collection-hero-action"
-                aria-haspopup="dialog"
-                onClick={() => setImportSheetOpen(true)}
-              >
-                <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Import cards</span>
+                <span>Add cards</span>
               </button>
               <button
                 type="button"
@@ -121,8 +110,7 @@ export function CollectionPage() {
           </header>
           <CardListTable cards={cards} binders={materialized} setMap={setMap} />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
-          <ImportSheet />
-          {addCardOpen && <AddCardSheet onClose={() => setAddCardOpen(false)} />}
+          {addCardsOpen && <AddCardsSheet onClose={() => setAddCardsOpen(false)} />}
           {shareOpen && (
             <ShareDialog
               kind="collection"

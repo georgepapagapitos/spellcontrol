@@ -97,7 +97,6 @@ const RESET = {
   error: null,
   activeTab: 'uncategorized',
   editingBinder: null,
-  importSheetOpen: false,
   search: '',
 };
 
@@ -671,14 +670,12 @@ describe('UI / config setters', () => {
     const g = useCollectionStore.getState();
     g.setActiveTab('tab-x');
     g.setEditingBinder('b9');
-    g.setImportSheetOpen(true);
     g.setSearch('bolt');
     g.setLoading(true);
     g.setError('boom');
     const s = useCollectionStore.getState();
     expect(s.activeTab).toBe('tab-x');
     expect(s.editingBinder).toBe('b9');
-    expect(s.importSheetOpen).toBe(true);
     expect(s.search).toBe('bolt');
     expect(s.isLoading).toBe(true);
     expect(s.error).toBe('boom');
