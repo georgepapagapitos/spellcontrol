@@ -20,6 +20,13 @@ interface Props {
   onChangeQty: (entryId: string, delta: number) => void;
   onRemove: (entryId: string) => void;
   onClearAll: () => void;
+  /**
+   * Commit the queue to the parent flow (closes the scanner and pipes
+   * the scanned cards through the import pipeline). The scanner UI no
+   * longer has its own footer CTA — the sheet owns commit, since the
+   * sheet is also where the user reviews qty and printings.
+   */
+  onConfirm: () => void;
 }
 
 /**
@@ -27,9 +34,9 @@ interface Props {
  *
  * Lets the user step quantities, swap printings (lazy-loaded from
  * Scryfall — one round-trip per row on first open, cached for the
- * sheet's lifetime), or drop cards entirely. The scanner's primary
- * "Add N cards" CTA stays in the scanner footer; this sheet only edits
- * the staging queue, it does not own the confirm/commit step.
+ * sheet's lifetime), or drop cards entirely. The "Add N cards" CTA
+ * lives in this sheet's footer — committing the queue is the natural
+ * follow-on once you've reviewed it.
  */
 export function ScannerQueueSheet({
   entries,
@@ -38,6 +45,7 @@ export function ScannerQueueSheet({
   onChangeQty,
   onRemove,
   onClearAll,
+  onConfirm,
 }: Props) {
   const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
 
@@ -229,8 +237,11 @@ export function ScannerQueueSheet({
               <Trash2 width={14} height={14} strokeWidth={1.8} />
               <span>Clear all</span>
             </button>
-            <button type="button" className="btn btn-primary" onClick={onClose}>
+            <button type="button" className="btn" onClick={onClose}>
               Continue scanning
+            </button>
+            <button type="button" className="btn btn-primary" onClick={onConfirm}>
+              Add {totalCount} card{totalCount === 1 ? '' : 's'}
             </button>
           </footer>
         )}
