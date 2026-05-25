@@ -1,13 +1,14 @@
 import { logger } from '@/lib/logger';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Camera,
   ChevronRight,
   Flashlight,
   FlashlightOff,
+  Inbox,
+  Plus,
   RotateCcw,
-  ScanLine,
+  Settings,
   X,
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
@@ -107,12 +108,18 @@ const TITLE_CROPS = [
  * box — quick enough to feel responsive, slow enough to ride out a
  * single noisy frame.
  */
-const DETECT_INTERVAL_MS = 165;
+const DETECT_INTERVAL_MS = 140;
 const DETECT_BUDGET_PX = 9000; // ~75×120 for a typical 9:19.5 portrait band
-const STABILITY_THRESHOLD = 7; // mean absolute frame-diff per pixel (0–255)
-const VARIANCE_THRESHOLD = 380; // stddev² of the title band when checked
-const STABLE_FRAMES_REQUIRED = 2;
-const CAPTURE_COOLDOWN_MS = 1100;
+const STABILITY_THRESHOLD = 8; // mean absolute frame-diff per pixel (0–255)
+const VARIANCE_THRESHOLD = 320; // stddev² of the title band when checked
+/**
+ * With the Otsu-based OCR pipeline, the OCR step itself filters garbage
+ * reads — so we no longer need to gate auto-capture on multiple stable
+ * frames. One stable, card-present tick is enough; the pipeline self-
+ * corrects via the recognition-confidence + Scryfall-match checks.
+ */
+const STABLE_FRAMES_REQUIRED = 1;
+const CAPTURE_COOLDOWN_MS = 800;
 const DETECT_LOST_TICKS = 4;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
@@ -144,8 +151,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * card immediately after a successful identify.
    */
   const armedRef = useRef(true);
-  /** Timer that auto-dismisses the inline scan confirmation chip. */
-  const scanToastTimerRef = useRef<number | null>(null);
 
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -154,7 +159,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  /** Pulses the count pill briefly each time a new card lands. */
+  /** Pulses the count badge briefly each time a new card lands. */
   const [pulseKey, setPulseKey] = useState(0);
   /**
    * Three rectangles, all in viewport (px) coordinates:
@@ -180,7 +185,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [viewfinderRect, setViewfinderRect] = useState<Rect | null>(null);
   /** Whether the detector currently has a lock — drives the "card found" styling. */
   const [hasLock, setHasLock] = useState(false);
-  /** Inline confirmation chip data — auto-clears ~1.6s after each scan. */
+  /**
+   * The most recently identified card. Stays on screen (in the bottom
+   * panel) until the next successful scan replaces it — no auto-dismiss.
+   * `key` is bumped on every scan so the CSS slide-in animation replays
+   * even when the same card data lands twice in a row.
+   */
   const [lastScan, setLastScan] = useState<{
     card: ScryfallCard;
     tier: CardValueTier;
@@ -190,6 +200,22 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   useLockBodyScroll();
 
   const totalCount = queue.reduce((sum, e) => sum + e.qty, 0);
+  /**
+   * Running market-value total of the staged queue (sum of qty × unit
+   * USD price). Falls back to foil / etched when the regular usd field
+   * is missing — Scryfall's convention. Memoised so the topbar pill
+   * doesn't recalculate on every parent re-render.
+   */
+  const totalPrice = useMemo(() => {
+    let sum = 0;
+    for (const entry of queue) {
+      const p = entry.card.prices;
+      const raw = p?.usd ?? p?.usd_foil ?? p?.usd_etched ?? null;
+      const value = raw ? Number.parseFloat(raw) : NaN;
+      if (Number.isFinite(value)) sum += value * entry.qty;
+    }
+    return sum;
+  }, [queue]);
 
   const showHint = useCallback((msg: string, ms = 1800) => {
     setHint(msg);
@@ -348,10 +374,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       stopCamera();
       void disposeOcr();
       if (detectLoopRef.current !== null) cancelAnimationFrame(detectLoopRef.current);
-      if (scanToastTimerRef.current !== null) {
-        window.clearTimeout(scanToastTimerRef.current);
-        scanToastTimerRef.current = null;
-      }
     };
   }, [startCamera, stopCamera]);
 
@@ -648,18 +670,10 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       setPulseKey((k) => k + 1);
       playValueChime(tier);
       pulseValueHaptic(tier);
-      // Inline confirmation chip: shows the just-scanned card for ~1.6s
-      // so the user can sanity-check the OCR result without opening the
-      // queue sheet. `key` is bumped so the CSS animation replays even
-      // when the same card data lands twice in a row.
+      // Bottom card panel: persistent — stays until the next successful
+      // scan replaces it. `key` is bumped on every scan so the slide-in
+      // animation replays even when the same card lands twice.
       setLastScan({ card, tier, key: Date.now() });
-      if (scanToastTimerRef.current !== null) {
-        window.clearTimeout(scanToastTimerRef.current);
-      }
-      scanToastTimerRef.current = window.setTimeout(() => {
-        setLastScan(null);
-        scanToastTimerRef.current = null;
-      }, 1600);
     } catch (err) {
       logger.error('[scanner] capture failed:', err);
       showHint('Scan failed — try again.');
@@ -843,7 +857,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         }
       }
       bandVar = bandCount > 0 ? bandVar / bandCount : 0;
-      const hasCard = bandVar > VARIANCE_THRESHOLD;
+      // Auto-capture requires both detector lock AND a high-variance
+      // title band. Lock alone could trigger on any rectangular thing;
+      // variance alone could trigger on a card held in the default
+      // centered region even when the detector hasn't found edges.
+      // Together they mean "we know where the card is AND it actually
+      // has text where the title should be".
+      const hasCard = detected !== null && bandVar > VARIANCE_THRESHOLD;
 
       if (!isStable) {
         armedRef.current = true;
@@ -896,13 +916,36 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     setQueue((prev) => prev.map((e) => (e.id === id ? { ...e, card: newCard } : e)));
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (queue.length === 0) return;
     const lines = queue.map(({ card, qty }) =>
       `${qty} ${card.name} (${card.set.toUpperCase()}) ${card.collector_number ?? ''}`.trim()
     );
     onConfirm(lines.join('\n'), totalCount);
-  };
+  }, [queue, totalCount, onConfirm]);
+
+  /**
+   * "+1" on the bottom card panel: bumps the qty of the currently-shown
+   * card. Useful when the user has several copies of the same printing
+   * and the auto-detector keeps deduping them. Re-pulses the count
+   * badge so the user sees the bump land.
+   */
+  const incrementLastScan = useCallback(() => {
+    if (!lastScan) return;
+    const oracleId = lastScan.card.oracle_id;
+    setQueue((prev) => {
+      const existing = prev.find((e) => e.id === oracleId);
+      if (!existing) return prev;
+      return prev.map((e) => (e.id === oracleId ? { ...e, qty: e.qty + 1 } : e));
+    });
+    setPulseKey((k) => k + 1);
+    pulseValueHaptic(lastScan.tier);
+  }, [lastScan]);
+
+  const openSettings = useCallback(() => {
+    // Placeholder — surface a stub message until the settings sheet lands.
+    showHint('Scanner settings coming soon.', 1600);
+  }, [showHint]);
 
   const scannerNode = (
     <div
@@ -914,59 +957,72 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     >
       {!isNativePlatform() && <video ref={videoRef} className="scanner-video" playsInline muted />}
 
-      <div className="scanner-overlay" aria-hidden="true">
-        <div
-          ref={viewfinderRef}
-          className={`scanner-viewfinder${hasLock ? ' locked' : ''}`}
-          style={
-            viewfinderRect
-              ? {
-                  position: 'absolute',
-                  left: `${viewfinderRect.left}px`,
-                  top: `${viewfinderRect.top}px`,
-                  width: `${viewfinderRect.width}px`,
-                  height: `${viewfinderRect.height}px`,
-                }
-              : { display: 'none' }
-          }
-        >
-          <div className="scanner-viewfinder-corner tl" />
-          <div className="scanner-viewfinder-corner tr" />
-          <div className="scanner-viewfinder-corner bl" />
-          <div className="scanner-viewfinder-corner br" />
-          <div className="scanner-title-band" />
-          {status === 'scanning' && <div className="scanner-scanline" />}
+      {/* Card outline — drawn directly on the detected card. No default
+          centered viewfinder anymore: when nothing is detected, nothing
+          is drawn. ManaBox-style "the camera is just always looking" UX. */}
+      {hasLock && viewfinderRect && (
+        <div className="scanner-overlay" aria-hidden="true">
+          <div
+            ref={viewfinderRef}
+            className="scanner-lockbox"
+            style={{
+              position: 'absolute',
+              left: `${viewfinderRect.left}px`,
+              top: `${viewfinderRect.top}px`,
+              width: `${viewfinderRect.width}px`,
+              height: `${viewfinderRect.height}px`,
+            }}
+          />
         </div>
-      </div>
+      )}
+      {/* Hidden ref target when there's no lock — captureAndIdentify reads
+          viewfinderRect from state, not from this DOM node, so a missing
+          node is fine. */}
+      <div ref={viewfinderRef} style={{ display: 'none' }} />
 
-      <header className="scanner-topbar">
+      {/* Top-left close button. */}
+      <button
+        type="button"
+        className="scanner-icon-btn scanner-close-btn"
+        onClick={onClose}
+        aria-label="Close scanner"
+      >
+        <X width={20} height={20} strokeWidth={1.8} />
+      </button>
+
+      {/* Top-center running total. Hidden when nothing has been scanned. */}
+      {totalCount > 0 && (
+        <div
+          className="scanner-total-pill"
+          role="status"
+          aria-live="polite"
+          aria-label={`Running total ${totalPrice.toFixed(2)} dollars`}
+        >
+          ${totalPrice.toFixed(2)}
+        </div>
+      )}
+
+      {/* Top-right vertical action stack: queue (with badge), torch, settings.
+          Wrapper provides the grouped-pill background; child buttons reuse
+          `.scanner-icon-btn` (transparent inside the stack — see CSS). */}
+      <div className="scanner-action-stack">
         <button
           type="button"
           className="scanner-icon-btn"
-          onClick={onClose}
-          aria-label="Close scanner"
+          onClick={() => setSheetOpen(true)}
+          aria-label={
+            totalCount > 0
+              ? `Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`
+              : 'Open scan queue'
+          }
         >
-          <X width={20} height={20} strokeWidth={1.8} />
-        </button>
-        {totalCount > 0 ? (
-          <button
-            type="button"
-            className="scanner-count-pill"
-            onClick={() => setSheetOpen(true)}
-            aria-label={`Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`}
-          >
-            <span key={pulseKey} className="scanner-count-pill-num">
+          <Inbox width={20} height={20} strokeWidth={1.8} />
+          {totalCount > 0 && (
+            <span key={pulseKey} className="scanner-stack-badge">
               {totalCount}
             </span>
-            <span className="scanner-count-pill-label">scanned · {queue.length} unique</span>
-            <ChevronRight width={14} height={14} strokeWidth={2} />
-          </button>
-        ) : (
-          <div className="scanner-status">
-            <ScanLine width={14} height={14} strokeWidth={1.8} />
-            <span>Hold a card inside the box</span>
-          </div>
-        )}
+          )}
+        </button>
         {torchSupported && (
           <button
             type="button"
@@ -981,40 +1037,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             )}
           </button>
         )}
-      </header>
+        <button
+          type="button"
+          className="scanner-icon-btn"
+          onClick={openSettings}
+          aria-label="Scanner settings"
+        >
+          <Settings width={20} height={20} strokeWidth={1.8} />
+        </button>
+      </div>
 
       {hint && <div className="scanner-hint">{hint}</div>}
-
-      {lastScan && (
-        <div
-          key={lastScan.key}
-          className={`scanner-scan-toast tier-${lastScan.tier}`}
-          role="status"
-          aria-live="polite"
-        >
-          {(() => {
-            const img =
-              lastScan.card.image_uris?.small || lastScan.card.card_faces?.[0]?.image_uris?.small;
-            const usd = lastScan.card.prices?.usd
-              ? `$${Number.parseFloat(lastScan.card.prices.usd).toFixed(2)}`
-              : null;
-            return (
-              <>
-                <div className="scanner-scan-toast-thumb">
-                  {img ? <img src={img} alt="" /> : null}
-                </div>
-                <div className="scanner-scan-toast-body">
-                  <div className="scanner-scan-toast-name">{lastScan.card.name}</div>
-                  <div className="scanner-scan-toast-meta">
-                    {lastScan.card.set.toUpperCase()} · {lastScan.card.collector_number ?? '—'}
-                    {usd ? <span className="scanner-scan-toast-price">{usd}</span> : null}
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      )}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">
@@ -1026,33 +1059,73 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         </div>
       )}
 
-      <footer className="scanner-controls">
-        <div className="scanner-action-row">
-          <div className="scanner-action-spacer" aria-hidden="true" />
-          <button
-            type="button"
-            className={`scanner-capture${status === 'scanning' ? ' busy' : ''}`}
-            onClick={() => void captureAndIdentify()}
-            disabled={status !== 'ready' && status !== 'scanning'}
-            aria-label="Capture card now"
-            title="Capture card now"
-          >
-            <Camera width={26} height={26} strokeWidth={1.8} />
-          </button>
-          <div className="scanner-secondary-actions">
-            <button
-              type="button"
-              className="btn btn-primary scanner-done"
-              onClick={handleConfirm}
-              disabled={totalCount === 0}
-            >
-              {totalCount === 0
-                ? 'Add cards'
-                : `Add ${totalCount} card${totalCount === 1 ? '' : 's'}`}
-            </button>
-          </div>
+      {/* Bottom card panel — persistent, replaces transient toast.
+          Shows the most-recently identified card; tapping the arrow
+          opens the full review sheet. */}
+      {lastScan && (
+        <div
+          key={lastScan.key}
+          className={`scanner-card-panel tier-${lastScan.tier}`}
+          role="status"
+          aria-live="polite"
+        >
+          {(() => {
+            const img =
+              lastScan.card.image_uris?.small ||
+              lastScan.card.image_uris?.normal ||
+              lastScan.card.card_faces?.[0]?.image_uris?.small;
+            const usd = lastScan.card.prices?.usd
+              ? `$${Number.parseFloat(lastScan.card.prices.usd).toFixed(2)}`
+              : null;
+            const set = lastScan.card.set.toUpperCase();
+            const collector = lastScan.card.collector_number ?? '—';
+            const qty = queue.find((e) => e.id === lastScan.card.oracle_id)?.qty ?? 1;
+            return (
+              <>
+                <button
+                  type="button"
+                  className="scanner-card-panel-main"
+                  onClick={() => setSheetOpen(true)}
+                  aria-label={`Review ${lastScan.card.name}`}
+                >
+                  <div className="scanner-card-panel-thumb">
+                    {img ? <img src={img} alt="" /> : null}
+                  </div>
+                  <div className="scanner-card-panel-body">
+                    <div className="scanner-card-panel-name">{lastScan.card.name}</div>
+                    <div className="scanner-card-panel-price">
+                      <span className="scanner-card-panel-market">MARKET</span>
+                      <span className="scanner-card-panel-amount">{usd ?? '—'}</span>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    className="scanner-card-panel-chevron"
+                    width={18}
+                    height={18}
+                    strokeWidth={1.8}
+                  />
+                </button>
+                <div className="scanner-card-panel-meta">
+                  <span className="scanner-card-panel-condition">Normal</span>
+                  <span className="scanner-card-panel-set">
+                    {set} · #{collector}
+                  </span>
+                  <span className="scanner-card-panel-lang">EN</span>
+                  <button
+                    type="button"
+                    className="scanner-card-panel-add"
+                    onClick={incrementLastScan}
+                    aria-label={`Add another ${lastScan.card.name}`}
+                  >
+                    <Plus width={14} height={14} strokeWidth={2.4} />
+                    <span>{qty}</span>
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
-      </footer>
+      )}
 
       {sheetOpen && (
         <ScannerQueueSheet
@@ -1062,6 +1135,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onChangeQty={changeQty}
           onRemove={removeFromQueue}
           onClearAll={clearQueue}
+          onConfirm={handleConfirm}
         />
       )}
     </div>
