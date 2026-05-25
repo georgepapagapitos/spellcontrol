@@ -35,7 +35,15 @@ interface PendingImport {
   isSample?: boolean;
 }
 
-export function UploadPanel() {
+interface UploadPanelProps {
+  /** Hide the "Scan cards" button in the panel header. Used when the
+   *  panel renders inside a host (e.g. AddCardsSheet) that already
+   *  exposes scanning as a peer entry point — two scan buttons in the
+   *  same surface is confusing. */
+  hideScanButton?: boolean;
+}
+
+export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const [pasteText, setPasteText] = useState('');
@@ -360,7 +368,7 @@ export function UploadPanel() {
           <div className="import-card-header">
             <h2 className="import-card-title">Import your collection</h2>
             <div className="import-card-header-actions">
-              {canScan && (
+              {canScan && !hideScanButton && (
                 <button
                   type="button"
                   className="btn import-upload-btn"
