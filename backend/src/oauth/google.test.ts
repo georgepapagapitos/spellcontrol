@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { createTestEnv, dbTestsEnabled } from '../test-helpers';
+import { createTestEnv } from '../test-helpers';
 import { generateUsername } from '../auth';
 import { users, authIdentities } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -104,12 +104,9 @@ describe('exchangeGoogleCode', () => {
   });
 });
 
-const d = dbTestsEnabled ? describe : describe.skip;
-
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   cleanup = env.cleanup;
 });
@@ -118,7 +115,7 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
-d('findGoogleUser / createGoogleUser', () => {
+describe('findGoogleUser / createGoogleUser', () => {
   it('returns null before the account exists, the user after', async () => {
     expect(await findGoogleUser('sub-new')).toBeNull();
     const user = await createGoogleUser(
@@ -148,7 +145,7 @@ d('findGoogleUser / createGoogleUser', () => {
   });
 });
 
-d('handoff codes', () => {
+describe('handoff codes', () => {
   it('round-trips a single-use code', async () => {
     const user = await createGoogleUser(
       { sub: 'sub-handoff', email: 'handoff@example.com', emailVerified: true, name: null },
@@ -165,7 +162,7 @@ d('handoff codes', () => {
   });
 });
 
-d('generateUsername', () => {
+describe('generateUsername', () => {
   it('derives a username from the email local-part', async () => {
     expect(await generateUsername('plain.name@example.com')).toBe('plainname');
   });

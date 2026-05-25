@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
-
-const d = dbTestsEnabled ? describe : describe.skip;
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -74,7 +71,7 @@ function makeCard(overrides: Partial<Record<string, unknown>> = {}): Record<stri
   };
 }
 
-d('POST /api/shares', () => {
+describe('POST /api/shares', () => {
   it('rejects unauthenticated callers', async () => {
     const res = await request(app).post('/api/shares').send({ kind: 'collection' });
     expect(res.status).toBe(401);
@@ -140,7 +137,7 @@ d('POST /api/shares', () => {
   });
 });
 
-d('GET /api/shares', () => {
+describe('GET /api/shares', () => {
   it('lists only the caller’s active shares', async () => {
     const alice = await makeUser('share-list-alice');
     const bob = await makeUser('share-list-bob');
@@ -152,7 +149,7 @@ d('GET /api/shares', () => {
   });
 });
 
-d('DELETE /api/shares/:token', () => {
+describe('DELETE /api/shares/:token', () => {
   it('revokes an active token', async () => {
     const cookie = await makeUser('share-revoke');
     const create = await request(app)
@@ -212,7 +209,7 @@ d('DELETE /api/shares/:token', () => {
   });
 });
 
-d('GET /api/shares/public/:token — collection', () => {
+describe('GET /api/shares/public/:token — collection', () => {
   it('returns the owner’s projected collection, stripping internal fields', async () => {
     const cookie = await makeUser('share-pub-coll');
     await setSnapshot(cookie, 0, {
@@ -272,7 +269,7 @@ d('GET /api/shares/public/:token — collection', () => {
   });
 });
 
-d('GET /api/shares/public/:token — deck', () => {
+describe('GET /api/shares/public/:token — deck', () => {
   it('projects a single deck by resourceId', async () => {
     const cookie = await makeUser('share-pub-deck');
     const deckId = 'd-1';
@@ -368,7 +365,7 @@ function makeBinder(overrides: Partial<Record<string, unknown>> = {}): Record<st
   };
 }
 
-d('GET /api/shares/public/:token — binder', () => {
+describe('GET /api/shares/public/:token — binder', () => {
   it('materializes a single binder and projects its cards', async () => {
     const cookie = await makeUser('share-pub-binder');
     await setSnapshot(cookie, 0, {
@@ -420,7 +417,7 @@ d('GET /api/shares/public/:token — binder', () => {
   });
 });
 
-d('GET /api/shares/public/:token — list', () => {
+describe('GET /api/shares/public/:token — list', () => {
   it('projects a single list and keeps note + targetPrice', async () => {
     const cookie = await makeUser('share-pub-list');
     const listId = 'l-1';
