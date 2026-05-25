@@ -8964,6 +8964,52 @@ hr {
   color: var(--danger, #b00);
 }
 
+.settings-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.settings-share-kind {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text3);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+.settings-share-name--deleted {
+  color: var(--text3);
+  text-decoration: line-through;
+}
+
+.settings-share-url {
+  color: var(--text3);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.settings-share-url:hover,
+.settings-share-url:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+  .settings-share-row .settings-share-actions {
+    align-self: stretch;
+    justify-content: flex-end;
+  }
+}
+
 .settings-toggle {
   display: inline-flex;
   align-items: center;
