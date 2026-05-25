@@ -94,6 +94,46 @@ describe('detectCardBox', () => {
     }
     expect(detectCardBox(frame, W, H)).toBeNull();
   });
+
+  it('finds the card even when a strong environmental edge sits above it', () => {
+    // Real-world failure case: a card sitting on a desk with a darker
+    // wall/shadow above. The full-width horizontal line where dark
+    // meets light projects a *stronger* row-gradient spike than the
+    // card's printed top border (because it spans the full frame
+    // width, not just the card width). The old "first row above
+    // threshold" greedy locked onto the shadow line as the card's
+    // top edge — bbox came out too tall, failed aspect, returned null.
+    // The candidate-search algorithm should skip that combination and
+    // land on the card's actual top.
+    const W = 64;
+    const H = 90;
+    const frame = new Uint8Array(W * H);
+    // Dark band at top of frame (y = 0..8), then white background, then
+    // the card (a darker rectangle on the white).
+    for (let y = 0; y < H; y++) {
+      const bg = y < 9 ? 30 : 230;
+      for (let x = 0; x < W; x++) {
+        frame[y * W + x] = bg;
+      }
+    }
+    // Card: 30×42 (5:7 aspect), placed in the lower-middle.
+    const cardX = 18;
+    const cardY = 40;
+    const cardW = 30;
+    const cardH = 42;
+    for (let y = cardY; y < cardY + cardH; y++) {
+      for (let x = cardX; x < cardX + cardW; x++) {
+        frame[y * W + x] = 60; // dark card on bright surface
+      }
+    }
+    const box = detectCardBox(frame, W, H);
+    expect(box).not.toBeNull();
+    // The detected box should land on the card, not span from the
+    // shadow line down to the card bottom. Allow ±2 px for the
+    // gradient-centring offset.
+    expect(Math.abs(box!.y - cardY)).toBeLessThanOrEqual(2);
+    expect(Math.abs(box!.h - cardH)).toBeLessThanOrEqual(3);
+  });
 });
 
 describe('detectorBoxToViewport', () => {
