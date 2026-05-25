@@ -1,17 +1,14 @@
 import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { __resetCombosBulkForTesting, getCombosBulk } from './combos-export';
-import { createTestEnv, dbTestsEnabled } from '../test-helpers';
+import { createTestEnv } from '../test-helpers';
 import { getDb } from '../db';
 import { combos, comboCards } from '../db/schema';
 import type { OfflineCombo } from './types';
 
-const d = dbTestsEnabled ? describe : describe.skip;
-
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   cleanup = env.cleanup;
   const db = getDb();
@@ -87,7 +84,7 @@ afterAll(async () => {
   if (cleanup) await cleanup();
 });
 
-d('getCombosBulk', () => {
+describe('getCombosBulk', () => {
   it('serves a gzipped JSON payload with one row per non-empty combo', async () => {
     const bulk = await getCombosBulk();
     expect(bulk.gzippedBytes).toBeGreaterThan(0);

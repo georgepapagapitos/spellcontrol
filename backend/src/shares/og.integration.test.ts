@@ -4,26 +4,19 @@
  * The pure HTML helpers (escape / build / inject) live in `og.test.ts`;
  * this file exercises the DB-bound path for every share kind plus the
  * "resource went missing" 404 case.
- *
- * DB-gated like the rest of the backend integration suite — skipped when
- * `dbTestsEnabled` is false so devs without local Postgres can still run
- * the suite.
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { shareCache } from './cache';
 import { lookupShareLandingMeta } from './og';
-
-const d = dbTestsEnabled ? describe : describe.skip;
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -98,7 +91,7 @@ function makeCard(name: string): Record<string, unknown> {
   };
 }
 
-d('lookupShareLandingMeta', () => {
+describe('lookupShareLandingMeta', () => {
   it('returns null for unknown tokens', async () => {
     const meta = await lookupShareLandingMeta('definitely-not-a-real-token-xyz');
     expect(meta).toBeNull();

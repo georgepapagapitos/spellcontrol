@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
-
-const d = dbTestsEnabled ? describe : describe.skip;
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -26,7 +23,7 @@ async function registerAndGetCookie(username: string): Promise<string> {
   return extractSessionCookie(res.headers['set-cookie'])!;
 }
 
-d('POST /api/games', () => {
+describe('POST /api/games', () => {
   it('rejects unauthenticated requests', async () => {
     const res = await request(app).post('/api/games').send({});
     expect(res.status).toBe(401);
@@ -45,7 +42,7 @@ d('POST /api/games', () => {
   });
 });
 
-d('GET /api/games/:code', () => {
+describe('GET /api/games/:code', () => {
   it('returns the full state with no knownVersion', async () => {
     const cookie = await registerAndGetCookie('games_get_full');
     const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
@@ -78,7 +75,7 @@ d('GET /api/games/:code', () => {
   });
 });
 
-d('POST /api/games/:code/join + PATCH /:code', () => {
+describe('POST /api/games/:code/join + PATCH /:code', () => {
   it('joins a game and applies a life action', async () => {
     const hostCookie = await registerAndGetCookie('games_host');
     const joinerCookie = await registerAndGetCookie('games_join');
@@ -158,7 +155,7 @@ d('POST /api/games/:code/join + PATCH /:code', () => {
   });
 });
 
-d('miscellaneous', () => {
+describe('miscellaneous', () => {
   it('GET unknown code returns 404', async () => {
     const cookie = await registerAndGetCookie('games_misc1');
     const res = await request(app).get('/api/games/ZZZZ').set('Cookie', cookie);
@@ -331,7 +328,7 @@ d('miscellaneous', () => {
   });
 });
 
-d('POST /api/games/:code/leave', () => {
+describe('POST /api/games/:code/leave', () => {
   it('host leave deletes the session', async () => {
     const host = await registerAndGetCookie('games_leave_h');
     const created = await request(app).post('/api/games').set('Cookie', host).send({});
