@@ -6985,13 +6985,33 @@ hr {
   transition-delay: calc((var(--stack) - 1) * 0.04s);
 }
 
-/* Action chip variant (e.g. Scan). Visually distinct from nav items —
-   filled with the accent so it reads as "do something" instead of
-   "go somewhere". Sits at the top of the stack in NavFab.tsx. */
+/* Action chip variant (e.g. Scan). Visually distinct from nav items but
+   NOT styled like the active-route state — the previous version filled
+   the glyph with the accent unconditionally, which read as "permanently
+   hovered/active". Instead, tint the icon with the accent and use an
+   accent border, keeping the surface background of a normal nav chip.
+   Press/tap fills it with the accent for tactile feedback. Sits at the
+   top of the stack in NavFab.tsx. */
 .nav-fab-item-action .nav-fab-item-glyph {
-  background: var(--accent);
+  color: var(--accent);
   border-color: var(--accent);
+}
+
+.nav-fab-item-action:active:not(:disabled) .nav-fab-item-glyph,
+.nav-fab-item-action:focus-visible .nav-fab-item-glyph {
+  background: var(--accent);
   color: var(--on-accent);
+}
+
+/* Only fire the hover fill where hover is a real input modality —
+   on touch (the FAB's actual habitat) sticky :hover would leave the
+   chip looking "active" after every tap, which is the exact bug
+   we're fixing here. */
+@media (hover: hover) {
+  .nav-fab-item-action:hover:not(:disabled) .nav-fab-item-glyph {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
 }
 
 .nav-fab-item-action .nav-fab-item-label {
