@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import * as schema from '../db/schema';
 import { setDbForTesting, closeDb } from '../db';
 import { ingestCombos, parseVariant, streamSpellbookVariants } from './ingest';
-import { dbTestsEnabled, testDatabaseUrl } from '../test-helpers';
+import { testDatabaseUrl } from '../test-helpers';
 
 /** Builds a minimal Response-shaped object whose `body` is a WHATWG
  * ReadableStream emitting `bodyText`. Lets us drive `streamSpellbookVariants`
@@ -166,12 +166,10 @@ describe('parseVariant', () => {
   });
 });
 
-const d = dbTestsEnabled ? describe : describe.skip;
-
 let pool: Pool;
 let schemaName: string;
 
-d('ingestCombos (db)', () => {
+describe('ingestCombos (db)', () => {
   beforeAll(async () => {
     schemaName = `t_${crypto.randomBytes(6).toString('hex')}`;
     pool = new Pool({ connectionString: testDatabaseUrl(), max: 4 });

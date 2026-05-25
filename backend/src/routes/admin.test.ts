@@ -2,16 +2,13 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { sql } from 'drizzle-orm';
-import { createTestEnv, dbTestsEnabled, extractSessionCookie } from '../test-helpers';
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
-
-const d = dbTestsEnabled ? describe : describe.skip;
 
 let app: Express;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
-  if (!dbTestsEnabled) return;
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
@@ -40,7 +37,7 @@ async function registerUser(username: string, password = 'correct horse battery'
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }
 
-d('GET /api/admin/users', () => {
+describe('GET /api/admin/users', () => {
   it('401s without a session', async () => {
     const res = await request(app).get('/api/admin/users');
     expect(res.status).toBe(401);
@@ -71,7 +68,7 @@ d('GET /api/admin/users', () => {
   });
 });
 
-d('DELETE /api/admin/users/:id', () => {
+describe('DELETE /api/admin/users/:id', () => {
   it('403s for a non-admin session', async () => {
     const cookie = await registerUser('owen');
     const res = await request(app).delete('/api/admin/users/some-id').set('Cookie', cookie);
@@ -110,7 +107,7 @@ d('DELETE /api/admin/users/:id', () => {
   });
 });
 
-d('/api/auth/me returns role', () => {
+describe('/api/auth/me returns role', () => {
   it('reflects a promotion done after the JWT was issued', async () => {
     const cookie = await registerUser('tess');
     // Pre-promotion: role=user.
