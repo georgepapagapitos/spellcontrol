@@ -67,9 +67,6 @@ interface CollectionState {
   lists: ListDef[];
   activeTab: string;
   editingBinder: string | null;
-  /** Whether the import bottom-sheet is open. Triggered by the small "+"
-   * button on the OVERVIEW row of the Collection page. */
-  importSheetOpen: boolean;
 
   search: string;
 
@@ -193,7 +190,6 @@ interface CollectionState {
   // UI actions
   setActiveTab: (tab: string) => void;
   setEditingBinder: (id: string | null) => void;
-  setImportSheetOpen: (open: boolean) => void;
 
   // Config actions
   setSearch: (s: string) => void;
@@ -273,7 +269,6 @@ export const useCollectionStore = create<CollectionState>()(
       error: null,
       activeTab: 'uncategorized',
       editingBinder: null,
-      importSheetOpen: false,
       search: '',
 
       // Persisted defaults
@@ -935,7 +930,6 @@ export const useCollectionStore = create<CollectionState>()(
 
       setActiveTab: (tab) => set({ activeTab: tab }),
       setEditingBinder: (id) => set({ editingBinder: id }),
-      setImportSheetOpen: (open) => set({ importSheetOpen: open }),
 
       setSearch: (s) => set({ search: s }),
     }),
