@@ -742,23 +742,53 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const meanDiff = diffSum / frame.length;
       const isStable = meanDiff < STABILITY_THRESHOLD;
 
-      // Title-band variance: only meaningful if we have a card lock,
-      // since the band's position depends on the detected card. When
-      // locked, sample the top ~12% of the detected bbox in the detector
-      // frame; when not locked, fall back to the top of the whole frame.
-      const bandTop = detected ? detected.y : 0;
-      const bandStart = bandTop * bufW;
-      const bandHeight = Math.max(1, Math.round((detected ? detected.h : bufH) * 0.12));
-      const bandPixels = bufW * bandHeight;
-      let bandSum = 0;
-      for (let i = 0; i < bandPixels; i++) bandSum += frame[bandStart + i] ?? 0;
-      const bandMean = bandSum / bandPixels;
-      let bandVar = 0;
-      for (let i = 0; i < bandPixels; i++) {
-        const d = (frame[bandStart + i] ?? 0) - bandMean;
-        bandVar += d * d;
+      // Title-band variance — gates whether capture fires. The band's
+      // position depends on where the card actually is:
+      //   - Locked: top ~12% of the detected bbox in the detector frame.
+      //   - Unlocked: top ~12% of the DEFAULT VIEWFINDER region, mapped
+      //     into detector coords. Critical: the detector frame now
+      //     samples the full search region, so naively sampling the top
+      //     of the whole frame would always be background — variance
+      //     would fail and capture would never fire (this was the
+      //     regression after the search-region expansion).
+      let bandX0: number;
+      let bandY0: number;
+      let bandX1: number;
+      let bandY1: number;
+      if (detected) {
+        bandX0 = detected.x;
+        bandY0 = detected.y;
+        bandX1 = detected.x + detected.w;
+        bandY1 = detected.y + Math.max(1, Math.round(detected.h * 0.12));
+      } else {
+        const vfX = ((defaultViewfinderRect.left - searchRect.left) / searchRect.width) * bufW;
+        const vfY = ((defaultViewfinderRect.top - searchRect.top) / searchRect.height) * bufH;
+        const vfW = (defaultViewfinderRect.width / searchRect.width) * bufW;
+        const vfH = (defaultViewfinderRect.height / searchRect.height) * bufH;
+        bandX0 = Math.max(0, Math.floor(vfX));
+        bandY0 = Math.max(0, Math.floor(vfY));
+        bandX1 = Math.min(bufW, Math.ceil(vfX + vfW));
+        bandY1 = Math.min(bufH, Math.ceil(vfY + Math.max(1, vfH * 0.12)));
       }
-      bandVar /= bandPixels;
+      let bandSum = 0;
+      let bandCount = 0;
+      for (let y = bandY0; y < bandY1; y++) {
+        const rowOffset = y * bufW;
+        for (let x = bandX0; x < bandX1; x++) {
+          bandSum += frame[rowOffset + x];
+          bandCount++;
+        }
+      }
+      const bandMean = bandCount > 0 ? bandSum / bandCount : 0;
+      let bandVar = 0;
+      for (let y = bandY0; y < bandY1; y++) {
+        const rowOffset = y * bufW;
+        for (let x = bandX0; x < bandX1; x++) {
+          const d = frame[rowOffset + x] - bandMean;
+          bandVar += d * d;
+        }
+      }
+      bandVar = bandCount > 0 ? bandVar / bandCount : 0;
       const hasCard = bandVar > VARIANCE_THRESHOLD;
 
       if (!isStable) {
