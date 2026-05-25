@@ -873,6 +873,12 @@ body:has(.playtest-page) .modal-backdrop {
   z-index: 100;
 }
 
+.playtest-opening-card.is-dragging {
+  cursor: grabbing;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.35);
+  opacity: 0.92;
+}
+
 .playtest-opening-card img {
   width: 100%;
   height: 100%;
