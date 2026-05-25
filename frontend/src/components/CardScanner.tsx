@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { identifyCard } from '../lib/api';
+import { identifyCardFromCandidates } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
 import { isNativePlatform } from '../lib/platform';
 import {
@@ -22,6 +22,7 @@ import {
   type CardValueTier,
 } from '../lib/scanner-feedback';
 import { detectCardBox, detectorBoxToViewport } from '../lib/scanner-detect';
+import { ocrCandidates, preprocessTitle } from '../lib/scanner-preprocess';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -65,12 +66,24 @@ type ScanStatus = 'idle' | 'starting' | 'ready' | 'scanning' | 'error';
 /** Aspect ratio of an MTG card: 2.5" x 3.5" = 5:7. */
 const CARD_ASPECT = 5 / 7;
 /**
- * Title strip occupies roughly the top 4–11% of an MTG card's height, with
- * the name running from ~8% to ~72% of the width (mana symbols on the right).
- * These crops were tuned against modern, modern-foil, old-frame, and showcase
- * frames — the band is wide enough to tolerate small misalignment.
+ * Title-strip crops, tried in order. The first is the tight "ideal" crop;
+ * the second is a wider safety fallback used when the first OCR attempt
+ * returns nothing matchable.
+ *
+ * Coordinates are fractions of the *detected card* (not the viewfinder).
+ *   - x/w: horizontal span — name runs from ~7% to ~72% (mana symbols
+ *     occupy the right shoulder of the title plate).
+ *   - y/h: vertical span — tuned to leave ascender/descender padding
+ *     so OCR sees full letterforms, not clipped tops or bottoms.
+ *
+ * The wider fallback bleeds further down (catches the subtitle on
+ * planeswalker/saga cards) and further outward (handles slight rotation
+ * or imperfect edge detection by giving OCR more pixels to work with).
  */
-const TITLE_CROP = { x: 0.07, y: 0.038, w: 0.66, h: 0.075 };
+const TITLE_CROPS = [
+  { x: 0.07, y: 0.035, w: 0.66, h: 0.085 },
+  { x: 0.04, y: 0.025, w: 0.74, h: 0.115 },
+];
 
 /**
  * Auto-detect tuning. The detector samples the *whole visible camera band*
@@ -527,46 +540,87 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
       const canvas = captureCanvasRef.current;
-
-      // Crop the card's title strip, OCR it, and resolve via Scryfall's
-      // fuzzy `cards/named` endpoint. 3x scale because Tesseract is happier
-      // with bigger inputs and tight phone-camera crops are often soft.
-      const titleX = cardX + cardW * TITLE_CROP.x;
-      const titleY = cardY + cardH * TITLE_CROP.y;
-      const titleW = cardW * TITLE_CROP.w;
-      const titleH = cardH * TITLE_CROP.h;
-      const SCALE = 3;
-      canvas.width = Math.round(titleW * SCALE);
-      canvas.height = Math.round(titleH * SCALE);
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error('Could not get canvas context.');
-      ctx.drawImage(frameSource, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
 
-      // Light preprocessing: grayscale + contrast boost around the mean.
-      // A cheap stand-in for adaptive thresholding that meaningfully
-      // improves OCR on warm/yellow card frames.
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = img.data;
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        data[i] = data[i + 1] = data[i + 2] = g;
-        sum += g;
+      // Try each title crop in order: tight first (cleaner OCR signal),
+      // wider on fallback (catches off-centre framing). For each crop we
+      // OCR, generate plausible-variant candidates from the read, and
+      // ask the matcher to walk them in order. First hit wins.
+      //
+      // Pixels are scaled 3× because Tesseract is significantly more
+      // accurate on bigger inputs and phone-camera crops at native
+      // resolution are often borderline blurry.
+      const SCALE = 3;
+      let card: ScryfallCard | null = null;
+      let bestText = '';
+      let bestConfidence = 0;
+      let matchedQuery: string | null = null;
+
+      for (let attempt = 0; attempt < TITLE_CROPS.length && !card; attempt++) {
+        const crop = TITLE_CROPS[attempt];
+        const titleX = cardX + cardW * crop.x;
+        const titleY = cardY + cardH * crop.y;
+        const titleW = cardW * crop.w;
+        const titleH = cardH * crop.h;
+        canvas.width = Math.round(titleW * SCALE);
+        canvas.height = Math.round(titleH * SCALE);
+        ctx.drawImage(
+          frameSource,
+          titleX,
+          titleY,
+          titleW,
+          titleH,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        // Otsu binarization (auto-determined threshold + polarity) gives
+        // Tesseract a clean black-on-white image — dramatically better
+        // than mean-shift contrast on warm/dark/textured title plates.
+        preprocessTitle(ctx);
+        const result = await recognizeText(canvas);
+        if (!result.text || result.text.length < 2) continue;
+        // Track the highest-confidence non-empty read across attempts so
+        // the failure toast shows the *best* thing we read, not whatever
+        // happened to be last.
+        if (result.confidence > bestConfidence) {
+          bestText = result.text;
+          bestConfidence = result.confidence;
+        }
+        // Skip obvious garbage reads — saves a Scryfall round-trip.
+        // ML Kit on native hardcodes 95 so this guard only filters on
+        // web (Tesseract), where low confidence reliably tracks noise.
+        if (result.confidence < 35) continue;
+        // Generate fuzz-tolerant candidates (raw + rn↔m / cl↔d / etc.
+        // substitutions + prefix fallbacks). The matcher tries each in
+        // order and short-circuits on the first Scryfall hit.
+        const candidates = ocrCandidates(result.text);
+        if (candidates.length === 0) continue;
+        const matched = await identifyCardFromCandidates(candidates);
+        if (matched.card) {
+          card = matched.card;
+          matchedQuery = matched.matchedQuery;
+          bestText = result.text;
+        }
       }
-      const mean = sum / (data.length / 4);
-      for (let i = 0; i < data.length; i += 4) {
-        const v = data[i];
-        const boosted = Math.max(0, Math.min(255, (v - mean) * 1.8 + mean));
-        data[i] = data[i + 1] = data[i + 2] = boosted;
+
+      if (!card) {
+        // Surface what we read so the user understands why the scan
+        // didn't land — "Read: 'Evoiving Wids' — no match" beats a
+        // silent loop where nothing happens when they hold up a card.
+        if (bestText && bestText.length >= 2) {
+          showHint(`Read: "${bestText}" — no match. Try again.`, 2200);
+        } else {
+          showHint('Couldn’t read the title — try better lighting.', 2200);
+        }
+        return;
       }
-      ctx.putImageData(img, 0, 0);
-
-      const { text, confidence } = await recognizeText(canvas);
-      if (!text || text.length < 2) return;
-      if (confidence < 35) return;
-
-      const card = await identifyCard(text);
-      if (!card) return;
+      // Light debug crumb so we can correlate failed scans in logs.
+      if (matchedQuery && matchedQuery.toLowerCase() !== card.name.toLowerCase()) {
+        logger.debug(`[scanner] matched "${matchedQuery}" → ${card.name}`);
+      }
 
       // Dedupe: the same card scanned twice in a row almost always means
       // the user is still framing the same physical card.
@@ -587,7 +641,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             id: card.oracle_id,
             card,
             qty: 1,
-            rawText: text,
+            rawText: bestText,
           },
         ];
       });
