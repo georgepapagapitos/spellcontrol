@@ -1,18 +1,19 @@
 import { logger } from '@/lib/logger';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Camera,
   ChevronRight,
   Flashlight,
   FlashlightOff,
+  Inbox,
+  Plus,
   RotateCcw,
-  ScanLine,
+  Settings,
   X,
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { identifyCard } from '../lib/api';
+import { identifyCardFromCandidates } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
 import { isNativePlatform } from '../lib/platform';
 import {
@@ -22,6 +23,7 @@ import {
   type CardValueTier,
 } from '../lib/scanner-feedback';
 import { detectCardBox, detectorBoxToViewport } from '../lib/scanner-detect';
+import { ocrCandidates, preprocessTitle } from '../lib/scanner-preprocess';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -65,12 +67,24 @@ type ScanStatus = 'idle' | 'starting' | 'ready' | 'scanning' | 'error';
 /** Aspect ratio of an MTG card: 2.5" x 3.5" = 5:7. */
 const CARD_ASPECT = 5 / 7;
 /**
- * Title strip occupies roughly the top 4–11% of an MTG card's height, with
- * the name running from ~8% to ~72% of the width (mana symbols on the right).
- * These crops were tuned against modern, modern-foil, old-frame, and showcase
- * frames — the band is wide enough to tolerate small misalignment.
+ * Title-strip crops, tried in order. The first is the tight "ideal" crop;
+ * the second is a wider safety fallback used when the first OCR attempt
+ * returns nothing matchable.
+ *
+ * Coordinates are fractions of the *detected card* (not the viewfinder).
+ *   - x/w: horizontal span — name runs from ~7% to ~72% (mana symbols
+ *     occupy the right shoulder of the title plate).
+ *   - y/h: vertical span — tuned to leave ascender/descender padding
+ *     so OCR sees full letterforms, not clipped tops or bottoms.
+ *
+ * The wider fallback bleeds further down (catches the subtitle on
+ * planeswalker/saga cards) and further outward (handles slight rotation
+ * or imperfect edge detection by giving OCR more pixels to work with).
  */
-const TITLE_CROP = { x: 0.07, y: 0.038, w: 0.66, h: 0.075 };
+const TITLE_CROPS = [
+  { x: 0.07, y: 0.035, w: 0.66, h: 0.085 },
+  { x: 0.04, y: 0.025, w: 0.74, h: 0.115 },
+];
 
 /**
  * Auto-detect tuning. The detector samples the *whole visible camera band*
@@ -94,12 +108,18 @@ const TITLE_CROP = { x: 0.07, y: 0.038, w: 0.66, h: 0.075 };
  * box — quick enough to feel responsive, slow enough to ride out a
  * single noisy frame.
  */
-const DETECT_INTERVAL_MS = 165;
+const DETECT_INTERVAL_MS = 140;
 const DETECT_BUDGET_PX = 9000; // ~75×120 for a typical 9:19.5 portrait band
-const STABILITY_THRESHOLD = 7; // mean absolute frame-diff per pixel (0–255)
-const VARIANCE_THRESHOLD = 380; // stddev² of the title band when checked
-const STABLE_FRAMES_REQUIRED = 2;
-const CAPTURE_COOLDOWN_MS = 1100;
+const STABILITY_THRESHOLD = 8; // mean absolute frame-diff per pixel (0–255)
+const VARIANCE_THRESHOLD = 320; // stddev² of the title band when checked
+/**
+ * With the Otsu-based OCR pipeline, the OCR step itself filters garbage
+ * reads — so we no longer need to gate auto-capture on multiple stable
+ * frames. One stable, card-present tick is enough; the pipeline self-
+ * corrects via the recognition-confidence + Scryfall-match checks.
+ */
+const STABLE_FRAMES_REQUIRED = 1;
+const CAPTURE_COOLDOWN_MS = 800;
 const DETECT_LOST_TICKS = 4;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
@@ -131,8 +151,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * card immediately after a successful identify.
    */
   const armedRef = useRef(true);
-  /** Timer that auto-dismisses the inline scan confirmation chip. */
-  const scanToastTimerRef = useRef<number | null>(null);
 
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -141,7 +159,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  /** Pulses the count pill briefly each time a new card lands. */
+  /** Pulses the count badge briefly each time a new card lands. */
   const [pulseKey, setPulseKey] = useState(0);
   /**
    * Three rectangles, all in viewport (px) coordinates:
@@ -167,7 +185,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [viewfinderRect, setViewfinderRect] = useState<Rect | null>(null);
   /** Whether the detector currently has a lock — drives the "card found" styling. */
   const [hasLock, setHasLock] = useState(false);
-  /** Inline confirmation chip data — auto-clears ~1.6s after each scan. */
+  /**
+   * The most recently identified card. Stays on screen (in the bottom
+   * panel) until the next successful scan replaces it — no auto-dismiss.
+   * `key` is bumped on every scan so the CSS slide-in animation replays
+   * even when the same card data lands twice in a row.
+   */
   const [lastScan, setLastScan] = useState<{
     card: ScryfallCard;
     tier: CardValueTier;
@@ -177,6 +200,22 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   useLockBodyScroll();
 
   const totalCount = queue.reduce((sum, e) => sum + e.qty, 0);
+  /**
+   * Running market-value total of the staged queue (sum of qty × unit
+   * USD price). Falls back to foil / etched when the regular usd field
+   * is missing — Scryfall's convention. Memoised so the topbar pill
+   * doesn't recalculate on every parent re-render.
+   */
+  const totalPrice = useMemo(() => {
+    let sum = 0;
+    for (const entry of queue) {
+      const p = entry.card.prices;
+      const raw = p?.usd ?? p?.usd_foil ?? p?.usd_etched ?? null;
+      const value = raw ? Number.parseFloat(raw) : NaN;
+      if (Number.isFinite(value)) sum += value * entry.qty;
+    }
+    return sum;
+  }, [queue]);
 
   const showHint = useCallback((msg: string, ms = 1800) => {
     setHint(msg);
@@ -335,10 +374,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       stopCamera();
       void disposeOcr();
       if (detectLoopRef.current !== null) cancelAnimationFrame(detectLoopRef.current);
-      if (scanToastTimerRef.current !== null) {
-        window.clearTimeout(scanToastTimerRef.current);
-        scanToastTimerRef.current = null;
-      }
     };
   }, [startCamera, stopCamera]);
 
@@ -527,46 +562,87 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
       const canvas = captureCanvasRef.current;
-
-      // Crop the card's title strip, OCR it, and resolve via Scryfall's
-      // fuzzy `cards/named` endpoint. 3x scale because Tesseract is happier
-      // with bigger inputs and tight phone-camera crops are often soft.
-      const titleX = cardX + cardW * TITLE_CROP.x;
-      const titleY = cardY + cardH * TITLE_CROP.y;
-      const titleW = cardW * TITLE_CROP.w;
-      const titleH = cardH * TITLE_CROP.h;
-      const SCALE = 3;
-      canvas.width = Math.round(titleW * SCALE);
-      canvas.height = Math.round(titleH * SCALE);
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) throw new Error('Could not get canvas context.');
-      ctx.drawImage(frameSource, titleX, titleY, titleW, titleH, 0, 0, canvas.width, canvas.height);
 
-      // Light preprocessing: grayscale + contrast boost around the mean.
-      // A cheap stand-in for adaptive thresholding that meaningfully
-      // improves OCR on warm/yellow card frames.
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = img.data;
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        data[i] = data[i + 1] = data[i + 2] = g;
-        sum += g;
+      // Try each title crop in order: tight first (cleaner OCR signal),
+      // wider on fallback (catches off-centre framing). For each crop we
+      // OCR, generate plausible-variant candidates from the read, and
+      // ask the matcher to walk them in order. First hit wins.
+      //
+      // Pixels are scaled 3× because Tesseract is significantly more
+      // accurate on bigger inputs and phone-camera crops at native
+      // resolution are often borderline blurry.
+      const SCALE = 3;
+      let card: ScryfallCard | null = null;
+      let bestText = '';
+      let bestConfidence = 0;
+      let matchedQuery: string | null = null;
+
+      for (let attempt = 0; attempt < TITLE_CROPS.length && !card; attempt++) {
+        const crop = TITLE_CROPS[attempt];
+        const titleX = cardX + cardW * crop.x;
+        const titleY = cardY + cardH * crop.y;
+        const titleW = cardW * crop.w;
+        const titleH = cardH * crop.h;
+        canvas.width = Math.round(titleW * SCALE);
+        canvas.height = Math.round(titleH * SCALE);
+        ctx.drawImage(
+          frameSource,
+          titleX,
+          titleY,
+          titleW,
+          titleH,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        // Otsu binarization (auto-determined threshold + polarity) gives
+        // Tesseract a clean black-on-white image — dramatically better
+        // than mean-shift contrast on warm/dark/textured title plates.
+        preprocessTitle(ctx);
+        const result = await recognizeText(canvas);
+        if (!result.text || result.text.length < 2) continue;
+        // Track the highest-confidence non-empty read across attempts so
+        // the failure toast shows the *best* thing we read, not whatever
+        // happened to be last.
+        if (result.confidence > bestConfidence) {
+          bestText = result.text;
+          bestConfidence = result.confidence;
+        }
+        // Skip obvious garbage reads — saves a Scryfall round-trip.
+        // ML Kit on native hardcodes 95 so this guard only filters on
+        // web (Tesseract), where low confidence reliably tracks noise.
+        if (result.confidence < 35) continue;
+        // Generate fuzz-tolerant candidates (raw + rn↔m / cl↔d / etc.
+        // substitutions + prefix fallbacks). The matcher tries each in
+        // order and short-circuits on the first Scryfall hit.
+        const candidates = ocrCandidates(result.text);
+        if (candidates.length === 0) continue;
+        const matched = await identifyCardFromCandidates(candidates);
+        if (matched.card) {
+          card = matched.card;
+          matchedQuery = matched.matchedQuery;
+          bestText = result.text;
+        }
       }
-      const mean = sum / (data.length / 4);
-      for (let i = 0; i < data.length; i += 4) {
-        const v = data[i];
-        const boosted = Math.max(0, Math.min(255, (v - mean) * 1.8 + mean));
-        data[i] = data[i + 1] = data[i + 2] = boosted;
+
+      if (!card) {
+        // Surface what we read so the user understands why the scan
+        // didn't land — "Read: 'Evoiving Wids' — no match" beats a
+        // silent loop where nothing happens when they hold up a card.
+        if (bestText && bestText.length >= 2) {
+          showHint(`Read: "${bestText}" — no match. Try again.`, 2200);
+        } else {
+          showHint('Couldn’t read the title — try better lighting.', 2200);
+        }
+        return;
       }
-      ctx.putImageData(img, 0, 0);
-
-      const { text, confidence } = await recognizeText(canvas);
-      if (!text || text.length < 2) return;
-      if (confidence < 35) return;
-
-      const card = await identifyCard(text);
-      if (!card) return;
+      // Light debug crumb so we can correlate failed scans in logs.
+      if (matchedQuery && matchedQuery.toLowerCase() !== card.name.toLowerCase()) {
+        logger.debug(`[scanner] matched "${matchedQuery}" → ${card.name}`);
+      }
 
       // Dedupe: the same card scanned twice in a row almost always means
       // the user is still framing the same physical card.
@@ -587,25 +663,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             id: card.oracle_id,
             card,
             qty: 1,
-            rawText: text,
+            rawText: bestText,
           },
         ];
       });
       setPulseKey((k) => k + 1);
       playValueChime(tier);
       pulseValueHaptic(tier);
-      // Inline confirmation chip: shows the just-scanned card for ~1.6s
-      // so the user can sanity-check the OCR result without opening the
-      // queue sheet. `key` is bumped so the CSS animation replays even
-      // when the same card data lands twice in a row.
+      // Bottom card panel: persistent — stays until the next successful
+      // scan replaces it. `key` is bumped on every scan so the slide-in
+      // animation replays even when the same card lands twice.
       setLastScan({ card, tier, key: Date.now() });
-      if (scanToastTimerRef.current !== null) {
-        window.clearTimeout(scanToastTimerRef.current);
-      }
-      scanToastTimerRef.current = window.setTimeout(() => {
-        setLastScan(null);
-        scanToastTimerRef.current = null;
-      }, 1600);
     } catch (err) {
       logger.error('[scanner] capture failed:', err);
       showHint('Scan failed — try again.');
@@ -789,7 +857,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         }
       }
       bandVar = bandCount > 0 ? bandVar / bandCount : 0;
-      const hasCard = bandVar > VARIANCE_THRESHOLD;
+      // Auto-capture requires both detector lock AND a high-variance
+      // title band. Lock alone could trigger on any rectangular thing;
+      // variance alone could trigger on a card held in the default
+      // centered region even when the detector hasn't found edges.
+      // Together they mean "we know where the card is AND it actually
+      // has text where the title should be".
+      const hasCard = detected !== null && bandVar > VARIANCE_THRESHOLD;
 
       if (!isStable) {
         armedRef.current = true;
@@ -842,13 +916,36 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     setQueue((prev) => prev.map((e) => (e.id === id ? { ...e, card: newCard } : e)));
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (queue.length === 0) return;
     const lines = queue.map(({ card, qty }) =>
       `${qty} ${card.name} (${card.set.toUpperCase()}) ${card.collector_number ?? ''}`.trim()
     );
     onConfirm(lines.join('\n'), totalCount);
-  };
+  }, [queue, totalCount, onConfirm]);
+
+  /**
+   * "+1" on the bottom card panel: bumps the qty of the currently-shown
+   * card. Useful when the user has several copies of the same printing
+   * and the auto-detector keeps deduping them. Re-pulses the count
+   * badge so the user sees the bump land.
+   */
+  const incrementLastScan = useCallback(() => {
+    if (!lastScan) return;
+    const oracleId = lastScan.card.oracle_id;
+    setQueue((prev) => {
+      const existing = prev.find((e) => e.id === oracleId);
+      if (!existing) return prev;
+      return prev.map((e) => (e.id === oracleId ? { ...e, qty: e.qty + 1 } : e));
+    });
+    setPulseKey((k) => k + 1);
+    pulseValueHaptic(lastScan.tier);
+  }, [lastScan]);
+
+  const openSettings = useCallback(() => {
+    // Placeholder — surface a stub message until the settings sheet lands.
+    showHint('Scanner settings coming soon.', 1600);
+  }, [showHint]);
 
   const scannerNode = (
     <div
@@ -860,59 +957,72 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     >
       {!isNativePlatform() && <video ref={videoRef} className="scanner-video" playsInline muted />}
 
-      <div className="scanner-overlay" aria-hidden="true">
-        <div
-          ref={viewfinderRef}
-          className={`scanner-viewfinder${hasLock ? ' locked' : ''}`}
-          style={
-            viewfinderRect
-              ? {
-                  position: 'absolute',
-                  left: `${viewfinderRect.left}px`,
-                  top: `${viewfinderRect.top}px`,
-                  width: `${viewfinderRect.width}px`,
-                  height: `${viewfinderRect.height}px`,
-                }
-              : { display: 'none' }
-          }
-        >
-          <div className="scanner-viewfinder-corner tl" />
-          <div className="scanner-viewfinder-corner tr" />
-          <div className="scanner-viewfinder-corner bl" />
-          <div className="scanner-viewfinder-corner br" />
-          <div className="scanner-title-band" />
-          {status === 'scanning' && <div className="scanner-scanline" />}
+      {/* Card outline — drawn directly on the detected card. No default
+          centered viewfinder anymore: when nothing is detected, nothing
+          is drawn. ManaBox-style "the camera is just always looking" UX. */}
+      {hasLock && viewfinderRect && (
+        <div className="scanner-overlay" aria-hidden="true">
+          <div
+            ref={viewfinderRef}
+            className="scanner-lockbox"
+            style={{
+              position: 'absolute',
+              left: `${viewfinderRect.left}px`,
+              top: `${viewfinderRect.top}px`,
+              width: `${viewfinderRect.width}px`,
+              height: `${viewfinderRect.height}px`,
+            }}
+          />
         </div>
-      </div>
+      )}
+      {/* Hidden ref target when there's no lock — captureAndIdentify reads
+          viewfinderRect from state, not from this DOM node, so a missing
+          node is fine. */}
+      <div ref={viewfinderRef} style={{ display: 'none' }} />
 
-      <header className="scanner-topbar">
+      {/* Top-left close button. */}
+      <button
+        type="button"
+        className="scanner-icon-btn scanner-close-btn"
+        onClick={onClose}
+        aria-label="Close scanner"
+      >
+        <X width={20} height={20} strokeWidth={1.8} />
+      </button>
+
+      {/* Top-center running total. Hidden when nothing has been scanned. */}
+      {totalCount > 0 && (
+        <div
+          className="scanner-total-pill"
+          role="status"
+          aria-live="polite"
+          aria-label={`Running total ${totalPrice.toFixed(2)} dollars`}
+        >
+          ${totalPrice.toFixed(2)}
+        </div>
+      )}
+
+      {/* Top-right vertical action stack: queue (with badge), torch, settings.
+          Wrapper provides the grouped-pill background; child buttons reuse
+          `.scanner-icon-btn` (transparent inside the stack — see CSS). */}
+      <div className="scanner-action-stack">
         <button
           type="button"
           className="scanner-icon-btn"
-          onClick={onClose}
-          aria-label="Close scanner"
+          onClick={() => setSheetOpen(true)}
+          aria-label={
+            totalCount > 0
+              ? `Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`
+              : 'Open scan queue'
+          }
         >
-          <X width={20} height={20} strokeWidth={1.8} />
-        </button>
-        {totalCount > 0 ? (
-          <button
-            type="button"
-            className="scanner-count-pill"
-            onClick={() => setSheetOpen(true)}
-            aria-label={`Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`}
-          >
-            <span key={pulseKey} className="scanner-count-pill-num">
+          <Inbox width={20} height={20} strokeWidth={1.8} />
+          {totalCount > 0 && (
+            <span key={pulseKey} className="scanner-stack-badge">
               {totalCount}
             </span>
-            <span className="scanner-count-pill-label">scanned · {queue.length} unique</span>
-            <ChevronRight width={14} height={14} strokeWidth={2} />
-          </button>
-        ) : (
-          <div className="scanner-status">
-            <ScanLine width={14} height={14} strokeWidth={1.8} />
-            <span>Hold a card inside the box</span>
-          </div>
-        )}
+          )}
+        </button>
         {torchSupported && (
           <button
             type="button"
@@ -927,40 +1037,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             )}
           </button>
         )}
-      </header>
+        <button
+          type="button"
+          className="scanner-icon-btn"
+          onClick={openSettings}
+          aria-label="Scanner settings"
+        >
+          <Settings width={20} height={20} strokeWidth={1.8} />
+        </button>
+      </div>
 
       {hint && <div className="scanner-hint">{hint}</div>}
-
-      {lastScan && (
-        <div
-          key={lastScan.key}
-          className={`scanner-scan-toast tier-${lastScan.tier}`}
-          role="status"
-          aria-live="polite"
-        >
-          {(() => {
-            const img =
-              lastScan.card.image_uris?.small || lastScan.card.card_faces?.[0]?.image_uris?.small;
-            const usd = lastScan.card.prices?.usd
-              ? `$${Number.parseFloat(lastScan.card.prices.usd).toFixed(2)}`
-              : null;
-            return (
-              <>
-                <div className="scanner-scan-toast-thumb">
-                  {img ? <img src={img} alt="" /> : null}
-                </div>
-                <div className="scanner-scan-toast-body">
-                  <div className="scanner-scan-toast-name">{lastScan.card.name}</div>
-                  <div className="scanner-scan-toast-meta">
-                    {lastScan.card.set.toUpperCase()} · {lastScan.card.collector_number ?? '—'}
-                    {usd ? <span className="scanner-scan-toast-price">{usd}</span> : null}
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      )}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">
@@ -972,33 +1059,73 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         </div>
       )}
 
-      <footer className="scanner-controls">
-        <div className="scanner-action-row">
-          <div className="scanner-action-spacer" aria-hidden="true" />
-          <button
-            type="button"
-            className={`scanner-capture${status === 'scanning' ? ' busy' : ''}`}
-            onClick={() => void captureAndIdentify()}
-            disabled={status !== 'ready' && status !== 'scanning'}
-            aria-label="Capture card now"
-            title="Capture card now"
-          >
-            <Camera width={26} height={26} strokeWidth={1.8} />
-          </button>
-          <div className="scanner-secondary-actions">
-            <button
-              type="button"
-              className="btn btn-primary scanner-done"
-              onClick={handleConfirm}
-              disabled={totalCount === 0}
-            >
-              {totalCount === 0
-                ? 'Add cards'
-                : `Add ${totalCount} card${totalCount === 1 ? '' : 's'}`}
-            </button>
-          </div>
+      {/* Bottom card panel — persistent, replaces transient toast.
+          Shows the most-recently identified card; tapping the arrow
+          opens the full review sheet. */}
+      {lastScan && (
+        <div
+          key={lastScan.key}
+          className={`scanner-card-panel tier-${lastScan.tier}`}
+          role="status"
+          aria-live="polite"
+        >
+          {(() => {
+            const img =
+              lastScan.card.image_uris?.small ||
+              lastScan.card.image_uris?.normal ||
+              lastScan.card.card_faces?.[0]?.image_uris?.small;
+            const usd = lastScan.card.prices?.usd
+              ? `$${Number.parseFloat(lastScan.card.prices.usd).toFixed(2)}`
+              : null;
+            const set = lastScan.card.set.toUpperCase();
+            const collector = lastScan.card.collector_number ?? '—';
+            const qty = queue.find((e) => e.id === lastScan.card.oracle_id)?.qty ?? 1;
+            return (
+              <>
+                <button
+                  type="button"
+                  className="scanner-card-panel-main"
+                  onClick={() => setSheetOpen(true)}
+                  aria-label={`Review ${lastScan.card.name}`}
+                >
+                  <div className="scanner-card-panel-thumb">
+                    {img ? <img src={img} alt="" /> : null}
+                  </div>
+                  <div className="scanner-card-panel-body">
+                    <div className="scanner-card-panel-name">{lastScan.card.name}</div>
+                    <div className="scanner-card-panel-price">
+                      <span className="scanner-card-panel-market">MARKET</span>
+                      <span className="scanner-card-panel-amount">{usd ?? '—'}</span>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    className="scanner-card-panel-chevron"
+                    width={18}
+                    height={18}
+                    strokeWidth={1.8}
+                  />
+                </button>
+                <div className="scanner-card-panel-meta">
+                  <span className="scanner-card-panel-condition">Normal</span>
+                  <span className="scanner-card-panel-set">
+                    {set} · #{collector}
+                  </span>
+                  <span className="scanner-card-panel-lang">EN</span>
+                  <button
+                    type="button"
+                    className="scanner-card-panel-add"
+                    onClick={incrementLastScan}
+                    aria-label={`Add another ${lastScan.card.name}`}
+                  >
+                    <Plus width={14} height={14} strokeWidth={2.4} />
+                    <span>{qty}</span>
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
-      </footer>
+      )}
 
       {sheetOpen && (
         <ScannerQueueSheet
@@ -1008,6 +1135,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onChangeQty={changeQty}
           onRemove={removeFromQueue}
           onClearAll={clearQueue}
+          onConfirm={handleConfirm}
         />
       )}
     </div>

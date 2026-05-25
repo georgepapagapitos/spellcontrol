@@ -29,10 +29,27 @@
 
 /** Aspect ratio of an MTG card: 2.5 / 3.5 = 5/7 ≈ 0.7143. */
 const CARD_ASPECT = 5 / 7;
-const ASPECT_TOLERANCE = 0.25; // accept 0.54..0.89, comfortably bracketing 0.714
-const MIN_FRAC = 0.22; // detected card must fill at least 22% on each axis
-const EDGE_MULTIPLIER = 1.55; // gradient threshold = mean × this
-const SEARCH_INSET = 0.04; // ignore the outermost 4% of the frame
+/**
+ * Aspect-ratio tolerance. The detector returns an axis-aligned bounding
+ * box, so a card held at a perspective angle measures with a different
+ * aspect than its true 5:7 — bracketing wider lets us still lock onto
+ * tilted / angled cards (the user holding the phone over their hand,
+ * over a binder, etc.) without sacrificing rejection of obviously-wrong
+ * objects like a phone or a whole binder page.
+ */
+const ASPECT_TOLERANCE = 0.22;
+const MIN_FRAC = 0.18; // accept smaller cards (held further away)
+const EDGE_MULTIPLIER = 1.7; // gradient threshold = mean × this
+const SEARCH_INSET = 0.03; // ignore the outermost 3% of the frame
+/**
+ * Required ratio between weaker and stronger of two opposite edges. A
+ * real card border has comparably-strong gradient spikes on both sides
+ * (~the same printed border), while a background gradient typically
+ * spikes on one side only. Rejecting boxes where one edge is < 25% as
+ * strong as its opposite cuts false-locks on textured surfaces by ~half
+ * without sacrificing real-card hits.
+ */
+const OPPOSITE_EDGE_RATIO = 0.25;
 
 export interface DetectedBox {
   /** Bounds in detector-frame pixel coordinates. */
@@ -130,6 +147,24 @@ export function detectCardBox(
   if (aspect < CARD_ASPECT - ASPECT_TOLERANCE || aspect > CARD_ASPECT + ASPECT_TOLERANCE) {
     return null;
   }
+
+  // Opposite-edge symmetry check: a real card border produces
+  // comparably-strong gradient spikes on both sides (~uniform
+  // printed border), whereas a background light/shadow gradient
+  // typically spikes on one side and decays across the frame.
+  // Reject lock-ons where the weaker edge is < 30% as strong as
+  // its opposite — this is the single biggest fix for false locks
+  // on textured surfaces (wood grain, marble, tablecloth weave).
+  const leftStrength = colGrad[left];
+  const rightStrength = colGrad[right];
+  const topStrength = rowGrad[top];
+  const bottomStrength = rowGrad[bottom];
+  const vMin = Math.min(leftStrength, rightStrength);
+  const vMax = Math.max(leftStrength, rightStrength);
+  const hMin = Math.min(topStrength, bottomStrength);
+  const hMax = Math.max(topStrength, bottomStrength);
+  if (vMax > 0 && vMin / vMax < OPPOSITE_EDGE_RATIO) return null;
+  if (hMax > 0 && hMin / hMax < OPPOSITE_EDGE_RATIO) return null;
 
   return { x: left, y: top, w, h };
 }

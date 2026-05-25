@@ -128,6 +128,27 @@ export async function identifyCard(query: string): Promise<ScryfallCard | null> 
   return data.card;
 }
 
+/**
+ * Try a ranked list of OCR candidates in order, returning the first hit.
+ * The scanner generates several plausible interpretations of each read
+ * (raw text, common Tesseract-substitution variants, first-word fallback)
+ * and passes them here — the matcher walks them one by one. Short-circuits
+ * on the first successful match.
+ *
+ * Returns the matched card plus the candidate string that produced it
+ * (useful for showing "Read as: X" feedback on success), or null/null on
+ * a total miss.
+ */
+export async function identifyCardFromCandidates(
+  candidates: string[]
+): Promise<{ card: ScryfallCard | null; matchedQuery: string | null }> {
+  for (const candidate of candidates) {
+    const card = await identifyCard(candidate);
+    if (card) return { card, matchedQuery: candidate };
+  }
+  return { card: null, matchedQuery: null };
+}
+
 /** Fetch all printings of a card by name. */
 export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
   const encoded = encodeURIComponent(cardName);

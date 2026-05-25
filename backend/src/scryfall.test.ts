@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveCards, fetchCardsByIds, fetchPrintings } from './scryfall';
+import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
 import type { ScryfallCache } from './cache';
 import type { ScryfallCard } from './types';
 import type { ImportRow } from './parsers/types';
@@ -268,5 +268,68 @@ describe('fetchPrintings', () => {
     const promise = fetchPrintings('Sol Ring');
     await vi.runAllTimersAsync();
     expect(await promise).toEqual([]);
+  });
+});
+
+describe('identifyCardByName', () => {
+  it('returns the direct fuzzy match when Scryfall finds the card', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(card({ id: 'sf-direct' })));
+    const promise = identifyCardByName('Sol Ring');
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out?.id).toBe('sf-direct');
+  });
+
+  it('falls back to name-search when fuzzy 404s', async () => {
+    // First call (fuzzy) returns 404 — fuzzy thinks the query is
+    // ambiguous. Second call (search) returns the canonical match.
+    const responses = [
+      new Response('not found', { status: 404 }),
+      jsonResponse({
+        object: 'list',
+        data: [card({ id: 'sf-via-search', name: 'Lightning Bolt' })],
+        has_more: false,
+      }),
+    ];
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.resolve(responses.shift() ?? new Response('done'))
+    );
+    const promise = identifyCardByName('Lightning');
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out?.id).toBe('sf-via-search');
+  });
+
+  it('falls back to first-word fuzzy when both direct and search fail', async () => {
+    // Mimics OCR picking up the subtitle line: "Sol Ring Artifact".
+    // Direct fuzzy 404s (no match), name-search 404s, then the
+    // two-word fallback "Sol Ring" hits.
+    const responses = [
+      new Response('not found', { status: 404 }), // direct fuzzy: "Sol Ring Artifact"
+      jsonResponse({ object: 'list', data: [], has_more: false }), // search: no hits
+      jsonResponse(card({ id: 'sf-by-prefix', name: 'Sol Ring' })), // 2-word fuzzy: "Sol Ring" ✓
+    ];
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.resolve(responses.shift() ?? new Response('done'))
+    );
+    const promise = identifyCardByName('Sol Ring Artifact');
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out?.id).toBe('sf-by-prefix');
+  });
+
+  it('returns null when every strategy fails', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('not found', { status: 404 }));
+    const promise = identifyCardByName('zzzgibberish');
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out).toBeNull();
+  });
+
+  it('short-circuits on empty input', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    expect(await identifyCardByName('')).toBeNull();
+    expect(await identifyCardByName('   ')).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
