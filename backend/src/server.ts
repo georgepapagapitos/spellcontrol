@@ -15,6 +15,7 @@ import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
+import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
@@ -556,6 +557,15 @@ function dedupePreservingOrder<T>(arr: T[]): T[] {
  */
 const SPA_DIR = path.join(__dirname, '..', 'public');
 if (existsSync(SPA_DIR)) {
+  // Share-landing routes need to render before the SPA static handler so
+  // we can inject per-share OG/Twitter meta + a robots:noindex into the
+  // shell. Scrapers (Discord/Slack/iMessage/Twitter) don't run JS, so
+  // adding these from React at runtime wouldn't reach them. Registered
+  // before express.static so the dynamic response wins over the static
+  // index.html, but after every /api/* route so nothing here can shadow
+  // the API surface.
+  app.get('/s/:token', createShareLandingHandler(SPA_DIR));
+
   app.use(
     express.static(SPA_DIR, {
       setHeaders: (res, filePath) => {
@@ -570,8 +580,9 @@ if (existsSync(SPA_DIR)) {
     })
   );
   // SPA history fallback: any GET that didn't match a static file or an /api
-  // route gets index.html, so client-side routes (/s/<token>, /decks, …) and
-  // hard refreshes deep-link correctly. /api/* misses fall through to a 404.
+  // route gets index.html, so client-side routes (/decks, /collection, …)
+  // and hard refreshes deep-link correctly. /api/* misses fall through to a
+  // 404. /s/:token is handled above, before the static layer.
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     if (req.path.startsWith('/api/')) return next();
