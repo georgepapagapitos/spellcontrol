@@ -79,6 +79,21 @@ describe('detectCardBox', () => {
     expect(detectCardBox(new Uint8Array(0), 0, 0)).toBeNull();
     expect(detectCardBox(new Uint8Array(10), 5, 5)).toBeNull(); // wrong length
   });
+
+  it('rejects a one-sided gradient (background ramp, not a card)', () => {
+    // Synthesise a left-bright-to-right-dark ramp — no actual rectangle.
+    // The old detector would lock onto this because *one* column has a
+    // huge gradient relative to mean; the symmetry check rejects it.
+    const W = 64;
+    const H = 90;
+    const frame = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        frame[y * W + x] = Math.max(0, 220 - x * 3); // linear horizontal ramp
+      }
+    }
+    expect(detectCardBox(frame, W, H)).toBeNull();
+  });
 });
 
 describe('detectorBoxToViewport', () => {

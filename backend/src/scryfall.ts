@@ -386,25 +386,70 @@ function identifierMatchesCard(identifier: Identifier, card: ScryfallCard): bool
 
 /**
  * Identifies a card from imperfect input (OCR output, partial name, typo).
- * Wraps Scryfall's `/cards/named?fuzzy=` endpoint, which is purpose-built for
- * "human-imperfect" name input. Returns the matched card or null on no match.
+ *
+ * Strategy cascade (stops at the first match):
+ *
+ *   1. `/cards/named?fuzzy=` — Scryfall's purpose-built fuzzy matcher.
+ *      Returns 404 for both "no match" and "ambiguous match", so a 404
+ *      here doesn't necessarily mean the card doesn't exist.
+ *
+ *   2. `/cards/search?q=name:<query>` first hit — full-text search across
+ *      card names. Catches the ambiguous-match case above (Scryfall's
+ *      search is happy to return *all* matches and we just take the
+ *      first) plus a class of typos where fuzzy gives up but a single
+ *      word fragment still hits.
+ *
+ *   3. First-word fallback against `/cards/named?fuzzy=` — when OCR
+ *      picked up extra text from the line below the title, the actual
+ *      title is the first word or two. We try shorter prefixes if the
+ *      raw read didn't land.
+ *
+ * Each strategy backoffs independently on 429s. The overall call is
+ * still bounded by the per-request retry budget.
  */
 export async function identifyCardByName(query: string): Promise<ScryfallCard | null> {
   const trimmed = query.trim();
   if (!trimmed) return null;
 
-  const url = `${SCRYFALL_NAMED_URL}?${new URLSearchParams({ fuzzy: trimmed })}`;
-  let backoff = MIN_BACKOFF_MS;
+  // Strategy 1: direct fuzzy named lookup. Catches the common case
+  // where OCR is mostly right and Scryfall's fuzzy matcher can bridge
+  // the gap (missing apostrophes, single-letter typos, etc.).
+  const direct = await fetchFuzzyNamed(trimmed);
+  if (direct) return direct;
 
+  // Strategy 2: full-text name search. Picks up cases that defeat
+  // fuzzy — most commonly when fuzzy thinks the query is ambiguous
+  // ("Lightning" matches dozens of cards so fuzzy 404s; search will
+  // return the list and we'll take the first hit, which is usually
+  // the most-printed / canonical card with that prefix).
+  const searched = await fetchFirstNameSearch(trimmed);
+  if (searched) return searched;
+
+  // Strategy 3: first-word(s) fallback. OCR sometimes includes the
+  // subtype line ("Land", "Creature — Wizard") in the title crop;
+  // peeling that off recovers the actual title.
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    const twoWord = await fetchFuzzyNamed(words.slice(0, 2).join(' '));
+    if (twoWord) return twoWord;
+  }
+  if (words.length > 0 && words[0].length >= 4) {
+    const firstWord = await fetchFuzzyNamed(words[0]);
+    if (firstWord) return firstWord;
+  }
+  return null;
+}
+
+/** Single fuzzy /cards/named call with 429 backoff. Returns null on 404. */
+async function fetchFuzzyNamed(query: string): Promise<ScryfallCard | null> {
+  const url = `${SCRYFALL_NAMED_URL}?${new URLSearchParams({ fuzzy: query })}`;
+  let backoff = MIN_BACKOFF_MS;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(url, {
         headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
       });
-      if (response.ok) {
-        return (await response.json()) as ScryfallCard;
-      }
-      // 404 = no match. Scryfall also returns 404 for ambiguous matches.
+      if (response.ok) return (await response.json()) as ScryfallCard;
       if (response.status === 404) return null;
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
@@ -427,4 +472,25 @@ export async function identifyCardByName(query: string): Promise<ScryfallCard | 
     }
   }
   return null;
+}
+
+/**
+ * Pick the first hit from a /cards/search?q=name:<query> call. Sorted by
+ * EDHREC popularity so the result is the canonical / most-played card
+ * matching the prefix — which on near-misses is almost always the card
+ * the user is actually scanning.
+ */
+async function fetchFirstNameSearch(query: string): Promise<ScryfallCard | null> {
+  // Quote the query so multi-word names match as a phrase. Scryfall
+  // supports `name:"sol ring"` directly.
+  const sanitised = query.replace(/"/g, '').trim();
+  if (!sanitised) return null;
+  const q = `name:"${sanitised}" game:paper`;
+  const url = `${SCRYFALL_SEARCH_URL}?${new URLSearchParams({
+    q,
+    order: 'edhrec',
+    unique: 'cards',
+  })}`;
+  const result = await fetchSearchPageWithRetry(url);
+  return result && result.data.length > 0 ? result.data[0] : null;
 }
