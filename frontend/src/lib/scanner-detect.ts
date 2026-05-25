@@ -12,15 +12,27 @@
  *   2. Project: sum the vertical gradient down each column → `colGrad`,
  *      sum the horizontal gradient across each row → `rowGrad`.
  *      Card borders show up as tall spikes in these projections.
- *   3. Pick a per-axis threshold = mean × `EDGE_MULTIPLIER`. The first
- *      column on the left that exceeds the threshold is the card's
- *      left edge; symmetrically for right/top/bottom.
- *   4. Validate the resulting rectangle:
- *      - Must occupy at least `MIN_FRAC` of the frame on both axes
- *        (rules out tiny noise spikes).
- *      - Aspect ratio must be within `ASPECT_TOLERANCE` of 5:7 (the
- *        MTG card aspect) — rules out things like a phone, a sleeve
- *        edge, or a whole binder page.
+ *   3. Build candidate edge lists by detecting *threshold transitions*
+ *      in those projections: rising edges (low→high crossings of
+ *      `mean × EDGE_MULTIPLIER`) give left/top candidates; falling
+ *      edges give right/bottom. Keep the K strongest per side so
+ *      worst-case noisy frames don't blow up the search.
+ *   4. Search over (left, right, top, bottom) combinations from those
+ *      candidates and pick the rectangle that scores best on:
+ *        - aspect ratio closeness to 5:7,
+ *        - combined edge strength (sum of 4 picked candidates' gradient),
+ *        - opposite-edge symmetry (left vs right, top vs bottom).
+ *      Reject candidates that fail size / aspect / symmetry hard limits.
+ *
+ * Why the search instead of "first row above threshold from each side":
+ * environmental edges (desk shadows, the dark band where a phone case
+ * meets a tablecloth, the seam of two surfaces) often produce a stronger
+ * projected spike than the card's printed border because they extend
+ * across the *full* frame width. A naive greedy walk locks onto the
+ * environmental line as the "top edge" and the resulting bbox fails the
+ * 5:7 aspect check — i.e. the card never gets detected. The candidate-
+ * search variant simply skips that wrong combination and finds the next
+ * one that gives a valid aspect.
  *
  * Search is restricted to the middle `SEARCH_INSET` of the frame on
  * each side, so a neighbouring card laid down right next to the one
@@ -39,17 +51,32 @@ const CARD_ASPECT = 5 / 7;
  */
 const ASPECT_TOLERANCE = 0.22;
 const MIN_FRAC = 0.18; // accept smaller cards (held further away)
-const EDGE_MULTIPLIER = 1.7; // gradient threshold = mean × this
+/**
+ * Edge-presence threshold. A row/column counts as an "edge candidate"
+ * if its projected gradient sum exceeds the per-axis mean × this. Lower
+ * = more candidates considered, more robust to real-world frames with
+ * busy art bleed; higher = faster, more conservative. The candidate-
+ * search algorithm below tolerates a generous multiplier — extra
+ * candidates get discarded by aspect/size/symmetry scoring, they
+ * don't produce false positives.
+ */
+const EDGE_MULTIPLIER = 1.4;
 const SEARCH_INSET = 0.03; // ignore the outermost 3% of the frame
 /**
- * Required ratio between weaker and stronger of two opposite edges. A
- * real card border has comparably-strong gradient spikes on both sides
- * (~the same printed border), while a background gradient typically
- * spikes on one side only. Rejecting boxes where one edge is < 25% as
- * strong as its opposite cuts false-locks on textured surfaces by ~half
- * without sacrificing real-card hits.
+ * Required ratio between weaker and stronger of two opposite edges.
+ * Looser than the original 0.30 because phone-camera lighting can
+ * meaningfully attenuate one side (e.g. shadow from the phone itself
+ * on the right edge of a card held in the left hand). Hard rejection,
+ * not a soft penalty, but at a forgiving threshold.
  */
-const OPPOSITE_EDGE_RATIO = 0.25;
+const OPPOSITE_EDGE_RATIO = 0.15;
+/**
+ * Cap on candidates kept per axis. K=12 means worst-case 12⁴ = 20736
+ * combinations to score — still well under a millisecond in JS. Real
+ * frames usually produce 2–6 candidates; the cap only matters for
+ * pathological "everything is an edge" inputs.
+ */
+const MAX_CANDIDATES_PER_AXIS = 12;
 
 export interface DetectedBox {
   /** Bounds in detector-frame pixel coordinates. */
@@ -106,67 +133,136 @@ export function detectCardBox(
   const colThreshold = colMean * EDGE_MULTIPLIER;
   const rowThreshold = rowMean * EDGE_MULTIPLIER;
 
-  // Walk inward from each side to find the first column/row whose
-  // gradient sum exceeds threshold. That's the card edge.
-  let left = -1;
-  for (let x = xLo; x <= xHi; x++) {
-    if (colGrad[x] > colThreshold) {
-      left = x;
-      break;
+  // Build candidate edge lists by detecting *transitions* across the
+  // threshold, not "every cell above threshold". A card produces a
+  // STEP function in the projected gradient (high across the whole
+  // span of the card, near-zero outside) — so the meaningful edges
+  // are the threshold crossings. For a clean card on a clean
+  // background that's one rising and one falling edge per axis; in
+  // noisy environments (shadow lines, multiple cards, art bleed)
+  // there may be several of each and the search step picks the
+  // combination that best matches a card.
+  //
+  // `lefts` are rising edges in colGrad (where colGrad crosses up
+  // through threshold reading left→right) and `rights` are falling
+  // edges (down through threshold reading left→right). Symmetric
+  // for `tops` / `bottoms` in rowGrad.
+  const collectEdges = (
+    proj: Float32Array,
+    lo: number,
+    hi: number,
+    threshold: number
+  ): {
+    rises: Array<{ pos: number; strength: number }>;
+    falls: Array<{ pos: number; strength: number }>;
+  } => {
+    const rises: Array<{ pos: number; strength: number }> = [];
+    const falls: Array<{ pos: number; strength: number }> = [];
+    for (let i = lo; i <= hi; i++) {
+      const above = proj[i] > threshold;
+      const prevAbove = i > lo ? proj[i - 1] > threshold : false;
+      const nextAbove = i < hi ? proj[i + 1] > threshold : false;
+      if (above && !prevAbove) rises.push({ pos: i, strength: proj[i] });
+      if (above && !nextAbove) falls.push({ pos: i, strength: proj[i] });
     }
-  }
-  let right = -1;
-  for (let x = xHi; x >= xLo; x--) {
-    if (colGrad[x] > colThreshold) {
-      right = x;
-      break;
-    }
-  }
-  let top = -1;
-  for (let y = yLo; y <= yHi; y++) {
-    if (rowGrad[y] > rowThreshold) {
-      top = y;
-      break;
-    }
-  }
-  let bottom = -1;
-  for (let y = yHi; y >= yLo; y--) {
-    if (rowGrad[y] > rowThreshold) {
-      bottom = y;
-      break;
-    }
-  }
-
-  if (left < 0 || right <= left || top < 0 || bottom <= top) return null;
-
-  const w = right - left + 1;
-  const h = bottom - top + 1;
-  if (w < width * MIN_FRAC || h < height * MIN_FRAC) return null;
-
-  const aspect = w / h;
-  if (aspect < CARD_ASPECT - ASPECT_TOLERANCE || aspect > CARD_ASPECT + ASPECT_TOLERANCE) {
+    return { rises, falls };
+  };
+  const { rises: lefts, falls: rights } = collectEdges(colGrad, xLo, xHi, colThreshold);
+  const { rises: tops, falls: bottoms } = collectEdges(rowGrad, yLo, yHi, rowThreshold);
+  if (lefts.length === 0 || rights.length === 0 || tops.length === 0 || bottoms.length === 0) {
     return null;
   }
 
-  // Opposite-edge symmetry check: a real card border produces
-  // comparably-strong gradient spikes on both sides (~uniform
-  // printed border), whereas a background light/shadow gradient
-  // typically spikes on one side and decays across the frame.
-  // Reject lock-ons where the weaker edge is < 30% as strong as
-  // its opposite — this is the single biggest fix for false locks
-  // on textured surfaces (wood grain, marble, tablecloth weave).
-  const leftStrength = colGrad[left];
-  const rightStrength = colGrad[right];
-  const topStrength = rowGrad[top];
-  const bottomStrength = rowGrad[bottom];
-  const vMin = Math.min(leftStrength, rightStrength);
-  const vMax = Math.max(leftStrength, rightStrength);
-  const hMin = Math.min(topStrength, bottomStrength);
-  const hMax = Math.max(topStrength, bottomStrength);
-  if (vMax > 0 && vMin / vMax < OPPOSITE_EDGE_RATIO) return null;
-  if (hMax > 0 && hMin / hMax < OPPOSITE_EDGE_RATIO) return null;
+  // Cap candidate lists to K strongest to keep the search tractable
+  // on pathologically noisy frames. Real frames typically produce
+  // 1–4 edges per side; the cap only matters for extreme inputs.
+  const trimToTopK = (list: Array<{ pos: number; strength: number }>) => {
+    if (list.length <= MAX_CANDIDATES_PER_AXIS) return list;
+    const byStrength = list.slice().sort((a, b) => b.strength - a.strength);
+    const kept = new Set(byStrength.slice(0, MAX_CANDIDATES_PER_AXIS).map((c) => c.pos));
+    return list.filter((c) => kept.has(c.pos));
+  };
+  const leftsK = trimToTopK(lefts);
+  const rightsK = trimToTopK(rights);
+  const topsK = trimToTopK(tops);
+  const bottomsK = trimToTopK(bottoms);
 
-  return { x: left, y: top, w, h };
+  // Search over (left, right) × (top, bottom) combinations from those
+  // candidates and pick the rectangle that scores best on aspect-ratio
+  // closeness to 5:7 plus edge-strength bonus. Hard limits on size,
+  // aspect, and opposite-edge symmetry filter out the obviously-wrong
+  // combos before scoring.
+  //
+  // This is what beats environmental false edges (the desk-shadow line
+  // above the card, the seam where a tablecloth ends, etc.): the
+  // greedy "first row above threshold" picks the environmental edge
+  // as `top`, which makes the resulting bbox too tall and fails the
+  // 5:7 check — so the search moves on to the next candidate top,
+  // which is the card's actual border.
+  const aspectMin = CARD_ASPECT - ASPECT_TOLERANCE;
+  const aspectMax = CARD_ASPECT + ASPECT_TOLERANCE;
+  const minW = width * MIN_FRAC;
+  const minH = height * MIN_FRAC;
+  const strengthNormaliser = 4 * (colMean + rowMean) + 1;
+
+  let bestScore = -Infinity;
+  let bestLeft = -1;
+  let bestRight = -1;
+  let bestTop = -1;
+  let bestBottom = -1;
+
+  for (const leftEdge of leftsK) {
+    for (const rightEdge of rightsK) {
+      if (rightEdge.pos <= leftEdge.pos) continue;
+      const w = rightEdge.pos - leftEdge.pos + 1;
+      if (w < minW) continue;
+      const leftStrength = leftEdge.strength;
+      const rightStrength = rightEdge.strength;
+      const vMin = Math.min(leftStrength, rightStrength);
+      const vMax = Math.max(leftStrength, rightStrength);
+      if (vMax > 0 && vMin / vMax < OPPOSITE_EDGE_RATIO) continue;
+
+      for (const topEdge of topsK) {
+        for (const bottomEdge of bottomsK) {
+          if (bottomEdge.pos <= topEdge.pos) continue;
+          const h = bottomEdge.pos - topEdge.pos + 1;
+          if (h < minH) continue;
+          const aspect = w / h;
+          if (aspect < aspectMin || aspect > aspectMax) continue;
+          const topStrength = topEdge.strength;
+          const bottomStrength = bottomEdge.strength;
+          const hMin = Math.min(topStrength, bottomStrength);
+          const hMax = Math.max(topStrength, bottomStrength);
+          if (hMax > 0 && hMin / hMax < OPPOSITE_EDGE_RATIO) continue;
+
+          // Score: heavily reward aspect-fit, then add a normalised
+          // edge-strength bonus so when two candidates tie on aspect
+          // (e.g. card's true border vs an artwork band that happens
+          // to span the right width) the stronger-edged one wins.
+          const aspectError = Math.abs(aspect - CARD_ASPECT);
+          const aspectScore = 1 - aspectError / ASPECT_TOLERANCE;
+          const strengthScore =
+            (leftStrength + rightStrength + topStrength + bottomStrength) / strengthNormaliser;
+          const score = aspectScore * 2 + strengthScore;
+          if (score > bestScore) {
+            bestScore = score;
+            bestLeft = leftEdge.pos;
+            bestRight = rightEdge.pos;
+            bestTop = topEdge.pos;
+            bestBottom = bottomEdge.pos;
+          }
+        }
+      }
+    }
+  }
+
+  if (bestLeft < 0) return null;
+  return {
+    x: bestLeft,
+    y: bestTop,
+    w: bestRight - bestLeft + 1,
+    h: bestBottom - bestTop + 1,
+  };
 }
 
 /**
