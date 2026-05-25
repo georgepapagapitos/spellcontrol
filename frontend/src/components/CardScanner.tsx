@@ -1,13 +1,22 @@
 import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, Flashlight, FlashlightOff, RotateCcw, ScanLine, Trash2, X } from 'lucide-react';
+import {
+  Camera,
+  ChevronRight,
+  Flashlight,
+  FlashlightOff,
+  RotateCcw,
+  ScanLine,
+  X,
+} from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { identifyCard } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
 import { isNativePlatform } from '../lib/platform';
-import { haptics } from '../lib/haptics';
+import { playValueChime, priceTier, pulseValueHaptic } from '../lib/scanner-feedback';
+import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
@@ -45,14 +54,6 @@ interface Props {
   onConfirm: (importText: string, count: number) => void;
 }
 
-interface ScannedCard {
-  /** Local id for queue management. */
-  id: string;
-  card: ScryfallCard;
-  /** Raw OCR text that produced this match — shown on hover for debugging. */
-  rawText: string;
-}
-
 type ScanStatus = 'idle' | 'starting' | 'ready' | 'scanning' | 'error';
 
 /** Aspect ratio of an MTG card: 2.5" x 3.5" = 5:7. */
@@ -64,8 +65,24 @@ const CARD_ASPECT = 5 / 7;
  * frames — the band is wide enough to tolerate small misalignment.
  */
 const TITLE_CROP = { x: 0.07, y: 0.038, w: 0.66, h: 0.075 };
-/** Auto-scan cadence in ms. Slow enough to let the user reposition cards. */
-const AUTO_SCAN_INTERVAL = 1400;
+
+/**
+ * Auto-detect tuning. The detector samples the viewfinder at ~6 fps into a
+ * tiny grayscale buffer and fires capture when (a) the frame is stable for
+ * `STABLE_FRAMES_REQUIRED` consecutive ticks and (b) the title band has
+ * enough pixel variance to plausibly contain a card name. The variance gate
+ * suppresses triggers over plain backgrounds (a hand, an empty table, a
+ * binder page corner). `CAPTURE_COOLDOWN_MS` gives the user time to swap
+ * physical cards without firing twice on the same one — combined with the
+ * `lastIdRef` dedupe, that's enough to keep auto-trigger calm.
+ */
+const DETECT_INTERVAL_MS = 165;
+const DETECT_W = 64;
+const DETECT_H = 90;
+const STABILITY_THRESHOLD = 7; // mean absolute frame-diff per pixel (0–255)
+const VARIANCE_THRESHOLD = 380; // stddev² of the title band on the detector frame
+const STABLE_FRAMES_REQUIRED = 2;
+const CAPTURE_COOLDOWN_MS = 1100;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -74,33 +91,36 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   /** Off-screen canvas reused for every capture — avoids per-frame allocation. */
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const autoTimerRef = useRef<number | null>(null);
-  /** Tracks whether a capture is currently in flight, so auto-scan doesn't pile up. */
+  /** Even smaller off-screen canvas for the detection loop. */
+  const detectorCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  /** Previous detector frame, kept as raw grayscale for cheap pixel diffing. */
+  const prevDetectorFrameRef = useRef<Uint8Array | null>(null);
+  /** Consecutive stable+card-present detector ticks. */
+  const stableFramesRef = useRef(0);
+  /** Timestamp of the last capture firing, used for cooldown. */
+  const lastFiredAtRef = useRef(0);
+  /** rAF id for the detect loop. */
+  const detectLoopRef = useRef<number | null>(null);
+  /** Tracks whether a capture is currently in flight, so detector doesn't pile up. */
   const busyRef = useRef(false);
   /** Last successfully identified card id — used to dedupe back-to-back identical scans. */
   const lastIdRef = useRef<string | null>(null);
+  /**
+   * Detector is "armed" only after the frame has gone unstable (the user
+   * moved the card / removed it). Prevents re-firing on the *same* still
+   * card immediately after a successful identify.
+   */
+  const armedRef = useRef(true);
 
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [queue, setQueue] = useState<ScannedCard[]>([]);
-  const [autoMode, setAutoMode] = useState(false);
+  const [queue, setQueue] = useState<ScannedEntry[]>([]);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
-  /**
-   * Resolved camera info shown in a small on-screen badge. Lets us diagnose
-   * device-specific behaviour (resolution, zoom, focus mode) without needing
-   * the user to open browser DevTools — phone debugging is otherwise a
-   * non-starter for most testers.
-   */
-  const [cameraInfo, setCameraInfo] = useState<string | null>(null);
-  /**
-   * Diagnostic line for the most recent identification attempt. Shows pHash
-   * distance / OCR text so we can see *why* a scan succeeded or failed
-   * without having to read the queue thumbnails. Useful while tuning the
-   * scan pipeline; we can decide later whether to keep it.
-   */
-  const [lastAttempt, setLastAttempt] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  /** Pulses the count pill briefly each time a new card lands. */
+  const [pulseKey, setPulseKey] = useState(0);
   /**
    * The viewfinder is sized in JS to live INSIDE the visible camera area.
    * Earlier iterations sized it as a percentage of the viewport, which on
@@ -119,6 +139,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   } | null>(null);
 
   useLockBodyScroll();
+
+  const totalCount = queue.reduce((sum, e) => sum + e.qty, 0);
 
   const showHint = useCallback((msg: string, ms = 1800) => {
     setHint(msg);
@@ -156,7 +178,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           lockAndroidOrientation: true,
         });
         document.documentElement.classList.add('scanner-active');
-        setCameraInfo('native preview');
         setStatus('ready');
         warmOcr();
       } catch (err) {
@@ -244,17 +265,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           .applyConstraints({ advanced: tuneConstraints })
           .catch((e) => logger.warn('[scanner] could not tune camera:', e));
       }
-      // Surface what we actually got — invaluable when diagnosing "looks
-      // weird on device X" reports without needing remote debugging.
       const settings = (track?.getSettings?.() ?? {}) as MediaTrackSettings & {
         zoom?: number;
         focusMode?: string;
       };
-      const infoLine =
-        `${settings.width}×${settings.height}` +
-        ` zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`;
-      logger.debug(`[scanner] camera: ${infoLine}`);
-      setCameraInfo(infoLine);
+      logger.debug(
+        `[scanner] camera: ${settings.width}×${settings.height} zoom=${settings.zoom ?? '?'} focus=${settings.focusMode ?? '?'}`
+      );
       setStatus('ready');
       warmOcr();
     } catch (err) {
@@ -281,7 +298,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     return () => {
       stopCamera();
       void disposeOcr();
-      if (autoTimerRef.current) window.clearInterval(autoTimerRef.current);
+      if (detectLoopRef.current !== null) cancelAnimationFrame(detectLoopRef.current);
     };
   }, [startCamera, stopCamera]);
 
@@ -391,12 +408,11 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   /**
    * Captures a single video frame, OCRs the card's title strip with
-   * Tesseract, and resolves the recognised text via Scryfall's fuzzy
-   * `cards/named` endpoint. An earlier iteration tried a perceptual-hash
-   * fast path against a pre-built server DB, but on real phone captures
-   * the 64-bit dHash didn't discriminate between cards within the noise
-   * floor, so we removed the whole stack and kept the OCR path. See
-   * git log for the rip-out commit if you're tempted to bring it back.
+   * Tesseract (or ML Kit on native), and resolves the recognised text via
+   * Scryfall's fuzzy `cards/named` endpoint. The recognised card is added
+   * to the queue (or its qty bumped if already present), and a value-
+   * tiered chime + haptic plays so the user gets feedback without having
+   * to look at the screen.
    */
   const captureAndIdentify = useCallback(async () => {
     if (busyRef.current) return;
@@ -409,8 +425,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // Crop region in *raw frame* coords = the on-screen viewfinder
       // rectangle, mapped through the same fit-rect math as the recompute
       // effect. This guarantees the cropped pixels are exactly what the
-      // user saw inside the viewfinder box, in both contain (web video
-      // element) and cover (native preview captureSample) modes.
+      // user saw inside the viewfinder box.
       const root = rootRef.current;
       const viewfinder = viewfinderRef.current;
       if (!root || !viewfinder || !viewfinderRect) {
@@ -482,66 +497,201 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       ctx.putImageData(img, 0, 0);
 
       const { text, confidence } = await recognizeText(canvas);
-      if (!text || text.length < 2) {
-        if (!autoMode) showHint('No card detected — hold steady and try again.');
-        setLastAttempt('ocr empty');
-        return;
-      }
-      if (confidence < 35) {
-        if (!autoMode) showHint('Low confidence — improve lighting or angle.');
-        setLastAttempt(`ocr low confidence (${Math.round(confidence)})`);
-        return;
-      }
+      if (!text || text.length < 2) return;
+      if (confidence < 35) return;
 
       const card = await identifyCard(text);
-      if (!card) {
-        if (!autoMode) showHint(`Couldn't match "${truncate(text, 40)}".`);
-        setLastAttempt(`ocr no match: "${truncate(text, 24)}"`);
-        return;
-      }
-      setLastAttempt(`ocr "${truncate(text, 16)}" → ${truncate(card.name, 24)}`);
+      if (!card) return;
 
-      // Dedupe: the same card scanned twice in a row almost always means the
-      // user is still framing the same physical card. Skip silently in auto
-      // mode; in manual mode the user explicitly tapped, so treat each tap
-      // as adding another copy.
-      if (autoMode && lastIdRef.current === card.id) return;
+      // Dedupe: the same card scanned twice in a row almost always means
+      // the user is still framing the same physical card.
+      if (lastIdRef.current === card.id) return;
       lastIdRef.current = card.id;
 
-      setQueue((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          card,
-          rawText: text,
-        },
-      ]);
-      playBeep();
-      haptics.success();
+      const tier = priceTier(card);
+      // Add to queue: bump qty if already present (keyed by oracle_id so
+      // different printings of the same card collapse), else push new.
+      setQueue((prev) => {
+        const existing = prev.find((e) => e.id === card.oracle_id);
+        if (existing) {
+          return prev.map((e) => (e.id === card.oracle_id ? { ...e, qty: e.qty + 1 } : e));
+        }
+        return [
+          ...prev,
+          {
+            id: card.oracle_id,
+            card,
+            qty: 1,
+            rawText: text,
+          },
+        ];
+      });
+      setPulseKey((k) => k + 1);
+      playValueChime(tier);
+      pulseValueHaptic(tier);
     } catch (err) {
       logger.error('[scanner] capture failed:', err);
       showHint('Scan failed — try again.');
     } finally {
       busyRef.current = false;
       setStatus('ready');
+      lastFiredAtRef.current = performance.now();
+      stableFramesRef.current = 0;
+      armedRef.current = false; // re-arm only after the next unstable frame
     }
-  }, [autoMode, showHint, viewfinderRect]);
+  }, [showHint, viewfinderRect]);
 
-  // Auto-scan loop. When the user enables auto mode, fire captureAndIdentify
-  // on a steady interval. The `busyRef` guard inside the function prevents
-  // overlapping calls if a previous capture is still resolving.
+  /**
+   * Auto-detect loop. Samples the viewfinder region at ~6 fps into a tiny
+   * grayscale buffer, computes (a) frame-diff stability vs the previous
+   * tick and (b) variance over the title band. When both gates pass for
+   * `STABLE_FRAMES_REQUIRED` consecutive ticks, fires `captureAndIdentify`.
+   * The `armedRef` gate forces the user to move the card after each
+   * successful capture before another can fire.
+   */
   useEffect(() => {
-    if (!autoMode || status === 'error') return;
-    const id = window.setInterval(() => {
-      void captureAndIdentify();
-    }, AUTO_SCAN_INTERVAL);
-    autoTimerRef.current = id;
-    return () => window.clearInterval(id);
-  }, [autoMode, status, captureAndIdentify]);
+    if (status === 'error' || sheetOpen) return;
+    if (!viewfinderRect) return;
+
+    let lastTick = 0;
+    const native = isNativePlatform();
+
+    const sampleDetectorFrame = async (): Promise<Uint8Array | null> => {
+      if (!detectorCanvasRef.current) {
+        detectorCanvasRef.current = document.createElement('canvas');
+        detectorCanvasRef.current.width = DETECT_W;
+        detectorCanvasRef.current.height = DETECT_H;
+      }
+      const dCanvas = detectorCanvasRef.current;
+      const dCtx = dCanvas.getContext('2d', { willReadFrequently: true });
+      if (!dCtx) return null;
+
+      const root = rootRef.current;
+      if (!root) return null;
+      const cW = root.clientWidth;
+      const cH = root.clientHeight;
+      if (!cW || !cH) return null;
+
+      let frameSource: CanvasImageSource | null = null;
+      let vw = 0;
+      let vh = 0;
+      if (native) {
+        // Native: pull a small snapshot. captureSample is the only frame
+        // grab the plugin exposes — quality 40 keeps it cheap.
+        try {
+          const { value } = await CameraPreview.captureSample({ quality: 40 });
+          const img = new Image();
+          img.src = `data:image/jpeg;base64,${value}`;
+          await (img.decode?.() ?? new Promise<void>((resolve) => (img.onload = () => resolve())));
+          frameSource = img;
+          vw = img.naturalWidth;
+          vh = img.naturalHeight;
+        } catch {
+          return null;
+        }
+      } else {
+        const video = videoRef.current;
+        if (!video || video.readyState < 2) return null;
+        frameSource = video;
+        vw = video.videoWidth;
+        vh = video.videoHeight;
+      }
+      if (!frameSource || !vw || !vh) return null;
+
+      const fit = native ? 'cover' : 'contain';
+      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
+      const scale = vw / dispW;
+      const sx = (viewfinderRect.left - dispX) * scale;
+      const sy = (viewfinderRect.top - dispY) * scale;
+      const sw = viewfinderRect.width * scale;
+      const sh = viewfinderRect.height * scale;
+      try {
+        dCtx.drawImage(frameSource, sx, sy, sw, sh, 0, 0, DETECT_W, DETECT_H);
+      } catch {
+        return null;
+      }
+      const { data } = dCtx.getImageData(0, 0, DETECT_W, DETECT_H);
+      const out = new Uint8Array(DETECT_W * DETECT_H);
+      for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+        out[j] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
+      }
+      return out;
+    };
+
+    let cancelled = false;
+    const tick = async (ts: number) => {
+      detectLoopRef.current = requestAnimationFrame(tick);
+      if (cancelled) return;
+      if (ts - lastTick < DETECT_INTERVAL_MS) return;
+      lastTick = ts;
+      if (busyRef.current) return;
+      if (status !== 'ready') return;
+
+      const frame = await sampleDetectorFrame();
+      if (cancelled || !frame) return;
+      const prev = prevDetectorFrameRef.current;
+      prevDetectorFrameRef.current = frame;
+      if (!prev || prev.length !== frame.length) return;
+
+      // Frame-diff: mean abs delta per pixel. Cheap and surprisingly robust.
+      let diffSum = 0;
+      for (let i = 0; i < frame.length; i++) {
+        const d = frame[i] - prev[i];
+        diffSum += d < 0 ? -d : d;
+      }
+      const meanDiff = diffSum / frame.length;
+
+      // Title-band variance: stddev² of the top ~12% of the detector frame.
+      // A card title has letterforms = high variance; a hand or table = low.
+      const bandH = Math.max(1, Math.round(DETECT_H * 0.12));
+      const bandPixels = DETECT_W * bandH;
+      let bandSum = 0;
+      for (let i = 0; i < bandPixels; i++) bandSum += frame[i];
+      const bandMean = bandSum / bandPixels;
+      let bandVar = 0;
+      for (let i = 0; i < bandPixels; i++) {
+        const d = frame[i] - bandMean;
+        bandVar += d * d;
+      }
+      bandVar /= bandPixels;
+
+      const isStable = meanDiff < STABILITY_THRESHOLD;
+      const hasCard = bandVar > VARIANCE_THRESHOLD;
+
+      if (!isStable) {
+        // Movement re-arms the detector — required so the same card can't
+        // re-fire immediately after a successful capture.
+        armedRef.current = true;
+        stableFramesRef.current = 0;
+        return;
+      }
+      if (!hasCard || !armedRef.current) {
+        stableFramesRef.current = 0;
+        return;
+      }
+      stableFramesRef.current += 1;
+      if (
+        stableFramesRef.current >= STABLE_FRAMES_REQUIRED &&
+        ts - lastFiredAtRef.current > CAPTURE_COOLDOWN_MS
+      ) {
+        void captureAndIdentify();
+      }
+    };
+
+    detectLoopRef.current = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      if (detectLoopRef.current !== null) {
+        cancelAnimationFrame(detectLoopRef.current);
+        detectLoopRef.current = null;
+      }
+      prevDetectorFrameRef.current = null;
+      stableFramesRef.current = 0;
+    };
+  }, [status, sheetOpen, viewfinderRect, captureAndIdentify]);
 
   const removeFromQueue = (id: string) => {
     setQueue((prev) => prev.filter((s) => s.id !== id));
-    // Allow re-scanning the same card after a manual removal.
     lastIdRef.current = null;
   };
 
@@ -550,22 +700,22 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     lastIdRef.current = null;
   };
 
+  const changeQty = (id: string, delta: number) => {
+    setQueue((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, qty: e.qty + delta } : e)).filter((e) => e.qty > 0)
+    );
+  };
+
+  const changePrinting = (id: string, newCard: ScryfallCard) => {
+    setQueue((prev) => prev.map((e) => (e.id === id ? { ...e, card: newCard } : e)));
+  };
+
   const handleConfirm = () => {
     if (queue.length === 0) return;
-    // Aggregate quantities so duplicates produced by auto-mode in different
-    // sessions still collapse cleanly when handed to the importer.
-    const counts = new Map<string, { card: ScryfallCard; qty: number }>();
-    for (const s of queue) {
-      const key = `${s.card.name}::${s.card.set}::${s.card.collector_number}`;
-      const existing = counts.get(key);
-      if (existing) existing.qty += 1;
-      else counts.set(key, { card: s.card, qty: 1 });
-    }
-    const lines: string[] = [];
-    for (const { card, qty } of counts.values()) {
-      lines.push(`${qty} ${card.name} (${card.set.toUpperCase()}) ${card.collector_number}`);
-    }
-    onConfirm(lines.join('\n'), queue.length);
+    const lines = queue.map(({ card, qty }) =>
+      `${qty} ${card.name} (${card.set.toUpperCase()}) ${card.collector_number ?? ''}`.trim()
+    );
+    onConfirm(lines.join('\n'), totalCount);
   };
 
   const scannerNode = (
@@ -599,7 +749,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           <div className="scanner-viewfinder-corner bl" />
           <div className="scanner-viewfinder-corner br" />
           <div className="scanner-title-band" />
-          {(status === 'scanning' || autoMode) && <div className="scanner-scanline" />}
+          {status === 'scanning' && <div className="scanner-scanline" />}
         </div>
       </div>
 
@@ -612,14 +762,25 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         >
           <X width={20} height={20} strokeWidth={1.8} />
         </button>
-        <div className="scanner-status">
-          <ScanLine width={14} height={14} strokeWidth={1.8} />
-          <span>
-            {queue.length === 0
-              ? 'Frame a card inside the box'
-              : `${queue.length} scanned · keep going`}
-          </span>
-        </div>
+        {totalCount > 0 ? (
+          <button
+            type="button"
+            className="scanner-count-pill"
+            onClick={() => setSheetOpen(true)}
+            aria-label={`Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`}
+          >
+            <span key={pulseKey} className="scanner-count-pill-num">
+              {totalCount}
+            </span>
+            <span className="scanner-count-pill-label">scanned · {queue.length} unique</span>
+            <ChevronRight width={14} height={14} strokeWidth={2} />
+          </button>
+        ) : (
+          <div className="scanner-status">
+            <ScanLine width={14} height={14} strokeWidth={1.8} />
+            <span>Hold a card inside the box</span>
+          </div>
+        )}
         {torchSupported && (
           <button
             type="button"
@@ -638,9 +799,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       {hint && <div className="scanner-hint">{hint}</div>}
 
-      {cameraInfo && <div className="scanner-debug">cam: {cameraInfo}</div>}
-      {lastAttempt && <div className="scanner-debug scanner-debug-second">last: {lastAttempt}</div>}
-
       {errorMsg && (
         <div className="scanner-error" role="alert">
           <p>{errorMsg}</p>
@@ -652,77 +810,43 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       )}
 
       <footer className="scanner-controls">
-        {queue.length > 0 && (
-          <div className="scanner-queue" aria-label="Scanned cards">
-            {queue.map((s) => {
-              const img = s.card.image_uris?.small || s.card.card_faces?.[0]?.image_uris?.small;
-              return (
-                <div key={s.id} className="scanner-queue-item" title={s.rawText}>
-                  {img ? (
-                    <img src={img} alt={s.card.name} loading="lazy" />
-                  ) : (
-                    <div className="scanner-queue-fallback">{s.card.name}</div>
-                  )}
-                  <button
-                    type="button"
-                    className="scanner-queue-remove"
-                    onClick={() => removeFromQueue(s.id)}
-                    aria-label={`Remove ${s.card.name}`}
-                  >
-                    <X width={12} height={12} strokeWidth={2.2} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         <div className="scanner-action-row">
-          <label className="scanner-auto-toggle">
-            <input
-              type="checkbox"
-              checked={autoMode}
-              onChange={(e) => setAutoMode(e.target.checked)}
-              disabled={status === 'error'}
-            />
-            <span>Auto-scan</span>
-          </label>
-
+          <div className="scanner-action-spacer" aria-hidden="true" />
           <button
             type="button"
             className={`scanner-capture${status === 'scanning' ? ' busy' : ''}`}
             onClick={() => void captureAndIdentify()}
             disabled={status !== 'ready' && status !== 'scanning'}
-            aria-label="Capture card"
+            aria-label="Capture card now"
+            title="Capture card now"
           >
             <Camera width={26} height={26} strokeWidth={1.8} />
           </button>
-
           <div className="scanner-secondary-actions">
-            {queue.length > 0 && (
-              <button
-                type="button"
-                className="scanner-icon-btn"
-                onClick={clearQueue}
-                aria-label="Clear queue"
-                title="Clear queue"
-              >
-                <Trash2 width={16} height={16} strokeWidth={1.8} />
-              </button>
-            )}
             <button
               type="button"
               className="btn btn-primary scanner-done"
               onClick={handleConfirm}
-              disabled={queue.length === 0}
+              disabled={totalCount === 0}
             >
-              {queue.length === 0
+              {totalCount === 0
                 ? 'Add cards'
-                : `Add ${queue.length} card${queue.length === 1 ? '' : 's'}`}
+                : `Add ${totalCount} card${totalCount === 1 ? '' : 's'}`}
             </button>
           </div>
         </div>
       </footer>
+
+      {sheetOpen && (
+        <ScannerQueueSheet
+          entries={queue}
+          onClose={() => setSheetOpen(false)}
+          onChangePrinting={changePrinting}
+          onChangeQty={changeQty}
+          onRemove={removeFromQueue}
+          onClearAll={clearQueue}
+        />
+      )}
     </div>
   );
 
@@ -730,40 +854,4 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // native that lets us hide #root while the camera-preview plugin's native
   // preview shows through the (transparent) WebView. On web it's harmless.
   return createPortal(scannerNode, document.body);
-}
-
-function truncate(s: string, max: number): string {
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-}
-
-/**
- * Plays a brief synthesized "ding" via WebAudio. Cheaper than shipping an
- * audio file and works without user-gesture restrictions because the click
- * that triggered capture is already a gesture.
- */
-let audioCtx: AudioContext | null = null;
-function playBeep() {
-  try {
-    if (!audioCtx) {
-      const Ctor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      audioCtx = new Ctor();
-    }
-    const ctx = audioCtx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.16);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.18);
-  } catch {
-    // Audio is best-effort; silently swallow if blocked.
-  }
 }
