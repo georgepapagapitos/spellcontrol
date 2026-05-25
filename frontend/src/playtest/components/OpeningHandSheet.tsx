@@ -1,9 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import { CSS } from '@dnd-kit/utilities';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import type { PlaytestCard } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { CardPreview } from '@/components/CardPreview';
+import { useLongPress } from '../hooks/use-long-press';
 import type { PlaytestPhase } from '../store';
 
 interface Props {
@@ -42,18 +61,47 @@ export function OpeningHandSheet({
   const requiredBottom = isMulliganBottom ? mulliganCount : 0;
   const canConfirm = isMulliganBottom && selected.length === requiredBottom;
 
-  // EnrichedCard projection for CardPreview, parallel to `hand`. Missing
-  // lookups (defensive — shouldn't happen for hand cards from the user's
-  // own deck) are filtered out so we never feed CardPreview an undefined.
+  // Local visual order for drag-to-reorder — independent of the prop's order.
+  // PlaytestCard.id is the per-instance id from the reducer and stays stable
+  // for the lifetime of the hand, so it doubles as the sortable slot id.
+  // Reset whenever the prop's *set* of cards changes (mulligan → new deal): a
+  // fresh hand starts in deal order; a re-render of the same hand preserves
+  // whatever order the user dragged it into.
+  //
+  // Render-phase reset (vs. useEffect) sidesteps `react-hooks/set-state-in-effect`
+  // and is the official React pattern for syncing derived state from props.
+  // The signature (sorted ids joined) collapses identity comparison to a string
+  // diff so a same-set-different-order re-render doesn't clobber local drags.
+  const handSignature = hand
+    .map((c) => c.id)
+    .sort()
+    .join('|');
+  const [order, setOrder] = useState<string[]>(() => hand.map((c) => c.id));
+  const [trackedSignature, setTrackedSignature] = useState<string>(handSignature);
+  if (trackedSignature !== handSignature) {
+    setTrackedSignature(handSignature);
+    setOrder(hand.map((c) => c.id));
+  }
+
+  const orderedHand = useMemo(() => {
+    const byId = new Map(hand.map((c) => [c.id, c]));
+    return order.map((id) => byId.get(id)).filter((c): c is PlaytestCard => Boolean(c));
+  }, [hand, order]);
+
+  // EnrichedCard projection for CardPreview, parallel to the *displayed*
+  // order so prev/next swipes through the carousel match what the user sees.
+  // Missing lookups (defensive — shouldn't happen for hand cards from the
+  // user's own deck) are filtered out so we never feed CardPreview an
+  // undefined.
   const previewable = useMemo(() => {
-    const out: { handIndex: number; enriched: ReturnType<typeof scryfallToEnrichedCard> }[] = [];
-    hand.forEach((c, i) => {
+    const out: { cardId: string; enriched: ReturnType<typeof scryfallToEnrichedCard> }[] = [];
+    orderedHand.forEach((c) => {
       const scry = cardLookup?.get(c.id);
       if (!scry) return;
-      out.push({ handIndex: i, enriched: scryfallToEnrichedCard(scry) });
+      out.push({ cardId: c.id, enriched: scryfallToEnrichedCard(scry) });
     });
     return out;
-  }, [hand, cardLookup]);
+  }, [orderedHand, cardLookup]);
 
   const previewCards = useMemo(() => previewable.map((p) => p.enriched), [previewable]);
   const previewLabels = useMemo(
@@ -77,14 +125,41 @@ export function OpeningHandSheet({
     return i === -1 ? null : i + 1;
   }
 
-  function handleCardClick(cardId: string, handIndex: number) {
+  const openPreview = useCallback(
+    (cardId: string) => {
+      const previewIdx = previewable.findIndex((p) => p.cardId === cardId);
+      if (previewIdx >= 0) setPreviewIndex(previewIdx);
+    },
+    [previewable]
+  );
+
+  function handleCardTap(cardId: string) {
     if (isMulliganBottom) {
       toggleSelect(cardId);
       return;
     }
-    // Opening phase — tap to enlarge in the carousel.
-    const previewIdx = previewable.findIndex((p) => p.handIndex === handIndex);
-    if (previewIdx >= 0) setPreviewIndex(previewIdx);
+    openPreview(cardId);
+  }
+
+  // PointerSensor's `distance: 6` activation matches the long-press tolerance
+  // (`useLongPress` also cancels on >6px movement) — gives the three gestures
+  // non-overlapping thresholds: <6px + <500ms → tap, <6px + ≥500ms →
+  // long-press, ≥6px → drag. KeyboardSensor adds Tab → Space → Arrows
+  // reordering for keyboard / SR users.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setOrder((prev) => {
+      const oldIndex = prev.indexOf(String(active.id));
+      const newIndex = prev.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
   }
 
   return (
@@ -111,50 +186,57 @@ export function OpeningHandSheet({
           </div>
           {isMulliganBottom ? (
             <p className="playtest-opening-hint">
-              Choose {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom of
-              your library, in the order you tap them.{' '}
+              Tap {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom of
+              your library, in the order you tap them. Long-press to preview · drag to reorder.{' '}
               <strong>
                 {selected.length}/{requiredBottom} selected
               </strong>
             </p>
           ) : (
             previewable.length > 0 && (
-              <p className="playtest-opening-hint">Tap a card to enlarge.</p>
+              <p className="playtest-opening-hint">Tap a card to enlarge · drag to reorder.</p>
             )
           )}
         </div>
 
-        <div className="playtest-opening-cards" role="list">
-          {hand.map((c, i) => {
-            const idx = bottomIndex(c.id);
-            const isSel = idx !== null;
-            const tappable = isMulliganBottom || previewable.some((p) => p.handIndex === i);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="listitem"
-                className={`playtest-opening-card${isSel ? ' is-selected' : ''}`}
-                style={{ zIndex: i }}
-                onClick={() => handleCardClick(c.id, i)}
-                aria-pressed={isMulliganBottom ? isSel : undefined}
-                aria-label={`${c.name}${isSel ? ` — selected, position ${idx}` : ''}`}
-                disabled={!tappable}
-              >
-                {c.imageUrl ? (
-                  <img src={c.imageUrl} alt="" draggable={false} />
-                ) : (
-                  <span className="playtest-opening-cardName">{c.name}</span>
-                )}
-                {idx != null && (
-                  <span className="playtest-opening-cardBadge" aria-hidden>
-                    {idx}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
+        >
+          <SortableContext items={order} strategy={horizontalListSortingStrategy}>
+            <div
+              className="playtest-opening-cards"
+              aria-label={
+                isMulliganBottom
+                  ? 'Hand — drag to reorder, tap to select, long-press to preview'
+                  : 'Opening hand — drag to reorder, tap to preview'
+              }
+            >
+              {orderedHand.map((c, i) => {
+                const idx = bottomIndex(c.id);
+                const isSel = idx !== null;
+                const hasPreview = previewable.some((p) => p.cardId === c.id);
+                const tappable = isMulliganBottom || hasPreview;
+                return (
+                  <SortableHandCard
+                    key={c.id}
+                    card={c}
+                    visualIndex={i}
+                    isSelected={isSel}
+                    selectedOrdinal={idx}
+                    tappable={tappable}
+                    isMulliganBottom={isMulliganBottom}
+                    longPressEnabled={hasPreview}
+                    onTap={handleCardTap}
+                    onLongPress={openPreview}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         <div className="card-picker-footer playtest-opening-footer">
           {isMulliganBottom ? (
@@ -197,5 +279,103 @@ export function OpeningHandSheet({
         />
       )}
     </div>
+  );
+}
+
+interface SortableHandCardProps {
+  card: PlaytestCard;
+  /** Position in the displayed order, used only for stacking z-index. */
+  visualIndex: number;
+  isSelected: boolean;
+  /** 1-based position in the bottom-of-library selection, or null when not selected. */
+  selectedOrdinal: number | null;
+  /** False disables the button entirely (no preview, no select). */
+  tappable: boolean;
+  isMulliganBottom: boolean;
+  /** True when a preview is available for this card; gates the long-press handler. */
+  longPressEnabled: boolean;
+  onTap(cardId: string): void;
+  onLongPress(cardId: string): void;
+}
+
+/**
+ * Lifted out of the parent's `hand.map(...)` so each card can call its own
+ * `useLongPress` + `useSortable` hooks (both store per-instance ref state).
+ *
+ * Three gestures share this button surface:
+ * - **Tap** (<6px, <500ms): preview in opening phase, select in mulligan-bottom.
+ * - **Long-press** (<6px, ≥500ms): preview. The only way to preview during
+ *   mulligan-bottom since tap is reserved for selection there.
+ * - **Drag** (≥6px): reorder via `@dnd-kit`.
+ *
+ * The thresholds are deliberately non-overlapping: dnd-kit's PointerSensor
+ * `distance: 6` activation matches the long-press 6px tolerance, and the
+ * long-press timer cancels on movement so a started drag never also fires
+ * a preview. `consumedClick()` swallows the synthetic click that follows a
+ * fired long-press so the click handler doesn't also toggle selection.
+ *
+ * `touch-action: none` lets dnd-kit own the touch surface for drag; the
+ * inline long-press handlers still receive React's synthetic touch events
+ * because those fire before browser default actions are consulted.
+ */
+function SortableHandCard({
+  card,
+  visualIndex,
+  isSelected,
+  selectedOrdinal,
+  tappable,
+  isMulliganBottom,
+  longPressEnabled,
+  onTap,
+  onLongPress,
+}: SortableHandCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: card.id,
+  });
+  const longPress = useLongPress({ onLongPress: () => onLongPress(card.id) });
+  const handleClick = () => {
+    if (longPress.consumedClick()) return;
+    onTap(card.id);
+  };
+  const touchHandlers = longPressEnabled
+    ? {
+        onTouchStart: longPress.onTouchStart,
+        onTouchMove: longPress.onTouchMove,
+        onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
+      }
+    : undefined;
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className={`playtest-opening-card${isSelected ? ' is-selected' : ''}${
+        isDragging ? ' is-dragging' : ''
+      }`}
+      style={{
+        zIndex: isDragging ? 50 : visualIndex,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        touchAction: 'none',
+      }}
+      onClick={handleClick}
+      {...attributes}
+      {...listeners}
+      {...touchHandlers}
+      aria-pressed={isMulliganBottom ? isSelected : undefined}
+      aria-label={`${card.name}${isSelected ? ` — selected, position ${selectedOrdinal}` : ''}`}
+      disabled={!tappable}
+    >
+      {card.imageUrl ? (
+        <img src={card.imageUrl} alt="" draggable={false} />
+      ) : (
+        <span className="playtest-opening-cardName">{card.name}</span>
+      )}
+      {selectedOrdinal != null && (
+        <span className="playtest-opening-cardBadge" aria-hidden>
+          {selectedOrdinal}
+        </span>
+      )}
+    </button>
   );
 }
