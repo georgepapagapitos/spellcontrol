@@ -71,19 +71,23 @@
             </intent-filter>
 
             <!--
-                Legacy custom-scheme fallback: kept for one release cycle so
-                any APK out in the wild (or installed before the App Link
-                verification lands) still resolves spellcontrol://oauth/...
-                URLs locally. The backend no longer emits this scheme; remove
-                this filter (and the matching branch in deep-links.ts) in a
-                follow-up after the next signed release ships.
+                Share-link App Link: `https://spellcontrol.com/s/<token>` URLs
+                open straight to the SharedView route inside the installed app
+                rather than the browser. Shares the same Digital Asset Links
+                verification as the OAuth callback above (one assetlinks.json
+                statement covers the whole host). `parseDeepLink()` already
+                routes /s/<token> regardless of scheme, so no JS change.
             -->
-            <intent-filter android:autoVerify="false">
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="spellcontrol" android:host="oauth" />
+                <data
+                    android:scheme="https"
+                    android:host="spellcontrol.com"
+                    android:pathPrefix="/s/" />
             </intent-filter>
+
         </activity>
 
         <provider

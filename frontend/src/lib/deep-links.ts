@@ -82,21 +82,9 @@ export interface OAuthCallback {
 
 /**
  * Parse an OAuth callback deep link — the hop the backend's Google callback
- * uses to return into the native app.
- *
- * Two shapes are accepted:
- *
- *   https://spellcontrol.com/oauth/callback?...   — the current Android App
- *                                                   Link form (verified via
- *                                                   /.well-known/assetlinks.json)
- *   spellcontrol://oauth/callback?...             — the legacy custom-scheme
- *                                                   form; kept so any older
- *                                                   APK installed before the
- *                                                   App Link migration still
- *                                                   resolves locally. The
- *                                                   backend no longer emits
- *                                                   this; can be removed
- *                                                   after a release cycle.
+ * uses to return into the native app. Only the Android App Link form is
+ * accepted (`https://spellcontrol.com/oauth/callback?...`), verified via
+ * `/.well-known/assetlinks.json`.
  *
  * Returns the handoff code (returning user), a signup token (first-time
  * user), a link-mode marker, an error marker, or `null` for any URL that
@@ -122,17 +110,10 @@ export function parseOAuthCallback(url: string): OAuthCallback | null {
 }
 
 function isOAuthCallbackUrl(parsed: URL): boolean {
-  if (parsed.protocol === 'spellcontrol:') {
-    // spellcontrol://oauth/callback — hostname=oauth, pathname=/callback.
-    const host = parsed.hostname || parsed.pathname.replace(/^\/+/, '').split('/')[0] || '';
-    return host === 'oauth';
-  }
-  if (parsed.protocol === 'https:' && parsed.hostname === 'spellcontrol.com') {
-    // Trailing-slash tolerant; rejects sibling paths like /oauth/callbacks.
-    const path = parsed.pathname.replace(/\/+$/, '');
-    return path === '/oauth/callback';
-  }
-  return false;
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'spellcontrol.com') return false;
+  // Trailing-slash tolerant; rejects sibling paths like /oauth/callbacks.
+  const path = parsed.pathname.replace(/\/+$/, '');
+  return path === '/oauth/callback';
 }
 
 /**
