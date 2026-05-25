@@ -272,6 +272,13 @@
   .card-preview-foil-shine {
     opacity: var(--foil-strength, 0.35);
     animation: foil-drift 8s ease-in-out infinite alternate;
+    /* Android WebView silently drops mix-blend-mode when the same element
+       also carries a mask — the mask promotes the layer offscreen and the
+       blend then has no backdrop. Touch devices (including Capacitor) run
+       the ambient-drift mode where edge-to-edge rainbow is acceptable, so
+       drop the vignette mask here to let the blend composite normally. */
+    -webkit-mask-image: none;
+    mask-image: none;
   }
   .card-preview-foil-glare {
     opacity: 0.25;
