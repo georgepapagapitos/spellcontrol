@@ -15,7 +15,13 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { identifyCard } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
 import { isNativePlatform } from '../lib/platform';
-import { playValueChime, priceTier, pulseValueHaptic } from '../lib/scanner-feedback';
+import {
+  playValueChime,
+  priceTier,
+  pulseValueHaptic,
+  type CardValueTier,
+} from '../lib/scanner-feedback';
+import { detectCardBox, detectorBoxToViewport } from '../lib/scanner-detect';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -67,22 +73,34 @@ const CARD_ASPECT = 5 / 7;
 const TITLE_CROP = { x: 0.07, y: 0.038, w: 0.66, h: 0.075 };
 
 /**
- * Auto-detect tuning. The detector samples the viewfinder at ~6 fps into a
- * tiny grayscale buffer and fires capture when (a) the frame is stable for
- * `STABLE_FRAMES_REQUIRED` consecutive ticks and (b) the title band has
- * enough pixel variance to plausibly contain a card name. The variance gate
- * suppresses triggers over plain backgrounds (a hand, an empty table, a
- * binder page corner). `CAPTURE_COOLDOWN_MS` gives the user time to swap
- * physical cards without firing twice on the same one — combined with the
- * `lastIdRef` dedupe, that's enough to keep auto-trigger calm.
+ * Auto-detect tuning. The detector samples the *whole visible camera band*
+ * at ~6 fps into a small grayscale buffer (sized to fit the visible aspect
+ * ratio within `DETECT_BUDGET_PX` pixels — keeps cost roughly constant
+ * across phone aspects). Each tick it:
+ *
+ *   1. Runs the card-edge detector (`detectCardBox`) over the buffer.
+ *      If a plausible 5:7 rectangle is found, the on-screen outline
+ *      snaps to it — so the user can hold a card closer, further, or
+ *      off-centre and still get a clean crop.
+ *   2. Frame-diffs vs the previous buffer to test stability.
+ *   3. If stable for `STABLE_FRAMES_REQUIRED` consecutive ticks AND a
+ *      card was just detected, fires `captureAndIdentify` using the
+ *      detected bbox as the capture region. `CAPTURE_COOLDOWN_MS` plus
+ *      the `armedRef` re-arm-on-motion guard prevent rapid re-fires
+ *      on the same physical card.
+ *
+ * `DETECT_LOST_TICKS` is how many consecutive empty ticks must elapse
+ * before we drop the locked-on outline back to the default centred
+ * box — quick enough to feel responsive, slow enough to ride out a
+ * single noisy frame.
  */
 const DETECT_INTERVAL_MS = 165;
-const DETECT_W = 64;
-const DETECT_H = 90;
+const DETECT_BUDGET_PX = 9000; // ~75×120 for a typical 9:19.5 portrait band
 const STABILITY_THRESHOLD = 7; // mean absolute frame-diff per pixel (0–255)
-const VARIANCE_THRESHOLD = 380; // stddev² of the title band on the detector frame
+const VARIANCE_THRESHOLD = 380; // stddev² of the title band when checked
 const STABLE_FRAMES_REQUIRED = 2;
 const CAPTURE_COOLDOWN_MS = 1100;
+const DETECT_LOST_TICKS = 4;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -97,6 +115,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const prevDetectorFrameRef = useRef<Uint8Array | null>(null);
   /** Consecutive stable+card-present detector ticks. */
   const stableFramesRef = useRef(0);
+  /** Consecutive ticks with no card detected — used to drop the lock-on. */
+  const lostFramesRef = useRef(0);
   /** Timestamp of the last capture firing, used for cooldown. */
   const lastFiredAtRef = useRef(0);
   /** rAF id for the detect loop. */
@@ -111,6 +131,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * card immediately after a successful identify.
    */
   const armedRef = useRef(true);
+  /** Timer that auto-dismisses the inline scan confirmation chip. */
+  const scanToastTimerRef = useRef<number | null>(null);
 
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -122,20 +144,34 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   /** Pulses the count pill briefly each time a new card lands. */
   const [pulseKey, setPulseKey] = useState(0);
   /**
-   * The viewfinder is sized in JS to live INSIDE the visible camera area.
-   * Earlier iterations sized it as a percentage of the viewport, which on
-   * phones (where the camera feed gets letterboxed) meant the framing box
-   * extended way past the actual visible video. Now we compute the
-   * displayed video rectangle from the stream's aspect ratio and the
-   * container size, then place a 5:7 card-shaped box centred inside it.
-   * The same rectangle is used directly as the capture region (see
-   * captureAndIdentify) so what you see is exactly what gets cropped.
+   * Three rectangles, all in viewport (px) coordinates:
+   *
+   *   - `defaultViewfinderRect` — the static centred 5:7 box. Acts as a
+   *     visual hint when nothing is detected, and as the fallback capture
+   *     region when the card-edge detector turns up empty.
+   *   - `searchRect` — the *full visible camera band* (minus a thin
+   *     margin). The detector samples this region, NOT the viewfinder,
+   *     so it can find cards held closer/further/off-centre.
+   *   - `viewfinderRect` — what's actually displayed on screen and used
+   *     by capture. Equals the detected card bbox when the detector has
+   *     a lock, otherwise mirrors `defaultViewfinderRect`. CSS transitions
+   *     this for a smooth "snap to the card" motion.
    */
-  const [viewfinderRect, setViewfinderRect] = useState<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
+  type Rect = { left: number; top: number; width: number; height: number };
+  const [defaultViewfinderRect, setDefaultViewfinderRect] = useState<Rect | null>(null);
+  const [searchRect, setSearchRect] = useState<Rect | null>(null);
+  const [detectorBufSize, setDetectorBufSize] = useState<{ w: number; h: number }>({
+    w: 75,
+    h: 120,
+  });
+  const [viewfinderRect, setViewfinderRect] = useState<Rect | null>(null);
+  /** Whether the detector currently has a lock — drives the "card found" styling. */
+  const [hasLock, setHasLock] = useState(false);
+  /** Inline confirmation chip data — auto-clears ~1.6s after each scan. */
+  const [lastScan, setLastScan] = useState<{
+    card: ScryfallCard;
+    tier: CardValueTier;
+    key: number;
   } | null>(null);
 
   useLockBodyScroll();
@@ -299,6 +335,10 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       stopCamera();
       void disposeOcr();
       if (detectLoopRef.current !== null) cancelAnimationFrame(detectLoopRef.current);
+      if (scanToastTimerRef.current !== null) {
+        window.clearTimeout(scanToastTimerRef.current);
+        scanToastTimerRef.current = null;
+      }
     };
   }, [startCamera, stopCamera]);
 
@@ -353,16 +393,14 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       }
       const fit: 'contain' | 'cover' = isNativePlatform() ? 'cover' : 'contain';
 
-      // 5:7 portrait card. Cap to ~78% of the smaller axis of the visible
-      // viewport — leaves enough margin for the user to recognise the box
-      // and to see their fingers framing the card. In cover mode the
-      // visible viewport IS the container; in contain mode it's the
-      // letterboxed video band.
-      const FILL = 0.78;
       const visW = fit === 'cover' ? cW : dispW;
       const visH = fit === 'cover' ? cH : dispH;
       const visX = fit === 'cover' ? 0 : dispX;
       const visY = fit === 'cover' ? 0 : dispY;
+
+      // Default viewfinder: a 5:7 portrait box at ~78% of the smaller
+      // axis. The user sees this when nothing has been detected yet.
+      const FILL = 0.78;
       let vfW: number;
       let vfH: number;
       if (visW / visH > CARD_ASPECT) {
@@ -372,12 +410,39 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         vfW = visW * FILL;
         vfH = vfW / CARD_ASPECT;
       }
-      setViewfinderRect({
+      const nextDefault: Rect = {
         left: visX + (visW - vfW) / 2,
         top: visY + (visH - vfH) / 2,
         width: vfW,
         height: vfH,
-      });
+      };
+      setDefaultViewfinderRect(nextDefault);
+
+      // Search region: almost the full visible band (leave a 4% margin
+      // so chrome / safe-area insets don't bleed in). The detector
+      // looks for a card anywhere inside this rectangle — that's how
+      // the user can hover closer or further and still get a hit.
+      const INSET = 0.04;
+      const nextSearch: Rect = {
+        left: visX + visW * INSET,
+        top: visY + visH * INSET,
+        width: visW * (1 - 2 * INSET),
+        height: visH * (1 - 2 * INSET),
+      };
+      setSearchRect(nextSearch);
+
+      // Detector buffer size: keep total pixel count under
+      // `DETECT_BUDGET_PX` but match the search-region aspect, so the
+      // mapping back to viewport coords is a clean uniform scale.
+      const aspect = nextSearch.width / nextSearch.height;
+      const bufH = Math.max(40, Math.round(Math.sqrt(DETECT_BUDGET_PX / aspect)));
+      const bufW = Math.max(40, Math.round(bufH * aspect));
+      setDetectorBufSize({ w: bufW, h: bufH });
+
+      // If we don't have a detection lock currently, mirror the default
+      // into the displayed viewfinder so a viewport resize doesn't
+      // leave a stale outline behind.
+      setViewfinderRect((current) => current ?? nextDefault);
     };
 
     const onMeta = () => recompute();
@@ -529,6 +594,18 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       setPulseKey((k) => k + 1);
       playValueChime(tier);
       pulseValueHaptic(tier);
+      // Inline confirmation chip: shows the just-scanned card for ~1.6s
+      // so the user can sanity-check the OCR result without opening the
+      // queue sheet. `key` is bumped so the CSS animation replays even
+      // when the same card data lands twice in a row.
+      setLastScan({ card, tier, key: Date.now() });
+      if (scanToastTimerRef.current !== null) {
+        window.clearTimeout(scanToastTimerRef.current);
+      }
+      scanToastTimerRef.current = window.setTimeout(() => {
+        setLastScan(null);
+        scanToastTimerRef.current = null;
+      }, 1600);
     } catch (err) {
       logger.error('[scanner] capture failed:', err);
       showHint('Scan failed — try again.');
@@ -551,18 +628,22 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    */
   useEffect(() => {
     if (status === 'error' || sheetOpen) return;
-    if (!viewfinderRect) return;
+    if (!searchRect || !defaultViewfinderRect) return;
 
     let lastTick = 0;
     const native = isNativePlatform();
+    const bufW = detectorBufSize.w;
+    const bufH = detectorBufSize.h;
 
     const sampleDetectorFrame = async (): Promise<Uint8Array | null> => {
       if (!detectorCanvasRef.current) {
         detectorCanvasRef.current = document.createElement('canvas');
-        detectorCanvasRef.current.width = DETECT_W;
-        detectorCanvasRef.current.height = DETECT_H;
       }
       const dCanvas = detectorCanvasRef.current;
+      if (dCanvas.width !== bufW || dCanvas.height !== bufH) {
+        dCanvas.width = bufW;
+        dCanvas.height = bufH;
+      }
       const dCtx = dCanvas.getContext('2d', { willReadFrequently: true });
       if (!dCtx) return null;
 
@@ -601,17 +682,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const fit = native ? 'cover' : 'contain';
       const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
       const scale = vw / dispW;
-      const sx = (viewfinderRect.left - dispX) * scale;
-      const sy = (viewfinderRect.top - dispY) * scale;
-      const sw = viewfinderRect.width * scale;
-      const sh = viewfinderRect.height * scale;
+      const sx = (searchRect.left - dispX) * scale;
+      const sy = (searchRect.top - dispY) * scale;
+      const sw = searchRect.width * scale;
+      const sh = searchRect.height * scale;
       try {
-        dCtx.drawImage(frameSource, sx, sy, sw, sh, 0, 0, DETECT_W, DETECT_H);
+        dCtx.drawImage(frameSource, sx, sy, sw, sh, 0, 0, bufW, bufH);
       } catch {
         return null;
       }
-      const { data } = dCtx.getImageData(0, 0, DETECT_W, DETECT_H);
-      const out = new Uint8Array(DETECT_W * DETECT_H);
+      const { data } = dCtx.getImageData(0, 0, bufW, bufH);
+      const out = new Uint8Array(bufW * bufH);
       for (let i = 0, j = 0; i < data.length; i += 4, j++) {
         out[j] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
       }
@@ -629,38 +710,58 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       const frame = await sampleDetectorFrame();
       if (cancelled || !frame) return;
+
+      // Card-edge detection: find the actual bbox of the card in the
+      // search region. If found, snap the on-screen outline to it and
+      // use it as the capture region; otherwise fall back to the
+      // default centred 5:7 box.
+      const detected = detectCardBox(frame, bufW, bufH);
+      if (detected) {
+        const mapped = detectorBoxToViewport(detected, bufW, bufH, searchRect);
+        setViewfinderRect(mapped);
+        setHasLock(true);
+        lostFramesRef.current = 0;
+      } else {
+        lostFramesRef.current += 1;
+        if (lostFramesRef.current >= DETECT_LOST_TICKS) {
+          setViewfinderRect(defaultViewfinderRect);
+          setHasLock(false);
+        }
+      }
+
       const prev = prevDetectorFrameRef.current;
       prevDetectorFrameRef.current = frame;
       if (!prev || prev.length !== frame.length) return;
 
-      // Frame-diff: mean abs delta per pixel. Cheap and surprisingly robust.
+      // Frame-diff stability: mean abs delta per pixel.
       let diffSum = 0;
       for (let i = 0; i < frame.length; i++) {
         const d = frame[i] - prev[i];
         diffSum += d < 0 ? -d : d;
       }
       const meanDiff = diffSum / frame.length;
+      const isStable = meanDiff < STABILITY_THRESHOLD;
 
-      // Title-band variance: stddev² of the top ~12% of the detector frame.
-      // A card title has letterforms = high variance; a hand or table = low.
-      const bandH = Math.max(1, Math.round(DETECT_H * 0.12));
-      const bandPixels = DETECT_W * bandH;
+      // Title-band variance: only meaningful if we have a card lock,
+      // since the band's position depends on the detected card. When
+      // locked, sample the top ~12% of the detected bbox in the detector
+      // frame; when not locked, fall back to the top of the whole frame.
+      const bandTop = detected ? detected.y : 0;
+      const bandStart = bandTop * bufW;
+      const bandHeight = Math.max(1, Math.round((detected ? detected.h : bufH) * 0.12));
+      const bandPixels = bufW * bandHeight;
       let bandSum = 0;
-      for (let i = 0; i < bandPixels; i++) bandSum += frame[i];
+      for (let i = 0; i < bandPixels; i++) bandSum += frame[bandStart + i] ?? 0;
       const bandMean = bandSum / bandPixels;
       let bandVar = 0;
       for (let i = 0; i < bandPixels; i++) {
-        const d = frame[i] - bandMean;
+        const d = (frame[bandStart + i] ?? 0) - bandMean;
         bandVar += d * d;
       }
       bandVar /= bandPixels;
-
-      const isStable = meanDiff < STABILITY_THRESHOLD;
       const hasCard = bandVar > VARIANCE_THRESHOLD;
 
       if (!isStable) {
-        // Movement re-arms the detector — required so the same card can't
-        // re-fire immediately after a successful capture.
         armedRef.current = true;
         stableFramesRef.current = 0;
         return;
@@ -687,8 +788,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       }
       prevDetectorFrameRef.current = null;
       stableFramesRef.current = 0;
+      lostFramesRef.current = 0;
     };
-  }, [status, sheetOpen, viewfinderRect, captureAndIdentify]);
+  }, [status, sheetOpen, searchRect, defaultViewfinderRect, detectorBufSize, captureAndIdentify]);
 
   const removeFromQueue = (id: string) => {
     setQueue((prev) => prev.filter((s) => s.id !== id));
@@ -731,7 +833,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       <div className="scanner-overlay" aria-hidden="true">
         <div
           ref={viewfinderRef}
-          className="scanner-viewfinder"
+          className={`scanner-viewfinder${hasLock ? ' locked' : ''}`}
           style={
             viewfinderRect
               ? {
@@ -798,6 +900,37 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       </header>
 
       {hint && <div className="scanner-hint">{hint}</div>}
+
+      {lastScan && (
+        <div
+          key={lastScan.key}
+          className={`scanner-scan-toast tier-${lastScan.tier}`}
+          role="status"
+          aria-live="polite"
+        >
+          {(() => {
+            const img =
+              lastScan.card.image_uris?.small || lastScan.card.card_faces?.[0]?.image_uris?.small;
+            const usd = lastScan.card.prices?.usd
+              ? `$${Number.parseFloat(lastScan.card.prices.usd).toFixed(2)}`
+              : null;
+            return (
+              <>
+                <div className="scanner-scan-toast-thumb">
+                  {img ? <img src={img} alt="" /> : null}
+                </div>
+                <div className="scanner-scan-toast-body">
+                  <div className="scanner-scan-toast-name">{lastScan.card.name}</div>
+                  <div className="scanner-scan-toast-meta">
+                    {lastScan.card.set.toUpperCase()} · {lastScan.card.collector_number ?? '—'}
+                    {usd ? <span className="scanner-scan-toast-price">{usd}</span> : null}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">

@@ -10828,11 +10828,33 @@ hr {
 .scanner-viewfinder {
   /* Dimensions + position are set as inline styles from JS (see
      viewfinderRect in CardScanner.tsx). Only purely visual properties
-     live here. */
+     live here. The transitions animate the outline as it snaps from
+     the default centred box to a detected card bbox — and back. */
   border-radius: 14px;
   box-shadow:
     0 0 0 9999px rgba(0, 0, 0, 0.28),
     0 0 32px rgba(255, 255, 255, 0.06) inset;
+  transition:
+    left 0.18s cubic-bezier(0.2, 0.9, 0.3, 1),
+    top 0.18s cubic-bezier(0.2, 0.9, 0.3, 1),
+    width 0.18s cubic-bezier(0.2, 0.9, 0.3, 1),
+    height 0.18s cubic-bezier(0.2, 0.9, 0.3, 1),
+    box-shadow 0.2s ease;
+}
+/* "Detected a card here" state — corners glow to confirm the lock. */
+.scanner-viewfinder.locked {
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.28),
+    0 0 24px rgba(56, 189, 248, 0.45) inset,
+    0 0 18px rgba(56, 189, 248, 0.35);
+}
+.scanner-viewfinder.locked .scanner-viewfinder-corner {
+  border-color: #7dd3fc;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-viewfinder {
+    transition: none;
+  }
 }
 
 .scanner-viewfinder-corner {
@@ -11057,6 +11079,120 @@ hr {
     opacity: 1;
     transform: translate(-50%, 0);
   }
+}
+
+/* Inline scan confirmation chip — appears for ~1.6s after each
+   successful identify so the user can validate the OCR result
+   without opening the queue sheet. The `tier-*` modifier ties the
+   accent colour to the value tier from priceTier(). */
+.scanner-scan-toast {
+  position: absolute;
+  top: 4.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.7rem 0.4rem 0.4rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  color: #f1f5f9;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  max-width: calc(100% - 2rem);
+  animation:
+    scanner-scan-toast-in 0.18s ease-out,
+    scanner-scan-toast-out 0.25s ease-in 1.35s forwards;
+}
+.scanner-scan-toast.tier-1 {
+  border-color: rgba(56, 189, 248, 0.55);
+}
+.scanner-scan-toast.tier-2 {
+  border-color: rgba(167, 139, 250, 0.6);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.5),
+    0 0 18px rgba(167, 139, 250, 0.25);
+}
+.scanner-scan-toast.tier-3 {
+  border-color: rgba(253, 224, 71, 0.7);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(253, 224, 71, 0.4);
+}
+@keyframes scanner-scan-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@keyframes scanner-scan-toast-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -4px) scale(0.97);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-scan-toast {
+    animation: none;
+  }
+}
+.scanner-scan-toast-thumb {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 45px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #1e293b;
+}
+.scanner-scan-toast-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scanner-scan-toast-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.scanner-scan-toast-name {
+  font-weight: 600;
+  font-size: var(--text-sm, 0.875rem);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 16rem;
+}
+.scanner-scan-toast-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: rgba(241, 245, 249, 0.7);
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.1rem;
+}
+.scanner-scan-toast-price {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+  font-weight: 600;
+}
+.scanner-scan-toast.tier-2 .scanner-scan-toast-price {
+  background: rgba(167, 139, 250, 0.22);
+  color: #c4b5fd;
+}
+.scanner-scan-toast.tier-3 .scanner-scan-toast-price {
+  background: rgba(253, 224, 71, 0.22);
+  color: #fde68a;
 }
 
 .scanner-error {
