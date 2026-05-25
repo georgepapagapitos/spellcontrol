@@ -1,0 +1,13 @@
+# Block crawlers from token-gated share landing pages. Shares are
+# unguessable URLs intended for direct recipients, not for indexing —
+# their content also reflects another user's private collection and
+# should never end up in a public search result. The backend's
+# /s/:token handler additionally injects <meta name="robots"
+# content="noindex,nofollow"> as belt-and-suspenders for crawlers that
+# fetch a URL without first reading robots.txt.
+User-agent: *
+Disallow: /s/
+
+# The OAuth callback URL is single-use, user-bound, and contains
+# short-lived state — never useful in search.
+Disallow: /oauth/callback

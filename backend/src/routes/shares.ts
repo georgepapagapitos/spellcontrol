@@ -4,7 +4,8 @@ import { rateLimit } from 'express-rate-limit';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 import { getDb } from '../db';
-import { shares, userData, users } from '../db/schema';
+import { shares } from '../db/schema';
+import { invalidateShareContext, loadShareContext } from '../shares/context';
 import {
   findDeckById,
   findListById,
@@ -117,6 +118,9 @@ sharesRouter.delete('/:token', requireAuth, async (req: Request, res: Response) 
   if (updated.length === 0) {
     return res.status(404).json({ error: 'Share not found.' });
   }
+  // Drop any cached context for this token so the next public read sees the
+  // revocation immediately rather than waiting out the TTL window.
+  invalidateShareContext(token);
   res.status(204).end();
 });
 
@@ -127,33 +131,11 @@ sharesRouter.delete('/:token', requireAuth, async (req: Request, res: Response) 
  */
 sharesRouter.get('/public/:token', publicLimiter, async (req: Request, res: Response) => {
   const token = readTokenParam(req);
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(shares)
-    .where(and(eq(shares.token, token), isNull(shares.revokedAt)))
-    .limit(1);
-  const share = rows[0];
-  if (!share) {
+  const ctx = await loadShareContext(token);
+  if (!ctx) {
     return res.status(404).json({ error: 'Share not found.' });
   }
-
-  const dataRows = await db
-    .select()
-    .from(userData)
-    .where(eq(userData.userId, share.userId))
-    .limit(1);
-  const data = dataRows[0];
-  if (!data) {
-    return res.status(404).json({ error: 'Share not found.' });
-  }
-
-  const userRows = await db
-    .select({ username: users.username })
-    .from(users)
-    .where(eq(users.id, share.userId))
-    .limit(1);
-  const username = userRows[0]?.username ?? 'unknown';
+  const { share, data, ownerUsername: username } = ctx;
 
   if (share.kind === 'collection') {
     return res.json({
