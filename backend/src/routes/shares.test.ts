@@ -191,6 +191,25 @@ d('DELETE /api/shares/:token', () => {
       .send({ kind: 'collection' });
     expect(b.body.share.token).not.toBe(a.body.share.token);
   });
+
+  it('invalidates the LRU cache so a revoked token 404s immediately', async () => {
+    // Warm the cache with a public read first — if revoke didn't invalidate,
+    // the next read would still hit the cache and serve the now-revoked
+    // share until the TTL expired.
+    const cookie = await makeUser('share-revoke-cache');
+    await setSnapshot(cookie, 0, { collection: { cards: [makeCard()] } });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'collection' });
+    const token = create.body.share.token as string;
+    const warm = await request(app).get(`/api/shares/public/${token}`);
+    expect(warm.status).toBe(200);
+    const del = await request(app).delete(`/api/shares/${token}`).set('Cookie', cookie);
+    expect(del.status).toBe(204);
+    const after = await request(app).get(`/api/shares/public/${token}`);
+    expect(after.status).toBe(404);
+  });
 });
 
 d('GET /api/shares/public/:token — collection', () => {
