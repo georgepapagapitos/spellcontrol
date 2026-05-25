@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import type { PlaytestCard } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { CardPreview } from '@/components/CardPreview';
+import { useLongPress } from '../hooks/use-long-press';
 import type { PlaytestPhase } from '../store';
 
 interface Props {
@@ -77,14 +78,20 @@ export function OpeningHandSheet({
     return i === -1 ? null : i + 1;
   }
 
-  function handleCardClick(cardId: string, handIndex: number) {
+  const openPreview = useCallback(
+    (handIndex: number) => {
+      const previewIdx = previewable.findIndex((p) => p.handIndex === handIndex);
+      if (previewIdx >= 0) setPreviewIndex(previewIdx);
+    },
+    [previewable]
+  );
+
+  function handleCardTap(cardId: string, handIndex: number) {
     if (isMulliganBottom) {
       toggleSelect(cardId);
       return;
     }
-    // Opening phase — tap to enlarge in the carousel.
-    const previewIdx = previewable.findIndex((p) => p.handIndex === handIndex);
-    if (previewIdx >= 0) setPreviewIndex(previewIdx);
+    openPreview(handIndex);
   }
 
   return (
@@ -111,8 +118,8 @@ export function OpeningHandSheet({
           </div>
           {isMulliganBottom ? (
             <p className="playtest-opening-hint">
-              Choose {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom of
-              your library, in the order you tap them.{' '}
+              Tap {requiredBottom} card{requiredBottom === 1 ? '' : 's'} to send to the bottom of
+              your library, in the order you tap them. Long-press to preview.{' '}
               <strong>
                 {selected.length}/{requiredBottom} selected
               </strong>
@@ -128,30 +135,21 @@ export function OpeningHandSheet({
           {hand.map((c, i) => {
             const idx = bottomIndex(c.id);
             const isSel = idx !== null;
-            const tappable = isMulliganBottom || previewable.some((p) => p.handIndex === i);
+            const previewable_ = previewable.some((p) => p.handIndex === i);
+            const tappable = isMulliganBottom || previewable_;
             return (
-              <button
+              <HandCard
                 key={c.id}
-                type="button"
-                role="listitem"
-                className={`playtest-opening-card${isSel ? ' is-selected' : ''}`}
-                style={{ zIndex: i }}
-                onClick={() => handleCardClick(c.id, i)}
-                aria-pressed={isMulliganBottom ? isSel : undefined}
-                aria-label={`${c.name}${isSel ? ` — selected, position ${idx}` : ''}`}
-                disabled={!tappable}
-              >
-                {c.imageUrl ? (
-                  <img src={c.imageUrl} alt="" draggable={false} />
-                ) : (
-                  <span className="playtest-opening-cardName">{c.name}</span>
-                )}
-                {idx != null && (
-                  <span className="playtest-opening-cardBadge" aria-hidden>
-                    {idx}
-                  </span>
-                )}
-              </button>
+                card={c}
+                handIndex={i}
+                isSelected={isSel}
+                selectedOrdinal={idx}
+                tappable={tappable}
+                isMulliganBottom={isMulliganBottom}
+                longPressEnabled={previewable_}
+                onTap={handleCardTap}
+                onLongPress={openPreview}
+              />
             );
           })}
         </div>
@@ -197,5 +195,79 @@ export function OpeningHandSheet({
         />
       )}
     </div>
+  );
+}
+
+interface HandCardProps {
+  card: PlaytestCard;
+  handIndex: number;
+  isSelected: boolean;
+  /** 1-based position in the bottom-of-library selection, or null when not selected. */
+  selectedOrdinal: number | null;
+  /** False disables the button entirely (no preview, no select). */
+  tappable: boolean;
+  isMulliganBottom: boolean;
+  /** True when a preview is available for this card; gates the long-press handler. */
+  longPressEnabled: boolean;
+  onTap(cardId: string, handIndex: number): void;
+  onLongPress(handIndex: number): void;
+}
+
+/**
+ * Lifted out of the parent's `hand.map(...)` so each card can call
+ * `useLongPress` (a hook with per-instance ref state). Long-press is the only
+ * way to preview a card during the mulligan-bottom phase — tap there is
+ * reserved for selecting which cards go to the bottom of the library, so a
+ * preview gesture would clash with the selection gesture if it were also tap.
+ */
+function HandCard({
+  card,
+  handIndex,
+  isSelected,
+  selectedOrdinal,
+  tappable,
+  isMulliganBottom,
+  longPressEnabled,
+  onTap,
+  onLongPress,
+}: HandCardProps) {
+  const longPress = useLongPress({ onLongPress: () => onLongPress(handIndex) });
+  const handleClick = () => {
+    // Swallow the synthetic click that follows a fired long-press, so a touch
+    // user doesn't both preview and select in one gesture.
+    if (longPress.consumedClick()) return;
+    onTap(card.id, handIndex);
+  };
+  const touchHandlers = longPressEnabled
+    ? {
+        onTouchStart: longPress.onTouchStart,
+        onTouchMove: longPress.onTouchMove,
+        onTouchEnd: longPress.onTouchEnd,
+        onTouchCancel: longPress.onTouchCancel,
+      }
+    : undefined;
+  return (
+    <button
+      type="button"
+      role="listitem"
+      className={`playtest-opening-card${isSelected ? ' is-selected' : ''}`}
+      style={{ zIndex: handIndex }}
+      onClick={handleClick}
+      {...touchHandlers}
+      aria-pressed={isMulliganBottom ? isSelected : undefined}
+      aria-label={`${card.name}${isSelected ? ` — selected, position ${selectedOrdinal}` : ''}`}
+      disabled={!tappable}
+    >
+      {card.imageUrl ? (
+        <img src={card.imageUrl} alt="" draggable={false} />
+      ) : (
+        <span className="playtest-opening-cardName">{card.name}</span>
+      )}
+      {selectedOrdinal != null && (
+        <span className="playtest-opening-cardBadge" aria-hidden>
+          {selectedOrdinal}
+        </span>
+      )}
+    </button>
   );
 }
