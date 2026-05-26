@@ -64,6 +64,13 @@ export default defineConfig({
         'src/lib/native-file-picker.ts',
         'src/lib/haptics.ts',
         'src/lib/deep-links.ts',
+        // Scanner v2 spike — OpenCV.js (WASM) loader + classical detector.
+        // Same rationale as ocr.ts: the heavy lifting is a ~10MB WASM module
+        // that won't initialize under node, so the pipeline is
+        // device-validated, not unit-gated. Pure helpers like
+        // `orderQuadCorners` are tested directly.
+        'src/lib/scanner-v2/opencv-loader.ts',
+        'src/lib/scanner-v2/detect.ts',
         // Deck-builder network service clients — large fetch wrappers around
         // EDHREC / Scryfall / the tagger endpoint. Same rationale as ocr.ts:
         // exercising them meaningfully needs a fetch shim that fights real

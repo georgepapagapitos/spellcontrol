@@ -38,6 +38,14 @@ export default defineConfig({
         // tagger-tags.json is added via includeAssets above so the offline
         // deck builder works cold.
         globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,json}'],
+        // Scanner v2 (Phase 0 spike) vendors opencv.js into
+        // public/scanner-v2/opencv.js (~10MB) and loads it via a classic
+        // <script> tag — see lib/scanner-v2/opencv-loader.ts for why we
+        // bypassed Vite's ESM dynamic-import path. Excluded from precache
+        // so the build doesn't fail Workbox's size gate; first scanner open
+        // fetches it (native APK ships it bundled either way). Revisit
+        // if/when v2 ships and offline scanner is a requirement.
+        globIgnores: ['**/opencv*.js'],
         // Keep the precache cap generous — the tagger JSON + font subsets
         // alone push past Workbox's 2MB default.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,

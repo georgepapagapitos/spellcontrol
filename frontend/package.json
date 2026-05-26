@@ -41,6 +41,7 @@
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/game-core": "file:../packages/game-core",
     "@tanstack/react-virtual": "^3.13.24",
+    "@techstark/opencv-js": "^4.12.0-release.1",
     "idb": "^8.0.0",
     "lucide-react": "^1.16.0",
     "mana-font": "^1.18.0",
