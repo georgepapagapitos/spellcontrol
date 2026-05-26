@@ -18,7 +18,13 @@ import { sharesRouter } from './routes/shares';
 import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
+import {
+  resolveCards,
+  fetchCardsByIds,
+  fetchPrintings,
+  identifyCardByName,
+  getCardBySetAndNumber,
+} from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { sliceResolvedDeckImport } from './deck-import';
@@ -406,6 +412,40 @@ app.get(
       logger.error('[identify] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({ error: `Identify failed: ${message}` });
+    }
+  }
+);
+
+/**
+ * Resolves a card to its *exact* printing from a set code + collector
+ * number. Used by the scanner's bottom-strip OCR path: once OCR reads
+ * both fields off the physical card, this returns the one specific
+ * printing instead of letting fuzzy-named pick whatever Scryfall thinks
+ * is canonical for the name. The path is distinct from
+ * `/api/cards/:name/printings` to avoid the route-matcher mistaking a
+ * set code for a card name.
+ *
+ * Returns { card: ScryfallCard | null }. A null `card` means Scryfall
+ * doesn't recognise the set+number combo — the caller should fall back
+ * to the fuzzy-named path on the same scan.
+ */
+app.get(
+  '/api/cards/by-set/:set/:number',
+  rateLimit({ windowMs: 60_000, max: 120 }),
+  async (req: Request, res: Response) => {
+    try {
+      const set = typeof req.params.set === 'string' ? req.params.set : '';
+      const number = typeof req.params.number === 'string' ? req.params.number : '';
+      if (!set.trim() || !number.trim()) {
+        return res.status(400).json({ error: 'Both set and number params are required.' });
+      }
+      const card = await getCardBySetAndNumber(set, number);
+      if (card) cache.setMany([card]);
+      res.json({ card });
+    } catch (err) {
+      logger.error('[by-set] error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({ error: `Lookup failed: ${message}` });
     }
   }
 );

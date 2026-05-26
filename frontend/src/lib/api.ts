@@ -149,6 +149,30 @@ export async function identifyCardFromCandidates(
   return { card: null, matchedQuery: null };
 }
 
+/**
+ * Resolve a card to its exact printing using set code + collector number.
+ * Used by the scanner's bottom-strip OCR path — when both fields land
+ * confidently, this returns the *one* printing the user is holding
+ * instead of fuzzy-named's canonical-by-name pick.
+ *
+ * Returns null when Scryfall doesn't recognise the combo. The scanner
+ * falls back to the existing fuzzy-named flow on the same scan.
+ */
+export async function identifyCardBySetNumber(
+  set: string,
+  number: string
+): Promise<ScryfallCard | null> {
+  const trimmedSet = set.trim();
+  const trimmedNumber = number.trim();
+  if (!trimmedSet || !trimmedNumber) return null;
+  const response = await fetchWithTimeout(
+    `/api/cards/by-set/${encodeURIComponent(trimmedSet)}/${encodeURIComponent(trimmedNumber)}`,
+    { method: 'GET' }
+  );
+  const data = await handleResponse<{ card: ScryfallCard | null }>(response);
+  return data.card;
+}
+
 /** Fetch all printings of a card by name. */
 export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
   const encoded = encodeURIComponent(cardName);

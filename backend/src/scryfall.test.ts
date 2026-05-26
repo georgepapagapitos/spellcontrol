@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
+import {
+  resolveCards,
+  fetchCardsByIds,
+  fetchPrintings,
+  identifyCardByName,
+  getCardBySetAndNumber,
+} from './scryfall';
 import type { ScryfallCache } from './cache';
 import type { ScryfallCard } from './types';
 import type { ImportRow } from './parsers/types';
@@ -330,6 +336,45 @@ describe('identifyCardByName', () => {
     const fetchSpy = vi.spyOn(global, 'fetch');
     expect(await identifyCardByName('')).toBeNull();
     expect(await identifyCardByName('   ')).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('getCardBySetAndNumber', () => {
+  it('returns the exact printing on a 200', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        jsonResponse(card({ id: 'sf-exact', set: 'mid', collector_number: '266' }))
+      );
+    const out = await getCardBySetAndNumber('MID', '266');
+    expect(out?.id).toBe('sf-exact');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.scryfall.com/cards/mid/266',
+      expect.any(Object)
+    );
+  });
+
+  it('returns null on a 404', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('not found', { status: 404 }));
+    expect(await getCardBySetAndNumber('xyz', '999')).toBeNull();
+  });
+
+  it('strips leading zeros from the collector number', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(jsonResponse(card()));
+    await getCardBySetAndNumber('mid', '00052');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.scryfall.com/cards/mid/52',
+      expect.any(Object)
+    );
+  });
+
+  it('short-circuits without a network call on obviously invalid input', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    expect(await getCardBySetAndNumber('', '266')).toBeNull();
+    expect(await getCardBySetAndNumber('mid', '')).toBeNull();
+    // Set codes containing punctuation can't be real — defence in depth.
+    expect(await getCardBySetAndNumber('m!d', '266')).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

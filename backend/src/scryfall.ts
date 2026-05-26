@@ -6,6 +6,7 @@ import type { ImportRow } from './parsers/types';
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
 const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 const SCRYFALL_NAMED_URL = 'https://api.scryfall.com/cards/named';
+const SCRYFALL_CARDS_URL = 'https://api.scryfall.com/cards';
 const BATCH_SIZE = 75;
 /** Scryfall asks for 50–100ms between requests, but tightens this under sustained load. */
 const REQUEST_DELAY_MS = 250;
@@ -465,6 +466,65 @@ async function fetchFuzzyNamed(query: string): Promise<ScryfallCard | null> {
     } catch (err) {
       if (attempt === MAX_RETRIES) {
         logger.error('[scryfall] identify network error:', err);
+        return null;
+      }
+      await sleep(backoff);
+      backoff *= 2;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the *exact* printing of a card from its set code + collector
+ * number. Backs the scanner's bottom-strip OCR path: once we read both
+ * fields confidently from the card itself, this picks the one true
+ * printing rather than letting fuzzy-named guess. Returns null on 404
+ * (bad set/number combo, or a set Scryfall doesn't expose under that
+ * code — e.g. promo prefix mismatches).
+ *
+ * Mirrors `fetchFuzzyNamed`'s 429/backoff loop. Set codes are normalised
+ * to lowercase (Scryfall's path is case-insensitive in practice but the
+ * canonical form is lower) and collector numbers are trimmed of leading
+ * zeros to match Scryfall's resource paths (`/cards/mid/266`, not
+ * `/cards/mid/00266`).
+ */
+export async function getCardBySetAndNumber(
+  set: string,
+  collectorNumber: string
+): Promise<ScryfallCard | null> {
+  const trimmedSet = set.trim().toLowerCase();
+  const trimmedNumber = collectorNumber.trim().replace(/^0+(?=\d)/, '');
+  if (!trimmedSet || !trimmedNumber) return null;
+  // Defence in depth: anything other than the actual fields Scryfall uses
+  // for these paths would 404 anyway, but guard before issuing the
+  // request to keep logs clean and avoid burning request budget on
+  // obvious noise from the OCR side.
+  if (!/^[a-z0-9]{2,6}$/.test(trimmedSet)) return null;
+  if (!/^[a-z0-9★]+$/i.test(trimmedNumber)) return null;
+  const url = `${SCRYFALL_CARDS_URL}/${encodeURIComponent(trimmedSet)}/${encodeURIComponent(trimmedNumber)}`;
+  let backoff = MIN_BACKOFF_MS;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+      });
+      if (response.ok) return (await response.json()) as ScryfallCard;
+      if (response.status === 404) return null;
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After');
+        const wait = retryAfter
+          ? Math.min(MAX_BACKOFF_MS, parseRetryAfter(retryAfter))
+          : Math.min(MAX_BACKOFF_MS, backoff);
+        if (attempt === MAX_RETRIES) return null;
+        await sleep(wait);
+        backoff *= 2;
+        continue;
+      }
+      return null;
+    } catch (err) {
+      if (attempt === MAX_RETRIES) {
+        logger.error('[scryfall] by-set network error:', err);
         return null;
       }
       await sleep(backoff);

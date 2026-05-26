@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
-import { identifyCardFromCandidates } from '../lib/api';
+import { identifyCardBySetNumber, identifyCardFromCandidates } from '../lib/api';
 import { disposeOcr, recognizeText, warmOcr } from '../lib/ocr';
 import { isNativePlatform } from '../lib/platform';
 import {
@@ -23,6 +23,7 @@ import {
   type CardValueTier,
 } from '../lib/scanner-feedback';
 import { detectCardBox, detectorBoxToViewport } from '../lib/scanner-detect';
+import { parseBottomStrip } from '../lib/scanner-bottom-strip';
 import { ocrCandidates, preprocessTitle } from '../lib/scanner-preprocess';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -87,6 +88,22 @@ const TITLE_CROPS = [
 ];
 
 /**
+ * Bottom-strip crop — the lower-left of every modern (post-2008) MTG card
+ * prints collector number + set code + rarity + language as a single line
+ * (e.g. `266/277 R MID • EN  Adam Paquette`). OCRing that strip and
+ * resolving via `/api/cards/by-set/:set/:number` returns the *exact*
+ * printing the user is holding, which is the only way to disambiguate
+ * cards reprinted across many sets (Evolving Wilds, basics).
+ *
+ * Coordinates are relative to the detected card bbox (inner printed
+ * frame, per the detector). The x-span is left-biased and the y-span
+ * sits just inside the bottom border. Pre-2008 cards have no strip;
+ * OCR returns garbage there and the parser hands back null, so the
+ * scanner falls back to the title-fuzzy path unchanged.
+ */
+const BOTTOM_STRIP_CROP = { x: 0.04, y: 0.92, w: 0.55, h: 0.04 };
+
+/**
  * Auto-detect tuning. The detector samples the *whole visible camera band*
  * at ~6 fps into a small grayscale buffer (sized to fit the visible aspect
  * ratio within `DETECT_BUDGET_PX` pixels — keeps cost roughly constant
@@ -121,6 +138,22 @@ const VARIANCE_THRESHOLD = 320; // stddev² of the title band when checked
 const STABLE_FRAMES_REQUIRED = 1;
 const CAPTURE_COOLDOWN_MS = 800;
 const DETECT_LOST_TICKS = 4;
+
+/**
+ * The card-edge detector almost always locks onto the card's printed inner
+ * frame (a strong, high-contrast 5:7 rectangle) rather than the card's
+ * outer physical edge (a low-contrast white-margin-to-background
+ * transition that's often invisible against a light surface). That's the
+ * right input for OCR — `viewfinderRect` stays at the inner-frame bbox so
+ * the title-band math in TITLE_CROPS lines up — but it makes the on-screen
+ * lockbox look like it's floating inside the card.
+ *
+ * For display only, pad the lockbox outward by the typical MTG white-
+ * margin ratio (~4% per axis) so the cyan outline reads as bounding the
+ * whole card, including its white border. OCR continues to use the
+ * untouched `viewfinderRect`.
+ */
+const LOCKBOX_DISPLAY_PAD = 0.04;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -644,6 +677,55 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         logger.debug(`[scanner] matched "${matchedQuery}" → ${card.name}`);
       }
 
+      // Bottom-strip printing disambiguation. The title-fuzzy result
+      // above gives Scryfall's canonical-by-name pick, which is the
+      // wrong printing for cards reprinted across many sets (Evolving
+      // Wilds → some random reprint; Plains → some arbitrary basic).
+      // Re-OCR the lower-left strip, parse it for `{ set, number }`,
+      // and if both fields land swap in the exact printing — but ONLY
+      // when the exact result shares the same oracle_id (sanity check
+      // that we're refining the same card, not landing on a coincident
+      // set+number combo from misread OCR).
+      try {
+        const stripX = cardX + cardW * BOTTOM_STRIP_CROP.x;
+        const stripY = cardY + cardH * BOTTOM_STRIP_CROP.y;
+        const stripW = cardW * BOTTOM_STRIP_CROP.w;
+        const stripH = cardH * BOTTOM_STRIP_CROP.h;
+        canvas.width = Math.round(stripW * SCALE);
+        canvas.height = Math.round(stripH * SCALE);
+        ctx.drawImage(
+          frameSource,
+          stripX,
+          stripY,
+          stripW,
+          stripH,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
+        preprocessTitle(ctx);
+        const stripResult = await recognizeText(canvas);
+        if (stripResult.text && stripResult.text.length >= 3) {
+          const parsed = parseBottomStrip(stripResult.text);
+          if (parsed) {
+            const exact = await identifyCardBySetNumber(parsed.set, parsed.number);
+            if (exact && exact.oracle_id === card.oracle_id) {
+              logger.debug(
+                `[scanner] exact printing: ${card.name} → ${exact.set.toUpperCase()} #${exact.collector_number}`
+              );
+              card = exact;
+            }
+          }
+        }
+      } catch (err) {
+        // Strip OCR is best-effort — any failure here just leaves the
+        // title-fuzzy pick in place, which is the pre-existing
+        // behaviour. Log a debug crumb so it's traceable but don't
+        // surface anything to the user.
+        logger.debug('[scanner] bottom-strip lookup failed (using fuzzy pick):', err);
+      }
+
       // Dedupe: the same card scanned twice in a row almost always means
       // the user is still framing the same physical card.
       if (lastIdRef.current === card.id) return;
@@ -959,22 +1041,39 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
       {/* Card outline — drawn directly on the detected card. No default
           centered viewfinder anymore: when nothing is detected, nothing
-          is drawn. ManaBox-style "the camera is just always looking" UX. */}
-      {hasLock && viewfinderRect && (
-        <div className="scanner-overlay" aria-hidden="true">
-          <div
-            ref={viewfinderRef}
-            className="scanner-lockbox"
-            style={{
-              position: 'absolute',
-              left: `${viewfinderRect.left}px`,
-              top: `${viewfinderRect.top}px`,
-              width: `${viewfinderRect.width}px`,
-              height: `${viewfinderRect.height}px`,
-            }}
-          />
-        </div>
-      )}
+          is drawn. ManaBox-style "the camera is just always looking" UX.
+
+          The displayed rectangle is `viewfinderRect` padded outward by
+          LOCKBOX_DISPLAY_PAD so the cyan outline visually bounds the
+          card's full physical edge (white margin included). Capture/OCR
+          still reads from the untouched `viewfinderRect` via state. */}
+      {hasLock &&
+        viewfinderRect &&
+        (() => {
+          const padX = viewfinderRect.width * LOCKBOX_DISPLAY_PAD;
+          const padY = viewfinderRect.height * LOCKBOX_DISPLAY_PAD;
+          const displayRect = {
+            left: viewfinderRect.left - padX,
+            top: viewfinderRect.top - padY,
+            width: viewfinderRect.width + padX * 2,
+            height: viewfinderRect.height + padY * 2,
+          };
+          return (
+            <div className="scanner-overlay" aria-hidden="true">
+              <div
+                ref={viewfinderRef}
+                className="scanner-lockbox"
+                style={{
+                  position: 'absolute',
+                  left: `${displayRect.left}px`,
+                  top: `${displayRect.top}px`,
+                  width: `${displayRect.width}px`,
+                  height: `${displayRect.height}px`,
+                }}
+              />
+            </div>
+          );
+        })()}
       {/* Hidden ref target when there's no lock — captureAndIdentify reads
           viewfinderRect from state, not from this DOM node, so a missing
           node is fine. */}
