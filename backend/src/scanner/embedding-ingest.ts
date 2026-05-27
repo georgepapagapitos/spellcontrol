@@ -27,9 +27,9 @@
 // downloads) so we're network-bound, not inference-bound, on a typical
 // home connection.
 //
-// The model file is reused from `frontend/public/scanner-v2/embed/` — we
-// don't duplicate the 43 MB ONNX. Same convention as the hash ingest's
-// output path: backend script writes into the frontend's public/ tree.
+// Model + outputs live under `backend/data/scanner/` — the matcher loads
+// them at boot and they ship in the Docker image. Embeddings are no longer
+// pushed to the frontend (server-side matching only).
 
 import { Readable } from 'node:stream';
 import { createReadStream, createWriteStream } from 'node:fs';

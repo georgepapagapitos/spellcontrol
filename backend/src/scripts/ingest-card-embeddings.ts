@@ -1,8 +1,8 @@
 /**
  * One-shot CLI: download Scryfall unique_artwork, embed every art_crop with
- * MobileCLIP2-S0, and write the packed binary the frontend consumes at
- * `frontend/public/scanner-v2/card-embeddings.bin`. Mirrors
- * src/scripts/ingest-card-hashes.ts.
+ * MobileCLIP2-S0, and write the packed binary the backend matcher consumes
+ * at `backend/data/scanner/card-embeddings.bin` (bundled into the Docker
+ * image; never shipped to clients). Mirrors src/scripts/ingest-card-hashes.ts.
  *
  * Usage (from backend/ with .env present):
  *   tsx --env-file .env src/scripts/ingest-card-embeddings.ts --limit 100
@@ -41,12 +41,8 @@ function parseConcurrency(argv: string[]): number | undefined {
 async function main(): Promise<void> {
   const limit = parseLimit(process.argv);
   const concurrency = parseConcurrency(process.argv);
-  // Reuse the frontend-vendored model — same bytes, no duplication.
-  const modelPath = path.resolve(
-    process.cwd(),
-    '../frontend/public/scanner-v2/embed/vision_model.onnx'
-  );
-  const outPath = path.resolve(process.cwd(), '../frontend/public/scanner-v2/card-embeddings.bin');
+  const modelPath = path.resolve(process.cwd(), 'data/scanner/embed/vision_model.onnx');
+  const outPath = path.resolve(process.cwd(), 'data/scanner/card-embeddings.bin');
 
   logger.info(
     `[ingest-card-embeddings] starting → ${outPath}${limit ? ` (limit=${limit})` : ''}${concurrency ? ` (concurrency=${concurrency})` : ''}`

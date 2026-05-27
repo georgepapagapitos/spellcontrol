@@ -12,6 +12,7 @@ import { gamesRouter } from './routes/games';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
 import { offlineRouter } from './routes/offline';
+import { scannerRouter } from './routes/scanner';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -165,6 +166,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/combos', combosRouter);
   app.use('/api/shares', sharesRouter);
   app.use('/api/offline', offlineRouter);
+  app.use('/api/scanner', scannerRouter);
 
   return {
     app,
