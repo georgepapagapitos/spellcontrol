@@ -4,7 +4,7 @@ import { isNativePlatform } from './platform';
 /**
  * Detects whether the user can use the camera-based card scanner.
  *
- * **The scanner is native-only as of scanner v2 (Phase 2).** Shipping it on
+ * **The scanner is native-only.** Shipping it on
  * the web build means a ~50 MB lazy-load (opencv WASM + ONNX model +
  * embedding DB) the first time the user opens the scanner, which is a
  * non-starter for casual web visitors. The native APK bundles the assets

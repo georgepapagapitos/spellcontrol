@@ -18,7 +18,6 @@ dependencies {
     implementation project(':capacitor-splash-screen')
     implementation project(':capacitor-status-bar')
     implementation project(':capawesome-capacitor-file-picker')
-    implementation project(':pantrist-capacitor-plugin-ml-kit-text-recognition')
 
 }
 
