@@ -18,6 +18,7 @@ import { sharesRouter } from './routes/shares';
 import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
+import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, getCardById } from './scryfall';
 import { getSetMap } from './sets';
@@ -656,6 +657,29 @@ async function start() {
 
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
     scheduleComboIngest();
+  }
+
+  // Eagerly load the scanner matcher (pHash + embedding DBs + ONNX session) so
+  // a deploy with missing data files surfaces here at boot rather than on the
+  // first user scan. Fire-and-forget — the route handler still awaits
+  // `getMatcher()` on every request, so listening doesn't have to block on
+  // the ~1s ONNX session create. A `null` resolve means the data files aren't
+  // present (logged inside `getMatcher`); a rejection is unexpected and gets
+  // surfaced loudly so monitoring can catch it.
+  if (process.env.SCANNER_PRELOAD_DISABLED !== '1') {
+    const dataDir =
+      process.env.SCANNER_DATA_DIR || path.resolve(__dirname, '..', 'data', 'scanner');
+    void getMatcher(dataDir).then(
+      (matcher) => {
+        if (matcher) {
+          const { hashDb, embeddingDb } = matcher.stats();
+          logger.info(
+            `[server] scanner matcher preloaded — hashes=${hashDb}, embeddings=${embeddingDb}`
+          );
+        }
+      },
+      (err) => logger.error('[server] scanner matcher preload failed:', err)
+    );
   }
 
   // The Scryfall oracle bulk is built lazily on the first request to
