@@ -1,12 +1,13 @@
 import { Camera, Layers, List, Settings, Users } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 import { useCanScan } from '../lib/use-can-scan';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { importText } from '../lib/api';
-import { CardScanner } from './CardScanner';
+
+const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 /** Navigation destinations, top-to-bottom as they stack above the FAB.
  *  Last entry = closest to the FAB trigger (easiest one-thumb tap). */
@@ -242,10 +243,12 @@ export function NavFab() {
       </div>
 
       {scannerOpen && (
-        <CardScanner
-          onClose={() => setScannerOpen(false)}
-          onConfirm={(text, count) => void handleScanConfirm(text, count)}
-        />
+        <Suspense fallback={null}>
+          <CardScanner
+            onClose={() => setScannerOpen(false)}
+            onConfirm={(text, count) => void handleScanConfirm(text, count)}
+          />
+        </Suspense>
       )}
     </div>
   );
