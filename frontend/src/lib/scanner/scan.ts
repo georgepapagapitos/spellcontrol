@@ -166,13 +166,9 @@ async function tryServerMatch(
     return null;
   }
 
-  type ServerScanResult =
-    | { kind: 'confident'; match: ScanCandidate }
-    | { kind: 'borderline'; candidates: ScanCandidate[] }
-    | { kind: 'miss'; reason: 'low_score' | 'no_candidates'; detail?: string };
-  let body: ServerScanResult;
+  let body: ServerScanBody;
   try {
-    body = (await response.json()) as ServerScanResult;
+    body = (await response.json()) as ServerScanBody;
   } catch (err) {
     logger.warn(
       `[scanner] server match response not JSON: ${err instanceof Error ? err.message : String(err)}`
@@ -190,6 +186,21 @@ async function tryServerMatch(
     totalMs: performance.now() - t0,
   };
 
+  return serverBodyToScanResult(body, timings, quad);
+}
+
+export type ServerScanBody =
+  | { kind: 'confident'; match: ScanCandidate }
+  | { kind: 'borderline'; candidates: ScanCandidate[] }
+  | { kind: 'miss'; reason: 'low_score' | 'no_candidates'; detail?: string };
+
+/** Pure mapping from a `/api/scanner/match` response body to a {@link ScanResult}.
+ *  Exported for unit testing; the full network path can't run in node. */
+export function serverBodyToScanResult(
+  body: ServerScanBody,
+  timings: ScanTimings,
+  quad: Point[] | undefined
+): ScanResult {
   if (body.kind === 'confident') {
     return { kind: 'confident', match: body.match, quad: quad ?? [], timings, source: 'server' };
   }
@@ -235,6 +246,16 @@ async function onDeviceMatchAsync(
     totalMs: performance.now() - t0,
   };
 
+  return phashHitsToScanResult(hits, timings, quad);
+}
+
+/** Pure classification of pHash nearest-neighbor hits into a {@link ScanResult}.
+ *  Used by the offline-fallback path; exported for direct unit testing. */
+export function phashHitsToScanResult(
+  hits: ReadonlyArray<HashMatch>,
+  timings: ScanTimings,
+  quad: Point[] | undefined
+): ScanResult {
   if (hits.length === 0) {
     return {
       kind: 'miss',

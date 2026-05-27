@@ -7,13 +7,19 @@
 import { describe, it, expect } from 'vitest';
 import {
   classify,
+  serverBodyToScanResult,
+  phashHitsToScanResult,
   CONFIDENT_SCORE,
   BORDERLINE_SCORE,
   BORDERLINE_TOP_N,
   PHASH_CANDIDATE_K,
+  PHASH_FAST_DISTANCE,
+  PHASH_FAST_GAP,
   type ScanCandidate,
   type ScanTimings,
+  type ServerScanBody,
 } from './scan';
+import type { Match as HashMatch } from './hash-db';
 
 const ZERO_TIMINGS: ScanTimings = {
   detectMs: 0,
@@ -94,6 +100,123 @@ describe('classify', () => {
     expect(confident.timings).toEqual(timings);
     expect(borderline.timings).toEqual(timings);
     expect(miss.timings).toEqual(timings);
+  });
+});
+
+describe('serverBodyToScanResult', () => {
+  const QUAD = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+    { x: 0, y: 1 },
+  ];
+
+  it('passes a confident body through with the quad attached', () => {
+    const body: ServerScanBody = {
+      kind: 'confident',
+      match: mkCandidate(CONFIDENT_SCORE + 5, '11111111-1111-1111-1111-111111111111'),
+    };
+    const r = serverBodyToScanResult(body, ZERO_TIMINGS, QUAD);
+    expect(r.kind).toBe('confident');
+    expect(r.source).toBe('server');
+    if (r.kind === 'confident') {
+      expect(r.quad).toEqual(QUAD);
+    }
+  });
+
+  it('falls back to an empty quad on a confident match without one', () => {
+    const body: ServerScanBody = { kind: 'confident', match: mkCandidate(CONFIDENT_SCORE) };
+    const r = serverBodyToScanResult(body, ZERO_TIMINGS, undefined);
+    expect(r.kind).toBe('confident');
+    if (r.kind === 'confident') {
+      expect(r.quad).toEqual([]);
+    }
+  });
+
+  it('passes a borderline body through with the candidates intact', () => {
+    const body: ServerScanBody = {
+      kind: 'borderline',
+      candidates: [mkCandidate(BORDERLINE_SCORE + 1), mkCandidate(BORDERLINE_SCORE)],
+    };
+    const r = serverBodyToScanResult(body, ZERO_TIMINGS, undefined);
+    expect(r.kind).toBe('borderline');
+    if (r.kind === 'borderline') {
+      expect(r.candidates).toHaveLength(2);
+      expect(r.source).toBe('server');
+    }
+  });
+
+  it('maps a miss body into a low_score miss carrying the detail', () => {
+    const body: ServerScanBody = {
+      kind: 'miss',
+      reason: 'low_score',
+      detail: 'top raw score 30 < 89',
+    };
+    const r = serverBodyToScanResult(body, ZERO_TIMINGS, undefined);
+    expect(r.kind).toBe('miss');
+    if (r.kind === 'miss') {
+      expect(r.reason).toBe('low_score');
+      expect(r.detail).toBe('top raw score 30 < 89');
+      expect(r.source).toBe('server');
+    }
+  });
+});
+
+describe('phashHitsToScanResult', () => {
+  function mkHit(distance: number, id = '11111111-1111-1111-1111-111111111111'): HashMatch {
+    return { scryfallId: id, distance };
+  }
+
+  it('returns a no_candidates miss when the hit list is empty', () => {
+    const r = phashHitsToScanResult([], ZERO_TIMINGS, undefined);
+    expect(r.kind).toBe('miss');
+    if (r.kind === 'miss') {
+      expect(r.reason).toBe('low_score');
+      expect(r.source).toBe('on-device');
+    }
+  });
+
+  it('returns confident when top distance ≤ fast threshold and gap ≥ fast gap', () => {
+    const r = phashHitsToScanResult(
+      [
+        mkHit(PHASH_FAST_DISTANCE, '11111111-1111-1111-1111-111111111111'),
+        mkHit(PHASH_FAST_DISTANCE + PHASH_FAST_GAP, '22222222-2222-2222-2222-222222222222'),
+      ],
+      ZERO_TIMINGS,
+      undefined
+    );
+    expect(r.kind).toBe('confident');
+    if (r.kind === 'confident') {
+      expect(r.match.scryfallId).toBe('11111111-1111-1111-1111-111111111111');
+      expect(r.source).toBe('on-device');
+    }
+  });
+
+  it('treats a single-hit fast-path as confident (gap = Infinity)', () => {
+    const r = phashHitsToScanResult([mkHit(0)], ZERO_TIMINGS, undefined);
+    expect(r.kind).toBe('confident');
+  });
+
+  it('returns borderline when distances are close together (gap too small)', () => {
+    const r = phashHitsToScanResult(
+      [mkHit(2), mkHit(3, '22222222-2222-2222-2222-222222222222')],
+      ZERO_TIMINGS,
+      undefined
+    );
+    expect(r.kind).toBe('borderline');
+    if (r.kind === 'borderline') {
+      expect(r.candidates.length).toBeGreaterThan(0);
+      expect(r.source).toBe('on-device');
+    }
+  });
+
+  it('returns borderline when top distance is far past the fast threshold', () => {
+    const r = phashHitsToScanResult(
+      [mkHit(30), mkHit(45, '22222222-2222-2222-2222-222222222222')],
+      ZERO_TIMINGS,
+      undefined
+    );
+    expect(r.kind).toBe('borderline');
   });
 });
 
