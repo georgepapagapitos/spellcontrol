@@ -1,0 +1,118 @@
+name: Scanner Ingest
+
+# Nightly refresh of the camera scanner's reference data:
+#   - backend/data/scanner/card-hashes.bin    (pHash DB, ~1.2 MB)
+#   - backend/data/scanner/card-embeddings.bin (MobileCLIP DB, ~26 MB)
+#   - frontend/public/scanner/card-hashes.bin (offline-fallback mirror)
+#
+# The job downloads Scryfall's unique_artwork bulk dataset, recomputes
+# perceptual hashes and MobileCLIP2-S0 embeddings for every printing, and
+# opens a PR with the regenerated artifacts. Merging the PR rebuilds the
+# backend Docker image (Dockerfile COPYs backend/data/scanner/) so the
+# server-side matcher picks up new sets on the next Fly deploy.
+#
+# Why a PR and not a direct push: keeps the change reviewable (size
+# delta, record counts), keeps main protected, and lets a human trigger
+# the rebuild rather than auto-deploying ~27 MB of new binary every
+# night. Manual `workflow_dispatch` lets us refresh on demand right
+# after a major set release without waiting for the cron.
+
+on:
+  schedule:
+    # 04:00 UTC daily — well after Scryfall's daily bulk regeneration
+    # (which finishes around 10:00 UTC; pick a slot that catches the
+    # most recent dump but doesn't conflict with the combo ingest).
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Optional --limit for dev runs (omit for full ingest)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ingest:
+    name: Refresh scanner reference DBs
+    runs-on: ubuntu-latest
+    # Allow plenty of headroom — full embedding ingest is ~1-2h CPU.
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build shared packages
+        run: |
+          npm --prefix packages/game-core ci --ignore-scripts
+          npm --prefix packages/game-core run build
+          npm --prefix packages/binder-routing ci --ignore-scripts
+          npm --prefix packages/binder-routing run build
+
+      - name: Ingest pHashes
+        working-directory: backend
+        env:
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          if [[ -n "$LIMIT" ]]; then
+            # Validate: only positive integers are allowed through to the CLI.
+            if [[ ! "$LIMIT" =~ ^[0-9]+$ ]]; then
+              echo "::error::limit must be a positive integer; got '$LIMIT'" >&2
+              exit 1
+            fi
+            npx tsx src/scripts/ingest-card-hashes.ts --limit "$LIMIT"
+          else
+            npx tsx src/scripts/ingest-card-hashes.ts
+          fi
+
+      - name: Ingest embeddings
+        working-directory: backend
+        env:
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          if [[ -n "$LIMIT" ]]; then
+            if [[ ! "$LIMIT" =~ ^[0-9]+$ ]]; then
+              echo "::error::limit must be a positive integer; got '$LIMIT'" >&2
+              exit 1
+            fi
+            npx tsx src/scripts/ingest-card-embeddings.ts --limit "$LIMIT"
+          else
+            npx tsx src/scripts/ingest-card-embeddings.ts
+          fi
+
+      - name: Report sizes
+        run: |
+          ls -lh backend/data/scanner/ backend/data/scanner/embed/ frontend/public/scanner/
+
+      - name: Open refresh PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/scanner-ingest-refresh
+          delete-branch: true
+          base: main
+          title: 'chore(scanner): refresh pHash + MobileCLIP DBs'
+          commit-message: 'chore(scanner): refresh pHash + MobileCLIP DBs'
+          add-paths: |
+            backend/data/scanner/card-hashes.bin
+            backend/data/scanner/card-embeddings.bin
+            frontend/public/scanner/card-hashes.bin
+          body: |
+            Automated refresh of the scanner's reference data.
+
+            - `backend/data/scanner/card-hashes.bin` — pHash DB used by the server matcher.
+            - `backend/data/scanner/card-embeddings.bin` — MobileCLIP2-S0 embedding DB used by the server matcher.
+            - `frontend/public/scanner/card-hashes.bin` — mirror for the offline pHash-only fallback.
+
+            Merging this rebuilds the backend Docker image with new sets recognized. The Fly deploy that follows will pick them up automatically.

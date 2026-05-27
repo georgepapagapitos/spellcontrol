@@ -20,9 +20,8 @@ const ZERO_TIMINGS: ScanTimings = {
   normalizeMs: 0,
   pHashMs: 0,
   pHashScanMs: 0,
-  embedPreprocessMs: 0,
-  embedInferMs: 0,
-  rerankMs: 0,
+  encodeMs: 0,
+  networkMs: 0,
   totalMs: 0,
 };
 
@@ -88,7 +87,7 @@ describe('classify', () => {
   });
 
   it('passes timings through unchanged on every variant', () => {
-    const timings: ScanTimings = { ...ZERO_TIMINGS, totalMs: 42, detectMs: 7 };
+    const timings: ScanTimings = { ...ZERO_TIMINGS, totalMs: 42, detectMs: 7, networkMs: 30 };
     const confident = classify([mkCandidate(CONFIDENT_SCORE + 10)], timings);
     const borderline = classify([mkCandidate(BORDERLINE_SCORE + 5)], timings);
     const miss = classify([mkCandidate(BORDERLINE_SCORE - 5)], timings);
