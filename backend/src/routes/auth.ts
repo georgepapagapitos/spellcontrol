@@ -27,10 +27,12 @@ import {
   type UserRole,
 } from '../auth';
 import {
+  autoLinkGoogleIdentity,
   buildGoogleAuthUrl,
   consumeHandoffCode,
   createGoogleUser,
   exchangeGoogleCode,
+  findAutoLinkCandidateByEmail,
   findGoogleUser,
   getGoogleConfig,
   isGoogleOAuthConfigured,
@@ -325,6 +327,24 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
       return res.redirect('/');
     }
 
+    // Same-email auto-link: Google's `email_verified` proves the user
+    // controls this address. If an existing account also has that email
+    // and no Google identity attached yet, merge by attaching this
+    // identity to it — eliminates the silent-duplicate-account bug. The
+    // user sees a "we linked X — was this you?" banner on next /me.
+    if (identity.emailVerified && identity.email) {
+      const candidate = await findAutoLinkCandidateByEmail(identity.email);
+      if (candidate) {
+        await autoLinkGoogleIdentity(candidate.id, identity);
+        if (platform === 'native') {
+          const handoff = await mintHandoffCode(candidate.id);
+          return res.redirect(`${nativeCallbackUrl()}?${qs({ code: handoff })}`);
+        }
+        setSessionCookie(res, signSession(candidate));
+        return res.redirect('/');
+      }
+    }
+
     // First-time sign-in — defer account creation to the username screen.
     const signupToken = signSignupToken({
       provider: 'google',
@@ -499,13 +519,33 @@ authRouter.get('/me', async (req: Request, res: Response) => {
     clearSessionCookie(res);
     return res.status(401).json({ error: 'Not authenticated.' });
   }
-  res.json({ user });
+  // Surface the pending auto-link timestamp so the frontend can render the
+  // "we linked your Google account — was this you?" banner. Cleared by
+  // POST /me/acknowledge-auto-link or implicitly when the user unlinks.
+  const db = getDb();
+  const row = await db
+    .select({ autoLinkedAt: users.autoLinkedAt })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+  res.json({ user, autoLinkedAt: row[0]?.autoLinkedAt ?? null });
 });
 
 authRouter.delete('/me', requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
   await db.delete(users).where(eq(users.id, req.user!.id));
   clearSessionCookie(res);
+  res.json({ ok: true });
+});
+
+/**
+ * Dismiss the auto-link banner. The user has acknowledged that the Google
+ * identity linked via verified-email matches their account; the banner
+ * stops appearing on subsequent /me responses.
+ */
+authRouter.post('/me/acknowledge-auto-link', requireAuth, async (req: Request, res: Response) => {
+  const db = getDb();
+  await db.update(users).set({ autoLinkedAt: null }).where(eq(users.id, req.user!.id));
   res.json({ ok: true });
 });
 
@@ -554,5 +594,8 @@ authRouter.delete('/me/identities/google', requireAuth, async (req: Request, res
   await db
     .delete(authIdentities)
     .where(and(eq(authIdentities.userId, req.user!.id), eq(authIdentities.provider, 'google')));
+  // Unlinking implicitly resolves the auto-link banner — no need to make
+  // the user click "Got it" first.
+  await db.update(users).set({ autoLinkedAt: null }).where(eq(users.id, req.user!.id));
   res.json({ ok: true });
 });

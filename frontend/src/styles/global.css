@@ -4048,6 +4048,33 @@ hr {
   justify-content: flex-end;
 }
 
+/* ── Auto-link confirmation banner ─────────────────────────────────────── */
+.auto-link-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 0.75rem 1rem;
+  background: var(--accent-light, var(--surface2));
+  border-bottom: 1px solid var(--accent, var(--border));
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.auto-link-banner-text {
+  flex: 1 1 280px;
+  line-height: 1.45;
+}
+
+.auto-link-banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 /* ── Account merge dialog (guest → populated-account collision) ─────────── */
 .account-merge-dialog {
   max-width: 540px;

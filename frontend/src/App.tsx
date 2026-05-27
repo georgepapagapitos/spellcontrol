@@ -24,6 +24,7 @@ import { startSync, hydrateLocal } from './lib/sync';
 import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
 import { AccountMergeDialog } from './components/AccountMergeDialog';
+import { AutoLinkBanner } from './components/AutoLinkBanner';
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
 // intercepts https://spellcontrol.com/oauth/callback and hands the URL to
@@ -163,6 +164,7 @@ export default function App() {
   return (
     <>
       <AccountMergeDialog />
+      <AutoLinkBanner />
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
         <Route path="/auth" element={<AuthPage />} />

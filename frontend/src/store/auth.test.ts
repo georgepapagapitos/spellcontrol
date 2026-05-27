@@ -5,15 +5,19 @@ import * as sync from '../lib/sync';
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  useAuth.setState({ user: null, status: 'unknown', error: null });
+  useAuth.setState({ user: null, status: 'unknown', error: null, autoLinkedAt: null });
 });
 
 describe('bootstrap', () => {
   it('moves to authed when /me returns a user', async () => {
-    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({ id: 'u1', username: 'alice', role: 'user' });
+    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({
+      user: { id: 'u1', username: 'alice', role: 'user' },
+      autoLinkedAt: null,
+    });
     await useAuth.getState().bootstrap();
     expect(useAuth.getState().status).toBe('authed');
     expect(useAuth.getState().user?.username).toBe('alice');
+    expect(useAuth.getState().autoLinkedAt).toBeNull();
   });
 
   it('moves to guest when /me returns null', async () => {
@@ -26,6 +30,36 @@ describe('bootstrap', () => {
     vi.spyOn(authApi, 'fetchMe').mockRejectedValue(new Error('offline'));
     await useAuth.getState().bootstrap();
     expect(useAuth.getState().status).toBe('guest');
+  });
+
+  it('threads autoLinkedAt from /me into the store', async () => {
+    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({
+      user: { id: 'u1', username: 'alice', role: 'user' },
+      autoLinkedAt: 1700000000000,
+    });
+    await useAuth.getState().bootstrap();
+    expect(useAuth.getState().autoLinkedAt).toBe(1700000000000);
+  });
+});
+
+describe('acknowledgeAutoLink', () => {
+  it('optimistically clears autoLinkedAt and POSTs the acknowledgement', async () => {
+    useAuth.setState({
+      user: { id: 'u1', username: 'alice', role: 'user' },
+      status: 'authed',
+      autoLinkedAt: 1700000000000,
+    });
+    const spy = vi.spyOn(authApi, 'acknowledgeAutoLink').mockResolvedValue();
+    await useAuth.getState().acknowledgeAutoLink();
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(useAuth.getState().autoLinkedAt).toBeNull();
+  });
+
+  it('swallows server failures (next /me will resurface if still pending)', async () => {
+    useAuth.setState({ autoLinkedAt: 1700000000000 });
+    vi.spyOn(authApi, 'acknowledgeAutoLink').mockRejectedValue(new Error('offline'));
+    await expect(useAuth.getState().acknowledgeAutoLink()).resolves.toBeUndefined();
+    expect(useAuth.getState().autoLinkedAt).toBeNull();
   });
 });
 

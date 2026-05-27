@@ -485,3 +485,136 @@ describe('DELETE /api/auth/me/identities/google', () => {
     expect(res.body.error).toMatch(/password/i);
   });
 });
+
+describe('Google callback — same-email auto-link', () => {
+  async function registerAndSetEmail(
+    username: string,
+    email: string,
+    opts: { emailVerified?: boolean } = {}
+  ): Promise<{ userId: string }> {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ username, password: 'correct horse battery' });
+    expect(reg.status).toBe(201);
+    const userId = reg.body.user.id as string;
+    await pool.query('UPDATE users SET email = $1, email_verified = $2 WHERE id = $3', [
+      email,
+      opts.emailVerified ?? false,
+      userId,
+    ]);
+    return { userId };
+  }
+
+  it('attaches a Google identity to a password account when verified email matches', async () => {
+    const { userId } = await registerAndSetEmail('autolink-alice', 'alice@example.com');
+    // Before: no Google identity on this user.
+    const before = await pool.query(
+      `SELECT count(*)::int AS n FROM auth_identities WHERE user_id = '${userId}'`
+    );
+    expect(before.rows[0].n).toBe(0);
+
+    const res = await callback('google-alice-sub', 'alice@example.com', 'web');
+    expect(res.status).toBe(302);
+    // Signed straight in — no choose-username detour.
+    expect(res.headers.location).toBe('/');
+    expect(extractSessionCookie(res.headers['set-cookie'])).toBeTruthy();
+
+    // Identity row inserted on the existing user.
+    const after = await pool.query(
+      `SELECT provider, provider_subject FROM auth_identities WHERE user_id = '${userId}'`
+    );
+    expect(after.rows).toHaveLength(1);
+    expect(after.rows[0]).toMatchObject({
+      provider: 'google',
+      provider_subject: 'google-alice-sub',
+    });
+    // Banner audit timestamp stamped.
+    const userRow = await pool.query(
+      `SELECT auto_linked_at, email_verified FROM users WHERE id = '${userId}'`
+    );
+    expect(typeof userRow.rows[0].auto_linked_at).toBe('string'); // BIGINT comes back as string
+    expect(userRow.rows[0].email_verified).toBe(true);
+  });
+
+  it('deep-links a native handoff code on auto-link', async () => {
+    await registerAndSetEmail('autolink-native', 'native@example.com');
+    const res = await callback('google-native-sub', 'native@example.com', 'native');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^https:\/\/spellcontrol\.com\/oauth\/callback\?code=/);
+  });
+
+  it('does NOT auto-link when Google says email is unverified', async () => {
+    await registerAndSetEmail('autolink-unverified', 'unverified@example.com');
+    mockExchange.mockResolvedValue({
+      sub: 'unverified-sub',
+      email: 'unverified@example.com',
+      emailVerified: false,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web' }) });
+    // Falls through to choose-username — no silent link.
+    expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
+    const identities = await pool.query(
+      `SELECT count(*)::int AS n FROM auth_identities WHERE provider_subject = 'unverified-sub'`
+    );
+    expect(identities.rows[0].n).toBe(0);
+  });
+
+  it('does NOT auto-link when the target user already has a Google identity', async () => {
+    // Two accounts: one with Google linked at email A, one password-only with the same email.
+    // Realistically impossible (email is UNIQUE), but cover the more realistic case: a single
+    // user already has a Google identity attached, and another Google account with the same
+    // email tries to sign in. We refuse — they must link via password.
+    await createGoogleAccount('autolink-existing-sub', 'taken@example.com', 'autolink-taken');
+    // Now a *different* Google account with the same email tries to sign in.
+    mockExchange.mockResolvedValue({
+      sub: 'autolink-attacker-sub',
+      email: 'taken@example.com',
+      emailVerified: true,
+      name: null,
+    });
+    const res = await request(app)
+      .get('/api/auth/google/callback')
+      .query({ code: 'auth-code', state: signOAuthState({ platform: 'web' }) });
+    // Not silently linked into the existing user; sent to choose-username instead.
+    expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
+  });
+
+  it('does NOT auto-link when no account has that email', async () => {
+    // Email mismatch — no user with this email exists. Falls through to choose-username.
+    const res = await callback('lonely-sub', 'nobody@example.com', 'web');
+    expect(res.headers.location).toMatch(/^\/auth\/choose-username#/);
+  });
+
+  it('GET /me exposes autoLinkedAt for the user; POST /me/acknowledge-auto-link clears it', async () => {
+    await registerAndSetEmail('autolink-ack', 'ack@example.com');
+    const cbRes = await callback('ack-sub', 'ack@example.com', 'web');
+    const cookie = extractSessionCookie(cbRes.headers['set-cookie'])!;
+
+    const me1 = await request(app).get('/api/auth/me').set('Cookie', cookie);
+    expect(me1.status).toBe(200);
+    expect(typeof me1.body.autoLinkedAt).toBe('number');
+
+    const ack = await request(app).post('/api/auth/me/acknowledge-auto-link').set('Cookie', cookie);
+    expect(ack.status).toBe(200);
+
+    const me2 = await request(app).get('/api/auth/me').set('Cookie', cookie);
+    expect(me2.body.autoLinkedAt).toBeNull();
+  });
+
+  it('unlinking the auto-linked Google identity also clears the banner', async () => {
+    await registerAndSetEmail('autolink-unlink', 'unlinkme@example.com');
+    const cbRes = await callback('unlinkme-sub', 'unlinkme@example.com', 'web');
+    const cookie = extractSessionCookie(cbRes.headers['set-cookie'])!;
+
+    const unlink = await request(app)
+      .delete('/api/auth/me/identities/google')
+      .set('Cookie', cookie);
+    expect(unlink.status).toBe(200);
+
+    const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
+    expect(me.body.autoLinkedAt).toBeNull();
+  });
+});

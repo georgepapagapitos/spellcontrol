@@ -91,11 +91,34 @@ describe('fetchMe', () => {
     expect(await fetchMe()).toBeNull();
   });
 
-  it('returns the user on 200', async () => {
+  it('returns the user + autoLinkedAt on 200', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ user: { id: 'u3', username: 'cory' }, autoLinkedAt: null })
+    );
+    expect(await fetchMe()).toEqual({
+      user: { id: 'u3', username: 'cory' },
+      autoLinkedAt: null,
+    });
+  });
+
+  it('surfaces a non-null autoLinkedAt for the banner', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ user: { id: 'u3', username: 'cory' }, autoLinkedAt: 1700000000000 })
+    );
+    expect(await fetchMe()).toEqual({
+      user: { id: 'u3', username: 'cory' },
+      autoLinkedAt: 1700000000000,
+    });
+  });
+
+  it('tolerates older /me responses without autoLinkedAt by defaulting it to null', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ user: { id: 'u3', username: 'cory' } })
     );
-    expect(await fetchMe()).toEqual({ id: 'u3', username: 'cory' });
+    expect(await fetchMe()).toEqual({
+      user: { id: 'u3', username: 'cory' },
+      autoLinkedAt: null,
+    });
   });
 });
 
