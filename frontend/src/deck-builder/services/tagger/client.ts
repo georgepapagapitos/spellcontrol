@@ -43,6 +43,16 @@ export async function loadTaggerData(): Promise<TaggerData | null> {
       logger.debug(
         `[Tagger] Loaded ${Object.keys(data.tags).length} tags (generated ${data.generatedAt}): ${tagSummary}`
       );
+      // The build-time refresh script (scripts/refresh-tagger.mjs) re-fetches
+      // when local data is >30d old; 60d at runtime means either the build
+      // pipeline hasn't run in a month or the S3 fetch was failing through
+      // multiple builds. Either way it's worth surfacing.
+      const ageDays = (Date.now() - new Date(data.generatedAt).getTime()) / 86_400_000;
+      if (Number.isFinite(ageDays) && ageDays > 60) {
+        logger.warn(
+          `[Tagger] Data is ${ageDays.toFixed(0)} days old (generated ${data.generatedAt}); role/tag detection may be drifting from upstream`
+        );
+      }
       return data;
     } catch (err) {
       logger.warn('[Tagger] Failed to load tagger data — role detection will be unavailable:', err);
