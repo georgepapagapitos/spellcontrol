@@ -22,6 +22,7 @@ import {
   type SyncBackupMeta,
 } from '../lib/auth-api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { SyncIndicator } from '../components/SyncIndicator';
 import { isNativePlatform } from '../lib/platform';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { SharedLinksSettings } from '../components/SharedLinksSettings';
@@ -348,19 +349,27 @@ export function SettingsPage() {
           </header>
           <div className="settings-card-body">
             {username ? (
-              <div className="settings-row">
-                <div className="settings-row-text">
-                  <div className="settings-row-label">Signed in as</div>
-                  <div className="settings-row-value">{username}</div>
+              <>
+                <div className="settings-row">
+                  <div className="settings-row-text">
+                    <div className="settings-row-label">Signed in as</div>
+                    <div className="settings-row-value">{username}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="pill-btn pill-btn-danger"
+                    onClick={() => void handleLogout()}
+                  >
+                    Sign out
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="pill-btn pill-btn-danger"
-                  onClick={() => void handleLogout()}
-                >
-                  Sign out
-                </button>
-              </div>
+                <div className="settings-row">
+                  <div className="settings-row-text">
+                    <div className="settings-row-label">Sync status</div>
+                  </div>
+                  <SyncIndicator />
+                </div>
+              </>
             ) : (
               <div className="settings-row">
                 <div className="settings-row-text">

@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
-import { SyncIndicator } from './SyncIndicator';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
@@ -50,10 +49,8 @@ export function Header() {
           </NavLink>
         </nav>
         <nav className="site-nav">
-          {/* Pure status indicator — no sign-in CTA in the header. Account
-              actions (sign in, sign out, link Google, delete) live in
-              Settings on every breakpoint. */}
-          <SyncIndicator />
+          {/* Sync status + account actions all live in Settings — one home,
+              same on every breakpoint, no header chrome to keep in sync. */}
           <NavLink
             to="/settings"
             className={({ isActive }) =>
