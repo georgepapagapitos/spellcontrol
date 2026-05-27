@@ -6,7 +6,7 @@ import {
   importDeckText,
   fetchPrintings,
   getSetMap,
-  identifyCard,
+  getCardById,
 } from './api';
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -202,27 +202,19 @@ describe('api', () => {
   });
 });
 
-describe('identifyCard', () => {
-  it('returns null for empty input without calling fetch', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    expect(await identifyCard('')).toBeNull();
-    expect(await identifyCard('   ')).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it('encodes the query and returns the resolved card', async () => {
-    const card = { id: 'abc', name: 'Sol Ring' };
+describe('getCardById', () => {
+  it('encodes the id and returns the resolved card', async () => {
+    const card = { id: '895ac890-1234-5678-90ab-cdef12345678', name: 'Sol Ring' };
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ card }));
-    const out = await identifyCard("Atraxa, Praetors' Voice");
+    const out = await getCardById(card.id);
     expect(out).toEqual(card);
     const url = fetchSpy.mock.calls[0][0] as string;
-    expect(url).toContain('/api/cards/identify?q=');
-    expect(url).toContain(encodeURIComponent("Atraxa, Praetors' Voice"));
+    expect(url).toContain(`/api/cards/by-id/${encodeURIComponent(card.id)}`);
   });
 
-  it('returns null when Scryfall cannot match', async () => {
+  it('returns null when the server reports an unknown id', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ card: null }));
-    expect(await identifyCard('gibberish')).toBeNull();
+    expect(await getCardById('00000000-0000-0000-0000-000000000000')).toBeNull();
   });
 });
 
