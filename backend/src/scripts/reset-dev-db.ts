@@ -25,7 +25,7 @@ const DEV_EMAIL = 'dev@localhost';
 
 function assertLocalDatabaseUrl(): void {
   const url = process.env.DATABASE_URL ?? '';
-  let host = '';
+  let host: string;
   try {
     host = new URL(url).hostname;
   } catch {
