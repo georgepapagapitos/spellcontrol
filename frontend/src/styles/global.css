@@ -317,8 +317,10 @@ select {
   .site-brand-mark {
     display: inline;
   }
-  /* Top header is replaced by the bottom tab bar on tablet/mobile —
-     theme picker moves there as its 4th item. */
+  /* Top header is replaced by the bottom tab bar (web) or NavFab (native)
+     on tablet/mobile. Sign-in entry on small screens lives behind the
+     Settings tab, with a guest-mode dot on that tab to telegraph the
+     unfinished account state. */
   .site-header {
     display: none;
   }
@@ -8955,37 +8957,11 @@ hr {
   }
 }
 
-/* "Sign in" call-to-action shown in the header only for guests — links to
-   the /auth route. Mirrors the Settings link's shape with an accent tint so
-   it reads as an action, not just navigation. */
-.site-nav-signin {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: var(--radius);
-  border: 0.5px solid var(--border2);
-  color: var(--accent);
-  text-decoration: none;
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.site-nav-signin:hover {
-  background: var(--accent-light);
-  border-color: var(--accent);
-}
-
-@media (max-width: 1024px) {
-  .site-nav-signin-label {
-    display: none;
-  }
-}
-
 /* Header sync indicator — compact pill showing whether the device is
    currently pushing/pulling, the last-synced timestamp (tooltip), or
-   "Local only" for guests. Mirrors the .site-nav-count badge sizing so it
-   tucks neatly between the primary nav and the user controls. */
+   "Local only" for guests. Pure status; sign-in lives in Settings, not
+   the header. Mirrors the .site-nav-count badge sizing so it tucks neatly
+   between the primary nav and the user controls. */
 .sync-indicator {
   display: inline-flex;
   align-items: center;
@@ -9042,10 +9018,9 @@ hr {
   }
 }
 
-@media (max-width: 1024px) {
-  /* Header is hidden on tablet/mobile (see .site-header display:none in
-     the responsive block above); no per-indicator override needed. */
-}
+/* No tablet/mobile override needed: the header stays visible at all
+   widths now (only the duplicated nav links + Settings tab are hidden
+   below 1024px), so the indicator rides along unchanged. */
 
 /* Settings page — full route at /settings. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */

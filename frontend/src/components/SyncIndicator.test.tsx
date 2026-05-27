@@ -5,6 +5,10 @@ import { SyncIndicator, formatRelativeTime } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import * as sync from '../lib/sync';
 
+function renderIndicator() {
+  return render(<SyncIndicator />);
+}
+
 // Capture the listener installed via onSyncedChange so a test can drive
 // re-renders deterministically.
 let emit: () => void = () => {};
@@ -52,10 +56,12 @@ describe('formatRelativeTime', () => {
 });
 
 describe('SyncIndicator', () => {
-  it('renders "Local only" for guests', () => {
+  it('renders "Local only" status for guests (sign-in lives in Settings)', () => {
     useAuth.setState({ status: 'guest' });
-    render(<SyncIndicator />);
+    renderIndicator();
     expect(screen.getByText('Local only')).toBeTruthy();
+    // No action affordance — purely informational status.
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('renders the syncing state with a spinner glyph when authed + syncing', () => {
@@ -66,7 +72,7 @@ describe('SyncIndicator', () => {
     });
     vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
     vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(null);
-    const { container } = render(<SyncIndicator />);
+    const { container } = renderIndicator();
     expect(screen.getByText(/Syncing/)).toBeTruthy();
     expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
   });
@@ -79,7 +85,7 @@ describe('SyncIndicator', () => {
     });
     vi.spyOn(sync, 'getSyncState').mockReturnValue('ready');
     vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(Date.now() - 5 * 60_000);
-    render(<SyncIndicator />);
+    renderIndicator();
     expect(screen.getByText('Synced')).toBeTruthy();
     const el = screen.getByLabelText(/Last synced 5m ago/);
     expect(el.getAttribute('title')).toBe('Last synced 5m ago');
@@ -93,7 +99,7 @@ describe('SyncIndicator', () => {
     });
     vi.spyOn(sync, 'getSyncState').mockReturnValue('ready');
     vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(null);
-    const { container } = render(<SyncIndicator />);
+    const { container } = renderIndicator();
     expect(container.firstChild).toBeNull();
   });
 
@@ -105,7 +111,7 @@ describe('SyncIndicator', () => {
     });
     vi.spyOn(sync, 'getSyncState').mockReturnValue('idle');
     vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(null);
-    const { container } = render(<SyncIndicator />);
+    const { container } = renderIndicator();
     expect(container.firstChild).toBeNull();
   });
 
@@ -117,7 +123,7 @@ describe('SyncIndicator', () => {
     });
     const stateSpy = vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
     const tsSpy = vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(null);
-    render(<SyncIndicator />);
+    renderIndicator();
     expect(screen.getByText(/Syncing/)).toBeTruthy();
     stateSpy.mockReturnValue('ready');
     tsSpy.mockReturnValue(Date.now());

@@ -50,6 +50,10 @@ export function SyncIndicator() {
   }, []);
 
   if (authStatus === 'guest') {
+    // Pure status pill for guests — informational, not an action. Sign-in
+    // lives in Settings on every breakpoint; the indicator stays out of
+    // CTA territory so the header has exactly one "status" slot and zero
+    // duplicated affordances.
     return (
       <span className="sync-indicator sync-indicator-local" aria-live="polite">
         Local only
