@@ -58,7 +58,7 @@ export function saveGeneratedDeck(
     cards,
     generationContext: {
       selectedThemes,
-      bracketLevel: customization.bracketLevel,
+      targetBracket: customization.targetBracket,
       landCount: customization.landCount,
       collectionMode: customization.collectionMode,
     },

@@ -33,7 +33,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
 
   const handleResetAll = () => {
     update({
-      bracketLevel: 'all',
+      targetBracket: 'all',
       collectionMode: false,
       deckBudget: null,
       maxCardPrice: null,
@@ -148,12 +148,12 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
   return (
     <div className="deck-customizer-group">
       <div className="deck-customizer-group-header">
-        <h3 className="deck-customizer-group-title">Bracket</h3>
+        <h3 className="deck-customizer-group-title">Target Bracket</h3>
       </div>
       <div className="deck-customizer-group-body">
-        <div className="bracket-pill-row" role="radiogroup" aria-label="Bracket level">
+        <div className="bracket-pill-row" role="radiogroup" aria-label="Target bracket">
           {options.map((b) => {
-            const active = String(customization.bracketLevel) === String(b.v);
+            const active = String(customization.targetBracket) === String(b.v);
             return (
               <button
                 key={String(b.v)}
@@ -161,7 +161,7 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
                 role="radio"
                 aria-checked={active}
                 className={`bracket-pill${active ? ' active' : ''}`}
-                onClick={() => update({ bracketLevel: b.v })}
+                onClick={() => update({ targetBracket: b.v })}
               >
                 <span className="bracket-pill-label">{b.label}</span>
                 <span className="bracket-pill-sub">{b.sub}</span>
