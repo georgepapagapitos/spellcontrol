@@ -18,6 +18,7 @@ import {
   signLinkIntent,
   signOAuthState,
   signSignupToken,
+  userHasOtherSignInMethod,
   validatePassword,
   verifyLinkIntent,
   verifyOAuthState,
@@ -27,10 +28,12 @@ import {
   type UserRole,
 } from '../auth';
 import {
+  autoLinkGoogleIdentity,
   buildGoogleAuthUrl,
   consumeHandoffCode,
   createGoogleUser,
   exchangeGoogleCode,
+  findAutoLinkCandidateByEmail,
   findGoogleUser,
   getGoogleConfig,
   isGoogleOAuthConfigured,
@@ -325,6 +328,24 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
       return res.redirect('/');
     }
 
+    // Same-email auto-link: Google's `email_verified` proves the user
+    // controls this address. If an existing account also has that email
+    // and no Google identity attached yet, merge by attaching this
+    // identity to it — eliminates the silent-duplicate-account bug. The
+    // user sees a "we linked X — was this you?" banner on next /me.
+    if (identity.emailVerified && identity.email) {
+      const candidate = await findAutoLinkCandidateByEmail(identity.email);
+      if (candidate) {
+        await autoLinkGoogleIdentity(candidate.id, identity);
+        if (platform === 'native') {
+          const handoff = await mintHandoffCode(candidate.id);
+          return res.redirect(`${nativeCallbackUrl()}?${qs({ code: handoff })}`);
+        }
+        setSessionCookie(res, signSession(candidate));
+        return res.redirect('/');
+      }
+    }
+
     // First-time sign-in — defer account creation to the username screen.
     const signupToken = signSignupToken({
       provider: 'google',
@@ -499,13 +520,33 @@ authRouter.get('/me', async (req: Request, res: Response) => {
     clearSessionCookie(res);
     return res.status(401).json({ error: 'Not authenticated.' });
   }
-  res.json({ user });
+  // Surface the pending auto-link timestamp so the frontend can render the
+  // "we linked your Google account — was this you?" banner. Cleared by
+  // POST /me/acknowledge-auto-link or implicitly when the user unlinks.
+  const db = getDb();
+  const row = await db
+    .select({ autoLinkedAt: users.autoLinkedAt })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+  res.json({ user, autoLinkedAt: row[0]?.autoLinkedAt ?? null });
 });
 
 authRouter.delete('/me', requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
   await db.delete(users).where(eq(users.id, req.user!.id));
   clearSessionCookie(res);
+  res.json({ ok: true });
+});
+
+/**
+ * Dismiss the auto-link banner. The user has acknowledged that the Google
+ * identity linked via verified-email matches their account; the banner
+ * stops appearing on subsequent /me responses.
+ */
+authRouter.post('/me/acknowledge-auto-link', requireAuth, async (req: Request, res: Response) => {
+  const db = getDb();
+  await db.update(users).set({ autoLinkedAt: null }).where(eq(users.id, req.user!.id));
   res.json({ ok: true });
 });
 
@@ -534,19 +575,25 @@ authRouter.get('/me/identities', requireAuth, async (req: Request, res: Response
 });
 
 /**
- * Unlink the user's Google account. Refuses if the user has no password —
- * removing the only sign-in method would lock them out. They need to set a
- * password first (not yet implemented; future follow-up).
+ * Unlink the user's Google account. Refuses if removing the Google identity
+ * would leave the account with no way to sign in (no password and no other
+ * external identities). There is no password reset, so once locked out the
+ * account is unrecoverable — the check is non-negotiable for any future
+ * "remove sign-in method" endpoint too; consult userHasOtherSignInMethod().
  */
 authRouter.delete('/me/identities/google', requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
-  const userRows = await db
-    .select({ passwordHash: users.passwordHash })
+  const exists = await db
+    .select({ id: users.id })
     .from(users)
     .where(eq(users.id, req.user!.id))
     .limit(1);
-  if (!userRows[0]) return res.status(404).json({ error: 'Account not found.' });
-  if (!userRows[0].passwordHash) {
+  if (!exists[0]) return res.status(404).json({ error: 'Account not found.' });
+  const hasOther = await userHasOtherSignInMethod(req.user!.id, {
+    kind: 'identity',
+    provider: 'google',
+  });
+  if (!hasOther) {
     return res.status(409).json({
       error: 'Set a password before unlinking Google — it would lock you out of this account.',
     });
@@ -554,5 +601,8 @@ authRouter.delete('/me/identities/google', requireAuth, async (req: Request, res
   await db
     .delete(authIdentities)
     .where(and(eq(authIdentities.userId, req.user!.id), eq(authIdentities.provider, 'google')));
+  // Unlinking implicitly resolves the auto-link banner — no need to make
+  // the user click "Got it" first.
+  await db.update(users).set({ autoLinkedAt: null }).where(eq(users.id, req.user!.id));
   res.json({ ok: true });
 });

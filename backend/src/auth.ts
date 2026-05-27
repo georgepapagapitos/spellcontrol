@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { eq } from 'drizzle-orm';
 import { getDb } from './db';
-import { users } from './db/schema';
+import { authIdentities, users } from './db/schema';
 
 const COOKIE_NAME = 'spellcontrol_session';
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
@@ -126,6 +126,43 @@ export async function loadAuthedUser(token: string): Promise<AuthedUser | null> 
   const claims = verifySession(token);
   if (!claims) return null;
   return loadUserById(claims.id);
+}
+
+/**
+ * "If we remove this method, does the account still have any way to sign
+ * in?" Source-of-truth check that every "remove a sign-in method" endpoint
+ * MUST consult before deleting — leaving a user with zero sign-in methods
+ * locks them out permanently (there is no password reset). Pass the
+ * candidate-for-removal so we can prove there's at least one OTHER method.
+ *
+ * Today the only removable methods are the password column and rows in
+ * `auth_identities`. Adding a new provider? Extend this function — don't
+ * add another ad-hoc check at the call site.
+ */
+export async function userHasOtherSignInMethod(
+  userId: string,
+  except: { kind: 'password' } | { kind: 'identity'; provider: string }
+): Promise<boolean> {
+  const db = getDb();
+  // Password counts unless it's the one being removed.
+  if (except.kind !== 'password') {
+    const rows = await db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (rows[0]?.passwordHash) return true;
+  }
+  // Any external identity that's NOT the one being removed counts.
+  const identityRows = await db
+    .select({ provider: authIdentities.provider })
+    .from(authIdentities)
+    .where(eq(authIdentities.userId, userId));
+  for (const row of identityRows) {
+    if (except.kind === 'identity' && row.provider === except.provider) continue;
+    return true;
+  }
+  return false;
 }
 
 /**

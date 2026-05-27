@@ -64,7 +64,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       email TEXT,
       email_verified BOOLEAN NOT NULL DEFAULT false,
       role TEXT NOT NULL DEFAULT 'user',
-      created_at BIGINT NOT NULL
+      created_at BIGINT NOT NULL,
+      auto_linked_at BIGINT
     );
     CREATE UNIQUE INDEX users_email_idx ON users(email);
     CREATE TABLE auth_identities (

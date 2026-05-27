@@ -11,7 +11,7 @@ import {
 import { markDestructive } from '../lib/sync-intent';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 
-const decksIdbStorage = createIndexedDbStorage('mtg-spellcontrol');
+const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
 

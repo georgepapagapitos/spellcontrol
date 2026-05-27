@@ -55,7 +55,8 @@ export async function ensureSchema(): Promise<void> {
       email TEXT,
       email_verified BOOLEAN NOT NULL DEFAULT false,
       role TEXT NOT NULL DEFAULT 'user',
-      created_at BIGINT NOT NULL
+      created_at BIGINT NOT NULL,
+      auto_linked_at BIGINT
     );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
     -- SSO support: password is now optional (Google-only accounts), and OAuth
@@ -66,6 +67,10 @@ export async function ensureSchema(): Promise<void> {
     -- NULLs are distinct in a unique index, so password-only accounts (email
     -- NULL) never collide; this only enforces one account per real email.
     CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email);
+    -- Same-email auto-link audit: timestamp of the most recent identity
+    -- auto-attach via verified email. /me exposes it; the frontend banner
+    -- clears it via POST /me/acknowledge-auto-link.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_linked_at BIGINT;
     CREATE TABLE IF NOT EXISTS auth_identities (
       provider TEXT NOT NULL,
       provider_subject TEXT NOT NULL,

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as authApi from '../lib/auth-api';
 import type { AuthUser } from '../lib/auth-api';
 import { flushSync, stopSyncAndWipeLocal } from '../lib/sync';
+import { markEverVisited } from '../lib/first-run';
 
 export type AuthStatus = 'unknown' | 'loading' | 'authed' | 'guest';
 
@@ -10,6 +11,13 @@ interface AuthState {
   status: AuthStatus;
   /** Last error from a login/register attempt, surfaced in the auth form. */
   error: string | null;
+  /**
+   * When non-null, the server attached a new external sign-in to this
+   * account via a verified-email match just before this session started.
+   * The frontend shows a one-time "was this you?" banner; dismissing it
+   * (or unlinking) calls `acknowledgeAutoLink()` and clears this.
+   */
+  autoLinkedAt: number | null;
 
   /**
    * Hits /api/auth/me to discover whether the current cookie is valid. Called
@@ -53,6 +61,8 @@ interface AuthState {
    * server call fails, so the caller can keep the user signed in.
    */
   deleteAccount: () => Promise<boolean>;
+  /** Dismiss the auto-link banner (server clears users.auto_linked_at). */
+  acknowledgeAutoLink: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -60,17 +70,18 @@ export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   status: 'unknown',
   error: null,
+  autoLinkedAt: null,
 
   bootstrap: async () => {
     set({ status: 'loading' });
     try {
-      const user = await authApi.fetchMe();
-      if (user) set({ user, status: 'authed', error: null });
-      else set({ user: null, status: 'guest' });
+      const me = await authApi.fetchMe();
+      if (me) set({ user: me.user, status: 'authed', error: null, autoLinkedAt: me.autoLinkedAt });
+      else set({ user: null, status: 'guest', autoLinkedAt: null });
     } catch {
       // Network failure — treat as guest so the login screen shows. The user
       // can retry by attempting to log in.
-      set({ user: null, status: 'guest' });
+      set({ user: null, status: 'guest', autoLinkedAt: null });
     }
   },
 
@@ -79,6 +90,8 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.login(username, password);
       set({ user, status: 'authed', error: null });
+      // Any intentional first auth choice satisfies the first-run gate.
+      markEverVisited();
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Login failed.' });
@@ -91,6 +104,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.register(username, password);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Registration failed.' });
@@ -103,6 +117,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.exchangeGoogleCode(code);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return true;
     } catch (err) {
       // Don't downgrade an already-authed session: a replayed handoff code
@@ -124,6 +139,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.completeGoogleSignup(signupToken, username);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return { ok: true };
     } catch (err) {
       const status = (err as { status?: number }).status;
@@ -137,6 +153,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.linkGoogleWithPassword(signupToken, username, password);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Could not link the account.' });
@@ -178,6 +195,18 @@ export const useAuth = create<AuthState>((set, get) => ({
     await stopSyncAndWipeLocal();
     set({ user: null, status: 'guest', error: null });
     return true;
+  },
+
+  acknowledgeAutoLink: async () => {
+    // Optimistic: clear the banner immediately so it doesn't flash back on
+    // the next bootstrap if the request is slow. The server side is the
+    // authoritative source though; if it fails the next /me will resurface.
+    set({ autoLinkedAt: null });
+    try {
+      await authApi.acknowledgeAutoLink();
+    } catch {
+      /* ignore — next /me will restore the flag if needed */
+    }
   },
 
   clearError: () => set({ error: null }),

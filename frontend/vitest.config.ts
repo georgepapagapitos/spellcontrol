@@ -4,6 +4,12 @@ import path from 'node:path';
 
 export default defineConfig({
   plugins: [react()],
+  // Mirror the `__BUILD_ID__` define from vite.config.ts so source files
+  // that read it (lib/register-pwa.ts) compile under vitest. Tests that
+  // need a specific value override via vi.stubGlobal('__BUILD_ID__', ...).
+  define: {
+    __BUILD_ID__: JSON.stringify('test-build-id'),
+  },
   resolve: {
     // Mirrors the `@/` alias from vite.config.ts so source files that
     // value-import (not just type-import) via the alias resolve under
