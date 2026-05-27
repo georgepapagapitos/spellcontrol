@@ -116,8 +116,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const prevDetectorFrameRef = useRef<Uint8Array | null>(null);
   /** Consecutive stable+card-present detector ticks. */
   const stableFramesRef = useRef(0);
-  /** Consecutive ticks with no card detected — used to drop the lock-on. */
-  const lostFramesRef = useRef(0);
   /** Timestamp of the last capture firing, used for cooldown. */
   const lastFiredAtRef = useRef(0);
   /** rAF id for the detect loop. */
@@ -858,7 +856,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       }
       prevDetectorFrameRef.current = null;
       stableFramesRef.current = 0;
-      lostFramesRef.current = 0;
     };
   }, [status, sheetOpen, searchRect, defaultViewfinderRect, detectorBufSize, captureAndIdentify]);
 
