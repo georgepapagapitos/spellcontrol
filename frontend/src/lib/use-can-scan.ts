@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
+import { isNativePlatform } from './platform';
 
 /**
- * Detects whether the device is plausibly capable of (and a good fit for)
- * the camera-based card scanner.
+ * Detects whether the user can use the camera-based card scanner.
  *
- * Gating signal: `(pointer: coarse)` OR a narrow viewport. Coarse-pointer
- * matches phones and tablets (touchscreens with imprecise input), and the
- * width breakpoint catches the rare desktop-with-touchscreen as well as
- * desktop browsers in a narrow window. Desktops without a touchscreen are
- * hidden — they're almost never near a built-in rear camera, and even when
- * a webcam exists the framing UX is awkward.
+ * **The scanner is native-only as of scanner v2 (Phase 2).** Shipping it on
+ * the web build means a ~50 MB lazy-load (opencv WASM + ONNX model +
+ * embedding DB) the first time the user opens the scanner, which is a
+ * non-starter for casual web visitors. The native APK bundles the assets
+ * once and pays no per-open cost. The web flow funnels users to the APK
+ * download instead.
  *
- * We also require `mediaDevices.getUserMedia` to exist; without it the
- * scanner couldn't open the camera anyway.
+ * Secondary gates (still evaluated for forward-compat / unit-test parity):
+ * `(pointer: coarse)` OR a narrow viewport matches phones and tablets, and
+ * `mediaDevices.getUserMedia` must exist. These rarely fail on a native
+ * Capacitor WebView but the checks keep the test contract honest.
  */
 const QUERY = '(pointer: coarse), (max-width: 1024px)';
 
@@ -30,6 +32,7 @@ export function useCanScan(): boolean {
 
 function evaluate(): boolean {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (!isNativePlatform()) return false;
   if (!navigator.mediaDevices?.getUserMedia) return false;
   return window.matchMedia(QUERY).matches;
 }

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
+import {
+  resolveCards,
+  fetchCardsByIds,
+  fetchPrintings,
+  identifyCardByName,
+  getCardById,
+} from './scryfall';
 import type { ScryfallCache } from './cache';
 import type { ScryfallCard } from './types';
 import type { ImportRow } from './parsers/types';
@@ -268,6 +274,38 @@ describe('fetchPrintings', () => {
     const promise = fetchPrintings('Sol Ring');
     await vi.runAllTimersAsync();
     expect(await promise).toEqual([]);
+  });
+});
+
+describe('getCardById', () => {
+  it('returns the cached card without hitting Scryfall when the id is in cache', async () => {
+    const cache = fakeCache([card({ id: 'cached-id' })]);
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    const out = await getCardById('cached-id', cache);
+    expect(out?.id).toBe('cached-id');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to fetchCardsByIds + caches on a cache miss', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ object: 'list', not_found: [], data: [card({ id: 'fresh-id' })] })
+    );
+    const promise = getCardById('fresh-id', cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out?.id).toBe('fresh-id');
+    expect(cache.setMany).toHaveBeenCalled();
+  });
+
+  it('returns null when Scryfall does not know the id', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ object: 'list', not_found: [{ id: 'missing' }], data: [] })
+    );
+    const promise = getCardById('missing', cache);
+    await vi.runAllTimersAsync();
+    expect(await promise).toBeNull();
   });
 });
 
