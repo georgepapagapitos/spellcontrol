@@ -329,91 +329,103 @@ export function SettingsPage() {
         </div>
       </header>
 
-      <section className="settings-card" aria-labelledby="settings-account-title">
-        <header className="settings-card-header">
-          <h2 id="settings-account-title" className="settings-card-title">
-            Account
-          </h2>
-        </header>
-        <div className="settings-card-body">
-          {username ? (
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-label">Signed in as</div>
-                <div className="settings-row-value">{username}</div>
-              </div>
-              <button
-                type="button"
-                className="pill-btn pill-btn-danger"
-                onClick={() => void handleLogout()}
-              >
-                Sign out
-              </button>
-            </div>
-          ) : (
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-label">Not signed in</div>
-                <div className="settings-row-hint">
-                  Your collection, binders, and decks are saved on this device. Sign in to sync them
-                  across devices and back them up.
-                </div>
-              </div>
-              <Link to="/auth" className="pill-btn pill-btn-primary">
-                Sign in to sync
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {username && identities && (
-        <section className="settings-card" aria-labelledby="settings-signin-title">
+      {/*
+        Account & Sign-in: visually a single top-of-page section, implemented
+        as a labeled group wrapping the existing Account and Sign-in-methods
+        cards. Wrapping (rather than merging the card bodies) preserves the
+        cards' own headers, aria-labelledby ids, and conditional rendering
+        for the sign-in-methods card so no handler logic moves around.
+      */}
+      <div role="group" aria-labelledby="settings-account-group-title">
+        <h2 id="settings-account-group-title" className="sr-only">
+          Account & Sign-in
+        </h2>
+        <section className="settings-card" aria-labelledby="settings-account-title">
           <header className="settings-card-header">
-            <h2 id="settings-signin-title" className="settings-card-title">
-              Sign-in methods
+            <h2 id="settings-account-title" className="settings-card-title">
+              Account
             </h2>
-            <p className="settings-card-hint">
-              Add another way to sign in, or remove one. You always need at least one — the account
-              can&apos;t end up with no way to sign in.
-            </p>
           </header>
           <div className="settings-card-body">
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-label">Password</div>
-                <div className="settings-row-hint">{identities.password ? 'Set' : 'Not set'}</div>
-              </div>
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-label">Google</div>
-                <div className="settings-row-hint">
-                  {identities.google ? 'Linked' : 'Not linked'}
+            {username ? (
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <div className="settings-row-label">Signed in as</div>
+                  <div className="settings-row-value">{username}</div>
                 </div>
-              </div>
-              {identities.google ? (
                 <button
                   type="button"
                   className="pill-btn pill-btn-danger"
-                  onClick={() => setUnlinkOpen(true)}
+                  onClick={() => void handleLogout()}
                 >
-                  Unlink
+                  Sign out
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  className="pill-btn"
-                  onClick={() => void handleLinkGoogle()}
-                  disabled={linkBusy}
-                >
-                  {linkBusy ? 'Opening Google…' : 'Link Google account'}
-                </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <div className="settings-row-label">Not signed in</div>
+                  <div className="settings-row-hint">
+                    Your collection, binders, and decks are saved on this device. Sign in to sync
+                    them across devices and back them up.
+                  </div>
+                </div>
+                <Link to="/auth" className="pill-btn pill-btn-primary">
+                  Sign in to sync
+                </Link>
+              </div>
+            )}
           </div>
         </section>
-      )}
+
+        {username && identities && (
+          <section className="settings-card" aria-labelledby="settings-signin-title">
+            <header className="settings-card-header">
+              <h2 id="settings-signin-title" className="settings-card-title">
+                Sign-in methods
+              </h2>
+              <p className="settings-card-hint">
+                Add another way to sign in, or remove one. You always need at least one — the
+                account can&apos;t end up with no way to sign in.
+              </p>
+            </header>
+            <div className="settings-card-body">
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <div className="settings-row-label">Password</div>
+                  <div className="settings-row-hint">{identities.password ? 'Set' : 'Not set'}</div>
+                </div>
+              </div>
+              <div className="settings-row">
+                <div className="settings-row-text">
+                  <div className="settings-row-label">Google</div>
+                  <div className="settings-row-hint">
+                    {identities.google ? 'Linked' : 'Not linked'}
+                  </div>
+                </div>
+                {identities.google ? (
+                  <button
+                    type="button"
+                    className="pill-btn pill-btn-danger"
+                    onClick={() => setUnlinkOpen(true)}
+                  >
+                    Unlink
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="pill-btn"
+                    onClick={() => void handleLinkGoogle()}
+                    disabled={linkBusy}
+                  >
+                    {linkBusy ? 'Opening Google…' : 'Link Google account'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
 
       {unlinkOpen && (
         <ConfirmDialog
