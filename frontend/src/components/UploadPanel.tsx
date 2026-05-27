@@ -1,5 +1,5 @@
 import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useMemo, useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import type { UploadResponse } from '../types';
@@ -9,8 +9,9 @@ import { findPriorImports } from '../lib/reimport';
 import type { ImportHistoryEntry } from '../lib/local-cards';
 import { summarizeImportRouting } from '../lib/import-routing';
 import { Modal } from './Modal';
-import { CardScanner } from './CardScanner';
 import { useCanScan } from '../lib/use-can-scan';
+
+const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 import { ProgressBar } from './ProgressBar';
 import { StagedFileList } from './StagedFileList';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
@@ -621,17 +622,19 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       )}
 
       {scannerOpen && (
-        <CardScanner
-          onClose={() => setScannerOpen(false)}
-          onConfirm={(text, count) => {
-            setScannerOpen(false);
-            queueImport({
-              fn: (onProgress) => importText(text, onProgress),
-              label: 'scanned-cards',
-              preview: `${count} scanned card${count === 1 ? '' : 's'}`,
-            });
-          }}
-        />
+        <Suspense fallback={null}>
+          <CardScanner
+            onClose={() => setScannerOpen(false)}
+            onConfirm={(text, count) => {
+              setScannerOpen(false);
+              queueImport({
+                fn: (onProgress) => importText(text, onProgress),
+                label: 'scanned-cards',
+                preview: `${count} scanned card${count === 1 ? '' : 's'}`,
+              });
+            }}
+          />
+        </Suspense>
       )}
 
       {pendingImport && (

@@ -113,9 +113,8 @@ describe('AddCardsSheet', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Scan/ }));
     fireEvent.click(screen.getByRole('button', { name: /Start scanning/ }));
 
-    // Scanner appears; user confirms.
-    expect(screen.getByTestId('card-scanner')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('scanner-confirm'));
+    // Scanner appears (async because CardScanner is lazy-loaded); user confirms.
+    fireEvent.click(await screen.findByTestId('scanner-confirm'));
 
     // Wait a tick for the async confirm handler.
     await Promise.resolve();
@@ -131,11 +130,11 @@ describe('AddCardsSheet', () => {
     );
   });
 
-  it('closes the scanner without importing when the user cancels', () => {
+  it('closes the scanner without importing when the user cancels', async () => {
     render(<AddCardsSheet onClose={() => {}} />);
     fireEvent.click(screen.getByRole('tab', { name: /Scan/ }));
     fireEvent.click(screen.getByRole('button', { name: /Start scanning/ }));
-    fireEvent.click(screen.getByTestId('scanner-close'));
+    fireEvent.click(await screen.findByTestId('scanner-close'));
     expect(screen.queryByTestId('card-scanner')).toBeNull();
     expect(importCardsMock).not.toHaveBeenCalled();
   });

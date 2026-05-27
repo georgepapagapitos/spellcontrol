@@ -1,12 +1,13 @@
 import { Camera, Search, Upload, X } from 'lucide-react';
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCanScan } from '../lib/use-can-scan';
 import { importText } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { UploadPanel } from './UploadPanel';
-import { CardScanner } from './CardScanner';
+
+const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
 type Tab = 'search' | 'upload' | 'scan';
 
@@ -242,10 +243,12 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
       </div>
 
       {scannerOpen && (
-        <CardScanner
-          onClose={() => setScannerOpen(false)}
-          onConfirm={(text, count) => void handleScanConfirm(text, count)}
-        />
+        <Suspense fallback={null}>
+          <CardScanner
+            onClose={() => setScannerOpen(false)}
+            onConfirm={(text, count) => void handleScanConfirm(text, count)}
+          />
+        </Suspense>
       )}
     </div>
   );
