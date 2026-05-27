@@ -8,7 +8,6 @@ import {
   pickCollectionCopy,
   type AllocationInfo,
 } from '../lib/allocations';
-import { markDestructive } from '../lib/sync-intent';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
@@ -211,12 +210,10 @@ export const useDecksStore = create<DecksState>()(
         })),
 
       deleteDeck: (id) => {
-        markDestructive();
         set((s) => ({ decks: s.decks.filter((d) => d.id !== id) }));
       },
 
       deleteAllDecks: () => {
-        markDestructive();
         set({ decks: [] });
       },
 
@@ -764,3 +761,17 @@ function defaultDeckName(commander: ScryfallCard | null): string {
 export function selectDeck(id: string | undefined): (state: DecksState) => Deck | null {
   return (s) => s.decks.find((d) => d.id === id) ?? null;
 }
+
+/**
+ * Sync subscriber: every in-memory change to the decks array flows through
+ * the per-row sync layer. See store/collection.ts for the broader pattern.
+ */
+useDecksStore.subscribe((state, prev) => {
+  if (state.decks === prev.decks) return;
+  void import('../lib/sync')
+    .then((sync) => {
+      if (sync.isApplyingServer()) return;
+      return sync.persistDecksState(state.decks);
+    })
+    .catch(() => {});
+});

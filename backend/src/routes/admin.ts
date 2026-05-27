@@ -1,42 +1,76 @@
 import { Router, type Request, type Response } from 'express';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { requireAdmin } from '../auth';
-import { getDb } from '../db';
-import { users, userData } from '../db/schema';
+import { getDb, getPool } from '../db';
+import { users } from '../db/schema';
 
 export const adminRouter: Router = Router();
 
 /**
  * GET /api/admin/users
  * List every user with role, registration date, and a rough byte-size of
- * their synced state (so an admin can spot which accounts are heavy). The
- * size is computed via `pg_column_size` against the user_data JSONB columns
- * so it's cheap even when the rows are 20MB+.
+ * their synced state (so an admin can spot which accounts are heavy). Bytes
+ * sum `pg_column_size(data)` across the per-entity tables for live (not
+ * tombstoned) rows — cheap enough to run on every request because each
+ * sum is one indexed scan per table.
  */
 adminRouter.get('/users', requireAdmin, async (_req: Request, res: Response) => {
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      role: users.role,
-      createdAt: users.createdAt,
-      dataBytes: sql<number>`COALESCE(
-        pg_column_size(${userData.collection})
-        + pg_column_size(${userData.binders})
-        + pg_column_size(${userData.decks})
-        + pg_column_size(${userData.games})
-      , 0)`,
-    })
-    .from(users)
-    .leftJoin(userData, eq(userData.userId, users.id))
-    .orderBy(desc(users.createdAt));
-  res.json({ users: rows });
+  const { rows } = await getPool().query<{
+    id: string;
+    username: string;
+    role: string;
+    created_at: string;
+    data_bytes: string;
+  }>(`
+    SELECT
+      u.id,
+      u.username,
+      u.role,
+      u.created_at,
+      COALESCE(ui.bytes, 0) + COALESCE(uc.bytes, 0) + COALESCE(ub.bytes, 0)
+        + COALESCE(ud.bytes, 0) + COALESCE(ug.bytes, 0) + COALESCE(ul.bytes, 0)
+        AS data_bytes
+    FROM users u
+    LEFT JOIN (
+      SELECT user_id, SUM(pg_column_size(data))::bigint AS bytes
+      FROM user_imports WHERE deleted_at IS NULL GROUP BY user_id
+    ) ui ON ui.user_id = u.id
+    LEFT JOIN (
+      SELECT user_id, SUM(pg_column_size(data))::bigint AS bytes
+      FROM user_cards WHERE deleted_at IS NULL GROUP BY user_id
+    ) uc ON uc.user_id = u.id
+    LEFT JOIN (
+      SELECT user_id, SUM(pg_column_size(data))::bigint AS bytes
+      FROM user_binders WHERE deleted_at IS NULL GROUP BY user_id
+    ) ub ON ub.user_id = u.id
+    LEFT JOIN (
+      SELECT user_id, SUM(pg_column_size(data))::bigint AS bytes
+      FROM user_decks WHERE deleted_at IS NULL GROUP BY user_id
+    ) ud ON ud.user_id = u.id
+    LEFT JOIN (
+      SELECT user_id, SUM(pg_column_size(data))::bigint AS bytes
+      FROM user_games WHERE deleted_at IS NULL GROUP BY user_id
+    ) ug ON ug.user_id = u.id
+    LEFT JOIN (
+      SELECT user_id, SUM(pg_column_size(data))::bigint AS bytes
+      FROM user_lists WHERE deleted_at IS NULL GROUP BY user_id
+    ) ul ON ul.user_id = u.id
+    ORDER BY u.created_at DESC
+  `);
+  res.json({
+    users: rows.map((r) => ({
+      id: r.id,
+      username: r.username,
+      role: r.role,
+      createdAt: Number(r.created_at),
+      dataBytes: Number(r.data_bytes),
+    })),
+  });
 });
 
 /**
  * DELETE /api/admin/users/:id
- * Hard-delete a user account. `user_data` and related rows cascade via FK.
+ * Hard-delete a user account. All per-entity rows cascade via FK on user_id.
  * Guards against an admin deleting themselves (would lock them out of the
  * admin panel and likely orphan the only admin seat).
  */

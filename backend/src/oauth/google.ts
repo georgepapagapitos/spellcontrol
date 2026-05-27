@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { and, eq, lt } from 'drizzle-orm';
 import { getDb } from '../db';
-import { users, userData, authIdentities, oauthHandoffCodes } from '../db/schema';
+import { users, authIdentities, oauthHandoffCodes } from '../db/schema';
 import { getAdminUsernames, type AuthedUser, type OAuthPlatform } from '../auth';
 
 /** Provider key stored in `auth_identities.provider`. */
@@ -201,14 +201,6 @@ export async function createGoogleUser(
     emailVerified: identity.emailVerified,
     role,
     createdAt: now,
-  });
-  await db.insert(userData).values({
-    userId: id,
-    collection: null,
-    binders: [],
-    decks: [],
-    version: 0,
-    updatedAt: now,
   });
   await db.insert(authIdentities).values({
     provider: PROVIDER,

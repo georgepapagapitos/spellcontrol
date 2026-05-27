@@ -15,7 +15,7 @@
  */
 import crypto from 'crypto';
 import { closeDb, ensureSchema, getDb, getPool } from '../db';
-import { users, userData } from '../db/schema';
+import { users } from '../db/schema';
 import { hashPassword } from '../auth';
 import { logger } from '../logger';
 
@@ -86,14 +86,6 @@ async function main(): Promise<void> {
     emailVerified: true,
     role: 'user',
     createdAt: now,
-  });
-  await db.insert(userData).values({
-    userId: id,
-    collection: null,
-    binders: [],
-    decks: [],
-    version: 0,
-    updatedAt: now,
   });
 
   logger.info('[reset-dev-db] done.');

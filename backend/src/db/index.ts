@@ -84,27 +84,176 @@ export async function ensureSchema(): Promise<void> {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at BIGINT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS user_data (
-      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      collection JSONB,
-      binders JSONB NOT NULL DEFAULT '[]'::jsonb,
-      decks JSONB NOT NULL DEFAULT '[]'::jsonb,
-      games JSONB NOT NULL DEFAULT '[]'::jsonb,
-      version INTEGER NOT NULL DEFAULT 0,
-      updated_at BIGINT NOT NULL
-    );
-    ALTER TABLE user_data ADD COLUMN IF NOT EXISTS games JSONB NOT NULL DEFAULT '[]'::jsonb;
-    CREATE TABLE IF NOT EXISTS user_data_backups (
-      id TEXT PRIMARY KEY,
+    -- Per-entity sync tables. See db/schema.ts for the design rationale; the
+    -- short version: each user-data row carries its own monotonic rev so a
+    -- delete on one device propagates as a tombstone to every other device on
+    -- its next pull, replacing the prior whole-blob user_data model whose PUT
+    -- semantics could resurrect deleted rows from a stale device. rev is drawn
+    -- from a single shared sequence.
+    CREATE SEQUENCE IF NOT EXISTS user_data_rev_seq;
+    CREATE TABLE IF NOT EXISTS user_imports (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      snapshot JSONB NOT NULL,
-      reason TEXT NOT NULL,
-      prior_version INTEGER NOT NULL,
-      prior_card_count INTEGER NOT NULL,
-      created_at BIGINT NOT NULL
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
     );
-    CREATE INDEX IF NOT EXISTS user_data_backups_user_idx
-      ON user_data_backups(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS user_imports_rev_idx ON user_imports(user_id, rev);
+    CREATE TABLE IF NOT EXISTS user_cards (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      import_id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS user_cards_rev_idx ON user_cards(user_id, rev);
+    CREATE INDEX IF NOT EXISTS user_cards_import_idx ON user_cards(user_id, import_id);
+    CREATE TABLE IF NOT EXISTS user_binders (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS user_binders_rev_idx ON user_binders(user_id, rev);
+    CREATE TABLE IF NOT EXISTS user_decks (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS user_decks_rev_idx ON user_decks(user_id, rev);
+    CREATE TABLE IF NOT EXISTS user_games (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS user_games_rev_idx ON user_games(user_id, rev);
+    CREATE TABLE IF NOT EXISTS user_lists (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS user_lists_rev_idx ON user_lists(user_id, rev);
+
+    -- One-shot migration from the legacy single-blob user_data table to the
+    -- per-entity tables above. Idempotent: each branch only fires if user_data
+    -- still exists AND the user has no rows yet in the target table. On a fresh
+    -- deploy (or fresh test schema) user_data doesn't exist and this whole
+    -- block is a no-op. The legacy tables (user_data, user_data_backups) are
+    -- left in place after migration so a rollback is possible; a follow-up PR
+    -- will drop them once we are confident the new path is stable.
+    DO $migrate$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = current_schema() AND table_name = 'user_data'
+      ) THEN
+        INSERT INTO user_imports (user_id, id, data, rev, deleted_at, updated_at)
+        SELECT
+          ud.user_id,
+          ih->>'id',
+          ih,
+          nextval('user_data_rev_seq'),
+          NULL,
+          ud.updated_at
+        FROM user_data ud
+        CROSS JOIN LATERAL jsonb_array_elements(
+          COALESCE(ud.collection->'importHistory', '[]'::jsonb)
+        ) AS ih
+        WHERE ih ? 'id'
+          AND NOT EXISTS (SELECT 1 FROM user_imports ui WHERE ui.user_id = ud.user_id);
+
+        INSERT INTO user_cards (user_id, id, import_id, data, rev, deleted_at, updated_at)
+        SELECT
+          ud.user_id,
+          c->>'copyId',
+          COALESCE(c->>'importId', ''),
+          c,
+          nextval('user_data_rev_seq'),
+          NULL,
+          ud.updated_at
+        FROM user_data ud
+        CROSS JOIN LATERAL jsonb_array_elements(
+          COALESCE(ud.collection->'cards', '[]'::jsonb)
+        ) AS c
+        WHERE c ? 'copyId'
+          AND NOT EXISTS (SELECT 1 FROM user_cards uc WHERE uc.user_id = ud.user_id);
+
+        INSERT INTO user_binders (user_id, id, data, rev, deleted_at, updated_at)
+        SELECT
+          ud.user_id,
+          b->>'id',
+          b,
+          nextval('user_data_rev_seq'),
+          NULL,
+          ud.updated_at
+        FROM user_data ud
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ud.binders, '[]'::jsonb)) AS b
+        WHERE b ? 'id'
+          AND NOT EXISTS (SELECT 1 FROM user_binders ub WHERE ub.user_id = ud.user_id);
+
+        INSERT INTO user_decks (user_id, id, data, rev, deleted_at, updated_at)
+        SELECT
+          ud.user_id,
+          d->>'id',
+          d,
+          nextval('user_data_rev_seq'),
+          NULL,
+          ud.updated_at
+        FROM user_data ud
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ud.decks, '[]'::jsonb)) AS d
+        WHERE d ? 'id'
+          AND NOT EXISTS (SELECT 1 FROM user_decks ud2 WHERE ud2.user_id = ud.user_id);
+
+        INSERT INTO user_games (user_id, id, data, rev, deleted_at, updated_at)
+        SELECT
+          ud.user_id,
+          g->>'id',
+          g,
+          nextval('user_data_rev_seq'),
+          NULL,
+          ud.updated_at
+        FROM user_data ud
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ud.games, '[]'::jsonb)) AS g
+        WHERE g ? 'id'
+          AND NOT EXISTS (SELECT 1 FROM user_games ug WHERE ug.user_id = ud.user_id);
+
+        INSERT INTO user_lists (user_id, id, data, rev, deleted_at, updated_at)
+        SELECT
+          ud.user_id,
+          l->>'id',
+          l,
+          nextval('user_data_rev_seq'),
+          NULL,
+          ud.updated_at
+        FROM user_data ud
+        CROSS JOIN LATERAL jsonb_array_elements(
+          COALESCE(ud.collection->'lists', '[]'::jsonb)
+        ) AS l
+        WHERE l ? 'id'
+          AND NOT EXISTS (SELECT 1 FROM user_lists ul WHERE ul.user_id = ud.user_id);
+      END IF;
+    END
+    $migrate$;
     CREATE TABLE IF NOT EXISTS game_sessions (
       id TEXT PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
