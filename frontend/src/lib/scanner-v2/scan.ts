@@ -32,11 +32,7 @@ import { hashCanvas, cropArtRegion } from './phash';
 import { loadHashDb, findNearest, type Match } from './hash-db';
 import { loadEmbedder } from './embed-loader';
 import { embedCanvas } from './embed';
-import {
-  loadEmbeddingDb,
-  rerankByCosineUuids,
-  type EmbedMatch,
-} from './embedding-db';
+import { loadEmbeddingDb, rerankByCosineUuids, type EmbedMatch } from './embedding-db';
 
 /** Raw dot-product score above which we consider the top-1 the match. */
 export const CONFIDENT_SCORE = 108;
@@ -249,4 +245,3 @@ function emptyTimings(detectMs: number, t0: number): ScanTimings {
     totalMs: performance.now() - t0,
   };
 }
-

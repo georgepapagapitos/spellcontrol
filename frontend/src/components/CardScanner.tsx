@@ -569,7 +569,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         // miss with diagnostic text — auto-adding a low-confidence card
         // would silently pollute the queue.
         const top = result.candidates[0];
-        logger.debug(`[scanner] borderline: top ${top.scryfallId} conf=${top.confidence.toFixed(2)}`);
+        logger.debug(
+          `[scanner] borderline: top ${top.scryfallId} conf=${top.confidence.toFixed(2)}`
+        );
         showHint(`Ambiguous match (${top.confidence.toFixed(2)}) — try again.`, 2200);
         return;
       }
@@ -577,7 +579,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // Confident: resolve the matcher's UUID to a full ScryfallCard.
       const card = await getCardById(result.match.scryfallId);
       if (!card) {
-        logger.warn(`[scanner] confident match for ${result.match.scryfallId} but card fetch failed`);
+        logger.warn(
+          `[scanner] confident match for ${result.match.scryfallId} but card fetch failed`
+        );
         showHint("Found a match but couldn't load the card. Try again.", 2200);
         return;
       }

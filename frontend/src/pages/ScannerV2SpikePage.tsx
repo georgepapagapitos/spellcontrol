@@ -371,7 +371,6 @@ export function ScannerV2SpikePage() {
             }
           }
         }
-
       }
     } catch (err) {
       setDetectErr(err instanceof Error ? err.message : String(err));
@@ -418,8 +417,7 @@ export function ScannerV2SpikePage() {
       </div>
 
       <div style={PANEL_STYLE}>
-        <strong>Embedding DB:</strong>{' '}
-        {embedDb.status === 'loading' && 'loading…'}
+        <strong>Embedding DB:</strong> {embedDb.status === 'loading' && 'loading…'}
         {embedDb.status === 'ready' && (
           <span>
             <code>{embedDb.recordCount.toLocaleString()}</code> records (

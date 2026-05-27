@@ -26,7 +26,10 @@ const ZERO_TIMINGS: ScanTimings = {
   totalMs: 0,
 };
 
-function mkCandidate(rawScore: number, scryfallId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'): ScanCandidate {
+function mkCandidate(
+  rawScore: number,
+  scryfallId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+): ScanCandidate {
   return { scryfallId, rawScore, confidence: rawScore / 127 };
 }
 

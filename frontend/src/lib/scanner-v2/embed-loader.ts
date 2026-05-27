@@ -40,38 +40,37 @@ export function loadEmbedder(): Promise<OrtLoadResult> {
   const t0 = performance.now();
   console.log('[scanner-v2] ort script-load start');
 
-  pending = injectScript(ORT_SCRIPT_URL)
-    .then(async () => {
-      const scriptLoadMs = performance.now() - t0;
-      console.log(`[scanner-v2] ort script loaded in ${scriptLoadMs.toFixed(0)}ms`);
+  pending = injectScript(ORT_SCRIPT_URL).then(async () => {
+    const scriptLoadMs = performance.now() - t0;
+    console.log(`[scanner-v2] ort script loaded in ${scriptLoadMs.toFixed(0)}ms`);
 
-      const win = window as unknown as { ort?: Ort };
-      if (!win.ort) {
-        throw new Error('ort.wasm.min.js loaded but global `ort` is missing');
-      }
-      const ort = win.ort;
+    const win = window as unknown as { ort?: Ort };
+    if (!win.ort) {
+      throw new Error('ort.wasm.min.js loaded but global `ort` is missing');
+    }
+    const ort = win.ort;
 
-      // Point ORT at the vendored WASM artifacts. Setting these before
-      // session creation is required — once the WASM proxy initializes,
-      // these are read-only.
-      ort.env.wasm.wasmPaths = ORT_WASM_DIR;
-      ort.env.wasm.numThreads = 1;
-      // Quieter logging; ORT defaults to noisy "warning" level which spams
-      // Capacitor's console.
-      ort.env.logLevel = 'error';
+    // Point ORT at the vendored WASM artifacts. Setting these before
+    // session creation is required — once the WASM proxy initializes,
+    // these are read-only.
+    ort.env.wasm.wasmPaths = ORT_WASM_DIR;
+    ort.env.wasm.numThreads = 1;
+    // Quieter logging; ORT defaults to noisy "warning" level which spams
+    // Capacitor's console.
+    ort.env.logLevel = 'error';
 
-      const sessionT0 = performance.now();
-      const session = await ort.InferenceSession.create(MODEL_URL, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',
-      });
-      const sessionLoadMs = performance.now() - sessionT0;
-      const totalLoadMs = performance.now() - t0;
-      console.log(
-        `[scanner-v2] ort session ready: script=${scriptLoadMs.toFixed(0)}ms session=${sessionLoadMs.toFixed(0)}ms total=${totalLoadMs.toFixed(0)}ms inputs=${(session.inputNames as string[]).join(',')} outputs=${(session.outputNames as string[]).join(',')}`
-      );
-      return { ort, session, scriptLoadMs, sessionLoadMs, totalLoadMs };
+    const sessionT0 = performance.now();
+    const session = await ort.InferenceSession.create(MODEL_URL, {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'all',
     });
+    const sessionLoadMs = performance.now() - sessionT0;
+    const totalLoadMs = performance.now() - t0;
+    console.log(
+      `[scanner-v2] ort session ready: script=${scriptLoadMs.toFixed(0)}ms session=${sessionLoadMs.toFixed(0)}ms total=${totalLoadMs.toFixed(0)}ms inputs=${(session.inputNames as string[]).join(',')} outputs=${(session.outputNames as string[]).join(',')}`
+    );
+    return { ort, session, scriptLoadMs, sessionLoadMs, totalLoadMs };
+  });
 
   pending.catch((err) => {
     console.error('[scanner-v2] ort load failed', err);

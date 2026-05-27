@@ -9,7 +9,10 @@ import {
 const DIM = 8; // small for hand-built fixtures; the real DB uses 512
 
 /** Build an SC1E binary matching the backend's `packEmbeddingBinary` layout. */
-function buildBinary(records: Array<{ embedding: number[]; uuid: string }>, dim = DIM): ArrayBuffer {
+function buildBinary(
+  records: Array<{ embedding: number[]; uuid: string }>,
+  dim = DIM
+): ArrayBuffer {
   const recordBytes = dim + 16;
   const buf = new ArrayBuffer(16 + records.length * recordBytes);
   const view = new DataView(buf);

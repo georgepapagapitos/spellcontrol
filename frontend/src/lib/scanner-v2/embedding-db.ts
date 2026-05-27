@@ -93,10 +93,7 @@ export function decodeEmbeddingDb(buf: ArrayBuffer): EmbeddingDb {
 
   let cursor = HEADER_BYTES;
   for (let i = 0; i < recordCount; i++) {
-    refs.set(
-      new Int8Array(buf, cursor, dim),
-      i * dim
-    );
+    refs.set(new Int8Array(buf, cursor, dim), i * dim);
     uuids.set(src.subarray(cursor + dim, cursor + dim + UUID_BYTES), i * UUID_BYTES);
     uuidIndex.set(uuidFromBytes(uuids, i * UUID_BYTES), i);
     cursor += recordBytes;
@@ -143,11 +140,7 @@ function dotProduct(refs: Int8Array, refOffset: number, dim: number, query: Floa
  * pre-filter is available. For production scanning, drive
  * {@link rerankByCosine} with pHash's top-K instead.
  */
-export function findNearestByCosine(
-  db: EmbeddingDb,
-  query: Float32Array,
-  k: number
-): EmbedMatch[] {
+export function findNearestByCosine(db: EmbeddingDb, query: Float32Array, k: number): EmbedMatch[] {
   if (k <= 0) return [];
   if (query.length !== db.dim) {
     throw new Error(`query dim ${query.length} != db dim ${db.dim}`);

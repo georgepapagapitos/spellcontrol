@@ -46,8 +46,8 @@ export async function embedCanvas(source: HTMLCanvasElement): Promise<EmbedResul
   const planeSize = EMBED_INPUT_SIZE * EMBED_INPUT_SIZE;
   const tensorData = new Float32Array(3 * planeSize);
   for (let i = 0, p = 0; i < rgba.length; i += 4, p++) {
-    tensorData[p] = rgba[i] / 255;                  // R
-    tensorData[planeSize + p] = rgba[i + 1] / 255;  // G
+    tensorData[p] = rgba[i] / 255; // R
+    tensorData[planeSize + p] = rgba[i + 1] / 255; // G
     tensorData[2 * planeSize + p] = rgba[i + 2] / 255; // B
   }
   const preprocessMs = performance.now() - t0;

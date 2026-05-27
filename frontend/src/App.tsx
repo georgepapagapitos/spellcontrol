@@ -149,9 +149,7 @@ export default function App() {
         {/* Spike harness loads without waiting on auth — opencv is the only
             dependency and it's lazy. Native-only: web users have no business
             paying the ~50 MB cold load to reach a dev page. */}
-        {isNativePlatform() && (
-          <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />
-        )}
+        {isNativePlatform() && <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />}
         <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
       </Routes>
     );
@@ -170,9 +168,7 @@ export default function App() {
           reachable on a fresh native install without a signed-in user.
           Native-only: see the matching guard in the loading-state branch
           above for the rationale. */}
-      {isNativePlatform() && (
-        <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />
-      )}
+      {isNativePlatform() && <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />}
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
 
