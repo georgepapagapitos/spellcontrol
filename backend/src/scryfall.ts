@@ -171,6 +171,26 @@ export async function fetchCardsByIds(
 }
 
 /**
+ * Cache-first single-card fetch by Scryfall id. The scanner v2 matcher
+ * resolves a Scryfall UUID per scan, and each captured card needs the
+ * full ScryfallCard payload (name, image_uris, prices, etc.) to be
+ * useful in the UI. A rapid-fire scan session would hammer Scryfall if
+ * we routed through {@link fetchCardsByIds} every time, so we hit the
+ * 7-day cache first and only fall back to the network on a miss.
+ *
+ * Returns null when Scryfall doesn't know the id.
+ */
+export async function getCardById(
+  id: string,
+  cache: ScryfallCache
+): Promise<ScryfallCard | null> {
+  const cached = cache.getMany([id]).get(id);
+  if (cached) return cached;
+  const fresh = await fetchCardsByIds([id], cache);
+  return fresh[0] ?? null;
+}
+
+/**
  * POSTs a batch to Scryfall's collection endpoint with exponential backoff on 429s.
  * Returns the parsed response, or null after MAX_RETRIES.
  *

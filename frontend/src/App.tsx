@@ -19,6 +19,7 @@ import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
 import { ScannerV2SpikePage } from './pages/ScannerV2SpikePage';
+import { isNativePlatform } from './lib/platform';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -146,8 +147,11 @@ export default function App() {
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
         {/* Spike harness loads without waiting on auth — opencv is the only
-            dependency and it's lazy. */}
-        <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />
+            dependency and it's lazy. Native-only: web users have no business
+            paying the ~50 MB cold load to reach a dev page. */}
+        {isNativePlatform() && (
+          <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />
+        )}
         <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
       </Routes>
     );
@@ -163,8 +167,12 @@ export default function App() {
       <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
       <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
       {/* Phase 0 scanner-v2 spike harness. Outside Layout/auth so it's
-          reachable on a fresh native install without a signed-in user. */}
-      <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />
+          reachable on a fresh native install without a signed-in user.
+          Native-only: see the matching guard in the loading-state branch
+          above for the rationale. */}
+      {isNativePlatform() && (
+        <Route path="/scanner-v2-spike" element={<ScannerV2SpikePage />} />
+      )}
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/collection" replace />} />
 

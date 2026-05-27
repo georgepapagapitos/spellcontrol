@@ -20,6 +20,14 @@ import {
 import { hashCanvas, cropArtRegion } from '@/lib/scanner-v2/phash';
 import { applyCLAHE } from '@/lib/scanner-v2/normalize';
 import { loadHashDb, findNearest, type HashDb, type Match } from '@/lib/scanner-v2/hash-db';
+import { loadEmbedder } from '@/lib/scanner-v2/embed-loader';
+import { embedCanvas, makeTestCanvas, EMBED_DIM } from '@/lib/scanner-v2/embed';
+import {
+  loadEmbeddingDb,
+  rerankByCosineUuids,
+  type EmbeddingDb,
+  type EmbedMatch,
+} from '@/lib/scanner-v2/embedding-db';
 
 type LoadState =
   | { status: 'loading' }
@@ -32,11 +40,32 @@ type DbState =
   | { status: 'missing' }
   | { status: 'error'; message: string };
 
+type EmbedState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready'; scriptLoadMs: number; sessionLoadMs: number; totalLoadMs: number }
+  | { status: 'error'; message: string };
+
 interface MatchSummary {
   hash: bigint;
   hashMs: number;
   matchMs: number;
   matches: Match[];
+}
+
+interface EmbedSummary {
+  label: string;
+  preprocessMs: number;
+  inferMs: number;
+  totalMs: number;
+  norm2: number;
+  preview: string;
+}
+
+interface RerankSummary {
+  candidateCount: number;
+  rerankMs: number;
+  matches: EmbedMatch[];
 }
 
 // Global CSS sets `body { overflow: hidden }` so the in-app shell can own
@@ -62,6 +91,17 @@ const PANEL_STYLE: React.CSSProperties = {
   marginBottom: 12,
 };
 
+const BUTTON_STYLE: React.CSSProperties = {
+  background: '#1f3f78',
+  color: '#e8eef9',
+  border: '1px solid #2a558f',
+  borderRadius: 6,
+  padding: '8px 14px',
+  fontSize: 14,
+  cursor: 'pointer',
+  minHeight: 44,
+};
+
 export function ScannerV2SpikePage() {
   // Both initial loads kick off in the mount effect; initialize state here
   // so we don't trigger the react-hooks set-state-in-effect lint and an
@@ -69,6 +109,11 @@ export function ScannerV2SpikePage() {
   const [opencv, setOpencv] = useState<LoadState>({ status: 'loading' });
   const [db, setDb] = useState<DbState>({ status: 'loading' });
   const [dbRef, setDbRef] = useState<HashDb | null>(null);
+  const [embed, setEmbed] = useState<EmbedState>({ status: 'idle' });
+  const [embedResult, setEmbedResult] = useState<EmbedSummary | null>(null);
+  const [embedDb, setEmbedDb] = useState<DbState>({ status: 'loading' });
+  const [embedDbRef, setEmbedDbRef] = useState<EmbeddingDb | null>(null);
+  const [rerank, setRerank] = useState<RerankSummary | null>(null);
   const [result, setResult] = useState<DetectResult | null>(null);
   const [match, setMatch] = useState<MatchSummary | null>(null);
   const [detectErr, setDetectErr] = useState<string | null>(null);
@@ -116,6 +161,25 @@ export function ScannerV2SpikePage() {
         else setDb({ status: 'error', message: msg });
       });
 
+    const embedDbStart = performance.now();
+    loadEmbeddingDb()
+      .then((loaded) => {
+        if (cancelled) return;
+        setEmbedDbRef(loaded);
+        setEmbedDb({
+          status: 'ready',
+          loadMs: performance.now() - embedDbStart,
+          recordCount: loaded.recordCount,
+          bytes: loaded.bytes,
+        });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/HTTP 404/.test(msg)) setEmbedDb({ status: 'missing' });
+        else setEmbedDb({ status: 'error', message: msg });
+      });
+
     return () => {
       cancelled = true;
     };
@@ -127,10 +191,50 @@ export function ScannerV2SpikePage() {
     };
   }, [imageURL]);
 
+  // Embedder load is *manual* — we want a clean cold-load timing for the
+  // Phase 2 model-selection report, so it doesn't kick off alongside the
+  // opencv + hash-db parallel boot. Click → log → measure.
+  async function handleLoadEmbedder() {
+    setEmbed({ status: 'loading' });
+    setEmbedResult(null);
+    try {
+      const { scriptLoadMs, sessionLoadMs, totalLoadMs } = await loadEmbedder();
+      setEmbed({ status: 'ready', scriptLoadMs, sessionLoadMs, totalLoadMs });
+    } catch (err) {
+      setEmbed({ status: 'error', message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  async function handleDummyInfer() {
+    if (embed.status !== 'ready') {
+      await handleLoadEmbedder();
+    }
+    try {
+      const canvas = makeTestCanvas();
+      const { embedding, preprocessMs, inferMs, totalMs } = await embedCanvas(canvas);
+      const norm2 = Math.sqrt(embedding.reduce((s, v) => s + v * v, 0));
+      const head = Array.from(embedding.slice(0, 4))
+        .map((v) => v.toFixed(3))
+        .join(', ');
+      setEmbedResult({
+        label: 'dummy 256×256 gradient',
+        preprocessMs,
+        inferMs,
+        totalMs,
+        norm2,
+        preview: `[${head}, …] (${EMBED_DIM} dims)`,
+      });
+    } catch (err) {
+      setEmbed({ status: 'error', message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
   async function handleFile(file: File) {
     setDetectErr(null);
     setResult(null);
     setMatch(null);
+    setEmbedResult(null);
+    setRerank(null);
 
     if (opencv.status !== 'ready') {
       setDetectErr('OpenCV not ready yet — wait for load to finish.');
@@ -213,17 +317,61 @@ export function ScannerV2SpikePage() {
           const hash = hashCanvas(normalized);
           const tHash = performance.now() - t0;
           const t1 = performance.now();
-          const matches = findNearest(dbRef, hash, 5);
+          // Wider candidate pool than the display top-5: the cosine
+          // re-rank below sorts these 50, then we render the top 5 of
+          // *that* alongside the raw pHash top 5.
+          const candidates = findNearest(dbRef, hash, 50);
           const tMatch = performance.now() - t1;
-          setMatch({ hash, hashMs: tHash, matchMs: tMatch, matches });
+          setMatch({ hash, hashMs: tHash, matchMs: tMatch, matches: candidates.slice(0, 5) });
           // Log so adb logcat captures the values — typing them off the
           // device screen is painful when iterating.
           console.log(
-            `[scanner-v2] hash=0x${hash.toString(16).padStart(16, '0')} normMs=${tNorm.toFixed(1)} hashMs=${tHash.toFixed(1)} scanMs=${tMatch.toFixed(1)} matches=${matches
+            `[scanner-v2] hash=0x${hash.toString(16).padStart(16, '0')} normMs=${tNorm.toFixed(1)} hashMs=${tHash.toFixed(1)} scanMs=${tMatch.toFixed(1)} matches=${candidates
+              .slice(0, 5)
               .map((m) => `${m.distance}@${m.scryfallId.slice(0, 8)}`)
               .join(',')}`
           );
+
+          // Two-stage match: if both the embedder and the embedding DB
+          // are loaded, embed the art crop and rerank the pHash candidates
+          // by cosine similarity. This is the production path; the pHash
+          // top-5 panel above is kept for side-by-side comparison.
+          if (embed.status === 'ready' && embedDbRef) {
+            try {
+              const art = cropArtRegion(r.warped);
+              const e = await embedCanvas(art);
+              const candidateUuids = candidates.map((c) => c.scryfallId);
+              const rerankT0 = performance.now();
+              const reranked = rerankByCosineUuids(embedDbRef, candidateUuids, e.embedding, 5);
+              const rerankMs = performance.now() - rerankT0;
+              setRerank({
+                candidateCount: candidates.length,
+                rerankMs,
+                matches: reranked,
+              });
+              const norm2 = Math.sqrt(e.embedding.reduce((s, v) => s + v * v, 0));
+              const head = Array.from(e.embedding.slice(0, 4))
+                .map((v) => v.toFixed(3))
+                .join(', ');
+              setEmbedResult({
+                label: 'art crop',
+                preprocessMs: e.preprocessMs,
+                inferMs: e.inferMs,
+                totalMs: e.totalMs,
+                norm2,
+                preview: `[${head}, …] (${EMBED_DIM} dims)`,
+              });
+              console.log(
+                `[scanner-v2] rerank: ${candidates.length}→${reranked.length} in ${rerankMs.toFixed(1)}ms top=${reranked
+                  .map((m) => `${m.similarity.toFixed(0)}@${m.scryfallId.slice(0, 8)}`)
+                  .join(',')}`
+              );
+            } catch (err) {
+              console.error('[scanner-v2] rerank failed', err);
+            }
+          }
         }
+
       }
     } catch (err) {
       setDetectErr(err instanceof Error ? err.message : String(err));
@@ -267,6 +415,74 @@ export function ScannerV2SpikePage() {
           </span>
         )}
         {db.status === 'error' && <span style={{ color: '#ff9c9c' }}>error: {db.message}</span>}
+      </div>
+
+      <div style={PANEL_STYLE}>
+        <strong>Embedding DB:</strong>{' '}
+        {embedDb.status === 'loading' && 'loading…'}
+        {embedDb.status === 'ready' && (
+          <span>
+            <code>{embedDb.recordCount.toLocaleString()}</code> records (
+            {(embedDb.bytes / 1024 / 1024).toFixed(2)} MB) in{' '}
+            <code>{embedDb.loadMs.toFixed(0)}ms</code>
+          </span>
+        )}
+        {embedDb.status === 'missing' && (
+          <span style={{ color: '#ffd27a' }}>
+            not present — run{' '}
+            <code>npx tsx src/scripts/ingest-card-embeddings.ts --limit 2000</code> from backend/.
+            Two-stage match disabled until present.
+          </span>
+        )}
+        {embedDb.status === 'error' && (
+          <span style={{ color: '#ff9c9c' }}>error: {embedDb.message}</span>
+        )}
+      </div>
+
+      <div style={PANEL_STYLE}>
+        <strong>Embedder (MobileCLIP2-S0):</strong>{' '}
+        {embed.status === 'idle' && (
+          <span style={{ opacity: 0.75 }}>not loaded — Phase 2 spike, click to measure</span>
+        )}
+        {embed.status === 'loading' && 'loading…'}
+        {embed.status === 'ready' && (
+          <span>
+            ready — script <code>{embed.scriptLoadMs.toFixed(0)}ms</code>, session{' '}
+            <code>{embed.sessionLoadMs.toFixed(0)}ms</code>, total{' '}
+            <code>{embed.totalLoadMs.toFixed(0)}ms</code>
+          </span>
+        )}
+        {embed.status === 'error' && (
+          <span style={{ color: '#ff9c9c' }}>error: {embed.message}</span>
+        )}
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => void handleLoadEmbedder()}
+            disabled={embed.status === 'loading'}
+            style={BUTTON_STYLE}
+          >
+            Load embedder
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDummyInfer()}
+            disabled={embed.status === 'loading'}
+            style={BUTTON_STYLE}
+          >
+            Run dummy inference (256×256)
+          </button>
+        </div>
+        {embedResult && (
+          <div style={{ marginTop: 8, fontSize: 13 }}>
+            <strong>Inference ({embedResult.label}):</strong> preprocess{' '}
+            <code>{embedResult.preprocessMs.toFixed(1)}ms</code>, inference{' '}
+            <code>{embedResult.inferMs.toFixed(1)}ms</code>, total{' '}
+            <code>{embedResult.totalMs.toFixed(1)}ms</code>, raw-norm{' '}
+            <code>{embedResult.norm2.toFixed(3)}</code>
+            <div style={{ opacity: 0.75, marginTop: 4 }}>{embedResult.preview}</div>
+          </div>
+        )}
       </div>
 
       <div style={PANEL_STYLE}>
@@ -338,6 +554,51 @@ export function ScannerV2SpikePage() {
           <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>
             Hamming ≤ 10 typically means same printing; 11–20 is same card, different printing; &gt;
             20 is likely a miss.
+          </div>
+        </div>
+      )}
+
+      {rerank && (
+        <div style={PANEL_STYLE}>
+          <strong>Cosine re-rank:</strong> {rerank.candidateCount} candidates →{' '}
+          {rerank.matches.length} top in <code>{rerank.rerankMs.toFixed(2)}ms</code>
+          <table
+            style={{
+              width: '100%',
+              marginTop: 8,
+              fontSize: 13,
+              borderCollapse: 'collapse',
+            }}
+          >
+            <thead>
+              <tr style={{ opacity: 0.75, textAlign: 'left' }}>
+                <th style={{ paddingRight: 12 }}>Score</th>
+                <th>Scryfall ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rerank.matches.map((m) => (
+                <tr key={m.scryfallId}>
+                  <td style={{ paddingRight: 12 }}>
+                    <code>{m.similarity.toFixed(1)}</code>
+                  </td>
+                  <td>
+                    <a
+                      href={`https://scryfall.com/card/${m.scryfallId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#7fd6ff' }}
+                    >
+                      {m.scryfallId}
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ fontSize: 12, opacity: 0.6, marginTop: 6 }}>
+            Score is the raw int8×fp32 dot product (proportional to cosine sim). Divide by
+            512^(½)×127 to recover the absolute similarity; ordering is what matters for the picker.
           </div>
         </div>
       )}

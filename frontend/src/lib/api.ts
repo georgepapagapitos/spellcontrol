@@ -114,45 +114,24 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
   return handleResponse<DeckImportResponse>(response);
 }
 
-/**
- * Identifies a card from imperfect text (typically OCR output from the in-browser
- * card scanner). Returns null when Scryfall can't find a confident match.
- */
-export async function identifyCard(query: string): Promise<ScryfallCard | null> {
-  const trimmed = query.trim();
-  if (!trimmed) return null;
-  const response = await fetchWithTimeout(`/api/cards/identify?q=${encodeURIComponent(trimmed)}`, {
-    method: 'GET',
-  });
-  const data = await handleResponse<{ card: ScryfallCard | null }>(response);
-  return data.card;
-}
-
-/**
- * Try a ranked list of OCR candidates in order, returning the first hit.
- * The scanner generates several plausible interpretations of each read
- * (raw text, common Tesseract-substitution variants, first-word fallback)
- * and passes them here — the matcher walks them one by one. Short-circuits
- * on the first successful match.
- *
- * Returns the matched card plus the candidate string that produced it
- * (useful for showing "Read as: X" feedback on success), or null/null on
- * a total miss.
- */
-export async function identifyCardFromCandidates(
-  candidates: string[]
-): Promise<{ card: ScryfallCard | null; matchedQuery: string | null }> {
-  for (const candidate of candidates) {
-    const card = await identifyCard(candidate);
-    if (card) return { card, matchedQuery: candidate };
-  }
-  return { card: null, matchedQuery: null };
-}
-
 /** Fetch all printings of a card by name. */
 export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
   const encoded = encodeURIComponent(cardName);
   const response = await fetchWithTimeout(`/api/cards/${encoded}/printings`, { method: 'GET' });
   const data = await handleResponse<{ printings: ScryfallCard[] }>(response);
   return data.printings;
+}
+
+/**
+ * Fetch a single card by Scryfall id. Used by the v2 camera scanner to
+ * resolve the matcher's UUID output into a renderable ScryfallCard.
+ * Cache-backed on the server so repeated scans don't fan out to Scryfall.
+ * Returns null when the server says Scryfall doesn't know the id.
+ */
+export async function getCardById(id: string): Promise<ScryfallCard | null> {
+  const response = await fetchWithTimeout(`/api/cards/by-id/${encodeURIComponent(id)}`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<{ card: ScryfallCard | null }>(response);
+  return data.card;
 }

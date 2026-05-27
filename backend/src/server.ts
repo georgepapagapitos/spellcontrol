@@ -18,7 +18,7 @@ import { sharesRouter } from './routes/shares';
 import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName } from './scryfall';
+import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName, getCardById }from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { sliceResolvedDeckImport } from './deck-import';
@@ -406,6 +406,35 @@ app.get(
       logger.error('[identify] error:', err);
       const message = err instanceof Error ? err.message : 'Unknown error';
       res.status(500).json({ error: `Identify failed: ${message}` });
+    }
+  }
+);
+
+/**
+ * Single-card fetch by Scryfall id. Used by the v2 camera scanner: the
+ * on-device matcher resolves a Scryfall UUID per scan, and the frontend
+ * needs the full card payload (name, image, prices) to render. Cache-first
+ * via {@link getCardById} so a rapid scanning session doesn't hammer
+ * Scryfall.
+ *
+ * Response: { card: ScryfallCard | null }. `null` means Scryfall doesn't
+ * know the id (or returned an error).
+ */
+app.get(
+  '/api/cards/by-id/:id',
+  rateLimit({ windowMs: 60_000, max: 240 }),
+  async (req: Request, res: Response) => {
+    try {
+      const id = typeof req.params.id === 'string' ? req.params.id : '';
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        return res.status(400).json({ error: 'id must be a Scryfall UUID' });
+      }
+      const card = await getCardById(id, cache);
+      res.json({ card });
+    } catch (err) {
+      logger.error('[cards/by-id] error:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({ error: `by-id lookup failed: ${message}` });
     }
   }
 );

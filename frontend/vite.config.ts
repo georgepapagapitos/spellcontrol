@@ -45,7 +45,19 @@ export default defineConfig({
         // so the build doesn't fail Workbox's size gate; first scanner open
         // fetches it (native APK ships it bundled either way). Revisit
         // if/when v2 ships and offline scanner is a requirement.
-        globIgnores: ['**/opencv*.js'],
+        //
+        // Scanner v2 (Phase 2 spike) adds onnxruntime-web (~13MB WASM) and
+        // the MobileCLIP2-S0 vision encoder (~43MB ONNX) under
+        // public/scanner-v2/{ort,embed}/ — same reasoning, same exclusion.
+        // Also exclude card-embeddings.bin (~26MB at full 52k ingest): it's
+        // way over Workbox's per-file precache cap, but is fetched on demand
+        // when the scanner opens and the WebView's HTTP cache holds onto it.
+        globIgnores: [
+          '**/opencv*.js',
+          '**/scanner-v2/ort/**',
+          '**/scanner-v2/embed/**',
+          '**/scanner-v2/card-embeddings.bin',
+        ],
         // Keep the precache cap generous — the tagger JSON + font subsets
         // alone push past Workbox's 2MB default.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
