@@ -180,6 +180,40 @@ const REFERENCE_DECKS: ReferenceDeck[] = [
     boardwipeCount: 2,
     completedCombos: [{ bracket: 3 }],
   },
+  // ── Bracket 4: Optimized stax-focused ────────────────────────────────────
+  {
+    name: 'Mono-W Stax (optimized)',
+    expectedBracket: 4,
+    sourceCitation:
+      'RC Bracket 4: heavy stax / lock effects are accepted as a Bracket 4 strategy; ' +
+      'they functionally parallel mass land denial in shutting down opponents.',
+    notes:
+      'Five canonical stax pieces (Winter Orb, Static Orb, Sphere of Resistance, Thorn ' +
+      'of Amethyst, Smokestack). Exercises the 5+ stax-piece bracket-4 floor.',
+    cards: [
+      'Hokori, Dust Drinker',
+      'Winter Orb',
+      'Static Orb',
+      'Sphere of Resistance',
+      'Thorn of Amethyst',
+      'Smokestack',
+      'Thalia, Guardian of Thraben',
+      ...n(20, 'Mono-W Creature'),
+      ...n(7, 'Mana Rock'),
+      ...n(10, 'Removal'),
+      ...n(1, 'Boardwipe'),
+      ...n(5, 'Card Draw'),
+      ...n(36, 'Plains'),
+    ],
+    averageCmc: 2.8,
+    gameChangerNames: [],
+    mldCards: [],
+    extraTurnCards: [],
+    tutorCards: [],
+    removalCount: 10,
+    boardwipeCount: 1,
+    completedCombos: [],
+  },
   // ── Bracket 4: Optimized (non-cEDH) ──────────────────────────────────────
   {
     name: 'Yuriko ninja-tempo (optimized)',
