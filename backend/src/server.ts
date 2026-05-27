@@ -97,7 +97,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
+// 60/min because the client now splits big collection imports into chunks
+// of ~500 lines (lib/api.ts). At 500/chunk this covers up to ~30k-card
+// imports without users tripping the limiter mid-upload; it's still tight
+// enough to throttle abusive single-IP scripting.
+const importLimiter = rateLimit({ windowMs: 60_000, max: 60 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 
 // Kept ABOVE the sync snapshot cap (MAX_SNAPSHOT_BYTES, 64MB) so an oversize
