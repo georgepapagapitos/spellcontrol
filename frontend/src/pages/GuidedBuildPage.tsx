@@ -145,7 +145,8 @@ export function GuidedBuildPage() {
     setIsBuilding(true);
     setProgress({ message: 'Loading commander data', percent: 5 });
     try {
-      const bracket = customization.bracketLevel !== 'all' ? customization.bracketLevel : undefined;
+      const bracket =
+        customization.targetBracket !== 'all' ? customization.targetBracket : undefined;
       const data = await fetchCommanderData(commander.name, undefined, bracket).catch(() => null);
       if (data) {
         setEdhrecStats(data.stats);
@@ -329,10 +330,10 @@ export function GuidedBuildPage() {
                 : 'None — building on the commander’s core'}
             </li>
             <li>
-              <strong>Power bracket:</strong>{' '}
-              {customization.bracketLevel === 'all'
+              <strong>Target bracket:</strong>{' '}
+              {customization.targetBracket === 'all'
                 ? 'Any'
-                : `Bracket ${customization.bracketLevel}`}
+                : `Bracket ${customization.targetBracket}`}
             </li>
             <li>
               <strong>Lands:</strong> {customization.landCount}

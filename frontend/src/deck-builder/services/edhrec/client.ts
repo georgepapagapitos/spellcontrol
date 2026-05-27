@@ -8,7 +8,7 @@ import type {
   EDHRECSimilarCommander,
   EDHRECTopCommander,
   BudgetOption,
-  BracketLevel,
+  TargetBracket,
 } from '@/deck-builder/types';
 import { offlineSearchCards } from '@/lib/offline';
 
@@ -193,7 +193,7 @@ function getBudgetSuffix(budgetOption?: BudgetOption): string {
   return '';
 }
 
-const BRACKET_SLUGS: Record<number, string> = {
+const TARGET_BRACKET_SLUGS: Record<number, string> = {
   1: 'exhibition',
   2: 'core',
   3: 'upgraded',
@@ -201,9 +201,9 @@ const BRACKET_SLUGS: Record<number, string> = {
   5: 'cedh',
 };
 
-function getBracketSuffix(bracketLevel?: BracketLevel): string {
-  if (!bracketLevel || bracketLevel === 'all') return '';
-  return `/${BRACKET_SLUGS[bracketLevel]}`;
+function getTargetBracketSuffix(targetBracket?: TargetBracket): string {
+  if (!targetBracket || targetBracket === 'all') return '';
+  return `/${TARGET_BRACKET_SLUGS[targetBracket]}`;
 }
 
 async function edhrecFetch<T>(endpoint: string): Promise<T> {
@@ -578,10 +578,10 @@ function mergeCardlists(
 export async function fetchCommanderData(
   commanderName: string,
   budgetOption?: BudgetOption,
-  bracketLevel?: BracketLevel
+  targetBracket?: TargetBracket
 ): Promise<EDHRECCommanderData> {
   const formattedName = formatCommanderNameForUrl(commanderName);
-  const bracketSuffix = getBracketSuffix(bracketLevel);
+  const bracketSuffix = getTargetBracketSuffix(targetBracket);
   const budgetSuffix = getBudgetSuffix(budgetOption);
   const cacheKey = `${formattedName}${bracketSuffix}${budgetSuffix}`;
 
@@ -615,10 +615,10 @@ export async function fetchPartnerCommanderData(
   commander1: string,
   commander2: string,
   budgetOption?: BudgetOption,
-  bracketLevel?: BracketLevel
+  targetBracket?: TargetBracket
 ): Promise<EDHRECCommanderData> {
   const [slugA, slugB] = getPartnerSlugs(commander1, commander2);
-  const bracketSuffix = getBracketSuffix(bracketLevel);
+  const bracketSuffix = getTargetBracketSuffix(targetBracket);
   const budgetSuffix = getBudgetSuffix(budgetOption);
 
   // Check cache for either ordering
@@ -653,8 +653,8 @@ export async function fetchPartnerCommanderData(
 
   // Fallback: fetch both individually and merge
   const [data1, data2] = await Promise.all([
-    fetchCommanderData(commander1, budgetOption, bracketLevel).catch(() => null),
-    fetchCommanderData(commander2, budgetOption, bracketLevel).catch(() => null),
+    fetchCommanderData(commander1, budgetOption, targetBracket).catch(() => null),
+    fetchCommanderData(commander2, budgetOption, targetBracket).catch(() => null),
   ]);
 
   if (data1 && data2) {
@@ -744,10 +744,10 @@ export async function fetchCommanderThemeData(
   commanderName: string,
   themeSlug: string,
   budgetOption?: BudgetOption,
-  bracketLevel?: BracketLevel
+  targetBracket?: TargetBracket
 ): Promise<EDHRECCommanderData> {
   const formattedName = formatCommanderNameForUrl(commanderName);
-  const bracketSuffix = getBracketSuffix(bracketLevel);
+  const bracketSuffix = getTargetBracketSuffix(targetBracket);
   const budgetSuffix = getBudgetSuffix(budgetOption);
   const cacheKey = `${formattedName}${bracketSuffix}/${themeSlug}${budgetSuffix}`;
 
@@ -816,10 +816,10 @@ export async function fetchPartnerThemeData(
   commander2: string,
   themeSlug: string,
   budgetOption?: BudgetOption,
-  bracketLevel?: BracketLevel
+  targetBracket?: TargetBracket
 ): Promise<EDHRECCommanderData> {
   const [slugA, slugB] = getPartnerSlugs(commander1, commander2);
-  const bracketSuffix = getBracketSuffix(bracketLevel);
+  const bracketSuffix = getTargetBracketSuffix(targetBracket);
   const budgetSuffix = getBudgetSuffix(budgetOption);
 
   // Check cache for either ordering
@@ -884,7 +884,7 @@ export async function fetchPartnerThemeData(
 
   logger.debug(`[EDHREC] No partner theme page found, falling back to primary commander`);
   // Fallback: use primary commander's theme data
-  return fetchCommanderThemeData(commander1, themeSlug, budgetOption, bracketLevel);
+  return fetchCommanderThemeData(commander1, themeSlug, budgetOption, targetBracket);
 }
 
 /**

@@ -56,7 +56,8 @@ export interface Deck {
   /** For generated decks: snapshot enough context to regenerate. Null otherwise. */
   generationContext: {
     selectedThemes: ThemeResult[];
-    bracketLevel: number | 'all';
+    /** Build-time power-level target (EDHREC card-pool filter). */
+    targetBracket: number | 'all';
     landCount: number;
     collectionMode: boolean;
   } | null;
@@ -658,7 +659,7 @@ export const useDecksStore = create<DecksState>()(
     }),
     {
       name: 'mtg-decks',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => decksIdbStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -722,6 +723,25 @@ export const useDecksStore = create<DecksState>()(
             ...d,
             color: typeof d.color === 'string' ? d.color : pickRandomPresetColor(),
           }));
+        }
+        // v4→v5: generationContext.bracketLevel → targetBracket. The renamed
+        // field is the EDHREC card-pool filter (build-time target), now
+        // distinguished from the computed bracket estimation in
+        // bracketEstimation.bracket. Preserves prior value verbatim.
+        if (fromVersion < 5 && Array.isArray(state.decks)) {
+          state.decks = (state.decks as Array<Record<string, unknown>>).map((d) => {
+            const gc = d.generationContext as Record<string, unknown> | null | undefined;
+            if (!gc || typeof gc !== 'object') return d;
+            if (!('bracketLevel' in gc)) return d;
+            const { bracketLevel, ...rest } = gc as { bracketLevel: unknown } & Record<
+              string,
+              unknown
+            >;
+            return {
+              ...d,
+              generationContext: { ...rest, targetBracket: bracketLevel },
+            };
+          });
         }
         return state as never;
       },

@@ -356,8 +356,14 @@ export type BudgetOption = 'any' | 'budget' | 'expensive';
 // Game changer limit: 'none' = 0, 'unlimited' = no cap, or a specific number
 export type GameChangerLimit = 'none' | 'unlimited' | number;
 
-// EDHREC bracket level (power level tiers)
-export type BracketLevel = 'all' | 1 | 2 | 3 | 4 | 5;
+/**
+ * Target Bracket — the power-level tier the user is aiming for during
+ * generation. Used as an EDHREC card-pool filter (selects the
+ * exhibition/core/upgraded/optimized/cedh card list). This is build-time
+ * intent and is distinct from the computed `BracketEstimation` (which
+ * scores the resulting deck contents).
+ */
+export type TargetBracket = 'all' | 1 | 2 | 3 | 4 | 5;
 
 // Max card rarity filter
 export type MaxRarity = 'common' | 'uncommon' | 'rare' | 'mythic' | null;
@@ -440,7 +446,7 @@ export interface Customization {
   deckBudget: number | null; // Total deck budget in USD, null = no limit
   budgetOption: BudgetOption; // EDHREC card pool: any (normal), budget, or expensive
   gameChangerLimit: GameChangerLimit; // How many game changer cards to allow
-  bracketLevel: BracketLevel; // EDHREC bracket level for power level filtering
+  targetBracket: TargetBracket; // Build-time power-level target (EDHREC card-pool filter)
   maxRarity: MaxRarity; // Max card rarity, null = no limit
   tinyLeaders: boolean; // Restrict all non-land cards to CMC <= 3
   collectionMode: boolean; // When true, constrain generation to owned cards

@@ -8,7 +8,7 @@ import type {
   EDHRECCombo,
   EDHRECCommanderData,
   EDHRECCommanderStats,
-  BracketLevel,
+  TargetBracket,
   BudgetOption,
 } from '@/deck-builder/types';
 import {
@@ -173,7 +173,7 @@ interface GenerationCache {
   commanderName: string;
   partnerName: string | null;
   themeSlugs: string[];
-  bracketLevel: BracketLevel | undefined;
+  targetBracket: TargetBracket | undefined;
   budgetOption: BudgetOption | undefined;
 }
 
@@ -187,9 +187,9 @@ function buildCacheKey(context: GenerationContext) {
     commanderName: commander.name,
     partnerName: partnerCommander?.name ?? null,
     themeSlugs: selectedThemesWithSlugs.map((t) => t.slug!).sort(),
-    bracketLevel: (customization.bracketLevel !== 'all'
-      ? customization.bracketLevel
-      : undefined) as BracketLevel | undefined,
+    targetBracket: (customization.targetBracket !== 'all'
+      ? customization.targetBracket
+      : undefined) as TargetBracket | undefined,
     budgetOption: (customization.budgetOption !== 'any'
       ? customization.budgetOption
       : undefined) as BudgetOption | undefined,
@@ -202,7 +202,7 @@ function isCacheValid(context: GenerationContext): boolean {
   return (
     generationCache.commanderName === key.commanderName &&
     generationCache.partnerName === key.partnerName &&
-    generationCache.bracketLevel === key.bracketLevel &&
+    generationCache.targetBracket === key.targetBracket &&
     generationCache.budgetOption === key.budgetOption &&
     generationCache.themeSlugs.length === key.themeSlugs.length &&
     generationCache.themeSlugs.every((s, i) => s === key.themeSlugs[i])
@@ -242,7 +242,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     format,
     maxCardPrice,
     budgetOption,
-    bracketLevel,
+    targetBracket,
     maxRarity,
     maxCmc,
     arenaOnly,
@@ -574,9 +574,9 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
               partnerCommander.name,
               theme.slug!,
               budgetOption,
-              bracketLevel
+              targetBracket
             )
-          : fetchCommanderThemeData(commander.name, theme.slug!, budgetOption, bracketLevel)
+          : fetchCommanderThemeData(commander.name, theme.slug!, budgetOption, targetBracket)
       );
 
       // If hyper focus is on, also fetch base commander data in parallel to compare
@@ -586,9 +586,9 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
                 commander.name,
                 partnerCommander.name,
                 budgetOption,
-                bracketLevel
+                targetBracket
               )
-            : fetchCommanderData(commander.name, budgetOption, bracketLevel)
+            : fetchCommanderData(commander.name, budgetOption, targetBracket)
           ).catch(() => null)
         : Promise.resolve(null);
 
@@ -616,14 +616,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
                 commander.name,
                 partnerCommander.name,
                 budgetOption,
-                bracketLevel
+                targetBracket
               )
-            : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
+            : await fetchCommanderData(commander.name, budgetOption, targetBracket);
           representativeStats = baseStatsData.stats;
           logger.debug('[DeckGen] FALLBACK: Got stats from base commander+bracket');
         } catch {
           // Try without bracket if bracket-specific base also fails
-          if (bracketLevel) {
+          if (targetBracket) {
             logger.warn(
               '[DeckGen] FALLBACK: Base commander+bracket stats failed, trying without bracket'
             );
@@ -657,7 +657,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         similarCommanders: [],
       };
 
-      state.dataSource = bracketLevel ? 'theme+bracket' : 'theme';
+      state.dataSource = targetBracket ? 'theme+bracket' : 'theme';
       const themeNames = selectedThemesWithSlugs.map((t) => t.name).join(', ');
       onProgress?.(`Loading theme data: ${themeNames}...`, 12);
     } catch (error) {
@@ -672,15 +672,15 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
               commander.name,
               partnerCommander.name,
               budgetOption,
-              bracketLevel
+              targetBracket
             )
-          : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
-        state.dataSource = bracketLevel ? 'base+bracket' : 'base';
+          : await fetchCommanderData(commander.name, budgetOption, targetBracket);
+        state.dataSource = targetBracket ? 'base+bracket' : 'base';
         logger.debug('[DeckGen] FALLBACK: Using base commander data (with bracket)');
         onProgress?.('Loading commander data', 12);
       } catch {
         // Fall back to base commander without bracket
-        if (bracketLevel) {
+        if (targetBracket) {
           logger.warn(
             '[DeckGen] FALLBACK: Base commander+bracket also failed, trying without bracket'
           );
@@ -714,14 +714,14 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             commander.name,
             partnerCommander.name,
             budgetOption,
-            bracketLevel
+            targetBracket
           )
-        : await fetchCommanderData(commander.name, budgetOption, bracketLevel);
-      state.dataSource = bracketLevel ? 'base+bracket' : 'base';
+        : await fetchCommanderData(commander.name, budgetOption, targetBracket);
+      state.dataSource = targetBracket ? 'base+bracket' : 'base';
       onProgress?.('Commander data ready', 12);
     } catch (error) {
       logger.warn('[DeckGen] FALLBACK: Base commander+bracket fetch failed:', error);
-      if (bracketLevel) {
+      if (targetBracket) {
         try {
           state.edhrecData = partnerCommander
             ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
