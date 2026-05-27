@@ -289,19 +289,6 @@ export default function AuthPage() {
         <button type="button" className="auth-back" onClick={() => navigate('/')}>
           Continue without an account
         </button>
-
-        {/* TEMP: Phase 2 scanner spike entry — drop before any merge.
-            Native-only since the spike route itself is native-only. */}
-        {isNativePlatform() && (
-          <button
-            type="button"
-            className="auth-back"
-            style={{ marginTop: 8, opacity: 0.7 }}
-            onClick={() => navigate('/scanner-v2-spike')}
-          >
-            → Scanner v2 spike
-          </button>
-        )}
       </div>
     </div>
   );

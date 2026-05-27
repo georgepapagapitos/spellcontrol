@@ -77,29 +77,3 @@ export async function embedCanvas(source: HTMLCanvasElement): Promise<EmbedResul
   );
   return { embedding, preprocessMs, inferMs, totalMs };
 }
-
-/**
- * Synthesize a 256×256 mid-gray test canvas. Used by the spike harness to
- * isolate raw inference latency from any image-pipeline contribution.
- */
-export function makeTestCanvas(): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = EMBED_INPUT_SIZE;
-  c.height = EMBED_INPUT_SIZE;
-  const ctx = c.getContext('2d');
-  if (!ctx) throw new Error('2D canvas context unavailable for test canvas');
-  // Deterministic gradient — slightly more interesting than flat gray, so
-  // the encoder isn't compiling for a degenerate input.
-  const img = ctx.createImageData(EMBED_INPUT_SIZE, EMBED_INPUT_SIZE);
-  for (let y = 0; y < EMBED_INPUT_SIZE; y++) {
-    for (let x = 0; x < EMBED_INPUT_SIZE; x++) {
-      const i = (y * EMBED_INPUT_SIZE + x) * 4;
-      img.data[i] = x;
-      img.data[i + 1] = y;
-      img.data[i + 2] = 128;
-      img.data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  return c;
-}
