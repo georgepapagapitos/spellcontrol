@@ -259,3 +259,84 @@ describe('decks helpers', () => {
     expect(selectDeck(undefined)(useDecksStore.getState())).toBeNull();
   });
 });
+
+describe('persist v4 → v5 migration', () => {
+  // Exercises the zustand `migrate` function for the bracketLevel → targetBracket
+  // rename. Calls it via the persist API so the test breaks if the migration is
+  // accidentally removed or its version gate slips.
+  const migrate = useDecksStore.persist.getOptions().migrate!;
+
+  it('renames generationContext.bracketLevel to targetBracket, preserving the value', () => {
+    const v4State = {
+      decks: [
+        {
+          id: 'd1',
+          generationContext: {
+            selectedThemes: [],
+            bracketLevel: 3,
+            landCount: 37,
+            collectionMode: false,
+          },
+        },
+        {
+          id: 'd2',
+          generationContext: {
+            selectedThemes: [],
+            bracketLevel: 'all',
+            landCount: 36,
+            collectionMode: true,
+          },
+        },
+      ],
+    };
+    const migrated = migrate(v4State, 4) as { decks: Array<Record<string, unknown>> };
+    const gc1 = migrated.decks[0].generationContext as Record<string, unknown>;
+    const gc2 = migrated.decks[1].generationContext as Record<string, unknown>;
+    expect(gc1).not.toHaveProperty('bracketLevel');
+    expect(gc1.targetBracket).toBe(3);
+    expect(gc1.landCount).toBe(37);
+    expect(gc2.targetBracket).toBe('all');
+    expect(gc2.collectionMode).toBe(true);
+  });
+
+  it('leaves decks alone when generationContext is null', () => {
+    const v4State = { decks: [{ id: 'd1', generationContext: null }] };
+    const migrated = migrate(v4State, 4) as { decks: Array<Record<string, unknown>> };
+    expect(migrated.decks[0].generationContext).toBeNull();
+  });
+
+  it('leaves decks alone when generationContext lacks bracketLevel', () => {
+    const v4State = {
+      decks: [
+        {
+          id: 'd1',
+          generationContext: { selectedThemes: [], landCount: 37, collectionMode: false },
+        },
+      ],
+    };
+    const migrated = migrate(v4State, 4) as { decks: Array<Record<string, unknown>> };
+    const gc = migrated.decks[0].generationContext as Record<string, unknown>;
+    expect(gc).not.toHaveProperty('targetBracket');
+    expect(gc.landCount).toBe(37);
+  });
+
+  it('is a no-op when the persisted version is already at v5', () => {
+    const v5State = {
+      decks: [
+        {
+          id: 'd1',
+          generationContext: {
+            selectedThemes: [],
+            targetBracket: 4,
+            landCount: 37,
+            collectionMode: false,
+          },
+        },
+      ],
+    };
+    const migrated = migrate(v5State, 5) as { decks: Array<Record<string, unknown>> };
+    const gc = migrated.decks[0].generationContext as Record<string, unknown>;
+    expect(gc.targetBracket).toBe(4);
+    expect(gc).not.toHaveProperty('bracketLevel');
+  });
+});
