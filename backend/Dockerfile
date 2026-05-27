@@ -63,6 +63,13 @@ COPY backend/package.json backend/package-lock.json ./backend/
 RUN npm --prefix backend ci --omit=dev && npm cache clean --force
 COPY --from=build /app/backend/dist ./backend/dist
 
+# Scanner matcher data (pHash DB + MobileCLIP embeddings + ONNX model).
+# Loaded by backend/src/scanner/matcher.ts at boot to serve
+# `POST /api/scanner/match`. Refreshed nightly by
+# .github/workflows/scanner-ingest.yml — the workflow runs the ingest
+# scripts and opens a PR with the regenerated artifacts.
+COPY backend/data/scanner ./backend/data/scanner
+
 # Static web bundle, served by Express at runtime (server.ts: SPA_DIR).
 COPY --from=build /app/frontend/dist ./backend/public
 
