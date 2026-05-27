@@ -7,9 +7,12 @@ import {
 } from '../lib/sync-collision';
 
 /**
- * Prompts when a guest with local data signs into an account that ALSO has
- * data. Replaces the historical silent-overwrite — the dialog is the only
- * place that can answer the sync layer's collision question.
+ * Prompts on the first sign-in for this device whenever the user has any
+ * local guest data — whether the server account is empty (the "should we
+ * push your local data up?" question) or already has data (the true
+ * three-way merge collision). Replaces the historical silent guest-
+ * promotion / silent overwrite: every cross-account data movement now
+ * has explicit consent.
  *
  * Lifecycle: mounted at the root once (App.tsx). On mount it registers an
  * async handler with sync-collision; the handler awaits the user's click.
@@ -53,6 +56,63 @@ export function AccountMergeDialog() {
   const accountLabel = active.accountLabel || 'this account';
   const local = active.local;
   const server = active.server;
+  const serverEmpty =
+    server.cards === 0 &&
+    server.binders === 0 &&
+    server.decks === 0 &&
+    server.lists === 0 &&
+    server.games === 0;
+
+  // Two distinct user questions, two distinct copy + button sets:
+  //   1. Server has data → 3-way merge collision.
+  //   2. Server is empty → "push your guest data to this account?" with an
+  //      escape hatch to wipe local and start fresh on the account.
+  // The "merge" branch collapses to "keep-local" when server is empty
+  // (union with nothing = local), so we don't bother showing a redundant
+  // third button in that case.
+
+  if (serverEmpty) {
+    return (
+      <Modal
+        onClose={() => choose('keep-local')}
+        labelledBy="account-merge-dialog-title"
+        className="choice-dialog account-merge-dialog"
+      >
+        <h2 id="account-merge-dialog-title" className="choice-dialog-title">
+          Move your local data to this account?
+        </h2>
+        <p className="choice-dialog-body">
+          You signed in as <strong>{accountLabel}</strong>. This account is empty, but this device
+          has content. We won&apos;t move anything without your say-so — this only happens once.
+        </p>
+
+        <div className="account-merge-grid">
+          <SideSummary label="On this device" counts={local} />
+          <SideSummary label={`On ${accountLabel}'s account`} counts={server} />
+        </div>
+
+        <div className="account-merge-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => choose('keep-local')}
+            autoFocus
+          >
+            Move it to this account
+          </button>
+          <button type="button" className="btn" onClick={() => choose('keep-server')}>
+            Start fresh — drop this device&apos;s data
+          </button>
+        </div>
+
+        <p className="account-merge-hint">
+          <strong>Move it</strong> pushes everything on this device up to your account so it syncs
+          across devices. <strong>Start fresh</strong> wipes this device&apos;s local guest data and
+          gives you a clean slate on the account.
+        </p>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -78,7 +138,7 @@ export function AccountMergeDialog() {
           Merge both
         </button>
         <button type="button" className="btn" onClick={() => choose('keep-local')}>
-          Keep this device's data
+          Keep this device&apos;s data
         </button>
         <button type="button" className="btn" onClick={() => choose('keep-server')}>
           Use account data
@@ -87,8 +147,8 @@ export function AccountMergeDialog() {
 
       <p className="account-merge-hint">
         <strong>Merge</strong> keeps everything from both sides — duplicates are kept (no copies are
-        lost). <strong>Keep this device's data</strong> replaces the account with what's here.{' '}
-        <strong>Use account data</strong> drops this device's local guest data.
+        lost). <strong>Keep this device&apos;s data</strong> replaces the account with what&apos;s
+        here. <strong>Use account data</strong> drops this device&apos;s local guest data.
       </p>
     </Modal>
   );

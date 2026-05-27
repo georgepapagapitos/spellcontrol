@@ -180,9 +180,11 @@ describe('cache hydration safety', () => {
     expect(useCollectionStore.getState().fileName).toBe('mine.csv');
   });
 
-  it('promotes local data to a fresh server account instead of wiping it', async () => {
+  it('promotes local data to a fresh server account when the user picks keep-local', async () => {
     // Guest-promotion scenario: a user just signed up. Their local persist
-    // and IndexedDB have content; the server account is empty.
+    // and IndexedDB have content; the server account is empty. The
+    // collision dialog now fires for the empty-server case too, so the
+    // test simulates the user clicking "Move it to this account".
     await saveCollection({
       fileName: 'guest.csv',
       cards: [{ copyId: 'c1' } as never],
@@ -206,18 +208,24 @@ describe('cache hydration safety', () => {
       updatedAt: 0,
     });
     const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 100 });
+    const unregister = registerCollisionHandler(() => Promise.resolve('keep-local'));
+    try {
+      await startSync('new-user');
 
-    await startSync('new-user');
-
-    expect(putSpy).toHaveBeenCalled();
-    const pushedAny = putSpy.mock.calls.some(
-      (call) =>
-        Array.isArray(call[0].binders) && call[0].binders.length > 0 && call[0].collection !== null
-    );
-    expect(pushedAny).toBe(true);
-    // Store retains the local data — server's empty snapshot was NOT applied.
-    expect(useCollectionStore.getState().binders).toHaveLength(1);
-    expect(useCollectionStore.getState().cards).toHaveLength(1);
+      expect(putSpy).toHaveBeenCalled();
+      const pushedAny = putSpy.mock.calls.some(
+        (call) =>
+          Array.isArray(call[0].binders) &&
+          call[0].binders.length > 0 &&
+          call[0].collection !== null
+      );
+      expect(pushedAny).toBe(true);
+      // Store retains the local data — server's empty snapshot was NOT applied.
+      expect(useCollectionStore.getState().binders).toHaveLength(1);
+      expect(useCollectionStore.getState().cards).toHaveLength(1);
+    } finally {
+      unregister();
+    }
   });
 
   it('does not wipe IndexedDB when the server returns an empty snapshot and local has data', async () => {
@@ -242,12 +250,17 @@ describe('cache hydration safety', () => {
       updatedAt: 0,
     });
     vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 1, updatedAt: 100 });
+    const unregister = registerCollisionHandler(() => Promise.resolve('keep-local'));
+    try {
+      await startSync('user-1');
 
-    await startSync('user-1');
-
-    // The post-fetch guest-promotion path keeps local data, doesn't wipe.
-    expect(useCollectionStore.getState().cards).toHaveLength(1);
-    expect(useCollectionStore.getState().binders).toHaveLength(1);
+      // User chose to move local data to the empty account → local survives,
+      // doesn't get blanked by the empty server snapshot.
+      expect(useCollectionStore.getState().cards).toHaveLength(1);
+      expect(useCollectionStore.getState().binders).toHaveLength(1);
+    } finally {
+      unregister();
+    }
   });
 
   it('server lost the collection but kept binders: keeps local cards and re-pushes them (the "loads then wipes after 2s" report)', async () => {
@@ -919,7 +932,10 @@ describe('guest → populated-account collision', () => {
     }
   });
 
-  it('does NOT fire when server is empty (the existing guest-promotion path)', async () => {
+  it('DOES fire even when server is empty — user must explicitly consent to moving local data', async () => {
+    // Guest-promotion is now an explicit choice, not a silent push. The
+    // dialog shows the empty-server variant ("Move it / Start fresh") but
+    // the same handler entry point fires.
     useCollectionStore.setState({
       binders: [
         { id: 'local-bn', name: 'Guest binder', createdAt: 1, updatedAt: 1, position: 0 } as never,
@@ -933,12 +949,45 @@ describe('guest → populated-account collision', () => {
       version: 1,
       updatedAt: 1,
     });
-    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 2, updatedAt: 2 });
-    const handler = vi.fn().mockResolvedValue('keep-server' as CollisionChoice);
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 2, updatedAt: 2 });
+    const handler = vi.fn().mockResolvedValue('keep-local' as CollisionChoice);
     const unregister = registerCollisionHandler(handler);
     try {
-      await startSync('user-1');
-      expect(handler).not.toHaveBeenCalled();
+      await startSync('user-1', 'alice');
+      expect(handler).toHaveBeenCalledTimes(1);
+      // The handler sees server counts all zero so the dialog can render its
+      // "this account is empty" variant.
+      expect(handler.mock.calls[0][0]).toMatchObject({
+        local: { binders: 1 },
+        server: { cards: 0, binders: 0, decks: 0, lists: 0, games: 0 },
+      });
+      // User said "move it" → local data was pushed.
+      expect(putSpy).toHaveBeenCalled();
+      expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['local-bn']);
+    } finally {
+      unregister();
+    }
+  });
+
+  it('Start fresh (keep-server) on an empty server wipes local guest data', async () => {
+    useCollectionStore.setState({
+      binders: [
+        { id: 'local-bn', name: 'Guest binder', createdAt: 1, updatedAt: 1, position: 0 } as never,
+      ],
+    });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 1,
+      updatedAt: 1,
+    });
+    const unregister = registerCollisionHandler(() => Promise.resolve('keep-server'));
+    try {
+      await startSync('user-1', 'alice');
+      // Server-empty + keep-server = local guest data wiped, clean slate.
+      expect(useCollectionStore.getState().binders).toHaveLength(0);
     } finally {
       unregister();
     }

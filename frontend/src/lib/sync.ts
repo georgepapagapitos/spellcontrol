@@ -755,34 +755,28 @@ async function pullAndReconcile(): Promise<void> {
           'Could not read your saved collection on this device. Your data is safe — reload to try again.',
       });
     }
-  } else if (isServerEmpty(snap) && hasLocalData()) {
-    // Guest promotion path: a newly authed user has local data but the
-    // server account is empty. Push local up.
-    persistVersion(snap.version);
-    setDirty();
-    await pushNow();
-  } else if (!snap.collection && buildCollection() !== null) {
-    // Server has NO collection but still has other slices (binders/decks),
-    // so isServerEmpty() is false and the whole-snapshot promotion above
-    // doesn't fire. Hydrate succeeded (not hydrateFailed) and we hold a
-    // real local collection. Applying the snapshot would blank the
-    // in-memory cards even though IndexedDB still has them — the reported
-    // "collection loads then wipes after ~2s, binders stay" bug, where the
-    // server lost the collection but kept binders. Keep local, take the
-    // server's other slices, and push the collection back up to repair the
-    // server. This is a server-degraded recovery path, not a merge
-    // collision — it MUST run before the collision branch so a user with
-    // local cards + server-binders-only doesn't get a useless dialog about
-    // a fight that doesn't exist.
+  } else if (!snap.collection && buildCollection() !== null && !isServerEmpty(snap)) {
+    // Server has NO collection but still has OTHER slices populated
+    // (binders/decks/games). This is a server-degraded *recovery* path —
+    // the server lost the collection but kept binders, and applying the
+    // snapshot would blank the in-memory cards even though IndexedDB
+    // still has them (the "collection loads then wipes after ~2s" bug).
+    // Always run silently — it's not a "two sides have data" merge
+    // collision, it's the server hiccupping. The !isServerEmpty(snap)
+    // guard is what keeps this branch from eating the fully-empty-server
+    // case (which belongs to the collision branch below, so the user
+    // gets prompted before their local data moves anywhere).
     await applyServerSnapshot(snap, { keepLocalCollection: true });
     setDirty();
     await pushNow();
-  } else if (isFirstPull && hasLocalData() && !isServerEmpty(snap)) {
-    // Collision: this is the first pull for this user on this device AND
-    // both sides have data. Historically we silently overwrote local with
-    // server (data loss). Now we ask: the registered handler resolves with
-    // keep-server (legacy behavior), keep-local (treat as guest promotion),
-    // or merge (union by id/copyId).
+  } else if (isFirstPull && hasLocalData()) {
+    // Collision / first-time merge: this is the first pull for this user
+    // on this device AND the user has local data to think about. Always
+    // prompt — even when the server account is empty — so the user
+    // explicitly consents to moving their local-only work onto an
+    // account. The dialog adapts its copy when the server side is empty
+    // (it's a "push your data?" question rather than a true merge), but
+    // the choice remains the user's.
     const local = buildLocalSnapshot();
     const choice = await invokeCollisionHandler({
       local: countLocal(local),

@@ -75,4 +75,43 @@ describe('AccountMergeDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use account data' }));
     await waitFor(() => expect(promise).resolves.toBe('keep-server'));
   });
+
+  describe('empty-server variant (guest → empty account)', () => {
+    const emptyServerInfo = {
+      local: { cards: 100, binders: 2, decks: 0, lists: 0, games: 0 },
+      server: { cards: 0, binders: 0, decks: 0, lists: 0, games: 0 },
+      accountLabel: 'dev',
+    };
+
+    it('renders the "move your local data" variant when server is empty', async () => {
+      render(<AccountMergeDialog />);
+      const promise = invokeCollisionHandler(emptyServerInfo);
+      await screen.findByText('Move your local data to this account?');
+      // Only two choices in this variant — no "Merge both" button.
+      expect(screen.getByRole('button', { name: /Move it to this account/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /Start fresh/i })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Merge both' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /Move it to this account/i }));
+      await expect(promise).resolves.toBe('keep-local');
+    });
+
+    it('Start fresh resolves with keep-server (wipes local on the empty account)', async () => {
+      render(<AccountMergeDialog />);
+      const promise = invokeCollisionHandler(emptyServerInfo);
+      await screen.findByText('Move your local data to this account?');
+      fireEvent.click(screen.getByRole('button', { name: /Start fresh/i }));
+      await expect(promise).resolves.toBe('keep-server');
+    });
+
+    it('dismissing the empty-server variant defaults to keep-local (safer; preserves data)', async () => {
+      render(<AccountMergeDialog />);
+      const promise = invokeCollisionHandler(emptyServerInfo);
+      await screen.findByText('Move your local data to this account?');
+      const backdrop = document.querySelector('.modal-backdrop') as HTMLElement;
+      fireEvent.click(backdrop);
+      // Backdrop dismiss on this variant routes to keep-local — the destructive
+      // "wipe my guest data" choice requires an explicit button press.
+      await expect(promise).resolves.toBe('keep-local');
+    });
+  });
 });
