@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
-import { importFile, importText } from '../lib/api';
+import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import { useCollectionStore } from '../store/collection';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
@@ -137,6 +137,13 @@ export function BinderEditor() {
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
   const [sortValueOrders, setSortValueOrders] = useState<Partial<Record<SortField, string[]>>>({});
   const [saving, setSaving] = useState(false);
+  const [importProgress, setImportProgress] = useState<{
+    chunkIndex: number;
+    totalChunks: number;
+    fileLabel?: string;
+    fileIndex?: number;
+    totalFiles?: number;
+  } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [liveMsg, setLiveMsg] = useState('');
   // After adding a group, set this to the new index so the group's name input can autofocus.
@@ -376,17 +383,30 @@ export function BinderEditor() {
     setSaving(true);
     setErrorMsg(null);
     setLoading(true);
+    setImportProgress(null);
     try {
       if (importFiles_.length > 0) {
         const groups =
           strategy === 'merge' ? groupIndicesByName() : importFiles_.map((_, i) => [i]);
+        const totalFiles = importFiles_.length;
+        let fileOrdinal = 0;
         for (const idxs of groups) {
           let binderId = '';
           for (let j = 0; j < idxs.length; j++) {
             const i = idxs[j];
             const file = importFiles_[i];
             const draft = binderDrafts[i];
-            const result = await importFile(file);
+            fileOrdinal += 1;
+            const currentFileOrdinal = fileOrdinal;
+            const onProgress: ImportProgressCallback = (prog) =>
+              setImportProgress({
+                chunkIndex: prog.chunkIndex,
+                totalChunks: prog.totalChunks,
+                fileLabel: file.name,
+                fileIndex: currentFileOrdinal,
+                totalFiles,
+              });
+            const result = await importFile(file, onProgress);
             if (j === 0) {
               await importCards(result, file.name, 'binder', {
                 binderName: draft?.name.trim() || stripExtension(file.name),
@@ -403,7 +423,9 @@ export function BinderEditor() {
           }
         }
       } else {
-        const result = await importText(importPasteText.trim());
+        const result = await importText(importPasteText.trim(), (prog) =>
+          setImportProgress({ chunkIndex: prog.chunkIndex, totalChunks: prog.totalChunks })
+        );
         await importCards(result, 'pasted-list', 'binder', {
           binderName: name.trim(),
           binderColor: color,
@@ -415,6 +437,7 @@ export function BinderEditor() {
     } finally {
       setSaving(false);
       setLoading(false);
+      setImportProgress(null);
     }
   };
 
@@ -944,7 +967,11 @@ export function BinderEditor() {
             </button>
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving
-                ? 'Saving...'
+                ? importProgress && importProgress.totalChunks > 1
+                  ? importProgress.totalFiles && importProgress.totalFiles > 1
+                    ? `File ${importProgress.fileIndex}/${importProgress.totalFiles} · batch ${importProgress.chunkIndex}/${importProgress.totalChunks}…`
+                    : `Importing batch ${importProgress.chunkIndex} of ${importProgress.totalChunks}…`
+                  : 'Saving...'
                 : existing
                   ? 'Save changes'
                   : binderMode === 'import'
