@@ -13,10 +13,10 @@ export default [
       'coverage',
       'node_modules',
       'android',
-      // Vendored scanner v2 blobs (opencv.js, onnxruntime-web bundle, ONNX
+      // Vendored scanner blobs (opencv.js, onnxruntime-web bundle, ONNX
       // model, packed binary DBs). Third-party / generated; linting them
-      // produces ~100 errors that mask real issues elsewhere.
-      'public/scanner-v2/**',
+      // produces ~1000 errors that mask real issues elsewhere.
+      'public/scanner/**',
     ],
   },
   js.configs.recommended,

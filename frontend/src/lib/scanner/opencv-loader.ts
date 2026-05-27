@@ -4,7 +4,7 @@
    or is replaced. */
 // Lazy-load OpenCV.js once per session.
 //
-// We vendor @techstark/opencv-js's `opencv.js` into `public/scanner-v2/` and
+// We vendor @techstark/opencv-js's `opencv.js` into `public/scanner/` and
 // load it via a dynamically-injected classic `<script>` tag. This bypasses
 // Vite's ESM dynamic-import + chunk-graph machinery, which hung
 // indefinitely under Capacitor's `WebViewLocalServer` when fed the 10 MB
@@ -26,7 +26,7 @@ export interface OpenCvLoadResult {
   loadMs: number;
 }
 
-const OPENCV_URL = '/scanner-v2/opencv.js';
+const OPENCV_URL = '/scanner/opencv.js';
 const READY_TIMEOUT_MS = 30_000;
 const POLL_MS = 50;
 
@@ -35,11 +35,11 @@ let pending: Promise<OpenCvLoadResult> | null = null;
 export function loadOpenCv(): Promise<OpenCvLoadResult> {
   if (pending) return pending;
   const t0 = performance.now();
-  console.log('[scanner-v2] opencv script-load start');
+  console.log('[scanner] opencv script-load start');
 
   pending = injectScript(OPENCV_URL).then(() => {
     const scriptMs = performance.now() - t0;
-    console.log(`[scanner-v2] opencv script loaded in ${scriptMs.toFixed(0)}ms; awaiting Mat`);
+    console.log(`[scanner] opencv script loaded in ${scriptMs.toFixed(0)}ms; awaiting Mat`);
 
     // The UMD shim attaches `cv` to the global scope. Type-narrow without
     // ambient declarations to avoid leaking opencv globals into the rest
@@ -51,7 +51,7 @@ export function loadOpenCv(): Promise<OpenCvLoadResult> {
 
     if (typeof win.cv.Mat === 'function') {
       const loadMs = performance.now() - t0;
-      console.log(`[scanner-v2] opencv ready (already initialized) in ${loadMs.toFixed(0)}ms`);
+      console.log(`[scanner] opencv ready (already initialized) in ${loadMs.toFixed(0)}ms`);
       return { cv: win.cv as OpenCv, loadMs };
     }
 
@@ -59,7 +59,7 @@ export function loadOpenCv(): Promise<OpenCvLoadResult> {
   });
 
   pending.catch((err) => {
-    console.error('[scanner-v2] opencv load failed', err);
+    console.error('[scanner] opencv load failed', err);
     pending = null;
   });
   return pending;
@@ -68,7 +68,7 @@ export function loadOpenCv(): Promise<OpenCvLoadResult> {
 function injectScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     // De-dupe so concurrent loadOpenCv() callers share one fetch+parse.
-    const existing = document.querySelector<HTMLScriptElement>(`script[data-scanner-v2-opencv]`);
+    const existing = document.querySelector<HTMLScriptElement>(`script[data-scanner-opencv]`);
     if (existing) {
       if (existing.dataset.loaded === '1') resolve();
       else {
@@ -82,7 +82,7 @@ function injectScript(src: string): Promise<void> {
     const script = document.createElement('script');
     script.src = src;
     script.async = true;
-    script.dataset.scannerV2Opencv = '1';
+    script.dataset.scannerOpencv = '1';
     script.addEventListener('load', () => {
       script.dataset.loaded = '1';
       resolve();
@@ -102,7 +102,7 @@ function waitForMat(win: { cv?: { Mat?: unknown } }, t0: number): Promise<OpenCv
         clearInterval(interval);
         const loadMs = performance.now() - t0;
         console.log(
-          `[scanner-v2] opencv ready (polled ${polls}x over ${(performance.now() - startedAt).toFixed(0)}ms) in ${loadMs.toFixed(0)}ms`
+          `[scanner] opencv ready (polled ${polls}x over ${(performance.now() - startedAt).toFixed(0)}ms) in ${loadMs.toFixed(0)}ms`
         );
         resolve({ cv: win.cv as OpenCv, loadMs });
         return;
@@ -114,9 +114,7 @@ function waitForMat(win: { cv?: { Mat?: unknown } }, t0: number): Promise<OpenCv
               .slice(0, 20)
               .join(', ')
           : '(no cv global)';
-        console.error(
-          `[scanner-v2] opencv ready timeout after ${READY_TIMEOUT_MS}ms — keys: ${keys}`
-        );
+        console.error(`[scanner] opencv ready timeout after ${READY_TIMEOUT_MS}ms — keys: ${keys}`);
         reject(new Error(`OpenCV ready timeout (${READY_TIMEOUT_MS}ms)`));
       }
     }, POLL_MS);

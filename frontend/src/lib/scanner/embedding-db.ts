@@ -20,7 +20,7 @@
 // /127 factor — the produced scores are proportional to cosine similarity
 // (multiply by 1/127 to recover the absolute value).
 
-const DB_URL = '/scanner-v2/card-embeddings.bin';
+const DB_URL = '/scanner/card-embeddings.bin';
 const MAGIC_LE = 0x45314353; // "SC1E" stored little-endian
 const SCHEMA_VERSION = 1;
 const HEADER_BYTES = 16;

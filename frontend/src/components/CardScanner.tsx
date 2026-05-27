@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
 import { isNativePlatform } from '../lib/platform';
 import {
@@ -21,8 +22,9 @@ import {
   pulseValueHaptic,
   type CardValueTier,
 } from '../lib/scanner-feedback';
-import { detectCardBox, detectorBoxToViewport } from '../lib/scanner-detect';
-import { prewarm, scan } from '../lib/scanner-v2/scan';
+import { detectCardBox } from '../lib/scanner-detect';
+import { prewarm, scan } from '../lib/scanner/scan';
+import type { Point } from '../lib/scanner/detect';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -100,7 +102,6 @@ const VARIANCE_THRESHOLD = 320; // stddev² of the title band when checked
  */
 const STABLE_FRAMES_REQUIRED = 1;
 const CAPTURE_COOLDOWN_MS = 800;
-const DETECT_LOST_TICKS = 4;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -165,6 +166,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [viewfinderRect, setViewfinderRect] = useState<Rect | null>(null);
   /** Whether the detector currently has a lock — drives the "card found" styling. */
   const [hasLock, setHasLock] = useState(false);
+  // Quad of the just-matched card in viewport coordinates (TL, TR, BR, BL).
+  // Drawn as an SVG polygon overlay; cleared after the flash fades.
+  const [matchedQuad, setMatchedQuad] = useState<Point[] | null>(null);
   /**
    * The most recently identified card. Stays on screen (in the bottom
    * panel) until the next successful scan replaces it — no auto-dismiss.
@@ -178,6 +182,11 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   } | null>(null);
 
   useLockBodyScroll();
+  // Keep the screen awake while the scanner is open. A phone sleeping
+  // mid-scan is the worst possible UX — losing camera state, dropping
+  // queued cards, and forcing the user to unlock and reopen. Silently
+  // no-ops on browsers without the Wake Lock API.
+  useWakeLock(true);
 
   const totalCount = queue.reduce((sum, e) => sum + e.qty, 0);
   /**
@@ -504,10 +513,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     setStatus('scanning');
     try {
       const root = rootRef.current;
-      const viewfinder = viewfinderRef.current;
-      if (!root || !viewfinder || !viewfinderRect) {
-        return;
-      }
+      // Crop the wide SEARCH region (~92% of viewport), not the 5:7
+      // viewfinder. The viewfinder is card-shaped, so when the user
+      // lines up a card to fill it the card edges land on the crop
+      // boundary and v2's opencv contour finder returns `no_quad`.
+      // searchRect gives v2 a generous margin around the card.
+      const rect = searchRect;
+      if (!root || !rect) return;
       // Acquire a frame: on native this is a still snapshot from the live
       // preview; on web it's the current frame of the playing <video>.
       let frameSource: CanvasImageSource;
@@ -532,10 +544,10 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const fit = isNativePlatform() ? 'cover' : 'contain';
       const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
       const scale = vw / dispW;
-      const cardX = (viewfinderRect.left - dispX) * scale;
-      const cardY = (viewfinderRect.top - dispY) * scale;
-      const cardW = viewfinderRect.width * scale;
-      const cardH = viewfinderRect.height * scale;
+      const cardX = (rect.left - dispX) * scale;
+      const cardY = (rect.top - dispY) * scale;
+      const cardW = rect.width * scale;
+      const cardH = rect.height * scale;
 
       if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
       const canvas = captureCanvasRef.current;
@@ -612,6 +624,23 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       setPulseKey((k) => k + 1);
       playValueChime(tier);
       pulseValueHaptic(tier);
+      // Map v2's detected quad (in crop-canvas coords, since we drew the
+      // searchRect crop into the canvas at native frame resolution) back
+      // to viewport coords. The inverse simplifies to:
+      //   viewport = canvas / scale + rect.{left,top}
+      // because cardX = (rect.left - dispX) * scale and canvas size
+      // matches cardW × cardH. Draw the flash outline at the actual
+      // card corners — TL/TR/BR/BL, in that order from orderQuadCorners.
+      const viewportQuad: Point[] = result.quad.map((p) => ({
+        x: p.x / scale + rect.left,
+        y: p.y / scale + rect.top,
+      }));
+      setMatchedQuad(viewportQuad);
+      setHasLock(true);
+      window.setTimeout(() => {
+        setHasLock(false);
+        setMatchedQuad(null);
+      }, 700);
       // Bottom card panel: persistent — stays until the next successful
       // scan replaces it. `key` is bumped on every scan so the slide-in
       // animation replays even when the same card lands twice.
@@ -626,7 +655,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       stableFramesRef.current = 0;
       armedRef.current = false; // re-arm only after the next unstable frame
     }
-  }, [showHint, viewfinderRect]);
+  }, [showHint, searchRect]);
 
   /**
    * Auto-detect loop. Samples the viewfinder region at ~6 fps into a tiny
@@ -721,23 +750,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const frame = await sampleDetectorFrame();
       if (cancelled || !frame) return;
 
-      // Card-edge detection: find the actual bbox of the card in the
-      // search region. If found, snap the on-screen outline to it and
-      // use it as the capture region; otherwise fall back to the
-      // default centred 5:7 box.
+      // Card-edge detection: kept only for the title-band variance
+      // location below — its old job (driving the on-screen lockbox)
+      // produced false-positive locks on noise and jumpy outlines that
+      // didn't match the actual card shape. The visible reticle is now
+      // a static 5:7 guide; v2's own opencv contour finder decides
+      // whether the captured frame contains a real card.
       const detected = detectCardBox(frame, bufW, bufH);
-      if (detected) {
-        const mapped = detectorBoxToViewport(detected, bufW, bufH, searchRect);
-        setViewfinderRect(mapped);
-        setHasLock(true);
-        lostFramesRef.current = 0;
-      } else {
-        lostFramesRef.current += 1;
-        if (lostFramesRef.current >= DETECT_LOST_TICKS) {
-          setViewfinderRect(defaultViewfinderRect);
-          setHasLock(false);
-        }
-      }
 
       const prev = prevDetectorFrameRef.current;
       prevDetectorFrameRef.current = frame;
@@ -805,7 +824,12 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       // centered region even when the detector hasn't found edges.
       // Together they mean "we know where the card is AND it actually
       // has text where the title should be".
-      const hasCard = detected !== null && bandVar > VARIANCE_THRESHOLD;
+      // Auto-fire on variance + stability alone — the upstream gradient-
+      // projection lock was producing false-positive crops that v2's quad
+      // finder couldn't recognize. v2 handles "is this a card?" itself
+      // via its own opencv contour detector; the upstream `detected` flag
+      // remains useful only for visual lockbox feedback.
+      const hasCard = bandVar > VARIANCE_THRESHOLD;
 
       if (!isStable) {
         armedRef.current = true;
@@ -899,29 +923,48 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     >
       {!isNativePlatform() && <video ref={videoRef} className="scanner-video" playsInline muted />}
 
-      {/* Card outline — drawn directly on the detected card. No default
-          centered viewfinder anymore: when nothing is detected, nothing
-          is drawn. ManaBox-style "the camera is just always looking" UX. */}
-      {hasLock && viewfinderRect && (
-        <div className="scanner-overlay" aria-hidden="true">
-          <div
-            ref={viewfinderRef}
-            className="scanner-lockbox"
-            style={{
-              position: 'absolute',
-              left: `${viewfinderRect.left}px`,
-              top: `${viewfinderRect.top}px`,
-              width: `${viewfinderRect.width}px`,
-              height: `${viewfinderRect.height}px`,
-            }}
+      {/* No persistent outline — the camera is "always looking" and the
+          v2 matcher (its own opencv contour finder) handles rotation,
+          distance, and off-center placement on its own. When a card is
+          matched, we draw a quad polygon at the actual TL/TR/BR/BL
+          corners returned by v2 — perspective-correct, no jumping. */}
+      {hasLock && matchedQuad && matchedQuad.length === 4 && (
+        <svg
+          className="scanner-overlay"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
+        >
+          <polygon
+            points={matchedQuad.map((p) => `${p.x},${p.y}`).join(' ')}
+            fill="rgba(80, 200, 120, 0.15)"
+            stroke="rgba(80, 220, 130, 0.95)"
+            strokeWidth={3}
+            strokeLinejoin="round"
+            style={{ transition: 'opacity 220ms ease-out' }}
           />
-        </div>
+        </svg>
       )}
-      {/* Hidden ref target when there's no lock — captureAndIdentify reads
-          viewfinderRect from state, not from this DOM node, so a missing
-          node is fine. */}
-      <div ref={viewfinderRef} style={{ display: 'none' }} />
-
+      {/* Keep the legacy viewfinder ref attached for any captureAndIdentify
+          paths that still reference it; rendered invisible. */}
+      {viewfinderRect && (
+        <div
+          ref={viewfinderRef}
+          style={{
+            position: 'absolute',
+            left: `${viewfinderRect.left}px`,
+            top: `${viewfinderRect.top}px`,
+            width: `${viewfinderRect.width}px`,
+            height: `${viewfinderRect.height}px`,
+            display: 'none',
+          }}
+        />
+      )}
       {/* Top-left close button. */}
       <button
         type="button"
