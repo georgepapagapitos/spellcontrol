@@ -123,18 +123,29 @@ describe('estimateBracket — hard floors', () => {
     expect(r.breakdown.lateComboCount).toBe(1);
   });
 
-  it('extra turn spells → bracket 2 floor', () => {
-    mockIsExtraTurn.mockImplementation((name: string) => name === 'Time Warp');
+  it('1–2 extra turn spells do not trigger a bracket floor (RC: chaining is the issue)', () => {
+    mockIsExtraTurn.mockImplementation(
+      (name: string) => name === 'Time Warp' || name === 'Temporal Mastery'
+    );
     const r = estimateBracket(
-      ['Time Warp', 'Forest'],
+      ['Time Warp', 'Temporal Mastery', 'Forest'],
       undefined,
       4,
       undefined,
       undefined,
       new Set()
     );
+    expect(r.breakdown.extraTurnCount).toBe(2);
+    expect(r.hardFloors.find((f) => f.reason.includes('extra turn'))).toBeUndefined();
+    expect(r.bracket).toBe(1);
+  });
+
+  it('3+ extra turn spells trigger the bracket-2 floor (chain-likely)', () => {
+    const names = ['Time Warp', 'Temporal Mastery', 'Walk the Aeons'];
+    mockIsExtraTurn.mockImplementation((name: string) => names.includes(name));
+    const r = estimateBracket([...names, 'Forest'], undefined, 4, undefined, undefined, new Set());
+    expect(r.breakdown.extraTurnCount).toBe(3);
     expect(r.bracket).toBeGreaterThanOrEqual(2);
-    expect(r.breakdown.extraTurnCount).toBe(1);
   });
 
   it('incomplete combos do not contribute to floors', () => {
@@ -181,11 +192,18 @@ describe('estimateBracket — hard floors', () => {
 
 describe('estimateBracket — soft score', () => {
   it('fast mana density contributes (capped at 40 points)', () => {
-    // 5 fast mana cards × 8 = 40 (the cap)
-    const names = ['Sol Ring', 'Mana Crypt', 'Mana Vault', 'Mox Diamond', 'Chrome Mox'];
+    // 5 fast mana cards × 8 = 40 (the cap). Sol Ring is intentionally excluded
+    // from the FAST_MANA set (RC: allowed in brackets 1–2 as a precon staple).
+    const names = ['Mana Crypt', 'Mana Vault', 'Mox Diamond', 'Chrome Mox', 'Lotus Petal'];
     const r = estimateBracket(names, undefined, 4, undefined, undefined, new Set());
     expect(r.breakdown.fastManaCount).toBe(5);
     expect(r.softScore).toBeGreaterThanOrEqual(40);
+  });
+
+  it('Sol Ring does not contribute to fast-mana density (precon staple)', () => {
+    const r = estimateBracket(['Sol Ring'], undefined, 4, undefined, undefined, new Set());
+    expect(r.breakdown.fastManaCount).toBe(0);
+    expect(r.breakdown.fastManaNames).not.toContain('Sol Ring');
   });
 
   it('tutor count only counts cards whose primary role is cardDraw', () => {
@@ -211,25 +229,37 @@ describe('estimateBracket — soft score', () => {
     expect(lowCmc.softScore).toBeGreaterThan(highCmc.softScore);
   });
 
-  it('high interaction count contributes only above threshold of 8', () => {
+  it('interaction percentage contributes per ScrollVault thresholds (10–22% non-land)', () => {
+    // Use a Commander-sized deck so the non-land denominator is realistic.
+    const deck = Array.from({ length: 99 }, (_, i) => `C${i}`);
     const low = estimateBracket(
-      ['Forest'],
+      deck,
       undefined,
       4,
       undefined,
-      { removal: 5, boardwipe: 3 }, // 8 total — exactly at threshold, no bonus
+      { removal: 4, boardwipe: 2 }, // 6 / 62 = 9.7% — below 10% floor, no bonus
+      new Set()
+    );
+    const mid = estimateBracket(
+      deck,
+      undefined,
+      4,
+      undefined,
+      { removal: 8, boardwipe: 2 }, // 10 / 62 = 16.1% — between floor and cap
       new Set()
     );
     const high = estimateBracket(
-      ['Forest'],
+      deck,
       undefined,
       4,
       undefined,
-      { removal: 10, boardwipe: 5 }, // 15 total → (15-8)*2 = 14 points
+      { removal: 12, boardwipe: 3 }, // 15 / 62 = 24.2% — over the 22% cap
       new Set()
     );
-    expect(high.softScore).toBeGreaterThan(low.softScore);
-    expect(low.breakdown.interactionCount).toBe(8);
+    expect(low.softScore).toBe(0);
+    expect(mid.softScore).toBeGreaterThan(low.softScore);
+    expect(high.softScore).toBeGreaterThan(mid.softScore);
+    expect(low.breakdown.interactionCount).toBe(6);
     expect(high.breakdown.interactionCount).toBe(15);
   });
 });
