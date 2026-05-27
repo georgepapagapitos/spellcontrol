@@ -35,6 +35,8 @@ export interface BracketBreakdown {
   fastManaNames: string[];
   tutorCount: number;
   tutorNames: string[];
+  staxPieceCount: number;
+  staxPieceNames: string[];
   averageCmc: number;
   interactionCount: number;
 }
@@ -102,6 +104,81 @@ const INTERACTION_CAP = 15;
 /** Approximate non-land count for a 100-card Commander deck (37 lands). */
 const COMMANDER_NONLAND_COUNT = 63;
 
+/**
+ * Canonical "stax piece" cards — resource-denial / lock / tax effects that
+ * either slow opponents significantly or lock the game.
+ *
+ * Scryfall's only related oracle tag is `otag:stasis`, which covers ~12
+ * tap-down effects (Winter Orb, Static Orb, Stasis, etc.) and misses the
+ * larger spell-tax / cost-tax / strategy-hate body of stax cards. The
+ * SpellControl tagger doesn't carry a stax tag either. So we maintain a
+ * curated list here — the cEDH/competitive Commander community treats
+ * these as the canonical pool. Several overlap with the Game Changers
+ * list (Trinisphere, Drannith Magistrate) and are caught there too;
+ * including them here as well is harmless since the floors stack.
+ *
+ * Floor thresholds parallel the combo logic:
+ *  - 3+ pieces → bracket 3 floor (deliberate stax presence)
+ *  - 5+ pieces → bracket 4 floor (stax-focused strategy)
+ */
+const STAX_PIECES = new Set([
+  // Tap-down / mana denial (otag:stasis subset)
+  'Winter Orb',
+  'Static Orb',
+  'Stasis',
+  'Rising Waters',
+  'Damping Field',
+  'Smoke',
+  'Imi Statue',
+  // Resource taxes
+  'Sphere of Resistance',
+  'Thorn of Amethyst',
+  'Lodestone Golem',
+  'Damping Sphere',
+  'Thalia, Guardian of Thraben',
+  'Esper Sentinel',
+  'Archon of Emeria',
+  'Eidolon of Rhetoric',
+  'Spirit of the Labyrinth',
+  'Vryn Wingmare',
+  'Glowrider',
+  'Rule of Law',
+  // Cumulative-upkeep / artifact stax
+  'Smokestack',
+  'Tangle Wire',
+  // Activated-ability / artifact hate
+  'Cursed Totem',
+  'Null Rod',
+  'Stony Silence',
+  'Collector Ouphe',
+  'Linvala, Keeper of Silence',
+  // Search / commander-strategy hate
+  'Aven Mindcensor',
+  'Notion Thief',
+]);
+
+const STAX_FLOOR_BRACKET_3_THRESHOLD = 3;
+const STAX_FLOOR_BRACKET_4_THRESHOLD = 5;
+
+/**
+ * Tutor handling — known divergence from current strict-RC text.
+ *
+ * The October 2025 RC update **removed tutor restrictions entirely** from
+ * brackets 1-3 (relying on the Game Changers list to catch the most
+ * powerful tutors: Demonic, Vampiric, Imperial Seal, Mystical, etc.):
+ *   - https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-october-21-2025
+ *
+ * However, ScrollVault (the most-validated community bracket calculator,
+ * claiming 97.2% exact-bracket accuracy) still uses tutor count as a soft
+ * signal:
+ *   - https://scrollvault.net/tools/commander-bracket/
+ *
+ * We follow ScrollVault here — tutors contribute to the soft score but
+ * don't trigger any hard floor. The strict-RC interpretation can be
+ * obtained by passing roleCounts that don't have a tutor signal, since
+ * this only affects soft scoring, not floors.
+ */
+
 // ── Estimation ─────────────────────────────────────────────────────────────
 
 export function estimateBracket(
@@ -119,12 +196,14 @@ export function estimateBracket(
   const extraTurns: string[] = [];
   const fastMana: string[] = [];
   const tutors: string[] = [];
+  const staxPieces: string[] = [];
 
   for (const name of allCardNames) {
     if (gameChangerNames.has(name)) gameChangers.push(name);
     if (isMassLandDenial(name)) massLandDenial.push(name);
     if (isExtraTurn(name)) extraTurns.push(name);
     if (FAST_MANA.has(name)) fastMana.push(name);
+    if (STAX_PIECES.has(name)) staxPieces.push(name);
     // Only count as tutor if primary role is cardDraw — cards like Cultivate
     // have the tutor tag but their primary role is ramp, not tutoring.
     if (hasTag(name, 'tutor') && getCardRole(name) === 'cardDraw') tutors.push(name);
@@ -219,6 +298,22 @@ export function estimateBracket(
     });
   }
 
+  if (staxPieces.length >= STAX_FLOOR_BRACKET_4_THRESHOLD) {
+    hardFloors.push({
+      bracket: 4,
+      reason: `${staxPieces.length} stax / lock pieces`,
+      detail:
+        'Heavy stax presence locks opponents out of the game — functionally similar to mass land denial.',
+    });
+  } else if (staxPieces.length >= STAX_FLOOR_BRACKET_3_THRESHOLD) {
+    hardFloors.push({
+      bracket: 3,
+      reason: `${staxPieces.length} stax / lock pieces`,
+      detail:
+        'Multiple stax pieces signal a deliberate resource-denial plan — generally accepted but pushes power up.',
+    });
+  }
+
   const floor = hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : 1;
 
   // ── 5. Soft score (0-100) ──
@@ -277,6 +372,8 @@ export function estimateBracket(
       fastManaNames: fastMana,
       tutorCount: tutors.length,
       tutorNames: tutors,
+      staxPieceCount: staxPieces.length,
+      staxPieceNames: staxPieces,
       averageCmc,
       interactionCount,
     },
