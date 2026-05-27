@@ -25,6 +25,7 @@ import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/
 import { initDeepLinks } from './lib/deep-links';
 import { AccountMergeDialog } from './components/AccountMergeDialog';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
+import { useFirstRunGate } from './lib/use-first-run-gate';
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
 // intercepts https://spellcontrol.com/oauth/callback and hands the URL to
@@ -88,6 +89,13 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  // First-run gate: on a brand-new install, send the user to /auth before
+  // dropping them into the app. The gate flips off as soon as any
+  // intentional first auth choice is made (login, register, finish Google
+  // sign-in, or "Continue without an account"). Only fires once status
+  // has resolved to 'guest'; the bootstrap loading window is ignored.
+  useFirstRunGate(status);
 
   // Subscribe to native deep links once per mount. `initDeepLinks` is a
   // no-op on web, so the listener is only ever registered inside the

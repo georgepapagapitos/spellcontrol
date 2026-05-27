@@ -1,11 +1,14 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAuth } from './auth';
 import * as authApi from '../lib/auth-api';
 import * as sync from '../lib/sync';
+import { hasEverVisited } from '../lib/first-run';
 
 beforeEach(() => {
   vi.restoreAllMocks();
   useAuth.setState({ user: null, status: 'unknown', error: null, autoLinkedAt: null });
+  localStorage.clear();
 });
 
 describe('bootstrap', () => {
@@ -129,6 +132,57 @@ describe('completeGoogleSignup', () => {
     expect(result.ok).toBe(false);
     expect(result.status).toBe(409);
     expect(useAuth.getState().error).toMatch(/taken/i);
+  });
+});
+
+describe('first-run flag side effect', () => {
+  it('login success marks the device as ever-visited', async () => {
+    vi.spyOn(authApi, 'login').mockResolvedValue({ id: 'u', username: 'a', role: 'user' });
+    expect(hasEverVisited()).toBe(false);
+    await useAuth.getState().login('a', 'pw');
+    expect(hasEverVisited()).toBe(true);
+  });
+
+  it('login failure does not mark the device', async () => {
+    vi.spyOn(authApi, 'login').mockRejectedValue(new Error('nope'));
+    await useAuth.getState().login('a', 'pw');
+    expect(hasEverVisited()).toBe(false);
+  });
+
+  it('register success marks the device', async () => {
+    vi.spyOn(authApi, 'register').mockResolvedValue({ id: 'u', username: 'a', role: 'user' });
+    await useAuth.getState().register('a', 'pw');
+    expect(hasEverVisited()).toBe(true);
+  });
+
+  it('completeGoogleOAuth success marks the device', async () => {
+    vi.spyOn(authApi, 'exchangeGoogleCode').mockResolvedValue({
+      id: 'g',
+      username: 'g',
+      role: 'user',
+    });
+    await useAuth.getState().completeGoogleOAuth('code');
+    expect(hasEverVisited()).toBe(true);
+  });
+
+  it('completeGoogleSignup success marks the device', async () => {
+    vi.spyOn(authApi, 'completeGoogleSignup').mockResolvedValue({
+      id: 'g',
+      username: 'g',
+      role: 'user',
+    });
+    await useAuth.getState().completeGoogleSignup('tok', 'g');
+    expect(hasEverVisited()).toBe(true);
+  });
+
+  it('linkGoogleWithPassword success marks the device', async () => {
+    vi.spyOn(authApi, 'linkGoogleWithPassword').mockResolvedValue({
+      id: 'u',
+      username: 'u',
+      role: 'user',
+    });
+    await useAuth.getState().linkGoogleWithPassword('tok', 'u', 'pw');
+    expect(hasEverVisited()).toBe(true);
   });
 });
 

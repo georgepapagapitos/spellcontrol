@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as authApi from '../lib/auth-api';
 import type { AuthUser } from '../lib/auth-api';
 import { flushSync, stopSyncAndWipeLocal } from '../lib/sync';
+import { markEverVisited } from '../lib/first-run';
 
 export type AuthStatus = 'unknown' | 'loading' | 'authed' | 'guest';
 
@@ -89,6 +90,8 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.login(username, password);
       set({ user, status: 'authed', error: null });
+      // Any intentional first auth choice satisfies the first-run gate.
+      markEverVisited();
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Login failed.' });
@@ -101,6 +104,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.register(username, password);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Registration failed.' });
@@ -113,6 +117,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.exchangeGoogleCode(code);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return true;
     } catch (err) {
       // Don't downgrade an already-authed session: a replayed handoff code
@@ -134,6 +139,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.completeGoogleSignup(signupToken, username);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return { ok: true };
     } catch (err) {
       const status = (err as { status?: number }).status;
@@ -147,6 +153,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     try {
       const user = await authApi.linkGoogleWithPassword(signupToken, username, password);
       set({ user, status: 'authed', error: null });
+      markEverVisited();
       return true;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Could not link the account.' });
