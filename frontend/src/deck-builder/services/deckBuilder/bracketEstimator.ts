@@ -49,9 +49,16 @@ const BRACKET_LABELS: Record<number, string> = {
   5: 'cEDH',
 };
 
-/** Fast mana sources — small, stable list that rarely changes. */
+/**
+ * Fast mana sources used as a power-density soft signal.
+ *
+ * Excludes Sol Ring: the RC and the wider community treat it as a
+ * precon-staple exempt from "fast mana" — it appears in every precon
+ * and is explicitly allowed in brackets 1–2. Including it here would
+ * penalize every casual deck unfairly.
+ *   - https://tcgprotectors.com/blogs/mtg-deck-building-guides/mtg-commander-bracket-system-2026-explained
+ */
 const FAST_MANA = new Set([
-  'Sol Ring',
   'Mana Crypt',
   'Mana Vault',
   'Grim Monolith',
@@ -69,6 +76,31 @@ const FAST_MANA = new Set([
   'Ancient Tomb',
   'Jeweled Lotus',
 ]);
+
+/**
+ * Bracket-2 floor for extra turns kicks in only at 3+. Per RC guidance,
+ * one or two extra-turn spells in a deck is fine across any bracket —
+ * what bracket 2 actually restricts is *chaining* (building around
+ * repeatedly playing extra turns). A deck with 3+ extra-turn spells
+ * strongly implies an extra-turn strategy.
+ *   - https://edhrec.com/articles/what-does-it-look-like-to-chain-extra-turns-in-commander
+ */
+const EXTRA_TURN_FLOOR_THRESHOLD = 3;
+
+/**
+ * Interaction-percentage thresholds (proportion of non-land cards that are
+ * removal or boardwipes). Derived from ScrollVault's bracket calculator,
+ * which buckets bracket 1–2 decks at 8–15% interaction density and
+ * bracket 4–5 decks at 15–28%.
+ *   - https://scrollvault.net/tools/commander-bracket/
+ *
+ * Linearly map [0.10, 0.22] to [0, INTERACTION_CAP] points.
+ */
+const INTERACTION_PCT_MIN = 0.1;
+const INTERACTION_PCT_MAX = 0.22;
+const INTERACTION_CAP = 15;
+/** Approximate non-land count for a 100-card Commander deck (37 lands). */
+const COMMANDER_NONLAND_COUNT = 63;
 
 // ── Estimation ─────────────────────────────────────────────────────────────
 
@@ -175,12 +207,15 @@ export function estimateBracket(
     });
   }
 
-  if (extraTurns.length > 0) {
+  if (extraTurns.length >= EXTRA_TURN_FLOOR_THRESHOLD) {
+    // Per RC: 1–2 extra-turn spells is fine in any bracket. Floor only triggers
+    // at 3+ as that strongly implies an extra-turn strategy (chaining), which
+    // is what bracket 2 actually restricts.
     hardFloors.push({
       bracket: 2,
-      reason: `${extraTurns.length} extra turn spell${extraTurns.length > 1 ? 's' : ''}`,
+      reason: `${extraTurns.length} extra turn spells (chain-likely)`,
       detail:
-        'Extra turns are powerful but slow the game down — most groups consider them a step above casual.',
+        'Three or more extra-turn spells suggests the deck is built to chain them — the bracket-2 restriction.',
     });
   }
 
@@ -188,12 +223,28 @@ export function estimateBracket(
 
   // ── 5. Soft score (0-100) ──
 
+  // Interaction density as a proportion of non-land cards (per ScrollVault):
+  // bracket 1–2 sits at 8–15%, bracket 4–5 at 15–28%. Linearly map
+  // [INTERACTION_PCT_MIN, INTERACTION_PCT_MAX] to [0, INTERACTION_CAP] points.
+  // Falls back to the Commander-default non-land count when the deck size
+  // hint is missing, since brackets are a Commander concept.
+  const nonLandCount = Math.max(1, allCardNames.length - 37) || COMMANDER_NONLAND_COUNT;
+  const interactionPct = interactionCount / nonLandCount;
+  const interactionBonus = Math.min(
+    INTERACTION_CAP,
+    Math.max(
+      0,
+      ((interactionPct - INTERACTION_PCT_MIN) / (INTERACTION_PCT_MAX - INTERACTION_PCT_MIN)) *
+        INTERACTION_CAP
+    )
+  );
+
   const softScore = Math.min(
     100,
     Math.min(40, fastMana.length * 8) +
       Math.min(25, tutors.length * 5) +
       Math.min(20, Math.max(0, (3.5 - averageCmc) * 15)) +
-      Math.min(15, Math.max(0, (interactionCount - 8) * 2))
+      interactionBonus
   );
 
   // ── 6. Final bracket ──
