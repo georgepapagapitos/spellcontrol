@@ -76,12 +76,14 @@ export default defineConfig({
         // directly.
         'src/lib/scanner/opencv-loader.ts',
         'src/lib/scanner/detect.ts',
-        // onnxruntime-web loader + MobileCLIP2-S0 inference. Same
-        // rationale: heavy WASM runtime, device-validated, not
-        // unit-gated. Pure preprocessing helpers would move out if/when
-        // we extract them.
-        'src/lib/scanner/embed-loader.ts',
-        'src/lib/scanner/embed.ts',
+        // Scanner pipeline wrapper. `scan.ts` glues opencv (WASM),
+        // canvas.toBlob, fetch (the server matcher), and the offline
+        // pHash fallback together — every meaningful branch needs a
+        // real browser runtime. Pure helpers (`classify`,
+        // `serverBodyToScanResult`, `phashHitsToScanResult`) are
+        // exported and unit-tested separately; excluding the wrapper
+        // file drops the measurement, not the test.
+        'src/lib/scanner/scan.ts',
         // Deck-builder network service clients — large fetch wrappers around
         // EDHREC / Scryfall / the tagger endpoint. Same rationale as ocr.ts:
         // exercising them meaningfully needs a fetch shim that fights real

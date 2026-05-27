@@ -17,6 +17,7 @@ import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
 import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
+import { scannerRouter } from './routes/scanner';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, getCardById } from './scryfall';
 import { getSetMap } from './sets';
@@ -116,6 +117,7 @@ app.use('/api/games', gamesRouter);
 app.use('/api/combos', combosRouter);
 app.use('/api/shares', sharesRouter);
 app.use('/api/offline', offlineRouter);
+app.use('/api/scanner', scannerRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
