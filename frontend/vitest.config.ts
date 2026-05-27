@@ -63,19 +63,19 @@ export default defineConfig({
         'src/lib/native-file-picker.ts',
         'src/lib/haptics.ts',
         'src/lib/deep-links.ts',
-        // Scanner v2 spike — OpenCV.js (WASM) loader + classical detector.
-        // Same rationale as ocr.ts: the heavy lifting is a ~10MB WASM module
-        // that won't initialize under node, so the pipeline is
-        // device-validated, not unit-gated. Pure helpers like
-        // `orderQuadCorners` are tested directly.
-        'src/lib/scanner-v2/opencv-loader.ts',
-        'src/lib/scanner-v2/detect.ts',
-        // Phase 2 spike — onnxruntime-web loader + MobileCLIP2-S0 inference.
-        // Same rationale: heavy WASM runtime, device-validated, not
+        // Scanner OpenCV.js (WASM) loader + classical detector. The
+        // heavy lifting is a ~10MB WASM module that won't initialize
+        // under node, so the pipeline is device-validated, not
+        // unit-gated. Pure helpers like `orderQuadCorners` are tested
+        // directly.
+        'src/lib/scanner/opencv-loader.ts',
+        'src/lib/scanner/detect.ts',
+        // onnxruntime-web loader + MobileCLIP2-S0 inference. Same
+        // rationale: heavy WASM runtime, device-validated, not
         // unit-gated. Pure preprocessing helpers would move out if/when
         // we extract them.
-        'src/lib/scanner-v2/embed-loader.ts',
-        'src/lib/scanner-v2/embed.ts',
+        'src/lib/scanner/embed-loader.ts',
+        'src/lib/scanner/embed.ts',
         // Deck-builder network service clients — large fetch wrappers around
         // EDHREC / Scryfall / the tagger endpoint. Same rationale as ocr.ts:
         // exercising them meaningfully needs a fetch shim that fights real

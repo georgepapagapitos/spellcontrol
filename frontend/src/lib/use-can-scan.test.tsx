@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-// Stub isNativePlatform — scanner v2 is native-only, so we need to be able
+// Stub isNativePlatform — the scanner is native-only, so we need to be able
 // to flip this independently of the other capability gates. Default to
 // `true` (native) so the existing "capable device" tests still measure the
 // other gates instead of being trivially false.
