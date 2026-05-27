@@ -1,7 +1,7 @@
 import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useCollectionStore, type ImportMode } from '../store/collection';
-import { importFile, importText } from '../lib/api';
+import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import type { UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
@@ -24,7 +24,7 @@ const JSON_MIME_TYPES = ['application/json'];
 
 interface PendingImport {
   /** Runs the actual import call. Omitted for staged-file batches. */
-  fn?: () => Promise<UploadResponse>;
+  fn?: (onProgress?: ImportProgressCallback) => Promise<UploadResponse>;
   /** Staged files to import sequentially (one history entry per file). */
   files?: File[];
   /** Display label — file name or "pasted-list". */
@@ -33,6 +33,16 @@ interface PendingImport {
   preview?: string;
   /** True for sample-set imports — flagged in history so users can find & delete them. */
   isSample?: boolean;
+}
+
+interface ImportProgressState {
+  chunkIndex: number;
+  totalChunks: number;
+  /** Filename when importing a staged-file batch, undefined for paste/scan. */
+  fileLabel?: string;
+  /** 1-indexed file when batching multiple files. */
+  fileIndex?: number;
+  totalFiles?: number;
 }
 
 interface UploadPanelProps {
@@ -56,6 +66,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
    *  starts a new import or dismisses the panel. */
   const [recentImportIds, setRecentImportIds] = useState<Set<string>>(new Set());
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -135,7 +146,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     if (!text || isLoading) return;
     const lineCount = text.split('\n').filter((l) => l.trim()).length;
     queueImport({
-      fn: () => importText(text),
+      fn: (onProgress) => importText(text, onProgress),
       label: 'pasted-list',
       preview: `${lineCount} line${lineCount === 1 ? '' : 's'}`,
     });
@@ -152,17 +163,27 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setSuccessMsg(null);
     setRecentImportIds(new Set());
     setShowUnresolved(false);
+    setImportProgress(null);
     const newImportIds = new Set<string>();
     try {
       if (p.files) {
         // Sequential batch: one history entry per file. For 'replace' the
         // first file wipes the collection and the rest append, so the net
         // result is the union of every file rather than just the last.
+        const totalFiles = p.files.length;
         let totalCards = 0;
         let totalUnresolved = 0;
         for (let i = 0; i < p.files.length; i++) {
           const file = p.files[i];
-          const result = await importFile(file);
+          const result = await importFile(file, (prog) =>
+            setImportProgress({
+              chunkIndex: prog.chunkIndex,
+              totalChunks: prog.totalChunks,
+              fileLabel: file.name,
+              fileIndex: i + 1,
+              totalFiles,
+            })
+          );
           const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
           const id = await importCards(result, file.name, fileMode, {
             isSample: p.isSample,
@@ -184,7 +205,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         return;
       }
 
-      const result = await p.fn!();
+      const result = await p.fn!((prog) =>
+        setImportProgress({ chunkIndex: prog.chunkIndex, totalChunks: prog.totalChunks })
+      );
       const id = await importCards(result, p.label, mode, {
         isSample: p.isSample,
         binderName,
@@ -208,6 +231,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       setError(err instanceof Error ? err.message : fallback);
     } finally {
       setLoading(false);
+      setImportProgress(null);
     }
   }
 
@@ -303,14 +327,20 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     <div className="upload-panel">
       {confirmDialog}
       {/* While the collection import / backup restore is running we
-          surface a single indeterminate progress strip at the top of
-          the panel so the user gets clear feedback even when the
-          import itself takes 10+ seconds. Mirrors the
-          ImportDeckDialog progress UX so both surfaces communicate
-          "working" the same way. */}
+          surface a progress strip at the top of the panel. If the
+          import was big enough to be chunked we show determinate
+          progress per batch; otherwise (single small upload, backup
+          restore) we fall back to the indeterminate animation. */}
       {isLoading && (
         <div className="upload-progress" role="status" aria-live="polite">
-          <ProgressBar indeterminate message="Importing your collection…" />
+          {importProgress && importProgress.totalChunks > 1 ? (
+            <ProgressBar
+              percent={((importProgress.chunkIndex - 1) / importProgress.totalChunks) * 100}
+              message={formatImportProgressMessage(importProgress)}
+            />
+          ) : (
+            <ProgressBar indeterminate message="Importing your collection…" />
+          )}
         </div>
       )}
       {successMsg && !error && (
@@ -596,7 +626,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           onConfirm={(text, count) => {
             setScannerOpen(false);
             queueImport({
-              fn: () => importText(text),
+              fn: (onProgress) => importText(text, onProgress),
               label: 'scanned-cards',
               preview: `${count} scanned card${count === 1 ? '' : 's'}`,
             });
@@ -839,6 +869,15 @@ function prettyImportName(name: string, format: string): string {
     default:
       return 'Pasted list';
   }
+}
+
+function formatImportProgressMessage(p: ImportProgressState): string {
+  const batch = `batch ${p.chunkIndex} of ${p.totalChunks}`;
+  if (p.totalFiles && p.totalFiles > 1 && p.fileLabel) {
+    return `Importing ${p.fileLabel} (file ${p.fileIndex} of ${p.totalFiles}) — ${batch}…`;
+  }
+  if (p.fileLabel) return `Importing ${p.fileLabel} — ${batch}…`;
+  return `Importing your collection — ${batch}…`;
 }
 
 function formatRelative(timestamp: number): string {
