@@ -264,25 +264,3 @@ export function detectCardBox(
     h: bestBottom - bestTop + 1,
   };
 }
-
-/**
- * Map a detector-frame bbox back to viewport pixel coordinates given
- * the rectangle of the on-screen image-source the detector was
- * sampling from. The detector frame is always a contain-fit downscale
- * of `searchRect`, so the mapping is a simple linear rescale.
- */
-export function detectorBoxToViewport(
-  box: DetectedBox,
-  detectorW: number,
-  detectorH: number,
-  searchRect: { left: number; top: number; width: number; height: number }
-): { left: number; top: number; width: number; height: number } {
-  const sx = searchRect.width / detectorW;
-  const sy = searchRect.height / detectorH;
-  return {
-    left: searchRect.left + box.x * sx,
-    top: searchRect.top + box.y * sy,
-    width: box.w * sx,
-    height: box.h * sy,
-  };
-}
