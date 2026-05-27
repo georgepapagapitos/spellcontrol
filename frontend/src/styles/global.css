@@ -8982,6 +8982,71 @@ hr {
   }
 }
 
+/* Header sync indicator — compact pill showing whether the device is
+   currently pushing/pulling, the last-synced timestamp (tooltip), or
+   "Local only" for guests. Mirrors the .site-nav-count badge sizing so it
+   tucks neatly between the primary nav and the user controls. */
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1px 0.55rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text3);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sync-indicator-ready {
+  color: var(--text2);
+}
+
+.sync-indicator-check {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.sync-indicator-syncing {
+  color: var(--accent);
+  border-color: var(--accent-light);
+  background: var(--accent-light);
+}
+
+.sync-indicator-local {
+  color: var(--text3);
+}
+
+.sync-indicator-spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-light);
+  border-top-color: var(--accent);
+  animation: sync-indicator-spin 0.9s linear infinite;
+}
+
+@keyframes sync-indicator-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-indicator-spinner {
+    animation: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Header is hidden on tablet/mobile (see .site-header display:none in
+     the responsive block above); no per-indicator override needed. */
+}
+
 /* Settings page — full route at /settings. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */
 .settings-page {

@@ -77,7 +77,16 @@ let currentAccountLabel = '';
 type SyncedListener = () => void;
 const syncedListeners = new Set<SyncedListener>();
 let syncedState: 'idle' | 'syncing' | 'ready' = 'idle';
+// Epoch ms of the last successful pull OR push. Both count as "synced":
+// the user only cares that local and server are in agreement, not which
+// direction the bytes flowed. Reset to null by wipeLocal() so a logged-out
+// device doesn't show a stale "synced 3m ago" stamp.
+let lastSyncedAt: number | null = null;
 
+// We keep the existing parameterless onSyncedChange API and just bump it on
+// every change (state or lastSyncedAt). Subscribers re-read both getters in
+// their handler — simpler than encoding a payload type that consumers would
+// pattern-match on, and avoids fanning out two listener channels.
 export function onSyncedChange(fn: SyncedListener): () => void {
   syncedListeners.add(fn);
   return () => syncedListeners.delete(fn);
@@ -87,6 +96,13 @@ function emitSynced(): void {
 }
 export function getSyncState(): 'idle' | 'syncing' | 'ready' {
   return syncedState;
+}
+export function getLastSyncedAt(): number | null {
+  return lastSyncedAt;
+}
+function markSynced(): void {
+  lastSyncedAt = Date.now();
+  emitSynced();
 }
 
 function setDirty(): void {
@@ -233,6 +249,7 @@ async function pushNow(): Promise<void> {
       // later non-destructive empty state can't ride on stale intent.
       consumeDestructive();
     }
+    markSynced();
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
     if (e.status === 409 && e.current) {
@@ -688,6 +705,10 @@ async function pullAndReconcile(): Promise<void> {
   } else {
     await applyServerSnapshot(snap);
   }
+  // We have an authoritative snapshot (whether we applied it, kept-local
+  // around it, merged, or just rebased the version): all branches above
+  // leave currentVersion in agreement with the server. Stamp it.
+  markSynced();
 }
 
 export async function startSync(userId?: string, accountLabel?: string): Promise<void> {
@@ -778,6 +799,9 @@ async function wipeLocal(): Promise<void> {
   // focus pull and clear any in-flight-pull latch.
   lastPullAt = 0;
   pulling = false;
+  // Wipe the visible "Synced Xm ago" stamp too — logout shouldn't leak the
+  // previous session's timing into the next account's header.
+  lastSyncedAt = null;
   clearDirty();
   for (const key of [VERSION_KEY, OWNER_KEY]) {
     try {

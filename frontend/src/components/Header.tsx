@@ -4,6 +4,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
 import { useAuth } from '../store/auth';
+import { SyncIndicator } from './SyncIndicator';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
@@ -51,6 +52,7 @@ export function Header() {
           </NavLink>
         </nav>
         <nav className="site-nav">
+          <SyncIndicator />
           {isGuest && (
             <NavLink to="/auth" className="site-nav-signin">
               <LogIn width={16} height={16} strokeWidth={1.8} aria-hidden />
