@@ -188,6 +188,55 @@ describe('estimateBracket — hard floors', () => {
     // MLD (4) wins over extra turn (2)
     expect(r.bracket).toBeGreaterThanOrEqual(4);
   });
+
+  it('0–2 stax pieces do not trigger a bracket floor (toolbox use)', () => {
+    const r = estimateBracket(
+      ['Cursed Totem', 'Null Rod', 'Forest'],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.staxPieceCount).toBe(2);
+    expect(r.hardFloors.find((f) => f.reason.includes('stax'))).toBeUndefined();
+    expect(r.bracket).toBe(1);
+  });
+
+  it('3–4 stax pieces trigger the bracket-3 floor (deliberate plan)', () => {
+    const r = estimateBracket(
+      ['Cursed Totem', 'Null Rod', 'Stony Silence', 'Forest'],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.staxPieceCount).toBe(3);
+    expect(r.bracket).toBeGreaterThanOrEqual(3);
+    expect(r.hardFloors.some((f) => f.bracket === 3 && f.reason.includes('stax'))).toBe(true);
+  });
+
+  it('5+ stax pieces trigger the bracket-4 floor (stax-focused strategy)', () => {
+    const r = estimateBracket(
+      [
+        'Winter Orb',
+        'Static Orb',
+        'Smokestack',
+        'Sphere of Resistance',
+        'Thorn of Amethyst',
+        'Forest',
+      ],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.staxPieceCount).toBe(5);
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+    expect(r.hardFloors.some((f) => f.bracket === 4 && f.reason.includes('stax'))).toBe(true);
+  });
 });
 
 describe('estimateBracket — soft score', () => {
