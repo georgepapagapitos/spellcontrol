@@ -6,6 +6,7 @@ import { startSync, stopSyncAndWipeLocal, flushSync } from './sync';
 import { markDestructive } from './sync-intent';
 import { saveCollection, clearCollection, loadCollection } from './local-cards';
 import * as localCards from './local-cards';
+import { registerCollisionHandler, type CollisionChoice } from './sync-collision';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
@@ -784,5 +785,162 @@ describe('lists sync', () => {
     expect(useCollectionStore.getState().lists).toEqual([
       { id: 'rl', name: 'Server', entries: [], order: 0, createdAt: 1, updatedAt: 1 },
     ]);
+  });
+});
+
+describe('guest → populated-account collision', () => {
+  function localAndServerBothHaveData(): void {
+    // Local has a binder (guest mode).
+    useCollectionStore.setState({
+      binders: [
+        { id: 'local-bn', name: 'Guest binder', createdAt: 1, updatedAt: 1, position: 0 } as never,
+      ],
+    });
+    // Server has its own collection + binders + decks.
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: {
+        fileName: 'server.csv',
+        cards: [],
+        scryfallHits: 0,
+        scryfallMisses: 0,
+        uploadedAt: 100,
+        importHistory: [],
+        lists: [],
+      },
+      binders: [
+        { id: 'server-bn', name: 'Server binder', createdAt: 5, updatedAt: 5, position: 0 },
+      ],
+      decks: [{ id: 'server-dk', name: 'Server deck', createdAt: 5, updatedAt: 5 }],
+      games: [],
+      version: 2,
+      updatedAt: 1,
+    });
+  }
+
+  it('with no registered handler, defaults to keep-server (regression guard for legacy behavior)', async () => {
+    localAndServerBothHaveData();
+    // No collision handler registered — sync must fall through to the safe
+    // default (server wins) so test setups that forget to register one don't
+    // strand the suite waiting on a never-resolved promise.
+    await startSync('user-1');
+    expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['server-bn']);
+  });
+
+  it('keep-server choice: server data wins, local guest binder discarded', async () => {
+    localAndServerBothHaveData();
+    const handler = vi.fn().mockResolvedValue('keep-server' as CollisionChoice);
+    const unregister = registerCollisionHandler(handler);
+    try {
+      await startSync('user-1', 'alice');
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0][0]).toMatchObject({
+        local: { binders: 1 },
+        server: { binders: 1, decks: 1 },
+        accountLabel: 'alice',
+      });
+      expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['server-bn']);
+    } finally {
+      unregister();
+    }
+  });
+
+  it('keep-local choice: local binder pushed up, server data set aside', async () => {
+    localAndServerBothHaveData();
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 3, updatedAt: 2 });
+    const unregister = registerCollisionHandler(() => Promise.resolve('keep-local'));
+    try {
+      await startSync('user-1', 'alice');
+      // Local survived (the guest binder is what the user kept).
+      expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['local-bn']);
+      // And it was pushed up to the server on top of server's version base.
+      expect(putSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseVersion: 2,
+          binders: [expect.objectContaining({ id: 'local-bn' })],
+        })
+      );
+    } finally {
+      unregister();
+    }
+  });
+
+  it('merge choice: both sides united and pushed up', async () => {
+    localAndServerBothHaveData();
+    const putSpy = vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 3, updatedAt: 2 });
+    const unregister = registerCollisionHandler(() => Promise.resolve('merge'));
+    try {
+      await startSync('user-1', 'alice');
+      // Both binders survived locally.
+      const binderIds = useCollectionStore
+        .getState()
+        .binders.map((b) => b.id)
+        .sort();
+      expect(binderIds).toEqual(['local-bn', 'server-bn']);
+      // Server's decks came along too.
+      expect(useDecksStore.getState().decks.map((d) => d.id)).toEqual(['server-dk']);
+      // And the merged set was pushed up.
+      expect(putSpy).toHaveBeenCalledTimes(1);
+      const pushed = putSpy.mock.calls[0][0];
+      expect(pushed.binders).toHaveLength(2);
+      expect(pushed.baseVersion).toBe(2);
+    } finally {
+      unregister();
+    }
+  });
+
+  it('does NOT fire for a returning signed-in user (owner key already set)', async () => {
+    // Owner already matches user-1 — this is not a fresh sign-in.
+    localStorage.setItem('spellcontrol-sync-owner', 'user-1');
+    localAndServerBothHaveData();
+    const handler = vi.fn().mockResolvedValue('keep-server' as CollisionChoice);
+    const unregister = registerCollisionHandler(handler);
+    try {
+      await startSync('user-1', 'alice');
+      expect(handler).not.toHaveBeenCalled();
+      // Server overwrite is the historical returning-user behavior.
+      expect(useCollectionStore.getState().binders.map((b) => b.id)).toEqual(['server-bn']);
+    } finally {
+      unregister();
+    }
+  });
+
+  it('does NOT fire on a cross-user wipe (different prior owner)', async () => {
+    // Prior owner is user-B; we're signing in as user-1. wipeLocal runs first,
+    // clearing local. Then the collision check sees no local data → no prompt.
+    localStorage.setItem('spellcontrol-sync-owner', 'user-B');
+    localAndServerBothHaveData();
+    const handler = vi.fn().mockResolvedValue('keep-server' as CollisionChoice);
+    const unregister = registerCollisionHandler(handler);
+    try {
+      await startSync('user-1', 'alice');
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      unregister();
+    }
+  });
+
+  it('does NOT fire when server is empty (the existing guest-promotion path)', async () => {
+    useCollectionStore.setState({
+      binders: [
+        { id: 'local-bn', name: 'Guest binder', createdAt: 1, updatedAt: 1, position: 0 } as never,
+      ],
+    });
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 1,
+      updatedAt: 1,
+    });
+    vi.spyOn(authApi, 'putSync').mockResolvedValue({ version: 2, updatedAt: 2 });
+    const handler = vi.fn().mockResolvedValue('keep-server' as CollisionChoice);
+    const unregister = registerCollisionHandler(handler);
+    try {
+      await startSync('user-1');
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      unregister();
+    }
   });
 });

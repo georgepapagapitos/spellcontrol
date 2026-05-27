@@ -15,6 +15,8 @@ import type { BinderDef, EnrichedCard } from '../types';
 import type { GameRecord } from './game-state';
 import { consumeImmediateFlush, peekDestructive, consumeDestructive } from './sync-intent';
 import { reconcileBinderRefs } from './binder-refs';
+import { invokeCollisionHandler } from './sync-collision';
+import { mergeSnapshots, countLocal, countServer, type LocalSnapshot } from './sync-merge';
 
 /**
  * Sync model: server is the source of truth for authed users.
@@ -63,6 +65,14 @@ let unsubscribers: Array<() => void> = [];
 let pulling = false;
 let lastPullAt = 0;
 const FOCUS_PULL_THROTTLE_MS = 3000;
+
+// True for the *first* pull right after startSync(userId) when this device
+// had no prior owner — i.e. a guest just signed in. Drives the
+// guest-into-populated-account collision prompt: the silent server-overwrite
+// only happens on that single pull, never on focus refreshes.
+let firstPullPending = false;
+// Label shown in the collision dialog (account username). Set by startSync.
+let currentAccountLabel = '';
 
 type SyncedListener = () => void;
 const syncedListeners = new Set<SyncedListener>();
@@ -562,6 +572,15 @@ function detachSubscribers(): void {
  * Callers are responsible for flushing pending local changes (pushNow) BEFORE
  * calling this, so a pull never reverts unsynced local edits.
  */
+function buildLocalSnapshot(): LocalSnapshot {
+  return {
+    collection: buildCollection(),
+    binders: buildBinders(),
+    decks: buildDecks(),
+    games: buildGames(),
+  };
+}
+
 async function pullAndReconcile(): Promise<void> {
   const mutationCountAtFetchStart = mutationCount;
 
@@ -571,7 +590,18 @@ async function pullAndReconcile(): Promise<void> {
   } catch (err) {
     logger.warn('[sync] fetch failed:', err);
   }
-  if (!snap) return;
+  if (!snap) {
+    // No server reply — leave firstPullPending alone so the next attempt
+    // (focus pull) still gets the collision-aware branch if the user has
+    // local data. The throttle keeps this from spinning.
+    return;
+  }
+  // Reaching this point means we have a fetched snapshot to act on. The
+  // flag is consumed BEFORE the branches below so the choice-resolution
+  // path (which awaits a user click) can't be re-entered from a focus
+  // pull that overlaps the modal.
+  const isFirstPull = firstPullPending;
+  firstPullPending = false;
 
   if (mutationCount !== mutationCountAtFetchStart) {
     // The user mutated state during the fetch window. Their intent is
@@ -612,31 +642,69 @@ async function pullAndReconcile(): Promise<void> {
     // "collection loads then wipes after ~2s, binders stay" bug, where the
     // server lost the collection but kept binders. Keep local, take the
     // server's other slices, and push the collection back up to repair the
-    // server. (Tradeoff, consistent with the guest-promotion path: a
-    // deliberate cross-device collection delete can be resurrected by a
-    // device that still holds the cache — far preferable to permanent loss.)
+    // server. This is a server-degraded recovery path, not a merge
+    // collision — it MUST run before the collision branch so a user with
+    // local cards + server-binders-only doesn't get a useless dialog about
+    // a fight that doesn't exist.
     await applyServerSnapshot(snap, { keepLocalCollection: true });
     setDirty();
     await pushNow();
+  } else if (isFirstPull && hasLocalData() && !isServerEmpty(snap)) {
+    // Collision: this is the first pull for this user on this device AND
+    // both sides have data. Historically we silently overwrote local with
+    // server (data loss). Now we ask: the registered handler resolves with
+    // keep-server (legacy behavior), keep-local (treat as guest promotion),
+    // or merge (union by id/copyId).
+    const local = buildLocalSnapshot();
+    const choice = await invokeCollisionHandler({
+      local: countLocal(local),
+      server: countServer(snap),
+      accountLabel: currentAccountLabel,
+    });
+    if (choice === 'keep-local') {
+      // Server's data is set aside; push the local snapshot up.
+      persistVersion(snap.version);
+      setDirty();
+      await pushNow();
+    } else if (choice === 'merge') {
+      // Apply the union to the store + IndexedDB, then push so the server
+      // reflects the merged state. applyServerSnapshot writes the
+      // collection to IndexedDB and persists snap.version, both of which
+      // we want here — the merged snapshot reuses the server's version so
+      // the next push lands on the right base.
+      const merged = mergeSnapshots(local, snap);
+      await applyServerSnapshot({
+        ...snap,
+        collection: merged.collection,
+        binders: merged.binders,
+        decks: merged.decks,
+        games: merged.games,
+      });
+      setDirty();
+      await pushNow();
+    } else {
+      await applyServerSnapshot(snap);
+    }
   } else {
     await applyServerSnapshot(snap);
   }
 }
 
-export async function startSync(userId?: string): Promise<void> {
+export async function startSync(userId?: string, accountLabel?: string): Promise<void> {
   syncedState = 'syncing';
   emitSynced();
+  currentAccountLabel = accountLabel ?? '';
 
   // Cross-user safety: if persisted state belongs to a different user, wipe
   // before contaminating their account.
+  let priorOwner: string | null = null;
   if (userId) {
-    let owner: string | null = null;
     try {
-      owner = localStorage.getItem(OWNER_KEY);
+      priorOwner = localStorage.getItem(OWNER_KEY);
     } catch {
       /* ignore */
     }
-    if (owner && owner !== userId) {
+    if (priorOwner && priorOwner !== userId) {
       // A wipe failure must not skip hydrateFromCache below — otherwise the
       // `hydrating` flag never clears and the UI is stuck on a loading state.
       try {
@@ -651,6 +719,13 @@ export async function startSync(userId?: string): Promise<void> {
       /* ignore */
     }
   }
+  // The collision dialog should only fire the first time this user's data
+  // reaches this device — i.e. when the device had no owner yet (guest
+  // signing in for the first time, or a fresh native install signing in).
+  // A returning signed-in user, or a user-switch (priorOwner !== userId,
+  // which just wiped local), is NOT a collision: there's no merge to ask
+  // about because local is empty or already belonged to this user.
+  firstPullPending = userId !== undefined && priorOwner === null;
 
   loadVersion();
   await hydrateFromCache();
