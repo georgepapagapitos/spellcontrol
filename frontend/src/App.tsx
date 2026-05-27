@@ -23,6 +23,9 @@ import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
 import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
+import { AccountMergeDialog } from './components/AccountMergeDialog';
+import { AutoLinkBanner } from './components/AutoLinkBanner';
+import { useFirstRunGate } from './lib/use-first-run-gate';
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
 // intercepts https://spellcontrol.com/oauth/callback and hands the URL to
@@ -78,6 +81,7 @@ function OAuthCallbackLanding() {
 export default function App() {
   const status = useAuth((s) => s.status);
   const userId = useAuth((s) => s.user?.id);
+  const username = useAuth((s) => s.user?.username);
   const bootstrap = useAuth((s) => s.bootstrap);
   const syncStartedFor = useRef<string | null>(null);
   const navigate = useNavigate();
@@ -85,6 +89,13 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  // First-run gate: on a brand-new install, send the user to /auth before
+  // dropping them into the app. The gate flips off as soon as any
+  // intentional first auth choice is made (login, register, finish Google
+  // sign-in, or "Continue without an account"). Only fires once status
+  // has resolved to 'guest'; the bootstrap loading window is ignored.
+  useFirstRunGate(status);
 
   // Subscribe to native deep links once per mount. `initDeepLinks` is a
   // no-op on web, so the listener is only ever registered inside the
@@ -120,7 +131,10 @@ export default function App() {
     if (status !== 'authed' || !userId) return;
     if (syncStartedFor.current === userId) return;
     syncStartedFor.current = userId;
-    void startSync(userId).catch((err) => {
+    // `username` is read at the time startSync is invoked; the dialog uses
+    // it for display only, so it's fine if it's missing during the first
+    // tick after sign-in (renders "this account").
+    void startSync(userId, username).catch((err) => {
       logger.warn('[sync] startSync failed:', err);
       // Backstop: hydration is owned by the sync layer, but a failure here
       // (network down, wipeLocal throwing, etc.) must NOT leave the UI stuck
@@ -135,17 +149,20 @@ export default function App() {
     // up to date (cheap manifest check). Runs alongside startSync so the
     // user never waits on offline-data setup.
     void autoSyncOfflineData();
-  }, [status, userId]);
+  }, [status, userId, username]);
 
   if (status === 'unknown' || status === 'loading') {
     // Public share links must remain reachable while auth bootstraps and
     // when no user is signed in — render the SharedView routes outside the
     // auth gate so a friend with a link doesn't get bounced to /auth.
     return (
-      <Routes>
-        <Route path="/s/:token" element={<SharedView />} />
-        <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
-      </Routes>
+      <>
+        <AccountMergeDialog />
+        <Routes>
+          <Route path="/s/:token" element={<SharedView />} />
+          <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
+        </Routes>
+      </>
     );
   }
   // Guests and signed-in users share the same app. Auth is opt-in (WotC Fan
@@ -153,32 +170,36 @@ export default function App() {
   // local storage; signing in only adds cross-device sync. AuthPage is a
   // normal, dismissable route reached from the header / Settings.
   return (
-    <Routes>
-      <Route path="/s/:token" element={<SharedView />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
-      <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
-      <Route element={<Layout />}>
-        <Route index element={<Navigate to="/collection" replace />} />
+    <>
+      <AccountMergeDialog />
+      <AutoLinkBanner />
+      <Routes>
+        <Route path="/s/:token" element={<SharedView />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
+        <Route element={<Layout />}>
+          <Route index element={<Navigate to="/collection" replace />} />
 
-        <Route path="/collection" element={<CollectionHubLayout />}>
-          <Route index element={<CollectionPage />} />
-          <Route path="binders" element={<BindersIndexPage />} />
-          <Route path="binders/:id" element={<BinderPage />} />
-          <Route path="lists" element={<ListsPage />} />
-          <Route path="lists/:id" element={<ListsPage />} />
+          <Route path="/collection" element={<CollectionHubLayout />}>
+            <Route index element={<CollectionPage />} />
+            <Route path="binders" element={<BindersIndexPage />} />
+            <Route path="binders/:id" element={<BinderPage />} />
+            <Route path="lists" element={<ListsPage />} />
+            <Route path="lists/:id" element={<ListsPage />} />
+          </Route>
+
+          <Route path="/decks" element={<DecksIndexPage />} />
+          <Route path="/decks/new" element={<DeckNewPage />} />
+          <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
+          <Route path="/decks/:id" element={<DeckEditorPage />} />
+          <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
+          <Route path="/play" element={<PlayPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/collection" replace />} />
         </Route>
-
-        <Route path="/decks" element={<DecksIndexPage />} />
-        <Route path="/decks/new" element={<DeckNewPage />} />
-        <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
-        <Route path="/decks/:id" element={<DeckEditorPage />} />
-        <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
-        <Route path="/play" element={<PlayPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="*" element={<Navigate to="/collection" replace />} />
-      </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }

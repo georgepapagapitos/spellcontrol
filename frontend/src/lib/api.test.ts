@@ -108,6 +108,35 @@ describe('api', () => {
     await expect(importText(text)).rejects.toThrow(/batch 2 of 3/);
   });
 
+  it('atomicity: a mid-chunk failure leaves the caller with NO partial data', async () => {
+    // Regression guard for the audit's "partial state leaks to caller" claim.
+    // The contract is: importText either returns a fully-merged UploadResponse
+    // for ALL chunks or throws. Cards from a chunk that succeeded before a
+    // later chunk failed MUST NOT leak out (they would otherwise reach
+    // useCollectionStore via importCards() and get pushed to /api/sync as
+    // half an import).
+    const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
+    const text = lines.join('\n');
+    // First TWO chunks succeed with non-empty card data; third fails for good.
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        uploadOk({ totalRows: 500, cards: [{ id: 'c-from-chunk-1' } as never] })
+      )
+      .mockResolvedValueOnce(
+        uploadOk({ totalRows: 500, cards: [{ id: 'c-from-chunk-2' } as never] })
+      )
+      .mockRejectedValue(new TypeError('failed to fetch'));
+    let resolvedValue: unknown = 'not-resolved';
+    try {
+      resolvedValue = await importText(text);
+    } catch {
+      /* expected */
+    }
+    // No partial UploadResponse ever materialised — the local responses[]
+    // array stays internal to importText and is discarded on throw.
+    expect(resolvedValue).toBe('not-resolved');
+  });
+
   it('does not retry on HTTP error responses (server replied — not transient)', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: 'Bad format' }), {

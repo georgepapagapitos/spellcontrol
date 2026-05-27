@@ -106,10 +106,10 @@ export async function exchangeGoogleCode(
  * this is a first-time sign-in (no account yet — the caller then routes the
  * user through the "choose a username" screen).
  *
- * v1 deliberately keeps Google accounts separate: lookup is *only* by the
- * Google identity, never by email, so an SSO login can never read or merge
- * into a password account. Linking ("same email = same account") is a later
- * additive change — the unique `users.email` column is already in place for it.
+ * Lookup is by the Google identity, never by email. Email matching is a
+ * separate path (`findAutoLinkCandidateByEmail`) that the OAuth callback
+ * consults as a fallback to merge a new identity into an existing account
+ * with a matching verified email, instead of silently creating a duplicate.
  */
 export async function findGoogleUser(sub: string): Promise<AuthedUser | null> {
   const db = getDb();
@@ -122,6 +122,61 @@ export async function findGoogleUser(sub: string): Promise<AuthedUser | null> {
   const row = linked[0];
   if (!row) return null;
   return { id: row.id, username: row.username, role: row.role === 'admin' ? 'admin' : 'user' };
+}
+
+/**
+ * Same-email auto-link candidate: a user with the given verified email who
+ * does NOT already have a Google identity attached. Returns null when no
+ * such user exists OR when the candidate already has a (different) Google
+ * identity — in that case the caller MUST NOT auto-link, because attaching
+ * a second Google identity is ambiguous and would let an attacker who
+ * controls a Google account with the same email replace the legitimate
+ * Google sign-in. The user can still link via the manual password flow.
+ */
+export async function findAutoLinkCandidateByEmail(email: string): Promise<AuthedUser | null> {
+  const db = getDb();
+  const candidate = await db
+    .select({ id: users.id, username: users.username, role: users.role })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  const row = candidate[0];
+  if (!row) return null;
+  const existingGoogle = await db
+    .select({ providerSubject: authIdentities.providerSubject })
+    .from(authIdentities)
+    .where(and(eq(authIdentities.provider, PROVIDER), eq(authIdentities.userId, row.id)))
+    .limit(1);
+  if (existingGoogle.length > 0) return null;
+  return { id: row.id, username: row.username, role: row.role === 'admin' ? 'admin' : 'user' };
+}
+
+/**
+ * Attach a new Google identity to an existing user and stamp the audit
+ * timestamp so /me can surface a "we linked X — was this you?" banner on
+ * next sign-in. We also bump `email_verified` to true because the user
+ * just proved control of the address via the Google flow; the email value
+ * itself is unchanged (this user was found BY that email).
+ */
+export async function autoLinkGoogleIdentity(
+  userId: string,
+  identity: GoogleIdentity
+): Promise<void> {
+  const db = getDb();
+  const now = Date.now();
+  await db.insert(authIdentities).values({
+    provider: PROVIDER,
+    providerSubject: identity.sub,
+    userId,
+    createdAt: now,
+  });
+  await db
+    .update(users)
+    .set({
+      autoLinkedAt: now,
+      emailVerified: identity.emailVerified,
+    })
+    .where(eq(users.id, userId));
 }
 
 /**

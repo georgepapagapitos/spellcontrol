@@ -8,6 +8,7 @@
   "scripts": {
     "db:up": "docker compose -f docker-compose.dev.yml up -d --wait",
     "db:down": "docker compose -f docker-compose.dev.yml down",
+    "db:reset": "npm run db:reset --prefix backend",
     "dev": "concurrently --names backend,frontend --prefix-colors cyan,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "test": "npm test --prefix frontend && npm test --prefix backend",
     "typecheck": "npm run typecheck --prefix frontend && npm run typecheck --prefix backend",

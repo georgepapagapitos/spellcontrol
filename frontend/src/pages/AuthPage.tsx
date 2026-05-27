@@ -5,6 +5,7 @@ import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
 import { fetchProviders, googleSignInUrl } from '../lib/auth-api';
 import { isNativePlatform } from '../lib/platform';
+import { markEverVisited } from '../lib/first-run';
 
 type Mode = 'login' | 'register';
 
@@ -286,7 +287,16 @@ export default function AuthPage() {
           </button>
         </form>
 
-        <button type="button" className="auth-back" onClick={() => navigate('/')}>
+        <button
+          type="button"
+          className="auth-back"
+          onClick={() => {
+            // Choosing guest mode counts as an intentional first-run choice,
+            // so we don't gate the user back here on every cold boot.
+            markEverVisited();
+            navigate('/');
+          }}
+        >
           Continue without an account
         </button>
       </div>

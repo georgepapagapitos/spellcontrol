@@ -43,6 +43,48 @@ async function unregisterServiceWorkers(): Promise<void> {
   }
 }
 
+const BUILD_ID_STORAGE_KEY = 'spellcontrol-build-id';
+
+/**
+ * Read the build id this device last booted with. Returns `null` if there
+ * is no prior id or localStorage is unavailable (private mode, quota,
+ * SecurityError). A read failure is treated as "no prior id" so the caller
+ * falls back to the safe path (nuke + write the new id).
+ */
+function readStoredBuildId(): string | null {
+  try {
+    return localStorage.getItem(BUILD_ID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist the current build id. Silent on failure — if localStorage can't
+ * be written, the worst case is we re-nuke next boot, which is harmless.
+ */
+function writeStoredBuildId(id: string): void {
+  try {
+    localStorage.setItem(BUILD_ID_STORAGE_KEY, id);
+  } catch {
+    // ignore — see readStoredBuildId for rationale
+  }
+}
+
+/**
+ * Native boot path: only tear down SW + caches when the installed bundle
+ * differs from what this device last saw. The old code nuked unconditionally
+ * on every launch, costing the next-launch user a fresh download of every
+ * cached asset; comparing build ids lets a re-launched-but-unchanged install
+ * keep its offline cache intact. Exported for unit testing.
+ */
+export async function reconcileNativeBundle(currentBuildId: string): Promise<void> {
+  const stored = readStoredBuildId();
+  if (stored === currentBuildId) return;
+  await unregisterServiceWorkers();
+  writeStoredBuildId(currentBuildId);
+}
+
 export async function registerPwa(): Promise<void> {
   if (typeof window === 'undefined') return;
 
@@ -54,8 +96,14 @@ export async function registerPwa(): Promise<void> {
   // any SW/caches an earlier build left behind so existing installs
   // self-heal. Native offline support is handled by lib/offline/auto-sync,
   // independent of the service worker.
+  //
+  // Build-id gate: we previously nuked on *every* native boot, which was
+  // wasteful — a relaunched-but-unchanged install would re-download every
+  // cached asset for no reason. `__BUILD_ID__` is baked in at build time
+  // (see vite.config.ts); compare it to the id this device last saw and
+  // only tear down when they differ (or on first boot).
   if (isNativePlatform()) {
-    await unregisterServiceWorkers();
+    await reconcileNativeBundle(__BUILD_ID__);
     return;
   }
 

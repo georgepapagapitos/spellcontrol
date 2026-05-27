@@ -188,11 +188,27 @@ export async function deleteAccount(): Promise<void> {
   await handleResponse<{ ok: true }>(res);
 }
 
-export async function fetchMe(): Promise<AuthUser | null> {
+/**
+ * Result shape for /me. `autoLinkedAt` is non-null when an external sign-in
+ * was just attached to this account via a verified-email match — the
+ * frontend surfaces a "was this you?" banner until it's acknowledged.
+ */
+export interface MeResponse {
+  user: AuthUser;
+  autoLinkedAt: number | null;
+}
+
+export async function fetchMe(): Promise<MeResponse | null> {
   const res = await authedFetch('/api/auth/me', { method: 'GET' });
   if (res.status === 401) return null;
-  const data = await handleResponse<{ user: AuthUser }>(res);
-  return data.user;
+  const data = await handleResponse<{ user: AuthUser; autoLinkedAt?: number | null }>(res);
+  return { user: data.user, autoLinkedAt: data.autoLinkedAt ?? null };
+}
+
+/** Dismiss the auto-link banner (server-side: clears users.auto_linked_at). */
+export async function acknowledgeAutoLink(): Promise<void> {
+  const res = await authedFetch('/api/auth/me/acknowledge-auto-link', { method: 'POST' });
+  await handleResponse<{ ok: true }>(res);
 }
 
 export async function fetchSync(): Promise<SyncSnapshot> {
