@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ChevronRight,
@@ -25,7 +25,8 @@ import {
 import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
 import type { Point } from '../lib/scanner/detect';
-import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
+import { ScannerQueueSheet } from './ScannerQueueSheet';
+import { useScanQueue } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
@@ -122,8 +123,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const detectLoopRef = useRef<number | null>(null);
   /** Tracks whether a capture is currently in flight, so detector doesn't pile up. */
   const busyRef = useRef(false);
-  /** Last successfully identified card id — used to dedupe back-to-back identical scans. */
-  const lastIdRef = useRef<string | null>(null);
   /**
    * Detector is "armed" only after the frame has gone unstable (the user
    * moved the card / removed it). Prevents re-firing on the *same* still
@@ -131,9 +130,20 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    */
   const armedRef = useRef(true);
 
+  const {
+    queue,
+    totalCount,
+    totalPrice,
+    addScan,
+    removeFromQueue,
+    clearQueue,
+    changeQty,
+    changePrinting,
+    incrementByOracleId,
+  } = useScanQueue();
+
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [queue, setQueue] = useState<ScannedEntry[]>([]);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
@@ -185,24 +195,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // queued cards, and forcing the user to unlock and reopen. Silently
   // no-ops on browsers without the Wake Lock API.
   useWakeLock(true);
-
-  const totalCount = queue.reduce((sum, e) => sum + e.qty, 0);
-  /**
-   * Running market-value total of the staged queue (sum of qty × unit
-   * USD price). Falls back to foil / etched when the regular usd field
-   * is missing — Scryfall's convention. Memoised so the topbar pill
-   * doesn't recalculate on every parent re-render.
-   */
-  const totalPrice = useMemo(() => {
-    let sum = 0;
-    for (const entry of queue) {
-      const p = entry.card.prices;
-      const raw = p?.usd ?? p?.usd_foil ?? p?.usd_etched ?? null;
-      const value = raw ? Number.parseFloat(raw) : NaN;
-      if (Number.isFinite(value)) sum += value * entry.qty;
-    }
-    return sum;
-  }, [queue]);
 
   const showHint = useCallback((msg: string, ms = 1800) => {
     setHint(msg);
@@ -596,29 +588,13 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         return;
       }
 
-      // Dedupe: the same card scanned twice in a row almost always means
-      // the user is still framing the same physical card.
-      if (lastIdRef.current === card.id) return;
-      lastIdRef.current = card.id;
+      // Dedupe-or-add. The hook owns the dedupe cursor; 'duplicate'
+      // means the same printing was just scanned, so the matcher is
+      // still locked on the same physical card — silently skip the
+      // feedback side effects too.
+      if (addScan(card) === 'duplicate') return;
 
       const tier = priceTier(card);
-      // Add to queue: bump qty if already present (keyed by oracle_id so
-      // different printings of the same card collapse), else push new.
-      setQueue((prev) => {
-        const existing = prev.find((e) => e.id === card.oracle_id);
-        if (existing) {
-          return prev.map((e) => (e.id === card.oracle_id ? { ...e, qty: e.qty + 1 } : e));
-        }
-        return [
-          ...prev,
-          {
-            id: card.oracle_id,
-            card,
-            qty: 1,
-            rawText: card.name,
-          },
-        ];
-      });
       setPulseKey((k) => k + 1);
       playValueChime(tier);
       pulseValueHaptic(tier);
@@ -653,7 +629,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       stableFramesRef.current = 0;
       armedRef.current = false; // re-arm only after the next unstable frame
     }
-  }, [showHint, searchRect]);
+  }, [addScan, showHint, searchRect]);
 
   /**
    * Auto-detect loop. Samples the viewfinder region at ~6 fps into a tiny
@@ -859,26 +835,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     };
   }, [status, sheetOpen, searchRect, defaultViewfinderRect, detectorBufSize, captureAndIdentify]);
 
-  const removeFromQueue = (id: string) => {
-    setQueue((prev) => prev.filter((s) => s.id !== id));
-    lastIdRef.current = null;
-  };
-
-  const clearQueue = () => {
-    setQueue([]);
-    lastIdRef.current = null;
-  };
-
-  const changeQty = (id: string, delta: number) => {
-    setQueue((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, qty: e.qty + delta } : e)).filter((e) => e.qty > 0)
-    );
-  };
-
-  const changePrinting = (id: string, newCard: ScryfallCard) => {
-    setQueue((prev) => prev.map((e) => (e.id === id ? { ...e, card: newCard } : e)));
-  };
-
   const handleConfirm = useCallback(() => {
     if (queue.length === 0) return;
     const lines = queue.map(({ card, qty }) =>
@@ -891,19 +847,15 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * "+1" on the bottom card panel: bumps the qty of the currently-shown
    * card. Useful when the user has several copies of the same printing
    * and the auto-detector keeps deduping them. Re-pulses the count
-   * badge so the user sees the bump land.
+   * badge and fires haptic feedback regardless of whether the entry is
+   * still in the queue, so the button always confirms the press.
    */
   const incrementLastScan = useCallback(() => {
     if (!lastScan) return;
-    const oracleId = lastScan.card.oracle_id;
-    setQueue((prev) => {
-      const existing = prev.find((e) => e.id === oracleId);
-      if (!existing) return prev;
-      return prev.map((e) => (e.id === oracleId ? { ...e, qty: e.qty + 1 } : e));
-    });
+    incrementByOracleId(lastScan.card.oracle_id);
     setPulseKey((k) => k + 1);
     pulseValueHaptic(lastScan.tier);
-  }, [lastScan]);
+  }, [lastScan, incrementByOracleId]);
 
   const openSettings = useCallback(() => {
     // Placeholder — surface a stub message until the settings sheet lands.
@@ -1029,7 +981,11 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         </button>
       </div>
 
-      {hint && <div className="scanner-hint">{hint}</div>}
+      {hint && (
+        <div className="scanner-hint" role="status" aria-live="polite">
+          {hint}
+        </div>
+      )}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">
