@@ -14,7 +14,7 @@
 // or LSH indexing is a future optimization if/when matching frequency goes
 // past a few Hz.
 
-const DB_URL = '/scanner-v2/card-hashes.bin';
+const DB_URL = '/scanner/card-hashes.bin';
 const MAGIC_LE = 0x48314353; // "SC1H" stored little-endian
 const SCHEMA_VERSION = 1;
 const HEADER_BYTES = 16;

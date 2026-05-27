@@ -73,7 +73,7 @@ export async function embedCanvas(source: HTMLCanvasElement): Promise<EmbedResul
 
   const totalMs = performance.now() - t0;
   console.log(
-    `[scanner-v2] embed: preprocess=${preprocessMs.toFixed(1)}ms infer=${inferMs.toFixed(1)}ms total=${totalMs.toFixed(1)}ms norm2(out)=${Math.sqrt(sumSq).toFixed(3)}`
+    `[scanner] embed: preprocess=${preprocessMs.toFixed(1)}ms infer=${inferMs.toFixed(1)}ms total=${totalMs.toFixed(1)}ms norm2(out)=${Math.sqrt(sumSq).toFixed(3)}`
   );
   return { embedding, preprocessMs, inferMs, totalMs };
 }

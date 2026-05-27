@@ -92,88 +92,150 @@ export async function detectAndWarpCard(
     const blurred = scope.track(new cvx.Mat());
     cvx.GaussianBlur(gray, blurred, new cvx.Size(5, 5), 0, 0, cvx.BORDER_DEFAULT);
 
-    const edges = scope.track(new cvx.Mat());
-    cvx.Canny(blurred, edges, 50, 150, 3, false);
-
-    // Dilate edges slightly so broken card-border lines reconnect — common
-    // on glossy / foil cards where reflections punch holes in the contour.
     const kernel = scope.track(cvx.getStructuringElement(cvx.MORPH_RECT, new cvx.Size(3, 3)));
-    cvx.dilate(edges, edges, kernel);
-
-    const contours = scope.track(new cvx.MatVector());
-    const hierarchy = scope.track(new cvx.Mat());
-    cvx.findContours(edges, contours, hierarchy, cvx.RETR_EXTERNAL, cvx.CHAIN_APPROX_SIMPLE);
-
-    const count = contours.size();
-    if (count === 0) {
-      return {
-        warped: null,
-        quad: null,
-        detectMs: performance.now() - t0,
-        scaledSize: { width: detectW, height: detectH },
-        reason: 'no-contours',
-      };
-    }
-
-    // Find the largest convex quadrilateral whose area is meaningful relative
-    // to the frame. Reject tiny contours so noise (e.g. background labels)
-    // doesn't win when no real card is present.
     const minArea = detectW * detectH * 0.05;
-    let best: { quad: Point[]; area: number } | null = null;
 
-    for (let i = 0; i < count; i++) {
-      const cnt = contours.get(i);
-      try {
-        const area = cvx.contourArea(cnt);
-        if (area < minArea) continue;
-        const peri = cvx.arcLength(cnt, true);
-        const approx = new cvx.Mat();
+    // Try Canny with progressively looser thresholds. The default (50, 150)
+    // is fine for well-lit cards with strong border-to-background contrast.
+    // White-bordered cards on a white playmat, black-bordered on a dark
+    // desk, or extended-art / borderless cards have low gradient magnitude
+    // at the card edge — looser thresholds rescue those cases at the cost
+    // of more false-positive contours that we filter via min-area + convex
+    // quad check anyway.
+    const tryThresholds = (low: number, high: number): Point[] | null => {
+      const edges = scope.track(new cvx.Mat());
+      cvx.Canny(blurred, edges, low, high, 3, false);
+      // Dilate edges slightly so broken card-border lines reconnect —
+      // common on glossy / foil cards where reflections punch holes in
+      // the contour.
+      cvx.dilate(edges, edges, kernel);
+      const contours = scope.track(new cvx.MatVector());
+      const hierarchy = scope.track(new cvx.Mat());
+      cvx.findContours(edges, contours, hierarchy, cvx.RETR_EXTERNAL, cvx.CHAIN_APPROX_SIMPLE);
+      const count = contours.size();
+      if (count === 0) return null;
+      let best: { quad: Point[]; area: number } | null = null;
+      for (let i = 0; i < count; i++) {
+        const cnt = contours.get(i);
         try {
-          cvx.approxPolyDP(cnt, approx, 0.02 * peri, true);
-          if (approx.rows !== 4) continue;
-          if (!cvx.isContourConvex(approx)) continue;
-          const quad: Point[] = [];
-          for (let j = 0; j < 4; j++) {
-            quad.push({
-              x: approx.data32S[j * 2],
-              y: approx.data32S[j * 2 + 1],
-            });
+          const area = cvx.contourArea(cnt);
+          if (area < minArea) continue;
+          const peri = cvx.arcLength(cnt, true);
+          const approx = new cvx.Mat();
+          try {
+            cvx.approxPolyDP(cnt, approx, 0.02 * peri, true);
+            if (approx.rows !== 4) continue;
+            if (!cvx.isContourConvex(approx)) continue;
+            const quad: Point[] = [];
+            for (let j = 0; j < 4; j++) {
+              quad.push({
+                x: approx.data32S[j * 2],
+                y: approx.data32S[j * 2 + 1],
+              });
+            }
+            if (!best || area > best.area) best = { quad, area };
+          } finally {
+            approx.delete();
           }
-          if (!best || area > best.area) best = { quad, area };
         } finally {
-          approx.delete();
+          cnt.delete();
         }
-      } finally {
-        cnt.delete();
       }
+      return best ? best.quad : null;
+    };
+
+    const thresholdLadder: Array<[number, number]> = [
+      [50, 150], // default — strong contrast cards
+      [25, 80], // moderate — low-contrast borders
+      [10, 40], // last resort — extended-art / near-identical backgrounds
+    ];
+    let foundQuad: Point[] | null = null;
+    let attempts = 0;
+    for (const [low, high] of thresholdLadder) {
+      attempts += 1;
+      foundQuad = tryThresholds(low, high);
+      if (foundQuad) break;
     }
 
-    if (!best) {
+    if (foundQuad) {
+      const ordered = orderQuadCorners(foundQuad);
+      const warped = warpQuad(cvx, srcFull, ordered, scale, scope);
+      const quadOriginal = ordered.map((p) => ({ x: p.x / scale, y: p.y / scale }));
+      if (attempts > 1) {
+        // eslint-disable-next-line no-console
+        console.log(`[scanner] quad found on retry attempt ${attempts}/${thresholdLadder.length}`);
+      }
       return {
-        warped: null,
-        quad: null,
+        warped,
+        quad: quadOriginal,
         detectMs: performance.now() - t0,
         scaledSize: { width: detectW, height: detectH },
-        reason: 'no-quad',
       };
     }
 
-    const ordered = orderQuadCorners(best.quad);
-    const warped = warpQuad(cvx, srcFull, ordered, scale, scope);
-
-    // Quads returned to the caller live in *original* image coordinates so
-    // overlays drawn over the picked image line up regardless of downscale.
-    const quadOriginal = ordered.map((p) => ({ x: p.x / scale, y: p.y / scale }));
-
+    // Center-crop fallback. All threshold tries failed to find a card
+    // quad — typical for borderless / extended-art cards or cards with
+    // poor background contrast. Bet that the auto-fire heuristics
+    // already detected card-like content in the center: take a 5:7
+    // box at the center of the input, resize to the canonical warp
+    // dims, and let the matcher decide. If the score is too low, it
+    // falls through to `miss` naturally.
+    const fallback = centerCropFallback(cvx, srcFull, detectW, detectH, scale, scope);
+    // eslint-disable-next-line no-console
+    console.log('[scanner] no quad found — using center-crop fallback');
     return {
-      warped,
-      quad: quadOriginal,
+      warped: fallback.warped,
+      quad: fallback.quad,
       detectMs: performance.now() - t0,
       scaledSize: { width: detectW, height: detectH },
     };
   } finally {
     scope.release();
   }
+}
+
+/**
+ * Last-resort warp: assume the card occupies a 5:7 portrait box at the
+ * center of the input frame. Used only when Canny + contour search
+ * failed at every threshold — typical for borderless / extended-art
+ * cards or cards with poor background contrast (white on white,
+ * black on black). The matcher's own score still gates whether the
+ * result is accepted; a wrong center crop scores low and falls
+ * through to `miss`.
+ */
+function centerCropFallback(
+  cv: CvAny,
+  srcFull: Deletable & { cols: number; rows: number },
+  detectW: number,
+  detectH: number,
+  scale: number,
+  scope: Scope
+): { warped: HTMLCanvasElement; quad: Point[] } {
+  const cardAspect = WARP_WIDTH / WARP_HEIGHT;
+  // Pick a 5:7 box at ~85% of the smaller axis (slight inset so we
+  // don't capture playmat edges in the crop on edge-to-edge framing).
+  const FILL = 0.85;
+  let boxW: number;
+  let boxH: number;
+  if (detectW / detectH > cardAspect) {
+    boxH = detectH * FILL;
+    boxW = boxH * cardAspect;
+  } else {
+    boxW = detectW * FILL;
+    boxH = boxW / cardAspect;
+  }
+  const x0 = (detectW - boxW) / 2;
+  const y0 = (detectH - boxH) / 2;
+  const quadDownscaled: Point[] = [
+    { x: x0, y: y0 },
+    { x: x0 + boxW, y: y0 },
+    { x: x0 + boxW, y: y0 + boxH },
+    { x: x0, y: y0 + boxH },
+  ];
+  const ordered = orderQuadCorners(quadDownscaled);
+  const warped = warpQuad(cv, srcFull, ordered, scale, scope);
+  const quadOriginal = ordered.map((p) => ({ x: p.x / scale, y: p.y / scale }));
+  return { warped, quad: quadOriginal };
 }
 
 function warpQuad(
