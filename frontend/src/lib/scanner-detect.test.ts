@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectCardBox, detectorBoxToViewport } from './scanner-detect';
+import { detectCardBox } from './scanner-detect';
 
 /**
  * Build a grayscale frame with a brighter card-shaped rectangle on a
@@ -133,21 +133,5 @@ describe('detectCardBox', () => {
     // gradient-centring offset.
     expect(Math.abs(box!.y - cardY)).toBeLessThanOrEqual(2);
     expect(Math.abs(box!.h - cardH)).toBeLessThanOrEqual(3);
-  });
-});
-
-describe('detectorBoxToViewport', () => {
-  it('linearly rescales a detector-frame box into viewport coords', () => {
-    const box = { x: 10, y: 20, w: 30, h: 42 };
-    const mapped = detectorBoxToViewport(box, 64, 90, {
-      left: 100,
-      top: 50,
-      width: 320,
-      height: 450,
-    });
-    expect(mapped.left).toBeCloseTo(100 + 10 * (320 / 64));
-    expect(mapped.top).toBeCloseTo(50 + 20 * (450 / 90));
-    expect(mapped.width).toBeCloseTo(30 * (320 / 64));
-    expect(mapped.height).toBeCloseTo(42 * (450 / 90));
   });
 });
