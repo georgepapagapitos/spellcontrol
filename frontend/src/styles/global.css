@@ -5337,21 +5337,9 @@ hr {
 
 /* ── Card preview (hero carousel + sticky info panel) ──────────────────── */
 .card-preview-backdrop {
-  /* The card image is the hero of this view. Three constraints compete
-     for the slide width: (a) viewport width — fill nicely on phones,
-     (b) a width-scaled reading ceiling so it grows on desktop but never
-     becomes a billboard, (c) viewport height — must not overflow the
-     track row above the info panel. min() picks the smallest so the card
-     stays whole on every aspect ratio. 0.72 matches the 488:680 card
-     aspect — limiting height by that ratio yields the matching width.
-     The ceiling is clamp(460,56vw,620): phones stay 94vw-bound (the
-     460 floor never engages there), desktop scales with the window up
-     to 620px. 620 is the resolution-honest max — the hero now renders
-     Scryfall `large` (672w, via imageLarge), so up to ~620 CSS-px it
-     stays sharp; beyond that even `large` upscales. On typical laptops
-     the height term still governs (~520–580); 620 is realized on tall
-     monitors. */
-  --slide-size: min(94vw, calc((var(--vh-safe) - 13rem) * 0.72), clamp(460px, 56vw, 620px));
+  /* --slide-size is owned by .card-preview-track (it depends on the track's
+     actual rendered size via container queries — see that rule). The
+     backdrop only owns layout-independent tokens like --slide-spacing. */
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
@@ -5616,7 +5604,7 @@ hr {
 
 .card-preview-track {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--slide-spacing);
   width: 100%;
   min-height: 0;
@@ -5627,13 +5615,51 @@ hr {
   -webkit-overflow-scrolling: touch;
   /* Keep vertical touches free for our swipe-down-to-dismiss handler. */
   touch-action: pan-x;
-  /* Center the first/last slide by padding the scroll area with the same
-     gap that the peek occupies on either side. */
-  padding-inline: calc((100% - var(--slide-size)) / 2);
   /* Breathing room between the card art and whatever sits below it
      (flip-row, deck chip, or the info panel). */
   padding-bottom: 1.25rem;
   scrollbar-width: none;
+  /* Size containment: the track is the `1fr` row of .card-preview-sheet's
+     grid, so its size is determined by the grid layout (not its content) —
+     safe for `container-type: size`. Making the track a size container
+     lets the slide (and the centering spacers below) size against the
+     track's *actual* rendered dimensions via cqw/cqh. That replaces the
+     old fixed `13rem` chrome estimate, which clipped the top of the card
+     on mobile whenever the info panel grew taller than expected (binder
+     pills + deck allocations + role line). Now the slide just shrinks. */
+  container-type: size;
+  /* The card image is the hero of this view. Three constraints compete
+     for the slide width:
+       (a) track height (via 100cqh × 488/680) — never produce a card
+           taller than the row, so the top can't clip behind
+           overflow:hidden when the bottom chrome grows. 488/680 is the
+           Magic card face aspect ratio.
+       (b) track width (via 100cqw) — never wider than the track itself.
+       (c) clamp(460,56vw,620) — desktop reading ceiling. 620 is the
+           resolution-honest max since the hero renders Scryfall `large`
+           (672w via imageLarge); beyond that even `large` upscales.
+     min() picks the smallest, so the card stays whole on every viewport.
+     Defined on the track (not the slide) so the centering spacers below
+     share one source of truth. cqh/cqw on the track ITSELF is invalid
+     (a container can't query itself), but --slide-size is substituted at
+     each use site — descendants of the track (slide + ::before/::after)
+     resolve cqh/cqw against the track, which is exactly what we want. */
+  --slide-size: min(calc(100cqh * 488 / 680), 100cqw, clamp(460px, 56vw, 620px));
+}
+
+/* Centering spacers: each pseudo is a flex item that occupies half the
+   leftover width, so the first and last slide can scroll into the
+   horizontal centre. Replaces the old `padding-inline` math — same idea,
+   but the pseudos are descendants of the track so they can resolve cqw
+   against it, sharing the --slide-size token with the slides instead of
+   duplicating the formula. They have no scroll-snap-align, so the
+   scroll-snap-type still only snaps to real slides. */
+.card-preview-track::before,
+.card-preview-track::after {
+  content: '';
+  flex: 0 0 calc((100cqw - var(--slide-size)) / 2);
+  align-self: stretch;
+  pointer-events: none;
 }
 
 /* Flip-row already supplies its own vertical padding, so collapse the
@@ -6063,32 +6089,9 @@ hr {
 
 /* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
 .binder-pages-backdrop {
-  /* A binder page is a grid of downscaled thumbnails — unlike the
-     single-card hero there is NO source-resolution ceiling, so the only
-     limits are layout. Height bound scales by the actual page aspect
-     (--page-w-ratio = cols×5 / rows×7): a 9-/4-pocket page is 5:7 like a
-     card (ratio ≈ 0.714); a 12-pocket page is 20:21 (≈ 0.952).
-       • 10rem reservation — a SINGLE count of the bottom chrome, valid
-         now that .binder-pages-panel is in normal grid flow (the `auto`
-         row) rather than position:absolute over the track. The track is
-         the remaining `1fr`; the slide centers within it, fully clear of
-         the panel below — so the old 2×panel double-count is gone.
-         Budget: panel ≈ 6.1rem (≈7.3 with a notch's safe-area inset) +
-         page-label ≈ 0.9rem + slide gap + track pad ≈ 1.8rem ⇒ ~9rem
-         worst case; 10rem keeps ~1rem cushion. The panel height is held
-         deterministic by the nowrap+ellipsis on .binder-pages-name /
-         -context, so this stays exact. (Shrinking further risks the
-         centered page overflowing the `1fr` track and clipping
-         top+bottom — the previous 11rem regression, see git log.)
-       • clamp(460,64vw,820) replaces the old flat 460 cap so desktop
-         grows with the window; phones stay 94vw-bound. min() still picks
-         the height term whenever a wider slide would imply a too-tall
-         page, so no overflow regardless. */
-  --slide-size: min(
-    94vw,
-    calc((var(--vh-safe) - 10rem) * var(--page-w-ratio, 0.72)),
-    clamp(460px, 64vw, 820px)
-  );
+  /* --slide-size is owned by .binder-pages-track (it depends on the
+     track's actual rendered size via container queries — see that rule).
+     Mirrors .card-preview-backdrop for consistency. */
   --slide-spacing: 0.5rem;
   position: fixed;
   inset: 0;
@@ -6148,9 +6151,39 @@ hr {
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
-  padding-inline: calc((100% - var(--slide-size)) / 2);
   padding-bottom: 0.5rem;
   scrollbar-width: none;
+  /* Size containment so the slide can bound itself against the track's
+     actual rendered height (cqh). Same rationale as .card-preview-track —
+     the panel's height is variable (binder name + context line wrapping
+     into pills), so a fixed `10rem` chrome budget was always going to
+     drift. With cqh the slide just shrinks if the panel grows. */
+  container-type: size;
+  /* Width constraints (min() picks the smallest):
+       (a) track width (100cqw) — never wider than the track.
+       (b) track height (100cqh − label) × --page-w-ratio. Subtract a
+           1.6rem reserve for the page label (binder-pages-slide-label,
+           ~1rem text + the slide's 6px gap below) so the page itself —
+           which has the actual aspect ratio — fits in what's left. The
+           multiplier --page-w-ratio = cols×5 / rows×7 varies by pocket
+           count (9-/4-pocket → 5:7, 12-pocket → 20:21).
+       (c) clamp(460,64vw,820) — desktop ceiling; no source-resolution
+           cap since pocket thumbnails downscale freely.
+     Defined on the track so the centering spacers below share it. */
+  --slide-size: min(
+    100cqw,
+    calc((100cqh - 1.6rem) * var(--page-w-ratio, 0.72)),
+    clamp(460px, 64vw, 820px)
+  );
+}
+
+/* Centering spacers — see .card-preview-track::before/::after. */
+.binder-pages-track::before,
+.binder-pages-track::after {
+  content: '';
+  flex: 0 0 calc((100cqw - var(--slide-size)) / 2);
+  align-self: stretch;
+  pointer-events: none;
 }
 
 .binder-pages-track::-webkit-scrollbar {
@@ -6309,10 +6342,12 @@ hr {
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
-  /* One line, ellipsis — keeps the panel a deterministic height so the
-     --slide-size reservation below is exact. A wrapped 2-line name would
-     grow the panel past the reservation and (with the centered track)
-     clip the page top+bottom. */
+  /* One line, ellipsis — keeps the panel height stable so the carousel
+     above doesn't shrink mid-navigation when a longer binder name lands.
+     (Top/bottom clipping is no longer the risk it was: the track is a
+     size container and --slide-size is bound by 100cqh, so the slide
+     just resizes if the panel ever grows; the nowrap is purely a UX
+     stability choice now.) */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
