@@ -71,7 +71,7 @@ const defaultCustomization: Customization = {
   deckBudget: null,
   budgetOption: 'any',
   gameChangerLimit: 'unlimited',
-  bracketLevel: 'all',
+  targetBracket: 'all',
   maxRarity: null,
   tinyLeaders: false,
   ignoreOwnedBudget: false,
