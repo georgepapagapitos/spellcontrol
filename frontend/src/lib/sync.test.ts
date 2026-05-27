@@ -944,3 +944,156 @@ describe('guest → populated-account collision', () => {
     }
   });
 });
+
+/* ── Cross-tab broadcast (P2a) ─────────────────────────────────────────────
+   Node 22 (test env) ships a global BroadcastChannel, so sync.ts uses the
+   primary channel path here; happy-dom's `window` shares Node's globals.
+   The localStorage `storage`-event fallback only matters in WebViews /
+   older browsers, exercised in a dedicated test below that swaps it in.
+   We assert pull behavior on a version bump, no-op on self-broadcasts
+   (sourceId match), and no-op on cross-user broadcasts. */
+describe('cross-tab broadcast coordination', () => {
+  const CHANNEL_NAME = 'spellcontrol-sync';
+  const BROADCAST_KEY = 'spellcontrol-sync-broadcast';
+
+  function broadcast(value: unknown): void {
+    const ch = new BroadcastChannel(CHANNEL_NAME);
+    ch.postMessage(value);
+    ch.close();
+  }
+
+  function fireStorage(value: unknown): void {
+    const newValue = typeof value === 'string' ? value : JSON.stringify(value);
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: BROADCAST_KEY,
+        newValue,
+        oldValue: null,
+        storageArea: localStorage,
+      })
+    );
+  }
+
+  it('re-pulls when another tab broadcasts a higher version for the same user', async () => {
+    // Bring sync to ready state with version 1.
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 1,
+      updatedAt: 1,
+    });
+    await startSync('user-1');
+
+    // Now a peer tab broadcasts that v2 has been applied.
+    const fetchSpy = vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [{ id: 'from-peer', name: 'Peer', createdAt: 9, updatedAt: 9, position: 0 }],
+      decks: [],
+      games: [],
+      version: 2,
+      updatedAt: 2,
+    });
+
+    broadcast({
+      type: 'sync-applied',
+      userId: 'user-1',
+      version: 2,
+      sourceId: 'OTHER-TAB',
+      ts: Date.now(),
+    });
+    // Yield so the async handleVisible chain (push-if-dirty, pullAndReconcile)
+    // can run to completion. BroadcastChannel delivery is microtask-ish but
+    // not synchronous in Node, so we drain a few macrotasks.
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(useCollectionStore.getState().binders[0]?.id).toBe('from-peer');
+  });
+
+  it('ignores its own broadcast in the storage-event fallback (sourceId match)', async () => {
+    // Force sync.ts onto the storage-event fallback path by hiding global
+    // BroadcastChannel for the duration of attachSubscribers(). Tests the
+    // self-echo guard that real WebView / older-browser fallbacks rely on.
+    const realBC = (globalThis as { BroadcastChannel?: typeof BroadcastChannel }).BroadcastChannel;
+    delete (globalThis as { BroadcastChannel?: typeof BroadcastChannel }).BroadcastChannel;
+    try {
+      vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+        collection: null,
+        binders: [],
+        decks: [],
+        games: [],
+        version: 1,
+        updatedAt: 1,
+      });
+      await startSync('user-1');
+      // pullAndReconcile completed in startSync — that emitted a broadcast
+      // via the storage path now that BroadcastChannel is hidden. Read it
+      // back out of localStorage to learn our tab's sourceId.
+      const captured = localStorage.getItem(BROADCAST_KEY);
+      expect(captured).not.toBeNull();
+      const ownMsg = JSON.parse(captured as string);
+      const fetchSpy = vi.spyOn(authApi, 'fetchSync');
+      fetchSpy.mockClear();
+
+      // Replay our own broadcast as if storage echoed it — must be ignored.
+      fireStorage({ ...ownMsg, version: 999 });
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      if (realBC)
+        (globalThis as { BroadcastChannel?: typeof BroadcastChannel }).BroadcastChannel = realBC;
+    }
+  });
+
+  it('ignores broadcasts for a different userId', async () => {
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 1,
+      updatedAt: 1,
+    });
+    await startSync('user-1');
+
+    const fetchSpy = vi.spyOn(authApi, 'fetchSync');
+    fetchSpy.mockClear();
+
+    broadcast({
+      type: 'sync-applied',
+      userId: 'someone-else',
+      version: 99,
+      sourceId: 'OTHER-TAB',
+      ts: Date.now(),
+    });
+    for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores broadcasts at or below the current version', async () => {
+    vi.spyOn(authApi, 'fetchSync').mockResolvedValue({
+      collection: null,
+      binders: [],
+      decks: [],
+      games: [],
+      version: 5,
+      updatedAt: 5,
+    });
+    await startSync('user-1');
+
+    const fetchSpy = vi.spyOn(authApi, 'fetchSync');
+    fetchSpy.mockClear();
+
+    broadcast({
+      type: 'sync-applied',
+      userId: 'user-1',
+      version: 5,
+      sourceId: 'OTHER-TAB',
+      ts: Date.now(),
+    });
+    for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

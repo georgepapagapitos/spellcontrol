@@ -42,6 +42,33 @@ const VERSION_KEY = 'spellcontrol-sync-base-version';
 const DIRTY_KEY = 'spellcontrol-sync-dirty';
 const OWNER_KEY = 'spellcontrol-sync-owner';
 
+// Cross-tab coordination (P2a). Multiple tabs of the same account previously
+// raced on currentVersion: tab A pushed (server v2), tab B still held v1
+// locally and 409'd on its next push. We broadcast a tiny `{ version }`
+// notice on every successful push/pull so peer tabs can re-pull and re-base.
+// We deliberately do NOT broadcast the snapshot itself (too large + always
+// fresh from the server is safer). BroadcastChannel is preferred; we fall
+// back to a storage-event ping for WebViews / older browsers that lack it.
+const BROADCAST_CHANNEL_NAME = 'spellcontrol-sync';
+const BROADCAST_STORAGE_KEY = 'spellcontrol-sync-broadcast';
+
+interface SyncBroadcast {
+  type: 'sync-applied';
+  userId: string;
+  version: number;
+  sourceId: string;
+  ts: number;
+}
+
+let broadcastChannel: BroadcastChannel | null = null;
+let currentOwnerId: string | null = null;
+// Random per-tab id so the localStorage fallback (which DOES echo to the
+// originating tab in some browsers) can ignore our own broadcasts.
+const sourceId =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `tab-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+
 let currentVersion = 0;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let pushing = false;
@@ -250,6 +277,7 @@ async function pushNow(): Promise<void> {
       consumeDestructive();
     }
     markSynced();
+    broadcastSyncApplied(result.version);
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
     if (e.status === 409 && e.current) {
@@ -514,6 +542,87 @@ function handleOnline(): void {
   if (isDirty()) schedulePush(true);
 }
 
+/* ── Cross-tab coordination (P2a) ───────────────────────────────────────── */
+
+function broadcastSyncApplied(version: number): void {
+  if (!currentOwnerId) return; // guests don't sync, don't gossip
+  const msg: SyncBroadcast = {
+    type: 'sync-applied',
+    userId: currentOwnerId,
+    version,
+    sourceId,
+    ts: Date.now(),
+  };
+  if (broadcastChannel) {
+    try {
+      broadcastChannel.postMessage(msg);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  // localStorage fallback: writes here fire `storage` events in OTHER tabs.
+  try {
+    localStorage.setItem(BROADCAST_STORAGE_KEY, JSON.stringify(msg));
+  } catch {
+    /* ignore */
+  }
+}
+
+function handleIncomingBroadcast(msg: SyncBroadcast): void {
+  if (!msg || msg.type !== 'sync-applied') return;
+  if (msg.sourceId === sourceId) return; // own echo (localStorage path)
+  if (!currentOwnerId || msg.userId !== currentOwnerId) return;
+  if (msg.version <= currentVersion) return; // we're already at-or-ahead
+  // Schedule a pull. handleVisible() reuses the focus-pull throttle and
+  // ready-state gate, so two near-simultaneous broadcasts coalesce into one
+  // fetch and we never overlap an in-flight pull.
+  void handleVisible();
+}
+
+function handleBroadcastMessage(ev: MessageEvent<SyncBroadcast>): void {
+  handleIncomingBroadcast(ev.data);
+}
+
+function handleBroadcastStorage(ev: StorageEvent): void {
+  if (ev.key !== BROADCAST_STORAGE_KEY || !ev.newValue) return;
+  try {
+    handleIncomingBroadcast(JSON.parse(ev.newValue) as SyncBroadcast);
+  } catch {
+    /* ignore malformed */
+  }
+}
+
+function attachBroadcast(): void {
+  if (typeof self !== 'undefined' && 'BroadcastChannel' in self) {
+    try {
+      broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      broadcastChannel.addEventListener('message', handleBroadcastMessage);
+      return;
+    } catch {
+      broadcastChannel = null;
+    }
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', handleBroadcastStorage);
+  }
+}
+
+function detachBroadcast(): void {
+  if (broadcastChannel) {
+    try {
+      broadcastChannel.removeEventListener('message', handleBroadcastMessage);
+      broadcastChannel.close();
+    } catch {
+      /* ignore */
+    }
+    broadcastChannel = null;
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('storage', handleBroadcastStorage);
+  }
+}
+
 function attachSubscribers(): void {
   detachSubscribers();
   const u1 = useCollectionStore.subscribe((state, prev) => {
@@ -545,6 +654,7 @@ function attachSubscribers(): void {
   window.addEventListener('pagehide', handlePageHide);
   window.addEventListener('beforeunload', handleBeforeUnload);
   window.addEventListener('online', handleOnline);
+  attachBroadcast();
 }
 
 function detachSubscribers(): void {
@@ -562,6 +672,7 @@ function detachSubscribers(): void {
     window.removeEventListener('beforeunload', handleBeforeUnload);
     window.removeEventListener('online', handleOnline);
   }
+  detachBroadcast();
 }
 
 /**
@@ -707,14 +818,16 @@ async function pullAndReconcile(): Promise<void> {
   }
   // We have an authoritative snapshot (whether we applied it, kept-local
   // around it, merged, or just rebased the version): all branches above
-  // leave currentVersion in agreement with the server. Stamp it.
+  // leave currentVersion in agreement with the server. Stamp + broadcast.
   markSynced();
+  broadcastSyncApplied(currentVersion);
 }
 
 export async function startSync(userId?: string, accountLabel?: string): Promise<void> {
   syncedState = 'syncing';
   emitSynced();
   currentAccountLabel = accountLabel ?? '';
+  currentOwnerId = userId ?? null;
 
   // Cross-user safety: if persisted state belongs to a different user, wipe
   // before contaminating their account.
@@ -802,6 +915,7 @@ async function wipeLocal(): Promise<void> {
   // Wipe the visible "Synced Xm ago" stamp too — logout shouldn't leak the
   // previous session's timing into the next account's header.
   lastSyncedAt = null;
+  currentOwnerId = null;
   clearDirty();
   for (const key of [VERSION_KEY, OWNER_KEY]) {
     try {
