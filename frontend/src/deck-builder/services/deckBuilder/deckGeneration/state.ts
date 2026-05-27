@@ -22,7 +22,7 @@ import type {
   Pacing,
   RoleTargetBreakdown,
   Archetype,
-  BracketLevel,
+  TargetBracket,
   BudgetOption,
   GapAnalysisCard,
   DetectedCombo,
@@ -48,7 +48,7 @@ export interface GenerationConfig {
   format: Customization['deckFormat'];
   maxCardPrice: number | null;
   budgetOption: BudgetOption | undefined;
-  bracketLevel: BracketLevel | undefined;
+  targetBracket: TargetBracket | undefined;
   maxRarity: Customization['maxRarity'];
   maxCmc: number | null;
   arenaOnly: boolean;
@@ -114,7 +114,7 @@ export function createState(context: GenerationContext): GenerationState {
     format: customization.deckFormat,
     maxCardPrice: customization.maxCardPrice ?? null,
     budgetOption: customization.budgetOption !== 'any' ? customization.budgetOption : undefined,
-    bracketLevel: customization.bracketLevel !== 'all' ? customization.bracketLevel : undefined,
+    targetBracket: customization.targetBracket !== 'all' ? customization.targetBracket : undefined,
     maxRarity: customization.maxRarity ?? null,
     maxCmc: customization.tinyLeaders ? 3 : null,
     arenaOnly: !!customization.arenaOnly,

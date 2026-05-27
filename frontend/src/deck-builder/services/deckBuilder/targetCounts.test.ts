@@ -18,7 +18,7 @@ function makeCustomization(overrides: Partial<Customization> = {}): Customizatio
     deckBudget: null,
     budgetOption: 'any',
     gameChangerLimit: 'unlimited',
-    bracketLevel: 'all',
+    targetBracket: 'all',
     maxRarity: null,
     tinyLeaders: false,
     ignoreOwnedBudget: false,

@@ -44,7 +44,7 @@ describe('useDecksStore — createDeck', () => {
       commander: null,
       generationContext: {
         selectedThemes: [],
-        bracketLevel: 'all',
+        targetBracket: 'all',
         landCount: 37,
         collectionMode: false,
       },

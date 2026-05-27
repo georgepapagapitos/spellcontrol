@@ -23,7 +23,7 @@ import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 interface PrefillState {
   commander: ScryfallCard;
   themes: EDHRECTheme[];
-  bracketLevel: number | 'all';
+  targetBracket: number | 'all';
   landCount: number;
   collectionMode: boolean;
 }
@@ -64,7 +64,7 @@ export function DeckNewPage() {
     if (prefill) {
       setCommander(prefill.commander);
       updateCustomization({
-        bracketLevel: prefill.bracketLevel as 'all' | 1 | 2 | 3 | 4 | 5,
+        targetBracket: prefill.targetBracket as 'all' | 1 | 2 | 3 | 4 | 5,
         landCount: prefill.landCount,
         collectionMode: prefill.collectionMode,
       });
@@ -180,7 +180,8 @@ export function DeckNewPage() {
     setIsGenerating(true);
     setProgress({ message: 'Loading commander data', percent: 5 });
     try {
-      const bracket = customization.bracketLevel !== 'all' ? customization.bracketLevel : undefined;
+      const bracket =
+        customization.targetBracket !== 'all' ? customization.targetBracket : undefined;
       const data = await fetchCommanderData(commander.name, undefined, bracket).catch(() => null);
       if (data) {
         setEdhrecStats(data.stats);
