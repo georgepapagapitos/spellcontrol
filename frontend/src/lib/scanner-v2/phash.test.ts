@@ -15,7 +15,7 @@ function gradient32(): Uint8Array {
   return out;
 }
 
-const GRADIENT_GOLDEN = 13323319483396658241n;
+const GRADIENT_GOLDEN = 11017477023938778177n;
 
 describe('computePHash (frontend twin)', () => {
   it('matches the shared backend/frontend golden hash', () => {

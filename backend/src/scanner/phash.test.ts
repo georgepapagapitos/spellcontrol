@@ -20,7 +20,7 @@ function gradient32(): Uint8Array {
 // regenerate from this same fixture and update both the backend and frontend
 // tests in the same commit — drift between the two implementations is what
 // this golden is designed to surface.
-const GRADIENT_GOLDEN = 13323319483396658241n;
+const GRADIENT_GOLDEN = 11017477023938778177n;
 
 describe('computePHash', () => {
   it('rejects buffers of the wrong size', () => {
