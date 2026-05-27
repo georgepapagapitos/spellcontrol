@@ -19,7 +19,7 @@ import { apiUrl } from '../api-base';
 import { loadOpenCv } from './opencv-loader';
 import { detectAndWarpCard, type Point } from './detect';
 import { applyCLAHE } from './normalize';
-import { hashCanvas } from './phash';
+import { hashCanvas, cropArtRegion } from './phash';
 import { loadHashDb, findNearest, type Match as HashMatch } from './hash-db';
 
 /** Raw dot-product score above which the top-1 is "confident". Must stay
@@ -130,8 +130,17 @@ async function tryServerMatch(
   quad: Point[] | undefined,
   t0: number
 ): Promise<ScanResult | null> {
+  // Both reference DBs (pHash + MobileCLIP) were generated from Scryfall's
+  // `art_crop` images — just the artwork rectangle, not the whole card.
+  // Uploading the full warped card here means every scan hits the matcher
+  // with content the reference vectors don't represent (title bar, type
+  // line, text box, mana cost, art are all in the upload), so even pHash
+  // candidates miss and CLIP can't recover them. Crop to the art region
+  // first so both stages see the same kind of input the references were
+  // built from.
   const encodeStart = performance.now();
-  const blob = await canvasToBlob(warped, 'image/jpeg', UPLOAD_JPEG_QUALITY);
+  const artCrop = cropArtRegion(warped);
+  const blob = await canvasToBlob(artCrop, 'image/jpeg', UPLOAD_JPEG_QUALITY);
   const encodeMs = performance.now() - encodeStart;
   if (!blob) {
     logger.warn('[scanner] toBlob returned null — falling back to on-device');
@@ -224,8 +233,12 @@ async function onDeviceMatchAsync(
 ): Promise<ScanResult> {
   const hashDb = await loadHashDb();
 
+  // Reference pHashes were built from Scryfall art_crop, so hashing the
+  // full warp gives noisy candidates that the fast-path threshold rarely
+  // clears. Crop to the art region first to match the reference shape.
   const normStart = performance.now();
-  const normalized = applyCLAHE(warped);
+  const artCrop = cropArtRegion(warped);
+  const normalized = applyCLAHE(artCrop);
   const normalizeMs = performance.now() - normStart;
 
   const phashStart = performance.now();
