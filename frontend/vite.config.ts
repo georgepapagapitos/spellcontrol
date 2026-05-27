@@ -3,7 +3,17 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 
+// Build identifier baked in at build time. Native (Capacitor) boot uses it
+// to decide whether the previous build's service-worker cache needs nuking;
+// unchanged build id => same bundle => leave the offline cache alone.
+// Honor VITE_BUILD_ID if the CI/release pipeline sets one (stable, reproducible);
+// otherwise fall back to a per-build timestamp so each `npm run build` differs.
+const BUILD_ID = process.env.VITE_BUILD_ID || Date.now().toString();
+
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   plugins: [
     react(),
     VitePWA({

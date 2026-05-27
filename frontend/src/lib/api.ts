@@ -92,6 +92,16 @@ async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
  * only restarts that one chunk instead of the whole import. Header rows in
  * CSV/TSV/ManaBox files are preserved in every chunk so each is independently
  * parseable.
+ *
+ * **Atomicity contract** (relied on by UploadPanel and any future caller):
+ * the function either resolves with the merged UploadResponse for ALL
+ * chunks, or throws. Successful intermediate chunks are accumulated only
+ * in this function's local `responses` array — they MUST NOT be exposed
+ * to the caller on a later chunk's failure, and the backend `/api/import`
+ * route is stateless (no per-chunk server-side persistence) so a partial
+ * upload leaves no orphaned state on either side. Callers (UploadPanel)
+ * therefore only need to call `importCards()` once with the resolved
+ * response and don't need to roll back on failure.
  */
 export async function importText(
   text: string,
@@ -108,6 +118,9 @@ export async function importText(
     try {
       responses.push(await postImportChunkWithRetry(chunks[i]));
     } catch (err) {
+      // Atomicity: throw discards the in-progress `responses` array;
+      // never expose it to the caller. The backend is stateless across
+      // chunks, so there is no server-side rollback to perform.
       const message = err instanceof Error ? err.message : 'Unknown error';
       throw new Error(`Import failed on batch ${i + 1} of ${chunks.length}: ${message}`);
     }

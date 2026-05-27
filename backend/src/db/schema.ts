@@ -25,6 +25,12 @@ export const users = pgTable('users', {
   // at boot for any username in ADMIN_USERNAMES, additively (never demotes).
   role: text('role').notNull().default('user'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  // Set when the OAuth callback auto-linked a new external identity to this
+  // account via a verified-email match (e.g. user with a password account
+  // signs in with the same email via Google). The /me endpoint exposes it so
+  // the frontend can surface a "we linked X — was this you? unlink" banner
+  // until the user acknowledges it via POST /me/acknowledge-auto-link.
+  autoLinkedAt: bigint('auto_linked_at', { mode: 'number' }),
 });
 
 /**

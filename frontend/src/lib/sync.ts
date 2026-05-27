@@ -15,6 +15,8 @@ import type { BinderDef, EnrichedCard } from '../types';
 import type { GameRecord } from './game-state';
 import { consumeImmediateFlush, peekDestructive, consumeDestructive } from './sync-intent';
 import { reconcileBinderRefs } from './binder-refs';
+import { invokeCollisionHandler } from './sync-collision';
+import { mergeSnapshots, countLocal, countServer, type LocalSnapshot } from './sync-merge';
 
 /**
  * Sync model: server is the source of truth for authed users.
@@ -39,6 +41,40 @@ const DEBOUNCE_MS = 500;
 const VERSION_KEY = 'spellcontrol-sync-base-version';
 const DIRTY_KEY = 'spellcontrol-sync-dirty';
 const OWNER_KEY = 'spellcontrol-sync-owner';
+// Set while the AccountMergeDialog is awaiting a user choice. Survives a
+// page refresh / tab close so an interrupted prompt re-fires on next
+// boot instead of falling through to the silent applyServerSnapshot path
+// (which would defeat the whole "no data movement without consent"
+// safety). Value is the userId whose prompt is pending; cleared by
+// pullAndReconcile once the choice resolves, and by wipeLocal.
+const COLLISION_PENDING_KEY = 'spellcontrol-sync-pending-collision';
+
+// Cross-tab coordination (P2a). Multiple tabs of the same account previously
+// raced on currentVersion: tab A pushed (server v2), tab B still held v1
+// locally and 409'd on its next push. We broadcast a tiny `{ version }`
+// notice on every successful push/pull so peer tabs can re-pull and re-base.
+// We deliberately do NOT broadcast the snapshot itself (too large + always
+// fresh from the server is safer). BroadcastChannel is preferred; we fall
+// back to a storage-event ping for WebViews / older browsers that lack it.
+const BROADCAST_CHANNEL_NAME = 'spellcontrol-sync';
+const BROADCAST_STORAGE_KEY = 'spellcontrol-sync-broadcast';
+
+interface SyncBroadcast {
+  type: 'sync-applied';
+  userId: string;
+  version: number;
+  sourceId: string;
+  ts: number;
+}
+
+let broadcastChannel: BroadcastChannel | null = null;
+let currentOwnerId: string | null = null;
+// Random per-tab id so the localStorage fallback (which DOES echo to the
+// originating tab in some browsers) can ignore our own broadcasts.
+const sourceId =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `tab-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 
 let currentVersion = 0;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -64,10 +100,27 @@ let pulling = false;
 let lastPullAt = 0;
 const FOCUS_PULL_THROTTLE_MS = 3000;
 
+// True for the *first* pull right after startSync(userId) when this device
+// had no prior owner — i.e. a guest just signed in. Drives the
+// guest-into-populated-account collision prompt: the silent server-overwrite
+// only happens on that single pull, never on focus refreshes.
+let firstPullPending = false;
+// Label shown in the collision dialog (account username). Set by startSync.
+let currentAccountLabel = '';
+
 type SyncedListener = () => void;
 const syncedListeners = new Set<SyncedListener>();
 let syncedState: 'idle' | 'syncing' | 'ready' = 'idle';
+// Epoch ms of the last successful pull OR push. Both count as "synced":
+// the user only cares that local and server are in agreement, not which
+// direction the bytes flowed. Reset to null by wipeLocal() so a logged-out
+// device doesn't show a stale "synced 3m ago" stamp.
+let lastSyncedAt: number | null = null;
 
+// We keep the existing parameterless onSyncedChange API and just bump it on
+// every change (state or lastSyncedAt). Subscribers re-read both getters in
+// their handler — simpler than encoding a payload type that consumers would
+// pattern-match on, and avoids fanning out two listener channels.
 export function onSyncedChange(fn: SyncedListener): () => void {
   syncedListeners.add(fn);
   return () => syncedListeners.delete(fn);
@@ -77,6 +130,13 @@ function emitSynced(): void {
 }
 export function getSyncState(): 'idle' | 'syncing' | 'ready' {
   return syncedState;
+}
+export function getLastSyncedAt(): number | null {
+  return lastSyncedAt;
+}
+function markSynced(): void {
+  lastSyncedAt = Date.now();
+  emitSynced();
 }
 
 function setDirty(): void {
@@ -223,6 +283,8 @@ async function pushNow(): Promise<void> {
       // later non-destructive empty state can't ride on stale intent.
       consumeDestructive();
     }
+    markSynced();
+    broadcastSyncApplied(result.version);
   } catch (err) {
     const e = err as Error & { status?: number; current?: SyncSnapshot };
     if (e.status === 409 && e.current) {
@@ -487,6 +549,87 @@ function handleOnline(): void {
   if (isDirty()) schedulePush(true);
 }
 
+/* ── Cross-tab coordination (P2a) ───────────────────────────────────────── */
+
+function broadcastSyncApplied(version: number): void {
+  if (!currentOwnerId) return; // guests don't sync, don't gossip
+  const msg: SyncBroadcast = {
+    type: 'sync-applied',
+    userId: currentOwnerId,
+    version,
+    sourceId,
+    ts: Date.now(),
+  };
+  if (broadcastChannel) {
+    try {
+      broadcastChannel.postMessage(msg);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  // localStorage fallback: writes here fire `storage` events in OTHER tabs.
+  try {
+    localStorage.setItem(BROADCAST_STORAGE_KEY, JSON.stringify(msg));
+  } catch {
+    /* ignore */
+  }
+}
+
+function handleIncomingBroadcast(msg: SyncBroadcast): void {
+  if (!msg || msg.type !== 'sync-applied') return;
+  if (msg.sourceId === sourceId) return; // own echo (localStorage path)
+  if (!currentOwnerId || msg.userId !== currentOwnerId) return;
+  if (msg.version <= currentVersion) return; // we're already at-or-ahead
+  // Schedule a pull. handleVisible() reuses the focus-pull throttle and
+  // ready-state gate, so two near-simultaneous broadcasts coalesce into one
+  // fetch and we never overlap an in-flight pull.
+  void handleVisible();
+}
+
+function handleBroadcastMessage(ev: MessageEvent<SyncBroadcast>): void {
+  handleIncomingBroadcast(ev.data);
+}
+
+function handleBroadcastStorage(ev: StorageEvent): void {
+  if (ev.key !== BROADCAST_STORAGE_KEY || !ev.newValue) return;
+  try {
+    handleIncomingBroadcast(JSON.parse(ev.newValue) as SyncBroadcast);
+  } catch {
+    /* ignore malformed */
+  }
+}
+
+function attachBroadcast(): void {
+  if (typeof self !== 'undefined' && 'BroadcastChannel' in self) {
+    try {
+      broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      broadcastChannel.addEventListener('message', handleBroadcastMessage);
+      return;
+    } catch {
+      broadcastChannel = null;
+    }
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', handleBroadcastStorage);
+  }
+}
+
+function detachBroadcast(): void {
+  if (broadcastChannel) {
+    try {
+      broadcastChannel.removeEventListener('message', handleBroadcastMessage);
+      broadcastChannel.close();
+    } catch {
+      /* ignore */
+    }
+    broadcastChannel = null;
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('storage', handleBroadcastStorage);
+  }
+}
+
 function attachSubscribers(): void {
   detachSubscribers();
   const u1 = useCollectionStore.subscribe((state, prev) => {
@@ -518,6 +661,7 @@ function attachSubscribers(): void {
   window.addEventListener('pagehide', handlePageHide);
   window.addEventListener('beforeunload', handleBeforeUnload);
   window.addEventListener('online', handleOnline);
+  attachBroadcast();
 }
 
 function detachSubscribers(): void {
@@ -535,6 +679,7 @@ function detachSubscribers(): void {
     window.removeEventListener('beforeunload', handleBeforeUnload);
     window.removeEventListener('online', handleOnline);
   }
+  detachBroadcast();
 }
 
 /**
@@ -562,6 +707,15 @@ function detachSubscribers(): void {
  * Callers are responsible for flushing pending local changes (pushNow) BEFORE
  * calling this, so a pull never reverts unsynced local edits.
  */
+function buildLocalSnapshot(): LocalSnapshot {
+  return {
+    collection: buildCollection(),
+    binders: buildBinders(),
+    decks: buildDecks(),
+    games: buildGames(),
+  };
+}
+
 async function pullAndReconcile(): Promise<void> {
   const mutationCountAtFetchStart = mutationCount;
 
@@ -571,7 +725,18 @@ async function pullAndReconcile(): Promise<void> {
   } catch (err) {
     logger.warn('[sync] fetch failed:', err);
   }
-  if (!snap) return;
+  if (!snap) {
+    // No server reply — leave firstPullPending alone so the next attempt
+    // (focus pull) still gets the collision-aware branch if the user has
+    // local data. The throttle keeps this from spinning.
+    return;
+  }
+  // Reaching this point means we have a fetched snapshot to act on. The
+  // flag is consumed BEFORE the branches below so the choice-resolution
+  // path (which awaits a user click) can't be re-entered from a focus
+  // pull that overlaps the modal.
+  const isFirstPull = firstPullPending;
+  firstPullPending = false;
 
   if (mutationCount !== mutationCountAtFetchStart) {
     // The user mutated state during the fetch window. Their intent is
@@ -597,46 +762,100 @@ async function pullAndReconcile(): Promise<void> {
           'Could not read your saved collection on this device. Your data is safe — reload to try again.',
       });
     }
-  } else if (isServerEmpty(snap) && hasLocalData()) {
-    // Guest promotion path: a newly authed user has local data but the
-    // server account is empty. Push local up.
-    persistVersion(snap.version);
-    setDirty();
-    await pushNow();
-  } else if (!snap.collection && buildCollection() !== null) {
-    // Server has NO collection but still has other slices (binders/decks),
-    // so isServerEmpty() is false and the whole-snapshot promotion above
-    // doesn't fire. Hydrate succeeded (not hydrateFailed) and we hold a
-    // real local collection. Applying the snapshot would blank the
-    // in-memory cards even though IndexedDB still has them — the reported
-    // "collection loads then wipes after ~2s, binders stay" bug, where the
-    // server lost the collection but kept binders. Keep local, take the
-    // server's other slices, and push the collection back up to repair the
-    // server. (Tradeoff, consistent with the guest-promotion path: a
-    // deliberate cross-device collection delete can be resurrected by a
-    // device that still holds the cache — far preferable to permanent loss.)
+  } else if (!snap.collection && buildCollection() !== null && !isServerEmpty(snap)) {
+    // Server has NO collection but still has OTHER slices populated
+    // (binders/decks/games). This is a server-degraded *recovery* path —
+    // the server lost the collection but kept binders, and applying the
+    // snapshot would blank the in-memory cards even though IndexedDB
+    // still has them (the "collection loads then wipes after ~2s" bug).
+    // Always run silently — it's not a "two sides have data" merge
+    // collision, it's the server hiccupping. The !isServerEmpty(snap)
+    // guard is what keeps this branch from eating the fully-empty-server
+    // case (which belongs to the collision branch below, so the user
+    // gets prompted before their local data moves anywhere).
     await applyServerSnapshot(snap, { keepLocalCollection: true });
     setDirty();
     await pushNow();
-  } else {
-    await applyServerSnapshot(snap);
-  }
-}
-
-export async function startSync(userId?: string): Promise<void> {
-  syncedState = 'syncing';
-  emitSynced();
-
-  // Cross-user safety: if persisted state belongs to a different user, wipe
-  // before contaminating their account.
-  if (userId) {
-    let owner: string | null = null;
+  } else if (isFirstPull && hasLocalData()) {
+    // Collision / first-time merge: this is the first pull for this user
+    // on this device AND the user has local data to think about. Always
+    // prompt — even when the server account is empty — so the user
+    // explicitly consents to moving their local-only work onto an
+    // account. The dialog adapts its copy when the server side is empty
+    // (it's a "push your data?" question rather than a true merge), but
+    // the choice remains the user's.
+    const local = buildLocalSnapshot();
+    // Persist the "prompt in flight" flag BEFORE we await the user's choice.
+    // If the browser drops us (refresh, tab close, crash) between here and
+    // the clear below, the next boot's startSync() will see the flag and
+    // re-fire the collision branch instead of silently overwriting local.
     try {
-      owner = localStorage.getItem(OWNER_KEY);
+      if (currentOwnerId) localStorage.setItem(COLLISION_PENDING_KEY, currentOwnerId);
     } catch {
       /* ignore */
     }
-    if (owner && owner !== userId) {
+    const choice = await invokeCollisionHandler({
+      local: countLocal(local),
+      server: countServer(snap),
+      accountLabel: currentAccountLabel,
+    });
+    if (choice === 'keep-local') {
+      // Server's data is set aside; push the local snapshot up.
+      persistVersion(snap.version);
+      setDirty();
+      await pushNow();
+    } else if (choice === 'merge') {
+      // Apply the union to the store + IndexedDB, then push so the server
+      // reflects the merged state. applyServerSnapshot writes the
+      // collection to IndexedDB and persists snap.version, both of which
+      // we want here — the merged snapshot reuses the server's version so
+      // the next push lands on the right base.
+      const merged = mergeSnapshots(local, snap);
+      await applyServerSnapshot({
+        ...snap,
+        collection: merged.collection,
+        binders: merged.binders,
+        decks: merged.decks,
+        games: merged.games,
+      });
+      setDirty();
+      await pushNow();
+    } else {
+      await applyServerSnapshot(snap);
+    }
+    // Choice resolved — clear the flag so a future re-boot doesn't think
+    // a fresh prompt is pending.
+    try {
+      localStorage.removeItem(COLLISION_PENDING_KEY);
+    } catch {
+      /* ignore */
+    }
+  } else {
+    await applyServerSnapshot(snap);
+  }
+  // We have an authoritative snapshot (whether we applied it, kept-local
+  // around it, merged, or just rebased the version): all branches above
+  // leave currentVersion in agreement with the server. Stamp + broadcast.
+  markSynced();
+  broadcastSyncApplied(currentVersion);
+}
+
+export async function startSync(userId?: string, accountLabel?: string): Promise<void> {
+  syncedState = 'syncing';
+  emitSynced();
+  currentAccountLabel = accountLabel ?? '';
+  currentOwnerId = userId ?? null;
+
+  // Cross-user safety: if persisted state belongs to a different user, wipe
+  // before contaminating their account.
+  let priorOwner: string | null = null;
+  if (userId) {
+    try {
+      priorOwner = localStorage.getItem(OWNER_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (priorOwner && priorOwner !== userId) {
       // A wipe failure must not skip hydrateFromCache below — otherwise the
       // `hydrating` flag never clears and the UI is stuck on a loading state.
       try {
@@ -651,6 +870,26 @@ export async function startSync(userId?: string): Promise<void> {
       /* ignore */
     }
   }
+  // The collision dialog should only fire the first time this user's data
+  // reaches this device — i.e. when the device had no owner yet (guest
+  // signing in for the first time, or a fresh native install signing in).
+  // A returning signed-in user, or a user-switch (priorOwner !== userId,
+  // which just wiped local), is NOT a collision: there's no merge to ask
+  // about because local is empty or already belonged to this user.
+  //
+  // EXCEPTION: if a previous boot reached the collision branch but the
+  // user refreshed / closed the tab before picking, COLLISION_PENDING_KEY
+  // survives in localStorage. Honour it so the prompt re-fires here
+  // instead of falling through to applyServerSnapshot (which would
+  // silently wipe local — exactly the data-loss bug this whole branch
+  // exists to prevent).
+  let pendingCollision = false;
+  try {
+    pendingCollision = !!userId && localStorage.getItem(COLLISION_PENDING_KEY) === userId;
+  } catch {
+    /* ignore */
+  }
+  firstPullPending = (userId !== undefined && priorOwner === null) || pendingCollision;
 
   loadVersion();
   await hydrateFromCache();
@@ -703,8 +942,12 @@ async function wipeLocal(): Promise<void> {
   // focus pull and clear any in-flight-pull latch.
   lastPullAt = 0;
   pulling = false;
+  // Wipe the visible "Synced Xm ago" stamp too — logout shouldn't leak the
+  // previous session's timing into the next account's header.
+  lastSyncedAt = null;
+  currentOwnerId = null;
   clearDirty();
-  for (const key of [VERSION_KEY, OWNER_KEY]) {
+  for (const key of [VERSION_KEY, OWNER_KEY, COLLISION_PENDING_KEY]) {
     try {
       localStorage.removeItem(key);
     } catch {
