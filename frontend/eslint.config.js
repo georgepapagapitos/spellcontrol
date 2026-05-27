@@ -7,7 +7,18 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
-  { ignores: ['dist', 'coverage', 'node_modules', 'android'] },
+  {
+    ignores: [
+      'dist',
+      'coverage',
+      'node_modules',
+      'android',
+      // Vendored scanner v2 blobs (opencv.js, onnxruntime-web bundle, ONNX
+      // model, packed binary DBs). Third-party / generated; linting them
+      // produces ~100 errors that mask real issues elsewhere.
+      'public/scanner-v2/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
