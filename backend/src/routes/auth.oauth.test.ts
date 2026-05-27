@@ -618,3 +618,37 @@ describe('Google callback — same-email auto-link', () => {
     expect(me.body.autoLinkedAt).toBeNull();
   });
 });
+
+describe('sign-in method self-stranding guard', () => {
+  // The Google unlink endpoint already refuses for SSO-only accounts (tested
+  // above); these cases pin the contract that the guard delegates to a
+  // shared helper so future "remove method" endpoints inherit the same rule.
+  it('unlink-Google succeeds when the user still has a password', async () => {
+    const { cookie } = await registerWithSession('strand-pw-google', 'correct horse battery');
+    // Manually attach a Google identity via the DB so we don't need a full
+    // OAuth dance for this case.
+    const userIdRow = await pool.query(`SELECT id FROM users WHERE username = 'strand-pw-google'`);
+    const userId = userIdRow.rows[0].id;
+    await pool.query(
+      `INSERT INTO auth_identities (provider, provider_subject, user_id, created_at)
+       VALUES ('google', 'strand-google-sub', $1, $2)`,
+      [userId, Date.now()]
+    );
+    const res = await request(app).delete('/api/auth/me/identities/google').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses unlink-Google when it is the only sign-in method (SSO-only account)', async () => {
+    // Two-pass safety net: alongside the existing "refuses to unlink for
+    // SSO-only" case, confirms the helper-based path returns the same 409.
+    const created = await createGoogleAccount(
+      'strand-sso-sub',
+      'strandsso@example.com',
+      'strand-sso'
+    );
+    const cookie = extractSessionCookie(created.headers['set-cookie'])!;
+    const res = await request(app).delete('/api/auth/me/identities/google').set('Cookie', cookie);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/lock you out/i);
+  });
+});

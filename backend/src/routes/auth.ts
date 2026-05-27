@@ -18,6 +18,7 @@ import {
   signLinkIntent,
   signOAuthState,
   signSignupToken,
+  userHasOtherSignInMethod,
   validatePassword,
   verifyLinkIntent,
   verifyOAuthState,
@@ -574,19 +575,25 @@ authRouter.get('/me/identities', requireAuth, async (req: Request, res: Response
 });
 
 /**
- * Unlink the user's Google account. Refuses if the user has no password —
- * removing the only sign-in method would lock them out. They need to set a
- * password first (not yet implemented; future follow-up).
+ * Unlink the user's Google account. Refuses if removing the Google identity
+ * would leave the account with no way to sign in (no password and no other
+ * external identities). There is no password reset, so once locked out the
+ * account is unrecoverable — the check is non-negotiable for any future
+ * "remove sign-in method" endpoint too; consult userHasOtherSignInMethod().
  */
 authRouter.delete('/me/identities/google', requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
-  const userRows = await db
-    .select({ passwordHash: users.passwordHash })
+  const exists = await db
+    .select({ id: users.id })
     .from(users)
     .where(eq(users.id, req.user!.id))
     .limit(1);
-  if (!userRows[0]) return res.status(404).json({ error: 'Account not found.' });
-  if (!userRows[0].passwordHash) {
+  if (!exists[0]) return res.status(404).json({ error: 'Account not found.' });
+  const hasOther = await userHasOtherSignInMethod(req.user!.id, {
+    kind: 'identity',
+    provider: 'google',
+  });
+  if (!hasOther) {
     return res.status(409).json({
       error: 'Set a password before unlinking Google — it would lock you out of this account.',
     });
