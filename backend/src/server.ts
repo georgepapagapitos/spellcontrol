@@ -18,7 +18,13 @@ import { sharesRouter } from './routes/shares';
 import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, identifyCardByName, getCardById }from './scryfall';
+import {
+  resolveCards,
+  fetchCardsByIds,
+  fetchPrintings,
+  identifyCardByName,
+  getCardById,
+} from './scryfall';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { sliceResolvedDeckImport } from './deck-import';

@@ -109,10 +109,7 @@ export async function getUniqueArtworkDownloadUrl(): Promise<string> {
  * decouples upstream socket health from local processing rate entirely.
  */
 async function downloadBulkToTemp(url: string): Promise<string> {
-  const tmpPath = path.join(
-    os.tmpdir(),
-    `scanner-v2-bulk-${process.pid}-${Date.now()}.json`
-  );
+  const tmpPath = path.join(os.tmpdir(), `scanner-v2-bulk-${process.pid}-${Date.now()}.json`);
   logger.info(`[embedding-ingest] downloading bulk JSON → ${tmpPath}`);
   const t0 = Date.now();
   const res = await fetch(url, {
@@ -125,9 +122,7 @@ async function downloadBulkToTemp(url: string): Promise<string> {
     createWriteStream(tmpPath)
   );
   const sizeMb = ((await fs.stat(tmpPath)).size / 1_000_000).toFixed(1);
-  logger.info(
-    `[embedding-ingest] bulk JSON saved (${sizeMb} MB in ${Date.now() - t0}ms)`
-  );
+  logger.info(`[embedding-ingest] bulk JSON saved (${sizeMb} MB in ${Date.now() - t0}ms)`);
   return tmpPath;
 }
 
@@ -245,12 +240,7 @@ export async function embedTensor(
   session: ort.InferenceSession,
   tensorData: Float32Array
 ): Promise<Float32Array> {
-  const tensor = new ort.Tensor('float32', tensorData, [
-    1,
-    3,
-    EMBED_INPUT_SIZE,
-    EMBED_INPUT_SIZE,
-  ]);
+  const tensor = new ort.Tensor('float32', tensorData, [1, 3, EMBED_INPUT_SIZE, EMBED_INPUT_SIZE]);
   const outputs = await session.run({ pixel_values: tensor });
   const out = outputs.image_embeds ?? outputs[session.outputNames[0]];
   if (!out) throw new Error('embedding-ingest: session missing image_embeds output');

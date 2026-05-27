@@ -46,10 +46,7 @@ async function main(): Promise<void> {
     process.cwd(),
     '../frontend/public/scanner-v2/embed/vision_model.onnx'
   );
-  const outPath = path.resolve(
-    process.cwd(),
-    '../frontend/public/scanner-v2/card-embeddings.bin'
-  );
+  const outPath = path.resolve(process.cwd(), '../frontend/public/scanner-v2/card-embeddings.bin');
 
   logger.info(
     `[ingest-card-embeddings] starting → ${outPath}${limit ? ` (limit=${limit})` : ''}${concurrency ? ` (concurrency=${concurrency})` : ''}`

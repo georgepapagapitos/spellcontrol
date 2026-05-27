@@ -81,7 +81,12 @@ describe('packEmbeddingBinary', () => {
   });
 
   it('throws if an embedding has the wrong dimension', () => {
-    const records = [{ embedding: new Int8Array(5), uuid: uuidToBytes('a'.repeat(8) + '-aaaa-aaaa-aaaa-aaaaaaaaaaaa') }];
+    const records = [
+      {
+        embedding: new Int8Array(5),
+        uuid: uuidToBytes('a'.repeat(8) + '-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+      },
+    ];
     expect(() => packEmbeddingBinary(records)).toThrow(/512 dims/);
   });
 

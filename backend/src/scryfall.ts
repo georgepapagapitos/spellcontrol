@@ -180,10 +180,7 @@ export async function fetchCardsByIds(
  *
  * Returns null when Scryfall doesn't know the id.
  */
-export async function getCardById(
-  id: string,
-  cache: ScryfallCache
-): Promise<ScryfallCard | null> {
+export async function getCardById(id: string, cache: ScryfallCache): Promise<ScryfallCard | null> {
   const cached = cache.getMany([id]).get(id);
   if (cached) return cached;
   const fresh = await fetchCardsByIds([id], cache);
