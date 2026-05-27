@@ -14,6 +14,13 @@ import {
  * promotion / silent overwrite: every cross-account data movement now
  * has explicit consent.
  *
+ * **Non-dismissable by design.** Backdrop click and Escape are disabled
+ * via Modal's `dismissable={false}`. The cost of an accidental dismissal
+ * is permanent data movement (wipe local or push to server), so the only
+ * way to close the dialog is to click one of the labelled buttons. A
+ * page refresh DURING the prompt is handled by sync.ts's
+ * `COLLISION_PENDING_KEY` — the prompt re-fires on next boot.
+ *
  * Lifecycle: mounted at the root once (App.tsx). On mount it registers an
  * async handler with sync-collision; the handler awaits the user's click.
  * Only one dialog can be open at a time (sync only invokes the handler on
@@ -75,6 +82,7 @@ export function AccountMergeDialog() {
     return (
       <Modal
         onClose={() => choose('keep-local')}
+        dismissable={false}
         labelledBy="account-merge-dialog-title"
         className="choice-dialog account-merge-dialog"
       >
@@ -117,6 +125,7 @@ export function AccountMergeDialog() {
   return (
     <Modal
       onClose={() => choose('keep-server')}
+      dismissable={false}
       labelledBy="account-merge-dialog-title"
       className="choice-dialog account-merge-dialog"
     >

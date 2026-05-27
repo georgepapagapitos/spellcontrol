@@ -992,6 +992,32 @@ describe('guest → populated-account collision', () => {
       unregister();
     }
   });
+
+  it('a refresh during the prompt re-fires the collision branch on next boot', async () => {
+    // Simulate the user signing in, the collision branch firing and writing
+    // the pending key, then the tab being closed/refreshed before the
+    // dialog resolved. Without the persistent flag, the next boot would
+    // see OWNER_KEY already set (= priorOwner !== null) → firstPullPending
+    // = false → silent applyServerSnapshot → local wiped. With the flag,
+    // the prompt re-fires.
+    localAndServerBothHaveData();
+    // Pretend a prior boot already set OWNER_KEY for this user (it would
+    // have, before the await) AND left the pending-collision flag set.
+    localStorage.setItem('spellcontrol-sync-owner', 'user-1');
+    localStorage.setItem('spellcontrol-sync-pending-collision', 'user-1');
+
+    const handler = vi.fn().mockResolvedValue('keep-local' as CollisionChoice);
+    const unregister = registerCollisionHandler(handler);
+    try {
+      await startSync('user-1', 'alice');
+      // Prompt fired again despite this not being a "first" sign-in.
+      expect(handler).toHaveBeenCalledTimes(1);
+      // And the pending key is cleared once a choice is made.
+      expect(localStorage.getItem('spellcontrol-sync-pending-collision')).toBeNull();
+    } finally {
+      unregister();
+    }
+  });
 });
 
 /* ── Cross-tab broadcast (P2a) ─────────────────────────────────────────────

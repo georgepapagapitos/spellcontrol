@@ -41,6 +41,13 @@ const DEBOUNCE_MS = 500;
 const VERSION_KEY = 'spellcontrol-sync-base-version';
 const DIRTY_KEY = 'spellcontrol-sync-dirty';
 const OWNER_KEY = 'spellcontrol-sync-owner';
+// Set while the AccountMergeDialog is awaiting a user choice. Survives a
+// page refresh / tab close so an interrupted prompt re-fires on next
+// boot instead of falling through to the silent applyServerSnapshot path
+// (which would defeat the whole "no data movement without consent"
+// safety). Value is the userId whose prompt is pending; cleared by
+// pullAndReconcile once the choice resolves, and by wipeLocal.
+const COLLISION_PENDING_KEY = 'spellcontrol-sync-pending-collision';
 
 // Cross-tab coordination (P2a). Multiple tabs of the same account previously
 // raced on currentVersion: tab A pushed (server v2), tab B still held v1
@@ -778,6 +785,15 @@ async function pullAndReconcile(): Promise<void> {
     // (it's a "push your data?" question rather than a true merge), but
     // the choice remains the user's.
     const local = buildLocalSnapshot();
+    // Persist the "prompt in flight" flag BEFORE we await the user's choice.
+    // If the browser drops us (refresh, tab close, crash) between here and
+    // the clear below, the next boot's startSync() will see the flag and
+    // re-fire the collision branch instead of silently overwriting local.
+    try {
+      if (currentOwnerId) localStorage.setItem(COLLISION_PENDING_KEY, currentOwnerId);
+    } catch {
+      /* ignore */
+    }
     const choice = await invokeCollisionHandler({
       local: countLocal(local),
       server: countServer(snap),
@@ -806,6 +822,13 @@ async function pullAndReconcile(): Promise<void> {
       await pushNow();
     } else {
       await applyServerSnapshot(snap);
+    }
+    // Choice resolved — clear the flag so a future re-boot doesn't think
+    // a fresh prompt is pending.
+    try {
+      localStorage.removeItem(COLLISION_PENDING_KEY);
+    } catch {
+      /* ignore */
     }
   } else {
     await applyServerSnapshot(snap);
@@ -853,7 +876,20 @@ export async function startSync(userId?: string, accountLabel?: string): Promise
   // A returning signed-in user, or a user-switch (priorOwner !== userId,
   // which just wiped local), is NOT a collision: there's no merge to ask
   // about because local is empty or already belonged to this user.
-  firstPullPending = userId !== undefined && priorOwner === null;
+  //
+  // EXCEPTION: if a previous boot reached the collision branch but the
+  // user refreshed / closed the tab before picking, COLLISION_PENDING_KEY
+  // survives in localStorage. Honour it so the prompt re-fires here
+  // instead of falling through to applyServerSnapshot (which would
+  // silently wipe local — exactly the data-loss bug this whole branch
+  // exists to prevent).
+  let pendingCollision = false;
+  try {
+    pendingCollision = !!userId && localStorage.getItem(COLLISION_PENDING_KEY) === userId;
+  } catch {
+    /* ignore */
+  }
+  firstPullPending = (userId !== undefined && priorOwner === null) || pendingCollision;
 
   loadVersion();
   await hydrateFromCache();
@@ -911,7 +947,7 @@ async function wipeLocal(): Promise<void> {
   lastSyncedAt = null;
   currentOwnerId = null;
   clearDirty();
-  for (const key of [VERSION_KEY, OWNER_KEY]) {
+  for (const key of [VERSION_KEY, OWNER_KEY, COLLISION_PENDING_KEY]) {
     try {
       localStorage.removeItem(key);
     } catch {

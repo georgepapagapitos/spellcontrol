@@ -46,13 +46,27 @@ describe('AccountMergeDialog', () => {
     await expect(promise).resolves.toBe('keep-server');
   });
 
-  it('falls back to keep-server when the modal is dismissed via backdrop', async () => {
+  it('is non-dismissable — backdrop clicks do nothing, only buttons resolve', async () => {
+    // The merge prompt is the one dialog where an accidental dismissal
+    // means permanent data movement; force an explicit button choice.
     render(<AccountMergeDialog />);
     const promise = invokeCollisionHandler(info);
     await screen.findByText('This account already has data');
-    // Click the backdrop (the modal-backdrop wrapper).
+
     const backdrop = document.querySelector('.modal-backdrop') as HTMLElement;
     fireEvent.click(backdrop);
+    // Escape also disabled.
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    // Modal still open — promise still pending. Resolve via the actual
+    // button to keep the test deterministic.
+    const stillOpen = await Promise.race([
+      promise,
+      new Promise<'pending'>((r) => setTimeout(() => r('pending'), 50)),
+    ]);
+    expect(stillOpen).toBe('pending');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use account data' }));
     await expect(promise).resolves.toBe('keep-server');
   });
 
@@ -103,14 +117,19 @@ describe('AccountMergeDialog', () => {
       await expect(promise).resolves.toBe('keep-server');
     });
 
-    it('dismissing the empty-server variant defaults to keep-local (safer; preserves data)', async () => {
+    it('is non-dismissable too — backdrop clicks on the empty-server variant do nothing', async () => {
       render(<AccountMergeDialog />);
       const promise = invokeCollisionHandler(emptyServerInfo);
       await screen.findByText('Move your local data to this account?');
       const backdrop = document.querySelector('.modal-backdrop') as HTMLElement;
       fireEvent.click(backdrop);
-      // Backdrop dismiss on this variant routes to keep-local — the destructive
-      // "wipe my guest data" choice requires an explicit button press.
+      fireEvent.keyDown(document, { key: 'Escape' });
+      const stillOpen = await Promise.race([
+        promise,
+        new Promise<'pending'>((r) => setTimeout(() => r('pending'), 50)),
+      ]);
+      expect(stillOpen).toBe('pending');
+      fireEvent.click(screen.getByRole('button', { name: /Move it to this account/i }));
       await expect(promise).resolves.toBe('keep-local');
     });
   });

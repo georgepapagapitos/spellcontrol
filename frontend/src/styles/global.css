@@ -4088,6 +4088,15 @@ hr {
   gap: 0.75rem;
 }
 
+/* On phones the two side-summary columns get too cramped to read the
+   "X cards / X binders / …" list. Stack them. The dialog itself is
+   already centered + scroll-capable via the Modal primitive. */
+@media (max-width: 480px) {
+  .account-merge-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .account-merge-side {
   padding: 0.75rem;
   border-radius: var(--radius);
