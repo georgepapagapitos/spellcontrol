@@ -83,6 +83,20 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 });
 app.use(cookieParser());
 
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith('/api/')) return next();
+  const start = Date.now();
+  res.on('finish', () => {
+    const len = res.getHeader('content-length');
+    // Strip query string — OAuth callback URLs contain the auth code.
+    const url = req.originalUrl.split('?')[0];
+    logger.info(
+      `[req] ${req.method} ${url} ${res.statusCode} ${Date.now() - start}ms${len ? ` ${len}b` : ''}`
+    );
+  });
+  next();
+});
+
 const importLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 
