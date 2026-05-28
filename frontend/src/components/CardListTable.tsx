@@ -4,6 +4,7 @@ import {
   CheckSquare,
   LayoutGrid,
   List as ListIconLucide,
+  Plus,
   Search,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -64,6 +65,13 @@ interface Props {
    * the user "filter by binder" inside that view would just be confusing.
    */
   hideBinderFilter?: boolean;
+  /**
+   * Opens the Add cards sheet. Wired by the Collection page so the
+   * empty-collection state can offer an inline "Add cards" CTA without this
+   * component needing to know how the sheet is mounted. Omitted in scoped
+   * views (e.g. a single binder) that never render the empty-collection state.
+   */
+  onAddCards?: () => void;
 }
 
 interface Row {
@@ -168,7 +176,13 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
   return 0;
 }
 
-export function CardListTable({ cards, binders, setMap, hideBinderFilter = false }: Props) {
+export function CardListTable({
+  cards,
+  binders,
+  setMap,
+  hideBinderFilter = false,
+  onAddCards,
+}: Props) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [scryfallOpen, setScryfallOpen] = useState(false);
@@ -617,10 +631,21 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
   // Offer Scryfall add whenever there's a real query — even with zero
   // collection matches (then the trigger is the only card/row).
   const showScryfall = debouncedSearch.trim().length >= 2;
+  // The trigger box only exists to *open* the live results panel — once that
+  // panel is open it's redundant, so hide it and let the results take its
+  // place (the grid/list reflows as if the trigger were never there).
+  const showScryfallTrigger = showScryfall && !scryfallOpen;
   const triggerIndex = sorted.length;
-  const gridItemCount = sorted.length + (showScryfall ? 1 : 0);
+  const gridItemCount = sorted.length + (showScryfallTrigger ? 1 : 0);
   const gridRowCount = view === 'grid' ? Math.ceil(gridItemCount / gridCols) : 0;
   const GRID_GAP = 10;
+
+  // When the query is cleared (or drops below the 2-char threshold), leave
+  // search mode so the next real query starts from the trigger box again
+  // rather than silently reopening the results panel.
+  useEffect(() => {
+    if (!showScryfall) setScryfallOpen(false);
+  }, [showScryfall]);
 
   const estimateGridRowHeight = useCallback(() => {
     if (!gridContainerRef.current) return 250;
@@ -1063,7 +1088,27 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         />
       )}
 
-      {sorted.length === 0 && !showScryfall ? (
+      {cards.length === 0 && !showScryfall ? (
+        // Brand-new, never-populated collection — distinct from a filtered
+        // "no matches". Same view, just empty: point at the search bar above
+        // and offer the Add cards sheet (search · list · scan) right here.
+        <div className="empty-state">
+          <p className="empty-state-tagline">Your collection is empty</p>
+          <p className="empty-state-hint">
+            Search for a card above to add it, or use Add cards to import a list or scan your cards.
+          </p>
+          {onAddCards && (
+            <button
+              type="button"
+              className="btn btn-primary empty-state-action"
+              onClick={onAddCards}
+            >
+              <Plus width={16} height={16} strokeWidth={1.8} aria-hidden />
+              <span>Add cards</span>
+            </button>
+          )}
+        </div>
+      ) : sorted.length === 0 && !showScryfall ? (
         <div className="empty-state">
           <p className="empty-state-tagline">No matches</p>
           <p className="empty-state-hint">
@@ -1099,16 +1144,14 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
               >
                 {Array.from({ length: gridCols }, (_, colIdx) => {
                   const idx = startIdx + colIdx;
-                  if (idx === triggerIndex && showScryfall) {
+                  if (idx === triggerIndex && showScryfallTrigger) {
                     return (
                       <button
                         key="scryfall-trigger"
                         type="button"
-                        className={`collection-grid-item collection-grid-scryfall${
-                          scryfallOpen ? ' is-open' : ''
-                        }`}
+                        className="collection-grid-item collection-grid-scryfall"
                         onClick={() => setScryfallOpen(true)}
-                        aria-expanded={scryfallOpen}
+                        aria-expanded={false}
                         aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
                       >
                         <Search width={26} height={26} strokeWidth={1.6} aria-hidden />
@@ -1284,13 +1327,11 @@ export function CardListTable({ cards, binders, setMap, hideBinderFilter = false
         </div>
       )}
 
-      {view !== 'grid' && showScryfall && (
+      {view !== 'grid' && showScryfallTrigger && (
         <button
           type="button"
-          className={`collection-list-scryfall collection-list-scryfall--standalone${
-            scryfallOpen ? ' is-open' : ''
-          }`}
-          aria-expanded={scryfallOpen}
+          className="collection-list-scryfall collection-list-scryfall--standalone"
+          aria-expanded={false}
           aria-label={`Search Scryfall for ${debouncedSearch.trim()}`}
           onClick={() => setScryfallOpen(true)}
         >
