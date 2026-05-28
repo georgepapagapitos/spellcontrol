@@ -7,8 +7,9 @@ import {
   type EDHRECCommanderData,
   type RoleTargetBreakdown,
 } from '@/deck-builder/types';
-import type { Pacing } from './themeDetector';
+import type { Pacing } from './pacingDetector';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import { THEME_TO_ARCHETYPE } from './strategyVocabulary';
 
 // ─── EDHREC Blend Tuning ────────────────────────────────────────────
 // Threshold for "cards in the typical deck for this commander" — a card above
@@ -42,119 +43,8 @@ export function computeEdhrecRoleTargets(
 }
 
 // ─── Theme → Archetype Mapping ──────────────────────────────────────
-
-const THEME_TO_ARCHETYPE: Record<string, Archetype> = {
-  // Aggro / Combat
-  aggro: Archetype.AGGRO,
-  combat: Archetype.AGGRO,
-  'extra combat': Archetype.AGGRO,
-  infect: Archetype.AGGRO,
-  poison: Archetype.AGGRO,
-
-  // Control
-  control: Archetype.CONTROL,
-  stax: Archetype.CONTROL,
-  pillowfort: Archetype.CONTROL,
-
-  // Combo
-  combo: Archetype.COMBO,
-  'extra turns': Archetype.COMBO,
-
-  // Voltron / Equipment / Auras
-  voltron: Archetype.VOLTRON,
-  equipment: Archetype.VOLTRON,
-  auras: Archetype.VOLTRON,
-
-  // Spellslinger
-  spellslinger: Archetype.SPELLSLINGER,
-  cantrips: Archetype.SPELLSLINGER,
-
-  // Tokens
-  tokens: Archetype.TOKENS,
-  'go wide': Archetype.TOKENS,
-
-  // Aristocrats / Sacrifice
-  aristocrats: Archetype.ARISTOCRATS,
-  sacrifice: Archetype.ARISTOCRATS,
-  lifedrain: Archetype.ARISTOCRATS,
-
-  // Reanimator / Graveyard
-  reanimator: Archetype.REANIMATOR,
-  graveyard: Archetype.REANIMATOR,
-  mill: Archetype.REANIMATOR,
-  dredge: Archetype.REANIMATOR,
-  flashback: Archetype.REANIMATOR,
-
-  // Landfall / Lands
-  landfall: Archetype.LANDFALL,
-  lands: Archetype.LANDFALL,
-
-  // Artifacts
-  artifacts: Archetype.ARTIFACTS,
-  treasures: Archetype.ARTIFACTS,
-  vehicles: Archetype.ARTIFACTS,
-  clues: Archetype.ARTIFACTS,
-  food: Archetype.ARTIFACTS,
-
-  // Enchantress
-  enchantress: Archetype.ENCHANTRESS,
-  enchantments: Archetype.ENCHANTRESS,
-  constellation: Archetype.ENCHANTRESS,
-
-  // Storm
-  storm: Archetype.STORM,
-
-  // Tribal — individual tribes all map here
-  tribal: Archetype.TRIBAL,
-  elves: Archetype.TRIBAL,
-  goblins: Archetype.TRIBAL,
-  zombies: Archetype.TRIBAL,
-  vampires: Archetype.TRIBAL,
-  dragons: Archetype.TRIBAL,
-  angels: Archetype.TRIBAL,
-  demons: Archetype.TRIBAL,
-  wizards: Archetype.TRIBAL,
-  warriors: Archetype.TRIBAL,
-  rogues: Archetype.TRIBAL,
-  clerics: Archetype.TRIBAL,
-  soldiers: Archetype.TRIBAL,
-  knights: Archetype.TRIBAL,
-  merfolk: Archetype.TRIBAL,
-  spirits: Archetype.TRIBAL,
-  dinosaurs: Archetype.TRIBAL,
-  pirates: Archetype.TRIBAL,
-  cats: Archetype.TRIBAL,
-  dogs: Archetype.TRIBAL,
-  beasts: Archetype.TRIBAL,
-  elementals: Archetype.TRIBAL,
-  slivers: Archetype.TRIBAL,
-  allies: Archetype.TRIBAL,
-  humans: Archetype.TRIBAL,
-
-  // Midrange-ish strategies
-  '+1/+1 counters': Archetype.MIDRANGE,
-  '-1/-1 counters': Archetype.MIDRANGE,
-  counters: Archetype.MIDRANGE,
-  proliferate: Archetype.MIDRANGE,
-  blink: Archetype.MIDRANGE,
-  flicker: Archetype.MIDRANGE,
-  etb: Archetype.MIDRANGE,
-  clones: Archetype.MIDRANGE,
-  copy: Archetype.MIDRANGE,
-  lifegain: Archetype.MIDRANGE,
-  energy: Archetype.MIDRANGE,
-  cascade: Archetype.MIDRANGE,
-  monarch: Archetype.MIDRANGE,
-
-  // Goodstuff / catch-all
-  superfriends: Archetype.GOODSTUFF,
-  planeswalkers: Archetype.GOODSTUFF,
-  chaos: Archetype.GOODSTUFF,
-  politics: Archetype.GOODSTUFF,
-  wheels: Archetype.GOODSTUFF,
-  discard: Archetype.GOODSTUFF,
-  tutors: Archetype.GOODSTUFF,
-};
+// Sourced from the canonical strategy vocabulary so the theme→archetype and
+// theme→label relationships can't drift apart. See strategyVocabulary.ts.
 
 // ─── Archetype Role Multipliers ─────────────────────────────────────
 // Applied to format-based baseline targets.
