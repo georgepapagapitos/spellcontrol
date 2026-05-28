@@ -669,7 +669,13 @@ export const useDecksStore = create<DecksState>()(
           state.decks = dedupeDeckAllocations(state.decks).decks;
         }
       },
-      partialize: (s) => ({ decks: s.decks }),
+      // Synced data lives in entity-store now and is rehydrated by `lib/sync.ts`.
+      // Persist nothing so zustand-persist no longer races with the sync-driven
+      // rehydrate on boot. The persist middleware stays in place so legacy
+      // `migrate` continues to run on the old IDB rows during the one boot
+      // before `deleteLegacyDatabasesOnce()` removes the `spellcontrol-decks`
+      // DB out from under it.
+      partialize: () => ({}),
       /**
        * v1→v2: allocation tracking moved from `scryfallId` (which identifies a
        * printing) to `copyId` (which identifies a single physical card). Old

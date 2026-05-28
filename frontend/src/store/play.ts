@@ -503,10 +503,13 @@ export const usePlayStore = create<PlayState>()(
       // the user back into their seat instead of the setup form. The server
       // is still the source of truth on next poll; persisted state is just a
       // hint that we *were* in a game.
+      //
+      // `history` (synced game records) is intentionally NOT in the partialize
+      // list anymore — it lives in entity-store and is rehydrated by sync.ts.
+      // Persisting it here would race the sync-driven setState on boot.
       partialize: (s) => ({
         local: s.local,
         online: s.online,
-        history: s.history,
         boardVisible: s.boardVisible,
         hapticsEnabled: s.hapticsEnabled,
         preferredLayouts: s.preferredLayouts,

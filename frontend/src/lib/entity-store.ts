@@ -133,19 +133,26 @@ export async function wipeAll(): Promise<void> {
 }
 
 /**
- * One-time legacy IDB cleanup. The pre-rewrite client stored everything in a
- * different `spellcontrol` database with a single `collection` object store; if
- * we see it, delete it on first boot of the new client. No-op if it's already
- * gone. Safe to remove in a follow-up PR once nobody upgrades from the old
- * client anymore.
+ * One-time legacy IDB cleanup. Pre-rewrite, synced data lived in two places:
+ *   - `spellcontrol` DB / `collection` store: the cards blob (one record at
+ *     key `current`, written by the old `local-cards.ts`).
+ *   - `spellcontrol-decks` DB: zustand-persist's IDB storage for the decks
+ *     store (`createIndexedDbStorage('spellcontrol-decks')`).
+ *
+ * After the per-row sync rewrite, both are dead weight — entity-store
+ * (`spellcontrol-sync`) is the canonical local cache. Leaving them around
+ * means zustand-persist would still hydrate stale decks on every boot,
+ * racing sync.ts's rehydrate. Delete both on first boot of the new client.
+ * No-op if they're already gone. Safe to remove in a follow-up PR once we
+ * can confirm everyone has upgraded.
  */
 export async function deleteLegacyDatabasesOnce(): Promise<void> {
-  try {
-    // indexedDB.deleteDatabase doesn't fail if the DB doesn't exist.
-    if (typeof indexedDB !== 'undefined' && 'deleteDatabase' in indexedDB) {
-      indexedDB.deleteDatabase('spellcontrol');
+  if (typeof indexedDB === 'undefined' || !('deleteDatabase' in indexedDB)) return;
+  for (const name of ['spellcontrol', 'spellcontrol-decks']) {
+    try {
+      indexedDB.deleteDatabase(name);
+    } catch (err) {
+      logger.warn(`[entity-store] legacy IDB cleanup (${name}) failed (non-fatal):`, err);
     }
-  } catch (err) {
-    logger.warn('[entity-store] legacy IDB cleanup failed (non-fatal):', err);
   }
 }

@@ -932,9 +932,13 @@ export const useCollectionStore = create<CollectionState>()(
       name: 'spellcontrol',
       version: 15,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({
-        binders: s.binders,
-      }),
+      // Synced data — including binders — lives in the per-entity IDB
+      // (`entity-store`) and is rehydrated by `lib/sync.ts`. Nothing in this
+      // store needs zustand-persist anymore; partialize returns an empty
+      // object so the persist middleware writes nothing on mutation. The
+      // middleware stays in place so any future UI-only field added to
+      // `partialize` is one line of work, not a restructure.
+      partialize: () => ({}),
     }
   )
 );
