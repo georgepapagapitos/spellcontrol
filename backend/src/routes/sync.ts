@@ -208,92 +208,152 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
 
-    for (const u of upserts.value) {
-      const r = await nextRev(client);
-      const table = KIND_TO_TABLE[u.kind];
-      const dataJson = u.data === undefined ? null : JSON.stringify(u.data);
-      if (u.kind === 'card') {
-        await client.query(
-          `INSERT INTO user_cards
-             (user_id, id, import_id, data, rev, deleted_at, updated_at)
-           VALUES ($1, $2, $3, $4::jsonb, $5, NULL, $6)
-           ON CONFLICT (user_id, id) DO UPDATE
-             SET import_id = EXCLUDED.import_id,
-                 data = EXCLUDED.data,
-                 rev = EXCLUDED.rev,
-                 deleted_at = NULL,
-                 updated_at = EXCLUDED.updated_at`,
-          [userId, u.id, u.importId ?? '', dataJson, r, now]
-        );
-      } else {
-        await client.query(
-          `INSERT INTO ${table}
-             (user_id, id, data, rev, deleted_at, updated_at)
-           VALUES ($1, $2, $3::jsonb, $4, NULL, $5)
-           ON CONFLICT (user_id, id) DO UPDATE
-             SET data = EXCLUDED.data,
-                 rev = EXCLUDED.rev,
-                 deleted_at = NULL,
-                 updated_at = EXCLUDED.updated_at`,
-          [userId, u.id, dataJson, r, now]
-        );
-      }
-      applied.push({ kind: u.kind, id: u.id, rev: r, deletedAt: null });
-    }
-
+    // Resolve import-delete cascades up front: every live card under a deleted
+    // import becomes a tombstone. Doing the SELECTs first lets us allocate the
+    // exact number of revs in a single round-trip below.
+    const cascadeIdsByDeletion: (string[] | null)[] = [];
     for (const d of deletions.value) {
-      // Cascade-on-import-delete: tombstone every live card under this import
-      // before tombstoning the import itself. Each cascaded card gets its own
-      // rev so peers see them all reach the new state in order.
       if (d.kind === 'import') {
         const cards = await client.query<{ id: string }>(
           `SELECT id FROM user_cards
            WHERE user_id = $1 AND import_id = $2 AND deleted_at IS NULL`,
           [userId, d.id]
         );
-        for (const c of cards.rows) {
-          const cr = await nextRev(client);
-          await client.query(
-            `UPDATE user_cards
-             SET data = NULL, rev = $3, deleted_at = $4, updated_at = $4
-             WHERE user_id = $1 AND id = $2`,
-            [userId, c.id, cr, now]
-          );
-          applied.push({ kind: 'card', id: c.id, rev: cr, deletedAt: now });
+        cascadeIdsByDeletion.push(cards.rows.map((r) => r.id));
+      } else {
+        cascadeIdsByDeletion.push(null);
+      }
+    }
+
+    // Allocate every rev this request needs in ONE sequence round-trip. The
+    // old code called nextval() once per row inside the loop, so a 2000-row
+    // chunk meant 2000 extra round-trips to the DB (~24s on prod). Pairing
+    // this with the batched writes below collapses a chunk to a handful of
+    // queries total. nextval() is non-transactional, so a rollback just leaves
+    // unused gaps in the sequence — harmless.
+    const cascadeTotal = cascadeIdsByDeletion.reduce((n, ids) => n + (ids?.length ?? 0), 0);
+    const revs = await allocRevs(
+      client,
+      upserts.value.length + deletions.value.length + cascadeTotal
+    );
+    let ri = 0;
+
+    // ── Upserts: one bulk INSERT … ON CONFLICT per kind via unnest. ──
+    // De-dupe by id within a kind (last write wins) so a batch that happens to
+    // carry the same id twice can't trip "ON CONFLICT cannot affect row a
+    // second time". data is passed as text[] and cast per-row to jsonb, which
+    // sidesteps the fiddlier jsonb[] array binding.
+    type UpsertBucket = Map<string, { data: string | null; rev: number; importId: string }>;
+    const upsertByKind = new Map<Kind, UpsertBucket>();
+    for (const u of upserts.value) {
+      const r = revs[ri++];
+      const bucket = upsertByKind.get(u.kind) ?? new Map();
+      upsertByKind.set(u.kind, bucket);
+      bucket.set(u.id, {
+        data: u.data === undefined ? null : JSON.stringify(u.data),
+        rev: r,
+        importId: u.importId ?? '',
+      });
+    }
+    for (const [kind, bucket] of upsertByKind) {
+      const ids = [...bucket.keys()];
+      const datas = ids.map((id) => bucket.get(id)!.data);
+      const bucketRevs = ids.map((id) => bucket.get(id)!.rev);
+      if (kind === 'card') {
+        const importIds = ids.map((id) => bucket.get(id)!.importId);
+        await client.query(
+          `INSERT INTO user_cards (user_id, id, import_id, data, rev, deleted_at, updated_at)
+           SELECT $1, u.id, u.import_id, u.data::jsonb, u.rev, NULL, $2
+           FROM unnest($3::text[], $4::text[], $5::text[], $6::bigint[])
+             AS u(id, import_id, data, rev)
+           ON CONFLICT (user_id, id) DO UPDATE
+             SET import_id = EXCLUDED.import_id, data = EXCLUDED.data, rev = EXCLUDED.rev,
+                 deleted_at = NULL, updated_at = EXCLUDED.updated_at`,
+          [userId, now, ids, importIds, datas, bucketRevs]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO ${KIND_TO_TABLE[kind]} (user_id, id, data, rev, deleted_at, updated_at)
+           SELECT $1, u.id, u.data::jsonb, u.rev, NULL, $2
+           FROM unnest($3::text[], $4::text[], $5::bigint[]) AS u(id, data, rev)
+           ON CONFLICT (user_id, id) DO UPDATE
+             SET data = EXCLUDED.data, rev = EXCLUDED.rev,
+                 deleted_at = NULL, updated_at = EXCLUDED.updated_at`,
+          [userId, now, ids, datas, bucketRevs]
+        );
+      }
+      for (const id of ids) applied.push({ kind, id, rev: bucket.get(id)!.rev, deletedAt: null });
+    }
+
+    // ── Deletions (+ cascades): assign revs in the same order the old loop did
+    //    (cascade cards first, then the deletion itself), then bulk-tombstone. ──
+    const cascadePairs: Array<{ id: string; rev: number }> = [];
+    const delByKind = new Map<Kind, Map<string, number>>();
+    for (let i = 0; i < deletions.value.length; i++) {
+      const d = deletions.value[i];
+      const cascadeIds = cascadeIdsByDeletion[i];
+      if (cascadeIds) {
+        for (const cid of cascadeIds) {
+          const cr = revs[ri++];
+          cascadePairs.push({ id: cid, rev: cr });
+          applied.push({ kind: 'card', id: cid, rev: cr, deletedAt: now });
         }
       }
+      const r = revs[ri++];
+      const bucket = delByKind.get(d.kind) ?? new Map();
+      delByKind.set(d.kind, bucket);
+      bucket.set(d.id, r);
+      applied.push({ kind: d.kind, id: d.id, rev: r, deletedAt: now });
+    }
 
-      const r = await nextRev(client);
-      const table = KIND_TO_TABLE[d.kind];
-      const result = await client.query(
-        `UPDATE ${table}
-         SET data = NULL, rev = $3, deleted_at = $4, updated_at = $4
-         WHERE user_id = $1 AND id = $2`,
-        [userId, d.id, r, now]
+    // Cascade cards are known to exist (just SELECTed live), so a single bulk
+    // UPDATE keyed by id is enough — no shell-insert fallback needed.
+    if (cascadePairs.length > 0) {
+      await client.query(
+        `UPDATE user_cards AS c
+         SET data = NULL, rev = v.rev, deleted_at = $2, updated_at = $2
+         FROM unnest($3::text[], $4::bigint[]) AS v(id, rev)
+         WHERE c.user_id = $1 AND c.id = v.id`,
+        [userId, now, cascadePairs.map((p) => p.id), cascadePairs.map((p) => p.rev)]
       );
-      if (result.rowCount === 0) {
-        // Tombstone-of-an-unknown-row: insert a tombstone shell so a future
-        // peer upsert can still observe the deletion (last-write-wins by rev).
-        // Defensive — typically the client only deletes rows it knows exist.
-        if (d.kind === 'card') {
+    }
+
+    for (const [kind, bucket] of delByKind) {
+      const ids = [...bucket.keys()];
+      const delRevs = ids.map((id) => bucket.get(id)!);
+      const updated = await client.query<{ id: string }>(
+        `UPDATE ${KIND_TO_TABLE[kind]} AS t
+         SET data = NULL, rev = v.rev, deleted_at = $2, updated_at = $2
+         FROM unnest($3::text[], $4::bigint[]) AS v(id, rev)
+         WHERE t.user_id = $1 AND t.id = v.id
+         RETURNING t.id`,
+        [userId, now, ids, delRevs]
+      );
+      // Tombstone-of-an-unknown-row: any requested id the UPDATE didn't hit gets
+      // a tombstone shell so a later peer upsert still observes the deletion
+      // (last-write-wins by rev). Defensive — clients normally delete known rows.
+      const matched = new Set(updated.rows.map((r) => r.id));
+      const missing = ids.filter((id) => !matched.has(id));
+      if (missing.length > 0) {
+        const missingRevs = missing.map((id) => bucket.get(id)!);
+        if (kind === 'card') {
           await client.query(
-            `INSERT INTO user_cards
-               (user_id, id, import_id, data, rev, deleted_at, updated_at)
-             VALUES ($1, $2, '', NULL, $3, $4, $4)
+            `INSERT INTO user_cards (user_id, id, import_id, data, rev, deleted_at, updated_at)
+             SELECT $1, v.id, '', NULL, v.rev, $2, $2
+             FROM unnest($3::text[], $4::bigint[]) AS v(id, rev)
              ON CONFLICT (user_id, id) DO NOTHING`,
-            [userId, d.id, r, now]
+            [userId, now, missing, missingRevs]
           );
         } else {
           await client.query(
-            `INSERT INTO ${table}
-               (user_id, id, data, rev, deleted_at, updated_at)
-             VALUES ($1, $2, NULL, $3, $4, $4)
+            `INSERT INTO ${KIND_TO_TABLE[kind]} (user_id, id, data, rev, deleted_at, updated_at)
+             SELECT $1, v.id, NULL, v.rev, $2, $2
+             FROM unnest($3::text[], $4::bigint[]) AS v(id, rev)
              ON CONFLICT (user_id, id) DO NOTHING`,
-            [userId, d.id, r, now]
+            [userId, now, missing, missingRevs]
           );
         }
       }
-      applied.push({ kind: d.kind, id: d.id, rev: r, deletedAt: now });
     }
 
     await client.query('COMMIT');
@@ -322,9 +382,17 @@ interface QueryClient {
   ): Promise<{ rows: T[]; rowCount: number | null }>;
 }
 
-async function nextRev(client: QueryClient): Promise<number> {
+/**
+ * Allocate `n` consecutive revs from the shared sequence in a single query.
+ * `SELECT nextval(seq) FROM generate_series(1, n)` evaluates nextval() once per
+ * generated row, yielding n distinct increasing values — the bulk-allocation
+ * idiom that replaces the old one-round-trip-per-row pattern.
+ */
+async function allocRevs(client: QueryClient, n: number): Promise<number[]> {
+  if (n <= 0) return [];
   const { rows } = await client.query<{ rev: string }>(
-    `SELECT nextval('user_data_rev_seq') AS rev`
+    `SELECT nextval('user_data_rev_seq') AS rev FROM generate_series(1, $1)`,
+    [n]
   );
-  return Number(rows[0].rev);
+  return rows.map((r) => Number(r.rev));
 }
