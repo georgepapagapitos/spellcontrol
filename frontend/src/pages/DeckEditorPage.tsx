@@ -541,6 +541,7 @@ export function DeckEditorPage() {
             format={deck.format}
             commander={deck.commander}
             partnerCommander={deck.partnerCommander}
+            selectedThemes={deck.generationContext?.selectedThemes}
             commanderAllocatedCopyId={deck.commanderAllocatedCopyId}
             partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
             cards={displayCards}
