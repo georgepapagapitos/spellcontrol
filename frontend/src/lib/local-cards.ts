@@ -1,22 +1,24 @@
-import { logger } from '@/lib/logger';
-import { openDB, type IDBPDatabase } from 'idb';
-import type { EnrichedCard, ListDef } from '../types';
-
 /**
- * IndexedDB-backed persistence for the most recent CSV upload.
+ * Compatibility shim over the per-entity sync layer.
  *
- * We use IndexedDB rather than localStorage because enriched collections (8000+ cards
- * with Scryfall data) routinely exceed localStorage's ~5MB limit. IndexedDB has a
- * generous quota (typically ~50% of available disk space).
+ * Pre-rewrite this module owned its own IndexedDB database (`spellcontrol`,
+ * one object store `collection` keyed by a single record) and the sync layer
+ * round-tripped the whole blob. After the per-row sync rewrite, the storage
+ * and the wire-sync both live in `lib/sync.ts` (and its `entity-store` +
+ * `mutation-queue` helpers). The types stay here so existing consumers
+ * (UploadPanel, backup builder, reimport helper, store mutators, etc.) keep
+ * compiling unchanged.
  *
- * Schema: a single object store ("collection") with one record at key "current".
- * Replacing on upload is just `put` — we don't keep history.
+ * `saveCollection` delegates to the `persistXxxState` helpers — those diff
+ * the new in-memory shape against the local IDB, write the delta back, AND
+ * enqueue per-row sync mutations. That last step is the critical one: it's
+ * how a local change (add card, clear collection, etc.) reaches the server
+ * and propagates to the user's other devices.
  */
 
-const DB_NAME = 'spellcontrol';
-const DB_VERSION = 1;
-const STORE_NAME = 'collection';
-const CURRENT_KEY = 'current';
+import * as estore from './entity-store';
+import * as sync from './sync';
+import type { EnrichedCard, ListDef } from '../types';
 
 export interface ImportHistoryEntry {
   /**
@@ -42,57 +44,69 @@ export interface StoredCollection {
   scryfallHits: number;
   scryfallMisses: number;
   uploadedAt: number;
-  /**
-   * History of imports that contributed to the current collection. After a
-   * `replace` import this contains a single entry; after merges, one entry per
-   * import in chronological order.
-   */
   importHistory: ImportHistoryEntry[];
-  /**
-   * User-defined lists of unowned cards. Conceptually independent of owned
-   * cards; stored here only because this blob is the user's synced data
-   * envelope (rides the synced blob).
-   */
+  /** User-defined lists of unowned cards. */
   lists: ListDef[];
 }
 
-let dbPromise: Promise<IDBPDatabase> | null = null;
-
-function getDB(): Promise<IDBPDatabase> {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
-
-/** Save the current collection, replacing any previous upload. */
+/**
+ * Persist a collection snapshot. Writes the delta to the local entity-store
+ * (so a refresh sees the same state immediately) AND enqueues per-row
+ * upserts + tombstones to the sync queue — the diff against IDB is what
+ * computes the deletions when a row disappears from the snapshot. Once
+ * online, the sync driver drains the queue to the server, which is how a
+ * change made on this device propagates to every other device.
+ *
+ * Each persistXxxState helper handles one entity kind end-to-end (IDB write
+ * + queue enqueue + debounced push). The legacy callers pass the whole
+ * StoredCollection blob; we decompose it into the per-kind helpers here.
+ */
 export async function saveCollection(data: StoredCollection): Promise<void> {
-  const db = await getDB();
-  await db.put(STORE_NAME, data, CURRENT_KEY);
+  await Promise.all([
+    sync.persistCardsState(data.cards),
+    sync.persistImportsState(data.importHistory),
+    sync.persistListsState(data.lists),
+  ]);
 }
 
-/** Load the most recent collection, or null if none exists. */
+/**
+ * Read the local cache. Returns null when there's nothing stored — e.g.
+ * a fresh install, or a logged-out / wiped device. Synthesizes the legacy
+ * blob shape from the per-entity rows so consumers that destructured
+ * `{ cards, importHistory, lists }` keep working unchanged.
+ */
 export async function loadCollection(): Promise<StoredCollection | null> {
-  try {
-    const db = await getDB();
-    const result = (await db.get(STORE_NAME, CURRENT_KEY)) as StoredCollection | undefined;
-    return result ?? null;
-  } catch (err) {
-    logger.warn('[local-cards] Failed to load collection from IndexedDB:', err);
-    throw new Error(
-      'Could not load your saved collection. This can happen in private browsing mode or if storage is full.'
-    );
-  }
+  const [cards, imports, lists] = await Promise.all([
+    estore.getAllLive('card'),
+    estore.getAllLive('import'),
+    estore.getAllLive('list'),
+  ]);
+  if (cards.length === 0 && imports.length === 0 && lists.length === 0) return null;
+  return {
+    fileName: '',
+    cards: cards.map((r) => r.data) as EnrichedCard[],
+    scryfallHits: 0,
+    scryfallMisses: 0,
+    uploadedAt: Date.now(),
+    importHistory: imports.map((r) => r.data) as ImportHistoryEntry[],
+    lists: lists.map((r) => r.data) as ListDef[],
+  };
 }
 
-/** Wipe the stored collection. */
+/**
+ * Empty the collection (cards, imports, lists). For an authed user this
+ * enqueues a tombstone for every removed row, so the deletion propagates
+ * to every other device on its next pull. For a guest, the tombstones sit
+ * in the local queue until they sign in and the queue drains.
+ *
+ * Implemented by handing empty arrays to the per-kind helpers — they diff
+ * vs IDB and tombstone the difference, exactly matching the contract of
+ * `saveCollection` with empty `cards`/`importHistory`/`lists`.
+ */
 export async function clearCollection(): Promise<void> {
-  const db = await getDB();
-  await db.delete(STORE_NAME, CURRENT_KEY);
+  await Promise.all([
+    sync.persistCardsState([]),
+    sync.persistImportsState([]),
+    sync.persistListsState([]),
+  ]);
 }

@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import {
+  createTestEnv,
+  extractSessionCookie,
+  setSnapshotViaSyncApi,
+  type SnapshotShape,
+} from '../test-helpers';
 
 let app: Express;
 let cleanup: () => Promise<void>;
@@ -25,29 +30,18 @@ async function makeUser(username: string): Promise<string> {
   return extractSessionCookie(reg.headers['set-cookie'])!;
 }
 
-/** PUT a full sync snapshot for the authed user. */
+/**
+ * Replace the user's full sync state. `baseVersion` is accepted for source-
+ * compatibility with the old `setSnapshot` signature but is unused — the new
+ * sync API has no document-level version. The helper diffs against current
+ * server state and translates the blob shape into per-entity upserts + tombstones.
+ */
 async function setSnapshot(
   cookie: string,
-  baseVersion: number,
-  body: {
-    collection?: unknown;
-    binders?: unknown[];
-    decks?: unknown[];
-    games?: unknown[];
-  }
+  _baseVersion: number,
+  body: SnapshotShape
 ): Promise<number> {
-  const res = await request(app)
-    .put('/api/sync')
-    .set('Cookie', cookie)
-    .send({
-      collection: body.collection ?? null,
-      binders: body.binders ?? [],
-      decks: body.decks ?? [],
-      games: body.games ?? [],
-      baseVersion,
-    });
-  expect(res.status).toBe(200);
-  return res.body.version as number;
+  return setSnapshotViaSyncApi(request(app), cookie, body);
 }
 
 function makeCard(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {

@@ -6,14 +6,47 @@ export interface AuthUser {
   role: UserRole;
 }
 
-export interface SyncSnapshot {
-  collection: unknown;
-  binders: unknown[];
-  decks: unknown[];
-  /** Added with the play feature — older snapshots may omit it. */
-  games?: unknown[];
-  version: number;
-  updatedAt: number;
+/**
+ * One delta row from `GET /api/sync`. `data === null && deletedAt != null`
+ * is a tombstone — clients should drop the local row with this id.
+ * Cards carry their owning `importId`; other kinds omit it.
+ */
+export interface SyncRow {
+  kind: SyncKind;
+  id: string;
+  data: unknown;
+  rev: number;
+  deletedAt: number | null;
+  importId?: string;
+}
+
+export type SyncKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
+
+export interface SyncPullPage {
+  rows: SyncRow[];
+  cursor: number;
+  hasMore: boolean;
+}
+
+export interface SyncUpsert {
+  kind: SyncKind;
+  id: string;
+  data: unknown;
+  importId?: string;
+}
+export interface SyncDeletion {
+  kind: SyncKind;
+  id: string;
+}
+
+export interface SyncPushResult {
+  applied: Array<{
+    kind: SyncKind;
+    id: string;
+    rev: number;
+    deletedAt: number | null;
+  }>;
+  cursor: number;
 }
 
 import { handleResponse } from './fetch-utils';
@@ -211,84 +244,32 @@ export async function acknowledgeAutoLink(): Promise<void> {
   await handleResponse<{ ok: true }>(res);
 }
 
-export async function fetchSync(): Promise<SyncSnapshot> {
-  const res = await authedFetch('/api/sync', { method: 'GET' });
-  return handleResponse<SyncSnapshot>(res);
-}
-
-interface PutSyncResult {
-  version: number;
-  updatedAt: number;
+/**
+ * Pull delta rows newer than `since`. The server pages at `limit` (default 2000);
+ * the response carries `hasMore` so the driver knows to keep pulling.
+ */
+export async function pullSync(since: number, limit?: number): Promise<SyncPullPage> {
+  const params = new URLSearchParams({ since: String(since) });
+  if (typeof limit === 'number' && limit > 0) params.set('limit', String(limit));
+  const res = await authedFetch(`/api/sync?${params.toString()}`, { method: 'GET' });
+  return handleResponse<SyncPullPage>(res);
 }
 
 /**
- * Push a snapshot. Throws with `.status === 409` and `.current` payload on
- * conflict; callers should refetch and re-apply.
+ * Apply a delta batch. Last-write-wins per row; no document-level 409. The
+ * server stamps each op with a fresh rev (from `user_data_rev_seq`) and an
+ * `import` deletion cascades tombstones to its cards inside the same tx.
+ * Callers should reflect the returned `applied[]` revs onto their local rows
+ * so subsequent pulls don't re-deliver them.
  */
-export async function putSync(input: {
-  collection: unknown;
-  binders: unknown[];
-  decks: unknown[];
-  games?: unknown[];
-  baseVersion: number;
-}): Promise<PutSyncResult> {
+export async function pushSync(input: {
+  upserts: SyncUpsert[];
+  deletions: SyncDeletion[];
+}): Promise<SyncPushResult> {
   const res = await authedFetch('/api/sync', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (res.status === 409) {
-    const body = (await res.json()) as { current: SyncSnapshot };
-    const e = new Error('Version conflict.') as Error & {
-      status?: number;
-      current?: SyncSnapshot;
-    };
-    e.status = 409;
-    e.current = body.current;
-    throw e;
-  }
-  return handleResponse<PutSyncResult>(res);
-}
-
-export interface SyncBackupMeta {
-  id: string;
-  /** Why the backup was taken — currently always 'collection-wipe'. */
-  reason: string;
-  priorVersion: number;
-  priorCardCount: number;
-  createdAt: number;
-}
-
-/** List the server-side pre-wipe backups for the current user (newest first). */
-export async function fetchBackups(): Promise<SyncBackupMeta[]> {
-  const res = await authedFetch('/api/sync/backups', { method: 'GET' });
-  const data = await handleResponse<{ backups: SyncBackupMeta[] }>(res);
-  return data.backups;
-}
-
-/**
- * Restore a backup as the current server snapshot. Same 409 contract as
- * putSync (throws with `.status === 409` and `.current` so the caller can
- * rebase). Returns the restored snapshot the client should apply.
- */
-export async function restoreBackup(input: {
-  backupId: string;
-  baseVersion: number;
-}): Promise<SyncSnapshot> {
-  const res = await authedFetch('/api/sync/restore', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (res.status === 409) {
-    const body = (await res.json()) as { current: SyncSnapshot };
-    const e = new Error('Version conflict.') as Error & {
-      status?: number;
-      current?: SyncSnapshot;
-    };
-    e.status = 409;
-    e.current = body.current;
-    throw e;
-  }
-  return handleResponse<SyncSnapshot>(res);
+  return handleResponse<SyncPushResult>(res);
 }

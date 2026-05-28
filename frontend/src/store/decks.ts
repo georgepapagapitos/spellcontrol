@@ -8,7 +8,6 @@ import {
   pickCollectionCopy,
   type AllocationInfo,
 } from '../lib/allocations';
-import { markDestructive } from '../lib/sync-intent';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
@@ -211,12 +210,10 @@ export const useDecksStore = create<DecksState>()(
         })),
 
       deleteDeck: (id) => {
-        markDestructive();
         set((s) => ({ decks: s.decks.filter((d) => d.id !== id) }));
       },
 
       deleteAllDecks: () => {
-        markDestructive();
         set({ decks: [] });
       },
 
@@ -672,7 +669,13 @@ export const useDecksStore = create<DecksState>()(
           state.decks = dedupeDeckAllocations(state.decks).decks;
         }
       },
-      partialize: (s) => ({ decks: s.decks }),
+      // Synced data lives in entity-store now and is rehydrated by `lib/sync.ts`.
+      // Persist nothing so zustand-persist no longer races with the sync-driven
+      // rehydrate on boot. The persist middleware stays in place so legacy
+      // `migrate` continues to run on the old IDB rows during the one boot
+      // before `deleteLegacyDatabasesOnce()` removes the `spellcontrol-decks`
+      // DB out from under it.
+      partialize: () => ({}),
       /**
        * v1→v2: allocation tracking moved from `scryfallId` (which identifies a
        * printing) to `copyId` (which identifies a single physical card). Old
@@ -764,3 +767,17 @@ function defaultDeckName(commander: ScryfallCard | null): string {
 export function selectDeck(id: string | undefined): (state: DecksState) => Deck | null {
   return (s) => s.decks.find((d) => d.id === id) ?? null;
 }
+
+/**
+ * Sync subscriber: every in-memory change to the decks array flows through
+ * the per-row sync layer. See store/collection.ts for the broader pattern.
+ */
+useDecksStore.subscribe((state, prev) => {
+  if (state.decks === prev.decks) return;
+  void import('../lib/sync')
+    .then((sync) => {
+      if (sync.isApplyingServer()) return;
+      return sync.persistDecksState(state.decks);
+    })
+    .catch(() => {});
+});
