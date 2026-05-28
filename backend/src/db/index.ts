@@ -154,106 +154,11 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS user_lists_rev_idx ON user_lists(user_id, rev);
 
-    -- One-shot migration from the legacy single-blob user_data table to the
-    -- per-entity tables above. Idempotent: each branch only fires if user_data
-    -- still exists AND the user has no rows yet in the target table. On a fresh
-    -- deploy (or fresh test schema) user_data doesn't exist and this whole
-    -- block is a no-op. The legacy tables (user_data, user_data_backups) are
-    -- left in place after migration so a rollback is possible; a follow-up PR
-    -- will drop them once we are confident the new path is stable.
-    DO $migrate$
-    BEGIN
-      IF EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = current_schema() AND table_name = 'user_data'
-      ) THEN
-        INSERT INTO user_imports (user_id, id, data, rev, deleted_at, updated_at)
-        SELECT
-          ud.user_id,
-          ih->>'id',
-          ih,
-          nextval('user_data_rev_seq'),
-          NULL,
-          ud.updated_at
-        FROM user_data ud
-        CROSS JOIN LATERAL jsonb_array_elements(
-          COALESCE(ud.collection->'importHistory', '[]'::jsonb)
-        ) AS ih
-        WHERE ih ? 'id'
-          AND NOT EXISTS (SELECT 1 FROM user_imports ui WHERE ui.user_id = ud.user_id);
-
-        INSERT INTO user_cards (user_id, id, import_id, data, rev, deleted_at, updated_at)
-        SELECT
-          ud.user_id,
-          c->>'copyId',
-          COALESCE(c->>'importId', ''),
-          c,
-          nextval('user_data_rev_seq'),
-          NULL,
-          ud.updated_at
-        FROM user_data ud
-        CROSS JOIN LATERAL jsonb_array_elements(
-          COALESCE(ud.collection->'cards', '[]'::jsonb)
-        ) AS c
-        WHERE c ? 'copyId'
-          AND NOT EXISTS (SELECT 1 FROM user_cards uc WHERE uc.user_id = ud.user_id);
-
-        INSERT INTO user_binders (user_id, id, data, rev, deleted_at, updated_at)
-        SELECT
-          ud.user_id,
-          b->>'id',
-          b,
-          nextval('user_data_rev_seq'),
-          NULL,
-          ud.updated_at
-        FROM user_data ud
-        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ud.binders, '[]'::jsonb)) AS b
-        WHERE b ? 'id'
-          AND NOT EXISTS (SELECT 1 FROM user_binders ub WHERE ub.user_id = ud.user_id);
-
-        INSERT INTO user_decks (user_id, id, data, rev, deleted_at, updated_at)
-        SELECT
-          ud.user_id,
-          d->>'id',
-          d,
-          nextval('user_data_rev_seq'),
-          NULL,
-          ud.updated_at
-        FROM user_data ud
-        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ud.decks, '[]'::jsonb)) AS d
-        WHERE d ? 'id'
-          AND NOT EXISTS (SELECT 1 FROM user_decks ud2 WHERE ud2.user_id = ud.user_id);
-
-        INSERT INTO user_games (user_id, id, data, rev, deleted_at, updated_at)
-        SELECT
-          ud.user_id,
-          g->>'id',
-          g,
-          nextval('user_data_rev_seq'),
-          NULL,
-          ud.updated_at
-        FROM user_data ud
-        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ud.games, '[]'::jsonb)) AS g
-        WHERE g ? 'id'
-          AND NOT EXISTS (SELECT 1 FROM user_games ug WHERE ug.user_id = ud.user_id);
-
-        INSERT INTO user_lists (user_id, id, data, rev, deleted_at, updated_at)
-        SELECT
-          ud.user_id,
-          l->>'id',
-          l,
-          nextval('user_data_rev_seq'),
-          NULL,
-          ud.updated_at
-        FROM user_data ud
-        CROSS JOIN LATERAL jsonb_array_elements(
-          COALESCE(ud.collection->'lists', '[]'::jsonb)
-        ) AS l
-        WHERE l ? 'id'
-          AND NOT EXISTS (SELECT 1 FROM user_lists ul WHERE ul.user_id = ud.user_id);
-      END IF;
-    END
-    $migrate$;
+    -- NOTE: the one-shot migration that folded the legacy single-blob
+    -- user_data table into the per-entity tables above has been removed. It
+    -- ran on every boot since the per-row rollout, is complete on all
+    -- environments, and the legacy user_data / user_data_backups tables have
+    -- been dropped. Nothing here references them anymore.
     CREATE TABLE IF NOT EXISTS game_sessions (
       id TEXT PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
