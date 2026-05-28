@@ -97,7 +97,7 @@ jobs:
           ls -lh backend/data/scanner/ backend/data/scanner/embed/ frontend/public/scanner/
 
       - name: Open refresh PR
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/scanner-ingest-refresh
           delete-branch: true
