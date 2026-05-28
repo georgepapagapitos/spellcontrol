@@ -78,12 +78,59 @@ export function getLastSyncedAt(): number | null {
   return lastSyncedAt;
 }
 
+// ── Legibility signals (surfaced in the header SyncIndicator) ────────────────
+// Pending = queued local mutations not yet on the server. Online = navigator
+// connectivity. syncError = the last push OR pull failed (kept separate so a
+// failed push isn't masked by a later successful pull). All three notify via
+// the same onSyncedChange listeners so the UI can render honest status.
+let pendingCount = 0;
+let online = typeof navigator !== 'undefined' && 'onLine' in navigator ? navigator.onLine : true;
+let pushError = false;
+let pullError = false;
+let syncError = false;
+
+export function getPendingCount(): number {
+  return pendingCount;
+}
+export function isOnline(): boolean {
+  return online;
+}
+export function hasSyncError(): boolean {
+  return syncError;
+}
+
 function emit(): void {
   for (const fn of syncedListeners) fn();
 }
 function markSynced(): void {
   lastSyncedAt = Date.now();
   emit();
+}
+
+/** Re-read the durable queue depth; emit only when it changed. */
+async function refreshPending(): Promise<void> {
+  try {
+    const n = await queue.size();
+    if (n !== pendingCount) {
+      pendingCount = n;
+      emit();
+    }
+  } catch {
+    /* ignore — a transient IDB read failure shouldn't crash the UI */
+  }
+}
+function setOnline(v: boolean): void {
+  if (v !== online) {
+    online = v;
+    emit();
+  }
+}
+function recomputeError(): void {
+  const v = pushError || pullError;
+  if (v !== syncError) {
+    syncError = v;
+    emit();
+  }
 }
 
 // ── Cursor + owner persistence ─────────────────────────────────────────────
@@ -174,6 +221,7 @@ export async function startSync(userId?: string, _accountLabel?: string): Promis
   await estore.deleteLegacyDatabasesOnce();
   await rehydrateStoresFromIdb();
   attachLifecycleListeners();
+  await refreshPending();
 
   // Drain any queued local-only mutations first so the server has them
   // before we ask for deltas; then pull whatever the server has newer than
@@ -203,6 +251,10 @@ async function stopSyncAndWipeLocalInternal(): Promise<void> {
   clearOwner();
   currentOwnerId = null;
   lastSyncedAt = null;
+  pendingCount = 0;
+  pushError = false;
+  pullError = false;
+  syncError = false;
   // Reset in-memory stores. Imported here to avoid a top-level cycle.
   await resetInMemoryStores();
 }
@@ -247,6 +299,7 @@ export async function recordUpsert(
     data,
     ...(kind === 'card' ? { importId: importId ?? '' } : {}),
   });
+  void refreshPending();
   schedulePush();
 }
 
@@ -260,6 +313,7 @@ export async function recordUpsert(
 export async function recordDelete(kind: EntityKind, id: string): Promise<void> {
   await estore.deleteMany(kind, [id]);
   await queue.enqueue({ op: 'delete', kind, id });
+  void refreshPending();
   schedulePush();
 }
 
@@ -311,6 +365,7 @@ async function persistKind<T>(
   }
   if (muts.length > 0) {
     await queue.enqueueBatch(muts);
+    void refreshPending();
     schedulePush();
   }
 }
@@ -356,8 +411,12 @@ async function pull(): Promise<void> {
       if (!page.hasMore) break;
     }
     broadcastCursor();
+    pullError = false;
+    recomputeError();
   } catch (err) {
     logger.warn('[sync] pull failed:', err);
+    pullError = true;
+    recomputeError();
   } finally {
     isPulling = false;
   }
@@ -411,6 +470,7 @@ async function push(): Promise<void> {
       }
 
       await queue.ack(batch.map((b) => b.seq));
+      void refreshPending();
       // NEVER do `saveCursor(result.cursor)` here. The POST response's cursor is
       // the server's global max rev *after our writes* — adopting it as our pull
       // cursor would skip any lower-rev rows other devices wrote that we haven't
@@ -425,6 +485,8 @@ async function push(): Promise<void> {
     // Nudge peer tabs to pull (we wrote new revs), but pass the server hint
     // explicitly rather than our own cursor — our cursor intentionally lags.
     broadcastCursor(serverRevHint);
+    pushError = false;
+    recomputeError();
     if (pushPending) {
       pushPending = false;
       schedulePush();
@@ -432,6 +494,8 @@ async function push(): Promise<void> {
   } catch (err) {
     logger.warn('[sync] push failed:', err);
     // Leave the queue intact — retry on next mutation, focus, or online.
+    pushError = true;
+    recomputeError();
   } finally {
     isPushing = false;
   }
@@ -502,6 +566,7 @@ function attachLifecycleListeners(): void {
   if (typeof window === 'undefined') return;
 
   window.addEventListener('online', onOnline);
+  window.addEventListener('offline', onOffline);
   window.addEventListener('focus', onFocus);
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -519,6 +584,7 @@ function detachLifecycleListeners(): void {
   listenersAttached = false;
   if (typeof window === 'undefined') return;
   window.removeEventListener('online', onOnline);
+  window.removeEventListener('offline', onOffline);
   window.removeEventListener('focus', onFocus);
   if (typeof document !== 'undefined') {
     document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -533,8 +599,12 @@ function detachLifecycleListeners(): void {
 }
 
 function onOnline(): void {
+  setOnline(true);
   void push();
   void pull();
+}
+function onOffline(): void {
+  setOnline(false);
 }
 function onFocus(): void {
   const now = Date.now();
