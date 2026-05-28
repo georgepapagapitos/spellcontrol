@@ -60,12 +60,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       # Compute versionName + tag once so every later step reads the same
       # values. Tag-push: strip leading `v`. Manual dispatch: use the
@@ -173,7 +173,7 @@ jobs:
         run: rm -f "$KEYSTORE_PATH"
 
       - name: Create / update GitHub Release with AAB
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.release.outputs.tag }}
           name: ${{ steps.release.outputs.tag }}
@@ -213,5 +213,5 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.spellcontrol.app
           releaseFiles: ${{ steps.stage.outputs.path }}
-          track: internal
+          tracks: internal
           status: completed
