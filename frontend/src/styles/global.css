@@ -9006,6 +9006,24 @@ hr {
   color: var(--text3);
 }
 
+.sync-indicator-offline {
+  color: var(--text3);
+  border-color: var(--border);
+  background: var(--surface2);
+}
+
+.sync-indicator-pending {
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+}
+
+.sync-indicator-error {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
 .sync-indicator-spinner {
   width: 0.7rem;
   height: 0.7rem;

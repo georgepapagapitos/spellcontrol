@@ -24,6 +24,10 @@ import {
   persistGamesState,
   persistImportsState,
   persistListsState,
+  recordUpsert,
+  getPendingCount,
+  isOnline,
+  hasSyncError,
 } from './sync';
 import { pullSync, pushSync } from './auth-api';
 import * as estore from './entity-store';
@@ -329,6 +333,45 @@ describe('persistKind helpers', () => {
     expect(batch.some((b) => b.m.op === 'upsert' && b.m.kind === kind && b.m.id === 'x-1')).toBe(
       true
     );
+  });
+});
+
+describe('legibility signals', () => {
+  it('getPendingCount reflects the durable queue depth', async () => {
+    await startSync('user-1');
+    expect(getPendingCount()).toBe(0);
+    // A mutation enqueues but the push is debounced, so it stays pending.
+    await recordUpsert('binder', 'b-1', { id: 'b-1' });
+    await vi.waitFor(() => expect(getPendingCount()).toBe(1));
+  });
+
+  it('hasSyncError flips true on a failed push and clears on the next success', async () => {
+    await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
+    mockPush.mockRejectedValueOnce(new Error('offline'));
+    await startSync('user-1');
+    expect(hasSyncError()).toBe(true);
+    // A successful drain clears it.
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-1', rev: 1, deletedAt: null }],
+      cursor: 1,
+    });
+    await flushSync();
+    expect(hasSyncError()).toBe(false);
+  });
+
+  it('hasSyncError flips true on a failed pull', async () => {
+    mockPull.mockRejectedValueOnce(new Error('offline'));
+    await startSync('user-1');
+    expect(hasSyncError()).toBe(true);
+  });
+
+  it('isOnline tracks the browser offline/online events', async () => {
+    await startSync('user-1');
+    expect(isOnline()).toBe(true);
+    window.dispatchEvent(new Event('offline'));
+    expect(isOnline()).toBe(false);
+    window.dispatchEvent(new Event('online'));
+    expect(isOnline()).toBe(true);
   });
 });
 
