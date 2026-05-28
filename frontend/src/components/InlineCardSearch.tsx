@@ -1,9 +1,11 @@
-import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Layers, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { fetchPrintings } from '../lib/api';
 import { ManaCost } from './ManaCost';
+import { CardPreview } from './CardPreview';
 import { useCollectionStore } from '../store/collection';
+import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 
@@ -68,6 +70,13 @@ export function InlineCardSearch({ query, onClose }: Props) {
   const [addedCounts, setAddedCounts] = useState<Record<string, number>>({});
   // Progressive reveal instead of an inner scrollbar — the page scrolls.
   const [visible, setVisible] = useState(PAGE_SIZE);
+  // Index into `results` of the card whose full-size preview is open (null =
+  // closed). The preview is a carousel over the entire result set, so swiping
+  // can move past the progressively-revealed window.
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // Within the preview, which result has its printing/finish picker expanded
+  // (keyed by scryfall id). Independent of the row-level disclosure above.
+  const [previewPrintingsId, setPreviewPrintingsId] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
 
   const q = query.trim();
@@ -96,6 +105,8 @@ export function InlineCardSearch({ query, onClose }: Props) {
           setResults(resp.data.slice(0, RESULT_LIMIT));
           setVisible(PAGE_SIZE);
           setOpenPrintingsId(null);
+          setPreviewIndex(null);
+          setPreviewPrintingsId(null);
         }
       } catch (e) {
         if (!cancelled) {
@@ -121,6 +132,11 @@ export function InlineCardSearch({ query, onClose }: Props) {
     }
     return m;
   }, [collection]);
+
+  // Adapt the raw Scryfall results into the shape CardPreview consumes. The
+  // carousel renders the full result set so a swipe can cross the visible
+  // window; each card defaults to the nonfoil printing (same as quick-add).
+  const previewCards = useMemo(() => results.map((c) => scryfallToEnrichedCard(c)), [results]);
 
   const confirm = (id: string) =>
     setAddedCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
@@ -156,7 +172,7 @@ export function InlineCardSearch({ query, onClose }: Props) {
 
       {results.length > 0 && (
         <ul className="inline-card-search-list" role="listbox" aria-label="Scryfall results">
-          {results.slice(0, visible).map((c) => {
+          {results.slice(0, visible).map((c, idx) => {
             const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
             const added = addedCounts[c.id] ?? 0;
             const printingsOpen = openPrintingsId === c.id;
@@ -176,20 +192,27 @@ export function InlineCardSearch({ query, onClose }: Props) {
                       <Plus width={12} height={12} strokeWidth={2.5} aria-hidden />
                     )}
                   </button>
-                  {cardThumb(c) ? (
-                    <img
-                      src={cardThumb(c)}
-                      alt=""
-                      loading="lazy"
-                      className="inline-card-search-thumb"
-                    />
-                  ) : (
-                    <span
-                      className="inline-card-search-thumb inline-card-search-thumb--ph"
-                      aria-hidden
-                    />
-                  )}
-                  <span className="inline-card-search-name">{c.name}</span>
+                  <button
+                    type="button"
+                    className="inline-card-search-preview-trigger"
+                    aria-label={`Preview ${c.name}`}
+                    onClick={() => setPreviewIndex(idx)}
+                  >
+                    {cardThumb(c) ? (
+                      <img
+                        src={cardThumb(c)}
+                        alt=""
+                        loading="lazy"
+                        className="inline-card-search-thumb"
+                      />
+                    ) : (
+                      <span
+                        className="inline-card-search-thumb inline-card-search-thumb--ph"
+                        aria-hidden
+                      />
+                    )}
+                    <span className="inline-card-search-name">{c.name}</span>
+                  </button>
                   {c.mana_cost && (
                     <ManaCost cost={c.mana_cost} className="inline-card-search-mana" />
                   )}
@@ -236,6 +259,59 @@ export function InlineCardSearch({ query, onClose }: Props) {
           Show {Math.min(PAGE_SIZE, results.length - visible)} more · {results.length - visible} not
           shown
         </button>
+      )}
+
+      {previewIndex !== null && previewCards[previewIndex] && (
+        <CardPreview
+          cards={previewCards}
+          index={previewIndex}
+          binderName=""
+          sectionLabels={[]}
+          pageNumbers={[]}
+          totalPages={0}
+          onIndexChange={setPreviewIndex}
+          onClose={() => {
+            setPreviewIndex(null);
+            setPreviewPrintingsId(null);
+          }}
+          getActions={(i) => {
+            const card = results[i];
+            if (!card) return [];
+            const added = addedCounts[card.id] ?? 0;
+            return [
+              {
+                key: 'add',
+                icon:
+                  added > 0 ? (
+                    <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
+                  ) : (
+                    <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+                  ),
+                label: added > 0 ? `Added ×${added}` : 'Add',
+                onClick: () => void quickAdd(card),
+              },
+              {
+                key: 'printings',
+                icon: <Layers width={18} height={18} strokeWidth={2} aria-hidden />,
+                label: 'Printings',
+                onClick: () => setPreviewPrintingsId((cur) => (cur === card.id ? null : card.id)),
+              },
+            ];
+          }}
+          renderPanelExtra={(i) => {
+            const card = results[i];
+            if (!card || previewPrintingsId !== card.id) return null;
+            return (
+              <div className="card-preview-printings">
+                <PrintingPicker
+                  cardName={card.name}
+                  fallback={card}
+                  onAdd={(printing, finish) => void addPrinting(printing, finish)}
+                />
+              </div>
+            );
+          }}
+        />
       )}
     </div>
   );

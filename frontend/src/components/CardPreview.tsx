@@ -95,6 +95,14 @@ interface Props {
    * where roles are meaningful — not in collection/binder previews.
    */
   showRole?: boolean;
+  /**
+   * Optional extra content injected into the detail panel for the card at
+   * index `i` (rendered below the external links, above the counter). The
+   * Scryfall search preview uses this to host its inline printing/finish
+   * picker; collection/binder/deck previews leave it unset. Clicks inside
+   * are already shielded from the sheet's tap-to-dismiss by the panel.
+   */
+  renderPanelExtra?: (i: number) => ReactNode;
 }
 
 const PRELOAD_RADIUS = 2;
@@ -122,6 +130,7 @@ export function CardPreview({
   onClose,
   onEdit,
   showRole,
+  renderPanelExtra,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -716,6 +725,7 @@ export function CardPreview({
                 />
               </a>
             </div>
+            {renderPanelExtra?.(selected)}
             <div className="card-preview-counter">
               Card {selected + 1} of {cards.length}
               {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
