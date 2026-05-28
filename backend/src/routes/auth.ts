@@ -41,7 +41,7 @@ import {
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb } from '../db';
-import { authIdentities, users, userData } from '../db/schema';
+import { authIdentities, users } from '../db/schema';
 
 /**
  * HTTPS deep link the native OAuth flow returns into the app. An Android
@@ -106,14 +106,8 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   // case where the env var is added *after* the user already exists.
   const role: UserRole = getAdminUsernames().has(username) ? 'admin' : 'user';
   await db.insert(users).values({ id, username, passwordHash, role, createdAt: now });
-  await db.insert(userData).values({
-    userId: id,
-    collection: null,
-    binders: [],
-    decks: [],
-    version: 0,
-    updatedAt: now,
-  });
+  // No initial user-data row to create: per-entity tables are empty by default
+  // and become populated by the first POST /api/sync from the client.
 
   const token = signSession({ id, username, role });
   setSessionCookie(res, token);

@@ -1,15 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  register,
-  login,
-  logout,
-  deleteAccount,
-  fetchMe,
-  fetchSync,
-  putSync,
-  fetchBackups,
-  restoreBackup,
-} from './auth-api';
+import { register, login, logout, deleteAccount, fetchMe, pullSync, pushSync } from './auth-api';
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -122,78 +112,47 @@ describe('fetchMe', () => {
   });
 });
 
-describe('fetchSync', () => {
-  it('returns the snapshot', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ collection: null, binders: [], decks: [], version: 0, updatedAt: 1 })
-    );
-    const snap = await fetchSync();
-    expect(snap.version).toBe(0);
-  });
-});
-
-describe('putSync', () => {
-  it('returns version + updatedAt on 200', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ version: 5, updatedAt: 100 }));
-    const r = await putSync({ collection: null, binders: [], decks: [], baseVersion: 4 });
-    expect(r).toEqual({ version: 5, updatedAt: 100 });
-  });
-
-  it('throws with status 409 and current snapshot on conflict', async () => {
-    const current = { collection: null, binders: [], decks: [], version: 7, updatedAt: 200 };
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'conflict', current }, { status: 409 })
-    );
-    let caught: unknown;
-    try {
-      await putSync({ collection: null, binders: [], decks: [], baseVersion: 0 });
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error & { status?: number }).status).toBe(409);
-    expect((caught as Error & { current?: { version: number } }).current?.version).toBe(7);
-  });
-});
-
-describe('fetchBackups', () => {
-  it('GETs /api/sync/backups and returns the list', async () => {
-    const backups = [
-      { id: 'b1', reason: 'collection-wipe', priorVersion: 4, priorCardCount: 12, createdAt: 100 },
-    ];
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ backups }));
-    expect(await fetchBackups()).toEqual(backups);
+describe('pullSync', () => {
+  it('GETs /api/sync?since=<cursor> and returns the delta page', async () => {
+    const page = {
+      rows: [{ kind: 'binder', id: 'b-1', data: { id: 'b-1' }, rev: 3, deletedAt: null }],
+      cursor: 3,
+      hasMore: false,
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(page));
+    const r = await pullSync(0);
+    expect(r.cursor).toBe(3);
+    expect(r.rows[0].id).toBe('b-1');
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/sync/backups',
+      '/api/sync?since=0',
       expect.objectContaining({ method: 'GET', credentials: 'same-origin' })
     );
   });
-});
 
-describe('restoreBackup', () => {
-  it('POSTs the backupId + baseVersion and returns the restored snapshot', async () => {
-    const snap = { collection: { cards: [{}] }, binders: [], decks: [], version: 9, updatedAt: 5 };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(snap));
-    const r = await restoreBackup({ backupId: 'b1', baseVersion: 8 });
-    expect(r.version).toBe(9);
+  it('forwards the optional limit param', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ rows: [], cursor: 0, hasMore: false }));
+    await pullSync(42, 100);
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/sync/restore',
-      expect.objectContaining({ method: 'POST' })
+      '/api/sync?since=42&limit=100',
+      expect.objectContaining({ method: 'GET' })
     );
   });
+});
 
-  it('throws with status 409 and current snapshot on conflict', async () => {
-    const current = { collection: null, binders: [], decks: [], version: 11, updatedAt: 2 };
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ error: 'conflict', current }, { status: 409 })
-    );
-    let caught: unknown;
-    try {
-      await restoreBackup({ backupId: 'b1', baseVersion: 0 });
-    } catch (err) {
-      caught = err;
-    }
-    expect((caught as Error & { status?: number }).status).toBe(409);
-    expect((caught as Error & { current?: { version: number } }).current?.version).toBe(11);
+describe('pushSync', () => {
+  it('POSTs the delta batch and returns applied revs + cursor', async () => {
+    const applied = [{ kind: 'binder', id: 'b-1', rev: 5, deletedAt: null }];
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ applied, cursor: 5 }));
+    const r = await pushSync({
+      upserts: [{ kind: 'binder', id: 'b-1', data: { id: 'b-1' } }],
+      deletions: [],
+    });
+    expect(r.cursor).toBe(5);
+    expect(r.applied).toEqual(applied);
+    expect(fetchSpy).toHaveBeenCalledWith('/api/sync', expect.objectContaining({ method: 'POST' }));
   });
 });

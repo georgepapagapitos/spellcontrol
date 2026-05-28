@@ -73,44 +73,64 @@ export const oauthHandoffCodes = pgTable('oauth_handoff_codes', {
   expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
 });
 
-export const userData = pgTable('user_data', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  collection: jsonb('collection'),
-  binders: jsonb('binders').notNull().default([]),
-  decks: jsonb('decks').notNull().default([]),
-  games: jsonb('games').notNull().default([]),
-  version: integer('version').notNull().default(0),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-});
-
 /**
- * Pre-overwrite safety net for the collection-wipe path. A PUT /api/sync that
- * replaces a non-empty stored collection with null/empty is the documented
- * destructive-wipe hazard; before applying it the route stashes the prior
- * full snapshot here so the user can restore it. Bounded to the 3 most recent
- * per user (ring) by the route — old rows are pruned on insert.
+ * Per-entity sync tables. Each user-data row is its own database row with a
+ * monotonic `rev` and a soft-delete `deleted_at`; clients pull deltas since a
+ * cursor and apply tombstones, so a deletion on one device propagates to every
+ * other device on its next pull. Replaces the prior single-blob `user_data`
+ * model whose whole-snapshot PUT semantics could resurrect deleted rows from a
+ * stale device. `rev` is drawn from a shared sequence (`user_data_rev_seq`); a
+ * tombstone row carries `deleted_at != NULL` and `data = NULL`.
  */
-export const userDataBackups = pgTable(
-  'user_data_backups',
+const entityColumns = {
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  id: text('id').notNull(),
+  data: jsonb('data'),
+  rev: bigint('rev', { mode: 'number' }).notNull(),
+  deletedAt: bigint('deleted_at', { mode: 'number' }),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+} as const;
+
+export const userImports = pgTable('user_imports', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_imports_rev_idx').on(t.userId, t.rev),
+}));
+
+export const userCards = pgTable(
+  'user_cards',
   {
-    id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    /** Full prior SyncSnapshot (collection/binders/decks/games/version/updatedAt). */
-    snapshot: jsonb('snapshot').notNull(),
-    /** Why the backup was taken — currently always 'collection-wipe'. */
-    reason: text('reason').notNull(),
-    priorVersion: integer('prior_version').notNull(),
-    priorCardCount: integer('prior_card_count').notNull(),
-    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    ...entityColumns,
+    /** Owning import. Not enforced as a SQL FK — the app cascades via tombstones. */
+    importId: text('import_id').notNull(),
   },
   (t) => ({
-    userIdx: index('user_data_backups_user_idx').on(t.userId, t.createdAt),
+    pk: primaryKey({ columns: [t.userId, t.id] }),
+    revIdx: index('user_cards_rev_idx').on(t.userId, t.rev),
+    importIdx: index('user_cards_import_idx').on(t.userId, t.importId),
   })
 );
+
+export const userBinders = pgTable('user_binders', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_binders_rev_idx').on(t.userId, t.rev),
+}));
+
+export const userDecks = pgTable('user_decks', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_decks_rev_idx').on(t.userId, t.rev),
+}));
+
+export const userGames = pgTable('user_games', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_games_rev_idx').on(t.userId, t.rev),
+}));
+
+export const userLists = pgTable('user_lists', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_lists_rev_idx').on(t.userId, t.rev),
+}));
 
 /**
  * Live multi-device game sessions. The full game state (players, life totals,
@@ -188,12 +208,13 @@ export const comboIngestRuns = pgTable('combo_ingest_runs', {
 /**
  * Public share links. Each row maps an unguessable token to a slice of a user's
  * data: the whole collection, a single binder, a single deck, or a single list.
- * The public read route looks up the row, loads that user's user_data, projects
- * the requested slice through the public-projection layer, and returns it.
- * Revoking sets revokedAt; revoked tokens 404.
+ * The public read route looks up the row, loads the relevant rows from the
+ * per-entity tables (`user_cards`, `user_binders`, `user_decks`), projects the
+ * requested slice through the public-projection layer, and returns it. Revoking
+ * sets revokedAt; revoked tokens 404.
  *
- * `resourceId` is the in-blob id of the binder/deck/list. For kind='collection'
- * it is unused (stored as empty string) — there's only one collection per user.
+ * `resourceId` is the id of the binder/deck/list row. For kind='collection' it
+ * is unused (stored as empty string) — there's only one collection per user.
  */
 export const shares = pgTable(
   'shares',
@@ -216,8 +237,12 @@ export const shares = pgTable(
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
-export type UserDataRow = typeof userData.$inferSelect;
-export type UserDataBackupRow = typeof userDataBackups.$inferSelect;
+export type UserImportRow = typeof userImports.$inferSelect;
+export type UserCardRow = typeof userCards.$inferSelect;
+export type UserBinderRow = typeof userBinders.$inferSelect;
+export type UserDeckRow = typeof userDecks.$inferSelect;
+export type UserGameRow = typeof userGames.$inferSelect;
+export type UserListRow = typeof userLists.$inferSelect;
 export type GameSessionRow = typeof gameSessions.$inferSelect;
 export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;

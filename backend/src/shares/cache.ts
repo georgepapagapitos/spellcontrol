@@ -1,7 +1,7 @@
 /**
  * In-memory LRU + TTL cache for share-token lookups. Sits in front of the
- * three-query DB read (`shares` → `users` → `user_data`) that both
- * `GET /api/shares/public/:token` (JSON projection) and `GET /s/:token`
+ * multi-query DB read (`shares` → `users` → per-entity user tables) that
+ * both `GET /api/shares/public/:token` (JSON projection) and `GET /s/:token`
  * (server-side OG injection) perform.
  *
  * Keyed by token because the token is the inbound identifier on every
@@ -15,7 +15,8 @@
  * freshly-minted share is reachable on the very next request.
  *
  * Invalidation: explicit on `DELETE /api/shares/:token` (revoke). Owner
- * updates to `user_data` rely on the TTL window for eventual consistency —
+ * updates to their per-entity rows rely on the TTL window for eventual
+ * consistency —
  * matches the `Cache-Control: private, max-age=60` we already send on the
  * OG response, so a viewer who hard-refreshes won't see staler data than
  * the response told them to expect.
@@ -27,12 +28,29 @@
  * problem.
  */
 
-import type { ShareRow, UserDataRow } from '../db/schema';
+import type { ShareRow } from '../db/schema';
+
+/**
+ * The materialized view of the owner's data that projection functions consume.
+ * Shape matches what the legacy `user_data` JSONB exposed, synthesized now from
+ * per-entity rows so projections can stay untouched: `cards`/`lists`/`importHistory`
+ * are nested under `collection` (the projector indexes into `.cards` /
+ * `.lists`), and `binders` / `decks` are top-level arrays.
+ */
+export interface ShareDataView {
+  collection: {
+    cards: unknown[];
+    importHistory: unknown[];
+    lists: unknown[];
+  };
+  binders: unknown[];
+  decks: unknown[];
+}
 
 export interface ShareContext {
   share: ShareRow;
   ownerUsername: string;
-  data: UserDataRow;
+  data: ShareDataView;
 }
 
 interface CacheEntry {

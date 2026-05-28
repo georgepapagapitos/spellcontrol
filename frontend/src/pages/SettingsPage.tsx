@@ -11,15 +11,11 @@ import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import {
-  fetchBackups,
   fetchIdentities,
-  fetchSync,
   googleLinkUrl,
   requestGoogleLinkIntent,
-  restoreBackup,
   unlinkGoogle,
   type MyIdentities,
-  type SyncBackupMeta,
 } from '../lib/auth-api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SyncIndicator } from '../components/SyncIndicator';
@@ -62,10 +58,6 @@ export function SettingsPage() {
   const updateAvailable = usePwaStore((s) => s.updateAvailable);
   const applyPendingUpdate = usePwaStore((s) => s.applyPendingUpdate);
 
-  const [backups, setBackups] = useState<SyncBackupMeta[]>([]);
-  const [restorePending, setRestorePending] = useState<SyncBackupMeta | null>(null);
-  const [restoreBusy, setRestoreBusy] = useState(false);
-
   // Sign-in methods state — what's linked, plus the in-flight states for the
   // link-Google and unlink-Google flows.
   const [identities, setIdentities] = useState<MyIdentities | null>(null);
@@ -73,21 +65,6 @@ export function SettingsPage() {
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [unlinkBusy, setUnlinkBusy] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-
-  useEffect(() => {
-    if (!username) return;
-    let cancelled = false;
-    fetchBackups()
-      .then((list) => {
-        if (!cancelled) setBackups(list);
-      })
-      .catch(() => {
-        // Best-effort: a backup-list failure must never block Settings.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [username]);
 
   // Fetch the user's linked sign-in methods once they're authed. Best-effort:
   // a failure leaves `identities` null, which hides the section (the Settings
@@ -182,38 +159,6 @@ export function SettingsPage() {
       });
     } finally {
       setUnlinkBusy(false);
-    }
-  }
-
-  async function handleConfirmRestore() {
-    if (!restorePending) return;
-    setRestoreBusy(true);
-    try {
-      // Re-base on the live server version so the restore doesn't 409 against
-      // a stale local base; the server still enforces concurrency.
-      const current = await fetchSync();
-      await restoreBackup({ backupId: restorePending.id, baseVersion: current.version });
-      toast.show({
-        message: 'Collection restored. Reloading…',
-        tone: 'success',
-      });
-      // The server now holds the restored snapshot at a new version. A reload
-      // lets the normal sync boot pull and apply it, avoiding any write-through
-      // cache race with the just-restored server state.
-      setTimeout(() => window.location.reload(), 600);
-    } catch (err) {
-      const status = (err as { status?: number }).status;
-      toast.show({
-        message:
-          status === 409
-            ? 'Your data changed on another device. Reload and try again.'
-            : err instanceof Error
-              ? err.message
-              : 'Could not restore backup.',
-        tone: 'error',
-      });
-      setRestoreBusy(false);
-      setRestorePending(null);
     }
   }
 
@@ -614,52 +559,6 @@ export function SettingsPage() {
         </div>
       </section>
 
-      {username && (
-        <section className="settings-card" aria-labelledby="settings-backups-title">
-          <header className="settings-card-header">
-            <h2 id="settings-backups-title" className="settings-card-title">
-              Collection backups
-            </h2>
-            <p className="settings-card-hint">
-              If your collection is ever replaced with an empty one, the previous version is saved
-              here automatically. Up to the 3 most recent are kept. Restoring overwrites your
-              current collection on every device.
-            </p>
-          </header>
-          <div className="settings-card-body">
-            {backups.length === 0 ? (
-              <div className="settings-row-text">
-                <div className="settings-row-hint">
-                  No backups yet — one is saved automatically if a collection wipe is detected.
-                </div>
-              </div>
-            ) : (
-              backups.map((b) => (
-                <div className="settings-row" key={b.id}>
-                  <div className="settings-row-text">
-                    <div className="settings-row-value">
-                      {b.priorCardCount.toLocaleString()}{' '}
-                      {b.priorCardCount === 1 ? 'card' : 'cards'}
-                    </div>
-                    <div className="settings-row-hint">
-                      Saved {new Date(b.createdAt).toLocaleString()} · before a collection wipe
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="pill-btn"
-                    onClick={() => setRestorePending(b)}
-                    disabled={restoreBusy}
-                  >
-                    Restore
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-      )}
-
       <section
         className="settings-card settings-card--danger"
         aria-labelledby="settings-danger-title"
@@ -779,66 +678,6 @@ export function SettingsPage() {
           onCancel={() => setDeleteStep(0)}
         />
       )}
-      {restorePending && (
-        <RestoreConfirmDialog
-          backup={restorePending}
-          busy={restoreBusy}
-          onConfirm={() => void handleConfirmRestore()}
-          onCancel={() => setRestorePending(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-interface RestoreConfirmDialogProps {
-  backup: SyncBackupMeta;
-  busy: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-/**
- * Single-step confirm: restore is recovery (less dangerous than the wipe)
- * but it still overwrites the current collection on every signed-in device,
- * so the consequence is spelled out before the user commits.
- */
-function RestoreConfirmDialog({ backup, busy, onConfirm, onCancel }: RestoreConfirmDialogProps) {
-  useLockBodyScroll();
-  return (
-    <div className="modal-backdrop" onClick={busy ? undefined : onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="restore-backup-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="restore-backup-title" className="choice-dialog-title">
-          Restore this backup?
-        </h2>
-        <p className="choice-dialog-body">
-          This replaces your current collection with the{' '}
-          <strong>{backup.priorCardCount.toLocaleString()}</strong>{' '}
-          {backup.priorCardCount === 1 ? 'card' : 'cards'} saved on{' '}
-          {new Date(backup.createdAt).toLocaleString()}. The change syncs to every signed-in device.
-          Binders and decks from that backup are restored too.
-        </p>
-        <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel} disabled={busy}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={onConfirm}
-            disabled={busy}
-            autoFocus
-          >
-            {busy ? 'Restoring…' : 'Restore'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
