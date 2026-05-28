@@ -1065,6 +1065,14 @@ select {
   justify-content: center;
 }
 
+/* Single CTA inside an empty state (e.g. the empty-collection "Add cards").
+   The parent centers inline content; this just gives the button its icon gap. */
+.empty-state-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .samples-intro-list {
   margin: 0.5rem 0 0.75rem;
   padding: 0.5rem 0.75rem 0.5rem 1.5rem;

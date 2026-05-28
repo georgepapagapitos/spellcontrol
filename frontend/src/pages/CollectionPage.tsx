@@ -4,7 +4,6 @@ import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
-import { UploadPanel } from '../components/UploadPanel';
 import { AddCardsSheet } from '../components/AddCardsSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
@@ -42,6 +41,8 @@ export function CollectionPage() {
     return { materialized: result.binders };
   }, [cards, binders, allocatedCopyIds, setMap]);
 
+  const isEmpty = collectionCardCount === 0;
+
   return (
     <>
       {hydrating ? (
@@ -51,7 +52,7 @@ export function CollectionPage() {
         </div>
       ) : (
         <>
-          {error && cards.length === 0 && (
+          {error && (
             <div className="error-banner" style={{ marginBottom: '1rem' }}>
               {error}
               <button className="btn-link" style={{ marginLeft: 8 }} onClick={() => setError(null)}>
@@ -59,12 +60,12 @@ export function CollectionPage() {
               </button>
             </div>
           )}
-          {cards.length === 0 && <UploadPanel />}
-        </>
-      )}
-
-      {!hydrating && cards.length > 0 && (
-        <>
+          {/* The collection view is the same whether or not it has cards: hero,
+              search, and the grid/list always render. An empty collection just
+              shows an empty-state body (with its own Add cards CTA) instead of
+              a separate import screen — adding/importing happens through the
+              always-present "Add cards" sheet (search · list · scan). Stats and
+              Share hide when there's nothing yet to break down or share. */}
           <header className="binder-hero collection-hero">
             <div className="collection-hero-text">
               <h1 className="binder-hero-name">Collection</h1>
@@ -73,17 +74,21 @@ export function CollectionPage() {
                   {collectionCardCount.toLocaleString()}{' '}
                   {collectionCardCount === 1 ? 'card' : 'cards'} · ${collectionValue.toFixed(0)}
                 </span>
-                <span aria-hidden> · </span>
-                <button
-                  type="button"
-                  className="collection-hero-stats-link"
-                  onClick={() => setStatsOpen(true)}
-                  aria-label="Open collection breakdown"
-                  title="Breakdown"
-                >
-                  <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
-                  <span>Stats</span>
-                </button>
+                {!isEmpty && (
+                  <>
+                    <span aria-hidden> · </span>
+                    <button
+                      type="button"
+                      className="collection-hero-stats-link"
+                      onClick={() => setStatsOpen(true)}
+                      aria-label="Open collection breakdown"
+                      title="Breakdown"
+                    >
+                      <BarChart3 width={12} height={12} strokeWidth={2} aria-hidden />
+                      <span>Stats</span>
+                    </button>
+                  </>
+                )}
               </p>
             </div>
             <div className="collection-hero-actions">
@@ -96,21 +101,27 @@ export function CollectionPage() {
                 <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
                 <span>Add cards</span>
               </button>
-              <button
-                type="button"
-                className="pill-btn collection-hero-action"
-                aria-haspopup="dialog"
-                onClick={() => setShareOpen(true)}
-                title="Share a read-only link to this collection"
-              >
-                <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Share</span>
-              </button>
+              {!isEmpty && (
+                <button
+                  type="button"
+                  className="pill-btn collection-hero-action"
+                  aria-haspopup="dialog"
+                  onClick={() => setShareOpen(true)}
+                  title="Share a read-only link to this collection"
+                >
+                  <Share2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  <span>Share</span>
+                </button>
+              )}
             </div>
           </header>
-          <CardListTable cards={cards} binders={materialized} setMap={setMap} />
+          <CardListTable
+            cards={cards}
+            binders={materialized}
+            setMap={setMap}
+            onAddCards={() => setAddCardsOpen(true)}
+          />
           <StatsBar open={statsOpen} onClose={() => setStatsOpen(false)} />
-          {addCardsOpen && <AddCardsSheet onClose={() => setAddCardsOpen(false)} />}
           {shareOpen && (
             <ShareDialog
               kind="collection"
@@ -120,6 +131,8 @@ export function CollectionPage() {
           )}
         </>
       )}
+
+      {addCardsOpen && <AddCardsSheet onClose={() => setAddCardsOpen(false)} />}
     </>
   );
 }
