@@ -309,7 +309,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
   if (usingCache) {
     logger.debug('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
-    onProgress?.('Restarting from cached data', 5);
+    onProgress?.('Reshuffling…', 5);
     state.gameChangerNames = generationCache!.gameChangerNames;
     state.combos = generationCache!.combos;
     state.edhrecData = generationCache!.edhrecData;
@@ -317,10 +317,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     state.baseData = generationCache!.baseData;
     state.themeOverlapCounts = generationCache!.themeOverlapCounts;
     await loadTaggerData();
-    onProgress?.('Card pools ready', 12);
+    onProgress?.('Your library takes shape…', 12);
   } else {
     // FULL PATH: Pre-fetch basic lands, game changer list, combo data, and tagger data in parallel
-    onProgress?.('Initialising', 5);
+    onProgress?.('Shuffling up…', 5);
     const [, fetchedGCNames, fetchedCombos] = await Promise.all([
       prefetchBasicLands(),
       getGameChangerNames(),
@@ -329,7 +329,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     ]);
     state.gameChangerNames = fetchedGCNames;
     state.combos = fetchedCombos;
-    onProgress?.('Loading card role data', 7);
+    onProgress?.('Studying the cards…', 7);
     logger.debug(`[DeckGen] Fetched ${state.combos.length} combos from EDHREC`);
     logger.debug(
       `[DeckGen] Tagger data: ${hasTaggerData() ? 'loaded' : 'unavailable (role detection disabled)'}`
@@ -450,7 +450,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   }
 
   if (mustIncludeNames.length > 0) {
-    onProgress?.('Adding pinned cards', 3);
+    onProgress?.('Adding your picks…', 3);
     logger.debug(
       `[DeckGen] Processing ${mustIncludeNames.length} must-include cards:`,
       mustIncludeNames
@@ -565,7 +565,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Try to fetch EDHREC data (works for all formats) — skip on cache hit
   if (!usingCache && selectedThemesWithSlugs.length > 0) {
     // Fetch theme-specific data for all selected themes
-    onProgress?.('Loading commander data', 8);
+    onProgress?.('Consulting the Oracle…', 8);
     try {
       const themeDataPromises = selectedThemesWithSlugs.map((theme) =>
         partnerCommander
@@ -659,7 +659,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
       state.dataSource = targetBracket ? 'theme+bracket' : 'theme';
       const themeNames = selectedThemesWithSlugs.map((t) => t.name).join(', ');
-      onProgress?.(`Loading theme data: ${themeNames}...`, 12);
+      onProgress?.(`Attuning to ${themeNames}…`, 12);
     } catch (error) {
       logger.warn(
         '[DeckGen] FALLBACK: Theme-specific EDHREC fetch failed, trying base commander+bracket:',
@@ -677,7 +677,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           : await fetchCommanderData(commander.name, budgetOption, targetBracket);
         state.dataSource = targetBracket ? 'base+bracket' : 'base';
         logger.debug('[DeckGen] FALLBACK: Using base commander data (with bracket)');
-        onProgress?.('Loading commander data', 12);
+        onProgress?.('Consulting the Oracle…', 12);
       } catch {
         // Fall back to base commander without bracket
         if (targetBracket) {
@@ -690,24 +690,24 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
               : await fetchCommanderData(commander.name, budgetOption);
             state.dataSource = 'base';
             logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
-            onProgress?.('Loading commander data', 12);
+            onProgress?.('Consulting the Oracle…', 12);
           } catch {
             logger.warn(
               '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
             );
-            onProgress?.('Falling back to Scryfall search', 12);
+            onProgress?.('Scrying for more…', 12);
           }
         } else {
           logger.warn(
             '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
           );
-          onProgress?.('Falling back to Scryfall search', 12);
+          onProgress?.('Scrying for more…', 12);
         }
       }
     }
   } else if (!usingCache) {
     // No themes selected - use base commander data (top recommended cards)
-    onProgress?.('Loading commander data from EDHREC', 8);
+    onProgress?.('Consulting the Oracle…', 8);
     try {
       state.edhrecData = partnerCommander
         ? await fetchPartnerCommanderData(
@@ -718,7 +718,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
           )
         : await fetchCommanderData(commander.name, budgetOption, targetBracket);
       state.dataSource = targetBracket ? 'base+bracket' : 'base';
-      onProgress?.('Commander data ready', 12);
+      onProgress?.('Your commander heeds the call…', 12);
     } catch (error) {
       logger.warn('[DeckGen] FALLBACK: Base commander+bracket fetch failed:', error);
       if (targetBracket) {
@@ -728,18 +728,18 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
             : await fetchCommanderData(commander.name, budgetOption);
           state.dataSource = 'base';
           logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
-          onProgress?.('Commander data ready', 12);
+          onProgress?.('Your commander heeds the call…', 12);
         } catch {
           logger.warn(
             '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
           );
-          onProgress?.('Falling back to Scryfall search', 12);
+          onProgress?.('Scrying for more…', 12);
         }
       } else {
         logger.warn(
           '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
         );
-        onProgress?.('Falling back to Scryfall search', 12);
+        onProgress?.('Scrying for more…', 12);
       }
     }
   }
@@ -1115,7 +1115,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     const planeswalkerPool = mergeWithAllNonLand(cardlists.planeswalkers, cardlists.allNonLand);
 
     // Collect ALL unique card names from all pools for a single batch fetch
-    onProgress?.('Building candidate pool', 18);
+    onProgress?.('Searching your library…', 18);
     const allCardNames = new Set<string>();
 
     // Helper to add names from a pool
@@ -1154,13 +1154,13 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     logger.debug(`[DeckGen] Batch fetching ${allCardNames.size} unique card names`);
 
     // SINGLE BATCH FETCH for all non-land cards
-    onProgress?.('Fetching card details from Scryfall', 25);
+    onProgress?.('Scrying the multiverse…', 25);
     const cardMap = await getCardsByNames(
       [...allCardNames],
       (fetched, total) => {
         // Scale progress from 25% to 35% during the batch fetch
         const pct = 25 + Math.round((fetched / total) * 10);
-        onProgress?.('Fetching card details from Scryfall', pct);
+        onProgress?.('Scrying the multiverse…', pct);
       },
       preferredSet
     );
@@ -1338,7 +1338,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     logger.debug(
       `[DeckGen] Creatures: need ${creatureTarget}, pool has ${creaturePool.length} cards`
     );
-    onProgress?.('Selecting creatures', 35);
+    onProgress?.('Summoning creatures…', 35);
     const creatureBoosts = roleTargets
       ? computeRoleBoosts(
           cardRoleMap,
@@ -1423,7 +1423,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
     // 2. Instants
     logger.debug(`[DeckGen] Instants: need ${instantTarget}, pool has ${instantPool.length} cards`);
-    onProgress?.('Selecting instants', 45);
+    onProgress?.('Readying instants…', 45);
     const instantBoosts = roleTargets
       ? computeRoleBoosts(
           cardRoleMap,
@@ -1480,7 +1480,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     logger.debug(
       `[DeckGen] Sorceries: need ${sorceryTarget}, pool has ${sorceryPool.length} cards`
     );
-    onProgress?.('Selecting sorceries', 55);
+    onProgress?.('Inscribing sorceries…', 55);
     const sorceryBoosts = roleTargets
       ? computeRoleBoosts(
           cardRoleMap,
@@ -1537,7 +1537,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     logger.debug(
       `[DeckGen] Artifacts: need ${artifactTarget}, pool has ${artifactPool.length} cards`
     );
-    onProgress?.('Selecting artifacts', 62);
+    onProgress?.('Forging artifacts…', 62);
     const artifactBoosts = roleTargets
       ? computeRoleBoosts(
           cardRoleMap,
@@ -1594,7 +1594,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     logger.debug(
       `[DeckGen] Enchantments: need ${enchantmentTarget}, pool has ${enchantmentPool.length} cards`
     );
-    onProgress?.('Selecting enchantments', 68);
+    onProgress?.('Weaving enchantments…', 68);
     const enchantmentBoosts = roleTargets
       ? computeRoleBoosts(
           cardRoleMap,
@@ -1652,7 +1652,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       `[DeckGen] Planeswalkers: need ${planeswalkerTarget}, pool has ${planeswalkerPool.length} cards`
     );
     if (planeswalkerPool.length > 0 && planeswalkerTarget > 0) {
-      onProgress?.('Selecting planeswalkers', 72);
+      onProgress?.('Calling planeswalkers…', 72);
       const planeswalkerBoosts = roleTargets
         ? computeRoleBoosts(
             cardRoleMap,
@@ -1717,7 +1717,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
 
     // 7. Lands from EDHREC
-    onProgress?.('Building the mana base', 78);
+    onProgress?.('Tapping the mana base…', 78);
     // Preserve must-include lands added earlier
     const mustIncludeLands = categories.lands.filter((c) => c.isMustInclude);
     const adjustedLandTarget = Math.max(0, targets.lands - mustIncludeLands.length);
@@ -1828,7 +1828,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     logger.warn(
       '[DeckGen] FALLBACK: No EDHREC data — using Scryfall-only generation with fallback type targets'
     );
-    onProgress?.('Selecting ramp', 20);
+    onProgress?.('Ramping up…', 20);
     categories.ramp = await fillWithScryfall(
       '(t:artifact o:"add" OR o:"search your library" o:land t:sorcery cmc<=3)',
       colorIdentity,
@@ -1848,7 +1848,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedRarity
     );
 
-    onProgress?.('Selecting card draw', 30);
+    onProgress?.('Drawing cards…', 30);
     categories.cardDraw = await fillWithScryfall(
       'o:"draw" (t:instant OR t:sorcery OR t:enchantment)',
       colorIdentity,
@@ -1868,7 +1868,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedRarity
     );
 
-    onProgress?.('Selecting removal', 40);
+    onProgress?.('Sharpening removal…', 40);
     categories.singleRemoval = await fillWithScryfall(
       '(o:"destroy target" OR o:"exile target") (t:instant OR t:sorcery)',
       colorIdentity,
@@ -1888,7 +1888,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       ignoreOwnedRarity
     );
 
-    onProgress?.('Selecting board wipes', 50);
+    onProgress?.('Preparing board wipes…', 50);
     categories.boardWipes = await fillWithScryfall(
       '(o:"destroy all" OR o:"exile all") (t:instant OR t:sorcery)',
       colorIdentity,
@@ -1915,7 +1915,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         (preFilledTypeCounts.creature ?? 0) -
         categories.creatures.length
     );
-    onProgress?.('Selecting creatures', 60);
+    onProgress?.('Summoning creatures…', 60);
     const scryfallCreatures = await fillWithScryfall(
       't:creature',
       colorIdentity,
@@ -1940,7 +1940,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       0,
       (typeTargets.artifact ?? 0) - (preFilledTypeCounts.artifact ?? 0)
     );
-    onProgress?.('Selecting artifacts', 65);
+    onProgress?.('Forging artifacts…', 65);
     const scryfallArtifacts = await fillWithScryfall(
       't:artifact -t:creature',
       colorIdentity,
@@ -1965,7 +1965,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       0,
       (typeTargets.enchantment ?? 0) - (preFilledTypeCounts.enchantment ?? 0)
     );
-    onProgress?.('Selecting enchantments', 70);
+    onProgress?.('Weaving enchantments…', 70);
     const scryfallEnchantments = await fillWithScryfall(
       't:enchantment -t:creature',
       colorIdentity,
@@ -1994,7 +1994,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         categories.boardWipes.length
     );
     if (scryfallInstantTarget > 0) {
-      onProgress?.('Selecting instants', 72);
+      onProgress?.('Readying instants…', 72);
       const scryfallInstants = await fillWithScryfall(
         't:instant',
         colorIdentity,
@@ -2021,7 +2021,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       (typeTargets.sorcery ?? 0) - (preFilledTypeCounts.sorcery ?? 0)
     );
     if (scryfallSorceryTarget > 0) {
-      onProgress?.('Selecting sorceries', 74);
+      onProgress?.('Inscribing sorceries…', 74);
       const scryfallSorceries = await fillWithScryfall(
         't:sorcery',
         colorIdentity,
@@ -2043,7 +2043,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       categorizeCards(scryfallSorceries, categories);
     }
 
-    onProgress?.('Building the mana base', 80);
+    onProgress?.('Tapping the mana base…', 80);
     // Preserve must-include lands added earlier
     const fallbackMustIncludeLands = categories.lands.filter((c) => c.isMustInclude);
     const fallbackAdjustedLandTarget = Math.max(0, targets.lands - fallbackMustIncludeLands.length);

@@ -39,8 +39,15 @@ describe('isKeepableHand', () => {
     expect(isKeepableHand([land(), land(), land(), land(), land(), land(), spell(2)])).toBe(false);
   });
 
-  it('counts ramp as a mana source', () => {
-    // 1 land + 2 ramp = 3 effective sources, with an early play.
+  it('counts castable ramp as a mana source', () => {
+    // 2 lands + a 2-mana rock (castable: cmc 2 <= 2 lands) = 3 effective.
+    const hand = [land(), land(), spell(2, 'ramp'), spell(3), spell(7), spell(8), spell(9)];
+    expect(isKeepableHand(hand)).toBe(true);
+  });
+
+  it('ignores ramp the hand cannot cast (2-mana rock, one land)', () => {
+    // 1 land + two 2-mana rocks: neither rock is castable on one land, so
+    // effective sources stays at 1 → mulligan.
     const hand = [
       land(),
       spell(2, 'ramp'),
@@ -50,6 +57,12 @@ describe('isKeepableHand', () => {
       spell(8),
       spell(9),
     ];
+    expect(isKeepableHand(hand)).toBe(false);
+  });
+
+  it('keeps a one-land hand rescued by a one-mana rock (Sol Ring)', () => {
+    // 1 land + a 1-mana rock (cmc 1 <= 1 land) = 2 effective, rock is the early play.
+    const hand = [land(), spell(1, 'ramp'), spell(5), spell(6), spell(7), spell(8), spell(9)];
     expect(isKeepableHand(hand)).toBe(true);
   });
 

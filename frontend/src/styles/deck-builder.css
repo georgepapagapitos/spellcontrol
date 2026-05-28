@@ -2293,8 +2293,6 @@ input.toolbar-search-input {
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
-  mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
 }
 
 @media (max-width: 600px) {
@@ -2614,6 +2612,22 @@ input.toolbar-search-input {
 .decks-index-card-menu-btn[aria-expanded='true'] {
   background: var(--surface2);
   color: var(--text);
+}
+
+/* Grid mode: the button sits on the commander art / colored banner, where
+   the default muted gray washes out against arbitrary art colors. White
+   icon + shadow keeps it visible on any header; hover/open uses a dark
+   scrim chip instead of the light surface (which disappeared on pale art).
+   Mirrors the binders-index grid treatment. */
+.decks-index-list.is-grid .decks-index-card-menu-btn {
+  color: #fff;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+}
+
+.decks-index-list.is-grid .decks-index-card-menu-btn:hover,
+.decks-index-list.is-grid .decks-index-card-menu-btn[aria-expanded='true'] {
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
 }
 
 .decks-index-card-menu-panel {
@@ -5088,7 +5102,12 @@ input.toolbar-search-input {
   background: var(--accent-light);
   color: var(--accent);
   white-space: nowrap;
-  max-width: 18ch;
+  /* Grow to the full result text when there's room (chips wrap to their own
+     line via the flex-wrap container). The cap is the container width, not a
+     fixed char count — `min-width: 0` lets a chip that's still too wide for a
+     narrow line shrink and ellipsis-truncate instead of overflowing. */
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.5;
@@ -6318,8 +6337,6 @@ input.deck-row-qty-input.deck-row-qty-missing {
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
-  mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
 }
 
 @media (max-width: 600px) {
@@ -6720,19 +6737,6 @@ input.deck-row-qty-input.deck-row-qty-missing {
   gap: 0.85rem;
 }
 
-.deck-analysis-subhead {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-family: var(--font-serif);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.35rem;
-}
-
 .deck-analysis-verdict--top-heavy {
   color: var(--warn, #b85c00);
 }
@@ -7010,28 +7014,6 @@ input.deck-row-qty-input.deck-row-qty-missing {
   gap: 0.5rem;
 }
 
-.deck-analysis-diagnosis-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-}
-
-.deck-analysis-diagnosis-header svg {
-  color: var(--text3);
-  transition: transform 0.15s ease;
-}
-
 .deck-analysis-verdict {
   display: inline-flex;
   align-items: center;
@@ -7041,93 +7023,57 @@ input.deck-row-qty-input.deck-row-qty-missing {
   margin: 0;
 }
 
-/* Theme picker — visually a single pill matching .deck-combos-filter-pill.
-   The native <select> is the source of truth (single-select, accessible,
-   mobile-friendly); we only strip its default chrome and overlay a chevron
-   so it reads as a pill instead of an input. */
-.deck-analysis-theme-pill {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.2rem 0.55rem 0.2rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text2);
-  font-size: var(--text-xs);
-  font-weight: 500;
+/* Archetype filter — the shared SelectMenu (toolbar-pill) keeps it left-
+   aligned in the suggestions column rather than stretching to full width. */
+.deck-analysis-archetype-select {
   align-self: flex-start;
   max-width: 100%;
-  transition:
-    background 0.12s,
-    color 0.12s,
-    border-color 0.12s;
-}
-
-.deck-analysis-theme-pill:hover {
-  background: var(--surface2);
-}
-
-.deck-analysis-theme-pill.active {
-  background: var(--accent);
-  color: var(--on-accent, #fff);
-  border-color: var(--accent);
-}
-
-.deck-analysis-theme-pill-label {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-  font-size: var(--text-xs);
-  opacity: 0.75;
-}
-
-.deck-analysis-theme-pill-value {
-  font-weight: 600;
-  font-size: var(--text-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 12rem;
-}
-
-.deck-analysis-theme-pill-select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: transparent;
-  cursor: pointer;
-  outline: none;
-  /* The decorative label/value/chevron underneath are aria-hidden via being
-     decorative; the select itself carries the aria-label so screen readers
-     announce it correctly. */
-}
-
-.deck-analysis-theme-pill-select::-ms-expand {
-  display: none;
-}
-
-.deck-analysis-theme-pill > svg {
-  opacity: 0.7;
-  flex: 0 0 auto;
-}
-
-.deck-analysis-theme-pill:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 /* ── Commander profile (game plan) ────────────────────────────────────── */
+/* The heading wraps a full-width toggle button (WAI accordion pattern), so
+   drop the heading's own bottom margin — the button owns the spacing. */
+.cmdr-profile-heading {
+  margin-bottom: 0;
+}
+
+.cmdr-profile-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0 0 0.75rem 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* Collapsed: no body below, so the toggle keeps no separating gap. */
+.cmdr-profile:has(#cmdr-profile-body[hidden]) .cmdr-profile-toggle {
+  padding-bottom: 0;
+}
+
+.cmdr-profile-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.cmdr-profile-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text3);
+}
+
+.cmdr-profile-toggle:hover .cmdr-profile-chevron {
+  color: var(--accent);
+}
+
 .cmdr-profile-summary {
   margin: 0 0 0.9rem 0;
   color: var(--text);

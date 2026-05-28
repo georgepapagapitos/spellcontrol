@@ -438,8 +438,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           </div>
 
           <p className="import-card-desc">
-            Paste card names — plain text, MTGA format, or pasted CSV — or upload one or more CSV
-            files. Each card gets matched against Scryfall and routed through your binder rules.
+            Paste a card list or upload CSVs — each card is matched to Scryfall and routed into your
+            binders.
           </p>
 
           {stagedFiles.length > 0 ? (

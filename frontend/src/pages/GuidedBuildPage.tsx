@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BackLink } from '../components/BackLink';
 import { ProgressBar } from '../components/ProgressBar';
@@ -73,6 +73,15 @@ export function GuidedBuildPage() {
   const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>([]);
   const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  // Scroll the progress bar into view when it appears so the native nav FAB
+  // doesn't hide it at the page bottom (mirrors the test-hand sim-report).
+  const showProgress = progress !== null;
+  useEffect(() => {
+    if (!showProgress) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    progressRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+  }, [showProgress]);
   const [isBuilding, setIsBuilding] = useState(false);
 
   useEffect(() => {
@@ -143,7 +152,7 @@ export function GuidedBuildPage() {
     if (!commander) return;
     setError(null);
     setIsBuilding(true);
-    setProgress({ message: 'Loading commander data', percent: 5 });
+    setProgress({ message: 'Consulting the Oracle…', percent: 5 });
     try {
       const bracket =
         customization.targetBracket !== 'all' ? customization.targetBracket : undefined;
@@ -376,11 +385,9 @@ export function GuidedBuildPage() {
           )}
         </div>
         {progress && (
-          <ProgressBar
-            className="deck-builder-progress"
-            percent={progress.percent}
-            message={progress.message}
-          />
+          <div ref={progressRef} className="deck-builder-progress">
+            <ProgressBar percent={progress.percent} message={progress.message} />
+          </div>
         )}
         {error && <div className="error-banner deck-builder-error">{error}</div>}
       </section>
