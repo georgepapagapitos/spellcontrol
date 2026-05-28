@@ -6185,6 +6185,28 @@ input.deck-row-qty-input.deck-row-qty-missing {
   font-weight: 500;
 }
 
+/* ── Deck identity theme chips ────────────────────────────────────── */
+/* The themes the deck leans into, shown as chips under the Overview stats.
+   Archetype + pacing live as label/value rows in the same panel; this is the
+   one part that reads better as chips than as a row. */
+.deck-identity-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.6rem 0 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deck-identity-theme {
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border2);
+  color: var(--text2);
+  font-size: var(--text-xs);
+  text-transform: capitalize;
+}
+
 /* ── Per-card illegal indicator ───────────────────────────────────── */
 /* Lucide CircleAlert in the theme's danger foreground so it stays
    readable on dark surfaces and on top of card art. Used inline in

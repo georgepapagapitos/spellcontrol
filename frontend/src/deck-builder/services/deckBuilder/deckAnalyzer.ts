@@ -23,7 +23,7 @@ import {
   CHANNEL_LANDS,
 } from '@/deck-builder/services/scryfall/client';
 import { calculateCurvePercentages } from './curveUtils';
-import { detectPacing, type Pacing } from './themeDetector';
+import { detectPacing, type Pacing } from './pacingDetector';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
 
 export interface RoleDeficit {
