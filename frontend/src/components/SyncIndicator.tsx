@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { getSyncState, getLastSyncedAt, onSyncedChange } from '../lib/sync';
+import {
+  getSyncState,
+  getLastSyncedAt,
+  getPendingCount,
+  isOnline,
+  hasSyncError,
+  onSyncedChange,
+} from '../lib/sync';
 import { useAuth } from '../store/auth';
 
 /**
@@ -29,12 +36,13 @@ export function formatRelativeTime(syncedAt: number, now: number = Date.now()): 
 
 /**
  * Compact sync-state badge for the header. Subscribes to sync.ts so the
- * label updates as pushes/pulls land.
+ * label updates as state changes (pushes/pulls land, the queue grows/drains,
+ * connectivity flips, a sync fails).
  *
- * NOTE: a "Sync error" pill would require sync.ts to surface failures
- * explicitly — today push/pull failures are silent (logger.warn only) and
- * dirty/retry handles recovery. Skipping for v1; revisit if users want a
- * visible "your last push failed" indicator.
+ * Precedence (most → least urgent), so the user always sees the truest signal:
+ *   Offline → Syncing → Sync failed → Saving (pending) → Synced.
+ * Offline outranks "failed" because being offline is the real reason a sync
+ * can't happen; "Saving" reassures that local changes aren't lost yet.
  */
 export function SyncIndicator() {
   const authStatus = useAuth((s) => s.status);
@@ -67,12 +75,60 @@ export function SyncIndicator() {
 
   const state = getSyncState();
   const lastSyncedAt = getLastSyncedAt();
+  const pending = getPendingCount();
+  const online = isOnline();
+  const errored = hasSyncError();
+
+  if (!online) {
+    const detail =
+      pending > 0
+        ? `Offline — ${pending} change${pending === 1 ? '' : 's'} saved on this device, will sync when you reconnect`
+        : 'Offline — changes are saved on this device';
+    return (
+      <span
+        className="sync-indicator sync-indicator-offline"
+        title={detail}
+        aria-label={detail}
+        aria-live="polite"
+      >
+        Offline
+      </span>
+    );
+  }
 
   if (state === 'syncing') {
     return (
       <span className="sync-indicator sync-indicator-syncing" aria-live="polite">
         <span className="sync-indicator-spinner" aria-hidden="true" />
         Syncing&hellip;
+      </span>
+    );
+  }
+
+  if (errored) {
+    return (
+      <span
+        className="sync-indicator sync-indicator-error"
+        title="Couldn't reach the server — retrying. Your changes are saved on this device."
+        aria-label="Sync failed, retrying"
+        aria-live="polite"
+      >
+        Sync failed
+      </span>
+    );
+  }
+
+  if (pending > 0) {
+    const detail = pending === 1 ? 'Saving changes…' : `Saving ${pending} changes…`;
+    return (
+      <span
+        className="sync-indicator sync-indicator-pending"
+        title={detail}
+        aria-label={detail}
+        aria-live="polite"
+      >
+        <span className="sync-indicator-spinner" aria-hidden="true" />
+        Saving&hellip;
       </span>
     );
   }

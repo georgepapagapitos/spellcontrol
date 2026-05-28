@@ -115,6 +115,76 @@ describe('SyncIndicator', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  function authed() {
+    useAuth.setState({
+      user: { id: 'u', username: 'a', role: 'user' },
+      status: 'authed',
+      autoLinkedAt: null,
+    });
+    // Sensible defaults; individual tests override as needed.
+    vi.spyOn(sync, 'getSyncState').mockReturnValue('ready');
+    vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(Date.now());
+    vi.spyOn(sync, 'isOnline').mockReturnValue(true);
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(0);
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(false);
+  }
+
+  it('renders an Offline pill when disconnected, mentioning local safety', () => {
+    authed();
+    vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(3);
+    renderIndicator();
+    const el = screen.getByText('Offline');
+    expect(el).toBeTruthy();
+    expect(el.getAttribute('title')).toMatch(/3 changes saved on this device/);
+  });
+
+  it('Offline outranks a sync error and an active syncing state', () => {
+    authed();
+    vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    renderIndicator();
+    expect(screen.getByText('Offline')).toBeTruthy();
+    expect(screen.queryByText('Sync failed')).toBeNull();
+    expect(screen.queryByText(/Syncing/)).toBeNull();
+  });
+
+  it('renders a "Sync failed" pill when online and the last sync errored', () => {
+    authed();
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    renderIndicator();
+    const el = screen.getByText('Sync failed');
+    expect(el).toBeTruthy();
+    expect(el.getAttribute('title')).toMatch(/retrying/i);
+  });
+
+  it('a sync error outranks pending "Saving"', () => {
+    authed();
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(2);
+    renderIndicator();
+    expect(screen.getByText('Sync failed')).toBeTruthy();
+    expect(screen.queryByText(/Saving/)).toBeNull();
+  });
+
+  it('renders a "Saving…" pill with a spinner when there are pending changes', () => {
+    authed();
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(2);
+    const { container } = renderIndicator();
+    const el = screen.getByText(/Saving/);
+    expect(el).toBeTruthy();
+    expect(screen.getByLabelText('Saving 2 changes…')).toBeTruthy();
+    expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+  });
+
+  it('falls through to "Synced" when online, idle queue, no error', () => {
+    authed();
+    vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(Date.now() - 5 * 60_000);
+    renderIndicator();
+    expect(screen.getByText('Synced')).toBeTruthy();
+  });
+
   it('re-renders when the sync listener fires (e.g. syncing → ready)', () => {
     useAuth.setState({
       user: { id: 'u', username: 'a', role: 'user' },
