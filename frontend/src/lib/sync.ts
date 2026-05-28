@@ -369,6 +369,9 @@ async function push(): Promise<void> {
     return;
   }
   isPushing = true;
+  // Highest rev the server reports while draining. Used only as a cross-tab
+  // broadcast hint — never adopted as our own pull cursor (see below).
+  let serverRevHint = cursor;
   try {
     while (true) {
       const batch = await queue.peekBatch(500);
@@ -395,7 +398,6 @@ async function push(): Promise<void> {
       // local row exists in IDB with rev=0 — replace its rev so a subsequent
       // pull doesn't re-deliver it. For deletions / cascades, the local row
       // is already gone (the mutator removed it) so there's nothing to update.
-      const upsertReplacements: estore.StoredRow[] = [];
       const byKind: Record<string, estore.StoredRow[]> = {};
       for (const a of result.applied) {
         if (a.deletedAt != null) continue;
@@ -407,13 +409,22 @@ async function push(): Promise<void> {
       for (const [kind, rows] of Object.entries(byKind)) {
         await estore.putMany(kind as EntityKind, rows);
       }
-      void upsertReplacements;
 
       await queue.ack(batch.map((b) => b.seq));
-      if (result.cursor > cursor) saveCursor(result.cursor);
+      // NEVER do `saveCursor(result.cursor)` here. The POST response's cursor is
+      // the server's global max rev *after our writes* — adopting it as our pull
+      // cursor would skip any lower-rev rows other devices wrote that we haven't
+      // pulled yet, silently dropping them from this device (the bug that
+      // stranded a deleted collection mid-converge). The cursor may only advance
+      // via pull(), which applies every row in rev order. Our own just-pushed
+      // rows are stamped into IDB above, so the next pull re-delivering them is a
+      // cheap idempotent no-op.
+      if (result.cursor > serverRevHint) serverRevHint = result.cursor;
       markSynced();
     }
-    broadcastCursor();
+    // Nudge peer tabs to pull (we wrote new revs), but pass the server hint
+    // explicitly rather than our own cursor — our cursor intentionally lags.
+    broadcastCursor(serverRevHint);
     if (pushPending) {
       pushPending = false;
       schedulePush();
@@ -542,12 +553,12 @@ interface SyncBroadcast {
   sourceId: string;
 }
 
-function broadcastCursor(): void {
+function broadcastCursor(hint: number = cursor): void {
   if (!currentOwnerId) return;
   const msg: SyncBroadcast = {
     type: 'sync-applied',
     userId: currentOwnerId,
-    cursor,
+    cursor: hint,
     sourceId,
   };
   if (broadcastChannel) {

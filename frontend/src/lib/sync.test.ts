@@ -201,7 +201,41 @@ describe('push', () => {
     expect(await queue.size()).toBe(0);
     const row = await estore.getById('binder', 'b-1');
     expect(row?.rev).toBe(99);
-    expect(localStorage.getItem('spellcontrol-sync-cursor')).toBe('99');
+    // The push stamps the server rev onto the local row but must NOT advance the
+    // pull cursor — only pull() does that. Here the follow-up pull returns empty,
+    // so the cursor is never written.
+    expect(localStorage.getItem('spellcontrol-sync-cursor')).toBeNull();
+  });
+
+  it('never advances the cursor from a push — only from rows it actually pulls', async () => {
+    // Regression for the cursor-skip divergence bug: a device that pushes while
+    // behind on pulls must not jump its cursor to the push response's global-max
+    // rev, or it silently skips lower-rev rows other devices wrote.
+    //
+    // Local has a row another device is about to tombstone at rev 500. We push
+    // our own unrelated mutation; the server acks it and reports a global cursor
+    // of 1000 (other devices wrote up to there). The pull that follows — from our
+    // real cursor (0), since push must not advance it — must still deliver and
+    // apply the rev-500 tombstone, and the cursor must reflect what we pulled
+    // (500), never the push's 1000.
+    await estore.putMany('binder', [
+      { id: 'b-other', data: { id: 'b-other' }, rev: 10, deletedAt: null },
+    ]);
+    await queue.enqueue({ op: 'delete', kind: 'binder', id: 'b-mine' });
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-mine', rev: 1000, deletedAt: 1 }],
+      cursor: 1000,
+    });
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'binder', id: 'b-other', data: null, rev: 500, deletedAt: 1700000000000 }],
+      cursor: 500,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    // The other device's tombstone was applied, not skipped.
+    expect(await estore.getAllLive('binder')).toEqual([]);
+    // Cursor tracks the pulled rev, never the push's global max.
+    expect(localStorage.getItem('spellcontrol-sync-cursor')).toBe('500');
   });
 
   it('forwards upserts and deletions separately', async () => {
