@@ -7272,8 +7272,6 @@ hr {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 85%, transparent 100%);
 }
 
 /* Under the Collection hub the search row pins beneath the sticky hub-tabs

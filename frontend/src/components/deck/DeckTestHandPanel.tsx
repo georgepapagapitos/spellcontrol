@@ -35,12 +35,8 @@ import { useDecksStore } from '../../store/decks';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { getCardRole, hasTaggerData, loadTaggerData } from '@/deck-builder/services/tagger/client';
 import { COLOR_INFO } from '../../lib/colors';
-import {
-  isKeepableHand,
-  simulateOpeningHands,
-  type SimCard,
-  type SimResult,
-} from '../../lib/opening-hand-sim';
+import { isKeepableHand, simulateOpeningHands, type SimResult } from '../../lib/opening-hand-sim';
+import { cardCmc, isLand, toSimCard } from '../../lib/hand-classify';
 import { CardPreview } from '../CardPreview';
 
 export interface DeckTestHandPanelHandle {
@@ -86,15 +82,6 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function isLand(card: ScryfallCard): boolean {
-  const tl = card.type_line ?? card.card_faces?.[0]?.type_line ?? '';
-  return tl.toLowerCase().includes('land');
-}
-
-function cardCmc(card: ScryfallCard): number {
-  return card.cmc ?? 0;
-}
-
 interface HandBreakdown {
   lands: number;
   ramp: number;
@@ -129,16 +116,6 @@ function summarizeHand(hand: Array<{ card: ScryfallCard }>): HandBreakdown {
     removal,
     cardDraw,
     avgSpellCmc: spellCount > 0 ? spellCmcSum / spellCount : NaN,
-  };
-}
-
-/** Reduce a full card to the minimal shape the opening-hand simulator needs. */
-function toSimCard(card: ScryfallCard): SimCard {
-  return {
-    isLand: isLand(card),
-    cmc: cardCmc(card),
-    role: getCardRole(card.name),
-    colors: card.color_identity ?? [],
   };
 }
 
