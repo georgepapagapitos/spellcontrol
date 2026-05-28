@@ -58,9 +58,9 @@ export function CommanderProfileCard({
           aria-expanded={!collapsed}
           aria-controls="cmdr-profile-body"
           onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? 'Expand game plan' : 'Collapse game plan'}
+          title={collapsed ? 'Expand commander breakdown' : 'Collapse commander breakdown'}
         >
-          <span>Game plan</span>
+          <span>What your commander wants</span>
           <span className="cmdr-profile-chevron" aria-hidden>
             {collapsed ? (
               <ChevronDown width={18} height={18} />

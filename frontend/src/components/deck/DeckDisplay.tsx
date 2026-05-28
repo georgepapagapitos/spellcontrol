@@ -20,7 +20,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
+import type { ScryfallCard, DeckFormat, ThemeResult } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -50,6 +50,10 @@ import {
   buildCommanderProfile,
   whyCardMatches,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import {
+  deriveDeckIdentity,
+  type DeckIdentity,
+} from '@/deck-builder/services/deckBuilder/deckIdentity';
 import {
   getRoleBadge,
   isMultiRole,
@@ -252,6 +256,9 @@ export interface DeckDisplayProps {
   format?: DeckFormat;
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
+  /** The deck's selected themes (generated decks); refines the identity strip's
+   *  archetype to reflect stated intent. Omitted for manual/imported decks. */
+  selectedThemes?: ThemeResult[];
   commanderAllocatedCopyId?: string | null;
   partnerCommanderAllocatedCopyId?: string | null;
   cards: DeckDisplayCard[];
@@ -633,6 +640,7 @@ export function DeckDisplay({
   format = 'commander',
   commander,
   partnerCommander,
+  selectedThemes,
   commanderAllocatedCopyId,
   partnerCommanderAllocatedCopyId,
   cards,
@@ -965,22 +973,37 @@ export function DeckDisplay({
     return list;
   }, [commander, partnerCommander, cards]);
 
+  // The commander's parsed ability profile — shared by the per-card synergy
+  // reasons and the deck-identity strip.
+  const commanderProfile = useMemo(
+    () => (commander ? buildCommanderProfile(commander, partnerCommander) : null),
+    [commander, partnerCommander]
+  );
+
+  // Live-computed deck identity (archetype + pacing + themes), derived from the
+  // current card list so it stays honest as the deck is edited.
+  const identity = useMemo(
+    () =>
+      commanderProfile
+        ? deriveDeckIdentity({ profile: commanderProfile, selectedThemes, cards: allCards })
+        : null,
+    [commanderProfile, selectedThemes, allCards]
+  );
+
   // "Why this card" synergy reasons, keyed by card name. Computed from the
   // commander's parsed ability profile so each row can explain its fit.
   const synergyByName = useMemo<Map<string, string[]>>(() => {
     const map = new Map<string, string[]>();
-    if (!commander) return map;
-    const profile = buildCommanderProfile(commander, partnerCommander);
-    if (profile.abilities.length === 0) return map;
+    if (!commanderProfile || commanderProfile.abilities.length === 0) return map;
     for (const dc of cards) {
       const card = dc.card;
       if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) continue;
       if (map.has(card.name)) continue;
-      const reasons = whyCardMatches(card, profile);
+      const reasons = whyCardMatches(card, commanderProfile);
       if (reasons.length > 0) map.set(card.name, reasons);
     }
     return map;
-  }, [commander, partnerCommander, cards]);
+  }, [commanderProfile, cards]);
 
   // Stats summary line.
   const totalCards = allCards.length;
@@ -1279,6 +1302,7 @@ export function DeckDisplay({
             averageCmc={averageCmc}
             averageSalt={averageSalt}
             saltiestCards={saltiestCards}
+            identity={identity}
             deckGrade={deckGrade}
             missingCount={missing.count}
             missingPrice={missing.price}
@@ -2437,6 +2461,7 @@ function DeckStatistics({
   averageCmc,
   averageSalt,
   saltiestCards,
+  identity,
   deckGrade,
   missingCount,
   missingPrice,
@@ -2458,6 +2483,7 @@ function DeckStatistics({
   averageCmc: number;
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
+  identity: DeckIdentity | null;
   deckGrade?: { letter: string; headline: string };
   missingCount: number;
   missingPrice: number;
@@ -2563,6 +2589,18 @@ function DeckStatistics({
                 </span>
               </li>
             )}
+            {identity && (
+              <>
+                <li className="deck-overview-row">
+                  <span className="deck-overview-label">Archetype</span>
+                  <span className="deck-overview-value">{identity.archetypeLabel}</span>
+                </li>
+                <li className="deck-overview-row">
+                  <span className="deck-overview-label">Pacing</span>
+                  <span className="deck-overview-value">{identity.pacingShort}</span>
+                </li>
+              </>
+            )}
             <li className="deck-overview-row">
               <span className="deck-overview-label">Cards</span>
               <span className="deck-overview-value">{totalCards}</span>
@@ -2590,6 +2628,15 @@ function DeckStatistics({
               </li>
             )}
           </ul>
+          {identity && identity.themes.length > 0 && (
+            <ul className="deck-identity-themes" aria-label="Themes">
+              {identity.themes.map((t) => (
+                <li key={t} className="deck-identity-theme">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
         {bracketEstimation && (
           <Panel title="Estimated bracket">
