@@ -268,6 +268,49 @@ describe('tombstones', () => {
     expect(view.rows.find((r) => r.id === 'd-never-existed')?.deletedAt).not.toBeNull();
   });
 
+  it('applies upserts and deletions (with an import cascade) in a single batch', async () => {
+    // Exercises the bulk unnest write paths together: a POST that both upserts
+    // new rows and deletes an import whose cards cascade.
+    const cookie = await registerAndGetCookie('batch_mixed');
+    await push(cookie, {
+      upserts: [
+        { kind: 'import', id: 'imp-1', data: { id: 'imp-1' } },
+        { kind: 'card', id: 'c-1', data: { copyId: 'c-1' }, importId: 'imp-1' },
+        { kind: 'card', id: 'c-2', data: { copyId: 'c-2' }, importId: 'imp-1' },
+        { kind: 'card', id: 'c-3', data: { copyId: 'c-3' }, importId: 'imp-1' },
+      ],
+    });
+    const res = await push(cookie, {
+      upserts: [{ kind: 'binder', id: 'b-1', data: { id: 'b-1', name: 'new' } }],
+      deletions: [{ kind: 'import', id: 'imp-1' }],
+    });
+    // 1 binder upsert + 1 import tombstone + 3 cascaded card tombstones.
+    expect(res.applied.length).toBe(5);
+    expect(res.applied.filter((a) => a.deletedAt != null).length).toBe(4);
+    // Every assigned rev is unique.
+    const revs = res.applied.map((a) => a.rev);
+    expect(new Set(revs).size).toBe(revs.length);
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.deletedAt == null);
+    expect(live.map((r) => `${r.kind}:${r.id}`).sort()).toEqual(['binder:b-1']);
+  });
+
+  it('tolerates the same id appearing twice in one upsert batch (last write wins)', async () => {
+    // The bulk INSERT … ON CONFLICT path would otherwise throw "cannot affect
+    // row a second time"; the handler de-dupes by id keeping the last value.
+    const cookie = await registerAndGetCookie('batch_dup');
+    const res = await push(cookie, {
+      upserts: [
+        { kind: 'binder', id: 'b-1', data: { id: 'b-1', name: 'first' } },
+        { kind: 'binder', id: 'b-1', data: { id: 'b-1', name: 'last' } },
+      ],
+    });
+    expect(res.applied.length).toBe(1);
+    const view = await pull(cookie);
+    const row = view.rows.find((r) => r.id === 'b-1')!;
+    expect((row.data as { name: string }).name).toBe('last');
+  });
+
   it('upserting after a tombstone revives the row (last-write-wins by rev)', async () => {
     const cookie = await registerAndGetCookie('tomb_revive');
     await push(cookie, {
