@@ -23,7 +23,6 @@ import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
 import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
-import { AccountMergeDialog } from './components/AccountMergeDialog';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
 
@@ -156,13 +155,10 @@ export default function App() {
     // when no user is signed in — render the SharedView routes outside the
     // auth gate so a friend with a link doesn't get bounced to /auth.
     return (
-      <>
-        <AccountMergeDialog />
-        <Routes>
-          <Route path="/s/:token" element={<SharedView />} />
-          <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
-        </Routes>
-      </>
+      <Routes>
+        <Route path="/s/:token" element={<SharedView />} />
+        <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
+      </Routes>
     );
   }
   // Guests and signed-in users share the same app. Auth is opt-in (WotC Fan
@@ -171,7 +167,6 @@ export default function App() {
   // normal, dismissable route reached from the header / Settings.
   return (
     <>
-      <AccountMergeDialog />
       <AutoLinkBanner />
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />

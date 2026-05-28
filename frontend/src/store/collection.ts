@@ -24,7 +24,6 @@ import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { apiUrl } from '../lib/api-base';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
-import { markDestructive } from '../lib/sync-intent';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
 
@@ -391,7 +390,6 @@ export const useCollectionStore = create<CollectionState>()(
 
       deleteImports: async (ids) => {
         if (ids.length === 0) return;
-        markDestructive();
         const idSet = new Set(ids);
         const s = get();
         const remainingCards = s.cards.filter((c) => !c.importId || !idSet.has(c.importId));
@@ -522,7 +520,6 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       clearCards: async () => {
-        markDestructive();
         const prevCards = get().cards;
         set({
           cards: [],
@@ -895,7 +892,6 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       deleteBinder: (id) => {
-        markDestructive();
         set((s) => {
           const now = Date.now();
           const remaining = s.binders
@@ -908,7 +904,6 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       deleteAllBinders: () => {
-        markDestructive();
         set({ binders: [], activeTab: 'uncategorized' });
       },
 
@@ -937,9 +932,40 @@ export const useCollectionStore = create<CollectionState>()(
       name: 'spellcontrol',
       version: 15,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({
-        binders: s.binders,
-      }),
+      // Synced data — including binders — lives in the per-entity IDB
+      // (`entity-store`) and is rehydrated by `lib/sync.ts`. Nothing in this
+      // store needs zustand-persist anymore; partialize returns an empty
+      // object so the persist middleware writes nothing on mutation. The
+      // middleware stays in place so any future UI-only field added to
+      // `partialize` is one line of work, not a restructure.
+      partialize: () => ({}),
     }
   )
 );
+
+/**
+ * Sync subscriber for binder changes only. Cards / lists / importHistory are
+ * persisted via the explicit `persistCollection()` call inside every mutator
+ * that touches them (the legacy whole-blob path now routes through the per-
+ * entity entity-store under the hood — see `lib/local-cards.ts`). Binders,
+ * however, are mutated by sync helpers (`pinCardToBinder`, `setBinderMode`,
+ * etc.) that don't run `persistCollection`, so we still need a subscriber
+ * to fan binder changes into the per-row sync layer.
+ *
+ * `isApplyingServer()` short-circuits the path while sync.ts is writing
+ * server-sourced state back into the store; otherwise we'd loop server
+ * changes back to ourselves.
+ */
+useCollectionStore.subscribe((state, prev) => {
+  if (state.binders === prev.binders) return;
+  // Lazy-import to break the cycle: sync.ts imports the stores back in.
+  // Errors from the sync layer must not bubble — a missing IDB (tests) or a
+  // network-down push attempt should never crash the in-memory mutation
+  // that fired this subscriber. The sync driver retries on next focus / online.
+  void import('../lib/sync')
+    .then((sync) => {
+      if (sync.isApplyingServer()) return;
+      return sync.persistBindersState(state.binders);
+    })
+    .catch(() => {});
+});

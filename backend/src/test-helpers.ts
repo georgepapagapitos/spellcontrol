@@ -82,25 +82,69 @@ export async function createTestEnv(): Promise<TestEnv> {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       expires_at BIGINT NOT NULL
     );
-    CREATE TABLE user_data (
-      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      collection JSONB,
-      binders JSONB NOT NULL DEFAULT '[]'::jsonb,
-      decks JSONB NOT NULL DEFAULT '[]'::jsonb,
-      games JSONB NOT NULL DEFAULT '[]'::jsonb,
-      version INTEGER NOT NULL DEFAULT 0,
-      updated_at BIGINT NOT NULL
-    );
-    CREATE TABLE user_data_backups (
-      id TEXT PRIMARY KEY,
+    CREATE SEQUENCE user_data_rev_seq;
+    CREATE TABLE user_imports (
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      snapshot JSONB NOT NULL,
-      reason TEXT NOT NULL,
-      prior_version INTEGER NOT NULL,
-      prior_card_count INTEGER NOT NULL,
-      created_at BIGINT NOT NULL
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
     );
-    CREATE INDEX user_data_backups_user_idx ON user_data_backups(user_id, created_at);
+    CREATE INDEX user_imports_rev_idx ON user_imports(user_id, rev);
+    CREATE TABLE user_cards (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      import_id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX user_cards_rev_idx ON user_cards(user_id, rev);
+    CREATE INDEX user_cards_import_idx ON user_cards(user_id, import_id);
+    CREATE TABLE user_binders (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX user_binders_rev_idx ON user_binders(user_id, rev);
+    CREATE TABLE user_decks (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX user_decks_rev_idx ON user_decks(user_id, rev);
+    CREATE TABLE user_games (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX user_games_rev_idx ON user_games(user_id, rev);
+    CREATE TABLE user_lists (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX user_lists_rev_idx ON user_lists(user_id, rev);
     CREATE TABLE game_sessions (
       id TEXT PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
@@ -187,4 +231,107 @@ export function extractSessionCookie(setCookie: string | string[] | undefined): 
     if (match) return match[1];
   }
   return null;
+}
+
+/**
+ * Test helper that lets a suite express the user's full sync state in the
+ * old "one big blob" shape and applies it to the new per-entity sync API.
+ * Computes the diff against the current server state — rows in the body get
+ * upserted, rows that exist on the server but are missing from the body get
+ * tombstoned — so callers can keep writing `setSnapshot(cookie, { decks: [] })`
+ * to mean "delete every deck" without thinking about deltas.
+ *
+ * Only used by share / OG / sync route integration tests. Returns the post-
+ * apply cursor (handy when a test needs to assert progress).
+ */
+import type request from 'supertest';
+
+/**
+ * Use the same shape supertest's `request()` returns. `TestAgent` is exposed
+ * as a named type on the default export; the SuperTest<Test> alias the
+ * older docs reference no longer matches the agent type since v7.
+ */
+type SuperTestAgent = ReturnType<typeof request>;
+
+export interface SnapshotShape {
+  collection?: {
+    cards?: Array<Record<string, unknown>>;
+    importHistory?: Array<Record<string, unknown>>;
+    lists?: Array<Record<string, unknown>>;
+    [k: string]: unknown;
+  } | null;
+  binders?: Array<Record<string, unknown>>;
+  decks?: Array<Record<string, unknown>>;
+  games?: Array<Record<string, unknown>>;
+}
+
+export async function setSnapshotViaSyncApi(
+  http: SuperTestAgent,
+  cookie: string,
+  body: SnapshotShape
+): Promise<number> {
+  const pull = await http.get('/api/sync?since=0&limit=5000').set('Cookie', cookie);
+  if (pull.status !== 200) {
+    throw new Error(`setSnapshotViaSyncApi: pull failed with ${pull.status}`);
+  }
+  const liveByKind: Record<string, Set<string>> = {};
+  for (const r of pull.body.rows as Array<{ kind: string; id: string; deletedAt: number | null }>) {
+    if (r.deletedAt == null) {
+      (liveByKind[r.kind] ??= new Set<string>()).add(r.id);
+    }
+  }
+
+  const desired = {
+    card: (body.collection?.cards ?? []) as Array<{ copyId: string; importId?: string }>,
+    import: (body.collection?.importHistory ?? []) as Array<{ id: string }>,
+    list: (body.collection?.lists ?? []) as Array<{ id: string }>,
+    binder: (body.binders ?? []) as Array<{ id: string }>,
+    deck: (body.decks ?? []) as Array<{ id: string }>,
+    game: (body.games ?? []) as Array<{ id: string }>,
+  };
+
+  const upserts: Array<{ kind: string; id: string; data: unknown; importId?: string }> = [];
+  const desiredIds: Record<string, Set<string>> = {};
+
+  for (const c of desired.card) {
+    upserts.push({ kind: 'card', id: c.copyId, data: c, importId: c.importId ?? '' });
+    (desiredIds.card ??= new Set<string>()).add(c.copyId);
+  }
+  for (const e of desired.import) {
+    upserts.push({ kind: 'import', id: e.id, data: e });
+    (desiredIds.import ??= new Set<string>()).add(e.id);
+  }
+  for (const e of desired.list) {
+    upserts.push({ kind: 'list', id: e.id, data: e });
+    (desiredIds.list ??= new Set<string>()).add(e.id);
+  }
+  for (const e of desired.binder) {
+    upserts.push({ kind: 'binder', id: e.id, data: e });
+    (desiredIds.binder ??= new Set<string>()).add(e.id);
+  }
+  for (const e of desired.deck) {
+    upserts.push({ kind: 'deck', id: e.id, data: e });
+    (desiredIds.deck ??= new Set<string>()).add(e.id);
+  }
+  for (const e of desired.game) {
+    upserts.push({ kind: 'game', id: e.id, data: e });
+    (desiredIds.game ??= new Set<string>()).add(e.id);
+  }
+
+  const deletions: Array<{ kind: string; id: string }> = [];
+  for (const [kind, ids] of Object.entries(liveByKind)) {
+    const keep = desiredIds[kind] ?? new Set<string>();
+    for (const id of ids) {
+      if (!keep.has(id)) deletions.push({ kind, id });
+    }
+  }
+
+  if (upserts.length === 0 && deletions.length === 0) return 0;
+  const res = await http.post('/api/sync').set('Cookie', cookie).send({ upserts, deletions });
+  if (res.status !== 200) {
+    throw new Error(
+      `setSnapshotViaSyncApi: POST failed with ${res.status} — ${JSON.stringify(res.body)}`
+    );
+  }
+  return res.body.cursor as number;
 }

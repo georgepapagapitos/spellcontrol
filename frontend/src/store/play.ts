@@ -20,7 +20,6 @@ import {
   type CreateGameInput,
   type JoinGameInput,
 } from '../lib/games-api';
-import { markDestructive } from '../lib/sync-intent';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 
@@ -474,7 +473,6 @@ export const usePlayStore = create<PlayState>()(
       // ── History ───────────────────────────────────────────────────────────
       setHistory: (records) => set({ history: records }),
       removeHistory: (id) => {
-        markDestructive();
         set((s) => ({ history: s.history.filter((r) => r.id !== id) }));
       },
     }),
@@ -505,10 +503,13 @@ export const usePlayStore = create<PlayState>()(
       // the user back into their seat instead of the setup form. The server
       // is still the source of truth on next poll; persisted state is just a
       // hint that we *were* in a game.
+      //
+      // `history` (synced game records) is intentionally NOT in the partialize
+      // list anymore — it lives in entity-store and is rehydrated by sync.ts.
+      // Persisting it here would race the sync-driven setState on boot.
       partialize: (s) => ({
         local: s.local,
         online: s.online,
-        history: s.history,
         boardVisible: s.boardVisible,
         hapticsEnabled: s.hapticsEnabled,
         preferredLayouts: s.preferredLayouts,
@@ -516,6 +517,23 @@ export const usePlayStore = create<PlayState>()(
     }
   )
 );
+
+/**
+ * Sync subscriber: every in-memory change to the play history flows through
+ * the per-row sync layer. See store/collection.ts for the broader pattern.
+ * `local` and `online` are intentionally NOT synced — local games are a
+ * single-device session and online games are owned by the game_sessions
+ * REST API (separate from the per-row user-data sync).
+ */
+usePlayStore.subscribe((state, prev) => {
+  if (state.history === prev.history) return;
+  void import('../lib/sync')
+    .then((sync) => {
+      if (sync.isApplyingServer()) return;
+      return sync.persistGamesState(state.history);
+    })
+    .catch(() => {});
+});
 
 // ── Per-deck win/loss aggregation ───────────────────────────────────────────
 

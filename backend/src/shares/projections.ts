@@ -10,10 +10,12 @@
  * so the public shape is a stable, narrower contract — easy to evolve the
  * stored shape without changing what's exposed.
  *
- * Note: input shapes are typed as `unknown`-ish records because the backend
- * treats user_data as opaque JSONB (see routes/sync.ts). Projection functions
- * are defensive — missing/extra fields are tolerated; only the projected
- * fields are guaranteed.
+ * Note: input shapes are typed as `unknown`-ish records because per-entity
+ * `data` JSONB is opaque to the backend (see routes/sync.ts). Projection
+ * functions are defensive — missing/extra fields are tolerated; only the
+ * projected fields are guaranteed. The materialized owner view passed in by
+ * shares/context.ts mirrors the legacy `user_data` shape so these projectors
+ * don't need to know that sync moved to per-row storage.
  */
 
 import {
