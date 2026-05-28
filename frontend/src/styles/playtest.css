@@ -849,6 +849,29 @@ body:has(.playtest-page) .modal-backdrop {
   }
 }
 
+/* "Back to deck" exit — the opening-hand sheet covers the page header (and
+   its back button), so it carries its own. Sits at the footer's far left
+   (margin-right:auto) opposite the Mulligan / Keep actions, the standard
+   dialog layout. Mirrors .playtest-page__header button so the two exits
+   read identically. */
+.playtest-opening-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-right: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.playtest-opening-back:hover {
+  background: var(--surface2);
+}
+
 .playtest-opening-titleRow {
   display: flex;
   align-items: center;
@@ -869,6 +892,27 @@ body:has(.playtest-page) .modal-backdrop {
   margin: 0;
   color: var(--text2);
   font-size: var(--text-sm);
+}
+
+/* Single-hand readout (land count + keep verdict) above the footer. Verdict
+   colors mirror the deck-view test-hand chip so the two reads match. */
+.playtest-opening-stats {
+  margin: 0;
+  text-align: center;
+  color: var(--text2);
+  font-size: var(--text-sm);
+}
+
+.playtest-opening-verdict {
+  font-weight: 700;
+}
+
+.playtest-opening-verdict.is-keepable {
+  color: var(--accent);
+}
+
+.playtest-opening-verdict.is-mulligan {
+  color: var(--warn-text, #f0a000);
 }
 
 .playtest-opening-hint strong {
@@ -966,6 +1010,7 @@ body:has(.playtest-page) .modal-backdrop {
 
 .playtest-opening-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
 }

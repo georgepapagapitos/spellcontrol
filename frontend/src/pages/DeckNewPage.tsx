@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
@@ -48,6 +48,16 @@ export function DeckNewPage() {
   const createDeck = useDecksStore((s) => s.createDeck);
 
   const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  // Generation can fire from the bottom of a long form; on native the nav FAB
+  // floats over the page bottom, so the bar can land behind it. Scroll it into
+  // view the moment it appears (mirrors the test-hand sim-report behavior).
+  const showProgress = progress !== null;
+  useEffect(() => {
+    if (!showProgress) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    progressRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+  }, [showProgress]);
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedThemes, setSelectedThemes] = useState<EDHRECTheme[]>(() => prefill?.themes ?? []);
@@ -178,7 +188,7 @@ export function DeckNewPage() {
     if (!commander) return;
     setError(null);
     setIsGenerating(true);
-    setProgress({ message: 'Loading commander data', percent: 5 });
+    setProgress({ message: 'Consulting the Oracle…', percent: 5 });
     try {
       const bracket =
         customization.targetBracket !== 'all' ? customization.targetBracket : undefined;
@@ -386,11 +396,9 @@ export function DeckNewPage() {
               commander so you can pick every card by hand.
             </p>
             {progress && (
-              <ProgressBar
-                className="deck-builder-progress"
-                percent={progress.percent}
-                message={progress.message}
-              />
+              <div ref={progressRef} className="deck-builder-progress">
+                <ProgressBar percent={progress.percent} message={progress.message} />
+              </div>
             )}
             {error && <div className="error-banner deck-builder-error">{error}</div>}
           </section>

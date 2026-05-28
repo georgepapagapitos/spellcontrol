@@ -30,6 +30,7 @@ import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import type { EnrichedCard } from '../../types';
 import { CardPreview } from '../CardPreview';
+import { SelectMenu, type SelectOption } from '../SelectMenu';
 
 export interface DeckAnalysisPanelHandle {
   /** Expand the panel, scroll it into view, and focus the diagnosis header. */
@@ -72,6 +73,7 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
     ref
   ) {
     const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
+    const [tab, setTab] = useState<'diagnosis' | 'suggestions'>('diagnosis');
     const [taggerVersion, setTaggerVersion] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const focusTargetRef = useRef<HTMLButtonElement>(null);
@@ -167,21 +169,48 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
           hidden={collapsed}
           aria-hidden={collapsed}
         >
+          {/* Diagnosis and Suggestions are peer views, not stacked sections —
+              tabs keep only one tall column on screen at a time (matching the
+              Combos panel) instead of nesting a collapse inside a collapse. */}
+          <div className="deck-combos-tabs" role="tablist" aria-label="Analysis view">
+            <button
+              ref={focusTargetRef}
+              type="button"
+              role="tab"
+              aria-selected={tab === 'diagnosis'}
+              className={`deck-combos-tab${tab === 'diagnosis' ? ' active' : ''}`}
+              onClick={() => setTab('diagnosis')}
+            >
+              Diagnosis
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'suggestions'}
+              className={`deck-combos-tab${tab === 'suggestions' ? ' active' : ''}`}
+              onClick={() => setTab('suggestions')}
+            >
+              Suggestions
+            </button>
+          </div>
+
           {/* Diagnosis — role health vs. format targets. This is the value
               add over the Stats panel: stats shows counts; this shows status
               + an actionable verdict per role. */}
-          <DiagnosisSection analysis={analysis} focusRef={focusTargetRef} />
-
-          {/* Suggestions — popular cards for this commander, filtered to
-              the deck's diagnosed gaps by default. */}
-          <SuggestionsSection
-            analysis={analysis}
-            commander={commander}
-            partnerCommander={partnerCommander}
-            mainboard={mainboard}
-            deckId={deckId}
-            onAdd={onAdd}
-          />
+          {tab === 'diagnosis' ? (
+            <DiagnosisSection analysis={analysis} />
+          ) : (
+            /* Suggestions — popular cards for this commander, filtered to
+               the deck's diagnosed gaps by default. */
+            <SuggestionsSection
+              analysis={analysis}
+              commander={commander}
+              partnerCommander={partnerCommander}
+              mainboard={mainboard}
+              deckId={deckId}
+              onAdd={onAdd}
+            />
+          )}
         </div>
       </div>
     );
@@ -190,14 +219,7 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
 
 // ─── Diagnosis ─────────────────────────────────────────────────────────────
 
-function DiagnosisSection({
-  analysis,
-  focusRef,
-}: {
-  analysis: DeckAnalysisResult;
-  focusRef: React.MutableRefObject<HTMLButtonElement | null>;
-}) {
-  const [expanded, setExpanded] = useState(true);
+function DiagnosisSection({ analysis }: { analysis: DeckAnalysisResult }) {
   if (!analysis.taggerReady) {
     return (
       <p className="deck-combos-empty">Loading role data — verdicts will appear in a moment.</p>
@@ -205,52 +227,33 @@ function DiagnosisSection({
   }
   return (
     <section className="deck-analysis-diagnosis">
-      <button
-        ref={focusRef}
-        type="button"
-        className="deck-analysis-diagnosis-header"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <span>Diagnosis</span>
-        <ChevronDown
-          width={13}
-          height={13}
-          aria-hidden
-          style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
-        />
-      </button>
-      {expanded && (
-        <>
-          <ul className="deck-analysis-role-list">
-            {analysis.roles.map((role) => (
-              <RoleRow key={role.key} role={role} />
-            ))}
-          </ul>
-          <CurveVerdict analysis={analysis} />
-          {analysis.colorIdentity.commanderColors.length > 0 &&
-            analysis.colorIdentity.offColorCards.length > 0 && (
-              <div className="deck-analysis-warning">
-                <AlertTriangle width={14} height={14} aria-hidden />
-                <div>
-                  <strong>
-                    {analysis.colorIdentity.offColorCards.length} card
-                    {analysis.colorIdentity.offColorCards.length === 1 ? '' : 's'} outside color
-                    identity
-                  </strong>
-                  <p>
-                    {analysis.colorIdentity.offColorCards
-                      .slice(0, 4)
-                      .map((c) => c.cardName)
-                      .join(', ')}
-                    {analysis.colorIdentity.offColorCards.length > 4 &&
-                      ` +${analysis.colorIdentity.offColorCards.length - 4} more`}
-                  </p>
-                </div>
-              </div>
-            )}
-        </>
-      )}
+      <ul className="deck-analysis-role-list">
+        {analysis.roles.map((role) => (
+          <RoleRow key={role.key} role={role} />
+        ))}
+      </ul>
+      <CurveVerdict analysis={analysis} />
+      {analysis.colorIdentity.commanderColors.length > 0 &&
+        analysis.colorIdentity.offColorCards.length > 0 && (
+          <div className="deck-analysis-warning">
+            <AlertTriangle width={14} height={14} aria-hidden />
+            <div>
+              <strong>
+                {analysis.colorIdentity.offColorCards.length} card
+                {analysis.colorIdentity.offColorCards.length === 1 ? '' : 's'} outside color
+                identity
+              </strong>
+              <p>
+                {analysis.colorIdentity.offColorCards
+                  .slice(0, 4)
+                  .map((c) => c.cardName)
+                  .join(', ')}
+                {analysis.colorIdentity.offColorCards.length > 4 &&
+                  ` +${analysis.colorIdentity.offColorCards.length - 4} more`}
+              </p>
+            </div>
+          </div>
+        )}
     </section>
   );
 }
@@ -615,7 +618,6 @@ function SuggestionsSection({
   if (!hasCommander) {
     return (
       <section className="deck-analysis-suggestions">
-        <h4 className="deck-analysis-subhead">Suggestions</h4>
         <p className="deck-combos-empty">
           Suggestions come from EDHREC&rsquo;s commander pages — set a commander to see picks
           tailored to your deck.
@@ -626,35 +628,27 @@ function SuggestionsSection({
 
   const gapsLabel = deficitRoles.length > 0 ? `Fill gaps (${deficitRoles.length})` : 'Top picks';
 
+  const archetypeOptions: SelectOption<string>[] = [
+    { value: '', label: 'Any' },
+    ...themes.slice(0, 30).map((t) => ({
+      value: t.slug,
+      // Trigger shows just the name; the popover row adds the deck count.
+      label: t.name,
+      itemLabel: `${t.name} · ${t.count.toLocaleString()} ${t.count === 1 ? 'deck' : 'decks'}`,
+    })),
+  ];
+
   return (
     <section className="deck-analysis-suggestions">
-      <h4 className="deck-analysis-subhead">Suggestions</h4>
-
       {themes.length > 0 && (
-        <div className={`deck-analysis-theme-pill${themeSlug ? ' active' : ''}`}>
-          <span className="deck-analysis-theme-pill-label">Archetype</span>
-          <span className="deck-analysis-theme-pill-value">
-            {themes.find((t) => t.slug === themeSlug)?.name ?? 'Any'}
-          </span>
-          <ChevronDown width={12} height={12} aria-hidden />
-          {/* Native select sits on top of the whole pill at opacity 0 so the
-              entire surface is the click target — fixes the prior "only the
-              far-left strip opens it" UX. The visible label/value/chevron
-              above are purely decorative. */}
-          <select
-            value={themeSlug ?? ''}
-            onChange={(e) => setThemeSlug(e.target.value === '' ? null : e.target.value)}
-            className="deck-analysis-theme-pill-select"
-            aria-label="Filter suggestions by archetype"
-          >
-            <option value="">Any</option>
-            {themes.slice(0, 30).map((t) => (
-              <option key={t.slug} value={t.slug}>
-                {t.name} · {t.count.toLocaleString()} {t.count === 1 ? 'deck' : 'decks'}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectMenu
+          className="deck-analysis-archetype-select"
+          value={themeSlug ?? ''}
+          options={archetypeOptions}
+          onChange={(v) => setThemeSlug(v === '' ? null : v)}
+          label="Archetype"
+          ariaLabel="Filter suggestions by archetype"
+        />
       )}
 
       <div className="deck-analysis-filter-row" role="group" aria-label="Suggestion filter">

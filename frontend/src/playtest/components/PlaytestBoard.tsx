@@ -9,6 +9,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { useNavigate } from 'react-router-dom';
 import type { PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
@@ -51,6 +52,7 @@ export function PlaytestBoard({ state }: Props) {
   const deck = useDecksStore((s) =>
     playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
   );
+  const navigate = useNavigate();
 
   // Build a map from each PlaytestCard instance id back to the underlying
   // ScryfallCard, so the OpeningHandSheet can pass full card data to the
@@ -349,6 +351,7 @@ export function PlaytestBoard({ state }: Props) {
           mulliganCount={mulliganCount}
           cardLookup={cardLookup}
           deckName={deck?.name}
+          onExit={() => navigate(playtestDeckId ? `/decks/${playtestDeckId}` : '/decks')}
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}
           onConfirmBottom={finalizeBottom}

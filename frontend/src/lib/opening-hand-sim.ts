@@ -78,25 +78,29 @@ export interface SimResult {
  * The keep heuristic, shared with `DeckTestHandPanel` so the single-hand
  * verdict and the simulated rate never disagree.
  *
- * Ramp counts as a mana source — a "1 land + 2 rocks + a real play" hand is a
- * clear keep that the naive "2-4 lands" rule would wrongly mulligan. Three
+ * Ramp counts as a mana source, but only when the hand's lands can actually
+ * cast it (CMC <= land count) — otherwise a 2-mana rock would paper over a
+ * one-land hand it can't even deploy on curve. A 1-mana rock (Sol Ring, etc.)
+ * legitimately rescues a one-lander; a 2-mana Signet does not. Three
  * conditions, all required:
- *   1. Effective mana sources (lands + ramp) is 2-4 — not screwed, not flooded.
+ *   1. Effective mana sources (lands + castable ramp) is 2-4 — not screwed,
+ *      not flooded.
  *   2. At least one non-land castable by turn 3 (CMC <= 3) — something to do.
  */
 export function isKeepableHand(hand: readonly SimCard[]): boolean {
   let lands = 0;
-  let ramp = 0;
   let hasEarlyPlay = false;
   for (const c of hand) {
-    if (c.isLand) {
-      lands += 1;
-      continue;
-    }
-    if (c.role === 'ramp') ramp += 1;
-    if (c.cmc <= 3) hasEarlyPlay = true;
+    if (c.isLand) lands += 1;
+    else if (c.cmc <= 3) hasEarlyPlay = true;
   }
-  const effective = lands + ramp;
+  // Second pass: ramp only counts once the full land total is known, since
+  // castability (CMC <= lands) depends on it and card order is arbitrary.
+  let castableRamp = 0;
+  for (const c of hand) {
+    if (!c.isLand && c.role === 'ramp' && c.cmc <= lands) castableRamp += 1;
+  }
+  const effective = lands + castableRamp;
   return effective >= 2 && effective <= 4 && hasEarlyPlay;
 }
 
