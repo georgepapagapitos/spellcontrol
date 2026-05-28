@@ -21,6 +21,8 @@ import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import type { PlaytestCard } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
+import { isKeepableHand } from '@/lib/opening-hand-sim';
+import { isLand, toSimCard } from '@/lib/hand-classify';
 import { CardPreview } from '@/components/CardPreview';
 import { useLongPress } from '../hooks/use-long-press';
 import type { PlaytestPhase } from '../store';
@@ -36,6 +38,9 @@ interface Props {
    */
   cardLookup?: Map<string, ScryfallCard>;
   deckName?: string;
+  /** Leave playtest and return to the deck. The sheet is otherwise
+   *  non-dismissable (Keep / Mulligan), so this is the only way out. */
+  onExit?(): void;
   onKeep(): void;
   onMulligan(): void;
   onConfirmBottom(cardIds: string[]): void;
@@ -49,6 +54,7 @@ export function OpeningHandSheet({
   mulliganCount,
   cardLookup,
   deckName,
+  onExit,
   onKeep,
   onMulligan,
   onConfirmBottom,
@@ -109,6 +115,18 @@ export function OpeningHandSheet({
     [previewable, isMulliganBottom]
   );
   const previewPages = useMemo(() => previewable.map(() => 1), [previewable]);
+
+  // Single-hand readout for the opening (pre-mulligan) seven: land count + a
+  // keep verdict via the same `isKeepableHand` heuristic the deck-view test
+  // hand uses, so the two never disagree. Skipped in mulligan-bottom (you're
+  // choosing cards to bottom, not judging a fresh seven) and when any card is
+  // missing its ScryfallCard lookup (can't classify it reliably).
+  const handStats = useMemo(() => {
+    if (isMulliganBottom || !cardLookup || hand.length < 7) return null;
+    const scry = hand.map((c) => cardLookup.get(c.id)).filter((c): c is ScryfallCard => Boolean(c));
+    if (scry.length < hand.length) return null;
+    return { lands: scry.filter(isLand).length, keepable: isKeepableHand(scry.map(toSimCard)) };
+  }, [hand, cardLookup, isMulliganBottom]);
 
   function toggleSelect(cardId: string) {
     if (!isMulliganBottom) return;
@@ -238,7 +256,25 @@ export function OpeningHandSheet({
           </SortableContext>
         </DndContext>
 
+        {handStats && (
+          <p className="playtest-opening-stats">
+            <strong>{handStats.lands}</strong> {handStats.lands === 1 ? 'land' : 'lands'} ·{' '}
+            <span
+              className={`playtest-opening-verdict ${
+                handStats.keepable ? 'is-keepable' : 'is-mulligan'
+              }`}
+            >
+              {handStats.keepable ? 'Keepable' : 'Mulligan?'}
+            </span>
+          </p>
+        )}
+
         <div className="card-picker-footer playtest-opening-footer">
+          {onExit && (
+            <button type="button" className="playtest-opening-back" onClick={onExit}>
+              ← Back to deck
+            </button>
+          )}
           {isMulliganBottom ? (
             <button
               type="button"
