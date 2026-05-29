@@ -1,0 +1,59 @@
+// @vitest-environment happy-dom
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { DeckColorBalance } from './DeckColorBalance';
+
+describe('DeckColorBalance', () => {
+  it('renders a row for each color that has demand or production', () => {
+    const { container } = render(
+      <DeckColorBalance
+        colorRequirements={{ W: 20, U: 0, B: 15, R: 8, G: 12 }}
+        colorProduction={{ W: 18, U: 0, B: 14, R: 9, G: 11 }}
+      />
+    );
+    const rows = container.querySelectorAll('.deck-color-balance-row');
+    // W, B, R, G are present; U has neither demand nor production → omitted.
+    expect(rows.length).toBe(4);
+    expect(screen.getByText('White')).toBeTruthy();
+    expect(screen.getByText('Black')).toBeTruthy();
+    expect(screen.getByText('Red')).toBeTruthy();
+    expect(screen.getByText('Green')).toBeTruthy();
+    expect(screen.queryByText('Blue')).toBeNull();
+  });
+
+  it('shows demand and source values per color', () => {
+    const { container } = render(
+      <DeckColorBalance colorRequirements={{ W: 20 }} colorProduction={{ W: 18 }} />
+    );
+    const values = Array.from(container.querySelectorAll('.deck-color-balance-meter-value')).map(
+      (n) => n.textContent
+    );
+    expect(values).toEqual(['20', '18']);
+  });
+
+  it('flags a shortfall when production is well below demand', () => {
+    // B: demand 15, production 4 → 4 < 15 * 0.6 (9) → short.
+    render(<DeckColorBalance colorRequirements={{ B: 15 }} colorProduction={{ B: 4 }} />);
+    expect(screen.getByText('Sources short')).toBeTruthy();
+  });
+
+  it('does not flag a color whose sources comfortably meet demand', () => {
+    // R: demand 8, production 9 → no flag.
+    render(<DeckColorBalance colorRequirements={{ R: 8 }} colorProduction={{ R: 9 }} />);
+    expect(screen.queryByText('Sources short')).toBeNull();
+  });
+
+  it('never flags a color with zero demand and renders it neutral', () => {
+    const { container } = render(
+      <DeckColorBalance colorRequirements={{ G: 0 }} colorProduction={{ G: 5 }} />
+    );
+    expect(screen.queryByText('Sources short')).toBeNull();
+    const row = container.querySelector('.deck-color-balance-row');
+    expect(row?.classList.contains('deck-color-balance-row-neutral')).toBe(true);
+  });
+
+  it('shows an empty message with no colored mana', () => {
+    render(<DeckColorBalance colorRequirements={{}} colorProduction={{}} />);
+    expect(screen.getByText('No colored mana to balance.')).toBeTruthy();
+  });
+});

@@ -20,7 +20,13 @@ import {
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ScryfallCard, DeckFormat, ThemeResult } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  DeckFormat,
+  ThemeResult,
+  GapAnalysisCard,
+  BuildReport,
+} from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -44,7 +50,16 @@ import {
 import { useDecksStore } from '../../store/decks';
 import { useRarityCorrections } from '../../lib/use-rarity-corrections';
 import type { EnrichedCard } from '../../types';
-import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import {
+  bracketLabel,
+  type BracketEstimation,
+} from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { BracketBreakdown } from './BracketBreakdown';
+import { GapAnalysisPanel } from './GapAnalysisPanel';
+import { BuildReportPanel } from './BuildReportPanel';
+import { DeckCurvePhases } from './DeckCurvePhases';
+import { DeckTypeBreakdown } from './DeckTypeBreakdown';
+import { DeckColorBalance } from './DeckColorBalance';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import {
   buildCommanderProfile,
@@ -265,12 +280,30 @@ export interface DeckDisplayProps {
   sideboard?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
+  /** User-pinned bracket (1–5); when set it overrides the auto estimate. */
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /** Set/clear the manual bracket override. Passing null reverts to auto. */
+  onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   deckGrade?: { letter: string; headline: string };
   /** Mean EDHREC salt score across non-land cards (generated decks only). */
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
   /** Role counts from the generator (only present on generated decks). */
   roleCounts?: Record<string, number>;
+  /** Target role counts (balanced-roles generation); drives have/want display. */
+  roleTargets?: Record<string, number>;
+  /** EDHREC-suggested cards the deck is missing (generated commander decks). */
+  gapAnalysis?: GapAnalysisCard[];
+  /** Post-generation fill+flag report (set at generation only). */
+  buildReport?: BuildReport;
+  /** Owned card names so suggestion rows can flag what's already collected. */
+  ownedNames?: Set<string>;
+  /**
+   * EDHREC inclusion rate per card name (0–100), persisted by the analysis
+   * hook on generated commander decks. When present, each card row shows a
+   * subtle inclusion-% chip. Absent for manual/unanalyzed decks.
+   */
+  cardInclusionMap?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -646,10 +679,17 @@ export function DeckDisplay({
   cards,
   sideboard = [],
   bracketEstimation,
+  bracketOverride,
+  onSetBracketOverride,
   deckGrade,
   averageSalt,
   saltiestCards,
   roleCounts,
+  roleTargets,
+  gapAnalysis,
+  buildReport,
+  ownedNames,
+  cardInclusionMap,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -1039,21 +1079,6 @@ export function DeckDisplay({
     }
     return out;
   }, [allCards]);
-  // Per-color split per CMC bucket — multicolor cards contribute one share
-  // to each of their colors, mirroring the Color Distribution donut.
-  const manaCurveByColor = useMemo(() => {
-    const out: Record<number, Record<string, number>> = {};
-    for (const c of allCards) {
-      if ((c.type_line || '').toLowerCase().includes('land')) continue;
-      const cmc = Math.min(7, Math.round(c.cmc ?? 0));
-      const ci = c.color_identity ?? [];
-      const keys = ci.length === 0 ? ['C'] : ci;
-      const bucket = (out[cmc] ??= {});
-      for (const k of keys) bucket[k] = (bucket[k] ?? 0) + 1;
-    }
-    return out;
-  }, [allCards]);
-
   const exportText = useMemo(
     () =>
       buildExport(
@@ -1213,6 +1238,7 @@ export function DeckDisplay({
                     onMakeCommander={onMakeCommander}
                     canMakeCommander={canMakeCommander}
                     synergyByName={synergyByName}
+                    cardInclusionMap={cardInclusionMap}
                   />
                 ))}
 
@@ -1242,6 +1268,7 @@ export function DeckDisplay({
                         onMakeCommander={onMakeCommander}
                         canMakeCommander={canMakeCommander}
                         synergyByName={synergyByName}
+                        cardInclusionMap={cardInclusionMap}
                       />
                     ))}
                     {sideboard.length === 0 && (
@@ -1292,9 +1319,14 @@ export function DeckDisplay({
             totalPrice={totalPrice}
             currency={currency}
             manaCurve={manaCurve}
-            manaCurveByColor={manaCurveByColor}
             bracketEstimation={bracketEstimation}
+            bracketOverride={bracketOverride}
+            onSetBracketOverride={onSetBracketOverride}
             roleCounts={roleCounts}
+            roleTargets={roleTargets}
+            gapAnalysis={gapAnalysis}
+            buildReport={buildReport}
+            ownedNames={ownedNames}
             rampSubtypeCounts={rampSubtypeCounts}
             removalSubtypeCounts={removalSubtypeCounts}
             boardwipeSubtypeCounts={boardwipeSubtypeCounts}
@@ -2116,6 +2148,7 @@ function CategorySection({
   onMakeCommander,
   canMakeCommander,
   synergyByName,
+  cardInclusionMap,
 }: {
   title: string;
   iconClass: string;
@@ -2132,6 +2165,7 @@ function CategorySection({
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   synergyByName?: Map<string, string[]>;
+  cardInclusionMap?: Record<string, number>;
 }) {
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
@@ -2172,6 +2206,7 @@ function CategorySection({
             onMakeCommander={onMakeCommander}
             canMakeCommander={canMakeCommander}
             synergyReasons={synergyByName?.get(row.card.name)}
+            inclusionPct={cardInclusionMap?.[row.card.name]}
           />
         ))}
       </ul>
@@ -2193,6 +2228,7 @@ function DeckCardRow({
   onMakeCommander,
   canMakeCommander,
   synergyReasons,
+  inclusionPct,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -2207,6 +2243,8 @@ function DeckCardRow({
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   synergyReasons?: string[];
+  /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
+  inclusionPct?: number;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -2330,6 +2368,15 @@ function DeckCardRow({
             <span aria-hidden>✦</span> {synergyReasons[0]}
           </span>
         )}
+        {typeof inclusionPct === 'number' && (
+          <span
+            className="deck-row-inclusion"
+            title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
+            aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
+          >
+            {Math.round(inclusionPct)}%
+          </span>
+        )}
       </span>
       {showPrefs.mana &&
         (mana ? (
@@ -2451,9 +2498,14 @@ function DeckStatistics({
   totalPrice,
   currency,
   manaCurve,
-  manaCurveByColor,
   bracketEstimation,
+  bracketOverride,
+  onSetBracketOverride,
   roleCounts,
+  roleTargets,
+  gapAnalysis,
+  buildReport,
+  ownedNames,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -2473,9 +2525,14 @@ function DeckStatistics({
   totalPrice: number;
   currency: CurrencyCode;
   manaCurve: Record<number, number>;
-  manaCurveByColor: Record<number, Record<string, number>>;
   bracketEstimation?: BracketEstimation;
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   roleCounts?: Record<string, number>;
+  roleTargets?: Record<string, number>;
+  gapAnalysis?: GapAnalysisCard[];
+  buildReport?: BuildReport;
+  ownedNames?: Set<string>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -2491,11 +2548,6 @@ function DeckStatistics({
   /** Omit to render an always-open header with no caret / click handler. */
   onToggle?: () => void;
 }) {
-  // Always render the full 0–7+ axis so a near-empty deck (e.g. just a
-  // commander) does not produce a single column stretched across the panel.
-  const cmcKeys = [0, 1, 2, 3, 4, 5, 6, 7];
-  const maxBucket = Math.max(1, ...cmcKeys.map((k) => manaCurve[k] ?? 0));
-
   const colorDist = useMemo(() => {
     const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
     let total = 0;
@@ -2638,20 +2690,59 @@ function DeckStatistics({
             </ul>
           )}
         </Panel>
-        {bracketEstimation && (
-          <Panel title="Estimated bracket">
-            <div className="deck-stats-bracket">
-              <strong>
-                Bracket {bracketEstimation.bracket} — {bracketEstimation.label}
-              </strong>
-              {bracketEstimation.hardFloors.length > 0 && (
-                <span className="deck-stats-bracket-note">
-                  {bracketEstimation.hardFloors[0].reason}
-                </span>
-              )}
-            </div>
+        {buildReport && (
+          <Panel title="Build report">
+            <BuildReportPanel report={buildReport} />
           </Panel>
         )}
+        {(bracketEstimation || bracketOverride != null) &&
+          (() => {
+            const effective = bracketOverride ?? bracketEstimation?.bracket;
+            const overridden = bracketOverride != null;
+            return (
+              <Panel title="Bracket">
+                <div className="deck-stats-bracket">
+                  <strong>
+                    Bracket {effective} — {effective != null ? bracketLabel(effective) : '—'}
+                    {overridden && <span className="deck-stats-bracket-tag"> manual</span>}
+                  </strong>
+                  {overridden && bracketEstimation ? (
+                    <span className="deck-stats-bracket-note">
+                      Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
+                    </span>
+                  ) : (
+                    bracketEstimation &&
+                    bracketEstimation.hardFloors.length > 0 && (
+                      <span className="deck-stats-bracket-note">
+                        {bracketEstimation.hardFloors[0].reason}
+                      </span>
+                    )
+                  )}
+                  {onSetBracketOverride && (
+                    <label className="deck-stats-bracket-override">
+                      <span>Set bracket</span>
+                      <select
+                        className="deck-stats-bracket-select"
+                        value={bracketOverride ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          onSetBracketOverride(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
+                        }}
+                      >
+                        <option value="">Auto</option>
+                        {([1, 2, 3, 4, 5] as const).map((b) => (
+                          <option key={b} value={b}>
+                            {b} — {bracketLabel(b)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
+                </div>
+              </Panel>
+            );
+          })()}
         {saltiestCards && saltiestCards.length > 0 && (
           <Panel title="Saltiest cards">
             <ul className="deck-saltiest-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -2677,38 +2768,8 @@ function DeckStatistics({
           </Panel>
         )}
         <Panel title="Mana curve">
-          <div className="deck-curve">
-            {cmcKeys.map((cmc) => {
-              const count = manaCurve[cmc] ?? 0;
-              const byColor = manaCurveByColor[cmc] ?? {};
-              const totalShares = Object.values(byColor).reduce((s, n) => s + n, 0);
-              const segments = ['W', 'U', 'B', 'R', 'G', 'C']
-                .map((k) => ({ k, n: byColor[k] ?? 0 }))
-                .filter((s) => s.n > 0);
-              return (
-                <div key={cmc} className="deck-curve-col">
-                  <div
-                    className="deck-curve-bar"
-                    style={{ height: `${(count / maxBucket) * 100}%` }}
-                    title={`${count} card${count === 1 ? '' : 's'} at CMC ${cmc}`}
-                  >
-                    {segments.map((s) => (
-                      <div
-                        key={s.k}
-                        className="deck-curve-bar-seg"
-                        style={{
-                          height: `${(s.n / totalShares) * 100}%`,
-                          background: COLOR_INFO[s.k]?.pip ?? 'var(--accent)',
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div className="deck-curve-label">{cmc === 7 ? '7+' : cmc}</div>
-                  <div className="deck-curve-count">{count}</div>
-                </div>
-              );
-            })}
-          </div>
+          {/* Richer curve viz: 0–7+ histogram plus Early/Mid/Late phase grades. */}
+          <DeckCurvePhases manaCurve={manaCurve} averageCmc={averageCmc} />
         </Panel>
 
         <Panel title="Color distribution">
@@ -2719,10 +2780,26 @@ function DeckStatistics({
           <ManaProduction counts={manaProduction.counts} total={manaProduction.totalLands} />
         </Panel>
 
+        <Panel title="Color balance">
+          {/*
+           * Demand = colored-card count per WUBRG (colorDist.counts; a card's
+           * color-identity contributes one to each of its colors). Production =
+           * number of lands producing each WUBRG color (manaProduction.counts).
+           * Both maps also carry a 'C' (colorless) key, which DeckColorBalance
+           * ignores since it only iterates WUBRG. This is the closest available
+           * demand/source proxy without per-pip parsing.
+           */}
+          <DeckColorBalance
+            colorRequirements={colorDist.counts}
+            colorProduction={manaProduction.counts}
+          />
+        </Panel>
+
         {showRoles && (
           <Panel title="Roles">
             <RolesPanel
               roleCounts={effectiveRoleCounts}
+              roleTargets={roleTargets}
               rampSubtypeCounts={effectiveRampSub}
               removalSubtypeCounts={effectiveRemovalSub}
               boardwipeSubtypeCounts={effectiveBoardwipeSub}
@@ -2731,18 +2808,14 @@ function DeckStatistics({
           </Panel>
         )}
 
+        {gapAnalysis && gapAnalysis.length > 0 && (
+          <Panel title="Cards to consider">
+            <GapAnalysisPanel cards={gapAnalysis} ownedNames={ownedNames} />
+          </Panel>
+        )}
+
         <Panel title="Types">
-          <ul className="deck-stats-typelist">
-            {(Object.keys(typeBreakdown) as TypeGroup[])
-              .filter((k) => typeBreakdown[k] > 0)
-              .sort((a, b) => typeBreakdown[b] - typeBreakdown[a])
-              .map((k) => (
-                <li key={k}>
-                  <span>{k}</span>
-                  <span>{typeBreakdown[k]}</span>
-                </li>
-              ))}
-          </ul>
+          <DeckTypeBreakdown typeCounts={typeBreakdown} />
         </Panel>
       </div>
     </section>
@@ -2852,12 +2925,14 @@ function ManaProduction({ counts, total }: { counts: Record<string, number>; tot
 
 function RolesPanel({
   roleCounts,
+  roleTargets,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
   cardDrawSubtypeCounts,
 }: {
   roleCounts?: Record<string, number>;
+  roleTargets?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -2867,7 +2942,12 @@ function RolesPanel({
   const removal = roleCounts?.singleRemoval ?? roleCounts?.removal ?? 0;
   const wipes = roleCounts?.boardWipes ?? roleCounts?.boardwipe ?? 0;
   const draw = roleCounts?.cardDraw ?? roleCounts?.cardAdvantage ?? 0;
-  const max = Math.max(1, ramp, removal, wipes, draw);
+
+  // Targets share the canonical role keys with roleCounts; tolerate either casing.
+  const rampWant = roleTargets?.ramp;
+  const removalWant = roleTargets?.singleRemoval ?? roleTargets?.removal;
+  const wipesWant = roleTargets?.boardWipes ?? roleTargets?.boardwipe;
+  const drawWant = roleTargets?.cardDraw ?? roleTargets?.cardAdvantage;
 
   const subSummary = (counts: Record<string, number> | undefined): string => {
     if (!counts) return '';
@@ -2876,34 +2956,76 @@ function RolesPanel({
   };
 
   const items = [
-    { label: 'Ramp', value: ramp, sub: subSummary(rampSubtypeCounts), color: 'var(--accent)' },
-    { label: 'Removal', value: removal, sub: subSummary(removalSubtypeCounts), color: '#d8442a' },
+    {
+      label: 'Ramp',
+      value: ramp,
+      want: rampWant,
+      sub: subSummary(rampSubtypeCounts),
+      color: 'var(--accent)',
+    },
+    {
+      label: 'Removal',
+      value: removal,
+      want: removalWant,
+      sub: subSummary(removalSubtypeCounts),
+      color: '#d8442a',
+    },
     {
       label: 'Board wipes',
       value: wipes,
+      want: wipesWant,
       sub: subSummary(boardwipeSubtypeCounts),
       color: '#d4a838',
     },
-    { label: 'Card draw', value: draw, sub: subSummary(cardDrawSubtypeCounts), color: '#3a85cc' },
+    {
+      label: 'Card draw',
+      value: draw,
+      want: drawWant,
+      sub: subSummary(cardDrawSubtypeCounts),
+      color: '#3a85cc',
+    },
   ];
+
+  const max = Math.max(1, ...items.map((it) => Math.max(it.value, it.want ?? 0)));
 
   return (
     <ul className="deck-roles">
-      {items.map((it) => (
-        <li key={it.label}>
-          <div className="deck-roles-row">
-            <span className="deck-roles-name">{it.label}</span>
-            <span className="deck-roles-count">{it.value}</span>
-          </div>
-          <div className="deck-roles-bar">
-            <div
-              className="deck-roles-bar-fill"
-              style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
-            />
-          </div>
-          {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
-        </li>
-      ))}
+      {items.map((it) => {
+        const hasTarget = typeof it.want === 'number';
+        const short = hasTarget && it.value < (it.want as number);
+        return (
+          <li key={it.label}>
+            <div className="deck-roles-row">
+              <span className="deck-roles-name">{it.label}</span>
+              <span className="deck-roles-count">
+                {hasTarget ? (
+                  <span className={short ? 'deck-roles-count-short' : undefined}>
+                    {it.value}/{it.want}
+                    {short && (
+                      <span
+                        title={`${(it.want as number) - it.value} short of target`}
+                        aria-label="below target"
+                      >
+                        {' '}
+                        ▾
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  it.value
+                )}
+              </span>
+            </div>
+            <div className="deck-roles-bar">
+              <div
+                className="deck-roles-bar-fill"
+                style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
+              />
+            </div>
+            {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

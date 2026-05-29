@@ -275,6 +275,32 @@ export type DeckDataSource =
   | 'base' // Base commander data, no bracket
   | 'scryfall'; // No EDHREC data at all — pure Scryfall search
 
+/**
+ * Compact, persisted record of how a generated deck measured up to its build
+ * intent — surfaced as the post-generation "build report" (fill + flag). Only
+ * set on generated decks; assembled from the in-memory GeneratedDeck at save
+ * time, since most of its inputs (dataSource, shortfalls, roleTargets) are not
+ * otherwise persisted.
+ */
+export interface BuildReport {
+  /** What the user aimed for (EDHREC pool filter). */
+  targetBracket: TargetBracket | 'all';
+  /** Bracket the finished list actually estimated to, at generation time. */
+  estimatedBracket: number;
+  /** Which EDHREC pool we ended up using (reveals silent fallbacks). */
+  dataSource: DeckDataSource;
+  builtFromCollection: boolean;
+  collectionStrategy?: CollectionStrategy;
+  /** % of the mainboard that came from the user's collection. */
+  ownedPercentActual?: number;
+  /** Requested owned-% target (partial mode only). */
+  ownedPercentTarget?: number;
+  /** Basic lands added as last-resort filler (collection + filter shortfall). */
+  basicsPadded?: number;
+  /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
+  roleGaps?: Array<{ role: string; have: number; want: number }>;
+}
+
 export interface GeneratedDeck {
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null;

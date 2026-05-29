@@ -2,6 +2,7 @@ import { Check, ChevronDown, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type {
   BudgetOption,
+  CollectionStrategy,
   Customization,
   GameChangerLimit,
   MaxRarity,
@@ -245,6 +246,15 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
   const uniqueCount = new Set(collectionCards.map((c) => c.name)).size;
   const active = customization.collectionMode;
   const empty = uniqueCount === 0;
+  const strategy = customization.collectionStrategy;
+  const pct = customization.collectionOwnedPercent;
+  const sub = empty
+    ? 'Import cards on the Collection page to enable this.'
+    : active
+      ? strategy === 'partial'
+        ? `Prioritizing your cards (~${pct}% owned); the rest come from outside your collection.`
+        : 'Generator will only suggest cards you own.'
+      : 'Constrain the build to your owned cards.';
   return (
     <div className={`deck-customizer-group collection-group${active ? ' active' : ''}`}>
       <label className="collection-group-row">
@@ -262,15 +272,54 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
               {uniqueCount.toLocaleString()} unique
             </span>
           </span>
-          <span className="collection-group-sub">
-            {empty
-              ? 'Import cards on the Collection page to enable this.'
-              : active
-                ? `Generator will only suggest cards you own.`
-                : `Constrain the build to your owned cards.`}
-          </span>
+          <span className="collection-group-sub">{sub}</span>
         </span>
       </label>
+
+      {active && (
+        <div className="collection-group-controls">
+          <Field label="Collection strategy">
+            <OptionGrid<CollectionStrategy>
+              value={strategy}
+              options={[
+                { value: 'full', label: 'Only my cards', sublabel: 'Owned only' },
+                { value: 'partial', label: 'Prioritize mine', sublabel: 'Mostly owned' },
+              ]}
+              onChange={(v) => update({ collectionStrategy: v })}
+            />
+          </Field>
+
+          {strategy === 'partial' && (
+            <div className="deck-customizer-slider">
+              <div className="deck-customizer-slider-header">
+                <span className="deck-customizer-slider-label">Target owned</span>
+                <span className="deck-customizer-slider-value">{pct}%</span>
+              </div>
+              <input
+                type="range"
+                className="deck-customizer-range"
+                min={25}
+                max={100}
+                step={5}
+                value={pct}
+                aria-label="Target owned percent"
+                onChange={(e) => update({ collectionOwnedPercent: Number(e.target.value) })}
+                style={{
+                  ['--range-progress' as string]: `${((pct - 25) / 75) * 100}%`,
+                }}
+              />
+              <div className="deck-customizer-slider-anchors">
+                <span className="deck-customizer-slider-anchor" data-align="start">
+                  <span className="deck-customizer-slider-anchor-label">25%</span>
+                </span>
+                <span className="deck-customizer-slider-anchor" data-align="end">
+                  <span className="deck-customizer-slider-anchor-label">100%</span>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -435,11 +484,13 @@ function PoolGroup({ customization, update }: DeckCustomizerProps) {
           onChange={(v) => update({ maxRarity: v === 'all' ? null : v })}
         />
       </Field>
-      <Toggle
-        label="Owned cards skip rarity limit"
-        checked={customization.ignoreOwnedRarity}
-        onChange={(v) => update({ ignoreOwnedRarity: v })}
-      />
+      {customization.maxRarity != null && (
+        <Toggle
+          label="Owned cards skip rarity limit"
+          checked={customization.ignoreOwnedRarity}
+          onChange={(v) => update({ ignoreOwnedRarity: v })}
+        />
+      )}
 
       <Field label="Game changers" hint="EDHREC-flagged high-impact cards.">
         <GameChangerOptions
