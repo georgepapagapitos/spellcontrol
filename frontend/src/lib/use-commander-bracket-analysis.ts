@@ -38,28 +38,26 @@ function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): strin
 }
 
 /**
- * Keeps a manual commander deck's `deckGrade` / `bracketEstimation` live.
+ * Keeps a commander deck's `deckGrade` / `bracketEstimation` live as its cards
+ * change — for generated and manual decks alike.
  *
- * Generated decks snapshot these at generation; manual decks never set them,
- * so the Statistics → Overview and Bracket panels stay blank. This hook fills
- * that gap: when the deck's material inputs change it (debounced) fetches
- * cached EDHREC data, recomputes grade + bracket, and persists them onto the
- * deck record alongside a signature so we don't recompute until something
- * actually changes.
+ * When the deck's material inputs change it (debounced) fetches cached EDHREC
+ * data, recomputes grade + bracket, and persists them onto the deck record
+ * alongside a signature so we don't recompute until something actually changes.
+ * Generated decks seed these at generation; this hook then keeps the estimate
+ * from going stale when the user edits the list (the estimate is functionally
+ * identical to the generation snapshot — `estimateBracket` ignores deckScore —
+ * so a recompute refines rather than contradicts it). The user's manual
+ * `bracketOverride`, when set, is layered on at display time and is never
+ * touched here.
  *
- * Deliberately makes grade/bracket *live* for manual decks (they shift as you
- * edit) — unlike generated decks, which keep a frozen generation snapshot.
- *
- * No-ops for non-commander formats, decks without a commander, generated
- * decks, and when EDHREC is unreachable (the existing values, if any, are
- * left untouched).
+ * No-ops for non-commander formats, decks without a commander, and when EDHREC
+ * is unreachable (the existing values, if any, are left untouched).
  */
-export function useManualCommanderAnalysis(args: Args): void {
+export function useCommanderBracketAnalysis(args: Args): void {
   const { deck, comboData, mainboardSize, hasCommander, colorIdentity, updateDeck } = args;
 
-  const enabled = Boolean(
-    deck && deck.source === 'manual' && hasCommander && deck.commander && mainboardSize != null
-  );
+  const enabled = Boolean(deck && hasCommander && deck.commander && mainboardSize != null);
 
   const signature = useMemo(
     () => (deck && enabled ? buildSignature(deck, comboData) : ''),
@@ -108,6 +106,9 @@ export function useManualCommanderAnalysis(args: Args): void {
           updateDeck(deckId, {
             deckGrade: result.deckGrade,
             bracketEstimation: result.bracketEstimation,
+            roleTargets: result.roleTargets,
+            gapAnalysis: result.gapAnalysis,
+            cardInclusionMap: result.cardInclusionMap,
             gradeBracketSignature: signature,
           });
         })

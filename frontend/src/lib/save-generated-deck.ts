@@ -3,6 +3,7 @@ import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore, newDeckCard } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from './allocations';
+import { assembleBuildReport } from '@/deck-builder/services/deckBuilder/buildReport';
 
 /**
  * Persist a generated deck and return its new id. Shared by the one-shot
@@ -49,6 +50,9 @@ export function saveGeneratedDeck(
     }
   }
 
+  const collectionNames = new Set(collection.map((c) => c.name));
+  const buildReport = assembleBuildReport({ generated, customization, collectionNames });
+
   return createDeck({
     source: 'generated',
     commander,
@@ -71,5 +75,6 @@ export function saveGeneratedDeck(
     deckGrade: generated.deckGrade,
     averageSalt: generated.stats.averageSalt,
     saltiestCards: generated.stats.saltiestCards,
+    buildReport,
   });
 }

@@ -1,7 +1,7 @@
 import { Copy, Gauge, Hand, MoreVertical, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
-import { useDecksStore } from '../store/decks';
+import { useDecksStore, effectiveBracket } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
 import { materializeBinders } from '../lib/materialize';
@@ -17,7 +17,7 @@ import {
   type DeckTestHandPanelHandle,
 } from '../components/deck/DeckTestHandPanel';
 import { useDeckCombos } from '../lib/use-deck-combos';
-import { useManualCommanderAnalysis } from '../lib/use-manual-commander-analysis';
+import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -105,6 +105,14 @@ export function DeckEditorPage() {
     return Array.from(ids);
   }, [collectionCards]);
 
+  // Owned card names — lets the gap-analysis suggestions flag cards the user
+  // already has in their collection.
+  const ownedNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const c of collectionCards) names.add(c.name);
+    return names;
+  }, [collectionCards]);
+
   // Which binder(s) each collection copy lives in — mirrors how the
   // collection table derives `binders` per row (materialize, then map by
   // copyId). Lets the deck grid show a binder badge for cards whose
@@ -142,9 +150,9 @@ export function DeckEditorPage() {
     return [...ci];
   }, [deck]);
 
-  // Keep grade/bracket live for manually-built commander decks (generated
-  // decks already snapshot these at generation time).
-  useManualCommanderAnalysis({
+  // Keep grade/bracket live for any commander deck as its cards change —
+  // generated and manual alike (the user's bracketOverride layers on top).
+  useCommanderBracketAnalysis({
     deck,
     comboData: comboData.data,
     mainboardSize: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
@@ -524,7 +532,7 @@ export function DeckEditorPage() {
       </header>
 
       <DeckFeatureStrip
-        bracket={deck.bracketEstimation?.bracket}
+        bracket={effectiveBracket(deck)}
         comboCount={comboData.data?.inDeck.length ?? null}
         comboLoading={comboData.loading}
         showCombosAndAnalysis={!!formatConfig?.hasCommander}
@@ -561,11 +569,18 @@ export function DeckEditorPage() {
               window.requestAnimationFrame(() => searchPanelRef.current?.seed(q));
             }}
             roleCounts={deck.roleCounts}
+            roleTargets={deck.roleTargets}
+            gapAnalysis={deck.gapAnalysis}
+            buildReport={deck.buildReport}
+            ownedNames={ownedNames}
+            cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
             boardwipeSubtypeCounts={deck.boardwipeSubtypeCounts}
             cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
             bracketEstimation={deck.bracketEstimation}
+            bracketOverride={deck.bracketOverride}
+            onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             deckGrade={deck.deckGrade}
             averageSalt={deck.averageSalt}
             saltiestCards={deck.saltiestCards}
