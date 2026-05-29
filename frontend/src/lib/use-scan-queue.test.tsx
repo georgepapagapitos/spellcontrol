@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useScanQueue } from './use-scan-queue';
+import { entryKey, useScanQueue } from './use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+// Row identity is oracle_id + finish; scans land as nonfoil.
+const NONFOIL_1 = entryKey('oracle-1', 'nonfoil');
 
 /**
  * Minimal ScryfallCard shape, matching the fields the hook actually
@@ -41,8 +44,9 @@ describe('useScanQueue', () => {
       expect(outcome).toBe('accepted');
       expect(result.current.queue).toHaveLength(1);
       expect(result.current.queue[0]).toMatchObject({
-        id: 'oracle-1',
+        id: NONFOIL_1,
         qty: 1,
+        finish: 'nonfoil',
         rawText: 'Sol Ring',
       });
       expect(result.current.totalCount).toBe(1);
@@ -88,7 +92,10 @@ describe('useScanQueue', () => {
         );
       });
       expect(result.current.queue).toHaveLength(2);
-      expect(result.current.queue.map((e) => e.id)).toEqual(['oracle-1', 'oracle-2']);
+      expect(result.current.queue.map((e) => e.id)).toEqual([
+        entryKey('oracle-1', 'nonfoil'),
+        entryKey('oracle-2', 'nonfoil'),
+      ]);
     });
 
     it('allows re-adding the same printing after the dedupe cursor resets', () => {
@@ -100,7 +107,7 @@ describe('useScanQueue', () => {
       // Removing the entry clears the dedupe cursor — same printing can now
       // be scanned again as a fresh "accepted" event.
       act(() => {
-        result.current.removeFromQueue('oracle-1');
+        result.current.removeFromQueue(NONFOIL_1);
       });
       let outcome: ReturnType<typeof result.current.addScan> | null = null;
       act(() => {
@@ -108,6 +115,70 @@ describe('useScanQueue', () => {
       });
       expect(outcome).toBe('accepted');
       expect(result.current.queue).toHaveLength(1);
+    });
+
+    it('force bypasses the dedupe (tap-to-rescan) but keeps the cursor parked', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const card = makeCard();
+      act(() => {
+        result.current.addScan(card);
+      });
+      // A deliberate forced add increments the same card...
+      let forced: ReturnType<typeof result.current.addScan> | null = null;
+      act(() => {
+        forced = result.current.addScan(card, true);
+      });
+      expect(forced).toBe('accepted');
+      expect(result.current.queue[0].qty).toBe(2);
+      // ...but the cursor stays on it, so the *auto* loop still dedupes.
+      let auto: ReturnType<typeof result.current.addScan> | null = null;
+      act(() => {
+        auto = result.current.addScan(card);
+      });
+      expect(auto).toBe('duplicate');
+      expect(result.current.queue[0].qty).toBe(2);
+    });
+  });
+
+  describe('addManual', () => {
+    it('appends a manually-searched card with qty 1', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addManual(makeCard());
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0]).toMatchObject({ id: NONFOIL_1, qty: 1 });
+    });
+
+    it('increments instead of deduping when the same card is added twice in a row', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const card = makeCard();
+      act(() => {
+        result.current.addManual(card);
+      });
+      act(() => {
+        // Auto-scan would dedupe an identical back-to-back id; manual add must not.
+        result.current.addManual(card);
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0].qty).toBe(2);
+    });
+
+    it('clears the dedupe cursor so a subsequent identical scan is accepted', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const card = makeCard();
+      act(() => {
+        result.current.addScan(card); // sets the cursor to card.id
+      });
+      act(() => {
+        result.current.addManual(card); // should reset the cursor
+      });
+      let outcome: ReturnType<typeof result.current.addScan> | null = null;
+      act(() => {
+        outcome = result.current.addScan(card);
+      });
+      expect(outcome).toBe('accepted');
+      expect(result.current.queue[0].qty).toBe(3);
     });
   });
 
@@ -120,14 +191,14 @@ describe('useScanQueue', () => {
       });
       expect(result.current.queue).toHaveLength(2);
       act(() => {
-        result.current.removeFromQueue('oracle-a');
+        result.current.removeFromQueue(entryKey('oracle-a', 'nonfoil'));
       });
-      expect(result.current.queue.map((e) => e.id)).toEqual(['oracle-b']);
+      expect(result.current.queue.map((e) => e.id)).toEqual([entryKey('oracle-b', 'nonfoil')]);
 
       act(() => {
         result.current.removeFromQueue('does-not-exist');
       });
-      expect(result.current.queue.map((e) => e.id)).toEqual(['oracle-b']);
+      expect(result.current.queue.map((e) => e.id)).toEqual([entryKey('oracle-b', 'nonfoil')]);
     });
   });
 
@@ -162,7 +233,7 @@ describe('useScanQueue', () => {
         result.current.addScan(makeCard({ id: 'print-2' })); // qty -> 2
       });
       act(() => {
-        result.current.changeQty('oracle-1', 3);
+        result.current.changeQty(NONFOIL_1, 3);
       });
       expect(result.current.queue[0].qty).toBe(5);
       expect(result.current.totalCount).toBe(5);
@@ -174,7 +245,7 @@ describe('useScanQueue', () => {
         result.current.addScan(makeCard());
       });
       act(() => {
-        result.current.changeQty('oracle-1', -1);
+        result.current.changeQty(NONFOIL_1, -1);
       });
       expect(result.current.queue).toEqual([]);
     });
@@ -200,33 +271,114 @@ describe('useScanQueue', () => {
       });
       const newPrinting = makeCard({ id: 'print-secret-lair', name: 'Sol Ring (SLD)' });
       act(() => {
-        result.current.changePrinting('oracle-1', newPrinting);
+        result.current.changePrinting(NONFOIL_1, newPrinting);
       });
-      expect(result.current.queue[0].id).toBe('oracle-1');
+      // Same oracle + finish, so the row keeps its identity (printing doesn't split a row).
+      expect(result.current.queue[0].id).toBe(NONFOIL_1);
       expect(result.current.queue[0].qty).toBe(1);
       expect(result.current.queue[0].card.id).toBe('print-secret-lair');
       expect(result.current.queue[0].card.name).toBe('Sol Ring (SLD)');
     });
-  });
 
-  describe('incrementByOracleId', () => {
-    it('bumps qty of an existing entry', () => {
+    it('clamps the finish when the new printing lacks the current one', () => {
       const { result } = renderHook(() => useScanQueue());
       act(() => {
-        result.current.addScan(makeCard());
+        result.current.addScan(makeCard({ finishes: ['nonfoil', 'foil'] }));
       });
       act(() => {
-        result.current.incrementByOracleId('oracle-1');
+        result.current.changeFinish(NONFOIL_1, 'foil');
       });
+      expect(result.current.queue[0].finish).toBe('foil');
+      // Swap to a nonfoil-only printing — the foil finish must fall back.
+      act(() => {
+        result.current.changePrinting(
+          entryKey('oracle-1', 'foil'),
+          makeCard({ id: 'print-nonfoil', finishes: ['nonfoil'] })
+        );
+      });
+      expect(result.current.queue[0].finish).toBe('nonfoil');
+    });
+  });
+
+  describe('changeFinish', () => {
+    it('sets the finish for the targeted entry', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard({ finishes: ['nonfoil', 'etched'] }));
+      });
+      expect(result.current.queue[0].finish).toBe('nonfoil');
+      act(() => {
+        result.current.changeFinish(NONFOIL_1, 'etched');
+      });
+      expect(result.current.queue[0].finish).toBe('etched');
+    });
+
+    it('refuses a finish the printing does not offer (clamps to nonfoil)', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard({ finishes: ['nonfoil'] }));
+      });
+      act(() => {
+        result.current.changeFinish(NONFOIL_1, 'foil');
+      });
+      expect(result.current.queue[0].finish).toBe('nonfoil');
+    });
+
+    it('keeps foil and nonfoil copies of the same card as separate rows', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const finishes = ['nonfoil', 'foil'];
+      act(() => {
+        result.current.addScan(makeCard({ finishes })); // nonfoil row, qty 1
+      });
+      act(() => {
+        result.current.changeFinish(NONFOIL_1, 'foil'); // → foil row, qty 1
+      });
+      act(() => {
+        result.current.addManual(makeCard({ finishes })); // fresh nonfoil row, qty 1
+      });
+      expect(result.current.queue).toHaveLength(2);
+      const byId = Object.fromEntries(result.current.queue.map((e) => [e.id, e.qty]));
+      expect(byId[entryKey('oracle-1', 'foil')]).toBe(1);
+      expect(byId[entryKey('oracle-1', 'nonfoil')]).toBe(1);
+    });
+
+    it('merges into an existing finish row instead of creating a duplicate', () => {
+      const { result } = renderHook(() => useScanQueue());
+      const finishes = ['nonfoil', 'foil'];
+      act(() => {
+        result.current.addScan(makeCard({ finishes })); // nonfoil, qty 1
+      });
+      act(() => {
+        result.current.changeFinish(NONFOIL_1, 'foil'); // foil row, qty 1
+      });
+      act(() => {
+        result.current.addManual(makeCard({ finishes })); // nonfoil row, qty 1
+      });
+      expect(result.current.queue).toHaveLength(2);
+      // Toggle the nonfoil row to foil — merges into the existing foil row.
+      act(() => {
+        result.current.changeFinish(NONFOIL_1, 'foil');
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0].id).toBe(entryKey('oracle-1', 'foil'));
       expect(result.current.queue[0].qty).toBe(2);
     });
 
-    it('is a no-op when the entry is not present', () => {
+    it('drives totalPrice off the selected finish', () => {
       const { result } = renderHook(() => useScanQueue());
       act(() => {
-        result.current.incrementByOracleId('not-in-queue');
+        result.current.addScan(
+          makeCard({
+            finishes: ['nonfoil', 'foil'],
+            prices: { usd: '1.00', usd_foil: '9.00' } as ScryfallCard['prices'],
+          })
+        );
       });
-      expect(result.current.queue).toEqual([]);
+      expect(result.current.totalPrice).toBeCloseTo(1.0);
+      act(() => {
+        result.current.changeFinish(NONFOIL_1, 'foil');
+      });
+      expect(result.current.totalPrice).toBeCloseTo(9.0);
     });
   });
 
@@ -250,7 +402,7 @@ describe('useScanQueue', () => {
 
       // Bump qty on the $2.50 card by 2 -> total becomes 3*2.50 + 0.50 = 8.00.
       act(() => {
-        result.current.changeQty('oracle-a', 2);
+        result.current.changeQty(entryKey('oracle-a', 'nonfoil'), 2);
       });
       expect(result.current.totalPrice).toBeCloseTo(8.0);
     });
@@ -296,19 +448,21 @@ describe('useScanQueue', () => {
       const { result, rerender } = renderHook(() => useScanQueue());
       const first = {
         addScan: result.current.addScan,
+        addManual: result.current.addManual,
         removeFromQueue: result.current.removeFromQueue,
         clearQueue: result.current.clearQueue,
         changeQty: result.current.changeQty,
         changePrinting: result.current.changePrinting,
-        incrementByOracleId: result.current.incrementByOracleId,
+        changeFinish: result.current.changeFinish,
       };
       rerender();
       expect(result.current.addScan).toBe(first.addScan);
+      expect(result.current.addManual).toBe(first.addManual);
       expect(result.current.removeFromQueue).toBe(first.removeFromQueue);
       expect(result.current.clearQueue).toBe(first.clearQueue);
       expect(result.current.changeQty).toBe(first.changeQty);
       expect(result.current.changePrinting).toBe(first.changePrinting);
-      expect(result.current.incrementByOracleId).toBe(first.incrementByOracleId);
+      expect(result.current.changeFinish).toBe(first.changeFinish);
     });
   });
 });

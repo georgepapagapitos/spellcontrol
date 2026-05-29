@@ -110,6 +110,21 @@ describe('parseTextList', () => {
       expect(rows[0].finish).toBe('etched');
     });
 
+    it('reads a finish token before the (SET) group — the scanner queue format', () => {
+      // CardScanner.handleConfirm emits `qty Name *F* (SET) collector`; the
+      // token must round-trip to finish + a clean name with set/collector.
+      const foil = parseTextList('2 Sol Ring *F* (CMR) 472');
+      expect(foil.rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        quantity: 2,
+        setCode: 'CMR',
+        collectorNumber: '472',
+        finish: 'foil',
+      });
+      const etched = parseTextList('1 Sol Ring *ETCHED* (CMR) 472');
+      expect(etched.rows[0]).toMatchObject({ name: 'Sol Ring', finish: 'etched' });
+    });
+
     it('leaves finish undefined for cards without markers', () => {
       const { rows } = parseTextList('1 Sol Ring');
       expect(rows[0].finish).toBeUndefined();

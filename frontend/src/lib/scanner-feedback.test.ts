@@ -13,7 +13,14 @@ const { hapticsMock } = vi.hoisted(() => ({
 }));
 vi.mock('./haptics', () => ({ haptics: hapticsMock }));
 
-import { priceTier, pulseValueHaptic } from './scanner-feedback';
+import {
+  FINISH_LABELS,
+  availableFinishes,
+  finishUnitPrice,
+  nextFinish,
+  priceTier,
+  pulseValueHaptic,
+} from './scanner-feedback';
 
 function card(prices: Partial<ScryfallCard['prices']>): Pick<ScryfallCard, 'prices'> {
   return { prices: { ...prices } as ScryfallCard['prices'] };
@@ -46,6 +53,63 @@ describe('priceTier', () => {
 
   it('prefers usd over fallback fields', () => {
     expect(priceTier(card({ usd: '0.50', usd_foil: '100.00' }))).toBe(0);
+  });
+});
+
+describe('availableFinishes', () => {
+  it('returns only the tracked finishes the printing offers, in display order', () => {
+    expect(availableFinishes(['foil', 'nonfoil'])).toEqual(['nonfoil', 'foil']);
+    expect(availableFinishes(['nonfoil', 'etched'])).toEqual(['nonfoil', 'etched']);
+    expect(availableFinishes(['nonfoil', 'foil', 'etched'])).toEqual(['nonfoil', 'foil', 'etched']);
+  });
+
+  it('falls back to [nonfoil] for missing / empty / unknown finishes', () => {
+    expect(availableFinishes(undefined)).toEqual(['nonfoil']);
+    expect(availableFinishes(null)).toEqual(['nonfoil']);
+    expect(availableFinishes([])).toEqual(['nonfoil']);
+    expect(availableFinishes(['glitterfoil'])).toEqual(['nonfoil']);
+  });
+});
+
+describe('nextFinish', () => {
+  it('cycles through the available finishes and wraps', () => {
+    const avail = ['nonfoil', 'foil', 'etched'] as const;
+    expect(nextFinish('nonfoil', [...avail])).toBe('foil');
+    expect(nextFinish('foil', [...avail])).toBe('etched');
+    expect(nextFinish('etched', [...avail])).toBe('nonfoil');
+  });
+
+  it('is a no-op when only one finish is available', () => {
+    expect(nextFinish('nonfoil', ['nonfoil'])).toBe('nonfoil');
+  });
+
+  it('has a human label for every finish', () => {
+    expect(FINISH_LABELS.nonfoil).toBe('Normal');
+    expect(FINISH_LABELS.foil).toBe('Foil');
+    expect(FINISH_LABELS.etched).toBe('Etched');
+  });
+});
+
+describe('finishUnitPrice', () => {
+  it('returns the finish-specific price when present', () => {
+    const prices = { usd: '1.00', usd_foil: '6.00', usd_etched: '9.00' } as ScryfallCard['prices'];
+    expect(finishUnitPrice(prices, 'nonfoil')).toBeCloseTo(1.0);
+    expect(finishUnitPrice(prices, 'foil')).toBeCloseTo(6.0);
+    expect(finishUnitPrice(prices, 'etched')).toBeCloseTo(9.0);
+  });
+
+  it('falls back across finishes when the preferred one is missing', () => {
+    expect(finishUnitPrice({ usd: '2.00' } as ScryfallCard['prices'], 'foil')).toBeCloseTo(2.0);
+    expect(finishUnitPrice({ usd_foil: '5.00' } as ScryfallCard['prices'], 'etched')).toBeCloseTo(
+      5.0
+    );
+  });
+
+  it('returns null when no usable price exists', () => {
+    expect(finishUnitPrice(null, 'nonfoil')).toBeNull();
+    expect(finishUnitPrice(undefined, 'foil')).toBeNull();
+    expect(finishUnitPrice({} as ScryfallCard['prices'], 'nonfoil')).toBeNull();
+    expect(finishUnitPrice({ usd: 'oops' } as ScryfallCard['prices'], 'nonfoil')).toBeNull();
   });
 });
 

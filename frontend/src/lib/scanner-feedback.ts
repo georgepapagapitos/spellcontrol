@@ -1,4 +1,5 @@
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { Finish } from '../types';
 import { haptics } from './haptics';
 
 /**
@@ -20,6 +21,57 @@ export function priceTier(card: Pick<ScryfallCard, 'prices'> | null | undefined)
   if (usd >= 5) return 2;
   if (usd >= 1) return 1;
   return 0;
+}
+
+/** Human-facing label for each tracked finish. */
+export const FINISH_LABELS: Record<Finish, string> = {
+  nonfoil: 'Normal',
+  foil: 'Foil',
+  etched: 'Etched',
+};
+
+/**
+ * The finishes a printing is actually available in, in display order,
+ * restricted to the ones we track. Falls back to `['nonfoil']` when Scryfall
+ * gives us nothing usable — so the toggle is only interactive (length > 1)
+ * for cards that genuinely have a foil/etched variant.
+ */
+export function availableFinishes(finishes: string[] | null | undefined): Finish[] {
+  const known: Finish[] = ['nonfoil', 'foil', 'etched'];
+  const present = known.filter((f) => finishes?.includes(f));
+  return present.length > 0 ? present : ['nonfoil'];
+}
+
+/** Next finish when cycling the toggle, wrapping around the available set. */
+export function nextFinish(current: Finish, available: Finish[]): Finish {
+  if (available.length <= 1) return current;
+  const i = available.indexOf(current);
+  return available[(i + 1) % available.length];
+}
+
+/**
+ * USD unit price for a given finish, falling back across finishes when the
+ * preferred one is missing (Scryfall often omits one). Returns null if no
+ * usable numeric price exists. Used for both the running total and the
+ * per-card amount shown on the scanner panel, so they stay consistent.
+ */
+export function finishUnitPrice(
+  prices: ScryfallCard['prices'] | null | undefined,
+  finish: Finish
+): number | null {
+  if (!prices) return null;
+  const order =
+    finish === 'foil'
+      ? [prices.usd_foil, prices.usd, prices.usd_etched]
+      : finish === 'etched'
+        ? [prices.usd_etched, prices.usd_foil, prices.usd]
+        : [prices.usd, prices.usd_foil, prices.usd_etched];
+  for (const raw of order) {
+    if (raw == null) continue;
+    const v = Number.parseFloat(raw);
+    if (Number.isFinite(v)) return v;
+  }
+  return null;
 }
 
 /**
