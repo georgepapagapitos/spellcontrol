@@ -6,9 +6,9 @@ import {
   Flashlight,
   FlashlightOff,
   Inbox,
+  LoaderCircle,
   Plus,
   RotateCcw,
-  Settings,
   X,
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
@@ -17,6 +17,10 @@ import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
 import { isNativePlatform } from '../lib/platform';
 import {
+  FINISH_LABELS,
+  availableFinishes,
+  finishUnitPrice,
+  nextFinish,
   playValueChime,
   priceTier,
   pulseValueHaptic,
@@ -26,7 +30,7 @@ import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
 import type { Point } from '../lib/scanner/detect';
 import { ScannerQueueSheet } from './ScannerQueueSheet';
-import { useScanQueue } from '../lib/use-scan-queue';
+import { entryKey, useScanQueue } from '../lib/use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
@@ -107,7 +111,6 @@ const CAPTURE_COOLDOWN_MS = 800;
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const viewfinderRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   /** Off-screen canvas reused for every capture — avoids per-frame allocation. */
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -129,17 +132,20 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * card immediately after a successful identify.
    */
   const armedRef = useRef(true);
+  /** Whether the one-time "tap to add another" hint has been shown this session. */
+  const tapHintShownRef = useRef(false);
 
   const {
     queue,
     totalCount,
     totalPrice,
     addScan,
+    addManual,
     removeFromQueue,
     clearQueue,
     changeQty,
     changePrinting,
-    incrementByOracleId,
+    changeFinish,
   } = useScanQueue();
 
   const [status, setStatus] = useState<ScanStatus>('idle');
@@ -148,21 +154,23 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   const [torchSupported, setTorchSupported] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  /**
+   * When set, the queue sheet opens with this entry's printing picker
+   * already expanded. Wired to the panel's set·# tap so "change the
+   * printing" is one tap, not "open sheet → find row → tap Printing".
+   */
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   /** Pulses the count badge briefly each time a new card lands. */
   const [pulseKey, setPulseKey] = useState(0);
   /**
-   * Three rectangles, all in viewport (px) coordinates:
+   * Two rectangles, both in viewport (px) coordinates:
    *
-   *   - `defaultViewfinderRect` — the static centred 5:7 box. Acts as a
-   *     visual hint when nothing is detected, and as the fallback capture
-   *     region when the card-edge detector turns up empty.
+   *   - `defaultViewfinderRect` — the static centred 5:7 box. Anchors the
+   *     title-band variance probe when the detector has no lock, and is the
+   *     fallback capture region when the card-edge detector turns up empty.
    *   - `searchRect` — the *full visible camera band* (minus a thin
-   *     margin). The detector samples this region, NOT the viewfinder,
+   *     margin). The detector samples this region, NOT a card-shaped box,
    *     so it can find cards held closer/further/off-centre.
-   *   - `viewfinderRect` — what's actually displayed on screen and used
-   *     by capture. Equals the detected card bbox when the detector has
-   *     a lock, otherwise mirrors `defaultViewfinderRect`. CSS transitions
-   *     this for a smooth "snap to the card" motion.
    */
   type Rect = { left: number; top: number; width: number; height: number };
   const [defaultViewfinderRect, setDefaultViewfinderRect] = useState<Rect | null>(null);
@@ -171,7 +179,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     w: 75,
     h: 120,
   });
-  const [viewfinderRect, setViewfinderRect] = useState<Rect | null>(null);
   /** Whether the detector currently has a lock — drives the "card found" styling. */
   const [hasLock, setHasLock] = useState(false);
   // Quad of the just-matched card in viewport coordinates (TL, TR, BR, BL).
@@ -187,6 +194,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     card: ScryfallCard;
     tier: CardValueTier;
     key: number;
+    /** Composite queue-row id (oracle_id + finish) this scan landed in, so the
+     *  panel's finish/qty controls target the exact row even after re-keying. */
+    entryId: string;
   } | null>(null);
 
   useLockBodyScroll();
@@ -454,11 +464,6 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       const bufH = Math.max(40, Math.round(Math.sqrt(DETECT_BUDGET_PX / aspect)));
       const bufW = Math.max(40, Math.round(bufH * aspect));
       setDetectorBufSize({ w: bufW, h: bufH });
-
-      // If we don't have a detection lock currently, mirror the default
-      // into the displayed viewfinder so a viewport resize doesn't
-      // leave a stale outline behind.
-      setViewfinderRect((current) => current ?? nextDefault);
     };
 
     const onMeta = () => recompute();
@@ -493,143 +498,159 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * confidently-matched ScryfallCard to the queue with a value-tiered
    * chime + haptic. Borderline results (~0.70–0.85 cosine) are surfaced
    * as a hint for now — Phase E will replace that with a picker UI.
+   *
+   * `manual` marks a deliberate tap-to-rescan: it forces the add past the
+   * back-to-back dedupe (so tapping the same card again increments it) and
+   * always fires the success feedback.
    */
-  const captureAndIdentify = useCallback(async () => {
-    if (busyRef.current) return;
-    const native = isNativePlatform();
-    const video = videoRef.current;
-    if (!native && (!video || video.readyState < 2)) return;
-    busyRef.current = true;
-    setStatus('scanning');
-    try {
-      const root = rootRef.current;
-      // Crop the wide SEARCH region (~92% of viewport), not the 5:7
-      // viewfinder. The viewfinder is card-shaped, so when the user
-      // lines up a card to fill it the card edges land on the crop
-      // boundary and v2's opencv contour finder returns `no_quad`.
-      // searchRect gives v2 a generous margin around the card.
-      const rect = searchRect;
-      if (!root || !rect) return;
-      // Acquire a frame: on native this is a still snapshot from the live
-      // preview; on web it's the current frame of the playing <video>.
-      let frameSource: CanvasImageSource;
-      let vw: number;
-      let vh: number;
-      if (native) {
-        const { value } = await CameraPreview.captureSample({ quality: 85 });
-        const frameImg = new Image();
-        frameImg.src = `data:image/jpeg;base64,${value}`;
-        await (frameImg.decode?.() ??
-          new Promise<void>((resolve) => (frameImg.onload = () => resolve())));
-        frameSource = frameImg;
-        vw = frameImg.naturalWidth;
-        vh = frameImg.naturalHeight;
-      } else {
-        frameSource = video!;
-        vw = video!.videoWidth;
-        vh = video!.videoHeight;
+  const captureAndIdentify = useCallback(
+    async (manual = false) => {
+      if (busyRef.current) return;
+      const native = isNativePlatform();
+      const video = videoRef.current;
+      if (!native && (!video || video.readyState < 2)) return;
+      busyRef.current = true;
+      setStatus('scanning');
+      try {
+        const root = rootRef.current;
+        // Crop the wide SEARCH region (~92% of viewport), not the 5:7
+        // viewfinder. The viewfinder is card-shaped, so when the user
+        // lines up a card to fill it the card edges land on the crop
+        // boundary and v2's opencv contour finder returns `no_quad`.
+        // searchRect gives v2 a generous margin around the card.
+        const rect = searchRect;
+        if (!root || !rect) return;
+        // Acquire a frame: on native this is a still snapshot from the live
+        // preview; on web it's the current frame of the playing <video>.
+        let frameSource: CanvasImageSource;
+        let vw: number;
+        let vh: number;
+        if (native) {
+          const { value } = await CameraPreview.captureSample({ quality: 85 });
+          const frameImg = new Image();
+          frameImg.src = `data:image/jpeg;base64,${value}`;
+          await (frameImg.decode?.() ??
+            new Promise<void>((resolve) => (frameImg.onload = () => resolve())));
+          frameSource = frameImg;
+          vw = frameImg.naturalWidth;
+          vh = frameImg.naturalHeight;
+        } else {
+          frameSource = video!;
+          vw = video!.videoWidth;
+          vh = video!.videoHeight;
+        }
+        const cW = root.clientWidth;
+        const cH = root.clientHeight;
+        const fit = isNativePlatform() ? 'cover' : 'contain';
+        const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
+        const scale = vw / dispW;
+        const cardX = (rect.left - dispX) * scale;
+        const cardY = (rect.top - dispY) * scale;
+        const cardW = rect.width * scale;
+        const cardH = rect.height * scale;
+
+        if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
+        const canvas = captureCanvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) throw new Error('Could not get canvas context.');
+
+        // Render the viewfinder crop into a scratch canvas at raw-frame
+        // resolution. The v2 pipeline does its own quad detection inside
+        // this crop — opencv's contour finder picks up the actual card
+        // edges (slight rotation, perspective) and warps to 488×680 before
+        // hashing + embedding.
+        canvas.width = Math.round(cardW);
+        canvas.height = Math.round(cardH);
+        ctx.drawImage(frameSource, cardX, cardY, cardW, cardH, 0, 0, canvas.width, canvas.height);
+
+        const result = await scan({ source: canvas });
+
+        if (result.kind === 'miss') {
+          const msg =
+            result.reason === 'no_quad'
+              ? "Couldn't find a card edge — try better lighting."
+              : "Didn't recognize this card — try again.";
+          logger.debug(`[scanner] miss: ${result.reason} ${result.detail ?? ''}`);
+          showHint(msg, 2200);
+          return;
+        }
+
+        if (result.kind === 'borderline') {
+          // Phase E target: surface a picker with `result.candidates` so the
+          // user can pick the printing themselves. For now, treat as a soft
+          // miss with diagnostic text — auto-adding a low-confidence card
+          // would silently pollute the queue.
+          const top = result.candidates[0];
+          logger.debug(
+            `[scanner] borderline: top ${top.scryfallId} conf=${top.confidence.toFixed(2)}`
+          );
+          showHint(`Ambiguous match (${top.confidence.toFixed(2)}) — try again.`, 2200);
+          return;
+        }
+
+        // Confident: resolve the matcher's UUID to a full ScryfallCard.
+        const card = await getCardById(result.match.scryfallId);
+        if (!card) {
+          logger.warn(
+            `[scanner] confident match for ${result.match.scryfallId} but card fetch failed`
+          );
+          showHint("Found a match but couldn't load the card. Try again.", 2200);
+          return;
+        }
+
+        // Dedupe-or-add. The hook owns the dedupe cursor; 'duplicate'
+        // means the same printing was just scanned, so the matcher is
+        // still locked on the same physical card — silently skip the
+        // feedback side effects too. A manual tap forces past the dedupe so
+        // the user can intentionally add another copy of the same card.
+        if (addScan(card, manual) === 'duplicate') return;
+
+        const tier = priceTier(card);
+        setPulseKey((k) => k + 1);
+        playValueChime(tier);
+        pulseValueHaptic(tier);
+        // Map v2's detected quad (in crop-canvas coords, since we drew the
+        // searchRect crop into the canvas at native frame resolution) back
+        // to viewport coords. The inverse simplifies to:
+        //   viewport = canvas / scale + rect.{left,top}
+        // because cardX = (rect.left - dispX) * scale and canvas size
+        // matches cardW × cardH. Draw the flash outline at the actual
+        // card corners — TL/TR/BR/BL, in that order from orderQuadCorners.
+        const viewportQuad: Point[] = result.quad.map((p) => ({
+          x: p.x / scale + rect.left,
+          y: p.y / scale + rect.top,
+        }));
+        setMatchedQuad(viewportQuad);
+        setHasLock(true);
+        window.setTimeout(() => {
+          setHasLock(false);
+          setMatchedQuad(null);
+        }, 700);
+        // Bottom card panel: persistent — stays until the next successful
+        // scan replaces it. `key` is bumped on every scan so the slide-in
+        // animation replays even when the same card lands twice.
+        // Scans always land as the nonfoil row (the matcher can't read finish);
+        // track that row's key so the panel's toggle/+1 act on the right row.
+        setLastScan({ card, tier, key: Date.now(), entryId: entryKey(card.oracle_id, 'nonfoil') });
+        // Teach tap-to-rescan once: the auto loop won't re-add the same card, so
+        // surface how to add another copy the first time a scan lands.
+        if (!tapHintShownRef.current) {
+          tapHintShownRef.current = true;
+          showHint('Same card again? Tap the screen to add another.', 2800);
+        }
+      } catch (err) {
+        logger.error('[scanner] capture failed:', err);
+        showHint('Scan failed — try again.');
+      } finally {
+        busyRef.current = false;
+        setStatus('ready');
+        lastFiredAtRef.current = performance.now();
+        stableFramesRef.current = 0;
+        armedRef.current = false; // re-arm only after the next unstable frame
       }
-      const cW = root.clientWidth;
-      const cH = root.clientHeight;
-      const fit = isNativePlatform() ? 'cover' : 'contain';
-      const { dispX, dispY, dispW } = computeDisplayRect(vw, vh, cW, cH, fit);
-      const scale = vw / dispW;
-      const cardX = (rect.left - dispX) * scale;
-      const cardY = (rect.top - dispY) * scale;
-      const cardW = rect.width * scale;
-      const cardH = rect.height * scale;
-
-      if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
-      const canvas = captureCanvasRef.current;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) throw new Error('Could not get canvas context.');
-
-      // Render the viewfinder crop into a scratch canvas at raw-frame
-      // resolution. The v2 pipeline does its own quad detection inside
-      // this crop — opencv's contour finder picks up the actual card
-      // edges (slight rotation, perspective) and warps to 488×680 before
-      // hashing + embedding.
-      canvas.width = Math.round(cardW);
-      canvas.height = Math.round(cardH);
-      ctx.drawImage(frameSource, cardX, cardY, cardW, cardH, 0, 0, canvas.width, canvas.height);
-
-      const result = await scan({ source: canvas });
-
-      if (result.kind === 'miss') {
-        const msg =
-          result.reason === 'no_quad'
-            ? "Couldn't find a card edge — try better lighting."
-            : "Didn't recognize this card — try again.";
-        logger.debug(`[scanner] miss: ${result.reason} ${result.detail ?? ''}`);
-        showHint(msg, 2200);
-        return;
-      }
-
-      if (result.kind === 'borderline') {
-        // Phase E target: surface a picker with `result.candidates` so the
-        // user can pick the printing themselves. For now, treat as a soft
-        // miss with diagnostic text — auto-adding a low-confidence card
-        // would silently pollute the queue.
-        const top = result.candidates[0];
-        logger.debug(
-          `[scanner] borderline: top ${top.scryfallId} conf=${top.confidence.toFixed(2)}`
-        );
-        showHint(`Ambiguous match (${top.confidence.toFixed(2)}) — try again.`, 2200);
-        return;
-      }
-
-      // Confident: resolve the matcher's UUID to a full ScryfallCard.
-      const card = await getCardById(result.match.scryfallId);
-      if (!card) {
-        logger.warn(
-          `[scanner] confident match for ${result.match.scryfallId} but card fetch failed`
-        );
-        showHint("Found a match but couldn't load the card. Try again.", 2200);
-        return;
-      }
-
-      // Dedupe-or-add. The hook owns the dedupe cursor; 'duplicate'
-      // means the same printing was just scanned, so the matcher is
-      // still locked on the same physical card — silently skip the
-      // feedback side effects too.
-      if (addScan(card) === 'duplicate') return;
-
-      const tier = priceTier(card);
-      setPulseKey((k) => k + 1);
-      playValueChime(tier);
-      pulseValueHaptic(tier);
-      // Map v2's detected quad (in crop-canvas coords, since we drew the
-      // searchRect crop into the canvas at native frame resolution) back
-      // to viewport coords. The inverse simplifies to:
-      //   viewport = canvas / scale + rect.{left,top}
-      // because cardX = (rect.left - dispX) * scale and canvas size
-      // matches cardW × cardH. Draw the flash outline at the actual
-      // card corners — TL/TR/BR/BL, in that order from orderQuadCorners.
-      const viewportQuad: Point[] = result.quad.map((p) => ({
-        x: p.x / scale + rect.left,
-        y: p.y / scale + rect.top,
-      }));
-      setMatchedQuad(viewportQuad);
-      setHasLock(true);
-      window.setTimeout(() => {
-        setHasLock(false);
-        setMatchedQuad(null);
-      }, 700);
-      // Bottom card panel: persistent — stays until the next successful
-      // scan replaces it. `key` is bumped on every scan so the slide-in
-      // animation replays even when the same card lands twice.
-      setLastScan({ card, tier, key: Date.now() });
-    } catch (err) {
-      logger.error('[scanner] capture failed:', err);
-      showHint('Scan failed — try again.');
-    } finally {
-      busyRef.current = false;
-      setStatus('ready');
-      lastFiredAtRef.current = performance.now();
-      stableFramesRef.current = 0;
-      armedRef.current = false; // re-arm only after the next unstable frame
-    }
-  }, [addScan, showHint, searchRect]);
+    },
+    [addScan, showHint, searchRect]
+  );
 
   /**
    * Auto-detect loop. Samples the viewfinder region at ~6 fps into a tiny
@@ -837,30 +858,47 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   const handleConfirm = useCallback(() => {
     if (queue.length === 0) return;
-    const lines = queue.map(({ card, qty }) =>
-      `${qty} ${card.name} (${card.set.toUpperCase()}) ${card.collector_number ?? ''}`.trim()
-    );
+    // Emit MTGA-style lines with a finish token *before* the (SET) group —
+    // that's where the text parser's cleanName() looks for *F* / *ETCHED*,
+    // so the chosen finish round-trips to the collection as a foil/etched copy.
+    const lines = queue.map(({ card, qty, finish }) => {
+      const token = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *ETCHED*' : '';
+      return `${qty} ${card.name}${token} (${card.set.toUpperCase()}) ${
+        card.collector_number ?? ''
+      }`.trim();
+    });
     onConfirm(lines.join('\n'), totalCount);
   }, [queue, totalCount, onConfirm]);
 
   /**
    * "+1" on the bottom card panel: bumps the qty of the currently-shown
-   * card. Useful when the user has several copies of the same printing
-   * and the auto-detector keeps deduping them. Re-pulses the count
-   * badge and fires haptic feedback regardless of whether the entry is
-   * still in the queue, so the button always confirms the press.
+   * row (its exact oracle+finish). Useful when the user has several copies
+   * of the same card and the auto-detector keeps deduping them. Re-pulses
+   * the count badge and fires haptic feedback; a no-op if the row was since
+   * removed, but the button still confirms the press.
    */
   const incrementLastScan = useCallback(() => {
     if (!lastScan) return;
-    incrementByOracleId(lastScan.card.oracle_id);
+    changeQty(lastScan.entryId, 1);
     setPulseKey((k) => k + 1);
     pulseValueHaptic(lastScan.tier);
-  }, [lastScan, incrementByOracleId]);
+  }, [lastScan, changeQty]);
 
-  const openSettings = useCallback(() => {
-    // Placeholder — surface a stub message until the settings sheet lands.
-    showHint('Scanner settings coming soon.', 1600);
-  }, [showHint]);
+  /**
+   * "Clear all" also dismisses the bottom card panel. The panel's `lastScan`
+   * is local to the scanner (not part of the queue), so wiping the queue alone
+   * would leave a stale card lingering on screen.
+   */
+  const handleClearAll = useCallback(() => {
+    clearQueue();
+    setLastScan(null);
+  }, [clearQueue]);
+
+  // Camera is actually up. The corner chrome (close, total, queue/torch) only
+  // makes sense over a live preview — rendering it over the black "starting"
+  // screen looks like floating orphan icons, so gate it on this.
+  const cameraLive = status === 'ready' || status === 'scanning';
+  const starting = status === 'idle' || status === 'starting';
 
   const scannerNode = (
     <div
@@ -871,6 +909,21 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       aria-modal="true"
     >
       {!isNativePlatform() && <video ref={videoRef} className="scanner-video" playsInline muted />}
+
+      {/* Tap-to-rescan surface (native only). A transparent full-bleed button
+          sitting *below* the corner chrome (z-index): tapping bare camera
+          forces a capture — letting the user intentionally add another copy
+          of the same card, which the auto loop deliberately won't. Taps on
+          the close/queue/torch/panel controls land on those (higher z) instead.
+          Gated to `ready` so it doesn't fire mid-capture or during errors. */}
+      {isNativePlatform() && status === 'ready' && (
+        <button
+          type="button"
+          className="scanner-capture-surface"
+          aria-label="Tap to scan the card in view"
+          onClick={() => void captureAndIdentify(true)}
+        />
+      )}
 
       {/* No persistent outline — the camera is "always looking" and the
           v2 matcher (its own opencv contour finder) handles rotation,
@@ -899,33 +952,21 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           />
         </svg>
       )}
-      {/* Keep the legacy viewfinder ref attached for any captureAndIdentify
-          paths that still reference it; rendered invisible. */}
-      {viewfinderRect && (
-        <div
-          ref={viewfinderRef}
-          style={{
-            position: 'absolute',
-            left: `${viewfinderRect.left}px`,
-            top: `${viewfinderRect.top}px`,
-            width: `${viewfinderRect.width}px`,
-            height: `${viewfinderRect.height}px`,
-            display: 'none',
-          }}
-        />
+      {/* Top-left close button — only once the camera is live (the
+          starting/error overlays carry their own exit). */}
+      {cameraLive && (
+        <button
+          type="button"
+          className="scanner-icon-btn scanner-close-btn"
+          onClick={onClose}
+          aria-label="Close scanner"
+        >
+          <X width={20} height={20} strokeWidth={1.8} />
+        </button>
       )}
-      {/* Top-left close button. */}
-      <button
-        type="button"
-        className="scanner-icon-btn scanner-close-btn"
-        onClick={onClose}
-        aria-label="Close scanner"
-      >
-        <X width={20} height={20} strokeWidth={1.8} />
-      </button>
 
       {/* Top-center running total. Hidden when nothing has been scanned. */}
-      {totalCount > 0 && (
+      {cameraLive && totalCount > 0 && (
         <div
           className="scanner-total-pill"
           role="status"
@@ -936,64 +977,83 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         </div>
       )}
 
-      {/* Top-right vertical action stack: queue (with badge), torch, settings.
+      {/* Top-right vertical action stack: queue (with badge), torch.
           Wrapper provides the grouped-pill background; child buttons reuse
           `.scanner-icon-btn` (transparent inside the stack — see CSS). */}
-      <div className="scanner-action-stack">
-        <button
-          type="button"
-          className="scanner-icon-btn"
-          onClick={() => setSheetOpen(true)}
-          aria-label={
-            totalCount > 0
-              ? `Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`
-              : 'Open scan queue'
-          }
-        >
-          <Inbox width={20} height={20} strokeWidth={1.8} />
-          {totalCount > 0 && (
-            <span key={pulseKey} className="scanner-stack-badge">
-              {totalCount}
-            </span>
-          )}
-        </button>
-        {torchSupported && (
+      {cameraLive && (
+        <div className="scanner-action-stack">
           <button
             type="button"
-            className={`scanner-icon-btn${torchOn ? ' active' : ''}`}
-            onClick={toggleTorch}
-            aria-label={torchOn ? 'Turn torch off' : 'Turn torch on'}
+            className="scanner-icon-btn"
+            onClick={() => setSheetOpen(true)}
+            aria-label={
+              totalCount > 0
+                ? `Review ${totalCount} scanned card${totalCount === 1 ? '' : 's'}`
+                : 'Open scan queue'
+            }
           >
-            {torchOn ? (
-              <Flashlight width={20} height={20} strokeWidth={1.8} />
-            ) : (
-              <FlashlightOff width={20} height={20} strokeWidth={1.8} />
+            <Inbox width={20} height={20} strokeWidth={1.8} />
+            {totalCount > 0 && (
+              <span key={pulseKey} className="scanner-stack-badge">
+                {totalCount}
+              </span>
             )}
           </button>
-        )}
-        <button
-          type="button"
-          className="scanner-icon-btn"
-          onClick={openSettings}
-          aria-label="Scanner settings"
-        >
-          <Settings width={20} height={20} strokeWidth={1.8} />
-        </button>
-      </div>
+          {torchSupported && (
+            <button
+              type="button"
+              className={`scanner-icon-btn${torchOn ? ' active' : ''}`}
+              onClick={toggleTorch}
+              aria-label={torchOn ? 'Turn torch off' : 'Turn torch on'}
+            >
+              {torchOn ? (
+                <Flashlight width={20} height={20} strokeWidth={1.8} />
+              ) : (
+                <FlashlightOff width={20} height={20} strokeWidth={1.8} />
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
-      {hint && (
+      {cameraLive && hint && (
         <div className="scanner-hint" role="status" aria-live="polite">
           {hint}
+        </div>
+      )}
+
+      {/* Starting state — shown over the black screen before the preview is
+          live, so the corner chrome doesn't float over nothing. Carries its
+          own Cancel so there's always an exit. */}
+      {starting && (
+        <div className="scanner-starting" role="status" aria-live="polite">
+          <LoaderCircle
+            className="scanner-starting-spinner"
+            width={34}
+            height={34}
+            strokeWidth={1.8}
+            aria-hidden
+          />
+          <p>Starting camera…</p>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
         </div>
       )}
 
       {errorMsg && (
         <div className="scanner-error" role="alert">
           <p>{errorMsg}</p>
-          <button type="button" className="btn" onClick={() => void startCamera()}>
-            <RotateCcw width={14} height={14} strokeWidth={1.8} />
-            <span>Retry</span>
-          </button>
+          <div className="scanner-error-actions">
+            <button type="button" className="btn" onClick={onClose}>
+              <X width={14} height={14} strokeWidth={1.8} />
+              <span>Close</span>
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => void startCamera()}>
+              <RotateCcw width={14} height={14} strokeWidth={1.8} />
+              <span>Retry</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1012,12 +1072,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
               lastScan.card.image_uris?.small ||
               lastScan.card.image_uris?.normal ||
               lastScan.card.card_faces?.[0]?.image_uris?.small;
-            const usd = lastScan.card.prices?.usd
-              ? `$${Number.parseFloat(lastScan.card.prices.usd).toFixed(2)}`
-              : null;
             const set = lastScan.card.set.toUpperCase();
             const collector = lastScan.card.collector_number ?? '—';
-            const qty = queue.find((e) => e.id === lastScan.card.oracle_id)?.qty ?? 1;
+            const entry = queue.find((e) => e.id === lastScan.entryId);
+            const qty = entry?.qty ?? 1;
+            // Finish is owned by the queue entry; the panel reflects (and edits)
+            // it live so the price shown matches what will be imported.
+            const finish = entry?.finish ?? 'nonfoil';
+            const finishes = availableFinishes(lastScan.card.finishes);
+            const canToggleFinish = finishes.length > 1;
+            const unit = finishUnitPrice(lastScan.card.prices, finish);
+            const usd = unit != null ? `$${unit.toFixed(2)}` : null;
             return (
               <>
                 <button
@@ -1044,11 +1109,35 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                   />
                 </button>
                 <div className="scanner-card-panel-meta">
-                  <span className="scanner-card-panel-condition">Normal</span>
-                  <span className="scanner-card-panel-set">
+                  {canToggleFinish && (
+                    <button
+                      type="button"
+                      className={`scanner-card-panel-finish finish-${finish}`}
+                      onClick={() => {
+                        const next = nextFinish(finish, finishes);
+                        changeFinish(lastScan.entryId, next);
+                        // The row re-keys on finish change; keep the panel
+                        // pointed at it so the price/qty stay in sync.
+                        setLastScan((prev) =>
+                          prev ? { ...prev, entryId: entryKey(prev.card.oracle_id, next) } : prev
+                        );
+                      }}
+                      aria-label={`Finish: ${FINISH_LABELS[finish]}. Tap to change.`}
+                    >
+                      {FINISH_LABELS[finish]}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="scanner-card-panel-set"
+                    onClick={() => {
+                      setPickerFor(lastScan.entryId);
+                      setSheetOpen(true);
+                    }}
+                    aria-label={`Change printing of ${lastScan.card.name}`}
+                  >
                     {set} · #{collector}
-                  </span>
-                  <span className="scanner-card-panel-lang">EN</span>
+                  </button>
                   <button
                     type="button"
                     className="scanner-card-panel-add"
@@ -1068,12 +1157,18 @@ export function CardScanner({ onClose, onConfirm }: Props) {
       {sheetOpen && (
         <ScannerQueueSheet
           entries={queue}
-          onClose={() => setSheetOpen(false)}
+          initialPickerFor={pickerFor}
+          onClose={() => {
+            setSheetOpen(false);
+            setPickerFor(null);
+          }}
           onChangePrinting={changePrinting}
           onChangeQty={changeQty}
+          onChangeFinish={changeFinish}
           onRemove={removeFromQueue}
-          onClearAll={clearQueue}
+          onClearAll={handleClearAll}
           onConfirm={handleConfirm}
+          onAddCard={addManual}
         />
       )}
     </div>
