@@ -1,0 +1,84 @@
+.build-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.build-report-line {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.build-report-line strong {
+  color: var(--text);
+}
+
+.build-report-bracket {
+  font-family: var(--font-mono);
+}
+
+.build-report-source {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.build-report-muted {
+  color: var(--text3);
+}
+
+.build-report-gaps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.build-report-gaps-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+}
+
+.build-report-gaps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.build-report-gap {
+  padding: 0.1rem 0.45rem;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.build-report-gap-count {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+/* Phones: tighten the inter-line gap. Report lines wrap (overflow-wrap:
+   anywhere) and the gap chips already flex-wrap, so no reflow is needed —
+   just a slightly denser stack. Matches the 600px tier used by the sibling
+   stat panels. */
+@media (max-width: 600px) {
+  .build-report {
+    gap: 0.35rem;
+  }
+
+  .build-report-gaps-list {
+    gap: 0.3rem;
+  }
+}

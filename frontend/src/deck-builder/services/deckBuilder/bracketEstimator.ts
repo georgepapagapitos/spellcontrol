@@ -43,13 +43,18 @@ export interface BracketBreakdown {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const BRACKET_LABELS: Record<number, string> = {
+export const BRACKET_LABELS: Record<number, string> = {
   1: 'Exhibition',
   2: 'Core',
   3: 'Upgraded',
   4: 'Optimized',
   5: 'cEDH',
 };
+
+/** Human label for a bracket number (1–5). Falls back to the number itself. */
+export function bracketLabel(bracket: number): string {
+  return BRACKET_LABELS[bracket] ?? String(bracket);
+}
 
 /**
  * Fast mana sources used as a power-density soft signal.

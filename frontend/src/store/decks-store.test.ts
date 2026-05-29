@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useDecksStore, newDeckCard, selectDeck, type DeckCard } from './decks';
+import { useDecksStore, newDeckCard, selectDeck, effectiveBracket, type DeckCard } from './decks';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function sfCard(name: string, id = 'sf-1'): ScryfallCard {
@@ -14,6 +14,34 @@ const store = () => useDecksStore.getState();
 
 beforeEach(() => {
   useDecksStore.setState({ decks: [] });
+});
+
+describe('effectiveBracket', () => {
+  it('prefers the manual override over the auto estimate', () => {
+    expect(
+      effectiveBracket({
+        bracketOverride: 5,
+        bracketEstimation: { bracket: 3 } as never,
+      })
+    ).toBe(5);
+  });
+
+  it('falls back to the auto estimate when no override is set', () => {
+    expect(
+      effectiveBracket({ bracketOverride: null, bracketEstimation: { bracket: 2 } as never })
+    ).toBe(2);
+    expect(effectiveBracket({ bracketEstimation: { bracket: 4 } as never })).toBe(4);
+  });
+
+  it('is undefined when neither override nor estimate exists', () => {
+    expect(effectiveBracket({})).toBeUndefined();
+    expect(effectiveBracket({ bracketOverride: null })).toBeUndefined();
+  });
+
+  it('createDeck defaults bracketOverride to null', () => {
+    const id = store().createDeck({ source: 'manual', commander: null });
+    expect(selectDeck(id)(useDecksStore.getState())?.bracketOverride).toBeNull();
+  });
 });
 
 describe('useDecksStore — createDeck', () => {
