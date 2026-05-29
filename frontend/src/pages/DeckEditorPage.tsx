@@ -756,18 +756,19 @@ function DeckFeatureStrip({
           the desktop hero) already surface "{N} cards · avg CMC · $",
           so repeating it here was just chrome. */}
       {bracket != null && <span className="deck-feature-chip">Bracket {bracket}</span>}
-      {/* Combos and Analysis chips ride alongside the Combos / Analysis
-          panels — both are gated on `showCombosAndAnalysis` (which the
-          caller derives from `hasCommander`) since they're built around
-          the singleton / commander-color rules of EDH-family formats.
-          Standard / Pauper users see Test hand only. */}
+      {/* Quick jumps into the analysis surface's tabs. Combos live under the
+          Power tab and Suggestions under Improve, so each chip's tooltip names
+          its destination tab to stay predictable. Both are gated on
+          `showCombosAndAnalysis` (derived from `hasCommander`) since they're
+          built around EDH-family singleton / color-identity rules — Standard /
+          Pauper users see Test hand only. */}
       {showCombosAndAnalysis && (
         <>
           <button
             type="button"
             className="deck-feature-chip deck-feature-chip--action"
             onClick={onShowCombos}
-            title="Jump to combos (press C)"
+            title="See combos — opens the Power tab (press C)"
           >
             <Sparkles width={13} height={13} aria-hidden />
             {comboLoading ? '…' : comboCount === null ? '—' : comboCount}{' '}
@@ -777,10 +778,10 @@ function DeckFeatureStrip({
             type="button"
             className="deck-feature-chip deck-feature-chip--action"
             onClick={onShowAnalysis}
-            title="Open deck analysis (press A)"
+            title="Roles, suggestions & cards to consider — opens the Improve tab (press A)"
           >
             <Gauge width={13} height={13} aria-hidden />
-            Analysis
+            Improve
           </button>
         </>
       )}
@@ -788,7 +789,7 @@ function DeckFeatureStrip({
         type="button"
         className="deck-feature-chip deck-feature-chip--action"
         onClick={onShowTestHand}
-        title="Open test hand"
+        title="Draw an opening hand — opens the Test hand tab"
       >
         <Hand width={13} height={13} aria-hidden />
         Test hand

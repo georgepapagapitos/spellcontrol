@@ -2723,7 +2723,10 @@ function DeckStatistics({
     { id: 'mana', label: 'Mana', show: true },
     { id: 'power', label: 'Power', show: hasPower },
     { id: 'improve', label: 'Improve', show: hasImprove },
-    { id: 'playtest', label: 'Playtest', show: !!playtestSlot },
+    // Labelled "Test hand" (not "Playtest") — it holds only the opening-hand
+    // tool, and that disambiguates it from the full Playtest mode in the
+    // overflow menu. Keeps the feature-strip "Test hand" chip → tab name in sync.
+    { id: 'playtest', label: 'Test hand', show: !!playtestSlot },
   ];
   const visibleTabs = tabDefs.filter((t) => t.show);
   // The page controls the active tab (feature-strip chips). Fall back to the
