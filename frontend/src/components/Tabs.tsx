@@ -27,10 +27,12 @@ interface Props<T extends string> {
    * `fitted` (default) — tabs share the row equally (the 2-tab combos/analysis
    * look). `scrollable` — tabs size to content and the strip scrolls
    * horizontally on overflow. `hub` — the app-wide section-nav look (reuses the
-   * Collection hub's `.site-nav-link` / `.site-nav-count` styling) for top-level
-   * surface tabs, so the deck analysis tabs match Cards / Binders / Lists.
+   * Collection hub's `.site-nav-link` / `.site-nav-count` styling). `underline`
+   * — flat labels with an accent underline tracking the active tab (the
+   * page-level "distinct views" switcher, e.g. the deck editor's view bar);
+   * scrolls horizontally on overflow.
    */
-  variant?: 'fitted' | 'scrollable' | 'hub';
+  variant?: 'fitted' | 'scrollable' | 'hub' | 'underline';
   /**
    * Forwarded to the FIRST tab's button. Lets a parent panel focus the strip
    * when it reveals itself (mirrors the old reveal() → firstButtonRef.focus()).

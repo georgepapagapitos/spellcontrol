@@ -695,68 +695,15 @@
 }
 
 /* ── Deck display ─────────────────────────────────────────────────────── */
-/* On desktop, the stats panel parks in a right-hand column that spans
-   the full deck height; on tablet/mobile it reorders above the toolbar
-   so the user sees the deck summary first, then the search controls,
-   then the composition. Grid template areas drive both layouts off a
-   single grid declaration. */
+/* Distinct-view IA: the page-top hub tabs (in DeckEditorPage) switch which
+   single view renders here. The `Deck` view is toolbar → banner → card body;
+   the analysis views (`.deck-analysis-view`) replace it full-width. Either way
+   it's one stacked column at every breakpoint — the Mana side-column and the
+   two-column desktop grid were retired with the distinct-view redesign. */
 .deck-display {
-  /* Mobile/tablet: single column — toolbar → banner → deck body → full-width
-     analysis surface. (The IA redesign moved the surface out of a 320px right
-     rail into a full-width row so the folded-in Combos/Suggestions get room.)
-     Desktop adds a persistent Mana column on the right — see ≥1101px below. */
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    'toolbar'
-    'banner'
-    'body'
-    'stats';
-  grid-template-rows: auto auto auto auto;
-  align-content: start;
-  row-gap: 1rem;
-}
-
-/* Desktop: park the Mana view (curve + colors + types) in a fixed right
-   column beside the deck body; the analysis surface stays full-width below.
-   Matches the 1101px breakpoint that drives `isStatsAlwaysOpen` in
-   DeckDisplay, so the JS-rendered column and this layout switch together. */
-@media (min-width: 1101px) {
-  .deck-display {
-    grid-template-columns: minmax(0, 1fr) 320px;
-    /* Toolbar + banner span the full width; the deck body and the Mana column
-       then start on the same line right below them, so their tops align and the
-       sort/filter/view pills get the full width to stay on one row. The Mana
-       column only spans the body row (align-self: start keeps it top-aligned),
-       so there's no multi-row height spill to inflate the rows above. */
-    grid-template-areas:
-      'toolbar toolbar'
-      'banner  banner'
-      'body    mana'
-      'stats   stats';
-    column-gap: 1.25rem;
-  }
-}
-
-.deck-display > .deck-mana-column {
-  grid-area: mana;
-  align-self: start;
-}
-
-.deck-display > .deck-toolbar {
-  grid-area: toolbar;
-}
-
-.deck-display > .deck-legality-banner {
-  grid-area: banner;
-}
-
-.deck-display > .deck-display-body {
-  grid-area: body;
-}
-
-.deck-display > .deck-display-sidebar {
-  grid-area: stats;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 /* Toolbar — title + meta on left, sort/search/actions on right. */
@@ -1414,15 +1361,10 @@ input.toolbar-search-input {
   color: inherit;
 }
 
-/* The body now holds only the deck composition (the sidebar is a
-   sibling at the `.deck-display` grid level). Kept as a block so any
-   future additions inside the main column reflow naturally. */
+/* The body holds only the deck composition (the `Deck` view). Kept as a block
+   so any future additions inside the main column reflow naturally. */
 .deck-display-body {
   display: block;
-}
-
-.deck-display-sidebar {
-  align-self: start;
 }
 
 /* Card list — sections flow as CSS multi-column items so a small section
@@ -1841,23 +1783,13 @@ input.toolbar-search-input {
     inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
 
-/* ── Statistics panel ─────────────────────────────────────────────────── */
-.deck-stats {
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  /* Match the Combos / Test hand panel padding so all three deck-view
-     panels read at the same visual height. */
-  padding: 0.75rem;
-}
-
-/* ── Full-width tabbed analysis surface (the IA redesign) ──────────────── */
-.deck-analysis-surface-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
+/* ── Analysis views (distinct-view IA) ───────────────────────────────────
+   The collapsible `.deck-stats` card wrapper and `.deck-analysis-surface-body`
+   were retired when the analysis surface became page-top distinct views; the
+   `.deck-stats-grid` / `.deck-stats-panel` / `.deck-overview-*` / saltiest /
+   bracket rules below are still used by the view content. The
+   `.deck-stats-header*` rules further down are now shared only by the live
+   Combos / Test-hand collapsible panels. */
 .deck-analysis-tabpanel {
   /* The panel is focusable (tabIndex 0) for keyboard users arriving from the
      tablist — suppress the default focus ring on the container itself; the
@@ -2931,6 +2863,14 @@ input.toolbar-search-input {
   display: none;
 }
 
+/* The mobile Add cards button is an action button, so it uses the 8px
+   rounded-rect like its desktop twin — overriding the `.pill-btn` pill so the
+   same action doesn't read as two different shapes across breakpoints. (The
+   round ⋮ overflow button below stays a circle — that's an icon-only button.) */
+.deck-editor-add-pill {
+  border-radius: var(--radius);
+}
+
 .deck-editor-overflow-btn {
   display: inline-flex;
   align-items: center;
@@ -2967,7 +2907,9 @@ input.toolbar-search-input {
   position: absolute;
   top: calc(100% + 0.25rem);
   right: 0;
-  z-index: var(--z-dropdown);
+  /* This is a menu, so it sits on the --z-menu layer — above the sticky deck
+     view-tabs (--z-popover) it drops over, below sheets/modals. */
+  z-index: var(--z-menu);
   min-width: 12rem;
   background: var(--surface);
   border: 0.5px solid var(--border2);
@@ -3028,53 +2970,36 @@ input.toolbar-search-input {
   color: var(--err-text, #d8442a);
 }
 
-/* ── Deck feature strip ──────────────────────────────────────────────────── */
-
-.deck-feature-strip {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+/* ── Page-top distinct-view tabs ──────────────────────────────────────────
+   The deck editor's primary nav (Deck · Overview · Mana · Power · Improve),
+   mirroring the Collection hub's section tabs. Sticks to the top of the scroll
+   region so it stays in reach as the active view scrolls. Uses the `underline`
+   Tabs variant inside (accent indicator tracking the active tab, scrolls
+   horizontally on overflow), so only this wrapper is bespoke. */
+.deck-editor-view-tabs {
+  position: sticky;
+  top: 0;
+  /* Just high enough to keep scrolling page content beneath the sticky strip —
+     deliberately BELOW --z-menu so header menus (the ⋮ overflow) float above it
+     instead of dropping behind it. Sheets and modals still win. */
+  z-index: var(--z-popover);
+  background: var(--bg);
+  padding-top: 0.25rem;
   margin-bottom: 1rem;
 }
 
-.deck-feature-chip {
+/* The active analysis view's content fills the column (no card chrome — it's a
+   full page-level view now, not a folded-in panel). */
+.deck-analysis-view {
+  min-width: 0;
+}
+
+/* Test hand action in the Deck-view toolbar (goldfishing acts on this list) —
+   reveals the standalone Test hand panel below the card list. */
+.deck-toolbar-test-hand {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.22rem 0.65rem;
-  border-radius: 999px;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  background: var(--surface2);
-  color: var(--text2);
-  border: 0.5px solid var(--border);
-  line-height: 1.4;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  cursor: default;
-  user-select: none;
-}
-
-.deck-feature-chip--action {
-  cursor: pointer;
-  color: var(--text);
-  border-color: var(--border2);
-  transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
-}
-
-.deck-feature-chip--action:hover {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.deck-feature-chip--action:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  gap: 0.35rem;
 }
 
 @media (max-width: 1024px) {
@@ -4044,6 +3969,66 @@ input.toolbar-search-input {
   max-height: none;
 }
 
+/* Test-hand sheet: the shared card-picker sheet hosts the embedded
+   DeckTestHandPanel. A pinned header (title + close) sits above a scrolling
+   body. Content-sized on mobile (capped by the sheet's base max-height); a
+   touch wider on desktop so the 7-card fan breathes. */
+@media (min-width: 1024px) {
+  .deck-test-hand-sheet {
+    width: 600px;
+    max-height: 80vh;
+  }
+}
+
+.deck-test-hand-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 1rem 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.deck-test-hand-sheet-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.deck-test-hand-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+}
+
+.deck-test-hand-sheet-close:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+@media (pointer: coarse) {
+  .deck-test-hand-sheet-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.deck-test-hand-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 0.25rem;
+}
+
 .card-search-tabs {
   display: flex;
   gap: 0.25rem;
@@ -4420,7 +4405,9 @@ input.toolbar-search-input {
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 1rem;
-  border-radius: 999px;
+  /* Action buttons use the 8px rounded-rect (--radius); pills are reserved for
+     non-actionable chips/badges (.deck-test-hand-chip) and round icon buttons. */
+  border-radius: var(--radius);
   border: 0.5px solid var(--border2);
   background: var(--surface2);
   color: var(--text);
@@ -4845,6 +4832,56 @@ input.toolbar-search-input {
   .sc-tabs--hub .site-nav-link {
     min-height: 44px;
   }
+}
+
+/* `underline` — page-level "distinct views" switcher: flat labels with an
+   accent underline tracking the active tab. Reuses `.sc-tab` items but drops
+   the pill look in favour of a bottom-border indicator that sits on the strip's
+   baseline. Scrolls horizontally on overflow (mobile). */
+.sc-tabs--underline {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0;
+  gap: 0.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sc-tabs--underline::-webkit-scrollbar {
+  display: none;
+}
+
+.sc-tabs--underline .sc-tab {
+  flex: 0 0 auto;
+  border-radius: 0;
+  padding: 0.5rem 0.85rem;
+  /* Reserve the indicator height and overlap the strip's 1px baseline so the
+     active underline reads as one continuous line with the border. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-weight: 500;
+}
+
+.sc-tabs--underline .sc-tab:hover {
+  color: var(--text);
+  border-bottom-color: var(--border2);
+}
+
+/* Override the default `.sc-tab.active` pill — underline tabs use accent text +
+   a thick accent baseline instead of a filled background. */
+.sc-tabs--underline .sc-tab.active {
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.sc-tabs--underline .sc-tab.active .sc-tab-count {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .sc-tab {
@@ -5861,16 +5898,6 @@ input.deck-row-qty-input.deck-row-qty-missing {
     border-top: 0.5px solid var(--border);
     margin-top: 0.5rem;
     padding-top: 0.5rem;
-  }
-
-  .deck-display-sidebar {
-    position: static;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .deck-display-sidebar .deck-stats-grid {
-    columns: 220px;
   }
 
   .deck-toolbar {
