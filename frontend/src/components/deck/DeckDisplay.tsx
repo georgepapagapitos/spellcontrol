@@ -41,6 +41,7 @@ import { Modal } from '../Modal';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { COLOR_INFO } from '../../lib/colors';
+import { classifyFoil } from '../../lib/foil-style';
 import {
   buildAllocationMap,
   classifyAllocation,
@@ -400,6 +401,42 @@ interface Row {
   collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
+}
+
+// ── Foil treatment ─────────────────────────────────────────────────────────
+// Reuses the CardPreview holographic engine (holographic.css) so an owned
+// foil/etched copy shimmers in the deck grid + commander tile, not just in the
+// full-screen preview. There's no cursor to drive `--active` here, so the CSS
+// runs the same ambient-drift mode used for collection-grid thumbnails.
+
+/** ` is-foil foil-<style>` class suffix for a tile when its owned copy is foil,
+ *  or '' when it's nonfoil. The palette class selects the per-finish gradient. */
+function foilTileClass(row: Row): string {
+  const style = classifyFoil(row);
+  return style === 'none' ? '' : ` is-foil foil-${style}`;
+}
+
+/** The two ambient-drift overlay layers (rainbow shine + glare) reused from the
+ *  CardPreview foil engine. Render inside any element carrying `is-foil`. */
+function FoilShimmer() {
+  return (
+    <>
+      <div className="card-preview-foil-shine" aria-hidden="true" />
+      <div className="card-preview-foil-glare" aria-hidden="true" />
+    </>
+  );
+}
+
+/** Small iridescent pip for the list view, where rows have no card image to
+ *  carry the shimmer. The palette class tints it per finish; CSS animates a
+ *  slow drift mirroring the grid/preview shine. */
+function FoilPip({ row }: { row: Row }) {
+  const style = classifyFoil(row);
+  if (style === 'none') return null;
+  const label = row.finish === 'etched' ? 'Etched foil' : 'Foil';
+  return (
+    <span className={`deck-row-foil foil-${style}`} role="img" aria-label={label} title={label} />
+  );
 }
 
 function frontFaceImage(card: ScryfallCard): string | undefined {
@@ -2063,7 +2100,7 @@ function DeckCardGrid({
                   <li key={row.name} className="deck-card-grid-cell">
                     <button
                       type="button"
-                      className="deck-card-grid-tile"
+                      className={`deck-card-grid-tile${foilTileClass(row)}`}
                       onClick={() => onRowClick(row.name)}
                       aria-label={`${row.name} (${row.qty} in deck — ${allocationSummary(row)})`}
                     >
@@ -2077,6 +2114,7 @@ function DeckCardGrid({
                       ) : (
                         <span className="deck-card-grid-fallback">{row.name}</span>
                       )}
+                      {row.foil && row.imageNormal && <FoilShimmer />}
                       {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
                       {row.foil && <span className="deck-card-grid-foil">foil</span>}
                       {row.status !== 'allocated' &&
@@ -2359,6 +2397,7 @@ function DeckCardRow({
         {row.name}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
         <AllocationChip row={row} />
+        {row.foil && <FoilPip row={row} />}
         {synergyReasons && synergyReasons.length > 0 && (
           <span
             className="deck-row-synergy"
