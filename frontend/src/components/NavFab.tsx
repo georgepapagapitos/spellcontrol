@@ -5,7 +5,7 @@ import { usePlayStore } from '../store/play';
 import { useCanScan } from '../lib/use-can-scan';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
-import { importText } from '../lib/api';
+import { importScannedCards } from '../lib/scan-import';
 
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
@@ -100,10 +100,8 @@ export function NavFab() {
     setScannerOpen(false);
     setImporting(true);
     try {
-      const response = await importText(text);
-      await importCards(response, 'scanned-cards', 'merge');
-      const added = response.cards.length;
-      const tail = added === count ? '' : ` of ${count.toLocaleString()}`;
+      const { added, requested } = await importScannedCards(text, count, importCards);
+      const tail = added === requested ? '' : ` of ${requested.toLocaleString()}`;
       toast.show({
         message: `Added ${added.toLocaleString()}${tail} scanned card${added === 1 ? '' : 's'}`,
         tone: 'success',
