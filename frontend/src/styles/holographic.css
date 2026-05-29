@@ -339,3 +339,62 @@
     background-position: 50% 50%;
   }
 }
+
+/* Deck view foil thumbnails — the commander tile and every card tile in grid
+   view. Same ambient-drift reuse as collection grid items: no cursor here to
+   drive --active, so force a constant opacity + slow drift so an owned foil
+   copy shimmers in the deck just like it does in the full-screen preview. */
+.deck-card-grid-tile.is-foil {
+  isolation: isolate;
+}
+
+.deck-card-grid-tile.is-foil .card-preview-foil-shine {
+  opacity: var(--foil-strength, 0.35);
+  animation: foil-drift 8s ease-in-out infinite alternate;
+}
+
+.deck-card-grid-tile.is-foil .card-preview-foil-glare {
+  opacity: 0.25;
+  background-image: radial-gradient(
+    ellipse 70% 70% at 50% 50%,
+    rgba(255, 255, 255, 0.3) 0%,
+    transparent 70%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card-grid-tile.is-foil .card-preview-foil-shine {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+
+/* List view has no card image to host the shimmer, so an owned foil/etched
+   copy is flagged with a small iridescent pip next to the card name. It reuses
+   the same per-finish --foil-rainbow palettes (.foil-* set the gradient) and
+   the shared drift animation so the finish reads consistently across views. */
+.deck-row-foil {
+  display: inline-block;
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  vertical-align: middle;
+  background-image: var(
+    --foil-rainbow,
+    repeating-linear-gradient(110deg, #c929f1, #0dbde9, #21e985, #eedf10, #f80e35, #c929f1)
+  );
+  background-size: 320% 320%;
+  animation: foil-drift 6s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 0 4px rgba(255, 255, 255, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row-foil {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}

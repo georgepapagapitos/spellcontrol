@@ -16,7 +16,15 @@ type FoilStyle =
   | 'halo'
   | 'fracture';
 
-export function classifyFoil(card: EnrichedCard): FoilStyle {
+/** The foil-relevant fields `classifyFoil` reads. Accepting this structural
+ *  subset (rather than the full `EnrichedCard`) lets deck-view rows — which
+ *  mirror these fields from the owned copy — reuse the classifier too. */
+export type FoilClassifiable = Pick<
+  EnrichedCard,
+  'foil' | 'promoTypes' | 'finishes' | 'frameEffects'
+>;
+
+export function classifyFoil(card: FoilClassifiable): FoilStyle {
   if (!card.foil) return 'none';
   const promo = new Set(card.promoTypes ?? []);
   // Order matters: promo treatments override the generic 'etched' finish.

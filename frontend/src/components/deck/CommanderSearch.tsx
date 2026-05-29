@@ -1,6 +1,10 @@
 import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { searchCommanders, getCardByName } from '@/deck-builder/services/scryfall/client';
+import {
+  searchCommanders,
+  getCardByName,
+  getOwnedPrinting,
+} from '@/deck-builder/services/scryfall/client';
 import {
   fetchTopCommanders,
   fetchAllCommanderNames,
@@ -303,6 +307,36 @@ export function CommanderSearch({ value, onSelect }: Props) {
     }
   };
 
+  // Owned-mode selection. Resolve the user's *exact* printing (by its
+  // scryfallId) rather than the cheapest one `getCardByName` would return, so
+  // the generated deck binds the physical copy they picked — right printing and
+  // finish. The allocator keys on `card.id` (see pickCollectionCopy), so this
+  // is what makes "build from my collection" honor the copy on screen.
+  const selectOwnedCard = async (owned: EnrichedCard) => {
+    setSearchLoading(true);
+    setError(null);
+    try {
+      const card = await getOwnedPrinting(owned.scryfallId, owned.name);
+      selectCard(card);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load card');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Owned suggestion chips carry only a name (EDHREC payload), so map back to
+  // the owned copy to resolve its printing; fall back to name resolution if the
+  // name somehow isn't in the collection (shouldn't happen in owned mode).
+  const selectOwnedByName = async (name: string) => {
+    const owned = collectionLegends.find((c) => c.name === name);
+    if (owned) {
+      await selectOwnedCard(owned);
+    } else {
+      await selectByName(name);
+    }
+  };
+
   // Surprise me — random pick, respecting owned-only and color filter.
   const handleSurpriseMe = async () => {
     setError(null);
@@ -329,7 +363,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
           setError('No legendary creatures in your collection match that filter.');
           return;
         }
-        await selectByName(pick.name);
+        await selectOwnedCard(pick);
         return;
       }
       // Online — pick from the EDHREC commander list, narrowed by color.
@@ -457,7 +491,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
             <button
               type="button"
               className="commander-search-item"
-              onClick={() => void selectByName(card.name)}
+              onClick={() => void selectOwnedCard(card)}
             >
               <span className="commander-search-item-name">{card.name}</span>
               <span className="commander-search-item-type">
@@ -600,7 +634,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
                       <button
                         type="button"
                         className="commander-suggestion-chip"
-                        onClick={() => void selectByName(c.name)}
+                        onClick={() =>
+                          void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
+                        }
                         disabled={searchLoading}
                       >
                         <span className="commander-suggestion-pips" aria-hidden>
