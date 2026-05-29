@@ -701,9 +701,10 @@
    then the composition. Grid template areas drive both layouts off a
    single grid declaration. */
 .deck-display {
-  /* Single column: toolbar → banner → deck body → full-width analysis
-     surface (the IA redesign moved the surface out of a 320px right rail
-     into a full-width row so the folded-in Combos/Suggestions get room). */
+  /* Mobile/tablet: single column — toolbar → banner → deck body → full-width
+     analysis surface. (The IA redesign moved the surface out of a 320px right
+     rail into a full-width row so the folded-in Combos/Suggestions get room.)
+     Desktop adds a persistent Mana column on the right — see ≥1101px below. */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
@@ -714,6 +715,27 @@
   grid-template-rows: auto auto auto auto;
   align-content: start;
   row-gap: 1rem;
+}
+
+/* Desktop: park the Mana view (curve + colors + types) in a fixed right
+   column beside the deck body; the analysis surface stays full-width below.
+   Matches the 1101px breakpoint that drives `isStatsAlwaysOpen` in
+   DeckDisplay, so the JS-rendered column and this layout switch together. */
+@media (min-width: 1101px) {
+  .deck-display {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-areas:
+      'toolbar mana'
+      'banner  mana'
+      'body    mana'
+      'stats   stats';
+    column-gap: 1.25rem;
+  }
+}
+
+.deck-display > .deck-mana-column {
+  grid-area: mana;
+  align-self: start;
 }
 
 .deck-display > .deck-toolbar {

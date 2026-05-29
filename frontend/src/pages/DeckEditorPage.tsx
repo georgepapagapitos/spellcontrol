@@ -13,7 +13,10 @@ import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
-import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
+import {
+  DeckTestHandPanel,
+  type DeckTestHandPanelHandle,
+} from '../components/deck/DeckTestHandPanel';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
@@ -68,8 +71,10 @@ export function DeckEditorPage() {
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
   // The analysis surface is a controlled tab strip living inside DeckDisplay;
   // the feature-strip chips + keyboard shortcuts drive its active tab and
-  // scroll it into view (replacing the old per-panel reveal() handles).
+  // scroll it into view. Test hand is NOT part of the surface — it's its own
+  // standalone panel revealed via this ref (goldfishing is a distinct activity).
   const analysisSurfaceRef = useRef<HTMLDivElement>(null);
+  const testHandPanelRef = useRef<DeckTestHandPanelHandle>(null);
   const [analysisTab, setAnalysisTab] = useState<AnalysisTabId>('overview');
   const openAnalysisTab = useCallback((tab: AnalysisTabId) => {
     setAnalysisTab(tab);
@@ -544,7 +549,7 @@ export function DeckEditorPage() {
         showCombosAndAnalysis={!!formatConfig?.hasCommander}
         onShowCombos={() => openAnalysisTab('power')}
         onShowAnalysis={() => openAnalysisTab('improve')}
-        onShowTestHand={() => openAnalysisTab('playtest')}
+        onShowTestHand={() => testHandPanelRef.current?.reveal()}
       />
 
       <div className="deck-editor-layout">
@@ -619,8 +624,12 @@ export function DeckEditorPage() {
                 />
               ) : undefined
             }
-            playtestSlot={<DeckTestHandPanel embedded deckId={deck.id} />}
           />
+
+          {/* Test hand is its own standalone panel (not an analysis tab) —
+              goldfishing an opening hand is a distinct activity. Its
+              feature-strip chip reveals it via testHandPanelRef. */}
+          <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
         </main>
       </div>
 

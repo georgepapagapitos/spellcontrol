@@ -58,9 +58,7 @@ import {
 import { BracketBreakdown } from './BracketBreakdown';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { BuildReportPanel } from './BuildReportPanel';
-import { DeckCurvePhases } from './DeckCurvePhases';
-import { DeckTypeBreakdown } from './DeckTypeBreakdown';
-import { DeckColorPanel } from './DeckColorPanel';
+import { DeckManaPanel, type DeckManaData } from './DeckManaPanel';
 import { Tabs } from '../Tabs';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import {
@@ -347,13 +345,12 @@ export interface DeckDisplayProps {
    *  search bar, mirroring the collection page. */
   onAddFromSearch?: (query: string) => void;
   /**
-   * Folded-in analysis panels (Combos / EDHREC suggestions / Test hand). The
-   * page builds these so they keep their own data fetching; DeckDisplay just
-   * slots them into the Power / Improve / Playtest tabs of the analysis surface.
+   * Folded-in analysis panels (Combos / EDHREC suggestions). The page builds
+   * these so they keep their own data fetching; DeckDisplay slots them into the
+   * Power / Improve tabs. (Test hand stays a separate standalone panel.)
    */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
-  playtestSlot?: React.ReactNode;
   /** Controlled active analysis tab — the feature-strip chips drive this. */
   analysisTab?: AnalysisTabId;
   onAnalysisTabChange?: (id: AnalysisTabId) => void;
@@ -760,7 +757,6 @@ export function DeckDisplay({
   onAddFromSearch,
   combosSlot,
   suggestionsSlot,
-  playtestSlot,
   analysisTab,
   onAnalysisTabChange,
   analysisSurfaceRef,
@@ -1148,6 +1144,70 @@ export function DeckDisplay({
     }
     return out;
   }, [allCards]);
+
+  // Color / production / type breakdowns power the Mana view, which renders
+  // either as a persistent desktop column (below) or the surface's Mana tab.
+  const colorDist = useMemo(() => {
+    const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+    let total = 0;
+    for (const c of allCards) {
+      if ((c.type_line || '').toLowerCase().includes('land')) continue;
+      const ci = c.color_identity ?? [];
+      if (ci.length === 0) {
+        counts.C += 1;
+        total += 1;
+        continue;
+      }
+      for (const k of ci) {
+        counts[k] = (counts[k] ?? 0) + 1;
+        total += 1;
+      }
+    }
+    return { counts, total };
+  }, [allCards]);
+  const manaProduction = useMemo(() => {
+    const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+    let totalLands = 0;
+    for (const c of allCards) {
+      if (!(c.type_line || '').toLowerCase().includes('land')) continue;
+      totalLands += 1;
+      const colors = landProducedColors(c);
+      if (colors.length === 0) {
+        counts.C += 1;
+        continue;
+      }
+      for (const k of colors) counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return { counts, totalLands };
+  }, [allCards]);
+  const typeBreakdown = useMemo(() => {
+    const out: Record<TypeGroup, number> = {
+      Land: 0,
+      Creature: 0,
+      Planeswalker: 0,
+      Battle: 0,
+      Sorcery: 0,
+      Instant: 0,
+      Artifact: 0,
+      Enchantment: 0,
+    };
+    for (const c of allCards) {
+      out[classifyType(c)] += 1;
+    }
+    return out;
+  }, [allCards]);
+  // Normalized for DeckColorPanel/DeckManaPanel (which want `total`, not `totalLands`).
+  const manaData = useMemo(
+    () => ({
+      manaCurve,
+      averageCmc,
+      colorDist,
+      manaProduction: { counts: manaProduction.counts, total: manaProduction.totalLands },
+      typeBreakdown,
+    }),
+    [manaCurve, averageCmc, colorDist, manaProduction, typeBreakdown]
+  );
+
   const exportText = useMemo(
     () =>
       buildExport(
@@ -1377,17 +1437,25 @@ export function DeckDisplay({
           </div>
         </div>
 
-        {/* Pulled out of `.deck-display-body` so the parent grid can park
-            the panel above the toolbar on mobile/tablet (via
-            grid-template-areas) while keeping it pinned to the
-            right-hand column on desktop. */}
+        {/* Desktop-only Mana column (≥1101px). The same mana data renders as
+            the surface's "Mana" tab on narrower screens (manaAsSideColumn
+            toggles which one shows), so the two can't drift. Rendered
+            conditionally (not CSS-hidden) so the charts don't compute twice. */}
+        {isStatsAlwaysOpen && (
+          <aside className="deck-mana-column" aria-label="Mana">
+            <DeckManaPanel {...manaData} />
+          </aside>
+        )}
+
+        {/* Full-width analysis surface below the deck body. */}
         <aside className="deck-display-sidebar">
           <DeckStatistics
             allCards={allCards}
             totalCards={totalCards}
             totalPrice={totalPrice}
             currency={currency}
-            manaCurve={manaCurve}
+            manaData={manaData}
+            manaAsSideColumn={isStatsAlwaysOpen}
             bracketEstimation={bracketEstimation}
             bracketOverride={bracketOverride}
             onSetBracketOverride={onSetBracketOverride}
@@ -1411,7 +1479,6 @@ export function DeckDisplay({
             onToggle={isStatsAlwaysOpen ? undefined : () => setStatsOpen((v) => !v)}
             combosSlot={combosSlot}
             suggestionsSlot={suggestionsSlot}
-            playtestSlot={playtestSlot}
             activeTab={analysisTab}
             onTabChange={onAnalysisTabChange}
             surfaceRef={analysisSurfaceRef}
@@ -2570,15 +2637,17 @@ function DeckCardRow({
 }
 
 // ── Analysis surface ───────────────────────────────────────────────────────
-/** The full-width tabbed analysis surface's tab ids. */
-export type AnalysisTabId = 'overview' | 'mana' | 'power' | 'improve' | 'playtest';
+/** The full-width tabbed analysis surface's tab ids. (Test hand is a separate
+ *  standalone panel, not a tab — goldfishing is a distinct activity.) */
+export type AnalysisTabId = 'overview' | 'mana' | 'power' | 'improve';
 
 function DeckStatistics({
   allCards,
   totalCards,
   totalPrice,
   currency,
-  manaCurve,
+  manaData,
+  manaAsSideColumn,
   bracketEstimation,
   bracketOverride,
   onSetBracketOverride,
@@ -2602,7 +2671,6 @@ function DeckStatistics({
   onToggle,
   combosSlot,
   suggestionsSlot,
-  playtestSlot,
   activeTab,
   onTabChange,
   surfaceRef,
@@ -2612,7 +2680,9 @@ function DeckStatistics({
   totalCards: number;
   totalPrice: number;
   currency: CurrencyCode;
-  manaCurve: Record<number, number>;
+  manaData: DeckManaData;
+  /** Desktop: Mana is a persistent side column, so omit it from the tabs. */
+  manaAsSideColumn?: boolean;
   bracketEstimation?: BracketEstimation;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
@@ -2638,7 +2708,6 @@ function DeckStatistics({
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
-  playtestSlot?: React.ReactNode;
   /** Controlled active tab (the feature-strip chips drive this). */
   activeTab?: AnalysisTabId;
   onTabChange?: (id: AnalysisTabId) => void;
@@ -2647,58 +2716,6 @@ function DeckStatistics({
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
 }) {
-  const colorDist = useMemo(() => {
-    const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
-    let total = 0;
-    for (const c of allCards) {
-      if ((c.type_line || '').toLowerCase().includes('land')) continue;
-      const ci = c.color_identity ?? [];
-      if (ci.length === 0) {
-        counts.C += 1;
-        total += 1;
-        continue;
-      }
-      for (const k of ci) {
-        counts[k] = (counts[k] ?? 0) + 1;
-        total += 1;
-      }
-    }
-    return { counts, total };
-  }, [allCards]);
-
-  const manaProduction = useMemo(() => {
-    const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
-    let totalLands = 0;
-    for (const c of allCards) {
-      if (!(c.type_line || '').toLowerCase().includes('land')) continue;
-      totalLands += 1;
-      const colors = landProducedColors(c);
-      if (colors.length === 0) {
-        counts.C += 1;
-        continue;
-      }
-      for (const k of colors) counts[k] = (counts[k] ?? 0) + 1;
-    }
-    return { counts, totalLands };
-  }, [allCards]);
-
-  const typeBreakdown = useMemo(() => {
-    const out: Record<TypeGroup, number> = {
-      Land: 0,
-      Creature: 0,
-      Planeswalker: 0,
-      Battle: 0,
-      Sorcery: 0,
-      Instant: 0,
-      Artifact: 0,
-      Enchantment: 0,
-    };
-    for (const c of allCards) {
-      out[classifyType(c)] += 1;
-    }
-    return out;
-  }, [allCards]);
-
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
   const derivedRoles = useMemo(() => {
@@ -2714,19 +2731,16 @@ function DeckStatistics({
   const showRoles = effectiveRoleCounts !== undefined;
 
   // ── Tabbed surface ──────────────────────────────────────────────────────
-  // 14 stacked panels → 4-5 coherent tabs. Combos/Suggestions/Test-hand are
-  // folded in as slots passed from the page (they own their data fetching).
+  // 13 stacked panels → coherent tabs. Combos/Suggestions are folded in as
+  // slots passed from the page (they own their data fetching). On desktop the
+  // Mana view is a persistent side column instead of a tab (manaAsSideColumn).
   const hasPower = !!(bracketEstimation || bracketOverride != null || combosSlot);
   const hasImprove = !!(showRoles || (gapAnalysis && gapAnalysis.length > 0) || suggestionsSlot);
   const tabDefs: Array<{ id: AnalysisTabId; label: string; show: boolean }> = [
     { id: 'overview', label: 'Overview', show: true },
-    { id: 'mana', label: 'Mana', show: true },
+    { id: 'mana', label: 'Mana', show: !manaAsSideColumn },
     { id: 'power', label: 'Power', show: hasPower },
     { id: 'improve', label: 'Improve', show: hasImprove },
-    // Labelled "Test hand" (not "Playtest") — it holds only the opening-hand
-    // tool, and that disambiguates it from the full Playtest mode in the
-    // overflow menu. Keeps the feature-strip "Test hand" chip → tab name in sync.
-    { id: 'playtest', label: 'Test hand', show: !!playtestSlot },
   ];
   const visibleTabs = tabDefs.filter((t) => t.show);
   // The page controls the active tab (feature-strip chips). Fall back to the
@@ -2867,27 +2881,7 @@ function DeckStatistics({
               </div>
             )}
 
-            {current === 'mana' && (
-              <div className="deck-stats-grid">
-                <Panel title="Mana curve">
-                  {/* Richer curve viz: 0–7+ histogram plus Early/Mid/Late phase grades. */}
-                  <DeckCurvePhases manaCurve={manaCurve} averageCmc={averageCmc} />
-                </Panel>
-                <Panel title="Color">
-                  {/* Unified color story: distribution + production + balance, was 3 panels. */}
-                  <DeckColorPanel
-                    colorDist={colorDist}
-                    manaProduction={{
-                      counts: manaProduction.counts,
-                      total: manaProduction.totalLands,
-                    }}
-                  />
-                </Panel>
-                <Panel title="Types">
-                  <DeckTypeBreakdown typeCounts={typeBreakdown} />
-                </Panel>
-              </div>
-            )}
+            {current === 'mana' && <DeckManaPanel {...manaData} />}
 
             {current === 'power' && (
               <div className="deck-stats-grid">
@@ -2968,10 +2962,6 @@ function DeckStatistics({
                 )}
                 {suggestionsSlot && <div className="deck-analysis-slot">{suggestionsSlot}</div>}
               </div>
-            )}
-
-            {current === 'playtest' && playtestSlot && (
-              <div className="deck-analysis-slot">{playtestSlot}</div>
             )}
           </div>
         </div>
