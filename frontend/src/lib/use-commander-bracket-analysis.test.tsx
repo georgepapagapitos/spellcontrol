@@ -10,11 +10,14 @@ vi.mock('@/deck-builder/services/deckBuilder/commanderDeckAnalysis', () => ({
 }));
 
 import { analyzeCommanderDeck } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
-import { useManualCommanderAnalysis } from './use-manual-commander-analysis';
+import { useCommanderBracketAnalysis } from './use-commander-bracket-analysis';
 
 const RESULT = {
   deckGrade: { letter: 'B', headline: 'solid' },
   bracketEstimation: { bracket: 3 } as never,
+  roleTargets: { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 },
+  gapAnalysis: [{ name: 'Rhystic Study', inclusion: 60, synergy: 0.2 } as never],
+  cardInclusionMap: { 'Sol Ring': 90, 'Goblin Matron': 45 },
 };
 
 function makeDeck(over: Partial<Deck> = {}): Deck {
@@ -44,7 +47,7 @@ function sig(deck: Deck, combo: ComboMatchResponse | null = null): string {
   ].join('|');
 }
 
-function args(over: Partial<Parameters<typeof useManualCommanderAnalysis>[0]> = {}) {
+function args(over: Partial<Parameters<typeof useCommanderBracketAnalysis>[0]> = {}) {
   return {
     deck: makeDeck(),
     comboData: null,
@@ -65,16 +68,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('useManualCommanderAnalysis — disabled cases', () => {
+describe('useCommanderBracketAnalysis — disabled cases', () => {
   it.each([
-    ['generated source', { deck: makeDeck({ source: 'generated' }) }],
     ['no commander', { deck: makeDeck({ commander: null }) }],
     ['format has no commander', { hasCommander: false }],
     ['no mainboard size', { mainboardSize: undefined }],
     ['null deck', { deck: null }],
   ])('does nothing for %s', async (_label, over) => {
     const a = args(over as never);
-    renderHook(() => useManualCommanderAnalysis(a));
+    renderHook(() => useCommanderBracketAnalysis(a));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(600);
     });
@@ -83,11 +85,25 @@ describe('useManualCommanderAnalysis — disabled cases', () => {
   });
 });
 
-describe('useManualCommanderAnalysis — active', () => {
+describe('useCommanderBracketAnalysis — active', () => {
+  it('runs for generated decks too (no longer manual-only)', async () => {
+    vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
+    const a = args({ deck: makeDeck({ source: 'generated' }) });
+    renderHook(() => useCommanderBracketAnalysis(a));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ gradeBracketSignature: sig(a.deck as Deck) })
+    );
+  });
+
   it('debounces, analyzes, and persists grade/bracket with a signature', async () => {
     vi.mocked(analyzeCommanderDeck).mockResolvedValue(RESULT as never);
     const a = args();
-    renderHook(() => useManualCommanderAnalysis(a));
+    renderHook(() => useCommanderBracketAnalysis(a));
 
     expect(analyzeCommanderDeck).not.toHaveBeenCalled(); // debounced
     await act(async () => {
@@ -98,6 +114,9 @@ describe('useManualCommanderAnalysis — active', () => {
     expect(a.updateDeck).toHaveBeenCalledWith('d1', {
       deckGrade: RESULT.deckGrade,
       bracketEstimation: RESULT.bracketEstimation,
+      roleTargets: RESULT.roleTargets,
+      gapAnalysis: RESULT.gapAnalysis,
+      cardInclusionMap: RESULT.cardInclusionMap,
       gradeBracketSignature: sig(a.deck as Deck),
     });
   });
@@ -106,7 +125,7 @@ describe('useManualCommanderAnalysis — active', () => {
     const deck = makeDeck();
     (deck as Deck).gradeBracketSignature = sig(deck);
     const a = args({ deck });
-    renderHook(() => useManualCommanderAnalysis(a));
+    renderHook(() => useCommanderBracketAnalysis(a));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(600);
     });
@@ -122,7 +141,7 @@ describe('useManualCommanderAnalysis — active', () => {
     } as unknown as ComboMatchResponse;
     const deck = makeDeck({ partnerCommander: { name: 'Tymna' } as never });
     const a = args({ deck, comboData: combo });
-    renderHook(() => useManualCommanderAnalysis(a));
+    renderHook(() => useCommanderBracketAnalysis(a));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
@@ -135,7 +154,7 @@ describe('useManualCommanderAnalysis — active', () => {
   it('does not persist (and will not retry) when analysis returns null', async () => {
     vi.mocked(analyzeCommanderDeck).mockResolvedValue(null);
     const a = args();
-    const { rerender } = renderHook(() => useManualCommanderAnalysis(a));
+    const { rerender } = renderHook(() => useCommanderBracketAnalysis(a));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
@@ -153,7 +172,7 @@ describe('useManualCommanderAnalysis — active', () => {
   it('swallows analysis errors without persisting', async () => {
     vi.mocked(analyzeCommanderDeck).mockRejectedValue(new Error('edhrec down'));
     const a = args();
-    renderHook(() => useManualCommanderAnalysis(a));
+    renderHook(() => useCommanderBracketAnalysis(a));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });

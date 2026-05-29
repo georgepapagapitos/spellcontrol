@@ -348,7 +348,12 @@ export function GuidedBuildPage() {
               <strong>Lands:</strong> {customization.landCount}
             </li>
             <li>
-              <strong>From collection only:</strong> {customization.collectionMode ? 'Yes' : 'No'}
+              <strong>Collection:</strong>{' '}
+              {!customization.collectionMode
+                ? 'Any cards'
+                : customization.collectionStrategy === 'partial'
+                  ? `Prioritize mine (~${customization.collectionOwnedPercent}% owned)`
+                  : 'Only my cards'}
             </li>
           </ul>
         </section>

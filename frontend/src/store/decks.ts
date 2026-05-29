@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { ScryfallCard, ThemeResult, DeckFormat } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  ThemeResult,
+  DeckFormat,
+  GapAnalysisCard,
+  BuildReport,
+} from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import {
   dedupeDeckAllocations,
@@ -66,6 +72,10 @@ export interface Deck {
    * are snapshotted at generation and never recomputed — manual edits will
    * leave them slightly stale, but the toolbar still surfaces totals from
    * the live card list.
+   *
+   * NOTE: `bracketEstimation`/`deckGrade` below are the exception — they are
+   * kept *live* for any commander deck by useCommanderBracketAnalysis (see
+   * `gradeBracketSignature`), so they do recompute as cards change.
    */
   roleCounts?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
@@ -73,13 +83,42 @@ export interface Deck {
   boardwipeSubtypeCounts?: Record<string, number>;
   cardDrawSubtypeCounts?: Record<string, number>;
   bracketEstimation?: BracketEstimation;
+  /**
+   * Target role counts ("wanted N ramp") the analysis compares actuals against.
+   * Kept live by useCommanderBracketAnalysis (recomputed as cards change), like
+   * bracketEstimation — not a frozen generation snapshot.
+   */
+  roleTargets?: Record<string, number>;
+  /**
+   * Ranked "cards to consider" — owned/unowned upgrade candidates from EDHREC
+   * not already in the deck. Recomputed live alongside the analysis.
+   */
+  gapAnalysis?: GapAnalysisCard[];
+  /**
+   * Per-card EDHREC inclusion % (cardName → 0-100) for cards in this deck —
+   * powers the "why this card" rationale on rows/preview. Recomputed live by
+   * the analysis hook, like roleTargets/gapAnalysis.
+   */
+  cardInclusionMap?: Record<string, number>;
+  /**
+   * How the generated deck measured up to its build intent (fill + flag).
+   * Set once at generation; generated decks only. See {@link BuildReport}.
+   */
+  buildReport?: BuildReport;
   deckGrade?: { letter: string; headline: string };
   /**
+   * User-pinned bracket (1–5), self-declared like the official Commander
+   * bracket system. When set it wins over the auto `bracketEstimation` for
+   * every surface (see {@link effectiveBracket}); the auto estimate is still
+   * kept and shown as a secondary reference. `null`/absent means "use auto".
+   */
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /**
    * Hash of the inputs (commander + mainboard card names) the persisted
-   * deckGrade/bracketEstimation were last computed from. Only set for manual
-   * commander decks, where grade/bracket are computed live and recomputed when
-   * this signature changes. Absent on generated decks (their grade/bracket is
-   * a frozen generation snapshot).
+   * deckGrade/bracketEstimation were last computed from. Set for any commander
+   * deck once its grade/bracket has been computed; the analysis hook recomputes
+   * (and updates this) whenever the signature changes, so the estimate stays
+   * live as cards are added/removed — generated and manual decks alike.
    */
   gradeBracketSignature?: string;
   /** Mean EDHREC salt score across non-land cards. Snapshotted at generation. */
@@ -89,6 +128,17 @@ export interface Deck {
   color: string;
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * The bracket to show for a deck everywhere it surfaces: the user's manual
+ * override when set, otherwise the live auto estimate. Returns undefined when
+ * neither exists (no override and the estimate hasn't been computed yet).
+ */
+export function effectiveBracket(
+  deck: Pick<Deck, 'bracketOverride' | 'bracketEstimation'>
+): number | undefined {
+  return deck.bracketOverride ?? deck.bracketEstimation?.bracket;
 }
 
 interface DecksState {
@@ -113,7 +163,12 @@ interface DecksState {
     boardwipeSubtypeCounts?: Record<string, number>;
     cardDrawSubtypeCounts?: Record<string, number>;
     bracketEstimation?: BracketEstimation;
+    roleTargets?: Record<string, number>;
+    gapAnalysis?: GapAnalysisCard[];
+    cardInclusionMap?: Record<string, number>;
+    buildReport?: BuildReport;
     deckGrade?: { letter: string; headline: string };
+    bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
     gradeBracketSignature?: string;
     averageSalt?: number;
     saltiestCards?: Array<{ name: string; salt: number }>;
@@ -187,7 +242,12 @@ export const useDecksStore = create<DecksState>()(
           boardwipeSubtypeCounts: input.boardwipeSubtypeCounts,
           cardDrawSubtypeCounts: input.cardDrawSubtypeCounts,
           bracketEstimation: input.bracketEstimation,
+          roleTargets: input.roleTargets,
+          gapAnalysis: input.gapAnalysis,
+          cardInclusionMap: input.cardInclusionMap,
+          buildReport: input.buildReport,
           deckGrade: input.deckGrade,
+          bracketOverride: input.bracketOverride ?? null,
           gradeBracketSignature: input.gradeBracketSignature,
           averageSalt: input.averageSalt,
           saltiestCards: input.saltiestCards,

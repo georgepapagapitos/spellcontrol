@@ -1,5 +1,10 @@
 import { logger } from '@/lib/logger';
-import type { ScryfallCard, EDHRECCommanderData, DetectedCombo } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  EDHRECCommanderData,
+  DetectedCombo,
+  GapAnalysisCard,
+} from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 import {
   getCardRole,
@@ -14,6 +19,7 @@ import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client'
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { analyzeDeck, getDeckSummaryData } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
+import { buildGapAnalysis } from './gapAnalysisBuilder';
 
 export interface DeckGrade {
   letter: string;
@@ -218,6 +224,20 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
 
 // ── Manual-deck entry point ─────────────────────────────────────────────────
 
+/**
+ * Result of the manual-deck analysis: grade + bracket, plus the live
+ * role targets and "cards to consider" gap analysis the editor surfaces.
+ * Extends GradeBracketResult so existing consumers keep working.
+ */
+export interface CommanderDeckAnalysisResult extends GradeBracketResult {
+  /** Per-role target counts derived from EDHREC + archetype/pacing blend. */
+  roleTargets?: Record<string, number>;
+  /** Top EDHREC-recommended cards not already in the deck, ranked by inclusion. */
+  gapAnalysis?: GapAnalysisCard[];
+  /** Per-card EDHREC inclusion % keyed by card name (basics omitted). */
+  cardInclusionMap?: Record<string, number>;
+}
+
 export interface AnalyzeCommanderDeckParams {
   commander: ScryfallCard;
   partnerCommander?: ScryfallCard | null;
@@ -239,7 +259,7 @@ export interface AnalyzeCommanderDeckParams {
  */
 export async function analyzeCommanderDeck(
   params: AnalyzeCommanderDeckParams
-): Promise<GradeBracketResult | null> {
+): Promise<CommanderDeckAnalysisResult | null> {
   try {
     const edhrecData = params.partnerCommander
       ? await fetchPartnerCommanderData(params.commander.name, params.partnerCommander.name)
@@ -266,7 +286,7 @@ export async function analyzeCommanderDeck(
     const allCardNames = [...params.cards.map((c) => c.name), params.commander.name];
     if (params.partnerCommander) allCardNames.push(params.partnerCommander.name);
 
-    return computeGradeAndBracket({
+    const gradeBracket = computeGradeAndBracket({
       allCardNames,
       detectedCombos: params.detectedCombos,
       averageCmc,
@@ -281,6 +301,13 @@ export async function analyzeCommanderDeck(
       cardInclusionMap,
       colorIdentity: params.colorIdentity,
     });
+
+    // Gap analysis dedupes against every card name in the list, commanders
+    // included. Ownership is intentionally left unset here — the UI marks
+    // `isOwned` later against the live collection.
+    const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames);
+
+    return { ...gradeBracket, roleTargets, gapAnalysis, cardInclusionMap };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);
     return null;

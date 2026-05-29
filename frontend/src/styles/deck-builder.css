@@ -2170,6 +2170,13 @@ input.toolbar-search-input {
   font-variant-numeric: tabular-nums;
 }
 
+/* Role count when the deck is below its target for that role — the count
+   reads in the error color and gains the ▾ deficit marker (rendered in JSX).
+   Replaces the former inline `color: #d8442a` so it tracks the theme. */
+.deck-roles-count-short {
+  color: var(--err-text);
+}
+
 .deck-roles-bar {
   height: 4px;
   background: var(--border);
@@ -2225,6 +2232,33 @@ input.toolbar-search-input {
 .deck-stats-bracket-note {
   font-size: var(--text-xs);
   color: var(--text3);
+}
+
+.deck-stats-bracket-tag {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.deck-stats-bracket-override {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.deck-stats-bracket-select {
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: 0.35rem;
+  color: var(--text);
+  font-size: var(--text-xs);
+  padding: 0.15rem 0.3rem;
 }
 
 /* ── Decks index page ─────────────────────────────────────────────────── */
@@ -3136,6 +3170,15 @@ input.toolbar-search-input {
   background: var(--surface);
 }
 
+.collection-group-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
 .deck-customizer-group-header {
   display: flex;
   align-items: center;
@@ -3367,6 +3410,24 @@ input.toolbar-search-input {
   border: 2px solid var(--accent);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   cursor: pointer;
+}
+
+/* Touch devices: the 18px thumb on a 6px track is a tight drag target, so
+   grow the draggable thumb on coarse pointers. The thumb already overhangs
+   the thin track (range inputs center the thumb on the track), so enlarging
+   it alone widens the effective tap surface without distorting the gradient
+   progress fill. Mirrors the (hover: none) and (pointer: coarse) touch
+   adaptation pattern used elsewhere (global.css). */
+@media (hover: none) and (pointer: coarse) {
+  .deck-customizer-range::-webkit-slider-thumb {
+    width: 26px;
+    height: 26px;
+  }
+
+  .deck-customizer-range::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+  }
 }
 
 .deck-customizer-slider-anchors {
@@ -7353,4 +7414,33 @@ input.deck-row-qty-input.deck-row-qty-missing {
      its baseline (which made the padded chip ride high in the row). */
   vertical-align: middle;
   cursor: help;
+}
+
+/* EDHREC inclusion-% chip — a quiet, bordered marker sitting after the card
+   name. Reads in muted text against a bordered rounded-rect so it's visually
+   distinct from the accent-filled synergy pill. Theme-var only (replaces the
+   former inline style that referenced undefined --radius-sm / --text-muted). */
+.deck-row-inclusion {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+/* Phones: the name span holds qty/role/name + up to three trailing chips
+   (allocation, synergy, inclusion). Let the chips wrap under the name rather
+   than forcing the row wider than the viewport. */
+@media (max-width: 600px) {
+  .deck-row-inclusion {
+    margin-left: 0.3rem;
+  }
 }

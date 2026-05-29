@@ -1,0 +1,115 @@
+.deck-type-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck-type-breakdown-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.deck-type-breakdown-heading {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-type-breakdown-total {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-type-breakdown-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text3);
+}
+
+.deck-type-breakdown-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.deck-type-breakdown-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.deck-type-breakdown-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.deck-type-breakdown-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.deck-type-breakdown-row-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-type-breakdown-row-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.deck-type-breakdown-row-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.deck-type-breakdown-row-track {
+  height: 0.35rem;
+  background: var(--surface2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.deck-type-breakdown-row-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+/* Phones: tighten inter-row gaps. The row name truncates with an ellipsis
+   and the count/pct meta is pinned (flex: 0 0 auto), so the head row can't
+   overflow regardless of type-name length. Matches the 600px tier used by
+   the sibling stat panels. */
+@media (max-width: 600px) {
+  .deck-type-breakdown {
+    gap: 0.5rem;
+  }
+
+  .deck-type-breakdown-rows {
+    gap: 0.4rem;
+  }
+}
