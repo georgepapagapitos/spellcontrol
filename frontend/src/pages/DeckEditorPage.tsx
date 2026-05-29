@@ -1,21 +1,19 @@
 import { Copy, Gauge, Hand, MoreVertical, Plus, Sparkles, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
-import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
+import {
+  DeckDisplay,
+  type DeckDisplayCard,
+  type AnalysisTabId,
+} from '../components/deck/DeckDisplay';
 import { materializeBinders } from '../lib/materialize';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
-import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
-import {
-  DeckAnalysisPanel,
-  type DeckAnalysisPanelHandle,
-} from '../components/deck/DeckAnalysisPanel';
-import {
-  DeckTestHandPanel,
-  type DeckTestHandPanelHandle,
-} from '../components/deck/DeckTestHandPanel';
+import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
+import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
+import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
@@ -68,9 +66,17 @@ export function DeckEditorPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
-  const combosPanelRef = useRef<DeckCombosPanelHandle>(null);
-  const analysisPanelRef = useRef<DeckAnalysisPanelHandle>(null);
-  const testHandPanelRef = useRef<DeckTestHandPanelHandle>(null);
+  // The analysis surface is a controlled tab strip living inside DeckDisplay;
+  // the feature-strip chips + keyboard shortcuts drive its active tab and
+  // scroll it into view (replacing the old per-panel reveal() handles).
+  const analysisSurfaceRef = useRef<HTMLDivElement>(null);
+  const [analysisTab, setAnalysisTab] = useState<AnalysisTabId>('overview');
+  const openAnalysisTab = useCallback((tab: AnalysisTabId) => {
+    setAnalysisTab(tab);
+    window.requestAnimationFrame(() => {
+      analysisSurfaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }, []);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -177,15 +183,15 @@ export function DeckEditorPage() {
         window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        combosPanelRef.current?.reveal();
+        openAnalysisTab('power'); // Combos live under the Power tab.
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        analysisPanelRef.current?.reveal();
+        openAnalysisTab('improve'); // Suggestions live under the Improve tab.
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [openAnalysisTab]);
 
   // Hero totals — mirrors the values surfaced in the Statistics panel
   // header so the desktop hero reads as a quick at-a-glance summary
@@ -536,9 +542,9 @@ export function DeckEditorPage() {
         comboCount={comboData.data?.inDeck.length ?? null}
         comboLoading={comboData.loading}
         showCombosAndAnalysis={!!formatConfig?.hasCommander}
-        onShowCombos={() => combosPanelRef.current?.reveal()}
-        onShowAnalysis={() => analysisPanelRef.current?.reveal()}
-        onShowTestHand={() => testHandPanelRef.current?.reveal()}
+        onShowCombos={() => openAnalysisTab('power')}
+        onShowAnalysis={() => openAnalysisTab('improve')}
+        onShowTestHand={() => openAnalysisTab('playtest')}
       />
 
       <div className="deck-editor-layout">
@@ -586,36 +592,35 @@ export function DeckEditorPage() {
             saltiestCards={deck.saltiestCards}
             exportOpen={exportOpen}
             onExportOpenChange={setExportOpen}
+            analysisTab={analysisTab}
+            onAnalysisTabChange={setAnalysisTab}
+            analysisSurfaceRef={analysisSurfaceRef}
+            combosSlot={
+              formatConfig?.hasCommander ? (
+                <DeckCombosPanel
+                  embedded
+                  deckId={deck.id}
+                  deckOracleIds={deckOracleIds}
+                  format={deck.format}
+                  onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+                />
+              ) : undefined
+            }
+            suggestionsSlot={
+              formatConfig?.hasCommander ? (
+                <DeckAnalysisPanel
+                  embedded
+                  deckId={deck.id}
+                  format={deck.format}
+                  commander={deck.commander}
+                  partnerCommander={deck.partnerCommander}
+                  mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                  onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+                />
+              ) : undefined
+            }
+            playtestSlot={<DeckTestHandPanel embedded deckId={deck.id} />}
           />
-
-          {/*
-            Combos and Analysis are gated on `hasCommander` — both panels
-            are built around the singleton / color-identity rules of
-            Commander-family formats. For Standard / Pauper they mostly
-            produce noise, so they're hidden. Test Hand stays for every
-            format — drawing an opening hand is useful for any deck.
-          */}
-          {formatConfig?.hasCommander && (
-            <>
-              <DeckCombosPanel
-                ref={combosPanelRef}
-                deckId={deck.id}
-                deckOracleIds={deckOracleIds}
-                format={deck.format}
-                onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-              />
-              <DeckAnalysisPanel
-                ref={analysisPanelRef}
-                deckId={deck.id}
-                format={deck.format}
-                commander={deck.commander}
-                partnerCommander={deck.partnerCommander}
-                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-              />
-            </>
-          )}
-          <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
         </main>
       </div>
 

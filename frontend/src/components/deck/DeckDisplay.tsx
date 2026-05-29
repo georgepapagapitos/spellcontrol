@@ -60,7 +60,8 @@ import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { BuildReportPanel } from './BuildReportPanel';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
-import { DeckColorBalance } from './DeckColorBalance';
+import { DeckColorPanel } from './DeckColorPanel';
+import { Tabs } from '../Tabs';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import {
   buildCommanderProfile,
@@ -345,6 +346,19 @@ export interface DeckDisplayProps {
    *  add panel — so adding a card not in the deck starts from the same
    *  search bar, mirroring the collection page. */
   onAddFromSearch?: (query: string) => void;
+  /**
+   * Folded-in analysis panels (Combos / EDHREC suggestions / Test hand). The
+   * page builds these so they keep their own data fetching; DeckDisplay just
+   * slots them into the Power / Improve / Playtest tabs of the analysis surface.
+   */
+  combosSlot?: React.ReactNode;
+  suggestionsSlot?: React.ReactNode;
+  playtestSlot?: React.ReactNode;
+  /** Controlled active analysis tab — the feature-strip chips drive this. */
+  analysisTab?: AnalysisTabId;
+  onAnalysisTabChange?: (id: AnalysisTabId) => void;
+  /** Attached to the analysis surface so the page can scroll it into view. */
+  analysisSurfaceRef?: React.Ref<HTMLDivElement>;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -744,6 +758,12 @@ export function DeckDisplay({
   exportOpen: exportOpenProp,
   onExportOpenChange,
   onAddFromSearch,
+  combosSlot,
+  suggestionsSlot,
+  playtestSlot,
+  analysisTab,
+  onAnalysisTabChange,
+  analysisSurfaceRef,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -846,6 +866,18 @@ export function DeckDisplay({
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
+
+  // When the page switches the analysis tab (feature-strip chip / keyboard
+  // shortcut), reveal the surface — on mobile/tablet it starts collapsed, so
+  // a chip would otherwise scroll to a closed header. Skip the initial render
+  // so the default-collapsed behavior is preserved on first load.
+  const prevAnalysisTabRef = useRef(analysisTab);
+  useEffect(() => {
+    if (prevAnalysisTabRef.current !== analysisTab) {
+      prevAnalysisTabRef.current = analysisTab;
+      setStatsOpen(true);
+    }
+  }, [analysisTab]);
 
   // Cross-deck context: lets us distinguish "you don't own this card" from
   // "you own it, but a different deck has the copy claimed". We exclude the
@@ -1377,6 +1409,13 @@ export function DeckDisplay({
             missingPrice={missing.price}
             open={isStatsAlwaysOpen || statsOpen}
             onToggle={isStatsAlwaysOpen ? undefined : () => setStatsOpen((v) => !v)}
+            combosSlot={combosSlot}
+            suggestionsSlot={suggestionsSlot}
+            playtestSlot={playtestSlot}
+            activeTab={analysisTab}
+            onTabChange={onAnalysisTabChange}
+            surfaceRef={analysisSurfaceRef}
+            commanderName={commander?.name}
           />
         </aside>
 
@@ -2530,7 +2569,10 @@ function DeckCardRow({
   );
 }
 
-// ── Statistics panel ──────────────────────────────────────────────────────
+// ── Analysis surface ───────────────────────────────────────────────────────
+/** The full-width tabbed analysis surface's tab ids. */
+export type AnalysisTabId = 'overview' | 'mana' | 'power' | 'improve' | 'playtest';
+
 function DeckStatistics({
   allCards,
   totalCards,
@@ -2558,6 +2600,13 @@ function DeckStatistics({
   missingPrice,
   open,
   onToggle,
+  combosSlot,
+  suggestionsSlot,
+  playtestSlot,
+  activeTab,
+  onTabChange,
+  surfaceRef,
+  commanderName,
 }: {
   allCards: ScryfallCard[];
   totalCards: number;
@@ -2586,6 +2635,17 @@ function DeckStatistics({
   open: boolean;
   /** Omit to render an always-open header with no caret / click handler. */
   onToggle?: () => void;
+  /** Folded-in panels from the page (own their data fetching). */
+  combosSlot?: React.ReactNode;
+  suggestionsSlot?: React.ReactNode;
+  playtestSlot?: React.ReactNode;
+  /** Controlled active tab (the feature-strip chips drive this). */
+  activeTab?: AnalysisTabId;
+  onTabChange?: (id: AnalysisTabId) => void;
+  /** Attached to the surface section so the page can scroll it into view. */
+  surfaceRef?: React.Ref<HTMLDivElement>;
+  /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
+  commanderName?: string;
 }) {
   const colorDist = useMemo(() => {
     const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
@@ -2653,12 +2713,41 @@ function DeckStatistics({
   const effectiveDrawSub = cardDrawSubtypeCounts ?? derivedRoles?.cardDrawSubtypeCounts;
   const showRoles = effectiveRoleCounts !== undefined;
 
+  // ── Tabbed surface ──────────────────────────────────────────────────────
+  // 14 stacked panels → 4-5 coherent tabs. Combos/Suggestions/Test-hand are
+  // folded in as slots passed from the page (they own their data fetching).
+  const hasPower = !!(bracketEstimation || bracketOverride != null || combosSlot);
+  const hasImprove = !!(showRoles || (gapAnalysis && gapAnalysis.length > 0) || suggestionsSlot);
+  const tabDefs: Array<{ id: AnalysisTabId; label: string; show: boolean }> = [
+    { id: 'overview', label: 'Overview', show: true },
+    { id: 'mana', label: 'Mana', show: true },
+    { id: 'power', label: 'Power', show: hasPower },
+    { id: 'improve', label: 'Improve', show: hasImprove },
+    { id: 'playtest', label: 'Playtest', show: !!playtestSlot },
+  ];
+  const visibleTabs = tabDefs.filter((t) => t.show);
+  // The page controls the active tab (feature-strip chips). Fall back to the
+  // first visible tab if it points somewhere hidden (e.g. format without a
+  // Power/Improve tab).
+  const current: AnalysisTabId = visibleTabs.some((t) => t.id === activeTab)
+    ? (activeTab as AnalysisTabId)
+    : (visibleTabs[0]?.id ?? 'overview');
+  const setTab = (id: AnalysisTabId) => onTabChange?.(id);
+
+  const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
+  const bracketOverridden = bracketOverride != null;
+
   return (
-    <section className="deck-stats" data-open={open || undefined}>
+    <section
+      className="deck-stats deck-analysis-surface"
+      data-open={open || undefined}
+      ref={surfaceRef}
+      id="deck-analysis-surface"
+    >
       {onToggle ? (
         <button type="button" className="deck-stats-header" onClick={onToggle} aria-expanded={open}>
           <BarChart3 width={16} height={16} aria-hidden />
-          <span className="deck-stats-title">Statistics</span>
+          <span className="deck-stats-title">Analysis</span>
           <span className="deck-stats-caret" aria-hidden>
             {open ? <ChevronUp width={16} height={16} /> : <ChevronDown width={16} height={16} />}
           </span>
@@ -2666,197 +2755,224 @@ function DeckStatistics({
       ) : (
         <div className="deck-stats-header deck-stats-header--static">
           <BarChart3 width={16} height={16} aria-hidden />
-          <span className="deck-stats-title">Statistics</span>
+          <span className="deck-stats-title">Analysis</span>
         </div>
       )}
-      <div className="deck-stats-grid" hidden={!open}>
-        <Panel title="Overview">
-          <ul className="deck-overview-list">
-            {deckGrade && (
-              <li className="deck-overview-row">
-                <span className="deck-overview-label">Grade</span>
-                <span className="deck-overview-value" title={deckGrade.headline}>
-                  {deckGrade.letter}
-                </span>
-              </li>
-            )}
-            {identity && (
-              <>
-                <li className="deck-overview-row">
-                  <span className="deck-overview-label">Archetype</span>
-                  <span className="deck-overview-value">{identity.archetypeLabel}</span>
-                </li>
-                <li className="deck-overview-row">
-                  <span className="deck-overview-label">Pacing</span>
-                  <span className="deck-overview-value">{identity.pacingShort}</span>
-                </li>
-              </>
-            )}
-            <li className="deck-overview-row">
-              <span className="deck-overview-label">Cards</span>
-              <span className="deck-overview-value">{totalCards}</span>
-            </li>
-            <li className="deck-overview-row">
-              <span className="deck-overview-label">Avg CMC</span>
-              <span className="deck-overview-value">{averageCmc.toFixed(2)}</span>
-            </li>
-            {typeof averageSalt === 'number' && (
-              <li className="deck-overview-row">
-                <span className="deck-overview-label">Avg salt</span>
-                <span className="deck-overview-value">{averageSalt.toFixed(2)}</span>
-              </li>
-            )}
-            <li className="deck-overview-row">
-              <span className="deck-overview-label">Total price</span>
-              <span className="deck-overview-value">{fmtMoney(totalPrice, currency)}</span>
-            </li>
-            {missingCount > 0 && (
-              <li className="deck-overview-row">
-                <span className="deck-overview-label">Missing</span>
-                <span className="deck-overview-value">
-                  {missingCount} ({fmtMoney(missingPrice, currency)})
-                </span>
-              </li>
-            )}
-          </ul>
-          {identity && identity.themes.length > 0 && (
-            <ul className="deck-identity-themes" aria-label="Themes">
-              {identity.themes.map((t) => (
-                <li key={t} className="deck-identity-theme">
-                  {t}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-        {buildReport && (
-          <Panel title="Build report">
-            <BuildReportPanel report={buildReport} />
-          </Panel>
-        )}
-        {(bracketEstimation || bracketOverride != null) &&
-          (() => {
-            const effective = bracketOverride ?? bracketEstimation?.bracket;
-            const overridden = bracketOverride != null;
-            return (
-              <Panel title="Bracket">
-                <div className="deck-stats-bracket">
-                  <strong>
-                    Bracket {effective} — {effective != null ? bracketLabel(effective) : '—'}
-                    {overridden && <span className="deck-stats-bracket-tag"> manual</span>}
-                  </strong>
-                  {overridden && bracketEstimation ? (
-                    <span className="deck-stats-bracket-note">
-                      Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
-                    </span>
-                  ) : (
-                    bracketEstimation &&
-                    bracketEstimation.hardFloors.length > 0 && (
-                      <span className="deck-stats-bracket-note">
-                        {bracketEstimation.hardFloors[0].reason}
-                      </span>
-                    )
-                  )}
-                  {onSetBracketOverride && (
-                    <label className="deck-stats-bracket-override">
-                      <span>Set bracket</span>
-                      <select
-                        className="deck-stats-bracket-select"
-                        value={bracketOverride ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          onSetBracketOverride(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
-                        }}
-                      >
-                        <option value="">Auto</option>
-                        {([1, 2, 3, 4, 5] as const).map((b) => (
-                          <option key={b} value={b}>
-                            {b} — {bracketLabel(b)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
-                </div>
-              </Panel>
-            );
-          })()}
-        {saltiestCards && saltiestCards.length > 0 && (
-          <Panel title="Saltiest cards">
-            <ul className="deck-saltiest-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {saltiestCards.map((c) => (
-                <li
-                  key={c.name}
-                  className="deck-saltiest-row"
-                  style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}
-                >
-                  <span className="deck-saltiest-name">{c.name}</span>
-                  <span className="deck-saltiest-score" style={{ opacity: 0.7 }}>
-                    {c.salt.toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p
-              className="deck-saltiest-hint"
-              style={{ fontSize: '0.85em', opacity: 0.6, marginTop: 8 }}
-            >
-              EDHREC salt score (higher = more polarizing).
-            </p>
-          </Panel>
-        )}
-        <Panel title="Mana curve">
-          {/* Richer curve viz: 0–7+ histogram plus Early/Mid/Late phase grades. */}
-          <DeckCurvePhases manaCurve={manaCurve} averageCmc={averageCmc} />
-        </Panel>
 
-        <Panel title="Color distribution">
-          <ColorDonut counts={colorDist.counts} total={colorDist.total} />
-        </Panel>
-
-        <Panel title="Mana production">
-          <ManaProduction counts={manaProduction.counts} total={manaProduction.totalLands} />
-        </Panel>
-
-        <Panel title="Color balance">
-          {/*
-           * Demand = colored-card count per WUBRG (colorDist.counts; a card's
-           * color-identity contributes one to each of its colors). Production =
-           * number of lands producing each WUBRG color (manaProduction.counts).
-           * Both maps also carry a 'C' (colorless) key, which DeckColorBalance
-           * ignores since it only iterates WUBRG. This is the closest available
-           * demand/source proxy without per-pip parsing.
-           */}
-          <DeckColorBalance
-            colorRequirements={colorDist.counts}
-            colorProduction={manaProduction.counts}
+      {open && (
+        <div className="deck-analysis-surface-body">
+          <Tabs
+            ariaLabel="Deck analysis"
+            variant="scrollable"
+            value={current}
+            onChange={setTab}
+            tabs={visibleTabs.map((t) => ({
+              id: t.id,
+              label: t.label,
+              controls: `deck-analysis-panel-${t.id}`,
+            }))}
           />
-        </Panel>
 
-        {showRoles && (
-          <Panel title="Roles">
-            <RolesPanel
-              roleCounts={effectiveRoleCounts}
-              roleTargets={roleTargets}
-              rampSubtypeCounts={effectiveRampSub}
-              removalSubtypeCounts={effectiveRemovalSub}
-              boardwipeSubtypeCounts={effectiveBoardwipeSub}
-              cardDrawSubtypeCounts={effectiveDrawSub}
-            />
-          </Panel>
-        )}
+          <div
+            className="deck-analysis-tabpanel"
+            role="tabpanel"
+            id={`deck-analysis-panel-${current}`}
+            aria-labelledby={`sc-tab-${current}`}
+            tabIndex={0}
+          >
+            {current === 'overview' && (
+              <div className="deck-stats-grid">
+                <Panel title="Overview">
+                  <ul className="deck-overview-list">
+                    {deckGrade && (
+                      <li className="deck-overview-row">
+                        <span className="deck-overview-label">Grade</span>
+                        <span className="deck-overview-value" title={deckGrade.headline}>
+                          {deckGrade.letter}
+                        </span>
+                      </li>
+                    )}
+                    {identity && (
+                      <>
+                        <li className="deck-overview-row">
+                          <span className="deck-overview-label">Archetype</span>
+                          <span className="deck-overview-value">{identity.archetypeLabel}</span>
+                        </li>
+                        <li className="deck-overview-row">
+                          <span className="deck-overview-label">Pacing</span>
+                          <span className="deck-overview-value">{identity.pacingShort}</span>
+                        </li>
+                      </>
+                    )}
+                    <li className="deck-overview-row">
+                      <span className="deck-overview-label">Cards</span>
+                      <span className="deck-overview-value">{totalCards}</span>
+                    </li>
+                    <li className="deck-overview-row">
+                      <span className="deck-overview-label">Avg CMC</span>
+                      <span className="deck-overview-value">{averageCmc.toFixed(2)}</span>
+                    </li>
+                    {typeof averageSalt === 'number' && (
+                      <li className="deck-overview-row">
+                        <span className="deck-overview-label">Avg salt</span>
+                        <span className="deck-overview-value">{averageSalt.toFixed(2)}</span>
+                      </li>
+                    )}
+                    <li className="deck-overview-row">
+                      <span className="deck-overview-label">Total price</span>
+                      <span className="deck-overview-value">{fmtMoney(totalPrice, currency)}</span>
+                    </li>
+                    {missingCount > 0 && (
+                      <li className="deck-overview-row">
+                        <span className="deck-overview-label">Missing</span>
+                        <span className="deck-overview-value">
+                          {missingCount} ({fmtMoney(missingPrice, currency)})
+                        </span>
+                      </li>
+                    )}
+                  </ul>
+                  {identity && identity.themes.length > 0 && (
+                    <ul className="deck-identity-themes" aria-label="Themes">
+                      {identity.themes.map((t) => (
+                        <li key={t} className="deck-identity-theme">
+                          {t}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Panel>
+                {buildReport && (
+                  <Panel title="Build report">
+                    <BuildReportPanel report={buildReport} />
+                  </Panel>
+                )}
+                {saltiestCards && saltiestCards.length > 0 && (
+                  <Panel title="Saltiest cards">
+                    <ul className="deck-saltiest-list">
+                      {saltiestCards.map((c) => (
+                        <li key={c.name} className="deck-saltiest-row">
+                          <span className="deck-saltiest-name">{c.name}</span>
+                          <span className="deck-saltiest-score">{c.salt.toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="deck-saltiest-hint">
+                      EDHREC salt score (higher = more polarizing).
+                    </p>
+                  </Panel>
+                )}
+              </div>
+            )}
 
-        {gapAnalysis && gapAnalysis.length > 0 && (
-          <Panel title="Cards to consider">
-            <GapAnalysisPanel cards={gapAnalysis} ownedNames={ownedNames} />
-          </Panel>
-        )}
+            {current === 'mana' && (
+              <div className="deck-stats-grid">
+                <Panel title="Mana curve">
+                  {/* Richer curve viz: 0–7+ histogram plus Early/Mid/Late phase grades. */}
+                  <DeckCurvePhases manaCurve={manaCurve} averageCmc={averageCmc} />
+                </Panel>
+                <Panel title="Color">
+                  {/* Unified color story: distribution + production + balance, was 3 panels. */}
+                  <DeckColorPanel
+                    colorDist={colorDist}
+                    manaProduction={{
+                      counts: manaProduction.counts,
+                      total: manaProduction.totalLands,
+                    }}
+                  />
+                </Panel>
+                <Panel title="Types">
+                  <DeckTypeBreakdown typeCounts={typeBreakdown} />
+                </Panel>
+              </div>
+            )}
 
-        <Panel title="Types">
-          <DeckTypeBreakdown typeCounts={typeBreakdown} />
-        </Panel>
-      </div>
+            {current === 'power' && (
+              <div className="deck-stats-grid">
+                {(bracketEstimation || bracketOverride != null) && (
+                  <Panel title="Bracket">
+                    <div className="deck-stats-bracket">
+                      <strong>
+                        Bracket {effectiveBracketValue} —{' '}
+                        {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
+                        {bracketOverridden && (
+                          <span className="deck-stats-bracket-tag"> manual</span>
+                        )}
+                      </strong>
+                      {bracketOverridden && bracketEstimation ? (
+                        <span className="deck-stats-bracket-note">
+                          Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
+                        </span>
+                      ) : (
+                        bracketEstimation &&
+                        bracketEstimation.hardFloors.length > 0 && (
+                          <span className="deck-stats-bracket-note">
+                            {bracketEstimation.hardFloors[0].reason}
+                          </span>
+                        )
+                      )}
+                      {onSetBracketOverride && (
+                        <label className="deck-stats-bracket-override">
+                          <span>Set bracket</span>
+                          <select
+                            className="deck-stats-bracket-select"
+                            value={bracketOverride ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              onSetBracketOverride(
+                                v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5)
+                              );
+                            }}
+                          >
+                            <option value="">Auto</option>
+                            {([1, 2, 3, 4, 5] as const).map((b) => (
+                              <option key={b} value={b}>
+                                {b} — {bracketLabel(b)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
+                    </div>
+                  </Panel>
+                )}
+                {combosSlot && <div className="deck-analysis-slot">{combosSlot}</div>}
+              </div>
+            )}
+
+            {current === 'improve' && (
+              <div className="deck-stats-grid">
+                {showRoles && (
+                  <Panel title="Roles">
+                    <RolesPanel
+                      roleCounts={effectiveRoleCounts}
+                      roleTargets={roleTargets}
+                      rampSubtypeCounts={effectiveRampSub}
+                      removalSubtypeCounts={effectiveRemovalSub}
+                      boardwipeSubtypeCounts={effectiveBoardwipeSub}
+                      cardDrawSubtypeCounts={effectiveDrawSub}
+                    />
+                  </Panel>
+                )}
+                {gapAnalysis && gapAnalysis.length > 0 && (
+                  <Panel title="Cards to consider">
+                    <GapAnalysisPanel
+                      cards={gapAnalysis}
+                      ownedNames={ownedNames}
+                      commanderName={commanderName}
+                    />
+                  </Panel>
+                )}
+                {suggestionsSlot && <div className="deck-analysis-slot">{suggestionsSlot}</div>}
+              </div>
+            )}
+
+            {current === 'playtest' && playtestSlot && (
+              <div className="deck-analysis-slot">{playtestSlot}</div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -2867,98 +2983,6 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
       <h4 className="deck-stats-panel-title">{title}</h4>
       {children}
     </div>
-  );
-}
-
-function ColorDonut({ counts, total }: { counts: Record<string, number>; total: number }) {
-  const order = ['W', 'U', 'B', 'R', 'G', 'C'];
-  if (total === 0) return <div className="deck-stats-empty">No data</div>;
-
-  const radius = 36;
-  const stroke = 14;
-  const circ = 2 * Math.PI * radius;
-  let offset = 0;
-
-  return (
-    <div className="deck-donut">
-      <svg viewBox="-50 -50 100 100" width={88} height={88} aria-label="Color distribution">
-        <circle r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
-        {order.map((k) => {
-          const v = counts[k] ?? 0;
-          if (v === 0) return null;
-          const len = (v / total) * circ;
-          const seg = (
-            <circle
-              key={k}
-              r={radius}
-              fill="none"
-              stroke={COLOR_INFO[k]?.pip ?? 'var(--accent)'}
-              strokeWidth={stroke}
-              strokeDasharray={`${len} ${circ - len}`}
-              strokeDashoffset={-offset}
-              transform="rotate(-90)"
-            />
-          );
-          offset += len;
-          return seg;
-        })}
-      </svg>
-      <ul className="deck-donut-legend">
-        {order
-          .filter((k) => (counts[k] ?? 0) > 0)
-          .map((k) => {
-            const v = counts[k];
-            const pct = Math.round((v / total) * 100);
-            return (
-              <li key={k}>
-                <span className="deck-donut-swatch" style={{ background: COLOR_INFO[k]?.pip }} />
-                <span>{COLOR_INFO[k]?.label ?? k}</span>
-                <span className="deck-donut-pct">{pct}%</span>
-              </li>
-            );
-          })}
-      </ul>
-    </div>
-  );
-}
-
-function ManaProduction({ counts, total }: { counts: Record<string, number>; total: number }) {
-  const order = ['W', 'U', 'B', 'R', 'G', 'C'];
-  const max = Math.max(1, ...order.map((k) => counts[k] ?? 0));
-  if (total === 0) return <div className="deck-stats-empty">No lands</div>;
-  return (
-    <ul className="deck-mana-prod">
-      {order
-        .filter((k) => (counts[k] ?? 0) > 0)
-        .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0))
-        .map((k) => {
-          const v = counts[k];
-          const pct = Math.round((v / total) * 100);
-          return (
-            <li key={k}>
-              <div className="deck-mana-prod-row">
-                <span
-                  className="deck-mana-prod-swatch"
-                  style={{ background: COLOR_INFO[k]?.pip }}
-                />
-                <span className="deck-mana-prod-name">{COLOR_INFO[k]?.label ?? k}</span>
-                <span className="deck-mana-prod-meta">
-                  {v} {v === 1 ? 'source' : 'sources'} · {pct}%
-                </span>
-              </div>
-              <div className="deck-mana-prod-bar">
-                <div
-                  className="deck-mana-prod-bar-fill"
-                  style={{
-                    width: `${(v / max) * 100}%`,
-                    background: COLOR_INFO[k]?.pip,
-                  }}
-                />
-              </div>
-            </li>
-          );
-        })}
-    </ul>
   );
 }
 

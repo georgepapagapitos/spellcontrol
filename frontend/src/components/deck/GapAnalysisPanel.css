@@ -1,97 +1,63 @@
-.gap-analysis-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* "Cards to consider" panel. Rows reuse the shared .deck-analysis-suggest-*
+   classes (defined in styles/deck-builder.css) for the thumbnail + body
+   layout; the rules below cover only the gap-panel-specific bits: the price
+   chip, the overflow note, and the inclusion-% disclosure. */
+
+.deck-gap {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-}
-
-.gap-analysis-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.4rem 0.55rem;
-  background: var(--surface2);
-  border: 0.5px solid var(--border);
-  border-radius: 0.35rem;
-}
-
-.gap-analysis-main {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.gap-analysis-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-sm);
-  color: var(--text);
-}
-
-.gap-analysis-owned {
-  flex-shrink: 0;
-  padding: 0.05rem 0.4rem;
-  background: var(--surface2);
-  border: 0.5px solid var(--accent);
-  border-radius: 999px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-}
-
-.gap-analysis-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
   gap: 0.5rem;
-  font-size: var(--text-xs);
-  color: var(--text3);
 }
 
-.gap-analysis-role {
-  color: var(--text2);
-}
-
-.gap-analysis-inclusion {
-  font-family: var(--font-mono);
-  color: var(--text2);
-  font-variant-numeric: tabular-nums;
-}
-
-.gap-analysis-price {
+.deck-gap-price {
   font-family: var(--font-mono);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
 }
 
-.gap-analysis-overflow {
+.deck-gap-overflow {
+  list-style: none;
   padding: 0.2rem 0.55rem;
   font-size: var(--text-xs);
   color: var(--text3);
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────── */
-/* Phones: tighten row padding and the list gap. The card name truncates with
-   an ellipsis while the "owned" badge stays pinned (flex-shrink: 0); the meta
-   line (role · inclusion · price) already wraps. Matches the 600px tier used
-   by the sibling stat panels. */
-@media (max-width: 600px) {
-  .gap-analysis-list {
-    gap: 0.35rem;
-  }
+/* ── Inclusion-% disclosure ──────────────────────────────────────────── */
+/* Mirrors the RoleBadgeLegend pattern: a chevron toggle that reveals a short
+   explanatory block. */
+.deck-gap-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
 
-  .gap-analysis-row {
-    padding: 0.4rem 0.45rem;
-  }
+.deck-gap-legend-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  padding: 0.2rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
 
-  .gap-analysis-meta {
-    gap: 0.35rem 0.5rem;
+.deck-gap-legend-trigger:hover {
+  color: var(--text);
+}
+
+.deck-gap-legend-body {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text3);
+}
+
+/* Coarse pointers (touch): give the disclosure toggle a 44px touch target. */
+@media (pointer: coarse) {
+  .deck-gap-legend-trigger {
+    min-height: 44px;
   }
 }

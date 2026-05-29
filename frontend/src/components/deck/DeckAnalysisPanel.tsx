@@ -30,6 +30,7 @@ import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import type { EnrichedCard } from '../../types';
 import { CardPreview } from '../CardPreview';
+import { Tabs } from '../Tabs';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
 
 export interface DeckAnalysisPanelHandle {
@@ -44,6 +45,14 @@ interface Props {
   partnerCommander: ScryfallCard | null;
   mainboard: { slotId: string; card: ScryfallCard }[];
   onAdd: (card: ScryfallCard, allocatedCopyId: string | null) => void;
+  /**
+   * Render without the collapsible header chrome AND without the internal
+   * Diagnosis/Suggestions tabs — just the Suggestions list — for use inside
+   * the tabbed analysis surface's "Improve" tab. The Diagnosis view is
+   * intentionally dropped there (the Roles strip already covers role
+   * current-vs-target, so showing both was redundant).
+   */
+  embedded?: boolean;
 }
 
 const COLLAPSED_STORAGE_KEY = 'spellcontrol-analysis-panel-collapsed';
@@ -69,11 +78,13 @@ function writeCollapsedPref(collapsed: boolean): void {
 
 export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
   function DeckAnalysisPanel(
-    { deckId, format, commander, partnerCommander, mainboard, onAdd },
+    { deckId, format, commander, partnerCommander, mainboard, onAdd, embedded = false },
     ref
   ) {
     const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
     const [tab, setTab] = useState<'diagnosis' | 'suggestions'>('diagnosis');
+    // Embedded in a tab: no header chrome, body always open, Suggestions only.
+    const isCollapsed = embedded ? false : collapsed;
     const [taggerVersion, setTaggerVersion] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const focusTargetRef = useRef<HTMLButtonElement>(null);
@@ -124,84 +135,56 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
     return (
       <div
         ref={containerRef}
-        className={`deck-analysis-panel deck-combos-panel${collapsed ? ' is-collapsed' : ''}`}
+        className={`deck-analysis-panel deck-combos-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
         role="region"
         aria-label="Analysis"
       >
-        <button
-          type="button"
-          className="deck-combos-header"
-          aria-expanded={!collapsed}
-          aria-controls="deck-analysis-body"
-          onClick={() => setCollapsed((c) => !c)}
-          title={collapsed ? 'Expand analysis panel' : 'Collapse analysis panel'}
-        >
-          <Gauge width={16} height={16} aria-hidden />
-          <span className="deck-combos-title">Analysis</span>
-          <span className="deck-combos-header-summary" aria-hidden>
-            {summary.lowCount > 0 && (
-              <span>
-                {summary.lowCount} {summary.lowCount === 1 ? 'gap' : 'gaps'}
-              </span>
-            )}
-            {summary.highCount > 0 && <span>{summary.highCount} over</span>}
-            {summary.offColor > 0 && <span>{summary.offColor} off-color</span>}
-            {summary.lowCount === 0 &&
-              summary.highCount === 0 &&
-              summary.offColor === 0 &&
-              taggerReady && <span className="deck-combos-header-empty">Looks healthy</span>}
-            {!taggerReady && <span className="deck-combos-header-empty">Loading…</span>}
-          </span>
-          <span className="deck-combos-header-trailing" aria-hidden>
-            <span className="deck-combos-header-chevron">
-              {collapsed ? (
-                <ChevronDown width={16} height={16} />
-              ) : (
-                <ChevronUp width={16} height={16} />
+        {!embedded && (
+          <button
+            type="button"
+            className="deck-combos-header"
+            aria-expanded={!collapsed}
+            aria-controls="deck-analysis-body"
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? 'Expand analysis panel' : 'Collapse analysis panel'}
+          >
+            <Gauge width={16} height={16} aria-hidden />
+            <span className="deck-combos-title">Analysis</span>
+            <span className="deck-combos-header-summary" aria-hidden>
+              {summary.lowCount > 0 && (
+                <span>
+                  {summary.lowCount} {summary.lowCount === 1 ? 'gap' : 'gaps'}
+                </span>
               )}
+              {summary.highCount > 0 && <span>{summary.highCount} over</span>}
+              {summary.offColor > 0 && <span>{summary.offColor} off-color</span>}
+              {summary.lowCount === 0 &&
+                summary.highCount === 0 &&
+                summary.offColor === 0 &&
+                taggerReady && <span className="deck-combos-header-empty">Looks healthy</span>}
+              {!taggerReady && <span className="deck-combos-header-empty">Loading…</span>}
             </span>
-          </span>
-        </button>
+            <span className="deck-combos-header-trailing" aria-hidden>
+              <span className="deck-combos-header-chevron">
+                {collapsed ? (
+                  <ChevronDown width={16} height={16} />
+                ) : (
+                  <ChevronUp width={16} height={16} />
+                )}
+              </span>
+            </span>
+          </button>
+        )}
 
         <div
           id="deck-analysis-body"
           className="deck-combos-body"
-          hidden={collapsed}
-          aria-hidden={collapsed}
+          hidden={isCollapsed}
+          aria-hidden={isCollapsed}
         >
-          {/* Diagnosis and Suggestions are peer views, not stacked sections —
-              tabs keep only one tall column on screen at a time (matching the
-              Combos panel) instead of nesting a collapse inside a collapse. */}
-          <div className="deck-combos-tabs" role="tablist" aria-label="Analysis view">
-            <button
-              ref={focusTargetRef}
-              type="button"
-              role="tab"
-              aria-selected={tab === 'diagnosis'}
-              className={`deck-combos-tab${tab === 'diagnosis' ? ' active' : ''}`}
-              onClick={() => setTab('diagnosis')}
-            >
-              Diagnosis
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'suggestions'}
-              className={`deck-combos-tab${tab === 'suggestions' ? ' active' : ''}`}
-              onClick={() => setTab('suggestions')}
-            >
-              Suggestions
-            </button>
-          </div>
-
-          {/* Diagnosis — role health vs. format targets. This is the value
-              add over the Stats panel: stats shows counts; this shows status
-              + an actionable verdict per role. */}
-          {tab === 'diagnosis' ? (
-            <DiagnosisSection analysis={analysis} />
-          ) : (
-            /* Suggestions — popular cards for this commander, filtered to
-               the deck's diagnosed gaps by default. */
+          {embedded ? (
+            /* Improve tab: Suggestions only — the Roles strip already covers
+               the Diagnosis (role current-vs-target), so it's dropped here. */
             <SuggestionsSection
               analysis={analysis}
               commander={commander}
@@ -210,6 +193,40 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
               deckId={deckId}
               onAdd={onAdd}
             />
+          ) : (
+            <>
+              {/* Diagnosis and Suggestions are peer views, not stacked sections —
+                  tabs keep only one tall column on screen at a time (matching the
+                  Combos panel) instead of nesting a collapse inside a collapse. */}
+              <Tabs
+                ariaLabel="Analysis view"
+                value={tab}
+                onChange={setTab}
+                firstTabRef={focusTargetRef}
+                tabs={[
+                  { id: 'diagnosis', label: 'Diagnosis' },
+                  { id: 'suggestions', label: 'Suggestions' },
+                ]}
+              />
+
+              {/* Diagnosis — role health vs. format targets. This is the value
+                  add over the Stats panel: stats shows counts; this shows status
+                  + an actionable verdict per role. */}
+              {tab === 'diagnosis' ? (
+                <DiagnosisSection analysis={analysis} />
+              ) : (
+                /* Suggestions — popular cards for this commander, filtered to
+                   the deck's diagnosed gaps by default. */
+                <SuggestionsSection
+                  analysis={analysis}
+                  commander={commander}
+                  partnerCommander={partnerCommander}
+                  mainboard={mainboard}
+                  deckId={deckId}
+                  onAdd={onAdd}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
