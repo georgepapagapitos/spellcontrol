@@ -2,7 +2,7 @@ import { Camera, Search, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCanScan } from '../lib/use-can-scan';
-import { importText } from '../lib/api';
+import { importScannedCards } from '../lib/scan-import';
 import { useCollectionStore } from '../store/collection';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { UploadPanel } from './UploadPanel';
@@ -68,24 +68,17 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
     setScanError(null);
     setScanBusy(true);
     try {
-      const response = await importText(text);
-      await importCards(response, 'scanned-cards', 'merge');
-      const parts: string[] = [
-        `Added ${response.cards.length.toLocaleString()} scanned card${
-          response.cards.length === 1 ? '' : 's'
-        }`,
-      ];
-      if (response.unresolvedNames.length > 0) {
-        parts.push(`${response.unresolvedNames.length} unresolved`);
-      }
-      setScanSuccess(parts.join(' · '));
-      // Echo the count param so it's used (and the success line stays
-      // honest if the parsed-card count ever differs from the scanned
-      // count — e.g. duplicate detection on the parser side).
-      if (count !== response.cards.length) {
+      const { added, requested, unresolved } = await importScannedCards(text, count, importCards);
+      // Keep the success line honest if the parsed-card count differs from
+      // the scanned count (e.g. duplicate detection on the parser side).
+      if (added !== requested) {
         setScanSuccess(
-          `Added ${response.cards.length.toLocaleString()} of ${count.toLocaleString()} scanned cards`
+          `Added ${added.toLocaleString()} of ${requested.toLocaleString()} scanned cards`
         );
+      } else {
+        const parts = [`Added ${added.toLocaleString()} scanned card${added === 1 ? '' : 's'}`];
+        if (unresolved > 0) parts.push(`${unresolved} unresolved`);
+        setScanSuccess(parts.join(' · '));
       }
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Could not save scanned cards.');

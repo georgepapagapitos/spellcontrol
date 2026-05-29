@@ -9,6 +9,11 @@ vi.mock('../lib/api', () => ({
   fetchPrintings: (name: string) => fetchPrintingsMock(name),
 }));
 
+const searchCardsMock = vi.fn();
+vi.mock('@/deck-builder/services/scryfall/client', () => ({
+  searchCards: (...args: unknown[]) => searchCardsMock(...args),
+}));
+
 function makeCard(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
     id: 'card-1',
@@ -41,6 +46,7 @@ function makeEntry(over: Partial<ScannedEntry> = {}): ScannedEntry {
     id: 'oracle-bolt',
     card: makeCard(),
     qty: 2,
+    finish: 'nonfoil',
     rawText: 'Lightning Bolt',
     ...over,
   };
@@ -49,6 +55,8 @@ function makeEntry(over: Partial<ScannedEntry> = {}): ScannedEntry {
 describe('ScannerQueueSheet', () => {
   beforeEach(() => {
     fetchPrintingsMock.mockReset();
+    searchCardsMock.mockReset();
+    searchCardsMock.mockResolvedValue({ data: [], has_more: false });
   });
 
   it('shows the empty state when the queue is empty', () => {
@@ -58,9 +66,11 @@ describe('ScannerQueueSheet', () => {
         onClose={vi.fn()}
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
     expect(screen.getByText(/Nothing scanned yet/)).toBeTruthy();
@@ -73,9 +83,11 @@ describe('ScannerQueueSheet', () => {
         onClose={vi.fn()}
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
     expect(screen.getByText('Lightning Bolt')).toBeTruthy();
@@ -92,9 +104,11 @@ describe('ScannerQueueSheet', () => {
         onClose={vi.fn()}
         onChangePrinting={vi.fn()}
         onChangeQty={onChangeQty}
+        onChangeFinish={vi.fn()}
         onRemove={onRemove}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText(/Increase quantity of Lightning Bolt/));
@@ -112,9 +126,11 @@ describe('ScannerQueueSheet', () => {
         onClose={vi.fn()}
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
     const dec = screen.getByLabelText(/Decrease quantity of Lightning Bolt/) as HTMLButtonElement;
@@ -136,9 +152,11 @@ describe('ScannerQueueSheet', () => {
         onClose={vi.fn()}
         onChangePrinting={onChangePrinting}
         onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
     fireEvent.click(screen.getByLabelText(/Change printing of Lightning Bolt/));
@@ -157,9 +175,11 @@ describe('ScannerQueueSheet', () => {
         onClose={onClose}
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={onClearAll}
         onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
     fireEvent.click(screen.getByText('Clear all'));
@@ -176,12 +196,160 @@ describe('ScannerQueueSheet', () => {
         onClose={vi.fn()}
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={onConfirm}
+        onAddCard={vi.fn()}
       />
     );
     fireEvent.click(screen.getByText('Add 3 cards'));
     expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it('toggles finish when the printing has a foil variant', () => {
+    const onChangeFinish = vi.fn();
+    const foilable = makeEntry({
+      card: makeCard({
+        finishes: ['nonfoil', 'foil'],
+        prices: { usd: '1.50', usd_foil: '6.00' } as ScryfallCard['prices'],
+      }),
+    });
+    render(
+      <ScannerQueueSheet
+        entries={[foilable]}
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={onChangeFinish}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
+      />
+    );
+    // nonfoil → shows the foil price fallback chain at nonfoil ($1.50).
+    expect(screen.getByText('$1.50')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Finish of Lightning Bolt: Normal/));
+    expect(onChangeFinish).toHaveBeenCalledWith('oracle-bolt', 'foil');
+  });
+
+  it('hides the finish toggle when the printing has no foil variant', () => {
+    render(
+      <ScannerQueueSheet
+        entries={[makeEntry({ card: makeCard({ finishes: ['nonfoil'] }) })]}
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
+      />
+    );
+    expect(screen.queryByLabelText(/Finish of Lightning Bolt/)).toBeNull();
+  });
+
+  it('shows the foil price once the row finish is foil', () => {
+    render(
+      <ScannerQueueSheet
+        entries={[
+          makeEntry({
+            finish: 'foil',
+            card: makeCard({
+              finishes: ['nonfoil', 'foil'],
+              prices: { usd: '1.50', usd_foil: '6.00' } as ScryfallCard['prices'],
+            }),
+          }),
+        ]}
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
+      />
+    );
+    expect(screen.getByText('$6.00')).toBeTruthy();
+  });
+
+  it('opens a row printing picker on mount when initialPickerFor is set', async () => {
+    fetchPrintingsMock.mockResolvedValue([makeCard()]);
+    render(
+      <ScannerQueueSheet
+        entries={[makeEntry()]}
+        initialPickerFor="oracle-bolt"
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
+      />
+    );
+    await waitFor(() => expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt'));
+  });
+
+  it('searches Scryfall and adds a result to the queue', async () => {
+    const counterspell = makeCard({
+      id: 'card-cs',
+      oracle_id: 'oracle-cs',
+      name: 'Counterspell',
+      set: 'lea',
+      collector_number: '54',
+    });
+    searchCardsMock.mockResolvedValue({ data: [counterspell], has_more: false });
+    const onAddCard = vi.fn();
+    render(
+      <ScannerQueueSheet
+        entries={[]}
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={onAddCard}
+      />
+    );
+
+    // Typing fewer than two characters doesn't query.
+    fireEvent.change(screen.getByLabelText(/Search Scryfall to add a card/), {
+      target: { value: 'c' },
+    });
+    expect(searchCardsMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/Search Scryfall to add a card/), {
+      target: { value: 'counter' },
+    });
+    const addBtn = await screen.findByLabelText('Add Counterspell');
+    fireEvent.click(addBtn);
+    expect(onAddCard).toHaveBeenCalledWith(counterspell);
+  });
+
+  it('surfaces a no-matches message when the search comes back empty', async () => {
+    render(
+      <ScannerQueueSheet
+        entries={[]}
+        onClose={vi.fn()}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/Search Scryfall to add a card/), {
+      target: { value: 'zzzznotacard' },
+    });
+    await waitFor(() => expect(screen.getByText('No matches.')).toBeTruthy());
   });
 });

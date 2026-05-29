@@ -14,6 +14,14 @@ export default defineConfig({
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
+  // Vite 8 / rolldown fails to resolve the implicit HTML entry on macOS
+  // (`[UNRESOLVED_ENTRY] Cannot resolve entry module /index.html`); pin it to
+  // the absolute path so the production build works everywhere.
+  build: {
+    rollupOptions: {
+      input: path.resolve(__dirname, 'index.html'),
+    },
+  },
   plugins: [
     react(),
     VitePWA({
