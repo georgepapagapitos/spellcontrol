@@ -251,6 +251,56 @@ export async function getCardByName(name: string, exact = true): Promise<Scryfal
 }
 
 /**
+ * Fetch a single card by its exact Scryfall printing id (live API only).
+ *
+ * `getCardByName` resolves to the cheapest/default printing — fine for deck
+ * cards, wrong when the *specific* printing matters (an owned commander the
+ * user picked from their collection). This hits `/cards/:id`, preserving the
+ * printing's id/set/finishes so downstream allocation binds the exact copy.
+ *
+ * Offline has no by-printing index (the slim oracle store keeps one printing
+ * per oracle), so this is live-only; offline callers go through
+ * `getOwnedPrinting`, which degrades to name resolution + an id override.
+ */
+export async function getCardById(id: string): Promise<ScryfallCard> {
+  const cached = cardCache.get(id);
+  if (cached) return freshCopy(cached);
+
+  const card = await scryfallFetch<ScryfallCard>(`/cards/${encodeURIComponent(id)}`);
+  if (!isPlayableCard(card)) {
+    throw new Error(
+      `Card id "${id}" resolved to a non-playable ${card.layout ?? 'unknown'} printing.`
+    );
+  }
+  cardCache.set(card.id, card);
+  return freshCopy(card);
+}
+
+/**
+ * Resolve the full card for the *specific* printing the user owns — used when
+ * selecting a commander from one's collection so the deck reflects the physical
+ * copy (printing + finish), not the cheapest printing.
+ *
+ * Live: `/cards/:id` returns the exact printing. Offline (or if the id is
+ * unknown to Scryfall — data drift): resolve by name for complete oracle data,
+ * then override the result's `id` with the owned printing so the allocator
+ * still binds the owned copy (`pickCollectionCopy` keys on `card.id`, and
+ * `DeckDisplay` sources image/finish from the allocated copy).
+ */
+export async function getOwnedPrinting(scryfallId: string, name: string): Promise<ScryfallCard> {
+  if (!offlineActive()) {
+    try {
+      return await getCardById(scryfallId);
+    } catch {
+      // Fall through to name resolution + id override (printing unknown to
+      // Scryfall — stale collection data, withdrawn printing, etc.).
+    }
+  }
+  const card = await getCardByName(name, true);
+  return { ...card, id: scryfallId };
+}
+
+/**
  * Fetch a single card by name with proper rate limiting.
  * Returns null if not found instead of throwing.
  */
