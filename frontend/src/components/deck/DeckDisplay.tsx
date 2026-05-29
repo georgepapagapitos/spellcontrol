@@ -2780,7 +2780,7 @@ function DeckStatistics({
         <div className="deck-analysis-surface-body">
           <Tabs
             ariaLabel="Deck analysis"
-            variant="scrollable"
+            variant="hub"
             value={current}
             onChange={setTab}
             tabs={visibleTabs.map((t) => ({
@@ -2933,7 +2933,11 @@ function DeckStatistics({
                     </div>
                   </Panel>
                 )}
-                {combosSlot && <div className="deck-analysis-slot">{combosSlot}</div>}
+                {combosSlot && (
+                  <Panel title="Combos" wide>
+                    {combosSlot}
+                  </Panel>
+                )}
               </div>
             )}
 
@@ -2952,7 +2956,7 @@ function DeckStatistics({
                   </Panel>
                 )}
                 {gapAnalysis && gapAnalysis.length > 0 && (
-                  <Panel title="Cards to consider">
+                  <Panel title="Cards to consider" wide>
                     <GapAnalysisPanel
                       cards={gapAnalysis}
                       ownedNames={ownedNames}
@@ -2960,7 +2964,11 @@ function DeckStatistics({
                     />
                   </Panel>
                 )}
-                {suggestionsSlot && <div className="deck-analysis-slot">{suggestionsSlot}</div>}
+                {suggestionsSlot && (
+                  <Panel title="Suggestions" wide>
+                    {suggestionsSlot}
+                  </Panel>
+                )}
               </div>
             )}
           </div>
@@ -2970,9 +2978,19 @@ function DeckStatistics({
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  children,
+  wide,
+}: {
+  title: string;
+  children: React.ReactNode;
+  /** Span the full surface width (for list-heavy panels whose items lay out in
+   *  their own multi-column grid, e.g. Cards to consider). */
+  wide?: boolean;
+}) {
   return (
-    <div className="deck-stats-panel">
+    <div className={`deck-stats-panel${wide ? ' deck-stats-panel--wide' : ''}`}>
       <h4 className="deck-stats-panel-title">{title}</h4>
       {children}
     </div>

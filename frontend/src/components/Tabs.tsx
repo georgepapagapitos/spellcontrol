@@ -26,9 +26,11 @@ interface Props<T extends string> {
   /**
    * `fitted` (default) — tabs share the row equally (the 2-tab combos/analysis
    * look). `scrollable` — tabs size to content and the strip scrolls
-   * horizontally on overflow (the multi-tab analysis surface).
+   * horizontally on overflow. `hub` — the app-wide section-nav look (reuses the
+   * Collection hub's `.site-nav-link` / `.site-nav-count` styling) for top-level
+   * surface tabs, so the deck analysis tabs match Cards / Binders / Lists.
    */
-  variant?: 'fitted' | 'scrollable';
+  variant?: 'fitted' | 'scrollable' | 'hub';
   /**
    * Forwarded to the FIRST tab's button. Lets a parent panel focus the strip
    * when it reveals itself (mirrors the old reveal() → firstButtonRef.focus()).
@@ -90,6 +92,13 @@ export function Tabs<T extends string>({
     }
   };
 
+  // `hub` reuses the global section-nav styling so the deck surface tabs match
+  // the Collection hub (Cards / Binders / Lists); other variants use the local
+  // `.sc-tab` look.
+  const isHub = variant === 'hub';
+  const tabClass = isHub ? 'site-nav-link' : 'sc-tab';
+  const countClass = isHub ? 'site-nav-count' : 'sc-tab-count';
+
   return (
     <div
       className={`sc-tabs sc-tabs--${variant}${className ? ` ${className}` : ''}`}
@@ -115,14 +124,14 @@ export function Tabs<T extends string>({
             aria-controls={t.controls}
             aria-label={t.ariaLabel}
             tabIndex={selected ? 0 : -1}
-            className={`sc-tab${selected ? ' active' : ''}`}
+            className={`${tabClass}${selected ? ' active' : ''}`}
             onClick={() => onChange(t.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
           >
             {t.icon}
             {t.label}
             {typeof t.count === 'number' && (
-              <span className="sc-tab-count" aria-hidden>
+              <span className={countClass} aria-hidden>
                 {t.count}
               </span>
             )}

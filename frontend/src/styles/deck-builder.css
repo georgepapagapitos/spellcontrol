@@ -724,9 +724,14 @@
 @media (min-width: 1101px) {
   .deck-display {
     grid-template-columns: minmax(0, 1fr) 320px;
+    /* Toolbar + banner span the full width; the deck body and the Mana column
+       then start on the same line right below them, so their tops align and the
+       sort/filter/view pills get the full width to stay on one row. The Mana
+       column only spans the body row (align-self: start keeps it top-aligned),
+       so there's no multi-row height spill to inflate the rows above. */
     grid-template-areas:
-      'toolbar mana'
-      'banner  mana'
+      'toolbar toolbar'
+      'banner  banner'
       'body    mana'
       'stats   stats';
     column-gap: 1.25rem;
@@ -2062,6 +2067,13 @@ input.toolbar-search-input {
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem 0.875rem;
+}
+
+/* Span the whole surface row — for panels whose contents lay themselves out in
+   a multi-column grid (Cards to consider), so they fill the width instead of
+   sitting in one narrow auto-fill track. */
+.deck-stats-panel--wide {
+  grid-column: 1 / -1;
 }
 
 .deck-stats-panel-title {
@@ -4804,6 +4816,37 @@ input.toolbar-search-input {
   display: none; /* WebKit — keep the strip clean */
 }
 
+/* `hub` — match the Collection hub's section nav (Cards / Binders / Lists):
+   a clean bottom-bordered strip of .site-nav-link pills, not the boxed pill
+   group. Resets the .sc-tabs box look; scrolls horizontally on overflow. */
+.sc-tabs--hub {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0 0 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sc-tabs--hub::-webkit-scrollbar {
+  display: none;
+}
+
+.sc-tabs--hub .site-nav-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Full 44px touch target on coarse pointers (the site-nav-link padding alone
+   is ~33px tall). */
+@media (pointer: coarse) {
+  .sc-tabs--hub .site-nav-link {
+    min-height: 44px;
+  }
+}
+
 .sc-tab {
   font-family: inherit;
   font-size: var(--text-sm);
@@ -7111,8 +7154,13 @@ input.deck-row-qty-input.deck-row-qty-missing {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
+  /* Auto-fit grid: one column on phones / the embedded panel, fanning out to
+     2+ columns as width allows (desktop's full-width Improve tab, wide tablets)
+     so the suggestion / cards-to-consider rows fill the space instead of
+     stacking into one tall narrow column. Mirrors the combos-list grid. */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  align-items: start;
   gap: 0.4rem;
 }
 
