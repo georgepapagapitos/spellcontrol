@@ -22,7 +22,10 @@ export type AxisKey =
   | 'lifegain'
   | 'landfall'
   | 'graveyard'
-  | 'artifacts';
+  | 'artifacts'
+  | 'equipment'
+  | 'spellslinger'
+  | 'enchantress';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -213,6 +216,64 @@ const artifacts: SynergyAxis = {
   },
 };
 
+const equipment: SynergyAxis = {
+  key: 'equipment',
+  label: 'Equipment / Voltron',
+  producer(card) {
+    // The equipment cards themselves are the engine; the payoffs care about them.
+    if (card.typeLine.includes('equipment') || has(card, 'equip')) return 'equipment';
+    return null;
+  },
+  payoff(card) {
+    if (/whenever you cast[^.]*equipment/.test(card.oracle)) return 'pays off casting equipment';
+    if (/whenever an equipment[^.]*enters/.test(card.oracle)) return 'triggers on your equipment';
+    if (/equipment you control/.test(card.oracle)) return 'cares about your equipment';
+    if (/equipment card/.test(card.oracle)) return 'tutors/cares about equipment';
+    return null;
+  },
+};
+
+const spellslinger: SynergyAxis = {
+  key: 'spellslinger',
+  label: 'Spellslinger',
+  producer(card) {
+    if (
+      /(?:instant and sorcery|instant or sorcery|instant|sorcery) spells? you cast cost/.test(
+        card.oracle
+      )
+    )
+      return 'reduces spell cost';
+    if (/copy (?:target )?(?:instant|sorcery)/.test(card.oracle)) return 'copies spells';
+    return null;
+  },
+  payoff(card) {
+    if (has(card, 'magecraft') || has(card, 'prowess')) return 'magecraft/prowess';
+    if (/whenever you cast (?:or copy )?(?:an? )?(?:instant|sorcery)/.test(card.oracle))
+      return 'triggers on instants/sorceries';
+    if (/whenever you cast[^.]*instant or sorcery/.test(card.oracle))
+      return 'triggers on instants/sorceries';
+    return null;
+  },
+};
+
+const enchantress: SynergyAxis = {
+  key: 'enchantress',
+  label: 'Enchantress / enchantments',
+  producer(card) {
+    if (/enchantment spells? you cast cost/.test(card.oracle)) return 'reduces enchantment cost';
+    if (/enchantment token/.test(card.oracle)) return 'creates enchantment tokens';
+    if (/(?:search|return)[^.]*enchantment card/.test(card.oracle)) return 'tutors enchantments';
+    return null;
+  },
+  payoff(card) {
+    if (has(card, 'constellation')) return 'constellation';
+    if (/whenever you cast an enchantment/.test(card.oracle)) return 'triggers on enchantments';
+    if (/whenever an enchantment you control enters/.test(card.oracle))
+      return 'triggers on enchantments';
+    return null;
+  },
+};
+
 export const AXES: SynergyAxis[] = [
   tokens,
   counters,
@@ -221,4 +282,7 @@ export const AXES: SynergyAxis[] = [
   landfall,
   graveyard,
   artifacts,
+  equipment,
+  spellslinger,
+  enchantress,
 ];

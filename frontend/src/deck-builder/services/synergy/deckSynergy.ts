@@ -62,7 +62,12 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
     .map((s) => ({ ...s, total: s.producers.length + s.payoffs.length }))
     .sort((a, b) => b.total - a.total);
 
-  const invested = axes.filter((s) => s.total >= INVEST_THRESHOLD).map((s) => s.axis);
+  // "Invested" = a real engine: enough total cards AND both halves present.
+  // Requiring both halves stops payoff-heavy axes (spellslinger, enchantress)
+  // from reading as an engine — and over-protecting — without their producers.
+  const invested = axes
+    .filter((s) => s.total >= INVEST_THRESHOLD && s.producers.length >= 1 && s.payoffs.length >= 1)
+    .map((s) => s.axis);
 
   const warnings: string[] = [];
   for (const s of axes) {
