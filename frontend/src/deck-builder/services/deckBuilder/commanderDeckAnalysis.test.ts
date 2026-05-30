@@ -6,7 +6,9 @@ import {
   comboMatchesToDetected,
   computeGradeAndBracket,
   buildStrategyInputs,
+  buildStrategyEngineInput,
 } from './commanderDeckAnalysis';
+import type { DeckSynergy } from '../synergy/deckSynergy';
 import type { EDHRECCommanderData, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 
@@ -228,5 +230,40 @@ describe('buildStrategyInputs', () => {
 
   it('returns null when no card clears the synergy signal', () => {
     expect(buildStrategyInputs(dataWith([syn('Filler', 0), syn('Other', 0.1)]), [])).toBeNull();
+  });
+});
+
+describe('buildStrategyEngineInput', () => {
+  const c = (name: string) => ({ name, reason: '' });
+
+  it('distils the primary invested axis + distinct engine cards', () => {
+    const synergy: DeckSynergy = {
+      axes: [
+        {
+          axis: 'tokens',
+          label: 'Tokens / go-wide',
+          producers: [c('A'), c('B')],
+          payoffs: [c('C')], // A,B,C distinct → 3 engine cards
+          total: 3,
+        },
+        { axis: 'lifegain', label: 'Lifegain', producers: [c('A')], payoffs: [], total: 1 },
+      ],
+      invested: ['tokens'],
+      warnings: [],
+      headline: '',
+    };
+    const input = buildStrategyEngineInput(synergy, 60);
+    expect(input).toEqual({
+      primaryLabel: 'Tokens / go-wide',
+      primaryProducers: 2,
+      primaryPayoffs: 1,
+      engineCards: 3,
+      nonLandCount: 60,
+    });
+  });
+
+  it('returns a null primaryLabel when nothing is invested', () => {
+    const synergy: DeckSynergy = { axes: [], invested: [], warnings: [], headline: '' };
+    expect(buildStrategyEngineInput(synergy, 50).primaryLabel).toBeNull();
   });
 });
