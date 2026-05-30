@@ -27,6 +27,8 @@ export interface SynergyAnalysis {
 }
 
 const MAX_AXES_SHOWN = 6;
+/** Reserve a couple of slots per need for genuinely off-meta (oracle-sourced) fills. */
+const OFFMETA_QUOTA = 2;
 
 /** Compose the persistable analysis from an already-computed DeckSynergy. */
 export function buildSynergyAnalysis(
@@ -42,7 +44,7 @@ export function buildSynergyAnalysis(
       producers: a.producers.length,
       payoffs: a.payoffs.length,
     })),
-    suggestions: suggestOffMeta(deck, candidates),
+    suggestions: suggestOffMeta(deck, candidates, { offMetaQuota: OFFMETA_QUOTA }),
   };
 }
 

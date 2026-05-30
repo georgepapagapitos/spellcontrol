@@ -87,6 +87,26 @@ describe('suggestOffMeta', () => {
     expect(names).toEqual(['Mirror Entity']);
   });
 
+  it('reserves quota slots for genuinely off-meta (no-inclusion) fills', () => {
+    const deck = producerHeavyTokens();
+    // Three validated payoffs would fill the default 4 slots; the no-inclusion
+    // card (oracle-sourced) only surfaces because a quota slot is reserved.
+    const candidates = [
+      cand("Cathars' Crusade", 30),
+      cand('Intangible Virtue', 25),
+      cand('Mirror Entity', 20),
+      cand('Impact Tremors', 15), // 4th validated — would fill the last slot
+      cand('Purphoros, God of the Forge'), // no inclusion → genuinely off-meta
+    ];
+    const withoutQuota = suggestOffMeta(deck, candidates).map((s) => s.cardName);
+    expect(withoutQuota).not.toContain('Purphoros, God of the Forge');
+
+    const withQuota = suggestOffMeta(deck, candidates, { offMetaQuota: 1 }).map((s) => s.cardName);
+    expect(withQuota).toContain('Purphoros, God of the Forge');
+    // Validated fills still lead the list.
+    expect(withQuota[0]).toBe("Cathars' Crusade");
+  });
+
   it('returns nothing when there are no needs', () => {
     const balanced = analyzeDeckSynergy(
       pick(
