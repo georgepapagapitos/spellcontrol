@@ -2008,6 +2008,30 @@ input.toolbar-search-input {
   gap: 0.85rem;
 }
 
+/* Curated variant (Overview): instead of auto-fill (which leaves ragged
+   bottoms when panels differ in height), use an explicit column count per
+   breakpoint with equal-height cards and dense backfill. Hero panels
+   (.deck-stats-panel--wide) still span the full row; the small stat panels
+   tile 1-up (phone) / 2-up (tablet) / 3-up (desktop) and stretch to a shared
+   row height so the row reads as clean cards, not ragged columns. */
+.deck-stats-grid.deck-stats-grid--curated {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  grid-auto-flow: row dense;
+}
+
+@media (min-width: 640px) {
+  .deck-stats-grid.deck-stats-grid--curated {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .deck-stats-grid.deck-stats-grid--curated {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .deck-stats-grid[hidden] {
   display: none;
 }

@@ -2735,7 +2735,7 @@ function DeckAnalysisView({
   return (
     <div className="deck-analysis-view">
       {current === 'overview' && (
-        <div className="deck-stats-grid">
+        <div className="deck-stats-grid deck-stats-grid--curated">
           {nextBestMoveSlot && (
             <Panel title="Next best move" wide>
               {nextBestMoveSlot}
