@@ -12,6 +12,41 @@
   color: var(--text3);
 }
 
+/* ── "Owned only" filter toggle ─────────────────────────────────────────── */
+.optimize-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.optimize-owned-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  color: var(--text2, var(--text));
+  cursor: pointer;
+}
+
+.optimize-owned-count {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--surface2, var(--surface));
+}
+
+/* Shown in a column when the active filter leaves it empty. */
+.optimize-column-empty {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text3);
+}
+
 /* ── Two-column layout ──────────────────────────────────────────────────
    Side-by-side on wide; stacks to one column below ~700px. */
 .optimize-columns {

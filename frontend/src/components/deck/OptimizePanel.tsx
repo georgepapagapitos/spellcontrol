@@ -1,5 +1,5 @@
 import './OptimizePanel.css';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { useOptimizePlan, type OptimizeSide, type TriState } from './useOptimizePlan';
 
@@ -235,6 +235,7 @@ function OptimizeColumn({
   plan,
   ownedNames,
   applying,
+  emptyHint,
 }: {
   side: OptimizeSide;
   groups: CardGroup[];
@@ -242,6 +243,8 @@ function OptimizeColumn({
   plan: ReturnType<typeof useOptimizePlan>;
   ownedNames: Set<string>;
   applying: boolean;
+  /** Shown in place of the tiles when this column has no groups. */
+  emptyHint?: string;
 }) {
   const allNames = useMemo(() => groups.flatMap((g) => g.cards.map((c) => c.name)), [groups]);
   const groupState = side === 'remove' ? plan.removalGroupState : plan.additionGroupState;
@@ -262,6 +265,8 @@ function OptimizeColumn({
           disabled={applying || totalCount === 0}
         />
       </header>
+
+      {groups.length === 0 && emptyHint && <p className="optimize-column-empty">{emptyHint}</p>}
 
       {groups.map((group) => {
         const groupNames = group.cards.map((c) => c.name);
@@ -305,10 +310,32 @@ export function OptimizePanel({
   onApply,
   applying = false,
 }: OptimizePanelProps): JSX.Element {
-  const plan = useOptimizePlan(swaps, currentSize);
-  const removalGroups = useMemo(() => groupByCategory(swaps.removals), [swaps.removals]);
-  const additionGroups = useMemo(() => groupByCategory(swaps.additions), [swaps.additions]);
-  const owned = ownedNames ?? new Set<string>();
+  const owned = useMemo(() => ownedNames ?? new Set<string>(), [ownedNames]);
+  // "Owned only" constrains the Add column to cards already in the collection —
+  // a "free upgrades from what I have" mode. Cuts (your own deck cards) are
+  // never filtered. The filtered set feeds the hook so totals/Apply stay honest.
+  const [ownedOnly, setOwnedOnly] = useState(false);
+  const ownedAdditionCount = useMemo(
+    () => swaps.additions.filter((c) => owned.has(c.name)).length,
+    [swaps.additions, owned]
+  );
+  const effectiveSwaps = useMemo(
+    () =>
+      ownedOnly
+        ? { removals: swaps.removals, additions: swaps.additions.filter((c) => owned.has(c.name)) }
+        : swaps,
+    [swaps, ownedOnly, owned]
+  );
+
+  const plan = useOptimizePlan(effectiveSwaps, currentSize);
+  const removalGroups = useMemo(
+    () => groupByCategory(effectiveSwaps.removals),
+    [effectiveSwaps.removals]
+  );
+  const additionGroups = useMemo(
+    () => groupByCategory(effectiveSwaps.additions),
+    [effectiveSwaps.additions]
+  );
 
   const isEmpty = swaps.removals.length === 0 && swaps.additions.length === 0;
   if (isEmpty) {
@@ -333,11 +360,28 @@ export function OptimizePanel({
 
   return (
     <section className="optimize-panel" aria-label="Optimize deck">
+      {swaps.additions.length > 0 && (
+        <div className="optimize-toolbar">
+          <label className="optimize-owned-toggle">
+            <input
+              type="checkbox"
+              className="optimize-checkbox"
+              checked={ownedOnly}
+              onChange={() => setOwnedOnly((v) => !v)}
+              disabled={applying}
+              aria-label="Owned upgrades only"
+            />
+            <span>Owned upgrades only</span>
+            <span className="optimize-owned-count">{ownedAdditionCount} owned</span>
+          </label>
+        </div>
+      )}
+
       <div className="optimize-columns">
         <OptimizeColumn
           side="remove"
           groups={removalGroups}
-          totalCount={swaps.removals.length}
+          totalCount={effectiveSwaps.removals.length}
           plan={plan}
           ownedNames={owned}
           applying={applying}
@@ -345,10 +389,15 @@ export function OptimizePanel({
         <OptimizeColumn
           side="add"
           groups={additionGroups}
-          totalCount={swaps.additions.length}
+          totalCount={effectiveSwaps.additions.length}
           plan={plan}
           ownedNames={owned}
           applying={applying}
+          emptyHint={
+            ownedOnly
+              ? 'No upgrades in your collection right now — turn off “Owned upgrades only” to see all suggestions.'
+              : undefined
+          }
         />
       </div>
 

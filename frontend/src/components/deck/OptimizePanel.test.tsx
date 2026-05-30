@@ -88,4 +88,41 @@ describe('OptimizePanel', () => {
     expect(apply.disabled).toBe(true);
     expect(screen.getByText('Applying…')).toBeTruthy();
   });
+
+  it('"Owned upgrades only" filters the Add column to owned cards', () => {
+    const onApply = vi.fn();
+    render(
+      <OptimizePanel
+        swaps={swaps}
+        currentSize={100}
+        ownedNames={new Set(['Add A'])}
+        onApply={onApply}
+      />
+    );
+    // Both additions visible by default.
+    expect(screen.getByText('Add A')).toBeTruthy();
+    expect(screen.getByText('Add B')).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText('Owned upgrades only'));
+
+    // Only the owned addition remains; cuts are untouched.
+    expect(screen.getByText('Add A')).toBeTruthy();
+    expect(screen.queryByText('Add B')).toBeNull();
+    // Apply now carries only the owned addition.
+    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+    expect(onApply).toHaveBeenCalledWith(['Cut A', 'Cut B'], ['Add A']);
+  });
+
+  it('shows a hint when "Owned upgrades only" leaves no additions', () => {
+    render(
+      <OptimizePanel
+        swaps={swaps}
+        currentSize={100}
+        ownedNames={new Set<string>()}
+        onApply={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Owned upgrades only'));
+    expect(screen.getByText(/No upgrades in your collection/)).toBeTruthy();
+  });
 });
