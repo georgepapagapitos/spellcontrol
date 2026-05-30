@@ -11,6 +11,7 @@ import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/brac
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import type { SynergyAnalysis } from '@/deck-builder/services/synergy/analysis';
 import {
   dedupeDeckAllocations,
   isBasicLandName,
@@ -119,6 +120,11 @@ export interface Deck {
    * Kept live by useCommanderBracketAnalysis like optimizeSwaps.
    */
   costPlan?: CostPlan;
+  /**
+   * Native synergy engine analysis (producer↔payoff balance + off-meta
+   * suggestions). Kept live by useCommanderBracketAnalysis like optimizeSwaps.
+   */
+  synergyAnalysis?: SynergyAnalysis;
   /**
    * How the generated deck measured up to its build intent (fill + flag).
    * Set once at generation; generated decks only. See {@link BuildReport}.

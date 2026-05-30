@@ -112,6 +112,7 @@ export function useCommanderBracketAnalysis(args: Args): void {
             planScore: result.planScore,
             optimizeSwaps: result.optimizeSwaps,
             costPlan: result.costPlan,
+            synergyAnalysis: result.synergyAnalysis,
             gradeBracketSignature: signature,
           });
         })

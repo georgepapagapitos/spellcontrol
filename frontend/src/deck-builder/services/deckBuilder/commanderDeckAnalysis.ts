@@ -40,6 +40,11 @@ import {
 } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
+import {
+  buildSynergyAnalysis,
+  type SynergyAnalysis,
+  type SynergyCandidate,
+} from '../synergy/analysis';
 
 export interface DeckGrade {
   letter: string;
@@ -377,6 +382,8 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   optimizeSwaps?: OptimizeSwaps;
   /** Budget downgrade suggestions (cheaper role-equivalents). USD-canonical. */
   costPlan?: CostPlan;
+  /** Native synergy engine analysis + off-meta suggestions (the "Engine" surface). */
+  synergyAnalysis?: SynergyAnalysis;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -575,6 +582,41 @@ export async function analyzeCommanderDeck(
       );
     }
 
+    // Native synergy engine analysis + off-meta suggestions. Candidates come
+    // from the EDHREC long tail (off-meta inclusion window), enriched with
+    // oracle text so the classifier can read what they do; the suggester then
+    // picks cards that fill the deck's producer↔payoff gaps. Best-effort.
+    let synergyAnalysis: SynergyAnalysis | undefined;
+    try {
+      const inDeck = new Set(params.cards.map((c) => c.name.toLowerCase()));
+      inDeck.add(params.commander.name.toLowerCase());
+      if (params.partnerCommander) inDeck.add(params.partnerCommander.name.toLowerCase());
+      const candidateMeta = edhrecData.cardlists.allNonLand
+        .filter(
+          (c) =>
+            c.inclusion >= 2 &&
+            c.inclusion <= 35 &&
+            !inDeck.has(c.name.toLowerCase()) &&
+            !isBasicLandName(c.name)
+        )
+        .sort((a, b) => b.inclusion - a.inclusion)
+        .slice(0, 80);
+      const candidates: SynergyCandidate[] = [];
+      if (candidateMeta.length > 0) {
+        const cardMap = await getCardsByNames(candidateMeta.map((c) => c.name));
+        const byName = new Map<string, ScryfallCard>();
+        for (const sc of cardMap.values()) byName.set(sc.name.toLowerCase(), sc);
+        for (const meta of candidateMeta) {
+          const sc = byName.get(meta.name.toLowerCase());
+          if (sc) candidates.push({ card: sc, inclusion: meta.inclusion });
+        }
+      }
+      synergyAnalysis = buildSynergyAnalysis(deckSynergy, candidates);
+    } catch (err) {
+      logger.warn('[CommanderDeckAnalysis] Synergy analysis failed:', err);
+      synergyAnalysis = buildSynergyAnalysis(deckSynergy, []);
+    }
+
     // Return only the lean, persistable fields — the rich `analysis` and
     // `curvePhases` were transient inputs and must not leak into the store.
     return {
@@ -586,6 +628,7 @@ export async function analyzeCommanderDeck(
       planScore,
       optimizeSwaps,
       costPlan,
+      synergyAnalysis,
     };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);
