@@ -1,6 +1,5 @@
 // AUTO-ASSEMBLED from real Scryfall data + hand labels. Oracle text is
 // ground-truth (fetched live); `expect` is the reviewer's functional label.
-// Regenerate by re-running the eval fetch; edit labels by hand.
 import type { AxisKey } from './axes';
 
 export interface CorpusCard {
@@ -26,7 +25,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Landfall'],
     oracle_text:
       'When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.',
-    expect: { producers: ['tokens', 'counters'], payoffs: [] },
+    expect: { producers: ['tokens', 'counters'], payoffs: ['landfall'] },
   },
   {
     name: 'Secure the Wastes',
@@ -41,7 +40,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Landfall'],
     oracle_text:
       "Landfall — Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that's a copy of this creature instead.",
-    expect: { producers: ['tokens'], payoffs: [] },
+    expect: { producers: ['tokens'], payoffs: ['landfall'] },
   },
   {
     name: 'Hornet Queen',
@@ -89,14 +88,14 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Treasure'],
     oracle_text:
       'Whenever an opponent draws a card, that player may pay {2}. If the player doesn\'t, you create a Treasure token. (It\'s an artifact with "{T}, Sacrifice this token: Add one mana of any color.")',
-    expect: { producers: ['tokens'], payoffs: [] },
+    expect: { producers: ['artifacts'], payoffs: [] },
   },
   {
     name: 'Academy Manufactor',
     type_line: 'Artifact Creature — Assembly-Worker',
     keywords: ['Treasure', 'Food'],
     oracle_text: 'If you would create a Clue, Food, or Treasure token, instead create one of each.',
-    expect: { producers: ['tokens'], payoffs: [] },
+    expect: { producers: ['artifacts'], payoffs: [] },
   },
   {
     name: 'Tireless Provisioner',
@@ -104,7 +103,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Treasure', 'Food', 'Landfall'],
     oracle_text:
       'Landfall — Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life." Treasure is an artifact with "{T}, Sacrifice this token: Add one mana of any color.")',
-    expect: { producers: ['tokens'], payoffs: [] },
+    expect: { producers: ['artifacts'], payoffs: ['landfall'] },
   },
   {
     name: "Brass's Bounty",
@@ -112,7 +111,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Treasure'],
     oracle_text:
       'For each land you control, create a Treasure token. (It\'s an artifact with "{T}, Sacrifice this token: Add one mana of any color.")',
-    expect: { producers: ['tokens'], payoffs: [] },
+    expect: { producers: ['artifacts'], payoffs: [] },
   },
   {
     name: "Cathars' Crusade",
@@ -268,7 +267,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Lifelink', 'Vigilance', 'Fabricate'],
     oracle_text:
       'Flying, vigilance, lifelink\nFabricate 2 (When this creature enters, put two +1/+1 counters on it or create two 1/1 colorless Servo artifact creature tokens.)\nOther creatures you control get +1/+1.',
-    expect: { producers: ['tokens', 'counters', 'lifegain'], payoffs: ['tokens'] },
+    expect: { producers: ['tokens', 'counters', 'lifegain', 'artifacts'], payoffs: ['tokens'] },
   },
   {
     name: 'Doubling Season',
@@ -360,7 +359,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.',
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: ['landfall'], payoffs: [] },
   },
   {
     name: 'Swords to Plowshares',
@@ -383,7 +382,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Landfall'],
     oracle_text:
       'Landfall — Whenever a land you control enters, choose one —\n• Create a 2/2 white Cat Beast creature token.\n• Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn.',
-    expect: { producers: ['tokens', 'counters'], payoffs: ['tokens'] },
+    expect: { producers: ['tokens', 'counters'], payoffs: ['tokens', 'landfall'] },
   },
   {
     name: 'Adeline, Resplendent Cathar',
@@ -407,7 +406,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       '{1}, {T}, Discard a card: You gain 4 life.\n{1}, {T}, Pay 1 life: Create a 0/1 white Goat creature token.\n{1}, {T}, Sacrifice a creature: Return target artifact card from your graveyard to your hand.\n{1}, {T}, Sacrifice an artifact: Draw a card.',
-    expect: { producers: ['tokens', 'sacrifice', 'lifegain'], payoffs: [] },
+    expect: { producers: ['tokens', 'sacrifice', 'lifegain'], payoffs: ['graveyard'] },
   },
   {
     name: 'Pawn of Ulamog',
@@ -424,5 +423,178 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'At the beginning of your upkeep, you lose 1 life and create a 1/1 black Faerie Rogue creature token with flying.',
     expect: { producers: ['tokens'], payoffs: [] },
+  },
+  {
+    name: 'Exploration',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text: 'You may play an additional land on each of your turns.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Azusa, Lost but Seeking',
+    type_line: 'Legendary Creature — Human Monk',
+    keywords: [],
+    oracle_text: 'You may play two additional lands on each of your turns.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Sakura-Tribe Elder',
+    type_line: 'Creature — Snake Shaman',
+    keywords: [],
+    oracle_text:
+      'Sacrifice this creature: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Lotus Cobra',
+    type_line: 'Creature — Snake',
+    keywords: ['Landfall'],
+    oracle_text: 'Landfall — Whenever a land you control enters, add one mana of any color.',
+    expect: { producers: [], payoffs: ['landfall'] },
+  },
+  {
+    name: 'Rampaging Baloths',
+    type_line: 'Creature — Beast',
+    keywords: ['Trample', 'Landfall'],
+    oracle_text:
+      'Trample\nLandfall — Whenever a land you control enters, create a 4/4 green Beast creature token.',
+    expect: { producers: ['tokens'], payoffs: ['landfall'] },
+  },
+  {
+    name: 'Harrow',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'As an additional cost to cast this spell, sacrifice a land.\nSearch your library for up to two basic land cards, put them onto the battlefield, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Reanimate',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Animate Dead',
+    type_line: 'Enchantment — Aura',
+    keywords: ['Enchant'],
+    oracle_text:
+      'Enchant creature card in a graveyard\nWhen this Aura enters, if it\'s on the battlefield, it loses "enchant creature card in a graveyard" and gains "enchant creature put onto the battlefield with this Aura." Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature\'s controller sacrifices it.\nEnchanted creature gets -1/-0.',
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Sun Titan',
+    type_line: 'Creature — Giant',
+    keywords: ['Vigilance'],
+    oracle_text:
+      'Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.',
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Eternal Witness',
+    type_line: 'Creature — Human Shaman',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you may return target card from your graveyard to your hand.',
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: "Stitcher's Supplier",
+    type_line: 'Creature — Zombie',
+    keywords: ['Mill'],
+    oracle_text:
+      'When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)',
+    expect: { producers: ['graveyard'], payoffs: [] },
+  },
+  {
+    name: 'Hermit Druid',
+    type_line: 'Creature — Human Druid',
+    keywords: [],
+    oracle_text:
+      '{G}, {T}: Reveal cards from the top of your library until you reveal a basic land card. Put that card into your hand and all other cards revealed this way into your graveyard.',
+    expect: { producers: ['graveyard'], payoffs: [] },
+  },
+  {
+    name: 'Altar of Dementia',
+    type_line: 'Artifact',
+    keywords: ['Mill'],
+    oracle_text:
+      "Sacrifice a creature: Target player mills cards equal to the sacrificed creature's power.",
+    expect: { producers: ['sacrifice', 'graveyard'], payoffs: [] },
+  },
+  {
+    name: 'Rest in Peace',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'When this enchantment enters, exile all graveyards.\nIf a card or token would be put into a graveyard from anywhere, exile it instead.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Reckless Fireweaver',
+    type_line: 'Creature — Human Artificer',
+    keywords: [],
+    oracle_text:
+      'Whenever an artifact you control enters, this creature deals 1 damage to each opponent.',
+    expect: { producers: [], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Sai, Master Thopterist',
+    type_line: 'Legendary Creature — Human Artificer',
+    keywords: [],
+    oracle_text:
+      'Whenever you cast an artifact spell, create a 1/1 colorless Thopter artifact creature token with flying.\n{1}{U}, Sacrifice two artifacts: Draw a card.',
+    expect: { producers: ['tokens', 'sacrifice', 'artifacts'], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Marionette Master',
+    type_line: 'Creature — Human Artificer',
+    keywords: ['Fabricate'],
+    oracle_text:
+      "Fabricate 3 (When this creature enters, put three +1/+1 counters on it or create three 1/1 colorless Servo artifact creature tokens.)\nWhenever an artifact you control is put into a graveyard from the battlefield, target opponent loses life equal to this creature's power.",
+    expect: { producers: ['tokens', 'counters', 'artifacts'], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Mox Opal',
+    type_line: 'Legendary Artifact',
+    keywords: ['Metalcraft'],
+    oracle_text:
+      'Metalcraft — {T}: Add one mana of any color. Activate only if you control three or more artifacts.',
+    expect: { producers: [], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Cranial Plating',
+    type_line: 'Artifact — Equipment',
+    keywords: ['Equip'],
+    oracle_text:
+      'Equipped creature gets +1/+0 for each artifact you control.\n{B}{B}: Attach this Equipment to target creature you control.\nEquip {1}',
+    expect: { producers: [], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Urza, Lord High Artificer',
+    type_line: 'Legendary Creature — Human Artificer',
+    keywords: [],
+    oracle_text:
+      'When Urza enters, create a 0/0 colorless Construct artifact creature token with "This token gets +1/+1 for each artifact you control."\nTap an untapped artifact you control: Add {U}.\n{5}: Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost.',
+    expect: { producers: ['tokens', 'artifacts'], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Pitiless Plunderer',
+    type_line: 'Creature — Human Pirate',
+    keywords: ['Treasure'],
+    oracle_text:
+      'Whenever another creature you control dies, create a Treasure token. (It\'s an artifact with "{T}, Sacrifice this token: Add one mana of any color.")',
+    expect: { producers: ['artifacts'], payoffs: ['sacrifice'] },
+  },
+  {
+    name: 'Bloodthirster',
+    type_line: 'Creature — Demon',
+    keywords: ['Flying', 'Trample'],
+    oracle_text:
+      "Flying, trample\nWhenever this creature deals combat damage to a player, untap it. After this phase, there is an additional combat phase.\nThis creature can't attack a player it has already attacked this turn.",
+    expect: { producers: [], payoffs: [] },
   },
 ];

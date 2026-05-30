@@ -15,7 +15,14 @@ import {
   isTokenDoubler,
 } from './text';
 
-export type AxisKey = 'tokens' | 'counters' | 'sacrifice' | 'lifegain';
+export type AxisKey =
+  | 'tokens'
+  | 'counters'
+  | 'sacrifice'
+  | 'lifegain'
+  | 'landfall'
+  | 'graveyard'
+  | 'artifacts';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -26,7 +33,10 @@ export interface SynergyAxis {
   payoff(card: ParsedCard): string | null;
 }
 
-const TOKEN_MAKER_KEYWORDS = ['fabricate', 'amass', 'embalm', 'eternalize', 'afterlife'];
+const has = (card: ParsedCard, kw: string) => card.keywords.includes(kw);
+
+// ── Tokens (creature / go-wide) — noncreature tokens belong to the artifacts axis ──
+const CREATURE_TOKEN_KEYWORDS = ['fabricate', 'amass', 'embalm', 'eternalize', 'afterlife'];
 
 const tokens: SynergyAxis = {
   key: 'tokens',
@@ -34,22 +44,16 @@ const tokens: SynergyAxis = {
   producer(card) {
     const tc = tokenCreation(card.oracle);
     const kwMaker =
-      TOKEN_MAKER_KEYWORDS.some((k) => card.keywords.includes(k)) ||
+      CREATURE_TOKEN_KEYWORDS.some((k) => has(card, k)) ||
       /\bliving weapon\b|\bfor mirrodin\b/.test(card.oracle);
-    if (tc.creaturesForYou || kwMaker) {
-      return tc.noncreatureForYou
-        ? `creates creature + ${tc.kinds.filter((k) => k !== 'creature').join('/')} tokens`
-        : 'creates creature tokens';
-    }
-    if (tc.noncreatureForYou) return `creates ${tc.kinds.join('/')} tokens`;
-    return null;
+    return tc.creaturesForYou || kwMaker ? 'creates creature tokens' : null;
   },
   payoff(card) {
     if (isTokenDoubler(card.oracle)) return 'doubles the tokens you make';
     if (hasCreatureEtbTrigger(card.oracle)) return 'triggers when your creatures enter';
     if (scalesWithCreatures(card.oracle)) return 'scales with creatures you control';
     if (hasCreatureAnthem(card.oracle)) return 'anthem for your creatures';
-    if (card.keywords.includes('convoke')) return 'convoke (token sink)';
+    if (has(card, 'convoke')) return 'convoke (token sink)';
     if (/\bpopulate\b/.test(card.oracle)) return 'populate';
     return null;
   },
@@ -59,7 +63,7 @@ const counters: SynergyAxis = {
   key: 'counters',
   label: '+1/+1 counters',
   producer(card) {
-    if (card.keywords.includes('fabricate')) return 'puts +1/+1 counters';
+    if (has(card, 'fabricate')) return 'puts +1/+1 counters';
     if (/enters with [^.]*\+1\/\+1 counter/.test(card.oracle)) return 'enters with +1/+1 counters';
     if (/\+1\/\+1 counter on (?:a|each|target|this|that|up to)/.test(card.oracle))
       return 'puts +1/+1 counters';
@@ -85,8 +89,7 @@ const sacrifice: SynergyAxis = {
   label: 'Sacrifice / aristocrats',
   producer(card) {
     // The "producer" here is a sac OUTLET — it consumes fodder to fuel payoffs.
-    if (SAC_OUTLET.test(card.oracle)) return 'sacrifice outlet';
-    return null;
+    return SAC_OUTLET.test(card.oracle) ? 'sacrifice outlet' : null;
   },
   payoff(card) {
     if (/whenever [^.]*\bcreature[^.]*\bdies\b/.test(card.oracle))
@@ -101,7 +104,7 @@ const lifegain: SynergyAxis = {
   key: 'lifegain',
   label: 'Lifegain',
   producer(card) {
-    if (card.keywords.includes('lifelink')) return 'lifelink';
+    if (has(card, 'lifelink')) return 'lifelink';
     if (/you gain \d+ life/.test(card.oracle)) return 'gains you life';
     return null;
   },
@@ -113,4 +116,109 @@ const lifegain: SynergyAxis = {
   },
 };
 
-export const AXES: SynergyAxis[] = [tokens, counters, sacrifice, lifegain];
+const landfall: SynergyAxis = {
+  key: 'landfall',
+  label: 'Landfall / lands-matter',
+  producer(card) {
+    if (/play (?:an?|two|three|x)? ?additional lands?/.test(card.oracle))
+      return 'plays extra lands';
+    if (/\bland\b/.test(card.oracle) && /onto the battlefield/.test(card.oracle))
+      return 'puts lands onto the battlefield';
+    return null;
+  },
+  payoff(card) {
+    if (has(card, 'landfall') || /whenever a land(?: you control)? enters/.test(card.oracle))
+      return 'landfall payoff';
+    return null;
+  },
+};
+
+const GY_RECUR_KEYWORDS = [
+  'flashback',
+  'escape',
+  'delve',
+  'disturb',
+  'jump-start',
+  'aftermath',
+  'unearth',
+  'embalm',
+  'eternalize',
+  'encore',
+];
+
+const graveyard: SynergyAxis = {
+  key: 'graveyard',
+  label: 'Graveyard / recursion',
+  producer(card) {
+    // Self-mill / fill-your-yard. "into your graveyard" (yours), not "into a
+    // graveyard" — the latter is graveyard *hate* (Rest in Peace).
+    if (
+      has(card, 'mill') ||
+      /\bmills?\b/.test(card.oracle) ||
+      /into your graveyard/.test(card.oracle)
+    )
+      return 'fills your graveyard';
+    if (has(card, 'surveil') || /\bsurveil\b/.test(card.oracle)) return 'surveil';
+    return null;
+  },
+  payoff(card) {
+    if (
+      /(?:put|return) target [^.]*card from a graveyard (?:onto|to) the battlefield/.test(
+        card.oracle
+      )
+    )
+      return 'reanimates';
+    if (/return (?:target )?[^.]*card[^.]*from (?:your|a) graveyard/.test(card.oracle))
+      return 'recurs from your graveyard';
+    if (/from your graveyard (?:to|onto) the battlefield/.test(card.oracle))
+      return 'recurs from your graveyard';
+    if (/creature card in a graveyard/.test(card.oracle)) return 'reanimates';
+    if (GY_RECUR_KEYWORDS.some((k) => has(card, k))) return 'graveyard recursion';
+    if (/cast [^.]*from your graveyard/.test(card.oracle)) return 'casts from your graveyard';
+    return null;
+  },
+};
+
+const ARTIFACT_TOKEN_KEYWORDS = ['treasure', 'food', 'clue', 'blood', 'gold', 'powerstone', 'map'];
+
+const artifacts: SynergyAxis = {
+  key: 'artifacts',
+  label: 'Artifacts',
+  producer(card) {
+    const tc = tokenCreation(card.oracle);
+    if (tc.noncreatureForYou) return 'creates artifact tokens';
+    if (/artifact (?:creature )?token/.test(card.oracle)) return 'creates artifact tokens';
+    if (has(card, 'fabricate')) return 'fabricate (servo tokens)';
+    if (ARTIFACT_TOKEN_KEYWORDS.some((k) => has(card, k))) return 'creates artifact tokens';
+    return null;
+  },
+  payoff(card) {
+    if (
+      /whenever (?:an?|one or more|another) artifacts?(?: you control)? (?:enters?|is put into|leaves)/.test(
+        card.oracle
+      )
+    )
+      return 'triggers on your artifacts';
+    if (/whenever you cast an artifact spell/.test(card.oracle))
+      return 'pays off casting artifacts';
+    if (
+      has(card, 'affinity') ||
+      has(card, 'improvise') ||
+      has(card, 'metalcraft') ||
+      /metalcraft/.test(card.oracle)
+    )
+      return 'artifact threshold/cost payoff';
+    if (/for each artifact you control/.test(card.oracle)) return 'scales with artifacts';
+    return null;
+  },
+};
+
+export const AXES: SynergyAxis[] = [
+  tokens,
+  counters,
+  sacrifice,
+  lifegain,
+  landfall,
+  graveyard,
+  artifacts,
+];
