@@ -75,6 +75,13 @@ export interface SuggestOptions {
   perNeed?: number;
   minInclusion?: number;
   maxInclusion?: number;
+  /**
+   * Reserve up to this many of each need's slots for *genuinely* off-meta
+   * candidates — ones with no EDHREC inclusion (sourced by oracle search, the
+   * crowd never aggregated them). Default 0 keeps the historic "most-validated
+   * only" behavior. When > 0, these surface even alongside a full validated tail.
+   */
+  offMetaQuota?: number;
 }
 
 /**
@@ -95,6 +102,7 @@ export function suggestOffMeta(
   const perNeed = opts.perNeed ?? DEFAULT_PER_NEED;
   const minIncl = opts.minInclusion ?? OFFMETA_MIN_INCLUSION;
   const maxIncl = opts.maxInclusion ?? OFFMETA_MAX_INCLUSION;
+  const quota = opts.offMetaQuota ?? 0;
 
   const used = new Set<string>();
   const out: SynergySuggestion[] = [];
@@ -119,9 +127,17 @@ export function suggestOffMeta(
         inclusion: cand.inclusion,
       });
     }
-    // Most-validated off-meta first (highest inclusion within the window).
-    matches.sort((a, b) => (b.inclusion ?? 0) - (a.inclusion ?? 0));
-    for (const m of matches.slice(0, perNeed)) {
+    // Validated fills (real EDHREC inclusion) lead, most-validated first.
+    // Genuinely off-meta fills (no inclusion — the crowd never aggregated them)
+    // get `quota` reserved slots so they surface even behind a full tail.
+    const offMeta = matches.filter((m) => m.inclusion == null);
+    const validated = matches
+      .filter((m) => m.inclusion != null)
+      .sort((a, b) => (b.inclusion ?? 0) - (a.inclusion ?? 0));
+    const reserved = offMeta.slice(0, quota);
+    const filler = [...validated, ...offMeta.slice(quota)];
+    const selected = [...filler.slice(0, Math.max(0, perNeed - reserved.length)), ...reserved];
+    for (const m of selected) {
       out.push(m);
       used.add(m.cardName);
     }
