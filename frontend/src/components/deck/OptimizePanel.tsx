@@ -2,6 +2,7 @@ import './OptimizePanel.css';
 import { useMemo, useState } from 'react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { useOptimizePlan, type OptimizeSide, type TriState } from './useOptimizePlan';
+import { useCardCarousel } from './useCardCarousel';
 
 export interface OptimizePanelProps {
   swaps: OptimizeSwaps;
@@ -142,6 +143,7 @@ function OptimizeTile({
   checked,
   owned,
   onToggle,
+  onPreview,
   disabled,
 }: {
   card: OptimizeCard;
@@ -149,6 +151,7 @@ function OptimizeTile({
   checked: boolean;
   owned: boolean;
   onToggle: () => void;
+  onPreview: () => void;
   disabled?: boolean;
 }) {
   const inclusion = card.inclusion ?? 0;
@@ -174,7 +177,17 @@ function OptimizeTile({
           disabled={disabled}
           aria-label={checkLabel}
         />
-        <span className="optimize-tile-art">
+        <button
+          type="button"
+          className="optimize-tile-art"
+          // Tap the art to preview the card without toggling the checkbox.
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onPreview();
+          }}
+          aria-label={`Preview ${card.name}`}
+        >
           <img
             src={resolveThumb(card)}
             alt=""
@@ -193,7 +206,7 @@ function OptimizeTile({
               GC
             </span>
           )}
-        </span>
+        </button>
         <span className="optimize-tile-body">
           <span className="optimize-tile-name" title={card.name}>
             {card.name}
@@ -235,6 +248,7 @@ function OptimizeColumn({
   plan,
   ownedNames,
   applying,
+  onPreview,
   emptyHint,
 }: {
   side: OptimizeSide;
@@ -243,10 +257,13 @@ function OptimizeColumn({
   plan: ReturnType<typeof useOptimizePlan>;
   ownedNames: Set<string>;
   applying: boolean;
+  /** Open the card-detail carousel over this column's cards, at `name`. */
+  onPreview: (cards: OptimizeCard[], name: string) => void;
   /** Shown in place of the tiles when this column has no groups. */
   emptyHint?: string;
 }) {
   const allNames = useMemo(() => groups.flatMap((g) => g.cards.map((c) => c.name)), [groups]);
+  const allCards = useMemo(() => groups.flatMap((g) => g.cards), [groups]);
   const groupState = side === 'remove' ? plan.removalGroupState : plan.additionGroupState;
   const isChecked = side === 'remove' ? plan.isRemovalChecked : plan.isAdditionChecked;
   const columnState = groupState(allNames);
@@ -292,6 +309,7 @@ function OptimizeColumn({
                   checked={isChecked(card.name)}
                   owned={side === 'add' && ownedNames.has(card.name)}
                   onToggle={() => plan.toggle(side, card.name)}
+                  onPreview={() => onPreview(allCards, card.name)}
                   disabled={applying}
                 />
               ))}
@@ -311,6 +329,16 @@ export function OptimizePanel({
   applying = false,
 }: OptimizePanelProps): JSX.Element {
   const owned = useMemo(() => ownedNames ?? new Set<string>(), [ownedNames]);
+
+  const carousel = useCardCarousel('Optimize suggestions');
+  // Open the carousel over a column's cards, labelled with each card's role +
+  // inclusion, starting at the tapped one.
+  const openPreview = (cards: OptimizeCard[], tappedName: string) =>
+    void carousel.open(
+      cards.map((c) => ({ name: c.name, label: inclusionMeta(c) })),
+      tappedName
+    );
+
   // "Owned only" constrains the Add column to cards already in the collection —
   // a "free upgrades from what I have" mode. Cuts (your own deck cards) are
   // never filtered. The filtered set feeds the hook so totals/Apply stay honest.
@@ -385,6 +413,7 @@ export function OptimizePanel({
           plan={plan}
           ownedNames={owned}
           applying={applying}
+          onPreview={openPreview}
         />
         <OptimizeColumn
           side="add"
@@ -393,6 +422,7 @@ export function OptimizePanel({
           plan={plan}
           ownedNames={owned}
           applying={applying}
+          onPreview={openPreview}
           emptyHint={
             ownedOnly
               ? 'No upgrades in your collection right now — turn off “Owned upgrades only” to see all suggestions.'
@@ -441,6 +471,8 @@ export function OptimizePanel({
           {applying ? 'Applying…' : 'Apply changes'}
         </button>
       </div>
+
+      {carousel.preview}
     </section>
   );
 }
