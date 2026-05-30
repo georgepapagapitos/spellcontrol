@@ -17,6 +17,7 @@ import {
   getGameChangerNames,
   getCardsByNames,
   getFrontFaceTypeLine,
+  searchCards,
 } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client';
@@ -45,6 +46,12 @@ import {
   type SynergyAnalysis,
   type SynergyCandidate,
 } from '../synergy/analysis';
+import { deriveNeeds } from '../synergy/suggest';
+import {
+  axisSearchQuery,
+  selectOracleCandidates,
+  type OracleNeedResult,
+} from '../synergy/oracleSearch';
 
 export interface DeckGrade {
   letter: string;
@@ -446,6 +453,39 @@ export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promi
   }
 }
 
+/** Cap on how many Scryfall hits per need feed the off-meta selector. */
+const ORACLE_HITS_PER_NEED = 40;
+
+/**
+ * Genuinely-off-meta candidates for the synergy suggester: for each engine
+ * *need*, run a broad Scryfall oracle search inside the deck's color identity,
+ * then keep only cards EDHREC never surfaced for this commander. Complements
+ * (doesn't replace) the EDHREC long-tail pool. Best-effort — a failed search
+ * for one need just contributes nothing.
+ */
+async function sourceOracleCandidates(
+  deckSynergy: DeckSynergy,
+  colorIdentity: string[],
+  edhrecInclusion: Map<string, number>,
+  inDeck: Set<string>
+): Promise<SynergyCandidate[]> {
+  const needs = deriveNeeds(deckSynergy);
+  if (needs.length === 0) return [];
+
+  const results: OracleNeedResult[] = [];
+  for (const need of needs) {
+    const query = axisSearchQuery(need.axis, need.side);
+    if (!query) continue;
+    try {
+      const resp = await searchCards(query, colorIdentity);
+      results.push({ need, cards: resp.data.slice(0, ORACLE_HITS_PER_NEED) });
+    } catch (err) {
+      logger.warn(`[CommanderDeckAnalysis] Oracle search failed for ${need.axis}:`, err);
+    }
+  }
+  return selectOracleCandidates(results, { edhrecInclusion, inDeck });
+}
+
 /**
  * Compute grade + bracket for a manually-built commander deck. Fetches (cached)
  * EDHREC data for the commander and derives every other input the generator
@@ -583,14 +623,19 @@ export async function analyzeCommanderDeck(
     }
 
     // Native synergy engine analysis + off-meta suggestions. Candidates come
-    // from the EDHREC long tail (off-meta inclusion window), enriched with
-    // oracle text so the classifier can read what they do; the suggester then
-    // picks cards that fill the deck's producer↔payoff gaps. Best-effort.
+    // from two pools: the EDHREC long tail (off-meta inclusion window, enriched
+    // with oracle text) and a Scryfall oracle search per engine *need* that
+    // surfaces genuinely off-meta cards the crowd never aggregated. The
+    // classifier reads what each does; the suggester picks producer↔payoff
+    // fills. Best-effort.
     let synergyAnalysis: SynergyAnalysis | undefined;
     try {
       const inDeck = new Set(params.cards.map((c) => c.name.toLowerCase()));
       inDeck.add(params.commander.name.toLowerCase());
       if (params.partnerCommander) inDeck.add(params.partnerCommander.name.toLowerCase());
+      const edhrecInclusion = new Map<string, number>();
+      for (const c of edhrecData.cardlists.allNonLand)
+        edhrecInclusion.set(c.name.toLowerCase(), c.inclusion);
       const candidateMeta = edhrecData.cardlists.allNonLand
         .filter(
           (c) =>
@@ -611,7 +656,14 @@ export async function analyzeCommanderDeck(
           if (sc) candidates.push({ card: sc, inclusion: meta.inclusion });
         }
       }
-      synergyAnalysis = buildSynergyAnalysis(deckSynergy, candidates);
+      const colorIdentity = params.colorIdentity ?? params.commander.color_identity ?? [];
+      const oracleCandidates = await sourceOracleCandidates(
+        deckSynergy,
+        colorIdentity,
+        edhrecInclusion,
+        inDeck
+      );
+      synergyAnalysis = buildSynergyAnalysis(deckSynergy, [...candidates, ...oracleCandidates]);
     } catch (err) {
       logger.warn('[CommanderDeckAnalysis] Synergy analysis failed:', err);
       synergyAnalysis = buildSynergyAnalysis(deckSynergy, []);
