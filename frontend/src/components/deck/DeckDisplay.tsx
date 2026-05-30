@@ -58,7 +58,9 @@ import { BracketBreakdown } from './BracketBreakdown';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { BuildReportPanel } from './BuildReportPanel';
 import { DeckManaPanel, type DeckManaData } from './DeckManaPanel';
+import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
   buildCommanderProfile,
   whyCardMatches,
@@ -283,6 +285,8 @@ export interface DeckDisplayProps {
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   deckGrade?: { letter: string; headline: string };
+  /** 0-100 PlanScore (strategy/roles/tempo/cardFit); kept live by the analysis hook. */
+  planScore?: PlanScore;
   /** Mean EDHREC salt score across non-land cards (generated decks only). */
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
@@ -349,6 +353,14 @@ export interface DeckDisplayProps {
    */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
+  /** "Next best move" suggestions, rendered atop the Overview view. Built by
+   *  the page (it owns the live combo data + view-navigation callback). */
+  nextBestMoveSlot?: React.ReactNode;
+  /** Cut/add Optimize surface, rendered in the Improve view. Built by the page
+   *  (it owns the apply flow: resolve names → store add/remove). */
+  optimizeSlot?: React.ReactNode;
+  /** Budget cost-optimizer surface, rendered in the Improve view. */
+  costSlot?: React.ReactNode;
   /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
@@ -731,6 +743,7 @@ export function DeckDisplay({
   bracketOverride,
   onSetBracketOverride,
   deckGrade,
+  planScore,
   averageSalt,
   saltiestCards,
   roleCounts,
@@ -758,6 +771,9 @@ export function DeckDisplay({
   onAddFromSearch,
   combosSlot,
   suggestionsSlot,
+  nextBestMoveSlot,
+  optimizeSlot,
+  costSlot,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1428,10 +1444,14 @@ export function DeckDisplay({
             saltiestCards={saltiestCards}
             identity={identity}
             deckGrade={deckGrade}
+            planScore={planScore}
             missingCount={missing.count}
             missingPrice={missing.price}
             combosSlot={combosSlot}
             suggestionsSlot={suggestionsSlot}
+            nextBestMoveSlot={nextBestMoveSlot}
+            optimizeSlot={optimizeSlot}
+            costSlot={costSlot}
             commanderName={commander?.name}
           />
         )}
@@ -2636,10 +2656,14 @@ function DeckAnalysisView({
   saltiestCards,
   identity,
   deckGrade,
+  planScore,
   missingCount,
   missingPrice,
   combosSlot,
   suggestionsSlot,
+  nextBestMoveSlot,
+  optimizeSlot,
+  costSlot,
   commanderName,
 }: {
   view: AnalysisTabId;
@@ -2665,11 +2689,15 @@ function DeckAnalysisView({
   saltiestCards?: Array<{ name: string; salt: number }>;
   identity: DeckIdentity | null;
   deckGrade?: { letter: string; headline: string };
+  planScore?: PlanScore;
   missingCount: number;
   missingPrice: number;
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
+  nextBestMoveSlot?: React.ReactNode;
+  optimizeSlot?: React.ReactNode;
+  costSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
 }) {
@@ -2698,6 +2726,16 @@ function DeckAnalysisView({
     <div className="deck-analysis-view">
       {current === 'overview' && (
         <div className="deck-stats-grid">
+          {nextBestMoveSlot && (
+            <Panel title="Next best move" wide>
+              {nextBestMoveSlot}
+            </Panel>
+          )}
+          {planScore && (
+            <Panel title="Plan score" wide>
+              <PlanScoreDashboard plan={planScore} />
+            </Panel>
+          )}
           <Panel title="Overview">
             <ul className="deck-overview-list">
               {deckGrade && (
@@ -2846,6 +2884,16 @@ function DeckAnalysisView({
                 boardwipeSubtypeCounts={effectiveBoardwipeSub}
                 cardDrawSubtypeCounts={effectiveDrawSub}
               />
+            </Panel>
+          )}
+          {optimizeSlot && (
+            <Panel title="Optimize" wide>
+              {optimizeSlot}
+            </Panel>
+          )}
+          {costSlot && (
+            <Panel title="Optimize on a budget" wide>
+              {costSlot}
             </Panel>
           )}
           {gapAnalysis && gapAnalysis.length > 0 && (

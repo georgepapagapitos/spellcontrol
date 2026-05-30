@@ -16,6 +16,11 @@ import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/
 import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
+import { NextBestMove } from '../components/deck/NextBestMove';
+import { OptimizePanel } from '../components/deck/OptimizePanel';
+import { CostPanel } from '../components/deck/CostPanel';
+import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
+import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
@@ -28,7 +33,7 @@ import { isValidCommander } from '../lib/commanders';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { getCardPrice } from '../deck-builder/services/scryfall/client';
+import { getCardPrice, getCardByName } from '../deck-builder/services/scryfall/client';
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -78,6 +83,8 @@ export function DeckEditorPage() {
   const viewScrollRef = useRef<HTMLDivElement>(null);
   const [showTestHand, setShowTestHand] = useState(false);
   const [view, setView] = useState<DeckView>('deck');
+  const [applyingOptimize, setApplyingOptimize] = useState(false);
+  const [applyingCost, setApplyingCost] = useState(false);
   const openView = useCallback((next: DeckView) => {
     setView(next);
     window.requestAnimationFrame(() => {
@@ -175,6 +182,24 @@ export function DeckEditorPage() {
     colorIdentity: commanderColorIdentity,
     updateDeck,
   });
+
+  // "Next best move" — the single highest-leverage change, derived from the
+  // live PlanScore + role gaps + near-miss combos. Manual decks don't carry
+  // roleCounts (set only at generation), so derive them from the tagger.
+  const nextBestMoves = useMemo(() => {
+    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
+    const roleCounts =
+      deck.roleCounts ?? computeRoleCounts(deck.cards.map((c) => c.card)).roleCounts;
+    return buildNextBestMoves({
+      planScore: deck.planScore,
+      roleCounts,
+      roleTargets: deck.roleTargets ?? {},
+      gapAnalysis: deck.gapAnalysis,
+      cardCount: deck.cards.length,
+      deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
+      oneAwayCombos: comboData.data?.oneAway,
+    });
+  }, [deck, comboData.data]);
 
   // `/` opens the search panel; `c` reveals the combos panel (the panel is
   // always rendered in the aside; `c` just expands + scrolls + focuses it).
@@ -290,6 +315,88 @@ export function DeckEditorPage() {
       actionLabel: 'Undo',
       onAction: () => addCard(deck.id, slot.card, slot.allocatedCopyId),
     });
+  };
+
+  // Apply an Optimize plan: cut the selected removals (by name → slot) and add
+  // the selected additions (resolved from Scryfall + allocated against the
+  // collection). Removals run first so the freed copies can be reallocated.
+  const handleApplyOptimize = async (removalNames: string[], additionNames: string[]) => {
+    if (!deck) return;
+    setApplyingOptimize(true);
+    try {
+      const slotsByName = new Map<string, string[]>();
+      for (const c of deck.cards) {
+        const k = c.card.name.toLowerCase();
+        const arr = slotsByName.get(k) ?? [];
+        arr.push(c.slotId);
+        slotsByName.set(k, arr);
+      }
+      let cuts = 0;
+      for (const name of removalNames) {
+        const slotId = slotsByName.get(name.toLowerCase())?.shift();
+        if (slotId) {
+          removeCard(deck.id, slotId);
+          cuts += 1;
+        }
+      }
+      let adds = 0;
+      for (const name of additionNames) {
+        try {
+          const scry = await getCardByName(name);
+          if (!scry) continue;
+          const allocations = buildAllocationMap(useDecksStore.getState().decks);
+          const claim = pickCollectionCopy(name, collectionCards, allocations, scry.id);
+          addCard(deck.id, scry, claim?.copyId ?? null);
+          adds += 1;
+        } catch {
+          /* skip cards that won't resolve */
+        }
+      }
+      pushToast({
+        message: `Applied ${cuts} cut${cuts === 1 ? '' : 's'} and ${adds} addition${adds === 1 ? '' : 's'}`,
+        tone: 'success',
+      });
+    } finally {
+      setApplyingOptimize(false);
+    }
+  };
+
+  // Apply budget swaps: each pair cuts the pricier card and adds the cheaper
+  // role-equivalent. Same name→slot / resolve+allocate machinery as Optimize.
+  const handleApplyCostSwaps = async (swaps: Array<{ removeName: string; addName: string }>) => {
+    if (!deck) return;
+    setApplyingCost(true);
+    try {
+      const slotsByName = new Map<string, string[]>();
+      for (const c of deck.cards) {
+        const k = c.card.name.toLowerCase();
+        const arr = slotsByName.get(k) ?? [];
+        arr.push(c.slotId);
+        slotsByName.set(k, arr);
+      }
+      let done = 0;
+      for (const { removeName, addName } of swaps) {
+        const slotId = slotsByName.get(removeName.toLowerCase())?.shift();
+        if (!slotId) continue;
+        try {
+          const scry = await getCardByName(addName);
+          if (!scry) continue;
+          removeCard(deck.id, slotId);
+          const allocations = buildAllocationMap(useDecksStore.getState().decks);
+          const claim = pickCollectionCopy(addName, collectionCards, allocations, scry.id);
+          addCard(deck.id, scry, claim?.copyId ?? null);
+          done += 1;
+        } catch {
+          /* skip cards that won't resolve — leave the original in place */
+        }
+      }
+      pushToast({
+        message: `Applied ${done} budget swap${done === 1 ? '' : 's'}`,
+        tone: 'success',
+      });
+    } finally {
+      setApplyingCost(false);
+    }
   };
 
   const handleRemoveSideboardCard = (slotId: string) => {
@@ -640,6 +747,7 @@ export function DeckEditorPage() {
             bracketOverride={deck.bracketOverride}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             deckGrade={deck.deckGrade}
+            planScore={deck.planScore}
             averageSalt={deck.averageSalt}
             saltiestCards={deck.saltiestCards}
             exportOpen={exportOpen}
@@ -667,6 +775,36 @@ export function DeckEditorPage() {
                   partnerCommander={deck.partnerCommander}
                   mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                   onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+                />
+              ) : undefined
+            }
+            nextBestMoveSlot={
+              nextBestMoves.length > 0 ? (
+                <NextBestMove moves={nextBestMoves} onNavigate={openView} />
+              ) : undefined
+            }
+            optimizeSlot={
+              formatConfig?.hasCommander &&
+              deck.optimizeSwaps &&
+              (deck.optimizeSwaps.removals.length > 0 ||
+                deck.optimizeSwaps.additions.length > 0) ? (
+                <OptimizePanel
+                  swaps={deck.optimizeSwaps}
+                  currentSize={deck.cards.length}
+                  ownedNames={ownedNames}
+                  onApply={handleApplyOptimize}
+                  applying={applyingOptimize}
+                />
+              ) : undefined
+            }
+            costSlot={
+              formatConfig?.hasCommander &&
+              deck.costPlan &&
+              (deck.costPlan.spellRows.length > 0 || deck.costPlan.landRows.length > 0) ? (
+                <CostPanel
+                  plan={deck.costPlan}
+                  onApply={handleApplyCostSwaps}
+                  applying={applyingCost}
                 />
               ) : undefined
             }
