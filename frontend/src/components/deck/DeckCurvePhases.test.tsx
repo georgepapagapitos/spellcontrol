@@ -59,6 +59,28 @@ describe('DeckCurvePhases', () => {
     expect(screen.getByText(/Avg CMC 3\.14/)).toBeTruthy();
   });
 
+  it('makes bars and phases tappable when card lists are provided', () => {
+    const cardsByCmc = {
+      2: [{ name: 'Counterspell', count: 1 }],
+      3: [{ name: 'Cultivate', count: 1 }],
+    };
+    render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} cardsByCmc={cardsByCmc} />);
+
+    // The CMC-2 bar has cards → tappable; the CMC-0 bar has none → static.
+    expect(screen.getByRole('button', { name: /mana value 2$/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /mana value 0$/ })).toBeNull();
+
+    // Early (0-2) and Mid (3-4) have cards → tappable; Late (5+) has none.
+    expect(screen.getByRole('button', { name: /Early-game cards/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Mid-game cards/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Late-game cards/ })).toBeNull();
+  });
+
+  it('renders no buttons when no card lists are provided', () => {
+    render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('handles an empty curve without dividing by zero', () => {
     const { container } = render(<DeckCurvePhases manaCurve={{}} averageCmc={0} />);
     const counts = container.querySelectorAll('.deck-curve-phases-bar-count');

@@ -22,9 +22,8 @@ describe('DeckManaPanel', () => {
 
   it('renders the unified color view sub-sections', () => {
     render(<DeckManaPanel {...DATA} />);
-    // DeckColorPanel's three sub-headings prove the merged color view wired up.
+    // DeckColorPanel's two readouts prove the merged color view wired up.
     expect(screen.getByText('Distribution')).toBeTruthy();
-    expect(screen.getByText('Production')).toBeTruthy();
-    expect(screen.getByText('Balance')).toBeTruthy();
+    expect(screen.getByText('Mana base')).toBeTruthy();
   });
 });

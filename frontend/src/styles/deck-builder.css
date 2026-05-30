@@ -1962,46 +1962,42 @@ input.toolbar-search-input {
 }
 
 /* Deck-view glance strip: high-level stats that used to live behind the
-   Overview analysis tab, now inline above the card list. Wraps on narrow
-   screens; each stat is a muted label with an emphasized value. */
+   Overview analysis tab, now inline above the card list. A dashboard-style
+   metric row — each stat stacks a bold value over a small muted uppercase
+   label, no separators. Values baseline-align so the numbers sit on one line
+   even when a label wraps; the whole row wraps on narrow screens. */
 .deck-stat-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.3rem 0.55rem;
-  font-size: var(--text-sm);
-  color: var(--text3);
+  gap: 0.55rem 1.4rem;
   font-variant-numeric: tabular-nums;
 }
 
 .deck-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
   white-space: nowrap;
 }
 
-/* "·" separator between stats — on every stat after the first, so it works no
-   matter which conditional stats (grade/archetype/missing) are present. */
-.deck-stat + .deck-stat::before {
-  content: '·';
-  margin-right: 0.55rem;
-  color: var(--text3);
-}
-
 .deck-stat-value {
+  font-size: var(--text-md);
   font-weight: 600;
+  line-height: 1.15;
   color: var(--text);
 }
 
-.deck-stat-missing {
-  color: var(--warn-text, #b85c00);
+.deck-stat-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
 }
 
-.deck-stat-missing .deck-stat-value {
+.deck-stat-missing .deck-stat-value,
+.deck-stat-missing .deck-stat-label {
   color: var(--warn-text, #b85c00);
-}
-
-/* Identity theme chips sit just under the strip on the deck view. */
-.deck-stat-themes {
-  margin-top: 0.4rem;
 }
 
 .deck-stats-caret {
@@ -3038,7 +3034,11 @@ input.toolbar-search-input {
   z-index: var(--z-popover);
   background: var(--bg);
   padding-top: 0.25rem;
-  margin-bottom: 1rem;
+  /* No margin-bottom — the parent `.deck-editor-page` already supplies a 1rem
+     flex `gap` between the tab strip and the view below. Adding a margin here
+     stacked on top of that gap, doubling the space to 2rem above the toolbar
+     (and reading as a dead band above the search row once the toolbar goes
+     single-column on tablet/mobile). */
 }
 
 /* The active analysis view's content fills the column (no card chrome — it's a
@@ -5894,24 +5894,11 @@ input.deck-row-qty-input.deck-row-qty-missing {
    Card list keeps two columns at 280px so a generated 100-card deck is
    still browsable without endless vertical scroll. */
 @media (max-width: 1100px) {
-  /* Stack vertically with the stats panel parked at the top, so the
-     user sees a closed-by-default summary chip (cards · CMC · value)
-     before the search/sort controls and the deck composition. The
-     minmax(0, 1fr) is the load-bearing detail: plain `1fr` resolves
-     to `minmax(auto, 1fr)` which means descendant min-content (long
-     card names, the stats meta string) can force the column wider
-     than the viewport, clipping content on narrow phones. */
-  .deck-display {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'stats'
-      'toolbar'
-      'banner'
-      'body';
-    /* Single column, four stacked areas, no row-spanning item — reset the
-       desktop row sizing so all rows size to their content. */
-    grid-template-rows: none;
-  }
+  /* `.deck-display` is a flex column at every width (see the base rule), so it
+     already stacks toolbar → stats → banner → body with no per-breakpoint grid
+     needed. (A vestigial `grid-template-areas` block used to live here from the
+     old stats-sidebar layout; it was inert dead CSS — `display` was never
+     `grid` — and was removed.) */
 
   /* Totals (cards + value) are surfaced by the Statistics panel header
      once the sidebar collapses above the deck — duplicating them in

@@ -26,6 +26,7 @@ import type {
   GapAnalysisCard,
   BuildReport,
 } from '@/deck-builder/types';
+import { producedManaColors, isManaSourceType, deckColorIdentity } from '@/lib/mana-sources';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -111,6 +112,23 @@ function classifyType(card: ScryfallCard): TypeGroup {
   return 'Artifact';
 }
 
+/** Collapse a list of cards to unique name → copy count (keeping one
+ *  representative card object so the drill-down carousel renders without
+ *  re-fetching), sorted by count desc then name. */
+function tallyNames(
+  cards: ScryfallCard[]
+): Array<{ name: string; count: number; card: ScryfallCard }> {
+  const m = new Map<string, { count: number; card: ScryfallCard }>();
+  for (const c of cards) {
+    const e = m.get(c.name);
+    if (e) e.count += 1;
+    else m.set(c.name, { count: 1, card: c });
+  }
+  return [...m.entries()]
+    .map(([name, { count, card }]) => ({ name, count, card }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
 const TYPE_ICON: Record<TypeGroup, string> = {
   Land: 'ms-land',
   Creature: 'ms-creature',
@@ -143,25 +161,6 @@ function fmtMoney(value: number, currency: CurrencyCode): string {
 
 function frontFaceMana(card: ScryfallCard): string | undefined {
   return card.mana_cost ?? card.card_faces?.[0]?.mana_cost;
-}
-
-function landProducedColors(card: ScryfallCard): string[] {
-  const out = new Set<string>();
-  for (const c of card.produced_mana || []) {
-    if ('WUBRG'.includes(c)) out.add(c);
-  }
-  if (out.size > 0) return [...out];
-  const tl = (card.type_line || '').toLowerCase();
-  const ot = (card.oracle_text || '').toLowerCase();
-  if (tl.includes('plains') || ot.includes('add {w}')) out.add('W');
-  if (tl.includes('island') || ot.includes('add {u}')) out.add('U');
-  if (tl.includes('swamp') || ot.includes('add {b}')) out.add('B');
-  if (tl.includes('mountain') || ot.includes('add {r}')) out.add('R');
-  if (tl.includes('forest') || ot.includes('add {g}')) out.add('G');
-  if (ot.includes('any color') || ot.includes('any type')) {
-    for (const c of 'WUBRG') out.add(c);
-  }
-  return [...out];
 }
 
 type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added';
@@ -1138,19 +1137,33 @@ export function DeckDisplay({
   }, [allCards]);
   const manaProduction = useMemo(() => {
     const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
-    let totalLands = 0;
+    // Per-color source cards; tallyNames dedupes them by name → copy count for
+    // the drill-down carousel (10x Plains is one entry, ×10) while `counts`
+    // still reflects every physical copy.
+    const sources: Record<string, ScryfallCard[]> = { W: [], U: [], B: [], R: [], G: [], C: [] };
+
+    // The deck's color identity, used to clamp commander-identity fixers
+    // (Command Tower, Arcane Signet) — see lib/mana-sources.
+    const identity = deckColorIdentity(allCards, [commander, partnerCommander]);
+
+    let totalSources = 0;
     for (const c of allCards) {
-      if (!(c.type_line || '').toLowerCase().includes('land')) continue;
-      totalLands += 1;
-      const colors = landProducedColors(c);
-      if (colors.length === 0) {
-        counts.C += 1;
-        continue;
+      // One-shot rituals aren't part of the mana base; a permanent that
+      // produces mana — land, rock, dork — is.
+      if (!isManaSourceType(c)) continue;
+      const colors = producedManaColors(c, identity);
+      if (colors.length === 0) continue;
+      totalSources += 1;
+      for (const k of colors) {
+        counts[k] = (counts[k] ?? 0) + 1;
+        (sources[k] ??= []).push(c);
       }
-      for (const k of colors) counts[k] = (counts[k] ?? 0) + 1;
     }
-    return { counts, totalLands };
-  }, [allCards]);
+    const sourcesByColor = Object.fromEntries(
+      Object.entries(sources).map(([k, v]) => [k, tallyNames(v)])
+    );
+    return { counts, totalSources, sourcesByColor };
+  }, [allCards, commander, partnerCommander]);
   const typeBreakdown = useMemo(() => {
     const out: Record<TypeGroup, number> = {
       Land: 0,
@@ -1167,16 +1180,50 @@ export function DeckDisplay({
     }
     return out;
   }, [allCards]);
-  // Normalized for DeckColorPanel/DeckManaPanel (which want `total`, not `totalLands`).
+  // Per-bucket card lists powering the Mana tab drill-downs (tap a stat → a
+  // carousel of the exact cards behind it). Bucketed to match the displayed
+  // counts: curve/color exclude lands and bucket CMC at 7+ like `manaCurve` /
+  // `colorDist`; types span every card like `typeBreakdown`.
+  const manaDrilldowns = useMemo(() => {
+    const byCmc: Record<number, ScryfallCard[]> = {};
+    const byType: Record<string, ScryfallCard[]> = {};
+    const byColor: Record<string, ScryfallCard[]> = {};
+    for (const c of allCards) {
+      const isLand = (c.type_line || '').toLowerCase().includes('land');
+      if (!isLand) {
+        const cmc = Math.min(7, Math.round(c.cmc ?? 0));
+        (byCmc[cmc] ??= []).push(c);
+        const ci = c.color_identity ?? [];
+        if (ci.length === 0) (byColor.C ??= []).push(c);
+        else for (const k of ci) (byColor[k] ??= []).push(c);
+      }
+      (byType[classifyType(c)] ??= []).push(c);
+    }
+    const tally = (m: Record<string | number, ScryfallCard[]>) =>
+      Object.fromEntries(Object.entries(m).map(([k, v]) => [k, tallyNames(v)]));
+    return {
+      cardsByCmc: tally(byCmc) as Record<number, Array<{ name: string; count: number }>>,
+      cardsByType: tally(byType),
+      cardsByColor: tally(byColor),
+    };
+  }, [allCards]);
+  // Normalized for DeckColorPanel/DeckManaPanel (which want `total`).
   const manaData = useMemo(
     () => ({
       manaCurve,
       averageCmc,
       colorDist,
-      manaProduction: { counts: manaProduction.counts, total: manaProduction.totalLands },
+      manaProduction: {
+        counts: manaProduction.counts,
+        total: manaProduction.totalSources,
+        sourcesByColor: manaProduction.sourcesByColor,
+      },
       typeBreakdown,
+      cardsByCmc: manaDrilldowns.cardsByCmc,
+      cardsByType: manaDrilldowns.cardsByType,
+      cardsByColor: manaDrilldowns.cardsByColor,
     }),
-    [manaCurve, averageCmc, colorDist, manaProduction, typeBreakdown]
+    [manaCurve, averageCmc, colorDist, manaProduction, typeBreakdown, manaDrilldowns]
   );
 
   const exportText = useMemo(
@@ -1314,46 +1361,44 @@ export function DeckDisplay({
             />
 
             {/* High-level stats, glanceable while editing the list — these used
-                to live behind the Overview analysis tab. */}
+                to live behind the Overview analysis tab. Each reads as a metric:
+                a bold value over a small muted label. */}
             <div className="deck-stat-strip" aria-label="Deck stats">
               <span className="deck-stat">
-                <b className="deck-stat-value">{totalCards}</b> cards
+                <span className="deck-stat-value">{totalCards}</span>
+                <span className="deck-stat-label">cards</span>
               </span>
               <span className="deck-stat">
-                <b className="deck-stat-value">{averageCmc.toFixed(2)}</b> avg CMC
+                <span className="deck-stat-value">{averageCmc.toFixed(2)}</span>
+                <span className="deck-stat-label">avg CMC</span>
               </span>
               <span className="deck-stat">
-                <b className="deck-stat-value">{fmtMoney(totalPrice, currency)}</b> value
+                <span className="deck-stat-value">{fmtMoney(totalPrice, currency)}</span>
+                <span className="deck-stat-label">value</span>
               </span>
               {deckGrade && (
                 <span className="deck-stat">
-                  <b className="deck-stat-value" title={deckGrade.headline}>
+                  <span className="deck-stat-value" title={deckGrade.headline}>
                     {deckGrade.letter}
-                  </b>{' '}
-                  grade
+                  </span>
+                  <span className="deck-stat-label">grade</span>
                 </span>
               )}
               {identity && (
                 <span className="deck-stat">
-                  <b className="deck-stat-value">{identity.archetypeLabel}</b>
+                  <span className="deck-stat-value">{identity.archetypeLabel}</span>
+                  <span className="deck-stat-label">archetype</span>
                 </span>
               )}
               {missing.count > 0 && (
                 <span className="deck-stat deck-stat-missing">
-                  <b className="deck-stat-value">{missing.count}</b> missing (
-                  {fmtMoney(missing.price, currency)})
+                  <span className="deck-stat-value">{missing.count}</span>
+                  <span className="deck-stat-label">
+                    missing ({fmtMoney(missing.price, currency)})
+                  </span>
                 </span>
               )}
             </div>
-            {identity && identity.themes.length > 0 && (
-              <ul className="deck-identity-themes deck-stat-themes" aria-label="Themes">
-                {identity.themes.map((t) => (
-                  <li key={t} className="deck-identity-theme">
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            )}
 
             {(flaggedCardCount > 0 || deckSizeWarning) && (
               <div className="deck-legality-banner">
