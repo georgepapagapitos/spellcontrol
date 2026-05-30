@@ -191,6 +191,12 @@
   --err-border: #b03434;
   --err-text: #8a1818;
 
+  /* Deeper positive/informational hues so they stay legible on light surfaces
+     (the :root pale variants wash out). These match the hardcoded fallbacks
+     the score tiles / Engine panel previously used. */
+  --success: #2f7d4f;
+  --info: #4a6fa5;
+
   /* Black-on-light SVGs render as-is. */
   --svg-invert: 0;
 

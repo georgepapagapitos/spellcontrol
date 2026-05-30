@@ -40,6 +40,13 @@
   --err-border: #8a3838;
   --err-text: #f0a8a8;
 
+  /* Positive/informational accents — tuned pale for dark surfaces (like
+     --warn-text / --err-text above); the light themes override with deeper
+     hues. Used by the deck-analysis score tiles and the synergy Engine panel
+     (payoff = success, role headers = info). */
+  --success: #5cc488;
+  --info: #7aa5e8;
+
   /* ── Typography ───────────────────────────────────────────────────────── */
   --font-serif: 'Eczar', 'Georgia', serif;
   --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
