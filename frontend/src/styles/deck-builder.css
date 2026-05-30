@@ -1965,9 +1965,12 @@ input.toolbar-search-input {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  /* Flow the label/value stat pairs into multiple columns when the panel is
+     wide (Overview is full-width), so the space fills instead of one sparse
+     column. Collapses to a single column on phones. */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: 0.4rem 1.5rem;
 }
 
 .deck-overview-row {
@@ -2008,12 +2011,13 @@ input.toolbar-search-input {
   gap: 0.85rem;
 }
 
-/* Curated variant (Overview): instead of auto-fill (which leaves ragged
-   bottoms when panels differ in height), use an explicit column count per
-   breakpoint with equal-height cards and dense backfill. Hero panels
-   (.deck-stats-panel--wide) still span the full row; the small stat panels
-   tile 1-up (phone) / 2-up (tablet) / 3-up (desktop) and stretch to a shared
-   row height so the row reads as clean cards, not ragged columns. */
+/* Curated variant (Overview): a two-tier hierarchy instead of an equal-tile
+   auto-fill grid (which buried the important panels and left ragged bottoms).
+   The lead panels — Next best move, Plan score, Overview — are `--wide` and
+   stack full-width up top. The two "extras" (Build report, Saltiest) drop into
+   a paired row below: 1-up on phones, 2-up from 640px, stretched to equal
+   height so they read as clean cards. Capped at 2 columns so exactly-two
+   extras never orphan a third empty column. */
 .deck-stats-grid.deck-stats-grid--curated {
   grid-template-columns: 1fr;
   align-items: stretch;
@@ -2023,12 +2027,6 @@ input.toolbar-search-input {
 @media (min-width: 640px) {
   .deck-stats-grid.deck-stats-grid--curated {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1024px) {
-  .deck-stats-grid.deck-stats-grid--curated {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

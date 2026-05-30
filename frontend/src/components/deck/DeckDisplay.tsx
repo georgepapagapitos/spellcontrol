@@ -2746,7 +2746,7 @@ function DeckAnalysisView({
               <PlanScoreDashboard plan={planScore} />
             </Panel>
           )}
-          <Panel title="Overview">
+          <Panel title="Overview" wide>
             <ul className="deck-overview-list">
               {deckGrade && (
                 <li className="deck-overview-row">
