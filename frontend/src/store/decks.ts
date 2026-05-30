@@ -9,6 +9,7 @@ import type {
 } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
+import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import {
   dedupeDeckAllocations,
   isBasicLandName,
@@ -107,6 +108,11 @@ export interface Deck {
    * cards change), like roleTargets/gapAnalysis — not a generation snapshot.
    */
   planScore?: PlanScore;
+  /**
+   * Balanced cut/add optimize suggestions (the "Optimize" surface). Kept live
+   * by useCommanderBracketAnalysis like roleTargets/gapAnalysis/planScore.
+   */
+  optimizeSwaps?: OptimizeSwaps;
   /**
    * How the generated deck measured up to its build intent (fill + flag).
    * Set once at generation; generated decks only. See {@link BuildReport}.

@@ -110,6 +110,7 @@ export function useCommanderBracketAnalysis(args: Args): void {
             gapAnalysis: result.gapAnalysis,
             cardInclusionMap: result.cardInclusionMap,
             planScore: result.planScore,
+            optimizeSwaps: result.optimizeSwaps,
             gradeBracketSignature: signature,
           });
         })

@@ -356,6 +356,9 @@ export interface DeckDisplayProps {
   /** "Next best move" suggestions, rendered atop the Overview view. Built by
    *  the page (it owns the live combo data + view-navigation callback). */
   nextBestMoveSlot?: React.ReactNode;
+  /** Cut/add Optimize surface, rendered in the Improve view. Built by the page
+   *  (it owns the apply flow: resolve names → store add/remove). */
+  optimizeSlot?: React.ReactNode;
   /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
@@ -767,6 +770,7 @@ export function DeckDisplay({
   combosSlot,
   suggestionsSlot,
   nextBestMoveSlot,
+  optimizeSlot,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1443,6 +1447,7 @@ export function DeckDisplay({
             combosSlot={combosSlot}
             suggestionsSlot={suggestionsSlot}
             nextBestMoveSlot={nextBestMoveSlot}
+            optimizeSlot={optimizeSlot}
             commanderName={commander?.name}
           />
         )}
@@ -2653,6 +2658,7 @@ function DeckAnalysisView({
   combosSlot,
   suggestionsSlot,
   nextBestMoveSlot,
+  optimizeSlot,
   commanderName,
 }: {
   view: AnalysisTabId;
@@ -2685,6 +2691,7 @@ function DeckAnalysisView({
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
   nextBestMoveSlot?: React.ReactNode;
+  optimizeSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
 }) {
@@ -2871,6 +2878,11 @@ function DeckAnalysisView({
                 boardwipeSubtypeCounts={effectiveBoardwipeSub}
                 cardDrawSubtypeCounts={effectiveDrawSub}
               />
+            </Panel>
+          )}
+          {optimizeSlot && (
+            <Panel title="Optimize" wide>
+              {optimizeSlot}
             </Panel>
           )}
           {gapAnalysis && gapAnalysis.length > 0 && (

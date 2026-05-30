@@ -17,7 +17,14 @@ import { getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
-import { analyzeDeck, getDeckSummaryData, type CurvePhaseAnalysis } from './deckAnalyzer';
+import {
+  analyzeDeck,
+  getDeckSummaryData,
+  computeOptimizeSwaps,
+  type CurvePhaseAnalysis,
+  type DeckAnalysis,
+  type OptimizeSwaps,
+} from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computePlanScore, type PlanScore } from './planScore';
@@ -213,6 +220,12 @@ export interface GradeBracketResult {
    * recomputing the whole analysis.
    */
   curvePhases?: CurvePhaseAnalysis[];
+  /**
+   * The full rich analysis, surfaced (transiently — never persisted) so the
+   * manual-deck path can derive cut/add optimize swaps from it. Only set when
+   * the grade branch ran (EDHREC data + role targets present).
+   */
+  analysis?: DeckAnalysis;
 }
 
 /**
@@ -233,6 +246,7 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
 
   let deckGrade: DeckGrade | undefined;
   let curvePhases: CurvePhaseAnalysis[] | undefined;
+  let richAnalysis: DeckAnalysis | undefined;
   if (input.edhrecData && input.roleTargets) {
     try {
       const analysis = analyzeDeck(
@@ -247,12 +261,13 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
       const summary = getDeckSummaryData(analysis);
       deckGrade = { letter: summary.gradeLetter, headline: summary.headline };
       curvePhases = analysis.curvePhases;
+      richAnalysis = analysis;
     } catch {
       deckGrade = undefined;
     }
   }
 
-  return { bracketEstimation, deckGrade, curvePhases };
+  return { bracketEstimation, deckGrade, curvePhases, analysis: richAnalysis };
 }
 
 // ── Manual-deck entry point ─────────────────────────────────────────────────
@@ -271,6 +286,8 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   cardInclusionMap?: Record<string, number>;
   /** 0-100 PlanScore (strategy/roles/tempo/cardFit). Undefined if not computable. */
   planScore?: PlanScore;
+  /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
+  optimizeSwaps?: OptimizeSwaps;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -372,7 +389,35 @@ export async function analyzeCommanderDeck(
       });
     }
 
-    return { ...gradeBracket, roleTargets, gapAnalysis, cardInclusionMap, planScore };
+    // Balanced cut/add optimize plan. Needs the full rich analysis (its
+    // recommendations + role/curve/color/mana data drive the swaps); only
+    // available when the grade branch ran. Manual decks have no must-include /
+    // banned set, so those are empty.
+    let optimizeSwaps: OptimizeSwaps | undefined;
+    if (gradeBracket.analysis) {
+      optimizeSwaps = computeOptimizeSwaps(
+        gradeBracket.analysis,
+        params.cards,
+        cardInclusionMap,
+        params.commander.name,
+        params.partnerCommander?.name,
+        new Set<string>(),
+        new Set<string>(),
+        params.detectedCombos
+      );
+    }
+
+    // Return only the lean, persistable fields — the rich `analysis` and
+    // `curvePhases` were transient inputs and must not leak into the store.
+    return {
+      bracketEstimation: gradeBracket.bracketEstimation,
+      deckGrade: gradeBracket.deckGrade,
+      roleTargets,
+      gapAnalysis,
+      cardInclusionMap,
+      planScore,
+      optimizeSwaps,
+    };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);
     return null;
