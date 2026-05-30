@@ -72,6 +72,8 @@
 
 .engine-axis-bar-pay {
   background: var(--success, #2f7d4f);
+  /* Non-color cue for the producer/payoff split (colorblind-safe). */
+  box-shadow: inset 1px 0 0 var(--surface);
 }
 
 /* ── Lopsided-engine warnings ───────────────────────────────────────────── */
@@ -140,6 +142,10 @@
   border-radius: 0.3rem;
   overflow: hidden;
   line-height: 0;
+  /* Placeholder shown when the thumbnail can't load (offline / 404) so the
+     box reads as intentional rather than a broken-image glyph. */
+  aspect-ratio: 5 / 7;
+  background: var(--surface2, var(--surface));
 }
 
 .engine-suggestion-art img {
@@ -161,14 +167,20 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text);
+  /* Wrap to 2 lines instead of hard-truncating — on a 320px phone the full
+     card name stays readable without relying on a (touch-dead) title tooltip. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .engine-suggestion-reason {
   font-size: var(--text-xs);
   color: var(--text2, var(--text));
+  overflow-wrap: anywhere;
 }
 
 .engine-suggestion-meta {
@@ -187,14 +199,43 @@
   padding: 0 0.9rem;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--accent-contrast, #fff);
+  color: var(--on-accent);
   background: var(--accent);
   border: none;
   border-radius: var(--radius, 0.4rem);
   cursor: pointer;
+  transition:
+    background 0.12s ease,
+    transform 0.06s ease;
+}
+
+.engine-suggestion-add:hover {
+  background: var(--accent-hover);
+}
+
+.engine-suggestion-add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.engine-suggestion-add:active {
+  transform: translateY(1px);
 }
 
 .engine-suggestion-add:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* Guarantee a 44px-wide tap target on touch devices (native app / mobile web). */
+@media (pointer: coarse) {
+  .engine-suggestion-add {
+    min-width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engine-suggestion-add {
+    transition: none;
+  }
 }

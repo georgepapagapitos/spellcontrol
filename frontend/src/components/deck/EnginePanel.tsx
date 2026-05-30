@@ -31,7 +31,9 @@ function AxisBalance({ axis }: { axis: SynergyAxisView }): JSX.Element {
           <span className="is-pay">{axis.payoffs} payoffs</span>
         </span>
       </div>
-      <div className="engine-axis-bar" aria-hidden>
+      {/* Decorative — the colored counts above already convey this to AT; the
+          inter-segment divider gives a non-color cue for the producer/payoff split. */}
+      <div className="engine-axis-bar" aria-hidden={true}>
         <span className="engine-axis-bar-prod" style={{ width: `${prodPct}%` }} />
         <span className="engine-axis-bar-pay" style={{ width: `${100 - prodPct}%` }} />
       </div>
@@ -54,7 +56,17 @@ function SuggestionTile({
   return (
     <li className="engine-suggestion">
       <span className="engine-suggestion-art">
-        <img src={scryThumb(suggestion.cardName)} alt="" loading="lazy" decoding="async" />
+        <img
+          src={scryThumb(suggestion.cardName)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            // Scryfall 404 / rate-limit / offline (native WebView): drop the
+            // broken-image glyph and let the art box show its placeholder.
+            e.currentTarget.style.display = 'none';
+          }}
+        />
       </span>
       <span className="engine-suggestion-body">
         <span className="engine-suggestion-name" title={suggestion.cardName}>
