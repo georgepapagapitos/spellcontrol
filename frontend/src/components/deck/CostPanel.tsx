@@ -1,0 +1,286 @@
+import './CostPanel.css';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  autoCheckToTarget,
+  type CostConfidence,
+  type CostPlan,
+  type CostSwapRow,
+} from '@/deck-builder/services/deckBuilder/costAnalyzer';
+
+export interface CostPanelProps {
+  plan: CostPlan;
+  /** Commit the selected swaps. Each pair removes one card and adds its cheaper suggestion. */
+  onApply: (swaps: Array<{ removeName: string; addName: string }>) => void | Promise<void>;
+  /** Disables Apply + checkboxes while a commit is in flight. */
+  applying?: boolean;
+}
+
+/** Drop-in + sidegrade default to checked; budget picks are opt-in. */
+const DEFAULT_CHECKED: CostConfidence[] = ['drop-in', 'sidegrade'];
+
+const CONFIDENCE_LABEL: Record<CostConfidence, string> = {
+  'drop-in': 'Drop-in',
+  sidegrade: 'Sidegrade',
+  budget: 'Budget',
+};
+
+function fmt(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
+
+/** Same fallback chain as DeckAnalysisPanel.resolveThumb: provided URL → Scryfall named-image endpoint. */
+function namedImage(name: string): string {
+  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
+    name
+  )}&format=image&version=small`;
+}
+
+function SwapRow({
+  row,
+  checked,
+  onToggle,
+  disabled,
+}: {
+  row: CostSwapRow;
+  checked: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
+  const inclusionDelta = `${Math.round(row.currentInclusion)}% → ${Math.round(
+    row.suggestionInclusion
+  )}%`;
+  const aria = `Swap ${row.currentName} for ${row.suggestionName}, save ${fmt(row.savings)}`;
+
+  return (
+    <li className={`cost-row is-${row.confidence}${checked ? '' : ' is-unchecked'}`}>
+      <label className="cost-row-label">
+        <input
+          type="checkbox"
+          className="cost-checkbox"
+          checked={checked}
+          onChange={onToggle}
+          disabled={disabled}
+          aria-label={aria}
+        />
+
+        <span className="cost-card cost-card-current">
+          <img
+            className="cost-thumb"
+            src={row.currentImageUrl ?? namedImage(row.currentName)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              const img = e.currentTarget;
+              const fb = namedImage(row.currentName);
+              if (img.src !== fb) img.src = fb;
+            }}
+          />
+          <span className="cost-card-text">
+            <span className="cost-card-name" title={row.currentName}>
+              {row.currentName}
+            </span>
+            <span className="cost-card-price">{fmt(row.currentPrice)}</span>
+          </span>
+        </span>
+
+        <span className="cost-arrow" aria-hidden>
+          →
+        </span>
+
+        <span className="cost-card cost-card-suggestion">
+          <img
+            className="cost-thumb"
+            src={namedImage(row.suggestionName)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+          <span className="cost-card-text">
+            <span className="cost-card-name" title={row.suggestionName}>
+              {row.suggestionName}
+            </span>
+            <span className="cost-card-price">{fmt(row.suggestionPrice)}</span>
+          </span>
+        </span>
+
+        <span className="cost-row-meta">
+          <span className="cost-savings">Save {fmt(row.savings)}</span>
+          <span className={`cost-badge is-${row.confidence}`}>
+            {CONFIDENCE_LABEL[row.confidence]}
+          </span>
+          <span className="cost-inclusion">{inclusionDelta}</span>
+        </span>
+      </label>
+    </li>
+  );
+}
+
+function Section({
+  title,
+  rows,
+  checked,
+  onToggle,
+  applying,
+}: {
+  title: string;
+  rows: CostSwapRow[];
+  checked: Set<string>;
+  onToggle: (id: string) => void;
+  applying: boolean;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <section className="cost-section" aria-label={title}>
+      <h3 className="cost-section-title">
+        {title} <span className="cost-section-count">({rows.length})</span>
+      </h3>
+      <ul className="cost-rows">
+        {rows.map((row) => (
+          <SwapRow
+            key={row.id}
+            row={row}
+            checked={checked.has(row.id)}
+            onToggle={() => onToggle(row.id)}
+            disabled={applying}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): JSX.Element {
+  const allRows = useMemo(() => [...plan.spellRows, ...plan.landRows], [plan]);
+
+  // Default selection: every drop-in + sidegrade row checked.
+  const [checked, setChecked] = useState<Set<string>>(
+    () => new Set(allRows.filter((r) => DEFAULT_CHECKED.includes(r.confidence)).map((r) => r.id))
+  );
+  const [target, setTarget] = useState<string>('');
+
+  const toggle = useCallback((id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const autoSelect = useCallback(() => {
+    const t = Number(target);
+    if (!Number.isFinite(t)) return;
+    // Enabled tiers = the confidence tiers currently represented in the checked
+    // set, defaulting to drop-in + sidegrade when nothing is checked yet.
+    const enabled = new Set<CostConfidence>(
+      checked.size > 0
+        ? allRows.filter((r) => checked.has(r.id)).map((r) => r.confidence)
+        : DEFAULT_CHECKED
+    );
+    setChecked(autoCheckToTarget(allRows, plan.currentTotal, t, enabled, new Set()));
+  }, [target, checked, allRows, plan.currentTotal]);
+
+  const selectedSavings = useMemo(
+    () => allRows.reduce((s, r) => (checked.has(r.id) ? s + r.savings : s), 0),
+    [allRows, checked]
+  );
+  const projectedTotal = plan.currentTotal - selectedSavings;
+  const selectedCount = useMemo(
+    () => allRows.filter((r) => checked.has(r.id)).length,
+    [allRows, checked]
+  );
+
+  const apply = useCallback(() => {
+    const swaps = allRows
+      .filter((r) => checked.has(r.id))
+      .map((r) => ({ removeName: r.currentName, addName: r.suggestionName }));
+    if (swaps.length === 0) return;
+    return onApply(swaps);
+  }, [allRows, checked, onApply]);
+
+  const isEmpty = plan.spellRows.length === 0 && plan.landRows.length === 0;
+  if (isEmpty) {
+    return (
+      <section className="cost-panel" aria-label="Cost optimizer">
+        <p className="cost-empty">No cheaper role-equivalents found — this list is already lean.</p>
+      </section>
+    );
+  }
+
+  const applyAria = `Apply ${selectedCount} swap${selectedCount === 1 ? '' : 's'}, save ${fmt(
+    Math.max(0, selectedSavings)
+  )}`;
+
+  return (
+    <section className="cost-panel" aria-label="Cost optimizer">
+      <div className="cost-budget" role="group" aria-label="Budget target">
+        <label className="cost-budget-field">
+          <span className="cost-budget-label">$ target</span>
+          <input
+            type="number"
+            className="cost-budget-input"
+            inputMode="decimal"
+            min={0}
+            step={1}
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder={Math.floor(plan.minTotal).toString()}
+            aria-label="Budget target in dollars"
+          />
+        </label>
+        <button
+          type="button"
+          className="cost-auto"
+          onClick={autoSelect}
+          disabled={target === '' || applying}
+        >
+          Auto-select to target
+        </button>
+      </div>
+
+      <div className="cost-sections">
+        <Section
+          title="Spells"
+          rows={plan.spellRows}
+          checked={checked}
+          onToggle={toggle}
+          applying={applying}
+        />
+        <Section
+          title="Lands"
+          rows={plan.landRows}
+          checked={checked}
+          onToggle={toggle}
+          applying={applying}
+        />
+      </div>
+
+      <div className="cost-applybar" role="region" aria-label="Cost plan summary">
+        <dl className="cost-totals">
+          <div className="cost-total">
+            <dt>Current</dt>
+            <dd>{fmt(plan.currentTotal)}</dd>
+          </div>
+          <div className="cost-total">
+            <dt>Projected</dt>
+            <dd className="is-accent">{fmt(projectedTotal)}</dd>
+          </div>
+          <div className="cost-total">
+            <dt>Savings</dt>
+            <dd className="is-save">{fmt(Math.max(0, selectedSavings))}</dd>
+          </div>
+        </dl>
+        <button
+          type="button"
+          className="cost-apply"
+          onClick={apply}
+          disabled={selectedCount === 0 || applying}
+          aria-label={applyAria}
+        >
+          {applying ? 'Applying…' : `Apply ${selectedCount} swap${selectedCount === 1 ? '' : 's'}`}
+        </button>
+      </div>
+    </section>
+  );
+}

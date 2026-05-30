@@ -109,6 +109,9 @@ export function useCommanderBracketAnalysis(args: Args): void {
             roleTargets: result.roleTargets,
             gapAnalysis: result.gapAnalysis,
             cardInclusionMap: result.cardInclusionMap,
+            planScore: result.planScore,
+            optimizeSwaps: result.optimizeSwaps,
+            costPlan: result.costPlan,
             gradeBracketSignature: signature,
           });
         })
