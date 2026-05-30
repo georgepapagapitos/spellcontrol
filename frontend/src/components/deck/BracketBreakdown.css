@@ -154,6 +154,116 @@
   color: var(--text3);
 }
 
+/* ── Two-column "tables" (CSS grid rows) ────────────────────────────────
+   Hard floors and soft score each render as a bordered table. A real
+   <table> would overflow a 320px container, so each row is a 2-col grid
+   that collapses to a single column on very narrow screens. */
+.deck-bracket-table {
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--border);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.deck-bracket-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.85fr) minmax(0, 1.5fr);
+  gap: 0.4rem 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-bracket-row:first-child {
+  border-top: none;
+}
+
+.deck-bracket-head {
+  background: var(--surface2);
+}
+
+.deck-bracket-col-head {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text2);
+}
+
+.deck-bracket-floor-row {
+  align-items: start;
+}
+
+.deck-bracket-cell {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.deck-bracket-cell-floor {
+  align-self: start;
+}
+
+/* Soft-score label cell holds label + value inline, with the bar track
+   dropping to a full-width row beneath them. */
+.deck-bracket-cell-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.4rem;
+}
+
+.deck-bracket-cell-label .bracket-breakdown-bar-track {
+  flex: 0 0 100%;
+  margin-top: 0.1rem;
+}
+
+.deck-bracket-cell-reason,
+.deck-bracket-cell-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.deck-bracket-total-row {
+  background: var(--surface2);
+  align-items: baseline;
+}
+
+.deck-bracket-total-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-bracket-total-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Very narrow containers: stack the two columns; the header row self-hides
+   since each data cell is self-describing. */
+@media (max-width: 360px) {
+  .deck-bracket-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  .deck-bracket-head {
+    display: none;
+  }
+
+  .deck-bracket-total-row {
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
 /* ── Calculation summary ── */
 .bracket-breakdown-summary {
   padding: 0.6rem 0.7rem;

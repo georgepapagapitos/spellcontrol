@@ -61,13 +61,13 @@ describe('BuildReportPanel', () => {
     expect(container.textContent).not.toContain('padded');
   });
 
-  it('renders role gaps as have/want', () => {
+  it('renders role gaps as have / target with humanized labels', () => {
     const { container } = render(
       <BuildReportPanel
         report={makeReport({
           roleGaps: [
+            { role: 'cardDraw', have: 9, want: 10 },
             { role: 'ramp', have: 8, want: 10 },
-            { role: 'removal', have: 5, want: 8 },
           ],
         })}
       />
@@ -75,7 +75,29 @@ describe('BuildReportPanel', () => {
     expect(screen.getByText('Role gaps')).toBeTruthy();
     const gaps = container.querySelectorAll('.build-report-gap');
     expect(gaps.length).toBe(2);
-    expect(gaps[0].textContent?.replace(/\s+/g, ' ').trim()).toBe('ramp 8/10');
+
+    // Canonical label from ROLE_TITLES — never the raw "cardDraw" key.
+    expect(gaps[0].textContent).toContain('Card Advantage');
+    expect(gaps[0].textContent).not.toContain('cardDraw');
+    expect(gaps[1].textContent).toContain('Ramp');
+
+    // Reads as have / target: count emphasized, target muted.
+    expect(gaps[0].querySelector('.build-report-gap-label')?.textContent).toBe('Card Advantage');
+    const count = gaps[0].querySelector('.build-report-gap-count');
+    expect(count?.textContent?.replace(/\s+/g, ' ').trim()).toBe('9 / 10');
+    expect(
+      count?.querySelector('.build-report-gap-target')?.textContent?.replace(/\s+/g, ' ')
+    ).toBe(' / 10');
+  });
+
+  it('humanizes an unknown role key (camelCase fallback)', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({ roleGaps: [{ role: 'fastMana', have: 1, want: 3 }] })}
+      />
+    );
+    const gap = container.querySelector('.build-report-gap-label');
+    expect(gap?.textContent).toBe('Fast Mana');
   });
 
   it('does not render the collection line for non-collection builds', () => {

@@ -52,7 +52,8 @@ function comboFloorNote(reason: string, breakdown: BracketEstimation['breakdown'
   return `${breakdown.lateComboCount} late-game combo${breakdown.lateComboCount === 1 ? '' : 's'} detected`;
 }
 
-function ScoreBar({
+/** One row in the soft-score table: component name, value/max, detail, chips. */
+function SoftScoreRow({
   label,
   value,
   max,
@@ -67,18 +68,20 @@ function ScoreBar({
 }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
-    <div className="bracket-breakdown-bar-row">
-      <div className="bracket-breakdown-bar-head">
+    <div className="deck-bracket-row" role="row">
+      <div className="deck-bracket-cell deck-bracket-cell-label" role="cell">
         <span className="bracket-breakdown-bar-label">{label}</span>
         <span className="bracket-breakdown-bar-value">
           {value}/{max}
         </span>
+        <div className="bracket-breakdown-bar-track">
+          <div className="bracket-breakdown-bar-fill" style={{ width: `${pct}%` }} />
+        </div>
       </div>
-      <div className="bracket-breakdown-bar-track">
-        <div className="bracket-breakdown-bar-fill" style={{ width: `${pct}%` }} />
+      <div className="deck-bracket-cell deck-bracket-cell-detail" role="cell">
+        <p className="bracket-breakdown-bar-detail">{detail}</p>
+        {chips && <CardChips names={chips} />}
       </div>
-      <p className="bracket-breakdown-bar-detail">{detail}</p>
-      {chips && <CardChips names={chips} />}
     </div>
   );
 }
@@ -108,38 +111,64 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
 
   return (
     <section className="bracket-breakdown" aria-label="Bracket breakdown">
-      {/* ── 1. Hard floors ── */}
+      {/* ── 1. Hard floors ── deterministic signals that force a minimum bracket. */}
       <div className="bracket-breakdown-section">
         <h4 className="bracket-breakdown-heading">Hard floors</h4>
         {sortedFloors.length === 0 ? (
-          <p className="bracket-breakdown-empty">No hard-floor signals — floor is Bracket 1.</p>
+          <p className="bracket-breakdown-empty">No hard floors — bracket set by soft score.</p>
         ) : (
-          <ul className="bracket-breakdown-floors">
+          <div className="deck-bracket-table" role="table" aria-label="Hard floors">
+            <div className="deck-bracket-row deck-bracket-head" role="row">
+              <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
+                Floor
+              </span>
+              <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
+                Reason
+              </span>
+            </div>
             {sortedFloors.map((f, i) => {
               const chips = floorChips(f.reason, breakdown);
               const comboNote = comboFloorNote(f.reason, breakdown);
               return (
-                <li key={`${f.bracket}-${f.reason}-${i}`} className="bracket-breakdown-floor">
-                  <span className="bracket-breakdown-floor-tag">Floor: Bracket {f.bracket}</span>
-                  <span className="bracket-breakdown-floor-reason">{f.reason}</span>
-                  {f.detail && <span className="bracket-breakdown-floor-detail">{f.detail}</span>}
-                  {comboNote && <span className="bracket-breakdown-floor-detail">{comboNote}</span>}
-                  <CardChips names={chips} />
-                </li>
+                <div
+                  key={`${f.bracket}-${f.reason}-${i}`}
+                  className="deck-bracket-row deck-bracket-floor-row"
+                  role="row"
+                >
+                  <span
+                    className="deck-bracket-cell deck-bracket-cell-floor bracket-breakdown-floor-tag"
+                    role="cell"
+                  >
+                    Floor: Bracket {f.bracket}
+                  </span>
+                  <div className="deck-bracket-cell deck-bracket-cell-reason" role="cell">
+                    <span className="bracket-breakdown-floor-reason">{f.reason}</span>
+                    {f.detail && <span className="bracket-breakdown-floor-detail">{f.detail}</span>}
+                    {comboNote && (
+                      <span className="bracket-breakdown-floor-detail">{comboNote}</span>
+                    )}
+                    <CardChips names={chips} />
+                  </div>
+                </div>
               );
             })}
-          </ul>
+          </div>
         )}
       </div>
 
-      {/* ── 2. Soft score ── */}
+      {/* ── 2. Soft score ── the 0–100 tuning components. */}
       <div className="bracket-breakdown-section">
-        <div className="bracket-breakdown-soft-head">
-          <h4 className="bracket-breakdown-heading">Soft score</h4>
-          <span className="bracket-breakdown-soft-total">{softScore}/100</span>
-        </div>
-        <div className="bracket-breakdown-bars">
-          <ScoreBar
+        <h4 className="bracket-breakdown-heading">Soft score</h4>
+        <div className="deck-bracket-table" role="table" aria-label="Soft score">
+          <div className="deck-bracket-row deck-bracket-head" role="row">
+            <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
+              Signal
+            </span>
+            <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
+              Detail
+            </span>
+          </div>
+          <SoftScoreRow
             label="Fast mana"
             value={fastManaPts}
             max={FAST_MANA_CAP}
@@ -150,7 +179,7 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
             }
             chips={breakdown.fastManaNames}
           />
-          <ScoreBar
+          <SoftScoreRow
             label="Tutors"
             value={tutorPts}
             max={TUTOR_CAP}
@@ -161,7 +190,7 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
             }
             chips={breakdown.tutorNames}
           />
-          <ScoreBar
+          <SoftScoreRow
             label="Low curve"
             value={lowCurvePts}
             max={CMC_CAP}
@@ -171,12 +200,20 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
                 : ` (no bonus above ${CMC_THRESHOLD})`
             }`}
           />
-          <ScoreBar
+          <SoftScoreRow
             label="Interaction"
             value={interactionPts}
             max={INTERACTION_CAP}
             detail={`${breakdown.interactionCount} removal + boardwipes`}
           />
+          <div className="deck-bracket-row deck-bracket-total-row" role="row">
+            <span className="deck-bracket-cell deck-bracket-total-label" role="cell">
+              Total
+            </span>
+            <span className="deck-bracket-cell deck-bracket-total-value" role="cell">
+              {softScore}/100
+            </span>
+          </div>
         </div>
       </div>
 

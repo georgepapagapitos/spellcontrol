@@ -30,6 +30,7 @@ import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import type { EnrichedCard } from '../../types';
 import type { ComboMatch, ComboCardRef } from '../../types/combos';
 import { CardPreview } from '../CardPreview';
+import { Tabs } from '../Tabs';
 import { MagicText } from './MagicText';
 
 export interface DeckCombosPanelHandle {
@@ -47,6 +48,11 @@ interface Props {
   /** Format used to filter combos by legality (e.g. "commander"). */
   format?: string;
   onAdd: (card: ScryfallCard, allocatedCopyId: string | null) => void;
+  /**
+   * Render without the collapsible header chrome (always-open body), for use
+   * inside the tabbed analysis surface.
+   */
+  embedded?: boolean;
 }
 
 type Tab = 'inDeck' | 'oneAway';
@@ -79,7 +85,7 @@ function writeCollapsedPref(collapsed: boolean): void {
 }
 
 export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function DeckCombosPanel(
-  { deckId: _deckId, deckOracleIds, format, onAdd },
+  { deckId: _deckId, deckOracleIds, format, onAdd, embedded = false },
   ref
 ) {
   const collection = useCollectionStore((s) => s.cards);
@@ -217,6 +223,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   const [tab, setTab] = useState<Tab>('inDeck');
   const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
+  // Embedded in a tab: no header chrome, body always open.
+  const isCollapsed = embedded ? false : collapsed;
   const [announce, setAnnounce] = useState('');
   const firstButtonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -308,80 +316,77 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   return (
     <div
       ref={containerRef}
-      className={`deck-combos-panel${collapsed ? ' is-collapsed' : ''}`}
+      className={`deck-combos-panel${isCollapsed ? ' is-collapsed' : ''}${embedded ? ' is-embedded' : ''}`}
       role="region"
       aria-label="Combos"
     >
-      <button
-        type="button"
-        className="deck-combos-header"
-        aria-expanded={!collapsed}
-        aria-controls="deck-combos-body"
-        onClick={() => setCollapsed((c) => !c)}
-        title={collapsed ? 'Expand combos panel' : 'Collapse combos panel'}
-      >
-        <Sparkles width={16} height={16} aria-hidden />
-        <span className="deck-combos-title">Combos</span>
-        {/* Compact summary always visible so the collapsed strip is informative. */}
-        <span className="deck-combos-header-summary" aria-hidden>
-          {inDeckCount > 0 && <span>{inDeckCount} in deck</span>}
-          {oneAwayCount > 0 && <span>{oneAwayCount} one away</span>}
-          {inDeckCount === 0 && oneAwayCount === 0 && !loading && (
-            <span className="deck-combos-header-empty">No matches</span>
-          )}
-        </span>
-        {/* Spinner slot is ALWAYS rendered (just visibility-hidden when
-            idle) so the trailing wrapper's width never changes between
-            loading + idle states. Without this the summary column would
-            shrink by the spinner's width every time a request fired,
-            shifting the layout. */}
-        <span className="deck-combos-header-trailing" aria-hidden>
-          <span className={`deck-combos-spinner${loading ? '' : ' is-idle'}`} aria-hidden />
-          <span className="deck-combos-header-chevron">
-            {collapsed ? (
-              <ChevronDown width={16} height={16} />
-            ) : (
-              <ChevronUp width={16} height={16} />
+      {!embedded && (
+        <button
+          type="button"
+          className="deck-combos-header"
+          aria-expanded={!collapsed}
+          aria-controls="deck-combos-body"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand combos panel' : 'Collapse combos panel'}
+        >
+          <Sparkles width={16} height={16} aria-hidden />
+          <span className="deck-combos-title">Combos</span>
+          {/* Compact summary always visible so the collapsed strip is informative. */}
+          <span className="deck-combos-header-summary" aria-hidden>
+            {inDeckCount > 0 && <span>{inDeckCount} in deck</span>}
+            {oneAwayCount > 0 && <span>{oneAwayCount} one away</span>}
+            {inDeckCount === 0 && oneAwayCount === 0 && !loading && (
+              <span className="deck-combos-header-empty">No matches</span>
             )}
           </span>
-        </span>
-      </button>
+          {/* Spinner slot is ALWAYS rendered (just visibility-hidden when
+              idle) so the trailing wrapper's width never changes between
+              loading + idle states. Without this the summary column would
+              shrink by the spinner's width every time a request fired,
+              shifting the layout. */}
+          <span className="deck-combos-header-trailing" aria-hidden>
+            <span className={`deck-combos-spinner${loading ? '' : ' is-idle'}`} aria-hidden />
+            <span className="deck-combos-header-chevron">
+              {collapsed ? (
+                <ChevronDown width={16} height={16} />
+              ) : (
+                <ChevronUp width={16} height={16} />
+              )}
+            </span>
+          </span>
+        </button>
+      )}
 
-      {collapsed && <div className="sr-only">Combos panel collapsed — click to expand.</div>}
+      {!embedded && isCollapsed && (
+        <div className="sr-only">Combos panel collapsed — click to expand.</div>
+      )}
 
       <div
         id="deck-combos-body"
         className="deck-combos-body"
-        hidden={collapsed}
-        aria-hidden={collapsed}
+        hidden={isCollapsed}
+        aria-hidden={isCollapsed}
       >
-        <div className="deck-combos-tabs" role="tablist" aria-label="Combo bucket">
-          <button
-            ref={firstButtonRef}
-            type="button"
-            role="tab"
-            aria-selected={tab === 'inDeck'}
-            className={`deck-combos-tab${tab === 'inDeck' ? ' active' : ''}`}
-            onClick={() => setTab('inDeck')}
-          >
-            In deck
-            <span className="deck-combos-tab-count" aria-label={`${inDeckCount} combos`}>
-              {inDeckCount}
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'oneAway'}
-            className={`deck-combos-tab${tab === 'oneAway' ? ' active' : ''}`}
-            onClick={() => setTab('oneAway')}
-          >
-            One card away
-            <span className="deck-combos-tab-count" aria-label={`${oneAwayCount} combos`}>
-              {oneAwayCount}
-            </span>
-          </button>
-        </div>
+        <Tabs
+          ariaLabel="Combo bucket"
+          value={tab}
+          onChange={setTab}
+          firstTabRef={firstButtonRef}
+          tabs={[
+            {
+              id: 'inDeck',
+              label: 'In deck',
+              count: inDeckCount,
+              ariaLabel: `In deck, ${inDeckCount} combos`,
+            },
+            {
+              id: 'oneAway',
+              label: 'One card away',
+              count: oneAwayCount,
+              ariaLabel: `One card away, ${oneAwayCount} combos`,
+            },
+          ]}
+        />
 
         {tab === 'oneAway' && oneAwayCount > 0 && (
           <div
