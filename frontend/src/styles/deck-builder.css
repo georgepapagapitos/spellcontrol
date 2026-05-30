@@ -1961,34 +1961,39 @@ input.toolbar-search-input {
   letter-spacing: 0.08em;
 }
 
-.deck-overview-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  /* Flow the label/value stat pairs into multiple columns when the panel is
-     wide (Overview is full-width), so the space fills instead of one sparse
-     column. Collapses to a single column on phones. */
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
-  gap: 0.4rem 1.5rem;
-}
-
-.deck-overview-row {
+/* Deck-view glance strip: high-level stats that used to live behind the
+   Overview analysis tab, now inline above the card list. Wraps on narrow
+   screens; each stat is a muted label with an emphasized value. */
+.deck-stat-strip {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: 0.3rem 1rem;
   font-size: var(--text-sm);
+  color: var(--text3);
   font-variant-numeric: tabular-nums;
 }
 
-.deck-overview-label {
-  color: var(--text3);
+.deck-stat {
+  white-space: nowrap;
 }
 
-.deck-overview-value {
+.deck-stat-value {
   font-weight: 600;
   color: var(--text);
+}
+
+.deck-stat-missing {
+  color: var(--warn-text, #b85c00);
+}
+
+.deck-stat-missing .deck-stat-value {
+  color: var(--warn-text, #b85c00);
+}
+
+/* Identity theme chips sit just under the strip on the deck view. */
+.deck-stat-themes {
+  margin-top: 0.4rem;
 }
 
 .deck-stats-caret {

@@ -66,10 +66,7 @@ import {
   buildCommanderProfile,
   whyCardMatches,
 } from '@/deck-builder/services/deckBuilder/commanderProfile';
-import {
-  deriveDeckIdentity,
-  type DeckIdentity,
-} from '@/deck-builder/services/deckBuilder/deckIdentity';
+import { deriveDeckIdentity } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import {
   getRoleBadge,
   isMultiRole,
@@ -1316,6 +1313,48 @@ export function DeckDisplay({
               onShowTestHand={onShowTestHand}
             />
 
+            {/* High-level stats, glanceable while editing the list — these used
+                to live behind the Overview analysis tab. */}
+            <div className="deck-stat-strip" aria-label="Deck stats">
+              <span className="deck-stat">
+                <b className="deck-stat-value">{totalCards}</b> cards
+              </span>
+              <span className="deck-stat">
+                <b className="deck-stat-value">{averageCmc.toFixed(2)}</b> avg CMC
+              </span>
+              <span className="deck-stat">
+                <b className="deck-stat-value">{fmtMoney(totalPrice, currency)}</b> value
+              </span>
+              {deckGrade && (
+                <span className="deck-stat">
+                  <b className="deck-stat-value" title={deckGrade.headline}>
+                    {deckGrade.letter}
+                  </b>{' '}
+                  grade
+                </span>
+              )}
+              {identity && (
+                <span className="deck-stat">
+                  <b className="deck-stat-value">{identity.archetypeLabel}</b>
+                </span>
+              )}
+              {missing.count > 0 && (
+                <span className="deck-stat deck-stat-missing">
+                  <b className="deck-stat-value">{missing.count}</b> missing (
+                  {fmtMoney(missing.price, currency)})
+                </span>
+              )}
+            </div>
+            {identity && identity.themes.length > 0 && (
+              <ul className="deck-identity-themes deck-stat-themes" aria-label="Themes">
+                {identity.themes.map((t) => (
+                  <li key={t} className="deck-identity-theme">
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {(flaggedCardCount > 0 || deckSizeWarning) && (
               <div className="deck-legality-banner">
                 <CircleAlert width={16} height={16} strokeWidth={2} aria-hidden />
@@ -1427,9 +1466,6 @@ export function DeckDisplay({
           <DeckAnalysisView
             view={activeView}
             allCards={allCards}
-            totalCards={totalCards}
-            totalPrice={totalPrice}
-            currency={currency}
             manaData={manaData}
             bracketEstimation={bracketEstimation}
             bracketOverride={bracketOverride}
@@ -1443,14 +1479,9 @@ export function DeckDisplay({
             removalSubtypeCounts={removalSubtypeCounts}
             boardwipeSubtypeCounts={boardwipeSubtypeCounts}
             cardDrawSubtypeCounts={cardDrawSubtypeCounts}
-            averageCmc={averageCmc}
             averageSalt={averageSalt}
             saltiestCards={saltiestCards}
-            identity={identity}
-            deckGrade={deckGrade}
             planScore={planScore}
-            missingCount={missing.count}
-            missingPrice={missing.price}
             combosSlot={combosSlot}
             suggestionsSlot={suggestionsSlot}
             nextBestMoveSlot={nextBestMoveSlot}
@@ -2640,9 +2671,6 @@ export type DeckView = 'deck' | AnalysisTabId;
 function DeckAnalysisView({
   view,
   allCards,
-  totalCards,
-  totalPrice,
-  currency,
   manaData,
   bracketEstimation,
   bracketOverride,
@@ -2656,14 +2684,9 @@ function DeckAnalysisView({
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
   cardDrawSubtypeCounts,
-  averageCmc,
   averageSalt,
   saltiestCards,
-  identity,
-  deckGrade,
   planScore,
-  missingCount,
-  missingPrice,
   combosSlot,
   suggestionsSlot,
   nextBestMoveSlot,
@@ -2674,9 +2697,6 @@ function DeckAnalysisView({
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
-  totalCards: number;
-  totalPrice: number;
-  currency: CurrencyCode;
   manaData: DeckManaData;
   bracketEstimation?: BracketEstimation;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
@@ -2690,14 +2710,9 @@ function DeckAnalysisView({
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
   cardDrawSubtypeCounts?: Record<string, number>;
-  averageCmc: number;
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
-  identity: DeckIdentity | null;
-  deckGrade?: { letter: string; headline: string };
   planScore?: PlanScore;
-  missingCount: number;
-  missingPrice: number;
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
@@ -2746,65 +2761,6 @@ function DeckAnalysisView({
               <PlanScoreDashboard plan={planScore} />
             </Panel>
           )}
-          <Panel title="Overview" wide>
-            <ul className="deck-overview-list">
-              {deckGrade && (
-                <li className="deck-overview-row">
-                  <span className="deck-overview-label">Grade</span>
-                  <span className="deck-overview-value" title={deckGrade.headline}>
-                    {deckGrade.letter}
-                  </span>
-                </li>
-              )}
-              {identity && (
-                <>
-                  <li className="deck-overview-row">
-                    <span className="deck-overview-label">Archetype</span>
-                    <span className="deck-overview-value">{identity.archetypeLabel}</span>
-                  </li>
-                  <li className="deck-overview-row">
-                    <span className="deck-overview-label">Pacing</span>
-                    <span className="deck-overview-value">{identity.pacingShort}</span>
-                  </li>
-                </>
-              )}
-              <li className="deck-overview-row">
-                <span className="deck-overview-label">Cards</span>
-                <span className="deck-overview-value">{totalCards}</span>
-              </li>
-              <li className="deck-overview-row">
-                <span className="deck-overview-label">Avg CMC</span>
-                <span className="deck-overview-value">{averageCmc.toFixed(2)}</span>
-              </li>
-              {typeof averageSalt === 'number' && (
-                <li className="deck-overview-row">
-                  <span className="deck-overview-label">Avg salt</span>
-                  <span className="deck-overview-value">{averageSalt.toFixed(2)}</span>
-                </li>
-              )}
-              <li className="deck-overview-row">
-                <span className="deck-overview-label">Total price</span>
-                <span className="deck-overview-value">{fmtMoney(totalPrice, currency)}</span>
-              </li>
-              {missingCount > 0 && (
-                <li className="deck-overview-row">
-                  <span className="deck-overview-label">Missing</span>
-                  <span className="deck-overview-value">
-                    {missingCount} ({fmtMoney(missingPrice, currency)})
-                  </span>
-                </li>
-              )}
-            </ul>
-            {identity && identity.themes.length > 0 && (
-              <ul className="deck-identity-themes" aria-label="Themes">
-                {identity.themes.map((t) => (
-                  <li key={t} className="deck-identity-theme">
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
           {buildReport && (
             <Panel title="Build report">
               <BuildReportPanel report={buildReport} />
@@ -2835,7 +2791,10 @@ function DeckAnalysisView({
                   </li>
                 ))}
               </ul>
-              <p className="deck-saltiest-hint">EDHREC salt score (higher = more polarizing).</p>
+              <p className="deck-saltiest-hint">
+                EDHREC salt score (higher = more polarizing)
+                {typeof averageSalt === 'number' && ` · deck avg ${averageSalt.toFixed(2)}`}.
+              </p>
               {saltCarousel.preview}
             </Panel>
           )}
