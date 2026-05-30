@@ -1,11 +1,12 @@
 import './CostPanel.css';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import {
   autoCheckToTarget,
   type CostConfidence,
   type CostPlan,
   type CostSwapRow,
 } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import { useCardCarousel } from './useCardCarousel';
 
 export interface CostPanelProps {
   plan: CostPlan;
@@ -39,17 +40,27 @@ function SwapRow({
   row,
   checked,
   onToggle,
+  onPreview,
   disabled,
 }: {
   row: CostSwapRow;
   checked: boolean;
   onToggle: () => void;
+  /** Open the card-detail carousel for this swap, starting at `name`. */
+  onPreview: (name: string) => void;
   disabled?: boolean;
 }) {
   const inclusionDelta = `${Math.round(row.currentInclusion)}% → ${Math.round(
     row.suggestionInclusion
   )}%`;
   const aria = `Swap ${row.currentName} for ${row.suggestionName}, save ${fmt(row.savings)}`;
+  // Tap a card to preview it (and swipe to its swap partner) without toggling
+  // the checkbox.
+  const previewClick = (name: string) => (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onPreview(name);
+  };
 
   return (
     <li className={`cost-row is-${row.confidence}${checked ? '' : ' is-unchecked'}`}>
@@ -63,7 +74,12 @@ function SwapRow({
           aria-label={aria}
         />
 
-        <span className="cost-card cost-card-current">
+        <button
+          type="button"
+          className="cost-card cost-card-current"
+          onClick={previewClick(row.currentName)}
+          aria-label={`Preview ${row.currentName}`}
+        >
           <img
             className="cost-thumb"
             src={row.currentImageUrl ?? namedImage(row.currentName)}
@@ -77,18 +93,21 @@ function SwapRow({
             }}
           />
           <span className="cost-card-text">
-            <span className="cost-card-name" title={row.currentName}>
-              {row.currentName}
-            </span>
+            <span className="cost-card-name">{row.currentName}</span>
             <span className="cost-card-price">{fmt(row.currentPrice)}</span>
           </span>
-        </span>
+        </button>
 
         <span className="cost-arrow" aria-hidden>
           →
         </span>
 
-        <span className="cost-card cost-card-suggestion">
+        <button
+          type="button"
+          className="cost-card cost-card-suggestion"
+          onClick={previewClick(row.suggestionName)}
+          aria-label={`Preview ${row.suggestionName}`}
+        >
           <img
             className="cost-thumb"
             src={namedImage(row.suggestionName)}
@@ -97,12 +116,10 @@ function SwapRow({
             decoding="async"
           />
           <span className="cost-card-text">
-            <span className="cost-card-name" title={row.suggestionName}>
-              {row.suggestionName}
-            </span>
+            <span className="cost-card-name">{row.suggestionName}</span>
             <span className="cost-card-price">{fmt(row.suggestionPrice)}</span>
           </span>
-        </span>
+        </button>
 
         <span className="cost-row-meta">
           <span className="cost-savings">Save {fmt(row.savings)}</span>
@@ -121,12 +138,14 @@ function Section({
   rows,
   checked,
   onToggle,
+  onPreview,
   applying,
 }: {
   title: string;
   rows: CostSwapRow[];
   checked: Set<string>;
   onToggle: (id: string) => void;
+  onPreview: (row: CostSwapRow, name: string) => void;
   applying: boolean;
 }) {
   if (rows.length === 0) return null;
@@ -142,6 +161,7 @@ function Section({
             row={row}
             checked={checked.has(row.id)}
             onToggle={() => onToggle(row.id)}
+            onPreview={(name) => onPreview(row, name)}
             disabled={applying}
           />
         ))}
@@ -152,6 +172,19 @@ function Section({
 
 export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): JSX.Element {
   const allRows = useMemo(() => [...plan.spellRows, ...plan.landRows], [plan]);
+
+  const carousel = useCardCarousel('Budget swap');
+  // Preview a swap as a 2-card carousel: current ⇄ suggestion, so you can flip
+  // between the card you'd cut and its cheaper replacement, starting at the
+  // tapped one.
+  const openPreview = (row: CostSwapRow, tappedName: string) =>
+    void carousel.open(
+      [
+        { name: row.currentName, label: `Current · ${fmt(row.currentPrice)}` },
+        { name: row.suggestionName, label: `Suggestion · ${fmt(row.suggestionPrice)}` },
+      ],
+      tappedName
+    );
 
   // Default selection: every drop-in + sidegrade row checked.
   const [checked, setChecked] = useState<Set<string>>(
@@ -245,6 +278,7 @@ export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): 
           rows={plan.spellRows}
           checked={checked}
           onToggle={toggle}
+          onPreview={openPreview}
           applying={applying}
         />
         <Section
@@ -252,6 +286,7 @@ export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): 
           rows={plan.landRows}
           checked={checked}
           onToggle={toggle}
+          onPreview={openPreview}
           applying={applying}
         />
       </div>
@@ -281,6 +316,8 @@ export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): 
           {applying ? 'Applying…' : `Apply ${selectedCount} swap${selectedCount === 1 ? '' : 's'}`}
         </button>
       </div>
+
+      {carousel.preview}
     </section>
   );
 }
