@@ -1,11 +1,8 @@
 import './EnginePanel.css';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/synergy/analysis';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
-import { getCardByName } from '@/deck-builder/services/scryfall/client';
-import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
-import type { EnrichedCard } from '@/types';
-import { CardPreview } from '@/components/CardPreview';
+import { useCardCarousel } from './useCardCarousel';
 
 export interface EnginePanelProps {
   analysis: SynergyAnalysis;
@@ -122,34 +119,16 @@ export function EnginePanel({
   const owned = ownedNames ?? new Set<string>();
   const adding = addingNames ?? new Set<string>();
 
-  const [previewCards, setPreviewCards] = useState<EnrichedCard[] | null>(null);
-  const [previewLabels, setPreviewLabels] = useState<string[]>([]);
-  const [previewIndex, setPreviewIndex] = useState(0);
+  const carousel = useCardCarousel('Engine suggestions');
 
-  // Open the CardPreview carousel over every suggestion (in render order),
-  // starting at the tapped card. Cards are fetched from Scryfall on demand and
-  // converted to EnrichedCard; any that fail to resolve are skipped so the
-  // carousel never shows a broken slot. Mirrors GapAnalysisPanel.openCarousel.
-  const openCarousel = useCallback(
-    async (tappedName: string) => {
-      const resolved: EnrichedCard[] = [];
-      const labels: string[] = [];
-      for (const s of analysis.suggestions) {
-        try {
-          const scry = await getCardByName(s.cardName);
-          if (!scry) continue;
-          resolved.push(scryfallToEnrichedCard(scry));
-          labels.push(s.inclusion != null ? `In ${Math.round(s.inclusion)}% of decks` : 'Off-meta');
-        } catch {
-          /* skip — leaves the slot out of the carousel */
-        }
-      }
-      if (resolved.length === 0) return;
-      const idx = resolved.findIndex((c) => c.name.toLowerCase() === tappedName.toLowerCase());
-      setPreviewCards(resolved);
-      setPreviewLabels(labels);
-      setPreviewIndex(idx >= 0 ? idx : 0);
-    },
+  // Every suggestion (in render order) becomes a carousel slot, labeled with its
+  // inclusion. Tapping any tile opens the shared CardPreview carousel at that card.
+  const previewEntries = useMemo(
+    () =>
+      analysis.suggestions.map((s) => ({
+        name: s.cardName,
+        label: s.inclusion != null ? `In ${Math.round(s.inclusion)}% of decks` : 'Off-meta',
+      })),
     [analysis.suggestions]
   );
 
@@ -203,7 +182,7 @@ export function EnginePanel({
                     owned={owned.has(s.cardName)}
                     adding={adding.has(s.cardName)}
                     onAdd={() => onAdd(s.cardName)}
-                    onPreview={() => void openCarousel(s.cardName)}
+                    onPreview={() => void carousel.open(previewEntries, s.cardName)}
                   />
                 ))}
               </ul>
@@ -217,18 +196,7 @@ export function EnginePanel({
         </p>
       )}
 
-      {previewCards && previewCards.length > 0 && (
-        <CardPreview
-          cards={previewCards}
-          index={previewIndex}
-          binderName="Engine suggestions"
-          sectionLabels={previewLabels}
-          pageNumbers={previewCards.map(() => 0)}
-          totalPages={1}
-          onIndexChange={setPreviewIndex}
-          onClose={() => setPreviewCards(null)}
-        />
-      )}
+      {carousel.preview}
     </section>
   );
 }
