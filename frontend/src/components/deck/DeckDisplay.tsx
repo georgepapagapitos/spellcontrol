@@ -2901,7 +2901,7 @@ function DeckAnalysisView({
       {current === 'improve' && (
         <div className="deck-stats-grid">
           {showRoles && (
-            <Panel title="Roles">
+            <Panel title="Roles" wide>
               <RolesPanel
                 roleCounts={effectiveRoleCounts}
                 roleTargets={roleTargets}

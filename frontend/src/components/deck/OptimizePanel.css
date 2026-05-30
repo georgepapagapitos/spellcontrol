@@ -275,6 +275,8 @@
   align-items: center;
   gap: 0.6rem 0.85rem;
   padding: 0.6rem 0.75rem;
+  /* Keep the Apply button clear of the native home-gesture bar (0 on web). */
+  padding-bottom: calc(0.6rem + var(--safe-bottom));
   border-radius: var(--radius);
   background: var(--surface2);
   border: 0.5px solid var(--border);
