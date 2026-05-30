@@ -1213,7 +1213,14 @@ export function computeOptimizeSwaps(
   mustIncludeNames: Set<string>,
   bannedNames: Set<string>,
   detectedCombos?: DetectedCombo[],
-  cardSynergyMap?: Record<string, number>
+  cardSynergyMap?: Record<string, number>,
+  /**
+   * Names of cards the native synergy engine flags as load-bearing for an axis
+   * the deck is invested in (a token producer in a token deck, etc.). Never
+   * auto-cut — this is what keeps the optimizer from hollowing out the deck's
+   * own engine, independent of EDHREC inclusion.
+   */
+  synergyProtectedNames?: Set<string>
 ): OptimizeSwaps {
   const BASIC_LANDS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
   const inclusionMap = cardInclusionMap ?? {};
@@ -1294,7 +1301,8 @@ export function computeOptimizeSwaps(
     if (mustIncludeNames.has(card.name)) continue;
     if (card.isGameChanger) continue; // never suggest cutting a game changer
     if (comboCountMap.has(card.name)) continue; // never suggest cutting a combo piece
-    if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler
+    if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler (EDHREC)
+    if (synergyProtectedNames?.has(card.name)) continue; // load-bearing for an invested axis
 
     const role = card.deckRole || getCardRole(card.name) || undefined;
     const roleLabel = role ? ROLE_LABELS_MAP[role] || role : undefined;
@@ -1450,7 +1458,8 @@ export function computeOptimizeSwaps(
       if (alreadyPicked.has(card.name)) continue;
       if (card.isGameChanger) continue;
       if (comboCountMap.has(card.name)) continue;
-      if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler
+      if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler (EDHREC)
+      if (synergyProtectedNames?.has(card.name)) continue; // load-bearing for an invested axis
       if (isChannelLand(card)) continue; // channel lands are too good to ever cut
       if (isMdfcLand(card)) continue; // MDFCs double as spells — never cut
       const role = card.deckRole || getCardRole(card.name) || undefined;
