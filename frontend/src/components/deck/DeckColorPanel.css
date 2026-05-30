@@ -52,18 +52,53 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  column-gap: 0.5rem;
-  row-gap: 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   font-size: var(--text-xs);
   color: var(--text2);
   flex: 1;
   min-width: 0;
 }
 
-.deck-color-donut-legend li {
-  display: contents;
+/* Each legend entry is a 3-column grid (swatch / name / pct). Rendered as a
+   button when its cards are known — tap to open a carousel of that color's
+   cards; otherwise a plain div with the same layout. */
+.deck-color-donut-legend-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+}
+
+button.deck-color-donut-legend-row {
+  margin: 0;
+  padding: 0.05rem 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+button.deck-color-donut-legend-row:hover .deck-color-donut-name,
+button.deck-color-donut-legend-row:focus-visible .deck-color-donut-name {
+  text-decoration: underline;
+}
+
+button.deck-color-donut-legend-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-color-donut-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deck-color-donut-swatch {
@@ -77,59 +112,4 @@
   color: var(--text3);
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-/* ── Production bars ─────────────────────────────────────────────────── */
-.deck-color-prod {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.deck-color-prod-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: var(--text-xs);
-  margin-bottom: 0.2rem;
-  min-width: 0;
-}
-
-.deck-color-prod-swatch {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 999px;
-  flex: 0 0 auto;
-}
-
-.deck-color-prod-name {
-  color: var(--text);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.deck-color-prod-meta {
-  color: var(--text3);
-  font-variant-numeric: tabular-nums;
-  flex: 0 0 auto;
-}
-
-.deck-color-prod-bar {
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.deck-color-prod-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 200ms ease;
 }

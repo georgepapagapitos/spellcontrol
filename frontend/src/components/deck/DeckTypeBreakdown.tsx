@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import './DeckTypeBreakdown.css';
 
 /**
@@ -6,13 +7,23 @@ import './DeckTypeBreakdown.css';
  * type name, its count, a proportional bar, and its percentage of the total.
  * Rows are ordered by count descending.
  *
- * `typeCounts` is e.g. { Creature: 30, Instant: 8, Land: 37 }.
+ * `typeCounts` is e.g. { Creature: 30, Instant: 8, Land: 37 }. When `cardsByType`
+ * is supplied, each row becomes tappable → a carousel of that type's cards.
  */
 export function DeckTypeBreakdown({
   typeCounts,
+  cardsByType,
 }: {
   typeCounts: Record<string, number>;
+  cardsByType?: Record<string, CardTally[]>;
 }): JSX.Element {
+  const carousel = useCardCarousel('Card types');
+
+  const showType = (type: string) => {
+    const tally = cardsByType?.[type] ?? [];
+    if (tally.length === 0) return;
+    void carousel.open(tallyToEntries(tally), tally[0].name);
+  };
   const { rows, total } = useMemo(() => {
     const entries = Object.entries(typeCounts).filter(([, count]) => count > 0);
     const total = entries.reduce((sum, [, count]) => sum + count, 0);
@@ -38,22 +49,47 @@ export function DeckTypeBreakdown({
         <p className="deck-type-breakdown-empty">No cards to break down.</p>
       ) : (
         <ul className="deck-type-breakdown-rows">
-          {rows.map((row) => (
-            <li key={row.type} className="deck-type-breakdown-row">
-              <div className="deck-type-breakdown-row-head">
-                <span className="deck-type-breakdown-row-name">{row.type}</span>
-                <span className="deck-type-breakdown-row-meta">
-                  <span className="deck-type-breakdown-row-count">{row.count}</span>
-                  <span className="deck-type-breakdown-row-pct">{row.pct.toFixed(1)}%</span>
-                </span>
-              </div>
-              <div className="deck-type-breakdown-row-track">
-                <div className="deck-type-breakdown-row-fill" style={{ width: `${row.pct}%` }} />
-              </div>
-            </li>
-          ))}
+          {rows.map((row) => {
+            const interactive = (cardsByType?.[row.type]?.length ?? 0) > 0;
+            const body = (
+              <>
+                <div className="deck-type-breakdown-row-head">
+                  <span className="deck-type-breakdown-row-name">{row.type}</span>
+                  <span className="deck-type-breakdown-row-meta">
+                    <span className="deck-type-breakdown-row-count">{row.count}</span>
+                    <span className="deck-type-breakdown-row-pct">{row.pct.toFixed(1)}%</span>
+                    {interactive && (
+                      <span className="deck-type-breakdown-row-chevron" aria-hidden="true">
+                        ›
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="deck-type-breakdown-row-track">
+                  <div className="deck-type-breakdown-row-fill" style={{ width: `${row.pct}%` }} />
+                </div>
+              </>
+            );
+            return (
+              <li key={row.type} className="deck-type-breakdown-row">
+                {interactive ? (
+                  <button
+                    type="button"
+                    className="deck-type-breakdown-row-btn"
+                    onClick={() => showType(row.type)}
+                    aria-label={`Show the ${row.count} ${row.type} cards`}
+                  >
+                    {body}
+                  </button>
+                ) : (
+                  body
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
+      {carousel.preview}
     </section>
   );
 }

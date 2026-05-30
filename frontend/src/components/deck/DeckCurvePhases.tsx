@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import './DeckCurvePhases.css';
 
 /**
@@ -71,10 +72,25 @@ function gradePhase(key: Phase['key'], share: number): string {
 export function DeckCurvePhases({
   manaCurve,
   averageCmc,
+  cardsByCmc,
 }: {
   manaCurve: Record<number, number>;
   averageCmc: number;
+  /** Per-CMC card lists (7 = 7+ bucket). When supplied, the histogram bars and
+   *  phase cards become tappable → a carousel of the cards at that mana value. */
+  cardsByCmc?: Record<number, CardTally[]>;
 }): JSX.Element {
+  const carousel = useCardCarousel('Mana curve');
+
+  // Merge the tallies for a set of CMCs (each card lives in one CMC bucket, so
+  // names are disjoint — concat then re-sort) and open the carousel.
+  const showCmcs = (cmcs: number[]) => {
+    const merged = cmcs.flatMap((cmc) => cardsByCmc?.[cmc] ?? []);
+    if (merged.length === 0) return;
+    merged.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    void carousel.open(tallyToEntries(merged), merged[0].name);
+  };
+
   const { slots, maxCount, phaseTotals } = useMemo(() => {
     const slots = CMC_SLOTS.map((cmc) => ({
       cmc,
@@ -102,13 +118,30 @@ export function DeckCurvePhases({
       <ul className="deck-curve-phases-bars" aria-label="Cards by mana value">
         {slots.map((slot) => {
           const heightPct = maxCount > 0 ? (slot.count / maxCount) * 100 : 0;
-          return (
-            <li key={slot.cmc} className="deck-curve-phases-bar-col">
+          const interactive = (cardsByCmc?.[slot.cmc]?.length ?? 0) > 0;
+          const body = (
+            <>
               <span className="deck-curve-phases-bar-count">{slot.count}</span>
               <div className="deck-curve-phases-bar-track">
                 <div className="deck-curve-phases-bar-fill" style={{ height: `${heightPct}%` }} />
               </div>
               <span className="deck-curve-phases-bar-label">{slot.label}</span>
+            </>
+          );
+          return (
+            <li key={slot.cmc} className="deck-curve-phases-bar-col">
+              {interactive ? (
+                <button
+                  type="button"
+                  className="deck-curve-phases-bar-btn"
+                  onClick={() => showCmcs([slot.cmc])}
+                  aria-label={`Show the ${slot.count} cards at mana value ${slot.label}`}
+                >
+                  {body}
+                </button>
+              ) : (
+                body
+              )}
             </li>
           );
         })}
@@ -116,19 +149,39 @@ export function DeckCurvePhases({
 
       {/* ── Phase rollup with grades ── */}
       <ul className="deck-curve-phases-phases" aria-label="Curve phases">
-        {phaseTotals.map((phase) => (
-          <li key={phase.key} className="deck-curve-phases-phase">
-            <span className="deck-curve-phases-phase-label">{phase.label}</span>
-            <span className="deck-curve-phases-phase-count">{phase.count}</span>
-            <span
-              className={`deck-curve-phases-grade deck-curve-phases-grade-${phase.grade.toLowerCase()}`}
-              aria-label={`${phase.label} grade ${phase.grade}`}
-            >
-              {phase.grade}
-            </span>
-          </li>
-        ))}
+        {phaseTotals.map((phase) => {
+          const interactive = phase.cmcs.some((cmc) => (cardsByCmc?.[cmc]?.length ?? 0) > 0);
+          const body = (
+            <>
+              <span className="deck-curve-phases-phase-label">{phase.label}</span>
+              <span className="deck-curve-phases-phase-count">{phase.count}</span>
+              <span
+                className={`deck-curve-phases-grade deck-curve-phases-grade-${phase.grade.toLowerCase()}`}
+                aria-label={`${phase.label} grade ${phase.grade}`}
+              >
+                {phase.grade}
+              </span>
+            </>
+          );
+          return (
+            <li key={phase.key} className="deck-curve-phases-phase">
+              {interactive ? (
+                <button
+                  type="button"
+                  className="deck-curve-phases-phase-btn"
+                  onClick={() => showCmcs(phase.cmcs)}
+                  aria-label={`Show the ${phase.count} ${phase.label}-game cards`}
+                >
+                  {body}
+                </button>
+              ) : (
+                body
+              )}
+            </li>
+          );
+        })}
       </ul>
+      {carousel.preview}
     </section>
   );
 }
