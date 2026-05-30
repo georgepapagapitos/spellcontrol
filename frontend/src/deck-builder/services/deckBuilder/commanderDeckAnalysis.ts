@@ -13,7 +13,11 @@ import {
   getBoardwipeSubtype,
   getCardDrawSubtype,
 } from '@/deck-builder/services/tagger/client';
-import { getGameChangerNames } from '@/deck-builder/services/scryfall/client';
+import {
+  getGameChangerNames,
+  getCardsByNames,
+  getFrontFaceTypeLine,
+} from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
@@ -24,6 +28,7 @@ import {
   type CurvePhaseAnalysis,
   type DeckAnalysis,
   type OptimizeSwaps,
+  type RecommendedCard,
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
@@ -352,6 +357,54 @@ export interface AnalyzeCommanderDeckParams {
   detectedCombos?: DetectedCombo[];
 }
 
+const RECOMMENDATION_SUPERTYPE = /^(Legendary|Basic|Snow|Tribal|Kindred|World|Ongoing)\s+/i;
+
+/** First non-supertype word of a front-face type line ("Creature", "Land", …). */
+function derivePrimaryType(typeLine: string): string {
+  let t = typeLine.split('—')[0].trim();
+  while (RECOMMENDATION_SUPERTYPE.test(t)) t = t.replace(RECOMMENDATION_SUPERTYPE, '');
+  return t.split(/\s+/)[0] ?? '';
+}
+
+/**
+ * EDHREC cardlist cards carry no price / cmc / primary_type — Scryfall fills
+ * those only in the generator path, never in the manual-editor analysis. Left
+ * unenriched, the Cost optimizer's candidate pool has no prices (→ zero swap
+ * rows) and Optimize's curve-fill + cost confidence bands degrade (cmc
+ * undefined → cmcDelta = Infinity). Backfill the gaps from Scryfall in place —
+ * one batched, cache-backed `/cards/collection` call. Best-effort: on failure
+ * the recommendations are left as-is (the prior behaviour).
+ */
+export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promise<void> {
+  const need = recs.filter(
+    (r) => r.price == null || r.cmc == null || !r.primaryType || r.primaryType === 'Unknown'
+  );
+  if (need.length === 0) return;
+  try {
+    const cardMap = await getCardsByNames(need.map((r) => r.name));
+    const byName = new Map<string, ScryfallCard>();
+    for (const c of cardMap.values()) {
+      byName.set(c.name.toLowerCase(), c);
+      if (c.name.includes(' // ')) byName.set(c.name.split(' // ')[0].toLowerCase(), c);
+    }
+    for (const r of recs) {
+      const c = byName.get(r.name.toLowerCase());
+      if (!c) continue;
+      if (r.cmc == null && c.cmc != null) r.cmc = c.cmc;
+      if (!r.primaryType || r.primaryType === 'Unknown') {
+        const pt = derivePrimaryType(getFrontFaceTypeLine(c));
+        if (pt) r.primaryType = pt;
+      }
+      if (r.price == null) {
+        const usd = c.prices?.usd ?? c.prices?.usd_foil ?? undefined;
+        if (usd) r.price = usd;
+      }
+    }
+  } catch (err) {
+    logger.warn('[CommanderDeckAnalysis] Recommendation price enrichment failed:', err);
+  }
+}
+
 /**
  * Compute grade + bracket for a manually-built commander deck. Fetches (cached)
  * EDHREC data for the commander and derives every other input the generator
@@ -412,12 +465,15 @@ export async function analyzeCommanderDeck(
     // PlanScore (0-100, four weighted dimensions). Tempo needs the curve-phase
     // analysis lifted out of the grade pass; if the grade branch didn't run
     // (no curvePhases), skip — the dashboard falls back to the letter grade.
+    // Per-card EDHREC synergy — feeds both the PlanScore cardFit dim and the
+    // Optimize cut guard (commander-defining payoffs are never auto-cut).
+    const cardSynergyMap = buildCardSynergyMap(
+      edhrecData,
+      params.cards.map((c) => c.name)
+    );
+
     let planScore: PlanScore | undefined;
     if (gradeBracket.curvePhases) {
-      const cardSynergyMap = buildCardSynergyMap(
-        edhrecData,
-        params.cards.map((c) => c.name)
-      );
       const commanderNames = [params.commander.name];
       if (params.partnerCommander) commanderNames.push(params.partnerCommander.name);
       planScore = computePlanScore({
@@ -446,6 +502,10 @@ export async function analyzeCommanderDeck(
     let optimizeSwaps: OptimizeSwaps | undefined;
     let costPlan: CostPlan | undefined;
     if (gradeBracket.analysis) {
+      // Backfill price/cmc/type onto the EDHREC recommendation pool so the Cost
+      // optimizer has priced alternatives and Optimize's curve-fill/confidence
+      // bands work (the manual path doesn't get the generator's enrichment).
+      await enrichRecommendationPrices(gradeBracket.analysis.recommendations);
       optimizeSwaps = computeOptimizeSwaps(
         gradeBracket.analysis,
         params.cards,
@@ -454,7 +514,8 @@ export async function analyzeCommanderDeck(
         params.partnerCommander?.name,
         new Set<string>(),
         new Set<string>(),
-        params.detectedCombos
+        params.detectedCombos,
+        cardSynergyMap
       );
       // Budget downgrades: cheaper role-equivalents drawn from the same EDHREC
       // recommendation pool. USD-canonical (matches the baked recommendation

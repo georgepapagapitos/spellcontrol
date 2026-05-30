@@ -1212,10 +1212,12 @@ export function computeOptimizeSwaps(
   partnerCommanderName: string | undefined,
   mustIncludeNames: Set<string>,
   bannedNames: Set<string>,
-  detectedCombos?: DetectedCombo[]
+  detectedCombos?: DetectedCombo[],
+  cardSynergyMap?: Record<string, number>
 ): OptimizeSwaps {
   const BASIC_LANDS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
   const inclusionMap = cardInclusionMap ?? {};
+  const synergyMap = cardSynergyMap ?? {};
   const currentCardNames = new Set(currentCards.map((c) => c.name));
 
   // Build combo participation map: card name → number of complete combos it enables
@@ -1259,6 +1261,23 @@ export function computeOptimizeSwaps(
   const protectLands = manaGradeLow || manaVerdictLow; // don't cut lands when mana is weak
   const fixingWeak = ['C', 'D', 'F'].includes(analysis.colorFixing.fixingGrade);
 
+  // ── Cut-eligibility calibration (Commander) ──
+  // EDHREC inclusion in Commander skews very low: a card in 35-50% of a
+  // commander's decks is a near-staple, not a weak include (the long tail sits
+  // under ~5%). The earlier floors (35/50) treated those staples — and the
+  // strategy's own payoffs/finishers (Craterhoof, Cathars' Crusade, stax
+  // pieces) — as cuttable. These floors only flag cards that are genuinely
+  // fringe for the commander AND carry no functional role.
+  const LOW_SYNERGY_INCLUSION_FLOOR = 8; // no role + <8% of decks = pet/jank tier
+  const LOW_INCLUSION_FLOOR = 15; // no role + <15% = thin include
+  const CURVE_FIX_INCLUSION_FLOOR = 20; // top-heavy curve relief is more permissive
+  // EDHREC synergy ≥ this means the card is meaningfully commander-defining
+  // (shows up far more with this commander than at large) — a payoff/enabler we
+  // never auto-suggest cutting, the way combos and game-changers are protected.
+  const SYNERGY_PROTECT_FLOOR = 0.25;
+  const isSynergyProtected = (name: string) =>
+    (synergyMap[name] ?? -Infinity) >= SYNERGY_PROTECT_FLOOR;
+
   type CandidateCard = OptimizeCard & { sortScore: number };
 
   // Collect all potential excess-role candidates per role (unsorted, uncapped)
@@ -1275,6 +1294,7 @@ export function computeOptimizeSwaps(
     if (mustIncludeNames.has(card.name)) continue;
     if (card.isGameChanger) continue; // never suggest cutting a game changer
     if (comboCountMap.has(card.name)) continue; // never suggest cutting a combo piece
+    if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler
 
     const role = card.deckRole || getCardRole(card.name) || undefined;
     const roleLabel = role ? ROLE_LABELS_MAP[role] || role : undefined;
@@ -1362,21 +1382,21 @@ export function computeOptimizeSwaps(
     const INCLUSION_FLOOR = 70;
     if ((inclusion ?? 0) >= INCLUSION_FLOOR) continue;
 
-    if (!role && (inclusion ?? 100) < 35) {
+    if (!role && (inclusion ?? 100) < LOW_SYNERGY_INCLUSION_FLOOR) {
       generalCandidates.push({
         ...base,
         reason: 'Low synergy',
         reasonCategory: 'low-synergy',
         sortScore: (inclusion ?? 0) + curveAdjust,
       });
-    } else if (isTopHeavy && cmc >= 5 && !role && (inclusion ?? 100) < 50) {
+    } else if (isTopHeavy && cmc >= 5 && !role && (inclusion ?? 100) < CURVE_FIX_INCLUSION_FLOOR) {
       generalCandidates.push({
         ...base,
         reason: 'Curve fix',
         reasonCategory: 'curve-fix',
         sortScore: (inclusion ?? 0) - cmc * 2 + curveAdjust,
       });
-    } else if (!role && (inclusion ?? 100) < 50) {
+    } else if (!role && (inclusion ?? 100) < LOW_INCLUSION_FLOOR) {
       generalCandidates.push({
         ...base,
         reason: 'Low inclusion',
@@ -1430,6 +1450,7 @@ export function computeOptimizeSwaps(
       if (alreadyPicked.has(card.name)) continue;
       if (card.isGameChanger) continue;
       if (comboCountMap.has(card.name)) continue;
+      if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler
       if (isChannelLand(card)) continue; // channel lands are too good to ever cut
       if (isMdfcLand(card)) continue; // MDFCs double as spells — never cut
       const role = card.deckRole || getCardRole(card.name) || undefined;
