@@ -8,6 +8,9 @@ import type {
   BuildReport,
 } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
+import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import {
   dedupeDeckAllocations,
   isBasicLandName,
@@ -100,6 +103,22 @@ export interface Deck {
    * the analysis hook, like roleTargets/gapAnalysis.
    */
   cardInclusionMap?: Record<string, number>;
+  /**
+   * 0-100 PlanScore (4 weighted dimensions: strategy/roles/tempo/cardFit) with
+   * its sub-scores. Kept live by useCommanderBracketAnalysis (recomputed as
+   * cards change), like roleTargets/gapAnalysis — not a generation snapshot.
+   */
+  planScore?: PlanScore;
+  /**
+   * Balanced cut/add optimize suggestions (the "Optimize" surface). Kept live
+   * by useCommanderBracketAnalysis like roleTargets/gapAnalysis/planScore.
+   */
+  optimizeSwaps?: OptimizeSwaps;
+  /**
+   * Budget downgrade suggestions (cheaper role-equivalents, USD-canonical).
+   * Kept live by useCommanderBracketAnalysis like optimizeSwaps.
+   */
+  costPlan?: CostPlan;
   /**
    * How the generated deck measured up to its build intent (fill + flag).
    * Set once at generation; generated decks only. See {@link BuildReport}.

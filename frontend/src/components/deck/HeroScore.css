@@ -1,0 +1,147 @@
+/* HeroScore — PlanScore ring gauge + headline/byline.
+   Band colors follow the established analysis-area convention
+   (var(--success/...)) with a sensible fallback hex per band; --accent is the
+   themed "violet/accent" tier. See src/styles/deck-builder.css role-row colors
+   and STYLE_GUIDE.md (always theme vars, --text-* font scale, --radius-lg). */
+
+.hero-score {
+  /* Per-band color the ring + value text resolve against. */
+  --hero-score-color: var(--accent);
+  --hero-score-track: var(--surface2);
+  /* 0-100, set inline; the ring sweep is derived from it. */
+  --hero-score-pct: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.hero-score.is-emerald {
+  --hero-score-color: var(--success, #2f7d4f);
+}
+.hero-score.is-accent {
+  --hero-score-color: var(--accent);
+}
+.hero-score.is-amber {
+  --hero-score-color: var(--warn-text, #b85c00);
+}
+.hero-score.is-rose {
+  --hero-score-color: var(--danger, var(--err-text, #b94545));
+}
+
+/* ── Ring ── conic sweep masked into an annulus by the inner hole. ─────── */
+.hero-score-ring {
+  --hero-score-size: 6.5rem;
+  --hero-score-thickness: 0.6rem;
+
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--hero-score-size);
+  height: var(--hero-score-size);
+  border-radius: 999px;
+  background: conic-gradient(
+    var(--hero-score-color) calc(var(--hero-score-pct) * 1%),
+    var(--hero-score-track) 0
+  );
+  transition: background 600ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.hero-score-ring-hole {
+  position: absolute;
+  inset: var(--hero-score-thickness);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.hero-score-value {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--hero-score-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-score-band {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text2);
+}
+
+/* ── Copy ── */
+.hero-score-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hero-score-headline {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.hero-score-byline {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  line-height: 1.45;
+}
+
+.hero-score-limited {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.hero-score-limited-dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--warn-text, #b85c00);
+}
+
+/* ── Responsive ── stack the ring above the copy on narrow containers so the
+   gauge stays legible and nothing overflows at 320px. */
+@media (max-width: 480px) {
+  .hero-score {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 0.9rem 0.85rem;
+  }
+
+  .hero-score-copy {
+    align-items: center;
+  }
+
+  .hero-score-limited {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-score-ring {
+    transition: none;
+  }
+}
