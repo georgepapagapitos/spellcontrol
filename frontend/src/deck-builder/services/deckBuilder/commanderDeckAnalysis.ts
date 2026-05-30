@@ -34,6 +34,7 @@ import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computePlanScore, type PlanScore, type StrategyInputs } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
+import { analyzeDeckSynergy, isLoadBearing } from '../synergy/deckSynergy';
 
 export interface DeckGrade {
   letter: string;
@@ -506,6 +507,13 @@ export async function analyzeCommanderDeck(
       // optimizer has priced alternatives and Optimize's curve-fill/confidence
       // bands work (the manual path doesn't get the generator's enrichment).
       await enrichRecommendationPrices(gradeBracket.analysis.recommendations);
+      // Native synergy engine: protect cards load-bearing for an axis the deck
+      // is actually invested in (a token producer in a token deck, etc.) from
+      // the EDHREC-inclusion cutter — grounded in oracle text, not popularity.
+      const deckSynergy = analyzeDeckSynergy(params.cards);
+      const synergyProtectedNames = new Set(
+        params.cards.filter((c) => isLoadBearing(c, deckSynergy)).map((c) => c.name)
+      );
       optimizeSwaps = computeOptimizeSwaps(
         gradeBracket.analysis,
         params.cards,
@@ -515,7 +523,8 @@ export async function analyzeCommanderDeck(
         new Set<string>(),
         new Set<string>(),
         params.detectedCombos,
-        cardSynergyMap
+        cardSynergyMap,
+        synergyProtectedNames
       );
       // Budget downgrades: cheaper role-equivalents drawn from the same EDHREC
       // recommendation pool. USD-canonical (matches the baked recommendation
