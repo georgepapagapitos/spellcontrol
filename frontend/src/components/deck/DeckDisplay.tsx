@@ -58,7 +58,9 @@ import { BracketBreakdown } from './BracketBreakdown';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { BuildReportPanel } from './BuildReportPanel';
 import { DeckManaPanel, type DeckManaData } from './DeckManaPanel';
+import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
   buildCommanderProfile,
   whyCardMatches,
@@ -283,6 +285,8 @@ export interface DeckDisplayProps {
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   deckGrade?: { letter: string; headline: string };
+  /** 0-100 PlanScore (strategy/roles/tempo/cardFit); kept live by the analysis hook. */
+  planScore?: PlanScore;
   /** Mean EDHREC salt score across non-land cards (generated decks only). */
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
@@ -731,6 +735,7 @@ export function DeckDisplay({
   bracketOverride,
   onSetBracketOverride,
   deckGrade,
+  planScore,
   averageSalt,
   saltiestCards,
   roleCounts,
@@ -1428,6 +1433,7 @@ export function DeckDisplay({
             saltiestCards={saltiestCards}
             identity={identity}
             deckGrade={deckGrade}
+            planScore={planScore}
             missingCount={missing.count}
             missingPrice={missing.price}
             combosSlot={combosSlot}
@@ -2636,6 +2642,7 @@ function DeckAnalysisView({
   saltiestCards,
   identity,
   deckGrade,
+  planScore,
   missingCount,
   missingPrice,
   combosSlot,
@@ -2665,6 +2672,7 @@ function DeckAnalysisView({
   saltiestCards?: Array<{ name: string; salt: number }>;
   identity: DeckIdentity | null;
   deckGrade?: { letter: string; headline: string };
+  planScore?: PlanScore;
   missingCount: number;
   missingPrice: number;
   /** Folded-in panels from the page (own their data fetching). */
@@ -2698,6 +2706,11 @@ function DeckAnalysisView({
     <div className="deck-analysis-view">
       {current === 'overview' && (
         <div className="deck-stats-grid">
+          {planScore && (
+            <Panel title="Plan score" wide>
+              <PlanScoreDashboard plan={planScore} />
+            </Panel>
+          )}
           <Panel title="Overview">
             <ul className="deck-overview-list">
               {deckGrade && (

@@ -17,9 +17,10 @@ import { getGameChangerNames } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
-import { analyzeDeck, getDeckSummaryData } from './deckAnalyzer';
+import { analyzeDeck, getDeckSummaryData, type CurvePhaseAnalysis } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
+import { computePlanScore, type PlanScore } from './planScore';
 
 export interface DeckGrade {
   letter: string;
@@ -132,6 +133,29 @@ export function buildCardInclusionMap(
   return map;
 }
 
+/**
+ * Build a `cardName → EDHREC synergy` map (synergy ∈ roughly [-1, 1]) for the
+ * cards in the deck. Feeds the PlanScore "card fit" dimension — a card with
+ * negative synergy and low inclusion reads as a misfit. Basics are skipped.
+ */
+export function buildCardSynergyMap(
+  edhrecData: EDHRECCommanderData,
+  cardNames: string[]
+): Record<string, number> {
+  const index = new Map<string, number>();
+  for (const c of edhrecData.cardlists.allNonLand) {
+    if (c.synergy != null) index.set(c.name, c.synergy);
+  }
+  const map: Record<string, number> = {};
+  for (const name of cardNames) {
+    if (isBasicLandName(name)) continue;
+    const direct = index.get(name);
+    const val = direct ?? (name.includes(' // ') ? index.get(name.split(' // ')[0]) : undefined);
+    if (val != null) map[name] = val;
+  }
+  return map;
+}
+
 // ── Combo adaptation ────────────────────────────────────────────────────────
 
 /**
@@ -182,6 +206,13 @@ export interface GradeBracketInput {
 export interface GradeBracketResult {
   bracketEstimation: BracketEstimation;
   deckGrade?: DeckGrade;
+  /**
+   * Curve-phase analysis lifted out of the rich `analyzeDeck` pass (only set
+   * when EDHREC data + role targets were available, i.e. the grade branch ran).
+   * Surfaced so callers can feed the PlanScore "tempo" dimension without
+   * recomputing the whole analysis.
+   */
+  curvePhases?: CurvePhaseAnalysis[];
 }
 
 /**
@@ -201,6 +232,7 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
   );
 
   let deckGrade: DeckGrade | undefined;
+  let curvePhases: CurvePhaseAnalysis[] | undefined;
   if (input.edhrecData && input.roleTargets) {
     try {
       const analysis = analyzeDeck(
@@ -214,12 +246,13 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
       );
       const summary = getDeckSummaryData(analysis);
       deckGrade = { letter: summary.gradeLetter, headline: summary.headline };
+      curvePhases = analysis.curvePhases;
     } catch {
       deckGrade = undefined;
     }
   }
 
-  return { bracketEstimation, deckGrade };
+  return { bracketEstimation, deckGrade, curvePhases };
 }
 
 // ── Manual-deck entry point ─────────────────────────────────────────────────
@@ -236,6 +269,8 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   gapAnalysis?: GapAnalysisCard[];
   /** Per-card EDHREC inclusion % keyed by card name (basics omitted). */
   cardInclusionMap?: Record<string, number>;
+  /** 0-100 PlanScore (strategy/roles/tempo/cardFit). Undefined if not computable. */
+  planScore?: PlanScore;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -307,7 +342,37 @@ export async function analyzeCommanderDeck(
     // `isOwned` later against the live collection.
     const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames);
 
-    return { ...gradeBracket, roleTargets, gapAnalysis, cardInclusionMap };
+    // PlanScore (0-100, four weighted dimensions). Tempo needs the curve-phase
+    // analysis lifted out of the grade pass; if the grade branch didn't run
+    // (no curvePhases), skip — the dashboard falls back to the letter grade.
+    let planScore: PlanScore | undefined;
+    if (gradeBracket.curvePhases) {
+      const cardSynergyMap = buildCardSynergyMap(
+        edhrecData,
+        params.cards.map((c) => c.name)
+      );
+      const commanderNames = [params.commander.name];
+      if (params.partnerCommander) commanderNames.push(params.partnerCommander.name);
+      planScore = computePlanScore({
+        roleCounts,
+        roleTargets,
+        curvePhases: gradeBracket.curvePhases,
+        misfitInputs: {
+          cards: params.cards,
+          cardInclusionMap,
+          cardSynergyMap,
+          gapCandidates: gapAnalysis,
+          commanderNames,
+        },
+        gapCount: gapAnalysis.length,
+        // strategy is left null until theme detection is wired (Phase 5) — it
+        // scores `partial` and is dropped from the composite (graceful degrade).
+        strategy: null,
+        sampleSize: edhrecData.stats?.numDecks ?? null,
+      });
+    }
+
+    return { ...gradeBracket, roleTargets, gapAnalysis, cardInclusionMap, planScore };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);
     return null;

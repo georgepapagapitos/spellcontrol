@@ -640,6 +640,7 @@ export function DeckEditorPage() {
             bracketOverride={deck.bracketOverride}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             deckGrade={deck.deckGrade}
+            planScore={deck.planScore}
             averageSalt={deck.averageSalt}
             saltiestCards={deck.saltiestCards}
             exportOpen={exportOpen}
