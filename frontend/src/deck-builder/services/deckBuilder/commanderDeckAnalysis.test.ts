@@ -5,8 +5,9 @@ import {
   buildCardInclusionMap,
   comboMatchesToDetected,
   computeGradeAndBracket,
+  buildStrategyInputs,
 } from './commanderDeckAnalysis';
-import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
+import type { EDHRECCommanderData, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
 
 function edhrec(): EDHRECCommanderData {
@@ -169,5 +170,63 @@ describe('computeGradeAndBracket', () => {
     expect(deckGrade).toBeDefined();
     expect(typeof deckGrade?.letter).toBe('string');
     expect(typeof deckGrade?.headline).toBe('string');
+  });
+});
+
+describe('buildStrategyInputs', () => {
+  const syn = (name: string, synergy: number, isThemeSynergyCard = false): EDHRECCard =>
+    ({
+      name,
+      sanitized: name,
+      primary_type: 'Creature',
+      inclusion: 50,
+      num_decks: 0,
+      synergy,
+      isThemeSynergyCard,
+    }) as EDHRECCard;
+
+  const dataWith = (allNonLand: EDHRECCard[], themeName?: string): EDHRECCommanderData =>
+    ({
+      themes: themeName ? [{ name: themeName, slug: 'x', count: 100 }] : [],
+      stats: { numDecks: 1234 },
+      cardlists: {
+        creatures: [],
+        instants: [],
+        sorceries: [],
+        artifacts: [],
+        enchantments: [],
+        planeswalkers: [],
+        lands: [],
+        allNonLand,
+      },
+      similarCommanders: [],
+    }) as unknown as EDHRECCommanderData;
+
+  const card = (name: string): ScryfallCard => ({ name }) as ScryfallCard;
+
+  it('counts theme-synergy cards and above-floor synergy, ignores generic cards', () => {
+    const data = dataWith(
+      [syn('Engine', 0.4, true), syn('Niche', 0.2), syn('Generic', 0.05)],
+      'Counters Matter'
+    );
+    const inputs = buildStrategyInputs(data, [card('Engine'), card('Niche'), card('Generic')]);
+    expect(inputs).not.toBeNull();
+    expect(inputs!.themeByCard.has('engine')).toBe(true);
+    expect(inputs!.themeByCard.has('niche')).toBe(true);
+    expect(inputs!.themeByCard.has('generic')).toBe(false);
+    expect(inputs!.planName).toBe('Counters Matter');
+  });
+
+  it('ranks top theme cards by synergy descending and defaults planName to null', () => {
+    const inputs = buildStrategyInputs(
+      dataWith([syn('Low', 0.16), syn('High', 0.9), syn('Mid', 0.4)]),
+      []
+    );
+    expect(inputs!.topThemeCardNames?.slice(0, 3)).toEqual(['High', 'Mid', 'Low']);
+    expect(inputs!.planName).toBeNull();
+  });
+
+  it('returns null when no card clears the synergy signal', () => {
+    expect(buildStrategyInputs(dataWith([syn('Filler', 0), syn('Other', 0.1)]), [])).toBeNull();
   });
 });
