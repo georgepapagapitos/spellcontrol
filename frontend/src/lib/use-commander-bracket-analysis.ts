@@ -111,6 +111,7 @@ export function useCommanderBracketAnalysis(args: Args): void {
             cardInclusionMap: result.cardInclusionMap,
             planScore: result.planScore,
             optimizeSwaps: result.optimizeSwaps,
+            costPlan: result.costPlan,
             gradeBracketSignature: signature,
           });
         })

@@ -10,6 +10,7 @@ import type {
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import {
   dedupeDeckAllocations,
   isBasicLandName,
@@ -113,6 +114,11 @@ export interface Deck {
    * by useCommanderBracketAnalysis like roleTargets/gapAnalysis/planScore.
    */
   optimizeSwaps?: OptimizeSwaps;
+  /**
+   * Budget downgrade suggestions (cheaper role-equivalents, USD-canonical).
+   * Kept live by useCommanderBracketAnalysis like optimizeSwaps.
+   */
+  costPlan?: CostPlan;
   /**
    * How the generated deck measured up to its build intent (fill + flag).
    * Set once at generation; generated decks only. See {@link BuildReport}.

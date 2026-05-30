@@ -359,6 +359,8 @@ export interface DeckDisplayProps {
   /** Cut/add Optimize surface, rendered in the Improve view. Built by the page
    *  (it owns the apply flow: resolve names → store add/remove). */
   optimizeSlot?: React.ReactNode;
+  /** Budget cost-optimizer surface, rendered in the Improve view. */
+  costSlot?: React.ReactNode;
   /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
@@ -771,6 +773,7 @@ export function DeckDisplay({
   suggestionsSlot,
   nextBestMoveSlot,
   optimizeSlot,
+  costSlot,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1448,6 +1451,7 @@ export function DeckDisplay({
             suggestionsSlot={suggestionsSlot}
             nextBestMoveSlot={nextBestMoveSlot}
             optimizeSlot={optimizeSlot}
+            costSlot={costSlot}
             commanderName={commander?.name}
           />
         )}
@@ -2659,6 +2663,7 @@ function DeckAnalysisView({
   suggestionsSlot,
   nextBestMoveSlot,
   optimizeSlot,
+  costSlot,
   commanderName,
 }: {
   view: AnalysisTabId;
@@ -2692,6 +2697,7 @@ function DeckAnalysisView({
   suggestionsSlot?: React.ReactNode;
   nextBestMoveSlot?: React.ReactNode;
   optimizeSlot?: React.ReactNode;
+  costSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
 }) {
@@ -2883,6 +2889,11 @@ function DeckAnalysisView({
           {optimizeSlot && (
             <Panel title="Optimize" wide>
               {optimizeSlot}
+            </Panel>
+          )}
+          {costSlot && (
+            <Panel title="Optimize on a budget" wide>
+              {costSlot}
             </Panel>
           )}
           {gapAnalysis && gapAnalysis.length > 0 && (

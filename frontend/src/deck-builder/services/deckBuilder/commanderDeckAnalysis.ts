@@ -28,6 +28,7 @@ import {
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computePlanScore, type PlanScore, type StrategyInputs } from './planScore';
+import { buildCostPlan, type CostPlan } from './costAnalyzer';
 
 export interface DeckGrade {
   letter: string;
@@ -335,6 +336,8 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   planScore?: PlanScore;
   /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
   optimizeSwaps?: OptimizeSwaps;
+  /** Budget downgrade suggestions (cheaper role-equivalents). USD-canonical. */
+  costPlan?: CostPlan;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -441,6 +444,7 @@ export async function analyzeCommanderDeck(
     // available when the grade branch ran. Manual decks have no must-include /
     // banned set, so those are empty.
     let optimizeSwaps: OptimizeSwaps | undefined;
+    let costPlan: CostPlan | undefined;
     if (gradeBracket.analysis) {
       optimizeSwaps = computeOptimizeSwaps(
         gradeBracket.analysis,
@@ -451,6 +455,15 @@ export async function analyzeCommanderDeck(
         new Set<string>(),
         new Set<string>(),
         params.detectedCombos
+      );
+      // Budget downgrades: cheaper role-equivalents drawn from the same EDHREC
+      // recommendation pool. USD-canonical (matches the baked recommendation
+      // prices); currency localization is a future refinement.
+      costPlan = buildCostPlan(
+        params.cards,
+        params.commander.name,
+        params.partnerCommander?.name,
+        gradeBracket.analysis.recommendations
       );
     }
 
@@ -464,6 +477,7 @@ export async function analyzeCommanderDeck(
       cardInclusionMap,
       planScore,
       optimizeSwaps,
+      costPlan,
     };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);

@@ -18,6 +18,7 @@ import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
+import { CostPanel } from '../components/deck/CostPanel';
 import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
@@ -83,6 +84,7 @@ export function DeckEditorPage() {
   const [showTestHand, setShowTestHand] = useState(false);
   const [view, setView] = useState<DeckView>('deck');
   const [applyingOptimize, setApplyingOptimize] = useState(false);
+  const [applyingCost, setApplyingCost] = useState(false);
   const openView = useCallback((next: DeckView) => {
     setView(next);
     window.requestAnimationFrame(() => {
@@ -356,6 +358,44 @@ export function DeckEditorPage() {
       });
     } finally {
       setApplyingOptimize(false);
+    }
+  };
+
+  // Apply budget swaps: each pair cuts the pricier card and adds the cheaper
+  // role-equivalent. Same name→slot / resolve+allocate machinery as Optimize.
+  const handleApplyCostSwaps = async (swaps: Array<{ removeName: string; addName: string }>) => {
+    if (!deck) return;
+    setApplyingCost(true);
+    try {
+      const slotsByName = new Map<string, string[]>();
+      for (const c of deck.cards) {
+        const k = c.card.name.toLowerCase();
+        const arr = slotsByName.get(k) ?? [];
+        arr.push(c.slotId);
+        slotsByName.set(k, arr);
+      }
+      let done = 0;
+      for (const { removeName, addName } of swaps) {
+        const slotId = slotsByName.get(removeName.toLowerCase())?.shift();
+        if (!slotId) continue;
+        try {
+          const scry = await getCardByName(addName);
+          if (!scry) continue;
+          removeCard(deck.id, slotId);
+          const allocations = buildAllocationMap(useDecksStore.getState().decks);
+          const claim = pickCollectionCopy(addName, collectionCards, allocations, scry.id);
+          addCard(deck.id, scry, claim?.copyId ?? null);
+          done += 1;
+        } catch {
+          /* skip cards that won't resolve — leave the original in place */
+        }
+      }
+      pushToast({
+        message: `Applied ${done} budget swap${done === 1 ? '' : 's'}`,
+        tone: 'success',
+      });
+    } finally {
+      setApplyingCost(false);
     }
   };
 
@@ -754,6 +794,17 @@ export function DeckEditorPage() {
                   ownedNames={ownedNames}
                   onApply={handleApplyOptimize}
                   applying={applyingOptimize}
+                />
+              ) : undefined
+            }
+            costSlot={
+              formatConfig?.hasCommander &&
+              deck.costPlan &&
+              (deck.costPlan.spellRows.length > 0 || deck.costPlan.landRows.length > 0) ? (
+                <CostPanel
+                  plan={deck.costPlan}
+                  onApply={handleApplyCostSwaps}
+                  applying={applyingCost}
                 />
               ) : undefined
             }
