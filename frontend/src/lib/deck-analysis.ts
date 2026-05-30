@@ -105,10 +105,15 @@ function getRoleTargets(format: DeckFormat): Record<RoleKey | 'lands', [number, 
   };
 }
 
+// Canonical role labels. `cardDraw` standardizes on "Card Advantage" to match
+// lib/role-badges.ts ROLE_TITLES (the app-wide source of truth) — see the
+// deck-analysis IA redesign. `removal`/`boardwipe` keep the analysis-specific
+// "Spot removal"/"Board wipes" wording, which is deliberately more precise here
+// than the generic ROLE_TITLES labels.
 const ROLE_LABELS: Record<RoleKey | 'lands', string> = {
   lands: 'Lands',
   ramp: 'Ramp',
-  cardDraw: 'Card draw',
+  cardDraw: 'Card Advantage',
   removal: 'Spot removal',
   boardwipe: 'Board wipes',
 };

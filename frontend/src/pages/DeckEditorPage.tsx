@@ -1,21 +1,21 @@
-import { Copy, Gauge, Hand, MoreVertical, Plus, Sparkles, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Copy, MoreVertical, Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
-import { DeckDisplay, type DeckDisplayCard } from '../components/deck/DeckDisplay';
+import {
+  DeckDisplay,
+  type DeckDisplayCard,
+  type AnalysisTabId,
+  type DeckView,
+} from '../components/deck/DeckDisplay';
+import { Tabs } from '../components/Tabs';
 import { materializeBinders } from '../lib/materialize';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
-import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
-import {
-  DeckAnalysisPanel,
-  type DeckAnalysisPanelHandle,
-} from '../components/deck/DeckAnalysisPanel';
-import {
-  DeckTestHandPanel,
-  type DeckTestHandPanelHandle,
-} from '../components/deck/DeckTestHandPanel';
+import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
+import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
+import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
@@ -68,9 +68,24 @@ export function DeckEditorPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
-  const combosPanelRef = useRef<DeckCombosPanelHandle>(null);
-  const analysisPanelRef = useRef<DeckAnalysisPanelHandle>(null);
-  const testHandPanelRef = useRef<DeckTestHandPanelHandle>(null);
+  // The deck editor is a set of page-top distinct views (Deck · Overview ·
+  // Mana · Power · Improve) switched by the hub tab bar below the header. `view`
+  // is the active one; the feature-strip chips + keyboard shortcuts deep-link
+  // into a view and scroll it into reach. Test hand is NOT a view — it's its own
+  // standalone overlay (goldfishing is a distinct activity), opened on demand
+  // from the Deck-view toolbar — a modal on desktop, a bottom sheet on mobile
+  // (same card-picker pattern as Add cards), so it's never pinned inline.
+  const viewScrollRef = useRef<HTMLDivElement>(null);
+  const [showTestHand, setShowTestHand] = useState(false);
+  const [view, setView] = useState<DeckView>('deck');
+  const openView = useCallback((next: DeckView) => {
+    setView(next);
+    window.requestAnimationFrame(() => {
+      viewScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+  // Chip / keyboard deep-links target a specific analysis view.
+  const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -177,15 +192,26 @@ export function DeckEditorPage() {
         window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        combosPanelRef.current?.reveal();
+        openAnalysisTab('power'); // Combos live under the Power tab.
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        analysisPanelRef.current?.reveal();
+        openAnalysisTab('improve'); // Suggestions live under the Improve tab.
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [openAnalysisTab]);
+
+  // Esc closes the Test hand sheet (the card-picker overlay has no built-in
+  // dismiss key — only backdrop tap / the close button).
+  useEffect(() => {
+    if (!showTestHand) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTestHand(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showTestHand]);
 
   // Hero totals — mirrors the values surfaced in the Statistics panel
   // header so the desktop hero reads as a quick at-a-glance summary
@@ -404,6 +430,27 @@ export function DeckEditorPage() {
     addedAt: c.addedAt,
   }));
 
+  // Page-top hub tabs. Deck/Overview/Mana always show; Power (bracket + combos)
+  // is gated to commander-family formats (matching the EDH-centric analysis),
+  // and Improve (roles + suggestions) shows for any non-empty deck. The live
+  // combo count rides on the Power tab as a count badge (the old Combos chip).
+  const hasCommanderFormat = !!formatConfig?.hasCommander;
+  const comboCount = comboData.data?.inDeck.length ?? null;
+  // Bracket is glanceable info — it rides the hero meta line now (the old
+  // feature-strip chip is gone); the Power view still owns the override UI.
+  const bracketValue = effectiveBracket(deck);
+  const viewTabs: Array<{ id: DeckView; label: string; count?: number | null }> = [
+    { id: 'deck', label: 'Deck' },
+    { id: 'overview', label: 'Overview' },
+    { id: 'mana', label: 'Mana' },
+    ...(hasCommanderFormat
+      ? [{ id: 'power' as DeckView, label: 'Power', count: comboData.loading ? null : comboCount }]
+      : []),
+    ...(deck.cards.length > 0 ? [{ id: 'improve' as DeckView, label: 'Improve' }] : []),
+  ];
+  // Guard against a stale view that no longer has a tab (e.g. format change).
+  const safeView: DeckView = viewTabs.some((t) => t.id === view) ? view : 'deck';
+
   return (
     <div className="deck-editor-page">
       <BackLink to="/decks" label="All decks" />
@@ -466,14 +513,17 @@ export function DeckEditorPage() {
                 {deck.commander.name}
               </>
             )}
-            {/* Desktop-only totals chip — repeated in the Statistics panel
-                header. Hidden on tablet/mobile via .deck-hero-totals
-                where the stats panel already surfaces the same info. */}
+            {/* Desktop-only totals chip — hidden on tablet/mobile via
+                .deck-hero-totals to keep the meta line short there. */}
             <span className="deck-hero-totals">
               {' · '}
               {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} · $
               {heroTotals.value.toFixed(2)}
             </span>
+            {/* Bracket — glanceable on every view (it left the feature strip). */}
+            {bracketValue != null && (
+              <span className="deck-hero-bracket">{` · Bracket ${bracketValue}`}</span>
+            )}
           </p>
         </div>
         <div className="deck-editor-actions">
@@ -531,15 +581,23 @@ export function DeckEditorPage() {
         </div>
       </header>
 
-      <DeckFeatureStrip
-        bracket={effectiveBracket(deck)}
-        comboCount={comboData.data?.inDeck.length ?? null}
-        comboLoading={comboData.loading}
-        showCombosAndAnalysis={!!formatConfig?.hasCommander}
-        onShowCombos={() => combosPanelRef.current?.reveal()}
-        onShowAnalysis={() => analysisPanelRef.current?.reveal()}
-        onShowTestHand={() => testHandPanelRef.current?.reveal()}
-      />
+      {/* Page-top distinct-view tabs (Deck · Overview · Mana · Power · Improve),
+          mirroring the Collection hub. Sticky so it stays in reach as the
+          active view scrolls. */}
+      <div className="deck-editor-view-tabs" ref={viewScrollRef}>
+        <Tabs
+          ariaLabel="Deck views"
+          variant="underline"
+          value={safeView}
+          onChange={setView}
+          tabs={viewTabs.map((t) => ({
+            id: t.id,
+            label: t.label,
+            count: t.count,
+            controls: `deck-view-panel-${t.id}`,
+          }))}
+        />
+      </div>
 
       <div className="deck-editor-layout">
         <main className="deck-editor-main">
@@ -586,38 +644,71 @@ export function DeckEditorPage() {
             saltiestCards={deck.saltiestCards}
             exportOpen={exportOpen}
             onExportOpenChange={setExportOpen}
+            activeView={safeView}
+            onShowTestHand={() => setShowTestHand(true)}
+            combosSlot={
+              formatConfig?.hasCommander ? (
+                <DeckCombosPanel
+                  embedded
+                  deckId={deck.id}
+                  deckOracleIds={deckOracleIds}
+                  format={deck.format}
+                  onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+                />
+              ) : undefined
+            }
+            suggestionsSlot={
+              formatConfig?.hasCommander ? (
+                <DeckAnalysisPanel
+                  embedded
+                  deckId={deck.id}
+                  format={deck.format}
+                  commander={deck.commander}
+                  partnerCommander={deck.partnerCommander}
+                  mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                  onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+                />
+              ) : undefined
+            }
           />
-
-          {/*
-            Combos and Analysis are gated on `hasCommander` — both panels
-            are built around the singleton / color-identity rules of
-            Commander-family formats. For Standard / Pauper they mostly
-            produce noise, so they're hidden. Test Hand stays for every
-            format — drawing an opening hand is useful for any deck.
-          */}
-          {formatConfig?.hasCommander && (
-            <>
-              <DeckCombosPanel
-                ref={combosPanelRef}
-                deckId={deck.id}
-                deckOracleIds={deckOracleIds}
-                format={deck.format}
-                onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-              />
-              <DeckAnalysisPanel
-                ref={analysisPanelRef}
-                deckId={deck.id}
-                format={deck.format}
-                commander={deck.commander}
-                partnerCommander={deck.partnerCommander}
-                mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
-              />
-            </>
-          )}
-          <DeckTestHandPanel ref={testHandPanelRef} deckId={deck.id} />
         </main>
       </div>
+
+      {/* Test hand — a breakpoint-aware overlay (bottom sheet on mobile,
+          centered modal ≥1024px) via the shared card-picker sheet. Goldfishing
+          is a distinct activity, opened on demand from the Deck-view toolbar so
+          it's never pinned inline or in a tab. */}
+      {showTestHand && (
+        <div
+          className="card-picker-root"
+          role="presentation"
+          onClick={() => setShowTestHand(false)}
+        >
+          <div
+            className="card-picker-sheet deck-test-hand-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Test hand"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-picker-handle" aria-hidden />
+            <div className="deck-test-hand-sheet-header">
+              <h2 className="deck-test-hand-sheet-title">Test hand</h2>
+              <button
+                type="button"
+                className="deck-test-hand-sheet-close"
+                onClick={() => setShowTestHand(false)}
+                aria-label="Close test hand"
+              >
+                <X width={18} height={18} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+            <div className="deck-test-hand-sheet-body">
+              <DeckTestHandPanel embedded deckId={deck.id} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add cards — a breakpoint-aware overlay (bottom sheet on
           mobile, centered modal ≥1024px) via the shared card-picker
@@ -723,71 +814,6 @@ export function DeckEditorPage() {
 
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
-    </div>
-  );
-}
-
-function DeckFeatureStrip({
-  bracket,
-  comboCount,
-  comboLoading,
-  showCombosAndAnalysis,
-  onShowCombos,
-  onShowAnalysis,
-  onShowTestHand,
-}: {
-  bracket: number | undefined;
-  comboCount: number | null;
-  comboLoading: boolean;
-  /** Whether to render the Combos / Analysis chips at all. Gated to commander-family formats. */
-  showCombosAndAnalysis: boolean;
-  onShowCombos: () => void;
-  onShowAnalysis: () => void;
-  onShowTestHand: () => void;
-}) {
-  return (
-    <div className="deck-feature-strip" aria-label="Deck features">
-      {/* Card count chip removed — the Statistics panel header (and
-          the desktop hero) already surface "{N} cards · avg CMC · $",
-          so repeating it here was just chrome. */}
-      {bracket != null && <span className="deck-feature-chip">Bracket {bracket}</span>}
-      {/* Combos and Analysis chips ride alongside the Combos / Analysis
-          panels — both are gated on `showCombosAndAnalysis` (which the
-          caller derives from `hasCommander`) since they're built around
-          the singleton / commander-color rules of EDH-family formats.
-          Standard / Pauper users see Test hand only. */}
-      {showCombosAndAnalysis && (
-        <>
-          <button
-            type="button"
-            className="deck-feature-chip deck-feature-chip--action"
-            onClick={onShowCombos}
-            title="Jump to combos (press C)"
-          >
-            <Sparkles width={13} height={13} aria-hidden />
-            {comboLoading ? '…' : comboCount === null ? '—' : comboCount}{' '}
-            {comboCount === 1 ? 'combo' : 'combos'}
-          </button>
-          <button
-            type="button"
-            className="deck-feature-chip deck-feature-chip--action"
-            onClick={onShowAnalysis}
-            title="Open deck analysis (press A)"
-          >
-            <Gauge width={13} height={13} aria-hidden />
-            Analysis
-          </button>
-        </>
-      )}
-      <button
-        type="button"
-        className="deck-feature-chip deck-feature-chip--action"
-        onClick={onShowTestHand}
-        title="Open test hand"
-      >
-        <Hand width={13} height={13} aria-hidden />
-        Test hand
-      </button>
     </div>
   );
 }

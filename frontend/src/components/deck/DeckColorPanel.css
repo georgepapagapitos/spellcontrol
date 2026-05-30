@@ -1,0 +1,135 @@
+/*
+ * Co-located styles for DeckColorPanel — the merged "color story" panel.
+ *
+ * The donut + production styles are replicated here under new `.deck-color-*`
+ * class names (rather than depending on the global `.deck-donut` /
+ * `.deck-mana-prod` selectors in styles/deck-builder.css, which stay untouched
+ * for the in-transition parent). The Balance section reuses the standalone
+ * <DeckColorBalance> component and its own co-located CSS.
+ */
+
+.deck-color-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.deck-color-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Small muted sub-heading — matches the bracket-breakdown-heading feel. */
+.deck-color-subheading {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text2);
+}
+
+.deck-color-empty {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+/* ── Distribution donut + legend ─────────────────────────────────────── */
+.deck-color-donut {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.deck-color-donut svg {
+  flex: 0 0 auto;
+}
+
+.deck-color-donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 0.5rem;
+  row-gap: 0.2rem;
+  font-size: var(--text-xs);
+  color: var(--text2);
+  flex: 1;
+  min-width: 0;
+}
+
+.deck-color-donut-legend li {
+  display: contents;
+}
+
+.deck-color-donut-swatch {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  align-self: center;
+}
+
+.deck-color-donut-pct {
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Production bars ─────────────────────────────────────────────────── */
+.deck-color-prod {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.deck-color-prod-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+  margin-bottom: 0.2rem;
+  min-width: 0;
+}
+
+.deck-color-prod-swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.deck-color-prod-name {
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-color-prod-meta {
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.deck-color-prod-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.deck-color-prod-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 200ms ease;
+}

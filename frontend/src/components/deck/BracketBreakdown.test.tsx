@@ -48,6 +48,32 @@ function makeEstimation(overrides: Partial<BracketEstimation> = {}): BracketEsti
 }
 
 describe('BracketBreakdown', () => {
+  it('renders two labeled tables: hard floors and soft score', () => {
+    render(<BracketBreakdown estimation={makeEstimation()} />);
+
+    // Section headers
+    expect(screen.getByText('Hard floors')).toBeTruthy();
+    expect(screen.getByText('Soft score')).toBeTruthy();
+
+    // The two tables are present and labeled.
+    expect(screen.getByRole('table', { name: 'Hard floors' })).toBeTruthy();
+    expect(screen.getByRole('table', { name: 'Soft score' })).toBeTruthy();
+
+    // Column headers — Floor/Reason for hard floors, Signal/Detail for soft.
+    expect(screen.getByRole('columnheader', { name: 'Floor' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Reason' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Signal' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Detail' })).toBeTruthy();
+  });
+
+  it('renders a soft-score total row', () => {
+    render(<BracketBreakdown estimation={makeEstimation()} />);
+
+    expect(screen.getByText('Total')).toBeTruthy();
+    // Total value 78/100 also appears in the summary line, so allow multiple.
+    expect(screen.getAllByText('78/100').length).toBeGreaterThan(0);
+  });
+
   it('renders hard floor reasons and contributing card chips', () => {
     render(<BracketBreakdown estimation={makeEstimation()} />);
 
@@ -124,7 +150,7 @@ describe('BracketBreakdown', () => {
     });
     const { container } = render(<BracketBreakdown estimation={est} />);
 
-    expect(screen.getByText('No hard-floor signals — floor is Bracket 1.')).toBeTruthy();
+    expect(screen.getByText('No hard floors — bracket set by soft score.')).toBeTruthy();
     const line = container.querySelector('.bracket-breakdown-summary-line');
     expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
       'Floor Bracket 1 + soft score 5/100 → Bracket 1 (Exhibition)'
