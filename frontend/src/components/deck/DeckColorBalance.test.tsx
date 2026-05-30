@@ -56,4 +56,30 @@ describe('DeckColorBalance', () => {
     render(<DeckColorBalance colorRequirements={{}} colorProduction={{}} />);
     expect(screen.getByText('No colored mana to balance.')).toBeTruthy();
   });
+
+  it('makes rows tappable and adds a colorless row when sources are provided', () => {
+    render(
+      <DeckColorBalance
+        colorRequirements={{ W: 10 }}
+        colorProduction={{ W: 8, C: 3 }}
+        sourcesByColor={{
+          W: [{ name: 'Plains', count: 7 }],
+          C: [{ name: 'Sol Ring', count: 1 }],
+        }}
+        onShowSources={() => {}}
+      />
+    );
+
+    // White has a source list → its row is a button labeled with the unique count.
+    expect(screen.getByRole('button', { name: /Show the 1 White mana sources/ })).toBeTruthy();
+    // Colorless production surfaces its own tappable row.
+    expect(screen.getByText('Colorless')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Show the 1 colorless mana sources/ })).toBeTruthy();
+  });
+
+  it('shows a colorless row even when there is no colored demand', () => {
+    render(<DeckColorBalance colorRequirements={{}} colorProduction={{ C: 5 }} />);
+    expect(screen.queryByText('No colored mana to balance.')).toBeNull();
+    expect(screen.getByText('Colorless')).toBeTruthy();
+  });
 });

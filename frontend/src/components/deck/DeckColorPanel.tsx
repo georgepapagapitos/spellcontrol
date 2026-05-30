@@ -1,22 +1,34 @@
 import { COLOR_INFO } from '../../lib/colors';
 import { DeckColorBalance } from './DeckColorBalance';
+import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import './DeckColorPanel.css';
 
 /**
- * One cohesive "color story" panel that merges what used to be three separate
- * stat boxes:
+ * The deck's "color story" in two compact readouts:
  *   (a) Distribution — an SVG donut of colored-card counts per WUBRG+C.
- *   (b) Production    — horizontal bars of land production sources per color.
- *   (c) Balance       — the existing <DeckColorBalance>, comparing colored-mana
- *                       demand against the sources that produce each color.
+ *   (b) Mana base     — <DeckColorBalance>: colored-mana demand vs. the sources
+ *                       producing each color (+ a colorless row). This folds in
+ *                       what used to be a separate "Production" list — the
+ *                       Sources side of each row is the same per-color source
+ *                       count, now tappable to that color's sources.
  *
- * Each section gets a small muted sub-heading so the three readouts read as one
- * panel rather than three disconnected widgets.
+ * Distribution legend entries and Mana base rows are tappable → a carousel of
+ * the cards behind that color, when the per-color card lists are supplied.
  */
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G', 'C'];
 
-function DistributionDonut({ counts, total }: { counts: Record<string, number>; total: number }) {
+function DistributionDonut({
+  counts,
+  total,
+  onShowColor,
+  cardsByColor,
+}: {
+  counts: Record<string, number>;
+  total: number;
+  onShowColor?: (k: string) => void;
+  cardsByColor?: Record<string, CardTally[]>;
+}) {
   if (total === 0) return <div className="deck-color-empty">No data</div>;
 
   const radius = 36;
@@ -56,14 +68,32 @@ function DistributionDonut({ counts, total }: { counts: Record<string, number>; 
         {COLOR_ORDER.filter((k) => (counts[k] ?? 0) > 0).map((k) => {
           const v = counts[k];
           const pct = Math.round((v / total) * 100);
-          return (
-            <li key={k}>
+          const label = COLOR_INFO[k]?.label ?? k;
+          const interactive = !!onShowColor && (cardsByColor?.[k]?.length ?? 0) > 0;
+          const inner = (
+            <>
               <span
                 className="deck-color-donut-swatch"
                 style={{ background: COLOR_INFO[k]?.pip }}
               />
-              <span>{COLOR_INFO[k]?.label ?? k}</span>
+              <span className="deck-color-donut-name">{label}</span>
               <span className="deck-color-donut-pct">{pct}%</span>
+            </>
+          );
+          return (
+            <li key={k}>
+              {interactive ? (
+                <button
+                  type="button"
+                  className="deck-color-donut-legend-row"
+                  onClick={() => onShowColor(k)}
+                  aria-label={`Show the ${v} ${label} cards`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div className="deck-color-donut-legend-row">{inner}</div>
+              )}
             </li>
           );
         })}
@@ -72,70 +102,52 @@ function DistributionDonut({ counts, total }: { counts: Record<string, number>; 
   );
 }
 
-function ProductionBars({ counts, total }: { counts: Record<string, number>; total: number }) {
-  const max = Math.max(1, ...COLOR_ORDER.map((k) => counts[k] ?? 0));
-  if (total === 0) return <div className="deck-color-empty">No lands</div>;
-  return (
-    <ul className="deck-color-prod">
-      {COLOR_ORDER.filter((k) => (counts[k] ?? 0) > 0)
-        .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0))
-        .map((k) => {
-          const v = counts[k];
-          const pct = Math.round((v / total) * 100);
-          return (
-            <li key={k}>
-              <div className="deck-color-prod-row">
-                <span
-                  className="deck-color-prod-swatch"
-                  style={{ background: COLOR_INFO[k]?.pip }}
-                />
-                <span className="deck-color-prod-name">{COLOR_INFO[k]?.label ?? k}</span>
-                <span className="deck-color-prod-meta">
-                  {v} {v === 1 ? 'source' : 'sources'} · {pct}%
-                </span>
-              </div>
-              <div className="deck-color-prod-bar">
-                <div
-                  className="deck-color-prod-bar-fill"
-                  style={{
-                    width: `${(v / max) * 100}%`,
-                    background: COLOR_INFO[k]?.pip,
-                  }}
-                />
-              </div>
-            </li>
-          );
-        })}
-    </ul>
-  );
-}
-
 export function DeckColorPanel({
   colorDist,
   manaProduction,
+  cardsByColor,
 }: {
   colorDist: { counts: Record<string, number>; total: number };
-  manaProduction: { counts: Record<string, number>; total: number };
+  manaProduction: {
+    counts: Record<string, number>;
+    total: number;
+    sourcesByColor?: Record<string, CardTally[]>;
+  };
+  /** Per-color card lists for the Distribution donut drill-down (non-land cards
+   *  by color identity). */
+  cardsByColor?: Record<string, CardTally[]>;
 }): JSX.Element {
+  // Two carousels so each drill-down shows an accurate context label: the
+  // Production sources vs. the Distribution (colored cards) for a color.
+  const sourcesCarousel = useCardCarousel('Mana sources');
+  const colorsCarousel = useCardCarousel('Color');
+
+  const openTally = (carousel: ReturnType<typeof useCardCarousel>, tally?: CardTally[]) => {
+    if (!tally || tally.length === 0) return;
+    void carousel.open(tallyToEntries(tally), tally[0].name);
+  };
+
   return (
     <div className="deck-color-panel">
       <section className="deck-color-section" aria-label="Color distribution section">
         <h5 className="deck-color-subheading">Distribution</h5>
-        <DistributionDonut counts={colorDist.counts} total={colorDist.total} />
-      </section>
-
-      <section className="deck-color-section" aria-label="Mana production">
-        <h5 className="deck-color-subheading">Production</h5>
-        <ProductionBars counts={manaProduction.counts} total={manaProduction.total} />
-      </section>
-
-      <section className="deck-color-section" aria-label="Color balance section">
-        <h5 className="deck-color-subheading">Balance</h5>
-        <DeckColorBalance
-          colorRequirements={colorDist.counts}
-          colorProduction={manaProduction.counts}
+        <DistributionDonut
+          counts={colorDist.counts}
+          total={colorDist.total}
+          cardsByColor={cardsByColor}
+          onShowColor={(k) => openTally(colorsCarousel, cardsByColor?.[k])}
         />
       </section>
+
+      <DeckColorBalance
+        colorRequirements={colorDist.counts}
+        colorProduction={manaProduction.counts}
+        sourcesByColor={manaProduction.sourcesByColor}
+        onShowSources={(k) => openTally(sourcesCarousel, manaProduction.sourcesByColor?.[k])}
+      />
+
+      {sourcesCarousel.preview}
+      {colorsCarousel.preview}
     </div>
   );
 }

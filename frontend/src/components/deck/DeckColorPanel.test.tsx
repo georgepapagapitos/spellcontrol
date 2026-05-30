@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DeckColorPanel } from './DeckColorPanel';
 
 describe('DeckColorPanel', () => {
-  it('renders all three sections with data', () => {
+  it('renders the distribution donut and the merged mana-base readout', () => {
     render(
       <DeckColorPanel
         colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
@@ -12,22 +12,66 @@ describe('DeckColorPanel', () => {
       />
     );
 
-    // (a) Distribution donut renders its SVG.
-    const dist = screen.getByLabelText('Color distribution');
-    expect(dist.tagName.toLowerCase()).toBe('svg');
-
-    // (b) Production bars: at least one source row shows up.
-    const prod = screen.getByLabelText('Mana production');
-    expect(within(prod).getByText(/8 sources/)).toBeTruthy();
-
-    // (c) Balance section reuses DeckColorBalance (its own heading + demand bar).
-    expect(screen.getByText('Color balance')).toBeTruthy();
-    expect(screen.getAllByText('Demand').length).toBeGreaterThan(0);
-
-    // Sub-headings present.
+    // Distribution donut renders its SVG under its sub-heading.
     expect(screen.getByText('Distribution')).toBeTruthy();
-    expect(screen.getByText('Production')).toBeTruthy();
-    expect(screen.getByText('Balance')).toBeTruthy();
+    expect(screen.getByLabelText('Color distribution').tagName.toLowerCase()).toBe('svg');
+
+    // Mana base (merged Production + Balance): demand meters + a colorless row.
+    expect(screen.getByText('Mana base')).toBeTruthy();
+    expect(screen.getAllByText('Demand').length).toBeGreaterThan(0);
+    expect(screen.getByText('Colorless')).toBeTruthy();
+
+    // The old standalone Production / Balance sub-headings are gone.
+    expect(screen.queryByText('Production')).toBeNull();
+    expect(screen.queryByText('Balance')).toBeNull();
+  });
+
+  it('makes a mana-base row tappable when its sources are known', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
+        manaProduction={{
+          counts: { W: 8, U: 5, B: 0, R: 0, G: 0, C: 2 },
+          total: 15,
+          sourcesByColor: {
+            W: [
+              { name: 'Plains', count: 6 },
+              { name: 'Hallowed Fountain', count: 1 },
+            ],
+            U: [{ name: 'Island', count: 5 }],
+            C: [{ name: 'Wastes', count: 2 }],
+          },
+        }}
+      />
+    );
+
+    // White has 2 unique sources → its row is a button labeled with that count.
+    expect(screen.getByRole('button', { name: /Show the 2 White mana sources/ })).toBeTruthy();
+    // The colorless row is tappable too.
+    expect(screen.getByRole('button', { name: /Show the 1 colorless mana sources/ })).toBeTruthy();
+  });
+
+  it('makes a distribution color tappable when its cards are known', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
+        manaProduction={{ counts: {}, total: 0 }}
+        cardsByColor={{ W: [{ name: 'Wrath of God', count: 1 }] }}
+      />
+    );
+    // Only White has a card list → its donut legend entry is tappable.
+    expect(screen.getByRole('button', { name: /Show the 10 White cards/ })).toBeTruthy();
+  });
+
+  it('keeps the panel static when no card lists are provided', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 10, U: 6, B: 0, R: 0, G: 0, C: 4 }, total: 20 }}
+        manaProduction={{ counts: { W: 8, U: 5, B: 0, R: 0, G: 0, C: 2 }, total: 15 }}
+      />
+    );
+
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('renders empty states when totals are 0', () => {
@@ -39,8 +83,7 @@ describe('DeckColorPanel', () => {
     );
 
     expect(screen.getByText('No data')).toBeTruthy();
-    expect(screen.getByText('No lands')).toBeTruthy();
-    // Balance section's own empty state.
+    // Merged mana-base empty state.
     expect(screen.getByText('No colored mana to balance.')).toBeTruthy();
     // No donut SVG when there's no data.
     expect(screen.queryByLabelText('Color distribution')).toBeNull();

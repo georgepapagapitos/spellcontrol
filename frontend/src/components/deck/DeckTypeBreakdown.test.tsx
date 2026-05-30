@@ -40,6 +40,24 @@ describe('DeckTypeBreakdown', () => {
     expect(screen.getByText('80 cards')).toBeTruthy();
   });
 
+  it('makes a row tappable only when its card list is provided', () => {
+    render(
+      <DeckTypeBreakdown
+        typeCounts={typeCounts}
+        cardsByType={{ Creature: [{ name: 'Llanowar Elves', count: 1 }] }}
+      />
+    );
+    // Only Creature has a card list → exactly one tappable row.
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBe(1);
+    expect(screen.getByRole('button', { name: /Show the 30 Creature cards/ })).toBeTruthy();
+  });
+
+  it('renders static rows when no card lists are provided', () => {
+    render(<DeckTypeBreakdown typeCounts={typeCounts} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('omits zero-count types and shows an empty message when nothing is present', () => {
     const { container } = render(<DeckTypeBreakdown typeCounts={{ Creature: 0 }} />);
     expect(container.querySelectorAll('.deck-type-breakdown-row').length).toBe(0);
