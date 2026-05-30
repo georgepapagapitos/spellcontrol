@@ -1,6 +1,7 @@
 import './BracketBreakdown.css';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { useCardCarousel } from './useCardCarousel';
 
 // Mirror the soft-score formula in estimateBracket() so the bars reflect the
 // actual per-component contributions. Keep these in lockstep with
@@ -20,15 +21,27 @@ const ELEVATE_BUMP_THRESHOLD = 66;
 const ELEVATE_CEDH_THRESHOLD = 80;
 
 function CardChips({ names }: { names: string[] }) {
+  const carousel = useCardCarousel('Bracket cards');
   if (names.length === 0) return null;
+  const entries = names.map((name) => ({ name, label: 'Contributing card' }));
   return (
-    <ul className="bracket-breakdown-chips">
-      {names.map((name) => (
-        <li key={name} className="bracket-breakdown-chip">
-          {name}
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="bracket-breakdown-chips">
+        {names.map((name) => (
+          <li key={name} className="bracket-breakdown-chip">
+            <button
+              type="button"
+              className="bracket-breakdown-chip-btn"
+              onClick={() => void carousel.open(entries, name)}
+              aria-label={`Preview ${name}`}
+            >
+              {name}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {carousel.preview}
+    </>
   );
 }
 

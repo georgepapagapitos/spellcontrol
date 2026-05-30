@@ -56,6 +56,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { BracketBreakdown } from './BracketBreakdown';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
+import { useCardCarousel } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
 import { DeckManaPanel, type DeckManaData } from './DeckManaPanel';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
@@ -2728,6 +2729,9 @@ function DeckAnalysisView({
   // below stay untouched.
   const current = view;
 
+  // Tap a saltiest-card name to preview it (swipe through the salt list).
+  const saltCarousel = useCardCarousel('Saltiest cards');
+
   return (
     <div className="deck-analysis-view">
       {current === 'overview' && (
@@ -2811,12 +2815,28 @@ function DeckAnalysisView({
               <ul className="deck-saltiest-list">
                 {saltiestCards.map((c) => (
                   <li key={c.name} className="deck-saltiest-row">
-                    <span className="deck-saltiest-name">{c.name}</span>
+                    <button
+                      type="button"
+                      className="deck-saltiest-name"
+                      onClick={() =>
+                        void saltCarousel.open(
+                          saltiestCards.map((s) => ({
+                            name: s.name,
+                            label: `Salt ${s.salt.toFixed(2)}`,
+                          })),
+                          c.name
+                        )
+                      }
+                      aria-label={`Preview ${c.name}`}
+                    >
+                      {c.name}
+                    </button>
                     <span className="deck-saltiest-score">{c.salt.toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
               <p className="deck-saltiest-hint">EDHREC salt score (higher = more polarizing).</p>
+              {saltCarousel.preview}
             </Panel>
           )}
         </div>
