@@ -11,6 +11,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 import {
   computePlanScore,
   computeStrategySubscore,
+  computeStrategyFromEngine,
   computeRolesSubscore,
   computeTempoSubscore,
   roleSlotsFromCounts,
@@ -99,6 +100,48 @@ describe('computeStrategySubscore', () => {
     expect(s.partial).toBeUndefined();
     // densityScore=1, coverageScore=0.5 → composite = 0.6 + 0.2 = 0.8 → 80
     expect(s.value).toBe(80);
+  });
+});
+
+describe('computeStrategyFromEngine', () => {
+  it('is partial when no engine is detected (control / goodstuff)', () => {
+    expect(computeStrategyFromEngine(null).partial).toBe(true);
+    expect(
+      computeStrategyFromEngine({
+        primaryLabel: null,
+        primaryProducers: 0,
+        primaryPayoffs: 0,
+        engineCards: 0,
+        nonLandCount: 60,
+      }).partial
+    ).toBe(true);
+  });
+
+  it('rewards a committed, balanced engine', () => {
+    // 18/60 = 0.30 density = full; balance 8/10 ≥ 0.4 = full → 100.
+    const s = computeStrategyFromEngine({
+      primaryLabel: 'Tokens / go-wide',
+      primaryProducers: 10,
+      primaryPayoffs: 8,
+      engineCards: 18,
+      nonLandCount: 60,
+    });
+    expect(s.partial).toBeUndefined();
+    expect(s.value).toBe(100);
+    expect(s.surface).toMatch(/10 producers \/ 8 payoffs/);
+  });
+
+  it('penalizes a payoff-starved engine via the balance term', () => {
+    // density full (18/60) but balance 1/10 = 0.1 → balanceScore 0.25.
+    const s = computeStrategyFromEngine({
+      primaryLabel: 'Tokens / go-wide',
+      primaryProducers: 10,
+      primaryPayoffs: 1,
+      engineCards: 18,
+      nonLandCount: 60,
+    });
+    // 0.6*1 + 0.4*0.25 = 0.7 → 70, below the balanced 100.
+    expect(s.value).toBe(70);
   });
 });
 
