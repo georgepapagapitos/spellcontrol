@@ -203,7 +203,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Equip'],
     oracle_text:
       'Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}',
-    expect: { producers: [], payoffs: ['sacrifice'] },
+    expect: { producers: ['equipment'], payoffs: ['sacrifice'] },
   },
   {
     name: 'Divine Visitation',
@@ -571,7 +571,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Equip'],
     oracle_text:
       'Equipped creature gets +1/+0 for each artifact you control.\n{B}{B}: Attach this Equipment to target creature you control.\nEquip {1}',
-    expect: { producers: [], payoffs: ['artifacts'] },
+    expect: { producers: ['equipment'], payoffs: ['artifacts'] },
   },
   {
     name: 'Urza, Lord High Artificer',
@@ -595,6 +595,136 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Trample'],
     oracle_text:
       "Flying, trample\nWhenever this creature deals combat damage to a player, untap it. After this phase, there is an additional combat phase.\nThis creature can't attack a player it has already attacked this turn.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Sram, Senior Edificer',
+    type_line: 'Legendary Creature — Dwarf Advisor',
+    keywords: [],
+    oracle_text: 'Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.',
+    expect: { producers: [], payoffs: ['equipment'] },
+  },
+  {
+    name: 'Puresteel Paladin',
+    type_line: 'Creature — Human Knight',
+    keywords: ['Metalcraft'],
+    oracle_text:
+      'Whenever an Equipment you control enters, you may draw a card.\nMetalcraft — Equipment you control have equip {0} as long as you control three or more artifacts.',
+    expect: { producers: [], payoffs: ['equipment', 'artifacts'] },
+  },
+  {
+    name: 'Stoneforge Mystic',
+    type_line: 'Creature — Kor Artificer',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you may search your library for an Equipment card, reveal it, put it into your hand, then shuffle.\n{1}{W}, {T}: You may put an Equipment card from your hand onto the battlefield.',
+    expect: { producers: [], payoffs: ['equipment'] },
+  },
+  {
+    name: "Sigarda's Aid",
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'You may cast Aura and Equipment spells as though they had flash.\nWhenever an Equipment you control enters, you may attach it to target creature you control.',
+    expect: { producers: [], payoffs: ['equipment'] },
+  },
+  {
+    name: 'Batterskull',
+    type_line: 'Artifact — Equipment',
+    keywords: ['Equip', 'Living weapon'],
+    oracle_text:
+      "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it.)\nEquipped creature gets +4/+4 and has vigilance and lifelink.\n{3}: Return this Equipment to its owner's hand.\nEquip {5}",
+    expect: { producers: ['tokens', 'equipment'], payoffs: [] },
+  },
+  {
+    name: 'Young Pyromancer',
+    type_line: 'Creature — Human Shaman',
+    keywords: [],
+    oracle_text:
+      'Whenever you cast an instant or sorcery spell, create a 1/1 red Elemental creature token.',
+    expect: { producers: ['tokens'], payoffs: ['spellslinger'] },
+  },
+  {
+    name: 'Guttersnipe',
+    type_line: 'Creature — Goblin Shaman',
+    keywords: [],
+    oracle_text:
+      'Whenever you cast an instant or sorcery spell, this creature deals 2 damage to each opponent.',
+    expect: { producers: [], payoffs: ['spellslinger'] },
+  },
+  {
+    name: 'Goblin Electromancer',
+    type_line: 'Creature — Goblin Wizard',
+    keywords: [],
+    oracle_text: 'Instant and sorcery spells you cast cost {1} less to cast.',
+    expect: { producers: ['spellslinger'], payoffs: [] },
+  },
+  {
+    name: 'Archmage Emeritus',
+    type_line: 'Creature — Human Wizard',
+    keywords: ['Magecraft'],
+    oracle_text: 'Magecraft — Whenever you cast or copy an instant or sorcery spell, draw a card.',
+    expect: { producers: [], payoffs: ['spellslinger'] },
+  },
+  {
+    name: 'Storm-Kiln Artist',
+    type_line: 'Creature — Dwarf Shaman',
+    keywords: ['Treasure', 'Magecraft'],
+    oracle_text:
+      'This creature gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token. (It\'s an artifact with "{T}, Sacrifice this token: Add one mana of any color.")',
+    expect: { producers: ['artifacts'], payoffs: ['spellslinger', 'artifacts'] },
+  },
+  {
+    name: 'Talrand, Sky Summoner',
+    type_line: 'Legendary Creature — Merfolk Wizard',
+    keywords: [],
+    oracle_text:
+      'Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake creature token with flying.',
+    expect: { producers: ['tokens'], payoffs: ['spellslinger'] },
+  },
+  {
+    name: "Enchantress's Presence",
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text: 'Whenever you cast an enchantment spell, draw a card.',
+    expect: { producers: [], payoffs: ['enchantress'] },
+  },
+  {
+    name: 'Eidolon of Blossoms',
+    type_line: 'Enchantment Creature — Spirit',
+    keywords: ['Constellation'],
+    oracle_text:
+      'Constellation — Whenever this creature or another enchantment you control enters, draw a card.',
+    expect: { producers: [], payoffs: ['enchantress'] },
+  },
+  {
+    name: 'Setessan Champion',
+    type_line: 'Creature — Human Warrior',
+    keywords: ['Constellation'],
+    oracle_text:
+      'Constellation — Whenever an enchantment you control enters, put a +1/+1 counter on this creature and draw a card.',
+    expect: { producers: ['counters'], payoffs: ['enchantress'] },
+  },
+  {
+    name: "Sythis, Harvest's Hand",
+    type_line: 'Legendary Enchantment Creature — Nymph',
+    keywords: [],
+    oracle_text: 'Whenever you cast an enchantment spell, you gain 1 life and draw a card.',
+    expect: { producers: ['lifegain'], payoffs: ['enchantress'] },
+  },
+  {
+    name: 'Sterling Grove',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "Other enchantments you control have shroud. (They can't be the targets of spells or abilities.)\n{1}, Sacrifice this enchantment: Search your library for an enchantment card, reveal it, then shuffle and put that card on top.",
+    expect: { producers: ['enchantress'], payoffs: [] },
+  },
+  {
+    name: 'Birds of Paradise',
+    type_line: 'Creature — Bird',
+    keywords: ['Flying'],
+    oracle_text: 'Flying\n{T}: Add one mana of any color.',
     expect: { producers: [], payoffs: [] },
   },
 ];
