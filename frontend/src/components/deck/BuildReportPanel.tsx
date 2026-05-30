@@ -1,5 +1,18 @@
 import './BuildReportPanel.css';
 import type { BuildReport, DeckDataSource } from '@/deck-builder/types';
+import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
+
+/**
+ * Canonical label for a role-gap key. Prefers the shared ROLE_TITLES map
+ * (e.g. cardDraw → "Card Advantage"); for any unknown key, humanizes the
+ * raw key by splitting camelCase and capitalizing instead of leaking it.
+ */
+function humanizeRole(role: string): string {
+  const known = ROLE_TITLES[role as RoleKey];
+  if (known) return known;
+  const spaced = role.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 /** Plain-English description of which EDHREC pool the generator ended up using. */
 function humanizeDataSource(source: DeckDataSource): string {
@@ -65,9 +78,13 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
           <ul className="build-report-gaps-list">
             {roleGaps.map((g) => (
               <li key={g.role} className="build-report-gap">
-                {g.role}{' '}
-                <span className="build-report-gap-count">
-                  {g.have}/{g.want}
+                <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
+                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                  {g.have}
+                  <span className="build-report-gap-target">
+                    {' / '}
+                    {g.want}
+                  </span>
                 </span>
               </li>
             ))}
