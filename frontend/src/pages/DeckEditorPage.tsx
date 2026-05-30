@@ -19,6 +19,7 @@ import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
 import { CostPanel } from '../components/deck/CostPanel';
+import { EnginePanel } from '../components/deck/EnginePanel';
 import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
@@ -85,6 +86,7 @@ export function DeckEditorPage() {
   const [view, setView] = useState<DeckView>('deck');
   const [applyingOptimize, setApplyingOptimize] = useState(false);
   const [applyingCost, setApplyingCost] = useState(false);
+  const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
   const openView = useCallback((next: DeckView) => {
     setView(next);
     window.requestAnimationFrame(() => {
@@ -358,6 +360,29 @@ export function DeckEditorPage() {
       });
     } finally {
       setApplyingOptimize(false);
+    }
+  };
+
+  // Add a single off-meta engine suggestion: resolve the name → full card,
+  // claim a collection copy if available, add. Mirrors Optimize's add path.
+  const handleAddEngineCard = async (cardName: string) => {
+    if (!deck) return;
+    setAddingEngineNames((prev) => new Set(prev).add(cardName));
+    try {
+      const scry = await getCardByName(cardName);
+      if (!scry) return;
+      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const claim = pickCollectionCopy(cardName, collectionCards, allocations, scry.id);
+      addCard(deck.id, scry, claim?.copyId ?? null);
+      pushToast({ message: `Added ${cardName}`, tone: 'success' });
+    } catch {
+      pushToast({ message: `Couldn't add ${cardName}`, tone: 'error' });
+    } finally {
+      setAddingEngineNames((prev) => {
+        const next = new Set(prev);
+        next.delete(cardName);
+        return next;
+      });
     }
   };
 
@@ -805,6 +830,20 @@ export function DeckEditorPage() {
                   plan={deck.costPlan}
                   onApply={handleApplyCostSwaps}
                   applying={applyingCost}
+                />
+              ) : undefined
+            }
+            engineSlot={
+              formatConfig?.hasCommander &&
+              deck.synergyAnalysis &&
+              (deck.synergyAnalysis.suggestions.length > 0 ||
+                deck.synergyAnalysis.warnings.length > 0 ||
+                deck.synergyAnalysis.axes.length > 0) ? (
+                <EnginePanel
+                  analysis={deck.synergyAnalysis}
+                  ownedNames={ownedNames}
+                  onAdd={handleAddEngineCard}
+                  addingNames={addingEngineNames}
                 />
               ) : undefined
             }
