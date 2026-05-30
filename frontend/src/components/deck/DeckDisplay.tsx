@@ -353,6 +353,9 @@ export interface DeckDisplayProps {
    */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
+  /** "Next best move" suggestions, rendered atop the Overview view. Built by
+   *  the page (it owns the live combo data + view-navigation callback). */
+  nextBestMoveSlot?: React.ReactNode;
   /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
@@ -763,6 +766,7 @@ export function DeckDisplay({
   onAddFromSearch,
   combosSlot,
   suggestionsSlot,
+  nextBestMoveSlot,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1438,6 +1442,7 @@ export function DeckDisplay({
             missingPrice={missing.price}
             combosSlot={combosSlot}
             suggestionsSlot={suggestionsSlot}
+            nextBestMoveSlot={nextBestMoveSlot}
             commanderName={commander?.name}
           />
         )}
@@ -2647,6 +2652,7 @@ function DeckAnalysisView({
   missingPrice,
   combosSlot,
   suggestionsSlot,
+  nextBestMoveSlot,
   commanderName,
 }: {
   view: AnalysisTabId;
@@ -2678,6 +2684,7 @@ function DeckAnalysisView({
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
   suggestionsSlot?: React.ReactNode;
+  nextBestMoveSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
 }) {
@@ -2706,6 +2713,11 @@ function DeckAnalysisView({
     <div className="deck-analysis-view">
       {current === 'overview' && (
         <div className="deck-stats-grid">
+          {nextBestMoveSlot && (
+            <Panel title="Next best move" wide>
+              {nextBestMoveSlot}
+            </Panel>
+          )}
           {planScore && (
             <Panel title="Plan score" wide>
               <PlanScoreDashboard plan={planScore} />

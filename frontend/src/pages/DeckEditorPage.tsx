@@ -16,6 +16,9 @@ import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/
 import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
+import { NextBestMove } from '../components/deck/NextBestMove';
+import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
+import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
@@ -175,6 +178,24 @@ export function DeckEditorPage() {
     colorIdentity: commanderColorIdentity,
     updateDeck,
   });
+
+  // "Next best move" — the single highest-leverage change, derived from the
+  // live PlanScore + role gaps + near-miss combos. Manual decks don't carry
+  // roleCounts (set only at generation), so derive them from the tagger.
+  const nextBestMoves = useMemo(() => {
+    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return [];
+    const roleCounts =
+      deck.roleCounts ?? computeRoleCounts(deck.cards.map((c) => c.card)).roleCounts;
+    return buildNextBestMoves({
+      planScore: deck.planScore,
+      roleCounts,
+      roleTargets: deck.roleTargets ?? {},
+      gapAnalysis: deck.gapAnalysis,
+      cardCount: deck.cards.length,
+      deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
+      oneAwayCombos: comboData.data?.oneAway,
+    });
+  }, [deck, comboData.data]);
 
   // `/` opens the search panel; `c` reveals the combos panel (the panel is
   // always rendered in the aside; `c` just expands + scrolls + focuses it).
@@ -669,6 +690,11 @@ export function DeckEditorPage() {
                   mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                   onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                 />
+              ) : undefined
+            }
+            nextBestMoveSlot={
+              nextBestMoves.length > 0 ? (
+                <NextBestMove moves={nextBestMoves} onNavigate={openView} />
               ) : undefined
             }
           />
