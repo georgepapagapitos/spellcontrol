@@ -1968,7 +1968,7 @@ input.toolbar-search-input {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.3rem 1rem;
+  gap: 0.3rem 0.55rem;
   font-size: var(--text-sm);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
@@ -1976,6 +1976,14 @@ input.toolbar-search-input {
 
 .deck-stat {
   white-space: nowrap;
+}
+
+/* "·" separator between stats — on every stat after the first, so it works no
+   matter which conditional stats (grade/archetype/missing) are present. */
+.deck-stat + .deck-stat::before {
+  content: '·';
+  margin-right: 0.55rem;
+  color: var(--text3);
 }
 
 .deck-stat-value {
