@@ -71,7 +71,7 @@ const forest = (): ScryfallCard =>
     keywords: [],
   }) as unknown as ScryfallCard;
 
-function runOptimize(withSynergyGuard: boolean) {
+function runOptimize(withSynergyGuard: boolean, loadBearing?: Set<string>) {
   const spells = [spell(STAPLE), spell(FRINGE), spell(NARROW)];
   const lands = Array.from({ length: 36 }, forest);
   const cards = [...spells, ...lands];
@@ -93,7 +93,8 @@ function runOptimize(withSynergyGuard: boolean) {
     new Set<string>(),
     new Set<string>(),
     undefined,
-    withSynergyGuard ? synergyMap : undefined
+    withSynergyGuard ? synergyMap : undefined,
+    loadBearing
   );
   return new Set(swaps.removals.map((r) => r.name));
 }
@@ -107,6 +108,13 @@ describe('computeOptimizeSwaps — Commander cut calibration', () => {
   it('still cuts a genuinely fringe (<8%) roleless card', () => {
     const cut = runOptimize(true);
     expect(cut.has(FRINGE)).toBe(true);
+  });
+
+  it('protects a fringe card flagged load-bearing by the native synergy engine', () => {
+    // FRINGE (3% inclusion, no role/synergy) is cut by default…
+    expect(runOptimize(true).has(FRINGE)).toBe(true);
+    // …but not when the synergy engine marks it load-bearing for an invested axis.
+    expect(runOptimize(true, new Set([FRINGE])).has(FRINGE)).toBe(false);
   });
 
   it('protects a low-inclusion but high-synergy payoff via the synergy guard', () => {
