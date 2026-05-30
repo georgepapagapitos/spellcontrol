@@ -32,9 +32,14 @@ import {
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
-import { computePlanScore, type PlanScore, type StrategyInputs } from './planScore';
+import {
+  computePlanScore,
+  type PlanScore,
+  type StrategyInputs,
+  type StrategyEngineInput,
+} from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
-import { analyzeDeckSynergy, isLoadBearing } from '../synergy/deckSynergy';
+import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
 
 export interface DeckGrade {
   letter: string;
@@ -214,6 +219,34 @@ export function buildStrategyInputs(
     themeByCard,
     topThemeCardNames,
     planName: edhrecData.themes?.[0]?.name ?? null,
+  };
+}
+
+/**
+ * Distil a DeckSynergy into the PlanScore strategy inputs: the primary engine
+ * axis (busiest invested axis), its producer/payoff counts, and how many deck
+ * cards participate in any invested axis. `primaryLabel` is null when the deck
+ * has no real engine → the strategy dim scores `partial` and drops out.
+ */
+export function buildStrategyEngineInput(
+  synergy: DeckSynergy,
+  nonLandCount: number
+): StrategyEngineInput {
+  const primaryKey = synergy.invested[0];
+  const primary = primaryKey ? synergy.axes.find((a) => a.axis === primaryKey) : undefined;
+  const investedSet = new Set(synergy.invested);
+  const engineNames = new Set<string>();
+  for (const ax of synergy.axes) {
+    if (!investedSet.has(ax.axis)) continue;
+    for (const c of ax.producers) engineNames.add(c.name);
+    for (const c of ax.payoffs) engineNames.add(c.name);
+  }
+  return {
+    primaryLabel: primary?.label ?? null,
+    primaryProducers: primary?.producers.length ?? 0,
+    primaryPayoffs: primary?.payoffs.length ?? 0,
+    engineCards: engineNames.size,
+    nonLandCount,
   };
 }
 
@@ -473,6 +506,12 @@ export async function analyzeCommanderDeck(
       params.cards.map((c) => c.name)
     );
 
+    // Native synergy engine over the deck's real oracle text. Drives both the
+    // PlanScore "strategy" dimension (producer↔payoff balance, not EDHREC
+    // conformance) and the Optimize cut guard (load-bearing cards never cut).
+    const deckSynergy = analyzeDeckSynergy(params.cards);
+    const strategyEngine = buildStrategyEngineInput(deckSynergy, nonLand.length);
+
     let planScore: PlanScore | undefined;
     if (gradeBracket.curvePhases) {
       const commanderNames = [params.commander.name];
@@ -489,9 +528,9 @@ export async function analyzeCommanderDeck(
           commanderNames,
         },
         gapCount: gapAnalysis.length,
-        // Strategy from the commander's EDHREC synergy signal (no extra fetch).
-        // Returns null for commanders with no synergy data → scores partial.
-        strategy: buildStrategyInputs(edhrecData, nonLand),
+        // Strategy from the deck's own producer↔payoff engine (oracle-text
+        // grounded). Scores `partial` when no engine is detected.
+        strategyEngine,
         sampleSize: edhrecData.stats?.numDecks ?? null,
       });
     }
@@ -507,10 +546,9 @@ export async function analyzeCommanderDeck(
       // optimizer has priced alternatives and Optimize's curve-fill/confidence
       // bands work (the manual path doesn't get the generator's enrichment).
       await enrichRecommendationPrices(gradeBracket.analysis.recommendations);
-      // Native synergy engine: protect cards load-bearing for an axis the deck
-      // is actually invested in (a token producer in a token deck, etc.) from
-      // the EDHREC-inclusion cutter — grounded in oracle text, not popularity.
-      const deckSynergy = analyzeDeckSynergy(params.cards);
+      // Protect cards load-bearing for an invested axis (a token producer in a
+      // token deck, etc.) from the EDHREC-inclusion cutter. Reuses the synergy
+      // analysis computed above.
       const synergyProtectedNames = new Set(
         params.cards.filter((c) => isLoadBearing(c, deckSynergy)).map((c) => c.name)
       );

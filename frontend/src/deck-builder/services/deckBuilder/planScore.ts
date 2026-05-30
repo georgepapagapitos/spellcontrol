@@ -114,6 +114,50 @@ export function computeStrategySubscore(inputs: StrategyInputs | null | undefine
   return { value, surface, bandLabel: bandFor(value) };
 }
 
+// ── Strategy (native synergy engine) ─────────────────────────────────────────
+// Preferred over the EDHREC-conformance version above: instead of "how much
+// does this look like the average deck", it measures whether the deck has a
+// real producer↔payoff engine and how committed + balanced it is. When no
+// engine is detected (control, goodstuff, an archetype we don't model yet) it
+// scores `partial` and drops out — honest, and it never punishes a deck for
+// lacking a synergy engine it was never trying to build.
+const ENGINE_DENSITY_TARGET = 0.3; // 30% of non-land cards in the engine = full marks
+const ENGINE_BALANCE_TARGET = 0.4; // weaker half ≥ 40% of the stronger = full balance marks
+
+export interface StrategyEngineInput {
+  /** Label of the deck's primary engine axis, or null when none is detected. */
+  primaryLabel: string | null;
+  /** Producer / payoff counts on that primary axis. */
+  primaryProducers: number;
+  primaryPayoffs: number;
+  /** Distinct deck cards participating in any invested axis. */
+  engineCards: number;
+  /** Non-land card count (density denominator). */
+  nonLandCount: number;
+}
+
+export function computeStrategyFromEngine(input: StrategyEngineInput | null | undefined): SubScore {
+  if (!input || !input.primaryLabel) {
+    return {
+      value: 50,
+      surface: 'No producer/payoff engine detected — strategy not scored.',
+      bandLabel: 'Unscored',
+      partial: true,
+    };
+  }
+  const { primaryLabel, primaryProducers: p, primaryPayoffs: o, engineCards, nonLandCount } = input;
+
+  const density = engineCards / (nonLandCount || 1);
+  const densityScore = Math.min(1, density / ENGINE_DENSITY_TARGET);
+
+  const balance = Math.min(p, o) / Math.max(p, o, 1);
+  const balanceScore = Math.min(1, balance / ENGINE_BALANCE_TARGET);
+
+  const value = Math.round((densityScore * 0.6 + balanceScore * 0.4) * 100);
+  const surface = `${engineCards} of ${nonLandCount} non-land cards drive your ${primaryLabel} engine (${p} producer${p === 1 ? '' : 's'} / ${o} payoff${o === 1 ? '' : 's'}).`;
+  return { value, surface, bandLabel: bandFor(value) };
+}
+
 // ── Roles ───────────────────────────────────────────────────────────────────
 const ROLE_WEIGHTS: Record<string, number> = {
   ramp: 1.0,
@@ -238,6 +282,12 @@ export interface PlanScoreInput {
    * dropped from the composite (graceful degrade until themes are wired).
    */
   strategy?: StrategyInputs | null;
+  /**
+   * Native-synergy strategy inputs. When provided (even as a no-engine value),
+   * this is used for the strategy dimension instead of the EDHREC-conformance
+   * `strategy` above. Preferred path.
+   */
+  strategyEngine?: StrategyEngineInput | null;
   /** Sample size for the byline (e.g. EDHREC numDecks). */
   sampleSize?: number | null;
 }
@@ -248,7 +298,10 @@ export function computePlanScore(input: PlanScoreInput): PlanScore {
   const cardFit = computeCardFitSubscore(misfits, input.gapCount);
 
   const subscores: Record<SubScoreKey, SubScore> = {
-    strategy: computeStrategySubscore(input.strategy),
+    strategy:
+      input.strategyEngine !== undefined
+        ? computeStrategyFromEngine(input.strategyEngine)
+        : computeStrategySubscore(input.strategy),
     roles: computeRolesSubscore(roleSlotsFromCounts(input.roleCounts, input.roleTargets)),
     tempo: computeTempoSubscore(input.curvePhases),
     cardFit: { ...cardFit },
