@@ -49,10 +49,10 @@ const ROLE_LABELS: Record<string, string> = {
 
 /** Sub-score → the analysis view that surfaces it. */
 const SUBSCORE_VIEW: Record<SubScoreKey, DeckView> = {
-  strategy: 'improve',
-  roles: 'improve',
-  tempo: 'mana',
-  cardFit: 'improve',
+  strategy: 'tune',
+  roles: 'tune',
+  tempo: 'stats',
+  cardFit: 'tune',
 };
 
 const WEAK_THRESHOLD = 75;
@@ -223,7 +223,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         title: 'Complete a combo',
         cardName: missingName,
         detail: `You're one card from ${produces}. Add ${missingName} to complete the combo.`,
-        navigateTo: 'power',
+        navigateTo: 'tune',
       });
       usedCards.add(missingName);
       break;

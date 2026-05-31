@@ -18,7 +18,7 @@ const moves: Move[] = [
     title: 'Add ramp',
     detail: 'Light on ramp (2 of 10). Add Cultivate.',
     cardName: 'Cultivate',
-    navigateTo: 'improve',
+    navigateTo: 'tune',
   },
 ];
 
@@ -33,8 +33,8 @@ describe('NextBestMove', () => {
   it('fires onNavigate with the move destination', () => {
     const onNavigate = vi.fn();
     render(<NextBestMove moves={moves} onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Go to Improve' }));
-    expect(onNavigate).toHaveBeenCalledWith('improve');
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Tune' }));
+    expect(onNavigate).toHaveBeenCalledWith('tune');
   });
 
   it('renders no navigate button when onNavigate is absent', () => {

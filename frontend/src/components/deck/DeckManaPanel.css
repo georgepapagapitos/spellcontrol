@@ -1,31 +1,58 @@
-/* The mana view's three sections (curve / color / types), rendered in the
-   "Mana" tab at full surface width on every device.
+/* The mana view in three editorial tiers — Hero curve / Color+base pair /
+   Types footer. Rendered in the "Mana" tab at full surface width on every
+   device.
 
-   Phones (<640px): one full-width column. The 8-bar curve histogram reads best
-   wide, and a single column never leaves a dead gutter. Mirrors the 640px tier
-   the sibling stat panels (.deck-curve-phases / .deck-type-breakdown) tighten at.
+   The form genuinely changes across breakpoints (not just a column count):
 
-   ≥640px (large phones landscape, tablets, desktop): a 2-column grid capped at
-   two tracks — the Mana curve spans the full top row (it's the width-hungry
-   one) and the compact Color + Types lists pair evenly below it. Capping at 2
-   and spanning the curve avoids the old 3-into-auto-fill layout, which orphaned
-   an empty third cell and left a ragged column of dead space. Matches the
-   `--curated` / `--wide` idiom in styles/deck-builder.css. */
+   Phones (<640px): a single full-width column. The stacked curve reads best
+   wide, and one column never leaves a dead gutter.
+
+   ≥640px (large phones landscape, tablets, desktop): the Pair tier becomes a
+   2-track grid. DeckColorPanel (donut + mana base together) spans both tracks
+   so there's no orphaned empty cell — mirrors the first-child span trick the
+   old 3-box grid used. Split the donut and mana base into the two cells here
+   if DeckColorPanel is ever divided. */
 .deck-mana-panel {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.85rem, 2.5vw, 1.5rem);
+  /* Containment: cap + center so the Mana tab doesn't stretch a wide monitor.
+     --analysis-max is the single shared knob (set on .deck-analysis-view in
+     styles/deck-builder.css). */
+  max-width: var(--analysis-max, 1320px);
+  margin-inline: auto;
+  width: 100%;
+}
+
+/* Tier 1 — Hero. Elevated, taller on larger screens (the curve height itself
+   is driven by .deck-curve-phases__chart's clamp). A faint accent wash + inset
+   hairline lift it above the pair/footer tiers. */
+.deck-mana-panel__hero {
+  position: relative;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent),
+    var(--surface);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 14%, transparent) inset;
+}
+
+/* Tier 2 — Pair. */
+.deck-mana-panel__pair {
   display: grid;
   grid-template-columns: 1fr;
+  gap: clamp(0.85rem, 2.5vw, 1.5rem);
   align-items: start;
-  gap: 0.85rem;
+}
+
+.deck-mana-panel__cell {
+  min-width: 0;
 }
 
 @media (min-width: 640px) {
-  .deck-mana-panel {
+  .deck-mana-panel__pair {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  /* Mana curve (first section) spans both columns; Color + Types share the
-     row below — no orphaned cell. */
-  .deck-mana-panel > .deck-stats-panel:first-child {
+  /* Single child spans both tracks — no orphaned cell. */
+  .deck-mana-panel__cell:first-child:last-child {
     grid-column: 1 / -1;
   }
 }

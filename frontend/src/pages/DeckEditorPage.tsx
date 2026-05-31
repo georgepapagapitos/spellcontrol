@@ -219,10 +219,10 @@ export function DeckEditorPage() {
         window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        openAnalysisTab('power'); // Combos live under the Power tab.
+        openAnalysisTab('tune'); // Combos live under the Tune tab.
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        openAnalysisTab('improve'); // Suggestions live under the Improve tab.
+        openAnalysisTab('tune'); // Suggestions live under the Tune tab.
       }
     };
     document.addEventListener('keydown', onKey);
@@ -562,26 +562,48 @@ export function DeckEditorPage() {
     addedAt: c.addedAt,
   }));
 
-  // Page-top hub tabs. Deck/Overview/Mana always show; Power (bracket + combos)
-  // is gated to commander-family formats (matching the EDH-centric analysis),
-  // and Improve (roles + suggestions) shows for any non-empty deck. The live
-  // combo count rides on the Power tab as a count badge (the old Combos chip).
+  // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Tune
+  // (power + improve). Stats always shows; Tune shows for commander formats
+  // (bracket + combos) or any non-empty deck (roles + suggestions). The live
+  // combo count rides on the Tune tab as a count badge (the old Power badge).
   const hasCommanderFormat = !!formatConfig?.hasCommander;
   const comboCount = comboData.data?.inDeck.length ?? null;
   // Bracket is glanceable info — it rides the hero meta line now (the old
-  // feature-strip chip is gone); the Power view still owns the override UI.
+  // feature-strip chip is gone); the Tune view still owns the override UI.
   const bracketValue = effectiveBracket(deck);
+  const showTuneTab = hasCommanderFormat || deck.cards.length > 0;
   const viewTabs: Array<{ id: DeckView; label: string; count?: number | null }> = [
     { id: 'deck', label: 'Deck' },
-    { id: 'overview', label: 'Overview' },
-    { id: 'mana', label: 'Mana' },
-    ...(hasCommanderFormat
-      ? [{ id: 'power' as DeckView, label: 'Power', count: comboData.loading ? null : comboCount }]
+    { id: 'stats', label: 'Stats' },
+    ...(showTuneTab
+      ? [
+          {
+            id: 'tune' as DeckView,
+            label: 'Tune',
+            // Combo count is only meaningful for commander formats; otherwise
+            // the badge is omitted (undefined → no badge).
+            count: hasCommanderFormat ? (comboData.loading ? null : comboCount) : undefined,
+          },
+        ]
       : []),
-    ...(deck.cards.length > 0 ? [{ id: 'improve' as DeckView, label: 'Improve' }] : []),
   ];
-  // Guard against a stale view that no longer has a tab (e.g. format change).
-  const safeView: DeckView = viewTabs.some((t) => t.id === view) ? view : 'deck';
+  // Guard against a stale view that no longer has a tab. Map any legacy
+  // analysis id (overview/mana → stats; power/improve → tune) that might still
+  // be in `view` from before this restructure, then fall back to a real tab.
+  const legacyViewMap: Record<string, DeckView> = {
+    overview: 'stats',
+    mana: 'stats',
+    power: 'tune',
+    improve: 'tune',
+  };
+  const mappedView = legacyViewMap[view] ?? view;
+  // Default the analysis surface to Stats: if the active view isn't a real tab,
+  // prefer Stats over Deck so opening analysis lands somewhere useful.
+  const safeView: DeckView = viewTabs.some((t) => t.id === mappedView)
+    ? mappedView
+    : viewTabs.some((t) => t.id === 'stats')
+      ? 'stats'
+      : 'deck';
 
   return (
     <div className="deck-editor-page">

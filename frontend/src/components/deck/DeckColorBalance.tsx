@@ -35,6 +35,9 @@ const COLOR_NAME: Record<Color, string> = {
  * with zero demand are never flagged and render in a neutral, dimmed style.
  */
 const SHORTFALL_RATIO = 0.6;
+// Below this many colored pips, a single source easily covers the demand, so we don't
+// flag the color as short (small-splash forgiveness). Zero-source colors flag regardless.
+const MIN_FLAG_DEMAND = 3;
 
 export function DeckColorBalance({
   colorRequirements,
@@ -52,7 +55,15 @@ export function DeckColorBalance({
       const demand = colorRequirements[color] ?? 0;
       const production = colorProduction[color] ?? 0;
       const hasDemand = demand > 0;
-      const short = hasDemand && production < demand * SHORTFALL_RATIO;
+      // Flag a color as "short" when:
+      //  - it has demand but zero sources (you literally can't produce it) — always flag, or
+      //  - production falls below the shortfall ratio AND demand is non-trivial.
+      // The MIN_FLAG_DEMAND guard forgives tiny splashes: a color with only 1-2 pips
+      // is comfortably covered by a single source, so we don't nag about it.
+      const short =
+        hasDemand &&
+        production < demand * SHORTFALL_RATIO &&
+        (production === 0 || demand >= MIN_FLAG_DEMAND);
       return { color, name: COLOR_NAME[color], demand, production, hasDemand, short };
     }).filter((row) => row.demand > 0 || row.production > 0);
 

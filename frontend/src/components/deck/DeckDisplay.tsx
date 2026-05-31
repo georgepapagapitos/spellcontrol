@@ -57,9 +57,12 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { BracketBreakdown } from './BracketBreakdown';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
-import { useCardCarousel } from './useCardCarousel';
+import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
-import { DeckManaPanel, type DeckManaData } from './DeckManaPanel';
+import { type DeckManaData } from './DeckManaPanel';
+import { DeckCurvePhases } from './DeckCurvePhases';
+import { DeckColorPanel } from './DeckColorPanel';
+import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
@@ -1100,6 +1103,33 @@ export function DeckDisplay({
     }
     return { count, price };
   }, [cards, collectionByCopyId, currency]);
+  // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
+  // a carousel of these so the count doubles as a shopping list.
+  const missingTally = useMemo(() => {
+    const list: ScryfallCard[] = [];
+    for (const dc of cards) {
+      const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId);
+      if (status === 'allocated') continue;
+      list.push(dc.card);
+    }
+    return tallyNames(list);
+  }, [cards, collectionByCopyId]);
+  // Tally of every card in the deck (commanders included), feeding the tappable
+  // "cards" stat → swipe the whole list.
+  const deckTally = useMemo(() => tallyNames(allCards), [allCards]);
+  // The deck's cards as carousel entries sorted by price (desc) — the tappable
+  // "value" stat opens the most expensive cards first, each labeled with its
+  // price so the carousel reads as a value breakdown.
+  const valueEntries = useMemo<CarouselEntry[]>(() => {
+    return tallyNames(allCards)
+      .slice()
+      .sort((a, b) => priceOf(b.card, currency) - priceOf(a.card, currency))
+      .map((t) => ({
+        name: t.name,
+        label: fmtMoney(priceOf(t.card, currency), currency),
+        card: t.card,
+      }));
+  }, [allCards, currency]);
   const averageCmc = useMemo(() => {
     const nonLand = allCards.filter((c) => !(c.type_line || '').toLowerCase().includes('land'));
     if (nonLand.length === 0) return 0;
@@ -1319,6 +1349,10 @@ export function DeckDisplay({
     if (i !== undefined) setPreviewIndex(i);
   };
 
+  // Tap a headline stat (cards / value / missing) to drill into the cards behind
+  // it — the same carousel pattern as the analysis-tab drill-downs.
+  const statCarousel = useCardCarousel(title);
+
   const ctxValue = useMemo(
     () => ({
       openCard: () => {},
@@ -1364,18 +1398,44 @@ export function DeckDisplay({
                 to live behind the Overview analysis tab. Each reads as a metric:
                 a bold value over a small muted label. */}
             <div className="deck-stat-strip" aria-label="Deck stats">
-              <span className="deck-stat">
-                <span className="deck-stat-value">{totalCards}</span>
-                <span className="deck-stat-label">cards</span>
-              </span>
+              {deckTally.length > 0 ? (
+                <button
+                  type="button"
+                  className="deck-stat deck-stat-btn"
+                  onClick={() =>
+                    void statCarousel.open(tallyToEntries(deckTally), deckTally[0]?.name ?? '')
+                  }
+                  aria-label={`Show all ${totalCards} cards in the deck`}
+                >
+                  <span className="deck-stat-value">{totalCards}</span>
+                  <span className="deck-stat-label">cards</span>
+                </button>
+              ) : (
+                <span className="deck-stat">
+                  <span className="deck-stat-value">{totalCards}</span>
+                  <span className="deck-stat-label">cards</span>
+                </span>
+              )}
               <span className="deck-stat">
                 <span className="deck-stat-value">{averageCmc.toFixed(2)}</span>
                 <span className="deck-stat-label">avg CMC</span>
               </span>
-              <span className="deck-stat">
-                <span className="deck-stat-value">{fmtMoney(totalPrice, currency)}</span>
-                <span className="deck-stat-label">value</span>
-              </span>
+              {valueEntries.length > 0 ? (
+                <button
+                  type="button"
+                  className="deck-stat deck-stat-btn"
+                  onClick={() => void statCarousel.open(valueEntries, valueEntries[0]?.name ?? '')}
+                  aria-label="Show the deck's cards sorted by price, most valuable first"
+                >
+                  <span className="deck-stat-value">{fmtMoney(totalPrice, currency)}</span>
+                  <span className="deck-stat-label">value</span>
+                </button>
+              ) : (
+                <span className="deck-stat">
+                  <span className="deck-stat-value">{fmtMoney(totalPrice, currency)}</span>
+                  <span className="deck-stat-label">value</span>
+                </span>
+              )}
               {deckGrade && (
                 <span className="deck-stat">
                   <span className="deck-stat-value" title={deckGrade.headline}>
@@ -1390,15 +1450,34 @@ export function DeckDisplay({
                   <span className="deck-stat-label">archetype</span>
                 </span>
               )}
-              {missing.count > 0 && (
-                <span className="deck-stat deck-stat-missing">
-                  <span className="deck-stat-value">{missing.count}</span>
-                  <span className="deck-stat-label">
-                    missing ({fmtMoney(missing.price, currency)})
+              {missing.count > 0 &&
+                (missingTally.length > 0 ? (
+                  <button
+                    type="button"
+                    className="deck-stat deck-stat-missing deck-stat-btn"
+                    onClick={() =>
+                      void statCarousel.open(
+                        tallyToEntries(missingTally),
+                        missingTally[0]?.name ?? ''
+                      )
+                    }
+                    aria-label={`Show the ${missing.count} missing cards (buy list)`}
+                  >
+                    <span className="deck-stat-value">{missing.count}</span>
+                    <span className="deck-stat-label">
+                      missing ({fmtMoney(missing.price, currency)})
+                    </span>
+                  </button>
+                ) : (
+                  <span className="deck-stat deck-stat-missing">
+                    <span className="deck-stat-value">{missing.count}</span>
+                    <span className="deck-stat-label">
+                      missing ({fmtMoney(missing.price, currency)})
+                    </span>
                   </span>
-                </span>
-              )}
+                ))}
             </div>
+            {statCarousel.preview}
 
             {(flaggedCardCount > 0 || deckSizeWarning) && (
               <div className="deck-legality-banner">
@@ -2705,7 +2784,7 @@ function DeckCardRow({
 // ── Analysis views ─────────────────────────────────────────────────────────
 /** The page-top analysis view ids. (Test hand is a separate standalone panel,
  *  not a view — goldfishing is a distinct activity.) */
-export type AnalysisTabId = 'overview' | 'mana' | 'power' | 'improve';
+export type AnalysisTabId = 'stats' | 'tune';
 
 /** The full page-top view set: the card-list editing surface plus the analysis
  *  views. `DeckEditorPage` owns this state and renders the hub tab bar. */
@@ -2794,143 +2873,167 @@ function DeckAnalysisView({
 
   return (
     <div className="deck-analysis-view">
-      {current === 'overview' && (
-        <div className="deck-stats-grid deck-stats-grid--curated">
+      {current === 'stats' && (
+        <div className="deck-bento deck-bento--stats">
+          {/* Next best move — a full-width banner up top when present. */}
           {nextBestMoveSlot && (
             <Panel title="Next best move" wide>
               {nextBestMoveSlot}
             </Panel>
           )}
-          {planScore && (
-            <Panel title="Plan score" wide>
-              <PlanScoreDashboard plan={planScore} />
+          {/* Mana curve — the hero, full-width so the stacked curve reads well. */}
+          <Panel title="Mana curve" wide>
+            <DeckCurvePhases
+              manaCurve={manaData.manaCurve}
+              curveByColor={manaData.curveByColor}
+              averageCmc={manaData.averageCmc}
+              cardsByCmc={manaData.cardsByCmc}
+            />
+          </Panel>
+          {/* Color + Types — a compact pair (lone survivor spans full width). */}
+          <div className="deck-stats-pair">
+            <Panel title="Color">
+              <DeckColorPanel
+                colorDist={manaData.colorDist}
+                manaProduction={manaData.manaProduction}
+                cardsByColor={manaData.cardsByColor}
+              />
             </Panel>
-          )}
+            <Panel title="Types">
+              <DeckTypeBreakdown
+                typeCounts={manaData.typeBreakdown}
+                cardsByType={manaData.cardsByType}
+              />
+            </Panel>
+          </div>
+          {/* Plan score + Saltiest — a second compact pair. */}
+          <div className="deck-stats-pair">
+            {planScore && (
+              <Panel title="Plan score">
+                <PlanScoreDashboard plan={planScore} />
+              </Panel>
+            )}
+            {saltiestCards && saltiestCards.length > 0 && (
+              <Panel title="Saltiest cards">
+                <ul className="deck-saltiest-list">
+                  {saltiestCards.map((c) => (
+                    <li key={c.name} className="deck-saltiest-row">
+                      <button
+                        type="button"
+                        className="deck-saltiest-name"
+                        onClick={() =>
+                          void saltCarousel.open(
+                            saltiestCards.map((s) => ({
+                              name: s.name,
+                              label: `Salt ${s.salt.toFixed(2)}`,
+                            })),
+                            c.name
+                          )
+                        }
+                        aria-label={`Preview ${c.name}`}
+                      >
+                        {c.name}
+                      </button>
+                      <span className="deck-saltiest-score">{c.salt.toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="deck-saltiest-hint">
+                  EDHREC salt score (higher = more polarizing)
+                  {typeof averageSalt === 'number' && ` · deck avg ${averageSalt.toFixed(2)}`}.
+                </p>
+                {saltCarousel.preview}
+              </Panel>
+            )}
+          </div>
+          {/* Build report — full width, list-heavy. */}
           {buildReport && (
-            <Panel title="Build report">
+            <Panel title="Build report" wide>
               <BuildReportPanel report={buildReport} />
-            </Panel>
-          )}
-          {saltiestCards && saltiestCards.length > 0 && (
-            <Panel title="Saltiest cards">
-              <ul className="deck-saltiest-list">
-                {saltiestCards.map((c) => (
-                  <li key={c.name} className="deck-saltiest-row">
-                    <button
-                      type="button"
-                      className="deck-saltiest-name"
-                      onClick={() =>
-                        void saltCarousel.open(
-                          saltiestCards.map((s) => ({
-                            name: s.name,
-                            label: `Salt ${s.salt.toFixed(2)}`,
-                          })),
-                          c.name
-                        )
-                      }
-                      aria-label={`Preview ${c.name}`}
-                    >
-                      {c.name}
-                    </button>
-                    <span className="deck-saltiest-score">{c.salt.toFixed(2)}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="deck-saltiest-hint">
-                EDHREC salt score (higher = more polarizing)
-                {typeof averageSalt === 'number' && ` · deck avg ${averageSalt.toFixed(2)}`}.
-              </p>
-              {saltCarousel.preview}
             </Panel>
           )}
         </div>
       )}
 
-      {current === 'mana' && <DeckManaPanel {...manaData} />}
-
-      {current === 'power' && (
-        <div className="deck-stats-grid">
-          {(bracketEstimation || bracketOverride != null) && (
-            <Panel title="Bracket">
-              <div className="deck-stats-bracket">
-                <strong>
-                  Bracket {effectiveBracketValue} —{' '}
-                  {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
-                  {bracketOverridden && <span className="deck-stats-bracket-tag"> manual</span>}
-                </strong>
-                {bracketOverridden && bracketEstimation ? (
-                  <span className="deck-stats-bracket-note">
-                    Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
-                  </span>
-                ) : (
-                  bracketEstimation &&
-                  bracketEstimation.hardFloors.length > 0 && (
+      {current === 'tune' && (
+        <div className="deck-bento deck-bento--tune">
+          {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
+          <div className="deck-stats-pair">
+            {(bracketEstimation || bracketOverride != null) && (
+              <Panel title="Bracket">
+                <div className="deck-stats-bracket">
+                  <strong>
+                    Bracket {effectiveBracketValue} —{' '}
+                    {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
+                    {bracketOverridden && <span className="deck-stats-bracket-tag"> manual</span>}
+                  </strong>
+                  {bracketOverridden && bracketEstimation ? (
                     <span className="deck-stats-bracket-note">
-                      {bracketEstimation.hardFloors[0].reason}
+                      Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
                     </span>
-                  )
-                )}
-                {onSetBracketOverride && (
-                  <label className="deck-stats-bracket-override">
-                    <span>Set bracket</span>
-                    <select
-                      className="deck-stats-bracket-select"
-                      value={bracketOverride ?? ''}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        onSetBracketOverride(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
-                      }}
-                    >
-                      <option value="">Auto</option>
-                      {([1, 2, 3, 4, 5] as const).map((b) => (
-                        <option key={b} value={b}>
-                          {b} — {bracketLabel(b)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
-              </div>
-            </Panel>
-          )}
+                  ) : (
+                    bracketEstimation &&
+                    bracketEstimation.hardFloors.length > 0 && (
+                      <span className="deck-stats-bracket-note">
+                        {bracketEstimation.hardFloors[0].reason}
+                      </span>
+                    )
+                  )}
+                  {onSetBracketOverride && (
+                    <label className="deck-stats-bracket-override">
+                      <span>Set bracket</span>
+                      <select
+                        className="deck-stats-bracket-select"
+                        value={bracketOverride ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          onSetBracketOverride(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
+                        }}
+                      >
+                        <option value="">Auto</option>
+                        {([1, 2, 3, 4, 5] as const).map((b) => (
+                          <option key={b} value={b}>
+                            {b} — {bracketLabel(b)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
+                </div>
+              </Panel>
+            )}
+            {showRoles && (
+              <Panel title="Roles">
+                <RolesPanel
+                  roleCounts={effectiveRoleCounts}
+                  roleTargets={roleTargets}
+                  rampSubtypeCounts={effectiveRampSub}
+                  removalSubtypeCounts={effectiveRemovalSub}
+                  boardwipeSubtypeCounts={effectiveBoardwipeSub}
+                  cardDrawSubtypeCounts={effectiveDrawSub}
+                />
+              </Panel>
+            )}
+          </div>
+          {/* Combos — full width (its own multi-column grid inside). */}
           {combosSlot && (
             <Panel title="Combos" wide>
               {combosSlot}
             </Panel>
           )}
-        </div>
-      )}
-
-      {current === 'improve' && (
-        <div className="deck-stats-grid">
-          {showRoles && (
-            <Panel title="Roles" wide>
-              <RolesPanel
-                roleCounts={effectiveRoleCounts}
-                roleTargets={roleTargets}
-                rampSubtypeCounts={effectiveRampSub}
-                removalSubtypeCounts={effectiveRemovalSub}
-                boardwipeSubtypeCounts={effectiveBoardwipeSub}
-                cardDrawSubtypeCounts={effectiveDrawSub}
-              />
-            </Panel>
-          )}
-          {engineSlot && (
-            <Panel title="Engine" wide>
-              {engineSlot}
-            </Panel>
-          )}
-          {optimizeSlot && (
-            <Panel title="Optimize" wide>
-              {optimizeSlot}
-            </Panel>
-          )}
+          {/* Engine + Optimize — a compact pair. */}
+          <div className="deck-stats-pair">
+            {engineSlot && <Panel title="Engine">{engineSlot}</Panel>}
+            {optimizeSlot && <Panel title="Optimize">{optimizeSlot}</Panel>}
+          </div>
+          {/* Optimize on a budget — compact, pairs on its own row. */}
           {costSlot && (
-            <Panel title="Optimize on a budget" wide>
-              {costSlot}
-            </Panel>
+            <div className="deck-stats-pair">
+              <Panel title="Optimize on a budget">{costSlot}</Panel>
+            </div>
           )}
+          {/* Cards to consider — full width (its own multi-column grid). */}
           {gapAnalysis && gapAnalysis.length > 0 && (
             <Panel title="Cards to consider" wide>
               <GapAnalysisPanel
@@ -2940,6 +3043,7 @@ function DeckAnalysisView({
               />
             </Panel>
           )}
+          {/* Suggestions — full width (its own multi-column grid). */}
           {suggestionsSlot && (
             <Panel title="Suggestions" wide>
               {suggestionsSlot}

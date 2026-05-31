@@ -90,7 +90,7 @@ describe('producedManaColors', () => {
     expect(sorted(producedManaColors(signet, WU))).toEqual(['U', 'W']);
   });
 
-  it('treats "could produce" reflect-fixers (Reflecting Pool, Fellwar Stone) as all colors', () => {
+  it('clamps "could produce" reflect-fixers (Reflecting Pool, Fellwar Stone) to identity', () => {
     const pool = card({
       name: 'Reflecting Pool',
       type_line: 'Land',
@@ -103,8 +103,24 @@ describe('producedManaColors', () => {
       oracle_text: '{T}: Add one mana of any color that a land an opponent controls could produce.',
       produced_mana: ['W', 'U', 'B', 'R', 'G'],
     });
-    expect(sorted(producedManaColors(pool, WU))).toEqual(['B', 'C', 'G', 'R', 'U', 'W']);
-    expect(sorted(producedManaColors(fellwar, WU))).toEqual(['B', 'G', 'R', 'U', 'W']);
+    expect(sorted(producedManaColors(pool, WU))).toEqual(['U', 'W']);
+    expect(sorted(producedManaColors(fellwar, WU))).toEqual(['U', 'W']);
+  });
+
+  it('falls back to reported colors when a reflect-fixer has no deck identity', () => {
+    const fellwar = card({
+      name: 'Fellwar Stone',
+      type_line: 'Artifact',
+      oracle_text: '{T}: Add one mana of any color that a land an opponent controls could produce.',
+      produced_mana: ['W', 'U', 'B', 'R', 'G'],
+    });
+    expect(sorted(producedManaColors(fellwar, new Set<string>()))).toEqual([
+      'B',
+      'G',
+      'R',
+      'U',
+      'W',
+    ]);
   });
 
   it('keeps specific guild-signet colors as-is (not contextual)', () => {

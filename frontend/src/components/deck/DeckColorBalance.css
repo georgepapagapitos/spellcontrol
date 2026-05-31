@@ -152,6 +152,10 @@
   grid-template-columns: 3.5rem 1fr 1.6rem;
   align-items: center;
   gap: 0.45rem;
+  /* Containment: cap the meter so the 1fr track reads as a compact magnitude
+     bar, not a ~1900px edge-to-edge rule on a wide board. The value label
+     stays adjacent (it's the trailing fixed column). */
+  max-width: 30rem;
 }
 
 .deck-color-balance-meter-label {

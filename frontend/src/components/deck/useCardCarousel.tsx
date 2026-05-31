@@ -1,9 +1,32 @@
 import { useCallback, useState } from 'react';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
-import type { EnrichedCard } from '@/types';
+import { useCollectionStore } from '@/store/collection';
+import type { EnrichedCard, Finish } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from '@/components/CardPreview';
+
+/**
+ * Best owned "shimmer" finish for a card the player has in their collection.
+ * Carousels have no ownership context of their own, so we look the resolved
+ * card up against the collection store (by oracleId, falling back to name) and
+ * surface a foil treatment only when the player actually owns a foil/etched
+ * copy. Preference order foil > etched > nonfoil so a single owned foil wins.
+ * Returns 'nonfoil' when unowned or owned only non-foil — no regression.
+ */
+function ownedShimmerFinish(card: EnrichedCard): Finish {
+  const owned = useCollectionStore.getState().cards;
+  const oracleId = card.oracleId;
+  const name = card.name.toLowerCase();
+  let best: Finish = 'nonfoil';
+  for (const c of owned) {
+    const matches = oracleId ? c.oracleId === oracleId : c.name.toLowerCase() === name;
+    if (!matches) continue;
+    if (c.finish === 'foil') return 'foil'; // best possible — stop early
+    if (c.finish === 'etched') best = 'etched';
+  }
+  return best;
+}
 
 /** A card to show in the carousel: its name plus a short context label rendered
  *  under the art (e.g. "In 12% of decks"). Pass `card` when the full Scryfall
@@ -61,7 +84,17 @@ export function useCardCarousel(binderName: string): CardCarousel {
       entries.map(async (entry) => {
         try {
           const scry = entry.card ?? (await getCardByName(entry.name));
-          return scry ? { card: scryfallToEnrichedCard(scry), label: entry.label } : null;
+          if (!scry) return null;
+          // Shimmer the card in the carousel only when the player owns a
+          // foil/etched copy. classifyFoil (in CardPreview) keys off finish +
+          // promoTypes; passing the owned finish to scryfallToEnrichedCard sets
+          // both `finish` and the derived `foil` flag the foil overlay reads.
+          const base = scryfallToEnrichedCard(scry);
+          const finish = ownedShimmerFinish(base);
+          return {
+            card: finish === 'nonfoil' ? base : scryfallToEnrichedCard(scry, finish),
+            label: entry.label,
+          };
         } catch {
           return null; // skip — leaves the slot out of the carousel
         }
