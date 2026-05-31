@@ -1668,6 +1668,7 @@ export function DeckDisplay({
                 imageUrl={card?.imageLarge || card?.imageNormal}
                 left={hoverPeek.peek.left}
                 top={hoverPeek.peek.top}
+                width={hoverPeek.peek.width}
               />
             );
           })()}

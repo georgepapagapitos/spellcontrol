@@ -10,8 +10,10 @@
      the full-screen preview sheet (--z-sheet-bg 110) — which only opens on click
      and clears the peek anyway, so the two never coexist. */
   z-index: var(--z-panel);
-  /* Width is the single source of truth shared with DeckHoverPeek.tsx
-     (PEEK_WIDTH); aspect-ratio derives the height to the MTG card proportion. */
+  /* Width is set inline per-render by the hook (viewport-responsive via
+     `peekWidth`: ~200px on a laptop → 300px on a 4K monitor). This 240px is just
+     a fallback if the inline style is ever absent; aspect-ratio derives the
+     height to the MTG card proportion at whatever width applies. */
   width: 240px;
   aspect-ratio: 488 / 680;
   height: auto;
