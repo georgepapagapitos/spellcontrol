@@ -61,7 +61,7 @@ import { BracketBreakdown } from './BracketBreakdown';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
-import { type DeckManaData } from './DeckManaPanel';
+import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';

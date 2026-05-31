@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
-import type { CurveColorBucket } from './DeckManaPanel';
+import type { CurveColorBucket } from './deck-mana-types';
 import './DeckCurvePhases.css';
 
 /**
