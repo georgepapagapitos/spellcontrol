@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   Hand,
+  Handshake,
   Layers,
   LayoutGrid,
   List as ListIconLucide,
@@ -40,6 +41,7 @@ import { ManaCost } from '../ManaCost';
 import { Modal } from '../Modal';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
+import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import {
@@ -328,6 +330,15 @@ export interface DeckDisplayProps {
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   /** Predicate that gates the "Make commander" menu item per card. */
   canMakeCommander?: (card: ScryfallCard) => boolean;
+  /** When provided, eligible rows get a "Make partner" option in their menu. */
+  onMakePartner?: (slotId: string, card: ScryfallCard) => void;
+  /** Predicate that gates the "Make partner" menu item per card (e.g. the card
+   *  is a legal partner for the current commander). */
+  canMakePartner?: (card: ScryfallCard) => boolean;
+  /** When provided, the Commander section header shows an "Add/Edit partner"
+   *  control that opens the partner picker. Pass only when the commander can
+   *  actually have a partner. */
+  onEditPartner?: () => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /** Binder(s) each collection copy is filed in, keyed by copyId — drives
@@ -427,6 +438,9 @@ interface Row {
   collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
+  /** True for the partner commander's synthetic row — drives the "Partner"
+   *  tag that distinguishes it from the primary commander. */
+  isPartner?: boolean;
 }
 
 // ── Foil treatment ─────────────────────────────────────────────────────────
@@ -766,6 +780,9 @@ export function DeckDisplay({
   onEditCard,
   onMakeCommander,
   canMakeCommander,
+  onMakePartner,
+  canMakePartner,
+  onEditPartner,
   collectionByCopyId,
   binderByCopyId,
   exportOpen: exportOpenProp,
@@ -884,7 +901,7 @@ export function DeckDisplay({
   // ids are blank because remove is not allowed on the commander.
   const commanderRows: Row[] = useMemo(() => {
     const rows: Row[] = [];
-    const push = (c: ScryfallCard, allocatedCopyId?: string | null) => {
+    const push = (c: ScryfallCard, allocatedCopyId?: string | null, isPartner = false) => {
       const owned = allocatedCopyId ? collectionByCopyId?.get(allocatedCopyId) : undefined;
       const status: AllocationStatus = classifyAllocation(
         allocatedCopyId ?? null,
@@ -923,10 +940,11 @@ export function DeckDisplay({
         setCode: owned?.setCode || c.set || '',
         setName: owned?.setName || c.set_name,
         collectorNumber: owned?.collectorNumber || c.collector_number || '',
+        isPartner,
       });
     };
     if (commander) push(commander, commanderAllocatedCopyId);
-    if (partnerCommander) push(partnerCommander, partnerCommanderAllocatedCopyId);
+    if (partnerCommander) push(partnerCommander, partnerCommanderAllocatedCopyId, true);
     return rows;
   }, [
     commander,
@@ -1515,6 +1533,16 @@ export function DeckDisplay({
                         }
                         onMakeCommander={onMakeCommander}
                         canMakeCommander={canMakeCommander}
+                        onMakePartner={onMakePartner}
+                        canMakePartner={canMakePartner}
+                        headerAction={
+                          g.icon === 'ms-commander' && onEditPartner ? (
+                            <PartnerHeaderButton
+                              hasPartner={!!partnerCommander}
+                              onClick={onEditPartner}
+                            />
+                          ) : undefined
+                        }
                         synergyByName={synergyByName}
                         cardInclusionMap={cardInclusionMap}
                       />
@@ -1545,6 +1573,8 @@ export function DeckDisplay({
                             onMoveToMainboard={onMoveToMainboard}
                             onMakeCommander={onMakeCommander}
                             canMakeCommander={canMakeCommander}
+                            onMakePartner={onMakePartner}
+                            canMakePartner={canMakePartner}
                             synergyByName={synergyByName}
                             cardInclusionMap={cardInclusionMap}
                           />
@@ -1565,6 +1595,8 @@ export function DeckDisplay({
                     showRoles={showPrefs.roles}
                     synergyByName={synergyByName}
                     binderByCopyId={binderByCopyId}
+                    hasPartner={!!partnerCommander}
+                    onEditPartner={onEditPartner}
                   />
                 )}
                 {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
@@ -1619,7 +1651,6 @@ export function DeckDisplay({
         {previewIndex !== null && (
           <CardPreview
             cards={flat.cards}
-            showRole
             sectionLabels={flat.labels}
             pageNumbers={flat.cards.map(() => 0)}
             totalPages={1}
@@ -1628,6 +1659,21 @@ export function DeckDisplay({
             index={previewIndex}
             onIndexChange={setPreviewIndex}
             onClose={() => setPreviewIndex(null)}
+            renderPanelMeta={(i) => {
+              const r = flat.rows[i];
+              if (!r) return null;
+              return (
+                <DeckCardPreviewMeta
+                  card={r.card}
+                  isPartner={r.isPartner}
+                  isCommander={!r.isPartner && commander?.name === r.name}
+                  synergies={synergyByName?.get(r.name)}
+                  inclusionPct={cardInclusionMap?.[r.name]}
+                  legality={r.slotIds[0] ? legalityBySlot.get(r.slotIds[0]) : undefined}
+                  status={r.status}
+                />
+              );
+            }}
             getStackBinders={(i) => {
               const r = flat.rows[i];
               if (!r || !binderByCopyId) return [];
@@ -2307,6 +2353,8 @@ function DeckCardGrid({
   showRoles,
   synergyByName,
   binderByCopyId,
+  hasPartner,
+  onEditPartner,
 }: {
   groups: { title: string; icon: string; rows: Row[] }[];
   onRowClick: (name: string) => void;
@@ -2315,6 +2363,8 @@ function DeckCardGrid({
   showRoles: boolean;
   synergyByName?: Map<string, string[]>;
   binderByCopyId?: Map<string, BinderInfo[]>;
+  hasPartner?: boolean;
+  onEditPartner?: () => void;
 }) {
   return (
     <div className="deck-card-grid-sections">
@@ -2330,6 +2380,9 @@ function DeckCardGrid({
               <h3 className="deck-section-title">
                 {g.title} <span className="deck-section-count">({count})</span>
               </h3>
+              {g.icon === 'ms-commander' && onEditPartner && (
+                <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
+              )}
             </header>
             <ul className={`deck-card-grid grid-${gridSize}`}>
               {g.rows.map((row) => {
@@ -2365,9 +2418,10 @@ function DeckCardGrid({
                       ) : (
                         <span className="deck-card-grid-fallback">{row.name}</span>
                       )}
+                      {/* Foil is shown by the holographic overlay alone — no
+                          text pip (keeps the corners free for status icons). */}
                       {row.foil && row.imageNormal && <FoilShimmer />}
                       {row.qty > 1 && <span className="deck-card-grid-qty">×{row.qty}</span>}
-                      {row.foil && <span className="deck-card-grid-foil">foil</span>}
                       {row.status !== 'allocated' &&
                         (row.allocatedQty > 0 ? (
                           <span
@@ -2393,8 +2447,20 @@ function DeckCardGrid({
                         ) : null;
                       })()}
                     </button>
-                    {(role || (synergy && synergy.length > 0) || binders.length > 0) && (
+                    {(row.isPartner ||
+                      role ||
+                      (synergy && synergy.length > 0) ||
+                      binders.length > 0) && (
                       <div className="deck-card-grid-badges">
+                        {row.isPartner && (
+                          <span
+                            className="deck-card-grid-partner"
+                            title="Partner commander"
+                            aria-label="Partner commander"
+                          >
+                            <Handshake width={13} height={13} strokeWidth={2.4} aria-hidden />
+                          </span>
+                        )}
                         {binders.length > 0 && <BinderBadge binders={binders} />}
                         {synergy && synergy.length > 0 && (
                           <span
@@ -2420,6 +2486,30 @@ function DeckCardGrid({
   );
 }
 
+// Commander-section header control for adding / changing the partner
+// commander. Shared by the list and grid views so the affordance reads the
+// same in both. Label flips to "Edit partner" once a partner is set.
+function PartnerHeaderButton({
+  hasPartner,
+  onClick,
+}: {
+  hasPartner: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn-link deck-section-partner-btn"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {hasPartner ? 'Edit partner' : '+ Add partner'}
+    </button>
+  );
+}
+
 // ── Category section ──────────────────────────────────────────────────────
 function CategorySection({
   title,
@@ -2436,6 +2526,9 @@ function CategorySection({
   onMoveToMainboard,
   onMakeCommander,
   canMakeCommander,
+  onMakePartner,
+  canMakePartner,
+  headerAction,
   synergyByName,
   cardInclusionMap,
 }: {
@@ -2453,6 +2546,11 @@ function CategorySection({
   onMoveToMainboard?: (slotId: string) => void;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
+  onMakePartner?: (slotId: string, card: ScryfallCard) => void;
+  canMakePartner?: (card: ScryfallCard) => boolean;
+  /** Optional control rendered at the end of the section header (e.g. the
+   *  Commander section's "Add/Edit partner" button). */
+  headerAction?: React.ReactNode;
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
 }) {
@@ -2471,6 +2569,7 @@ function CategorySection({
         {showPrefs.price && (
           <span className="deck-section-subtotal">{fmtMoney(subtotal, currency)}</span>
         )}
+        {headerAction}
       </header>
       <ul className="deck-section-rows">
         {rows.map((row) => (
@@ -2494,6 +2593,8 @@ function CategorySection({
             }
             onMakeCommander={onMakeCommander}
             canMakeCommander={canMakeCommander}
+            onMakePartner={onMakePartner}
+            canMakePartner={canMakePartner}
             synergyReasons={synergyByName?.get(row.card.name)}
             inclusionPct={cardInclusionMap?.[row.card.name]}
           />
@@ -2516,6 +2617,8 @@ function DeckCardRow({
   moveLabel,
   onMakeCommander,
   canMakeCommander,
+  onMakePartner,
+  canMakePartner,
   synergyReasons,
   inclusionPct,
 }: {
@@ -2531,6 +2634,8 @@ function DeckCardRow({
   moveLabel?: string;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
+  onMakePartner?: (slotId: string, card: ScryfallCard) => void;
+  canMakePartner?: (card: ScryfallCard) => boolean;
   synergyReasons?: string[];
   /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
   inclusionPct?: number;
@@ -2646,6 +2751,12 @@ function DeckCardRow({
         ))}
       <span className="deck-row-name" title={row.card.type_line}>
         {row.name}
+        {row.isPartner && (
+          <span className="deck-row-partner-tag" title="Partner commander">
+            <Handshake width={12} height={12} strokeWidth={2.4} aria-hidden />
+            Partner
+          </span>
+        )}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
         <AllocationChip row={row} />
         {row.foil && <FoilPip row={row} />}
@@ -2771,6 +2882,20 @@ function DeckCardRow({
                 }}
               >
                 Make commander
+              </button>
+            )}
+            {onMakePartner && canMakePartner?.(row.card) && row.slotIds.length > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onMakePartner(row.slotIds[0], row.card);
+                }}
+              >
+                Make partner
               </button>
             )}
           </div>
