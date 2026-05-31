@@ -30,6 +30,11 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
+import {
+  collapsedSectionsFor,
+  type CardPreviewSection,
+  type CardPreviewSource,
+} from './card-preview-sections';
 
 /** One button in the preview's compact icon bar. Callers supply only
  *  the actions relevant to their view (collection: edit/delete; deck:
@@ -113,6 +118,19 @@ interface Props {
    * CardPreview stays context-agnostic — it only renders the slot.
    */
   renderPanelMeta?: (i: number) => ReactNode;
+  /**
+   * Which surface opened the preview. Selects the *collapsed* curation policy
+   * (`COLLAPSED_SECTIONS`) so each view shows its own essentials at a glance.
+   * Omitting it falls back to `DEFAULT_COLLAPSED_SECTIONS` (the pre-curation
+   * generic behavior). For one-off needs, `collapsedSections` overrides outright.
+   */
+  source?: CardPreviewSource;
+  /**
+   * Explicit override of which sections stay visible when collapsed, bypassing
+   * the `source` lookup. Rarely needed — prefer `source`. Empty array = name +
+   * image only.
+   */
+  collapsedSections?: readonly CardPreviewSection[];
 }
 
 const PRELOAD_RADIUS = 2;
@@ -142,6 +160,8 @@ export function CardPreview({
   showRole,
   renderPanelExtra,
   renderPanelMeta,
+  source,
+  collapsedSections,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -163,6 +183,24 @@ export function CardPreview({
   // per open); sticks across card navigation within a single open. Generic —
   // every CardPreview surface (collection, binder, deck) inherits it.
   const [panelExpanded, setPanelExpanded] = useState(false);
+
+  // Collapsed curation: which panel sections survive collapse for this surface.
+  // Expanding always reveals everything, so this only matters while collapsed.
+  // Per-section visibility is applied as a class (display:none in CSS) rather
+  // than unmounting, so the DOM stays stable across the expand/collapse height
+  // animation and across card navigation — no remount flicker.
+  const collapsedVisible = useMemo(
+    () => new Set<CardPreviewSection>(collapsedSectionsFor(source, collapsedSections)),
+    [collapsedSections, source]
+  );
+  // Append the hide class to a section's className when the panel is collapsed
+  // and this section isn't in the surface's keep-list. Bounded, complete lines
+  // only — sections are hidden whole, never clipped mid-word.
+  const sectionClass = useCallback(
+    (base: string, key: CardPreviewSection) =>
+      !panelExpanded && !collapsedVisible.has(key) ? `${base} card-preview-collapsed-hidden` : base,
+    [panelExpanded, collapsedVisible]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -598,7 +636,7 @@ export function CardPreview({
             <div className="card-preview-name-row">
               <div className="card-preview-name">{current.name}</div>
             </div>
-            <div className="card-preview-context">
+            <div className={sectionClass('card-preview-context', 'context')}>
               {binderName}
               {(() => {
                 // Aggregate binders and decks across every copy in the stack
@@ -665,8 +703,12 @@ export function CardPreview({
                 );
               })()}
             </div>
-            {renderPanelMeta?.(selected)}
-            <div className="card-preview-meta">
+            {renderPanelMeta && (
+              <div className={sectionClass('card-preview-slot', 'panelMeta')}>
+                {renderPanelMeta(selected)}
+              </div>
+            )}
+            <div className={sectionClass('card-preview-meta', 'meta')}>
               <span
                 className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
               >
@@ -698,7 +740,7 @@ export function CardPreview({
                     ? multiRoleTitle({ name: current.name })
                     : badge.title;
                 return (
-                  <div className="card-preview-role">
+                  <div className={sectionClass('card-preview-role', 'role')}>
                     <span className={`deck-row-role-badge deck-row-role-${badge.tone}`} aria-hidden>
                       {badge.label}
                     </span>
@@ -706,7 +748,7 @@ export function CardPreview({
                   </div>
                 );
               })()}
-            <div className="card-preview-set">
+            <div className={sectionClass('card-preview-set', 'set')}>
               {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
                 <img
                   src={setMap[current.setCode.toUpperCase()].iconSvgUri}
@@ -727,7 +769,7 @@ export function CardPreview({
                 </span>
               )}
             </div>
-            <div className="card-preview-links">
+            <div className={sectionClass('card-preview-links', 'links')}>
               <a
                 href={`https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`}
                 target="_blank"
@@ -759,8 +801,12 @@ export function CardPreview({
                 />
               </a>
             </div>
-            {renderPanelExtra?.(selected)}
-            <div className="card-preview-counter">
+            {renderPanelExtra && (
+              <div className={sectionClass('card-preview-slot', 'panelExtra')}>
+                {renderPanelExtra(selected)}
+              </div>
+            )}
+            <div className={sectionClass('card-preview-counter', 'counter')}>
               Card {selected + 1} of {cards.length}
               {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
             </div>
