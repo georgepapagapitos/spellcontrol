@@ -1,0 +1,96 @@
+/* Deck-context block in the card preview panel (CardPreview renderPanelMeta
+   slot).
+
+   The preview panel is a FIXED dark surface regardless of the app theme
+   (.card-preview-panel hardcodes background rgba(15,15,18,.92) + #fff text and
+   styles its own text with literal rgba(255,255,255,…), not theme tokens). So
+   this block is styled light-on-dark with explicit values too — using theme
+   tokens like --text/--surface here would render dark-on-dark in light mode.
+
+   The block stays compact (a one-line summary + warnings + synergy reasons);
+   the panel itself owns the expand/collapse chevron that grows it and shrinks
+   the card, so this block never needs its own height management.
+
+   Layout is fluid (flex, wrapping, rem units, no fixed widths) so it reflows
+   from desktop down to ~320px with no horizontal overflow, web and native
+   WebView alike. */
+.deck-card-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.35rem 0;
+  padding: 0.5rem 0.65rem;
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+  /* Near-opaque dark plate (stacks with the panel's 0.92) so the block's
+     dense text stays legible over bright card art bleeding through the
+     slightly-transparent panel. */
+  background: rgba(12, 12, 15, 0.72);
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* At-a-glance line: commander/partner · role · inclusion. Wraps on narrow
+   viewports instead of overflowing. */
+.deck-card-preview-meta-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.deck-card-preview-meta-sep {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Commander/partner segment — accent icon + bright label. The label stays
+   white (not accent) so contrast never depends on the theme's accent being
+   light enough to read on the dark plate; the icon carries the accent pop. */
+.deck-card-preview-meta-commander {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 700;
+}
+
+.deck-card-preview-meta-commander svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+/* Literal light red — readable on the dark panel where the theme's --err-text
+   (tuned for the light app background) would be too dark. */
+.deck-card-preview-meta-warn {
+  color: #ff9f8f;
+  overflow-wrap: anywhere;
+}
+
+.deck-card-preview-meta-synergy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+/* Mono uppercase section label (e.g. "Why it fits your commander"). */
+.deck-card-preview-meta-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.deck-card-preview-meta-synergy ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.deck-card-preview-meta-synergy li {
+  overflow-wrap: anywhere;
+}

@@ -5547,10 +5547,28 @@ hr {
    but they make the carousel discoverable for mouse users and reachable
    for switch / pointer-only AT. Hidden until hover/focus on coarse-pointer
    devices so they don't clutter touch UX. */
+/* Overlay sharing the card track's grid cell — so the arrows sit in the
+   vertical middle of the card area above the panel, not mid-screen. When the
+   panel expands and the track shrinks, this layer shrinks with it and the
+   arrows recenter, staying clear of the panel's card name. pointer-events
+   pass through the gaps so card swipe/tap still works between the buttons. */
+.carousel-nav-layer {
+  grid-row: 1;
+  grid-column: 1;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+  /* Mirror the track's bottom padding so the arrows center on the card, not
+     on the raw cell (the track offsets the card up by this much). */
+  padding-bottom: 1.25rem;
+  pointer-events: none;
+}
+
 .carousel-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  pointer-events: auto;
   z-index: 3;
   width: 2.75rem;
   height: 2.75rem;
@@ -5575,7 +5593,7 @@ hr {
 }
 
 .carousel-nav:active {
-  transform: translateY(-50%) scale(0.94);
+  transform: scale(0.94);
 }
 
 .carousel-nav:focus-visible {
@@ -5588,17 +5606,14 @@ hr {
   cursor: not-allowed;
 }
 
-.carousel-nav-prev {
-  left: max(1rem, var(--safe-left));
-}
-
-.carousel-nav-next {
-  right: max(1rem, var(--safe-right));
-}
-
 /* Small screens: shrink arrows and pull them closer to the edge so they
-   don't block card content on narrow viewports. */
+   don't block card content on narrow viewports. Insets move to the layer's
+   padding (the buttons are flex children now, not absolutely positioned). */
 @media (max-width: 768px) {
+  .carousel-nav-layer {
+    padding-left: max(0.4rem, var(--safe-left));
+    padding-right: max(0.4rem, var(--safe-right));
+  }
   .carousel-nav {
     width: 2rem;
     height: 2rem;
@@ -5608,12 +5623,6 @@ hr {
   .carousel-nav:hover {
     opacity: 1;
     background: rgba(0, 0, 0, 0.6);
-  }
-  .carousel-nav-prev {
-    left: max(0.4rem, var(--safe-left));
-  }
-  .carousel-nav-next {
-    right: max(0.4rem, var(--safe-right));
   }
 }
 
@@ -5722,6 +5731,11 @@ hr {
 }
 
 .card-preview-track {
+  /* Explicit cell so the carousel-nav-layer can share it (same row/column)
+     and overlay the card area without auto-placement pushing the track down
+     a row. Matches its previous auto-placement (the `1fr` row). */
+  grid-row: 1;
+  grid-column: 1;
   display: flex;
   align-items: center;
   gap: var(--slide-spacing);
@@ -6002,23 +6016,81 @@ hr {
 .card-preview-panel {
   background: rgba(15, 15, 18, 0.92);
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
-  padding: 0.9rem 1.1rem;
+  padding: 0.5rem 1.1rem;
   padding-bottom: max(0.9rem, var(--safe-bottom));
   color: #fff;
-  /* Fixed height = the panel never grows or shrinks between cards or
-     callers. Tuned to the collapsed content (role/synergy live behind
-     the Details toggle now, so this can be tight — minimal empty
-     space). Expanding Details scrolls inside this fixed box.
-     border-box so the height includes the padding (deterministic). */
+  /* Two fixed heights, toggled by the chevron — the panel never grows or
+     shrinks *between cards* (heights would jump); it only changes on an
+     explicit user tap. Collapsed is card-first; expanded trades card height
+     for reading room. The sheet's 1fr track absorbs the delta and the card
+     shrinks via its container-query sizing — no manual resize. border-box so
+     height includes padding (deterministic); flex column so the chevron stays
+     pinned while the inner content scrolls. */
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   height: 10.5rem;
-  overflow-y: auto;
+  overflow: hidden;
+  transition: height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card-preview-panel.is-expanded {
+  /* vh-capped so the card never gets crushed on short / landscape screens. */
+  height: min(26rem, 60vh);
+}
+
+/* Pinned chevron handle — taps toggle expand/collapse. Full-width, generous
+   touch target, reinforces the existing drag-grabber affordance. */
+.card-preview-panel-toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2rem;
+  margin-bottom: 0.15rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.12s;
+}
+
+.card-preview-panel-toggle:hover,
+.card-preview-panel-toggle:focus-visible {
+  color: #fff;
+  outline: none;
 }
 
 .card-preview-panel-inner {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Collapsed = locked: a fixed glanceable snapshot, no scroll. The chevron
+     is the only way to reveal more — expanding unlocks the scroll. */
+  overflow-y: hidden;
+}
+
+.card-preview-panel.is-expanded .card-preview-panel-inner {
+  overflow-y: auto;
+}
+
+/* Collapsed = a clean snapshot of complete lines, never a mid-word pixel
+   clip. Keep the short, high-value lines (name, the deck summary line, any
+   warning, price); defer the lower-priority / variable-length sections —
+   where the card lives, set/printing, external links, the card counter, and
+   the multi-line synergy list — to the expanded state. Because the kept lines
+   are short and bounded, nothing overflows the collapsed height, so nothing
+   gets cut in half. */
+.card-preview-panel:not(.is-expanded) .card-preview-context,
+.card-preview-panel:not(.is-expanded) .card-preview-set,
+.card-preview-panel:not(.is-expanded) .card-preview-links,
+.card-preview-panel:not(.is-expanded) .card-preview-counter,
+.card-preview-panel:not(.is-expanded) .deck-card-preview-meta-synergy {
+  display: none;
 }
 
 .card-preview-name-row {
