@@ -42,6 +42,8 @@ import { Modal } from '../Modal';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
+import { DeckHoverPeek } from './DeckHoverPeek';
+import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import {
@@ -1365,7 +1367,10 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // Desktop-only hover-peek for the list view (no-op on touch / native).
+  const hoverPeek = useDeckHoverPeek();
   const openPreview = (rowName: string) => {
+    hoverPeek.clear(); // clicking into the full sheet supersedes the peek
     const i = flat.indexByName.get(rowName);
     if (i !== undefined) setPreviewIndex(i);
   };
@@ -1517,7 +1522,7 @@ export function DeckDisplay({
             <div className="deck-display-body">
               <div className="deck-display-main">
                 {viewMode === 'list' && (
-                  <div className="deck-card-list">
+                  <div className="deck-card-list" {...hoverPeek.listHandlers}>
                     {visibleGroups.map((g) => (
                       <CategorySection
                         key={g.title}
@@ -1651,6 +1656,21 @@ export function DeckDisplay({
             commanderName={commander?.name}
           />
         )}
+
+        {hoverPeek.peek &&
+          (() => {
+            // Resolve the hovered card's hero art from the same flat list the
+            // carousel uses, so the peek matches the owned printing.
+            const i = flat.indexByName.get(hoverPeek.peek.name);
+            const card = i !== undefined ? flat.cards[i] : undefined;
+            return (
+              <DeckHoverPeek
+                imageUrl={card?.imageLarge || card?.imageNormal}
+                left={hoverPeek.peek.left}
+                top={hoverPeek.peek.top}
+              />
+            );
+          })()}
 
         {previewIndex !== null && (
           <CardPreview
@@ -2701,6 +2721,7 @@ function DeckCardRow({
   return (
     <li
       className="deck-row"
+      data-peek-name={row.name}
       onClick={onClick}
       role="button"
       tabIndex={0}

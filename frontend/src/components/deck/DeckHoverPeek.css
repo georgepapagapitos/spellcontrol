@@ -1,0 +1,52 @@
+/* Desktop-only hover-peek: the full card art floated into the gutter beside the
+   hovered deck row. Positioned by JS (fixed, viewport coords); this file owns
+   the look. Non-interactive — the row's click→sheet stays the real action.
+
+   Co-located with DeckHoverPeek.tsx per the deck-component CSS convention (not
+   deck-builder.css). */
+.deck-card-hover-peek {
+  position: fixed;
+  /* Above the deck list + its row menus (--z-menu 80, --z-panel 100), but below
+     the full-screen preview sheet (--z-sheet-bg 110) — which only opens on click
+     and clears the peek anyway, so the two never coexist. */
+  z-index: var(--z-panel);
+  /* Width is the single source of truth shared with DeckHoverPeek.tsx
+     (PEEK_WIDTH); aspect-ratio derives the height to the MTG card proportion. */
+  width: 240px;
+  aspect-ratio: 488 / 680;
+  height: auto;
+  border-radius: 12px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  /* Faint plate so the box reads even in the blink before the art decodes
+     (list view carries no art, so the first hover is an uncached fetch). */
+  background: rgba(20, 20, 24, 0.6);
+  pointer-events: none;
+  animation: deck-hover-peek-in 0.12s ease-out;
+}
+
+@keyframes deck-hover-peek-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Belt-and-suspenders: the JS capability gate already prevents the peek from
+   ever mounting on touch / coarse pointers, but pin it shut in CSS too. */
+@media (hover: none), (pointer: coarse) {
+  .deck-card-hover-peek {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card-hover-peek {
+    animation: none;
+  }
+}
