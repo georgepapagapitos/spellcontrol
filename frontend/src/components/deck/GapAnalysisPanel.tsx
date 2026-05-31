@@ -128,6 +128,8 @@ export function GapAnalysisPanel({
 
       {previewCards && previewCards.length > 0 && (
         <CardPreview
+          source="suggestion"
+          showRole
           cards={previewCards}
           index={previewIndex}
           binderName="Cards to consider"

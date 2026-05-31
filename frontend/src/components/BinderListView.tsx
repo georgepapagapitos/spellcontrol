@@ -415,6 +415,7 @@ export function BinderListView({
 
       {previewIndex !== null && (
         <CardPreview
+          source="binder"
           cards={flat.cards}
           index={previewIndex}
           binderName={binder.def.name}

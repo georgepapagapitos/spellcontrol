@@ -304,6 +304,7 @@ export function OpeningHandSheet({
 
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview
+          source="playtest"
           cards={previewCards}
           index={previewIndex}
           binderName={deckName ?? 'Opening hand'}
