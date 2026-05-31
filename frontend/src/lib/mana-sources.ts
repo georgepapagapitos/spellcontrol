@@ -11,16 +11,19 @@ const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
  * mana-source tally (lands, rocks, dorks — any permanent that produces mana).
  *
  * Scryfall's `produced_mana` is authoritative and already includes `C` for
- * colorless. The one place we override it is cards limited to "any color in
- * your commander's color identity" — Command Tower, Arcane Signet, Path of
- * Ancestry — where Scryfall prints the full rainbow because it can't know the
- * commander; we clamp those to the deck's `identity`.
+ * colorless. We override it for two families of *contextual* fixers that
+ * Scryfall prints as the full rainbow because it can't know the table state,
+ * clamping both to the deck's `identity`:
+ *   - Commander-identity fixers — "any color in your commander's color
+ *     identity" (Command Tower, Arcane Signet, Path of Ancestry).
+ *   - Reflect-fixers — "any color that a land you/an opponent could produce"
+ *     (Reflecting Pool, Exotic Orchard, Fellwar Stone); in practice these
+ *     reflect colors within the deck's own identity, so counting them as a true
+ *     5-color source over-states fixing.
  *
- * Everything else keeps its reported colors, including reflect-fixers like
- * Reflecting Pool, Exotic Orchard, and Fellwar Stone ("any color a land
- * you/an opponent controls could produce") and genuine rainbow sources like
- * City of Brass and Chromatic Lantern — all treated as producing every color
- * they can report.
+ * Genuine rainbow sources — "add one mana of any color" with no contextual
+ * qualifier (City of Brass, Mana Confluence, Chromatic Lantern) — keep all
+ * their reported colors.
  *
  * Name/text fallbacks cover the rare card cached without `produced_mana`.
  * Returns `[]` for non-producers.
@@ -34,13 +37,19 @@ export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<str
   const pm = (card.produced_mana ?? []).filter((c) => 'WUBRGC'.includes(c));
   const identityColors = COLOR_KEYS.filter((c) => identity.has(c));
 
-  // Commander-identity fixers (Command Tower, Arcane Signet): Scryfall reports
-  // the full rainbow, so clamp to the deck's identity. Reflect-fixers ("could
-  // produce") and true rainbow sources are intentionally left alone.
-  const commanderClamped = ot.includes('color identity');
+  // Contextual fixers that Scryfall prints as the full rainbow because it can't
+  // know the table state: commander-identity fixers ("color identity" — Command
+  // Tower, Arcane Signet) and reflect-fixers ("could produce" — Fellwar Stone,
+  // Reflecting Pool, Exotic Orchard). Clamp both to the deck's identity, since
+  // in practice they reflect colors within the deck's own identity and counting
+  // them as a true 5-color source over-states fixing. Genuine rainbow sources
+  // ("any color" with no qualifier — City of Brass) fall through and keep all
+  // their reported colors. If the deck has no identity yet, fall back to the
+  // reported colors rather than dropping the source entirely.
+  const clampToIdentity = ot.includes('color identity') || ot.includes('could produce');
   const rainbow = COLOR_KEYS.every((c) => pm.includes(c));
-  if (commanderClamped && (rainbow || pm.length === 0)) {
-    return identityColors;
+  if (clampToIdentity && (rainbow || pm.length === 0)) {
+    return identityColors.length > 0 ? identityColors : pm;
   }
 
   if (pm.length > 0) return pm;

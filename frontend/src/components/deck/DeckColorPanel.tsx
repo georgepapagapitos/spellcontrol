@@ -49,7 +49,7 @@ function DistributionDonut({
 
   return (
     <div className="deck-color-donut">
-      <svg viewBox="-50 -50 100 100" width={88} height={88} aria-label="Color distribution">
+      <svg viewBox="-50 -50 100 100" width={112} height={112} aria-label="Color distribution">
         <circle r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
         {segments.map(({ k, len, offset }) => (
           <circle
@@ -78,6 +78,11 @@ function DistributionDonut({
               />
               <span className="deck-color-donut-name">{label}</span>
               <span className="deck-color-donut-pct">{pct}%</span>
+              {interactive && (
+                <span className="deck-color-donut-chevron" aria-hidden="true">
+                  ›
+                </span>
+              )}
             </>
           );
           return (
