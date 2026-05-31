@@ -1654,6 +1654,7 @@ export function DeckDisplay({
 
         {previewIndex !== null && (
           <CardPreview
+            source="deck"
             cards={flat.cards}
             sectionLabels={flat.labels}
             pageNumbers={flat.cards.map(() => 0)}

@@ -263,6 +263,7 @@ export function InlineCardSearch({ query, onClose }: Props) {
 
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview
+          source="search"
           cards={previewCards}
           index={previewIndex}
           binderName=""
