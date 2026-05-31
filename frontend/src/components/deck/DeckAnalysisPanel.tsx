@@ -726,6 +726,8 @@ function SuggestionsSection({
 
       {previewCards && previewCards.length > 0 && (
         <CardPreview
+          source="suggestion"
+          showRole
           cards={previewCards}
           index={previewIndex}
           binderName="Suggestions"

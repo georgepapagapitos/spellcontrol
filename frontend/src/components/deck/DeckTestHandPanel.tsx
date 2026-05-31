@@ -568,6 +568,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 
         {previewIndex !== null && previewCards[previewIndex] && (
           <CardPreview
+            source="playtest"
             cards={previewCards}
             index={previewIndex}
             binderName="Test hand"

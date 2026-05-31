@@ -421,6 +421,7 @@ function SectionList({
       })}
       {preview && (
         <CardPreview
+          source="binder"
           cards={preview.cards}
           index={preview.index}
           binderName={binderName}
