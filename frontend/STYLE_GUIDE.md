@@ -92,6 +92,38 @@ Anti-patterns this rule kills:
   file renders silently unstyled while CI stays green — verify visually or grep
   the class name.
 
+## Verdict badges
+
+The Tune-board panels each recommend a card action ("add this", "cut that",
+"swap for the owned one"). They speak **one vocabulary** via the shared
+`components/deck/VerdictBadge.tsx` chip — a `999px` pill (per the Pills rule)
+plus an optional plain-English reason. Don't hand-roll a panel-specific decision
+chip; reuse this so the boards read as one system, not five badge styles.
+
+The vocabulary is a fixed **verdict → word → tone** map (tones are the status
+tokens from `global.css` — reuse them, never new hues):
+
+| Verdict      | Word       | Tone    | Token         | Means                           |
+| ------------ | ---------- | ------- | ------------- | ------------------------------- |
+| `add`        | Add        | green   | `--success`   | safe gain (Engine/Optimize/gap) |
+| `cut`        | Cut        | red     | `--err-text`  | remove it (Optimize removals)   |
+| `substitute` | Substitute | blue    | `--info`      | lateral owned swap              |
+| `budget`     | Budget     | gold    | `--warn-text` | a real tradeoff / power loss    |
+| `owned`      | Owned      | accent  | `--accent`    | already in your collection      |
+| `hold`       | Hold       | neutral | `--text3`     | flagged but intentionally kept  |
+
+The **tone semantics** are the load-bearing part: green = safe/gain · blue =
+lateral · gold = tradeoff/caution · red = remove · accent = ownership · neutral =
+no-op. A panel with a finer scale maps onto these tones rather than inventing
+colors — e.g. the Cost panel's drop-in/sidegrade/budget confidence passes
+`tone` + `label` directly (`success`/`info`/`warn`, keeping its own word). When a
+row carries a left accent bar, color it to match the row's verdict tone (Cost and
+Substitution both do this) so the bar and chip agree.
+
+The badge is **presentational only** — it holds no decision logic; callers map
+their own semantics onto the vocabulary. Adopted so far in the Substitution and
+Cost panels; Engine/Optimize/Gap are the same chips when they adopt it.
+
 ---
 
 ## Extending this guide

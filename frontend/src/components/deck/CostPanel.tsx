@@ -7,6 +7,7 @@ import {
   type CostSwapRow,
 } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { useCardCarousel } from './useCardCarousel';
+import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 
 export interface CostPanelProps {
   plan: CostPlan;
@@ -23,6 +24,15 @@ const CONFIDENCE_LABEL: Record<CostConfidence, string> = {
   'drop-in': 'Drop-in',
   sidegrade: 'Sidegrade',
   budget: 'Budget',
+};
+
+/* The Cost panel's own scale slots onto the shared verdict tones: a drop-in is a
+   safe gain (success), a sidegrade is lateral (info, like Substitute), a budget
+   pick is a real downgrade (warn). The chip keeps its confidence word. */
+const CONFIDENCE_TONE: Record<CostConfidence, VerdictTone> = {
+  'drop-in': 'success',
+  sidegrade: 'info',
+  budget: 'warn',
 };
 
 function fmt(amount: number): string {
@@ -123,9 +133,10 @@ function SwapRow({
 
         <span className="cost-row-meta">
           <span className="cost-savings">Save {fmt(row.savings)}</span>
-          <span className={`cost-badge is-${row.confidence}`}>
-            {CONFIDENCE_LABEL[row.confidence]}
-          </span>
+          <VerdictBadge
+            tone={CONFIDENCE_TONE[row.confidence]}
+            label={CONFIDENCE_LABEL[row.confidence]}
+          />
           <span className="cost-inclusion">{inclusionDelta}</span>
         </span>
       </label>
