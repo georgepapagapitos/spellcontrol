@@ -6,10 +6,8 @@ import type { DeckView } from './DeckDisplay';
 /** Human-readable destination names for the navigate button's aria-label. */
 const VIEW_LABELS: Record<DeckView, string> = {
   deck: 'Deck',
-  overview: 'Overview',
-  mana: 'Mana',
-  power: 'Power',
-  improve: 'Improve',
+  stats: 'Stats',
+  tune: 'Tune',
 };
 
 export interface NextBestMoveProps {

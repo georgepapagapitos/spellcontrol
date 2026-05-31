@@ -59,6 +59,10 @@
   color: var(--text2);
   flex: 1;
   min-width: 0;
+  /* Containment: cap the legend so the row's 1fr name column can't shove the
+     % (and chevron) to the far edge of a wide board — label + value stay
+     visually grouped. */
+  max-width: 22rem;
 }
 
 /* Each legend entry is a 3-column grid (swatch / name / pct). Rendered as a
@@ -66,7 +70,9 @@
    cards; otherwise a plain div with the same layout. */
 .deck-color-donut-legend-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* swatch / name / pct / chevron — the chevron column collapses to 0 on
+     static rows (no chevron element), keeping pct aligned across both. */
+  grid-template-columns: auto 1fr auto auto;
   column-gap: 0.5rem;
   align-items: center;
   width: 100%;
@@ -92,6 +98,21 @@ button.deck-color-donut-legend-row:focus-visible .deck-color-donut-name {
 button.deck-color-donut-legend-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Persistent tap affordance for tappable legend rows — hover/underline alone
+   is invisible on touch. Mirrors .deck-color-balance-chevron in the sibling
+   mana-base list; only rendered on interactive rows. */
+.deck-color-donut-chevron {
+  color: var(--text3);
+  font-size: var(--text-sm);
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+button.deck-color-donut-legend-row:hover .deck-color-donut-chevron,
+button.deck-color-donut-legend-row:focus-visible .deck-color-donut-chevron {
+  transform: translateX(2px);
 }
 
 .deck-color-donut-name {

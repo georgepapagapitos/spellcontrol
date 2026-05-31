@@ -113,7 +113,7 @@ describe('buildNextBestMoves', () => {
     expect(roleMove?.cardName).toBe('Cultivate');
     expect(roleMove?.detail).toContain('ramp');
     expect(roleMove?.detail).toContain('Cultivate');
-    expect(roleMove?.navigateTo).toBe('improve');
+    expect(roleMove?.navigateTo).toBe('tune');
   });
 
   it('picks the lowest-ratio role when several have deficits', () => {
@@ -165,7 +165,7 @@ describe('buildNextBestMoves', () => {
     expect(moves[0].tier).toBe(3);
     expect(moves[0].cardName).toBe('Missing Piece');
     expect(moves[0].detail).toContain('Infinite mana');
-    expect(moves[0].navigateTo).toBe('power');
+    expect(moves[0].navigateTo).toBe('tune');
   });
 
   it('ignores combos missing more than one card', () => {
