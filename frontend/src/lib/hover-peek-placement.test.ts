@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computePeekPlacement, type PeekRect } from './hover-peek-placement';
+import { computePeekPlacement, peekWidth, type PeekRect } from './hover-peek-placement';
 
 // A roomy desktop viewport for the common cases.
 const VIEWPORT = { width: 1440, height: 900 };
@@ -53,5 +53,27 @@ describe('computePeekPlacement', () => {
   it('honors custom gap and margin', () => {
     const { left } = computePeekPlacement(row({}), VIEWPORT, CARD_W, CARD_H, 20, 4);
     expect(left).toBe(320 + 20);
+  });
+});
+
+describe('peekWidth', () => {
+  it('clamps up to the minimum on a small laptop where 18vw is tiny', () => {
+    // 1024 * 0.18 = 184 → floored to the 200 minimum.
+    expect(peekWidth(1024)).toBe(200);
+  });
+
+  it('scales with the viewport in the mid range', () => {
+    // 1440 * 0.18 = 259.2 → rounded.
+    expect(peekWidth(1440)).toBe(259);
+  });
+
+  it('clamps to the maximum on a large / 4K monitor', () => {
+    // 2560 * 0.18 = 460.8 → capped at 300.
+    expect(peekWidth(2560)).toBe(300);
+  });
+
+  it('honors custom bounds', () => {
+    expect(peekWidth(1000, 180, 320, 0.2)).toBe(200);
+    expect(peekWidth(3000, 180, 320, 0.2)).toBe(320);
   });
 });

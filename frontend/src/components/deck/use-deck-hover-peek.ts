@@ -1,19 +1,22 @@
 import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { computePeekPlacement } from '@/lib/hover-peek-placement';
+import { computePeekPlacement, peekWidth } from '@/lib/hover-peek-placement';
 
-// px width of the floating peek — MUST match `.deck-card-hover-peek` width in
-// DeckHoverPeek.css. The placement math needs a concrete size and the CSS needs
-// a concrete box; this constant is the shared source of truth, with the height
-// derived to the MTG card proportion below.
-const PEEK_WIDTH = 240;
-// MTG card aspect ratio (Scryfall normal is 488×680). Drives vertical
-// centering/clamping in the placement math.
-const PEEK_HEIGHT = Math.round((PEEK_WIDTH * 680) / 488);
+// MTG card aspect ratio (Scryfall normal is 488×680) — derives the peek height
+// from its (viewport-responsive) width for the vertical centering/clamping math.
+const CARD_ASPECT = 680 / 488;
+// Below this viewport width there's no gutter to host the peek beside the row,
+// so it would just overlap the list. Fall back to click→sheet there. (The
+// `(hover: hover) and (pointer: fine)` capability gate already excludes touch;
+// this additionally excludes narrow desktop windows + tablet-with-mouse <1024.)
+const PEEK_MIN_VIEWPORT = 1024;
 
 export interface HoverPeekState {
   name: string;
   left: number;
   top: number;
+  /** Viewport-responsive px width; the component sets it inline so the CSS box
+   *  matches the size the placement math used. */
+  width: number;
 }
 
 /**
@@ -50,31 +53,39 @@ export function useDeckHoverPeek() {
 
   const clear = useCallback(() => setPeek(null), []);
 
-  // Any scroll while a peek is up staleness-invalidates its anchor (the row
-  // moved), so dismiss it; a re-hover re-pins. Capture-phase to catch scrolls
-  // on inner scroll containers too.
+  // Any scroll or resize while a peek is up staleness-invalidates its anchor
+  // (the row moved) or its size (responsive width), so dismiss it; a re-hover
+  // re-pins. Capture-phase to catch scrolls on inner scroll containers too.
   useEffect(() => {
     if (!peek) return;
-    const onScroll = () => setPeek(null);
-    window.addEventListener('scroll', onScroll, true);
-    return () => window.removeEventListener('scroll', onScroll, true);
+    const dismiss = () => setPeek(null);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+    };
   }, [peek]);
 
   const onMouseOver = useCallback((e: MouseEvent) => {
     if (!capableRef.current) return;
+    const vw = window.innerWidth;
+    if (vw < PEEK_MIN_VIEWPORT) return; // no desktop gutter to host the peek
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-peek-name]');
     // Hovering a gap between rows: keep the current peek rather than flicker it.
     if (!el) return;
     const name = el.dataset.peekName;
     if (!name || name === peekRef.current?.name) return;
     const rect = el.getBoundingClientRect();
+    const width = peekWidth(vw);
+    const height = Math.round(width * CARD_ASPECT);
     const { left, top } = computePeekPlacement(
       rect,
-      { width: window.innerWidth, height: window.innerHeight },
-      PEEK_WIDTH,
-      PEEK_HEIGHT
+      { width: vw, height: window.innerHeight },
+      width,
+      height
     );
-    setPeek({ name, left, top });
+    setPeek({ name, left, top, width });
   }, []);
 
   const onMouseLeave = useCallback(() => setPeek(null), []);

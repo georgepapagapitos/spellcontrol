@@ -6029,14 +6029,32 @@ hr {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  /* Intentionally a FLAT height (not vh-clamped): collapsed is `overflow:hidden`
+     and shows a bounded, complete-lines snapshot, so shrinking it on short
+     screens would pixel-clip the densest surface (the deck meta block) — exactly
+     the mid-word-clip we forbid. The card adapts instead: the sheet's 1fr track
+     gives back whatever the panel doesn't take, and the card shrinks via its
+     container-query sizing. So DON'T vh-clamp this; clamp the *expanded* panel
+     (below), which scrolls and therefore can shed height without clipping. */
   height: 10.5rem;
   overflow: hidden;
   transition: height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .card-preview-panel.is-expanded {
-  /* vh-capped so the card never gets crushed on short / landscape screens. */
+  /* vh-capped so the card never gets crushed on short / landscape screens.
+     Expanded scrolls, so trimming its height never clips content. */
   height: min(26rem, 60vh);
+}
+
+/* Short landscape (phones rotated; small landscape tablets) — the tightest
+   vertical budget. Hand more of it back to the card by trimming the expanded
+   panel further; it scrolls, so nothing is lost. Collapsed stays flat on
+   purpose (see above). */
+@media (orientation: landscape) and (max-height: 600px) {
+  .card-preview-panel.is-expanded {
+    height: min(26rem, 50vh);
+  }
 }
 
 /* Pinned chevron handle — taps toggle expand/collapse. Full-width, generous
