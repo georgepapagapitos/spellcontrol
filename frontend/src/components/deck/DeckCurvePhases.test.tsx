@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DeckCurvePhases } from './DeckCurvePhases';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 describe('DeckCurvePhases', () => {
   const manaCurve = { 0: 1, 1: 6, 2: 14, 3: 12, 4: 8, 5: 5, 6: 3, 7: 2 };
@@ -88,5 +89,76 @@ describe('DeckCurvePhases', () => {
     // Late phase with zero everywhere is graded against its target band.
     const grades = container.querySelectorAll('.deck-curve-phases-grade');
     expect(grades.length).toBe(3);
+  });
+
+  // ── Color-stacked ("by color") mode ──────────────────────────────────────
+  const emptyBucket = () => ({ W: 0, U: 0, B: 0, R: 0, G: 0, gold: 0, colorless: 0 });
+  const curveByColor = {
+    0: { ...emptyBucket(), colorless: 1 },
+    1: { ...emptyBucket(), G: 6 },
+    2: { ...emptyBucket(), U: 10, gold: 4 },
+    3: { ...emptyBucket(), R: 12 },
+    4: { ...emptyBucket(), W: 8 },
+    5: { ...emptyBucket(), B: 5 },
+    6: { ...emptyBucket(), gold: 3 },
+    7: { ...emptyBucket(), colorless: 2 },
+  };
+
+  it('defaults to by-color mode: stacked color segments + a legend with text labels', () => {
+    const { container } = render(
+      <DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} curveByColor={curveByColor} />
+    );
+    // "By color" is the default and the toggle reflects it.
+    expect(screen.getByRole('radio', { name: 'By color' }).getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+
+    // Stacked bars + segments are rendered (not solid count fills).
+    expect(container.querySelectorAll('.deck-curve-phases-bar-stack').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.deck-curve-phases-seg').length).toBeGreaterThan(0);
+
+    // The legend carries text labels, never color-only — a11y.
+    expect(screen.getByText('Multicolor')).toBeTruthy();
+    expect(screen.getByText('Colorless')).toBeTruthy();
+  });
+
+  it('switches to count mode (solid accent bars) when the Count toggle is clicked', () => {
+    const { container } = render(
+      <DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} curveByColor={curveByColor} />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Count' }));
+    expect(screen.getByRole('radio', { name: 'Count' }).getAttribute('aria-pressed')).toBe('true');
+    // No stacked bars remain; the classic solid fills are shown instead.
+    expect(container.querySelectorAll('.deck-curve-phases-bar-stack').length).toBe(0);
+    expect(container.querySelectorAll('.deck-curve-phases-bar-fill').length).toBeGreaterThan(0);
+  });
+
+  it('makes each color segment a drill-down button with a descriptive aria label', () => {
+    // CMC 2 has 10 blue + 4 gold in the bucket; per-segment cards are filtered
+    // to that color category from cardsByCmc by the same 0/1/2+ rule.
+    // Only color_identity matters for the segment categorization; cast the
+    // partial Scryfall objects to the carousel's card shape for the fixture.
+    const cardsByCmc = {
+      2: [
+        { name: 'Counterspell', count: 1, card: { color_identity: ['U'] } as ScryfallCard },
+        {
+          name: 'Growth Spiral',
+          count: 1,
+          card: { color_identity: ['U', 'G'] } as ScryfallCard,
+        },
+      ],
+    };
+    render(
+      <DeckCurvePhases
+        manaCurve={manaCurve}
+        averageCmc={3.1}
+        curveByColor={curveByColor}
+        cardsByCmc={cardsByCmc}
+      />
+    );
+    const blueSeg = screen.getByRole('button', {
+      name: /Show the 10 blue cards at mana value 2/i,
+    });
+    fireEvent.click(blueSeg);
   });
 });

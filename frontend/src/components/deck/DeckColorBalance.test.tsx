@@ -43,6 +43,19 @@ describe('DeckColorBalance', () => {
     expect(screen.queryByText('Sources short')).toBeNull();
   });
 
+  it('does not flag a tiny splash even when sources are below the ratio', () => {
+    // R: demand 2, production 1 → 1 < 2 * 0.6 (1.2) but demand < MIN_FLAG_DEMAND (3)
+    // and production > 0 → small-splash forgiveness, no flag.
+    render(<DeckColorBalance colorRequirements={{ R: 2 }} colorProduction={{ R: 1 }} />);
+    expect(screen.queryByText('Sources short')).toBeNull();
+  });
+
+  it('flags a color with demand but zero sources even when demand is small', () => {
+    // B: demand 2, production 0 → you can't produce a color you need → always flag.
+    render(<DeckColorBalance colorRequirements={{ B: 2 }} colorProduction={{ B: 0 }} />);
+    expect(screen.getByText('Sources short')).toBeTruthy();
+  });
+
   it('never flags a color with zero demand and renders it neutral', () => {
     const { container } = render(
       <DeckColorBalance colorRequirements={{ G: 0 }} colorProduction={{ G: 5 }} />
