@@ -6078,6 +6078,21 @@ hr {
   overflow-y: auto;
 }
 
+/* Collapsed = a clean snapshot of complete lines, never a mid-word pixel
+   clip. Keep the short, high-value lines (name, the deck summary line, any
+   warning, price); defer the lower-priority / variable-length sections —
+   where the card lives, set/printing, external links, the card counter, and
+   the multi-line synergy list — to the expanded state. Because the kept lines
+   are short and bounded, nothing overflows the collapsed height, so nothing
+   gets cut in half. */
+.card-preview-panel:not(.is-expanded) .card-preview-context,
+.card-preview-panel:not(.is-expanded) .card-preview-set,
+.card-preview-panel:not(.is-expanded) .card-preview-links,
+.card-preview-panel:not(.is-expanded) .card-preview-counter,
+.card-preview-panel:not(.is-expanded) .deck-card-preview-meta-synergy {
+  display: none;
+}
+
 .card-preview-name-row {
   display: flex;
   align-items: baseline;
