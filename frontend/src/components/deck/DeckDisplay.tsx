@@ -71,6 +71,8 @@ import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
+import { ValidationChecklist } from './ValidationChecklist';
+import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
   buildCommanderProfile,
@@ -1076,6 +1078,17 @@ export function DeckDisplay({
     return list;
   }, [commander, partnerCommander, cards]);
 
+  // The deck's legal color identity = the commander(s)' combined identity.
+  // Undefined when there's no commander, which skips the identity validation gate.
+  const commanderIdentity = useMemo<string[] | undefined>(() => {
+    if (!commander) return undefined;
+    const set = new Set<string>();
+    for (const c of [commander, partnerCommander]) {
+      for (const k of c?.color_identity ?? []) set.add(k);
+    }
+    return [...set];
+  }, [commander, partnerCommander]);
+
   // The commander's parsed ability profile — shared by the per-card synergy
   // reasons and the deck-identity strip.
   const commanderProfile = useMemo(
@@ -1656,6 +1669,7 @@ export function DeckDisplay({
             substitutionSlot={substitutionSlot}
             engineSlot={engineSlot}
             commanderName={commander?.name}
+            commanderIdentity={commanderIdentity}
           />
         )}
 
@@ -2972,6 +2986,7 @@ function DeckAnalysisView({
   substitutionSlot,
   engineSlot,
   commanderName,
+  commanderIdentity,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3001,6 +3016,8 @@ function DeckAnalysisView({
   engineSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
+  /** The deck's legal color identity (commander union); drives the identity gate. */
+  commanderIdentity?: string[];
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -3019,6 +3036,20 @@ function DeckAnalysisView({
   const effectiveBoardwipeSub = boardwipeSubtypeCounts ?? derivedRoles?.boardwipeSubtypeCounts;
   const effectiveDrawSub = cardDrawSubtypeCounts ?? derivedRoles?.cardDrawSubtypeCounts;
   const showRoles = effectiveRoleCounts !== undefined;
+
+  // Pass/fail deck-health checklist for the Stats board — legality gates plus the
+  // soft role/curve targets, derived from the live list + role analysis.
+  const validation = useMemo(
+    () =>
+      buildValidationChecklist({
+        cards: allCards,
+        commanderIdentity,
+        roleCounts: effectiveRoleCounts,
+        roleTargets,
+        averageCmc: manaData.averageCmc,
+      }),
+    [allCards, commanderIdentity, effectiveRoleCounts, roleTargets, manaData.averageCmc]
+  );
 
   const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
@@ -3065,13 +3096,21 @@ function DeckAnalysisView({
               />
             </Panel>
           </div>
-          {/* Plan score + Saltiest — a second compact pair. */}
+          {/* Validation — pass/fail deck-health gate, pairs with Plan score. */}
           <div className="deck-stats-pair">
+            {validation.checks.length > 0 && (
+              <Panel title="Validation">
+                <ValidationChecklist result={validation} />
+              </Panel>
+            )}
             {planScore && (
               <Panel title="Plan score">
                 <PlanScoreDashboard plan={planScore} />
               </Panel>
             )}
+          </div>
+          {/* Saltiest — lone, spans full width. */}
+          <div className="deck-stats-pair">
             {saltiestCards && saltiestCards.length > 0 && (
               <Panel title="Saltiest cards">
                 <ul className="deck-saltiest-list">
