@@ -20,6 +20,11 @@ import { NextBestMove } from '../components/deck/NextBestMove';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
+import { SubstitutionPanel } from '../components/deck/SubstitutionPanel';
+import {
+  buildSubstitutionPlan,
+  type SubstituteCandidate,
+} from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
@@ -212,6 +217,33 @@ export function DeckEditorPage() {
       oneAwayCombos: comboData.data?.oneAway,
     });
   }, [deck, comboData.data]);
+
+  // Owned-substitute plan ("From your collection") — derived live from the
+  // persisted gap analysis + the live collection (ownership is intentionally a
+  // UI-layer concern; the analysis orchestrator stays collection-agnostic).
+  // For each EDHREC staple the deck wants but doesn't own, find an owned card
+  // filling the same role within color identity. Pure + cheap → recompute on
+  // change rather than persist.
+  const substitutionPlan = useMemo(() => {
+    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return null;
+    const gap = deck.gapAnalysis;
+    if (!gap || gap.length === 0) return null;
+    // Staples worth substituting: role-bearing, and not already owned (an owned
+    // staple is something you'd just add — not a "buy" to substitute around).
+    const missingStaples = gap.filter((g) => g.role && !ownedNames.has(g.name));
+    if (missingStaples.length === 0) return null;
+
+    const ownedPool: SubstituteCandidate[] = collectionCards.map((c) => ({
+      name: c.name,
+      colorIdentity: c.colorIdentity ?? [],
+      cmc: c.cmc,
+    }));
+    const deckNames = new Set(deck.cards.map((c) => c.card.name));
+    const inclusionByName = new Map<string, number>(Object.entries(deck.cardInclusionMap ?? {}));
+    return buildSubstitutionPlan(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
+      inclusionByName,
+    });
+  }, [deck, ownedNames, collectionCards, commanderColorIdentity]);
 
   // `/` opens the search panel; `c` reveals the combos panel (the panel is
   // always rendered in the aside; `c` just expands + scrolls + focuses it).
@@ -957,6 +989,15 @@ export function DeckEditorPage() {
                   plan={deck.costPlan}
                   onApply={handleApplyCostSwaps}
                   applying={applyingCost}
+                />
+              ) : undefined
+            }
+            substitutionSlot={
+              formatConfig?.hasCommander && substitutionPlan && substitutionPlan.rows.length > 0 ? (
+                <SubstitutionPanel
+                  plan={substitutionPlan}
+                  onAdd={handleAddEngineCard}
+                  addingNames={addingEngineNames}
                 />
               ) : undefined
             }

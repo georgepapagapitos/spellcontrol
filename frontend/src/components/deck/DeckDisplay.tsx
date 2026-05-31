@@ -372,6 +372,8 @@ export interface DeckDisplayProps {
   optimizeSlot?: React.ReactNode;
   /** Budget cost-optimizer surface, rendered in the Improve view. */
   costSlot?: React.ReactNode;
+  /** Owned-substitute surface ("From your collection"), rendered in the Improve view. */
+  substitutionSlot?: React.ReactNode;
   /** Native synergy "Engine" surface, rendered in the Improve view. */
   engineSlot?: React.ReactNode;
   /**
@@ -793,6 +795,7 @@ export function DeckDisplay({
   nextBestMoveSlot,
   optimizeSlot,
   costSlot,
+  substitutionSlot,
   engineSlot,
   activeView = 'deck',
   onShowTestHand,
@@ -1643,6 +1646,7 @@ export function DeckDisplay({
             nextBestMoveSlot={nextBestMoveSlot}
             optimizeSlot={optimizeSlot}
             costSlot={costSlot}
+            substitutionSlot={substitutionSlot}
             engineSlot={engineSlot}
             commanderName={commander?.name}
           />
@@ -2941,6 +2945,7 @@ function DeckAnalysisView({
   nextBestMoveSlot,
   optimizeSlot,
   costSlot,
+  substitutionSlot,
   engineSlot,
   commanderName,
 }: {
@@ -2968,6 +2973,7 @@ function DeckAnalysisView({
   nextBestMoveSlot?: React.ReactNode;
   optimizeSlot?: React.ReactNode;
   costSlot?: React.ReactNode;
+  substitutionSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
@@ -3157,6 +3163,12 @@ function DeckAnalysisView({
             <div className="deck-stats-pair">
               <Panel title="Optimize on a budget">{costSlot}</Panel>
             </div>
+          )}
+          {/* From your collection — owned substitutes for missing staples. */}
+          {substitutionSlot && (
+            <Panel title="From your collection" wide>
+              {substitutionSlot}
+            </Panel>
           )}
           {/* Cards to consider — full width (its own multi-column grid). */}
           {gapAnalysis && gapAnalysis.length > 0 && (
