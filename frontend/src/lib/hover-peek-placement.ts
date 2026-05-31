@@ -27,6 +27,16 @@ export interface PeekPlacement {
   top: number;
 }
 
+/**
+ * Viewport-responsive peek width. Small laptops get a compact card that fits the
+ * gutter; large / 4K monitors get a bigger one that actually uses the room. Pure
+ * so the hook (which drives the inline width) and the CSS fallback stay in sync
+ * through one tested formula.
+ */
+export function peekWidth(viewportWidth: number, min = 200, max = 300, vwFraction = 0.18): number {
+  return Math.round(Math.min(max, Math.max(min, viewportWidth * vwFraction)));
+}
+
 export function computePeekPlacement(
   row: PeekRect,
   viewport: PeekViewport,

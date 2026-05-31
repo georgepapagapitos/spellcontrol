@@ -8,10 +8,13 @@ export function DeckHoverPeek({
   imageUrl,
   left,
   top,
+  width,
 }: {
   imageUrl?: string;
   left: number;
   top: number;
+  /** Viewport-responsive width from the hook; height follows via CSS aspect-ratio. */
+  width: number;
 }) {
   if (!imageUrl) return null;
   return (
@@ -21,7 +24,7 @@ export function DeckHoverPeek({
       alt=""
       aria-hidden="true"
       draggable={false}
-      style={{ left, top }}
+      style={{ left, top, width }}
     />
   );
 }
