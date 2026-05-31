@@ -13,6 +13,7 @@ import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
 import { isValidCommander } from '../../lib/commanders';
+import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
 
@@ -49,6 +50,7 @@ interface DraftDeck {
   name: string;
   format: DeckFormat;
   commander: ScryfallCard | null;
+  partner: ScryfallCard | null;
   candidates: ScryfallCard[];
   searchOpen: boolean;
 }
@@ -60,6 +62,77 @@ function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
     seen.add(c.name);
     return true;
   });
+}
+
+/**
+ * Legal partners for `commander` that are present in the imported card list.
+ * Empty unless the commander has a partner mechanic (Partner, "Partner with X",
+ * Friends forever, Choose a Background, Doctor's companion). Used to offer —
+ * never auto-apply — a second commander on import.
+ */
+function partnerCandidatesFor(
+  cards: ScryfallCard[] | undefined,
+  commander: ScryfallCard | null
+): ScryfallCard[] {
+  if (!cards || !commander || !canHavePartner(commander)) return [];
+  return dedupeByName(cards.filter((c) => areValidPartners(commander, c)));
+}
+
+/** Opt-in partner-commander picker shown in the import review/batch steps. */
+function PartnerImportPicker({
+  commander,
+  candidates,
+  partner,
+  onSelect,
+}: {
+  commander: ScryfallCard;
+  candidates: ScryfallCard[];
+  partner: ScryfallCard | null;
+  onSelect: (card: ScryfallCard | null) => void;
+}) {
+  if (candidates.length === 0) return null;
+  return (
+    <div className="import-deck-commander-section import-deck-partner-section">
+      <div className="import-deck-section-title">Partner commander (optional)</div>
+      <p className="import-deck-hint">
+        {commander.name} can have a partner — add a second commander to combine both color
+        identities.
+      </p>
+      <ul className="import-deck-commander-list">
+        {candidates.map((card) => {
+          const selected = partner?.name === card.name;
+          return (
+            <li key={card.id}>
+              <button
+                type="button"
+                className={`import-deck-commander-option${selected ? ' is-selected' : ''}`}
+                aria-pressed={selected}
+                onClick={() => onSelect(selected ? null : card)}
+              >
+                <img
+                  className="import-deck-commander-art"
+                  src={getCardImageUrl(card, 'small')}
+                  alt=""
+                  aria-hidden="true"
+                />
+                <div className="import-deck-commander-info">
+                  <span className="import-deck-commander-name">{card.name}</span>
+                  <span className="import-deck-commander-type">
+                    {card.type_line ?? card.card_faces?.[0]?.type_line}
+                  </span>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {partner && (
+        <button type="button" className="btn-link" onClick={() => onSelect(null)}>
+          Remove partner
+        </button>
+      )}
+    </div>
+  );
 }
 
 function normalizeFormat(detected: string | undefined | null): DeckFormat | null {
@@ -101,6 +174,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   // Legacy single-deck review (used by paste + merge mode).
   const [pendingResult, setPendingResult] = useState<DeckImportResponse | null>(null);
   const [pendingCommander, setPendingCommander] = useState<ScryfallCard | null>(null);
+  const [pendingPartner, setPendingPartner] = useState<ScryfallCard | null>(null);
   const [showCommanderSearch, setShowCommanderSearch] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +183,11 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const commanderCandidates = useMemo(
     () => dedupeByName(pendingResult?.cards.filter(isValidCommander) ?? []),
     [pendingResult]
+  );
+
+  const partnerCandidates = useMemo(
+    () => partnerCandidatesFor(pendingResult?.cards, pendingCommander),
+    [pendingResult, pendingCommander]
   );
 
   const detectedFormat = useMemo(
@@ -149,11 +228,16 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       commander: ScryfallCard | null,
       name: string,
       format: DeckFormat,
-      claimed?: Map<string, AllocationInfo>
+      claimed?: Map<string, AllocationInfo>,
+      partner: ScryfallCard | null = null
     ): string => {
       const claim = claimed ?? new Map<string, AllocationInfo>(buildAllocationMap(decks));
       if (commander) {
-        const mainCards = result.cards.filter((c) => c.name !== commander.name);
+        // Both commanders are kept out of the 99; a paired partner that was
+        // sitting in the imported list moves into the command zone.
+        const mainCards = result.cards.filter(
+          (c) => c.name !== commander.name && (!partner || c.name !== partner.name)
+        );
         const cards = allocateCardsWith(mainCards, claim);
         const commanderPick = pickCollectionCopy(
           commander.name,
@@ -169,12 +253,25 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             cardName: commander.name,
           });
         }
+        const partnerPick = partner
+          ? pickCollectionCopy(partner.name, collectionCards, claim, partner.id)
+          : null;
+        if (partner && partnerPick) {
+          claim.set(partnerPick.copyId, {
+            deckId: '__pending__',
+            deckName: '__pending__',
+            deckColor: '',
+            cardName: partner.name,
+          });
+        }
         return createDeck({
           name: name.trim() || undefined,
           format,
           source: 'manual',
           commander,
           commanderAllocatedCopyId: commanderPick?.copyId ?? null,
+          partnerCommander: partner,
+          partnerCommanderAllocatedCopyId: partnerPick?.copyId ?? null,
           cards,
         });
       }
@@ -215,8 +312,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   // --- Legacy single-deck flow (paste + merge) ----------------------------
 
   const finalizeDeck = useCallback(
-    (result: DeckImportResponse, commander: ScryfallCard | null, name: string) => {
-      const id = buildDeckFromResult(result, commander, name, selectedFormat);
+    (
+      result: DeckImportResponse,
+      commander: ScryfallCard | null,
+      name: string,
+      partner: ScryfallCard | null = null
+    ) => {
+      const id = buildDeckFromResult(result, commander, name, selectedFormat, undefined, partner);
       onClose();
       navigate(`/decks/${id}`);
     },
@@ -230,13 +332,18 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         (normalizeFormat(result.detectedFormat) !== null &&
           normalizeFormat(result.detectedFormat) !== selectedFormat);
       const { commander, needsChoice } = resolveAutoCommander(result, selectedFormat);
+      // A pairable commander always routes through review so the partner can be
+      // offered (never auto-paired) even when nothing else needs a decision.
+      const hasPartnerOption =
+        formatConfig.hasCommander && partnerCandidatesFor(result.cards, commander).length > 0;
 
-      if (!needsChoice && !hasWarnings) {
+      if (!needsChoice && !hasWarnings && !hasPartnerOption) {
         finalizeDeck(result, formatConfig.hasCommander ? commander : null, deckName);
         return;
       }
       setPendingResult(result);
       setPendingCommander(commander);
+      setPendingPartner(null);
       setShowCommanderSearch(false);
       setStep('review');
       setIsLoading(false);
@@ -266,11 +373,18 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     if (!pendingResult) return;
     if (formatConfig.hasCommander) {
       if (!pendingCommander) return;
-      finalizeDeck(pendingResult, pendingCommander, deckName);
+      finalizeDeck(pendingResult, pendingCommander, deckName, pendingPartner);
     } else {
       finalizeDeck(pendingResult, null, deckName);
     }
-  }, [pendingResult, pendingCommander, formatConfig.hasCommander, finalizeDeck, deckName]);
+  }, [
+    pendingResult,
+    pendingCommander,
+    pendingPartner,
+    formatConfig.hasCommander,
+    finalizeDeck,
+    deckName,
+  ]);
 
   // --- Multi-file staging + parse-then-review -----------------------------
 
@@ -356,6 +470,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           name: stripExtension(file.name),
           format: fmt,
           commander,
+          partner: null,
           candidates: dedupeByName(r.cards.filter(isValidCommander)),
           searchOpen: false,
         });
@@ -368,6 +483,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           name: stripExtension(file.name),
           format: selectedFormat,
           commander: null,
+          partner: null,
           candidates: [],
           searchOpen: false,
         });
@@ -391,7 +507,10 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         if (DECK_FORMAT_CONFIGS[format].hasCommander && !commander && d.candidates.length === 1) {
           commander = d.candidates[0];
         }
-        return { ...d, format, commander };
+        // A format without a commander (or a different commander) invalidates
+        // any previously-chosen partner.
+        const partner = DECK_FORMAT_CONFIGS[format].hasCommander ? d.partner : null;
+        return { ...d, format, commander, partner };
       })
     );
   }, []);
@@ -404,7 +523,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     for (const d of okDrafts) {
       if (!d.result) continue;
       const useCommander = DECK_FORMAT_CONFIGS[d.format].hasCommander ? d.commander : null;
-      ids.push(buildDeckFromResult(d.result, useCommander, d.name, d.format, claimed));
+      const usePartner = useCommander ? d.partner : null;
+      ids.push(buildDeckFromResult(d.result, useCommander, d.name, d.format, claimed, usePartner));
     }
     onClose();
     navigate(ids.length === 1 ? `/decks/${ids[0]}` : '/decks');
@@ -476,6 +596,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
   const handleCommanderSelect = useCallback((card: ScryfallCard | null) => {
     setPendingCommander(card);
+    // The previously-picked partner may not be legal for the new commander.
+    setPendingPartner(null);
     setShowCommanderSearch(false);
   }, []);
 
@@ -757,7 +879,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                                     <button
                                       type="button"
                                       className="import-deck-commander-option"
-                                      onClick={() => patchDraft(d.key, { commander: card })}
+                                      onClick={() =>
+                                        patchDraft(d.key, { commander: card, partner: null })
+                                      }
                                     >
                                       <img
                                         className="import-deck-commander-art"
@@ -790,8 +914,20 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                           <CommanderSearch
                             value={d.commander}
                             onSelect={(card) =>
-                              patchDraft(d.key, { commander: card, searchOpen: false })
+                              patchDraft(d.key, {
+                                commander: card,
+                                partner: null,
+                                searchOpen: false,
+                              })
                             }
+                          />
+                        )}
+                        {d.commander && !d.searchOpen && (
+                          <PartnerImportPicker
+                            commander={d.commander}
+                            candidates={partnerCandidatesFor(d.result?.cards, d.commander)}
+                            partner={d.partner}
+                            onSelect={(card) => patchDraft(d.key, { partner: card })}
                           />
                         )}
                       </div>
@@ -885,7 +1021,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                           <button
                             type="button"
                             className="import-deck-commander-option"
-                            onClick={() => setPendingCommander(card)}
+                            onClick={() => handleCommanderSelect(card)}
                           >
                             <img
                               className="import-deck-commander-art"
@@ -915,6 +1051,15 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   <CommanderSearch value={null} onSelect={handleCommanderSelect} />
                 )}
               </div>
+            )}
+
+            {formatConfig.hasCommander && pendingCommander && !showCommanderSearch && (
+              <PartnerImportPicker
+                commander={pendingCommander}
+                candidates={partnerCandidates}
+                partner={pendingPartner}
+                onSelect={setPendingPartner}
+              />
             )}
           </>
         )}

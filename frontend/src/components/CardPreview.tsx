@@ -1,6 +1,8 @@
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   ExternalLink,
   Layers,
   Notebook,
@@ -103,6 +105,14 @@ interface Props {
    * are already shielded from the sheet's tap-to-dismiss by the panel.
    */
   renderPanelExtra?: (i: number) => ReactNode;
+  /**
+   * Optional high-placed content for the card at index `i`, rendered near the
+   * top of the panel (just under the context line, above price/set/links) so
+   * it reads before the boilerplate. The deck view uses this to surface
+   * partner/role/synergy/inclusion context; other surfaces leave it unset.
+   * CardPreview stays context-agnostic — it only renders the slot.
+   */
+  renderPanelMeta?: (i: number) => ReactNode;
 }
 
 const PRELOAD_RADIUS = 2;
@@ -131,6 +141,7 @@ export function CardPreview({
   onEdit,
   showRole,
   renderPanelExtra,
+  renderPanelMeta,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -146,6 +157,12 @@ export function CardPreview({
   }, []);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
+  // Panel expand/collapse: tapping the chevron grows the info panel and (via
+  // the sheet's 1fr track + the card's container-query sizing) shrinks the
+  // card to make room. Defaults collapsed each open (the component remounts
+  // per open); sticks across card navigation within a single open. Generic —
+  // every CardPreview surface (collection, binder, deck) inherits it.
+  const [panelExpanded, setPanelExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -560,7 +577,23 @@ export function CardPreview({
           ))}
         </div>
 
-        <div className="card-preview-panel" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`card-preview-panel${panelExpanded ? ' is-expanded' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="card-preview-panel-toggle"
+            aria-expanded={panelExpanded}
+            aria-label={panelExpanded ? 'Collapse details' : 'Expand details'}
+            onClick={() => setPanelExpanded((v) => !v)}
+          >
+            {panelExpanded ? (
+              <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden />
+            ) : (
+              <ChevronUp width={18} height={18} strokeWidth={2.4} aria-hidden />
+            )}
+          </button>
           <div className="card-preview-panel-inner">
             <div className="card-preview-name-row">
               <div className="card-preview-name">{current.name}</div>
@@ -632,6 +665,7 @@ export function CardPreview({
                 );
               })()}
             </div>
+            {renderPanelMeta?.(selected)}
             <div className="card-preview-meta">
               <span
                 className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
@@ -748,8 +782,12 @@ function CarouselNav({
   atStart: boolean;
   atEnd: boolean;
 }) {
+  // The layer occupies the same grid cell as the card track (see CSS), so the
+  // arrows center in the card area above the panel — and ride up as that area
+  // shrinks when the panel expands — instead of pinning to mid-screen and
+  // colliding with the expanded panel.
   return (
-    <>
+    <div className="carousel-nav-layer">
       <button
         type="button"
         className="carousel-nav carousel-nav-prev"
@@ -774,6 +812,6 @@ function CarouselNav({
       >
         <ChevronRight width={20} height={20} strokeWidth={2.4} aria-hidden />
       </button>
-    </>
+    </div>
   );
 }

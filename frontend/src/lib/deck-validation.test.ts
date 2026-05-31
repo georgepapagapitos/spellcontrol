@@ -130,6 +130,23 @@ describe('validateDeck', () => {
     expect(issues.some((i) => i.issue === 'color-identity')).toBe(true);
   });
 
+  it('does not flag a card that is in the partner commander color identity', () => {
+    // Mirrors the Frodo (G) + Sam (W) partner pairing: a white card is legal
+    // once Sam is added as the partner, even though Frodo alone is mono-green.
+    const frodo = card({ name: 'Frodo, Adventurous Hobbit', color_identity: ['G'] });
+    const sam = card({ name: 'Sam, Loyal Attendant', color_identity: ['W'] });
+    const whiteCard = card({ name: 'Swords to Plowshares', color_identity: ['W'] });
+    const withoutPartner = validateDeck([slot(whiteCard, 'a')], [], commander, {
+      commander: frodo,
+    });
+    expect(withoutPartner.some((i) => i.issue === 'color-identity')).toBe(true);
+    const withPartner = validateDeck([slot(whiteCard, 'a')], [], commander, {
+      commander: frodo,
+      partnerCommander: sam,
+    });
+    expect(withPartner.some((i) => i.issue === 'color-identity')).toBe(false);
+  });
+
   it('flags cards not legal in the format', () => {
     const bad = card({
       name: 'Black Lotus',
