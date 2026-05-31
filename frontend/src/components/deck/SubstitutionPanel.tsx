@@ -6,6 +6,7 @@ import type {
   SubstituteRow,
 } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { useCardCarousel } from './useCardCarousel';
+import { VerdictBadge } from './VerdictBadge';
 
 export interface SubstitutionPanelProps {
   plan: SubstitutionPlan;
@@ -102,7 +103,12 @@ function Row({
           {adding ? 'Adding…' : 'Add'}
         </button>
       </div>
-      <p className="sub-reason">{row.reason}</p>
+      <VerdictBadge
+        verdict="substitute"
+        label={row.usedSubtypeMatch ? 'Substitute · exact' : 'Substitute'}
+        reason={row.reason}
+        className="sub-verdict"
+      />
     </li>
   );
 }

@@ -118,16 +118,18 @@
   transition: opacity 0.2s ease;
 }
 
+/* Left bar tracks the row's verdict tone (see CONFIDENCE_TONE in CostPanel.tsx):
+   drop-in = safe (success), sidegrade = lateral (info), budget = tradeoff (warn). */
 .cost-row.is-drop-in {
-  border-left-color: var(--accent);
+  border-left-color: var(--success);
 }
 
 .cost-row.is-sidegrade {
-  border-left-color: var(--warn-border);
+  border-left-color: var(--info);
 }
 
 .cost-row.is-budget {
-  border-left-color: var(--border);
+  border-left-color: var(--warn-border);
 }
 
 .cost-row.is-unchecked {
@@ -226,29 +228,7 @@
   white-space: nowrap;
 }
 
-.cost-badge {
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  border: 0.5px solid var(--border);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.cost-badge.is-drop-in {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.cost-badge.is-sidegrade {
-  color: var(--warn-text);
-  border-color: var(--warn-border);
-}
-
-.cost-badge.is-budget {
-  color: var(--text3);
-  border-color: var(--border);
-}
+/* The confidence chip is now the shared <VerdictBadge> (see VerdictBadge.css). */
 
 .cost-inclusion {
   font-size: var(--text-xs);
