@@ -30,7 +30,8 @@
   border-radius: var(--radius);
   background: var(--surface);
   border: 0.5px solid var(--border);
-  border-left: 3px solid var(--accent);
+  /* Left bar tracks the row's verdict tone (every row is a Substitute → info). */
+  border-left: 3px solid var(--info);
 }
 
 .sub-row-cards {
@@ -127,11 +128,9 @@
   cursor: not-allowed;
 }
 
-.sub-reason {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--text2);
-  line-height: 1.4;
+/* The substitute verdict chip + reason spans the row so the reason wraps. */
+.sub-verdict {
+  display: flex;
 }
 
 /* ── Unmatched (genuine buys) ───────────────────────────────────────── */
