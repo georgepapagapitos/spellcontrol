@@ -1810,7 +1810,7 @@ input.toolbar-search-input {
 /* ── Analysis views (distinct-view IA) ───────────────────────────────────
    The collapsible `.deck-stats` card wrapper and `.deck-analysis-surface-body`
    were retired when the analysis surface became page-top distinct views; the
-   `.deck-stats-grid` / `.deck-stats-panel` / `.deck-overview-*` / saltiest /
+   `.deck-stats-panel` / `.deck-overview-*` / saltiest /
    bracket rules below are still used by the view content. The
    `.deck-stats-header*` rules further down are now shared only by the live
    Combos / Test-hand collapsible panels. */
@@ -2058,52 +2058,6 @@ input.toolbar-search-input {
   line-height: 1;
 }
 
-.deck-stats-grid {
-  /* Responsive panel grid inside a tab: panels pack the full surface width
-     (auto-fill) and hug their own height (align-items: start, so a short
-     panel never stretches to a tall sibling). A folded-in slot
-     (.deck-analysis-slot) spans the whole row. min(100%, 16rem) keeps a
-     single panel full-width on a phone instead of leaving a dead gutter. */
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-  align-items: start;
-  gap: 0.85rem;
-  /* Containment: cap + center so the grid doesn't stretch a wide monitor.
-     --analysis-max is the single knob (see .deck-analysis-view). */
-  max-width: var(--analysis-max, 1320px);
-  margin-inline: auto;
-}
-
-/* Curated variant (Overview): a two-tier hierarchy instead of an equal-tile
-   auto-fill grid (which buried the important panels and left ragged bottoms).
-   The lead panels — Next best move, Plan score, Overview — are `--wide` and
-   stack full-width up top. The two "extras" (Build report, Saltiest) drop into
-   a paired row below: 1-up on phones, 2-up from 640px, stretched to equal
-   height so they read as clean cards. Capped at 2 columns so exactly-two
-   extras never orphan a third empty column. */
-.deck-stats-grid.deck-stats-grid--curated {
-  grid-template-columns: 1fr;
-  align-items: stretch;
-  grid-auto-flow: row dense;
-  /* Same containment as the base grid — cap + center (see --analysis-max). */
-  max-width: var(--analysis-max, 1320px);
-  margin-inline: auto;
-}
-
-@media (min-width: 640px) {
-  .deck-stats-grid.deck-stats-grid--curated {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Stack variant (Power / Improve): a single full-width column. Their panels are
-   content-heavy / full-width by nature, so a deterministic stack reads clean and
-   never leaves the ragged auto-fill dead columns the base grid produced. */
-.deck-stats-grid.deck-stats-grid--stack {
-  grid-template-columns: 1fr;
-  align-items: start;
-}
-
 /* Paired compact panels inside a board (curated Overview grid + the Stats/Tune
    bento): spans the full row, then packs its children 2-up from ~18rem. auto-fit
    means a lone surviving panel fills the whole width instead of orphaning an
@@ -2114,10 +2068,6 @@ input.toolbar-search-input {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   align-items: stretch;
   gap: clamp(0.85rem, 2.2cqi, 1.5rem);
-}
-
-.deck-stats-grid[hidden] {
-  display: none;
 }
 
 .deck-stats-panel {
@@ -3162,9 +3112,9 @@ input.toolbar-search-input {
 .deck-analysis-view {
   min-width: 0;
   /* Single tuning knob for the analysis-tab containment pass: the boards
-     (.deck-mana-panel, .deck-stats-grid, .deck-stats-grid--curated) cap their
-     width to this and center, so content doesn't sprawl edge-to-edge on a
-     wide (~2000px) monitor. Adjust here to widen/narrow all tabs at once. */
+     (.deck-bento) cap their width to this and center, so content doesn't
+     sprawl edge-to-edge on a wide (~2000px) monitor. Adjust here to
+     widen/narrow all tabs at once. */
   --analysis-max: 1320px;
 }
 
