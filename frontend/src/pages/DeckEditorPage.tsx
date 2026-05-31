@@ -31,6 +31,8 @@ import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
 import { isValidCommander } from '../lib/commanders';
+import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
+import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -49,6 +51,7 @@ export function DeckEditorPage() {
   const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
   const moveBetweenZones = useDecksStore((s) => s.moveBetweenZones);
   const setCommander = useDecksStore((s) => s.setCommander);
+  const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const collectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
@@ -67,6 +70,13 @@ export function DeckEditorPage() {
     zone: 'main' | 'side';
     allocatedCopyId: string | null;
   } | null>(null);
+  const [makePartnerTarget, setMakePartnerTarget] = useState<{
+    slotId: string;
+    card: ScryfallCard;
+    zone: 'main' | 'side';
+    allocatedCopyId: string | null;
+  } | null>(null);
+  const [showPartnerPicker, setShowPartnerPicker] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Hoisted so the mobile action sheet can open Export without rendering
@@ -488,6 +498,87 @@ export function DeckEditorPage() {
     });
   };
 
+  // Whether a deck card is a legal partner for the current commander — gates
+  // the "Make partner" row action. Requires a commander already set; the
+  // partner mechanic itself (generic Partner, "Partner with X", Friends
+  // forever, Choose a Background, Doctor's companion) is checked in
+  // areValidPartners, which also rejects pairing a card with itself. Plain
+  // function (not a hook) since it lives below the missing-deck early return.
+  const canMakePartner = (card: ScryfallCard) =>
+    !!deck.commander && areValidPartners(deck.commander, card);
+
+  const handleMakePartnerClick = (slotId: string, card: ScryfallCard) => {
+    const mainSlot = deck.cards.find((c) => c.slotId === slotId);
+    const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.slotId === slotId);
+    const slot = mainSlot ?? sideSlot;
+    if (!slot) return;
+    const target = {
+      slotId,
+      card,
+      zone: (mainSlot ? 'main' : 'side') as 'main' | 'side',
+      allocatedCopyId: slot.allocatedCopyId,
+    };
+    // No current partner → pull the card out of the deck and pair it directly.
+    if (!deck.partnerCommander) {
+      if (target.zone === 'main') removeCard(deck.id, slotId);
+      else removeSideboardCard(deck.id, slotId);
+      setPartnerCommander(deck.id, card, target.allocatedCopyId);
+      pushToast({ message: `${card.name} is now the partner commander`, tone: 'success' });
+      return;
+    }
+    setMakePartnerTarget(target);
+  };
+
+  const handleConfirmMakePartner = (keepOldInDeck: boolean) => {
+    const target = makePartnerTarget;
+    if (!target) return;
+    const oldPartner = deck.partnerCommander;
+    const oldAllocated = deck.partnerCommanderAllocatedCopyId;
+    setMakePartnerTarget(null);
+
+    if (target.zone === 'main') removeCard(deck.id, target.slotId);
+    else removeSideboardCard(deck.id, target.slotId);
+
+    if (keepOldInDeck && oldPartner) {
+      addCard(deck.id, oldPartner, oldAllocated);
+    }
+    setPartnerCommander(deck.id, target.card, target.allocatedCopyId);
+    pushToast({
+      message: `${target.card.name} is now the partner commander${
+        keepOldInDeck && oldPartner ? ` · ${oldPartner.name} moved to the deck` : ''
+      }`,
+      tone: 'success',
+    });
+  };
+
+  // Picker entry point (hero): pair a legal partner that may not already be in
+  // the deck. If the chosen card IS in the deck, reuse its slot/allocation and
+  // pull it out (mirrors make-commander); otherwise claim a free owned copy.
+  // Passing null clears the partner.
+  const handleSelectPartnerFromPicker = (card: ScryfallCard | null) => {
+    if (!card) {
+      setPartnerCommander(deck.id, null, null);
+      pushToast({ message: 'Partner commander removed', tone: 'success' });
+      return;
+    }
+    const mainSlot = deck.cards.find((c) => c.card.name === card.name);
+    const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.card.name === card.name);
+    const slot = mainSlot ?? sideSlot;
+    let allocated: string | null;
+    if (slot) {
+      allocated = slot.allocatedCopyId ?? null;
+      if (mainSlot) removeCard(deck.id, slot.slotId);
+      else removeSideboardCard(deck.id, slot.slotId);
+    } else {
+      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      allocated =
+        pickCollectionCopy(card.name, collectionCards, allocations, card.id)?.copyId ?? null;
+    }
+    setPartnerCommander(deck.id, card, allocated);
+    setShowPartnerPicker(false);
+    pushToast({ message: `${card.name} is now the partner commander`, tone: 'success' });
+  };
+
   // Click-to-edit qty handler: diffs the desired count against the live
   // count and adds or removes slots in bulk. Bulk removes show ONE toast
   // for the whole batch with an Undo that restores every original
@@ -665,6 +756,9 @@ export function DeckEditorPage() {
               <>
                 {formatConfig ? ' · ' : ''}
                 {deck.commander.name}
+                {/* Read-only pairing summary; add/change/remove lives in the
+                    deck grid's Commander section (see onEditPartner). */}
+                {deck.partnerCommander && ` + ${deck.partnerCommander.name}`}
               </>
             )}
             {/* Desktop-only totals chip — hidden on tablet/mobile via
@@ -774,6 +868,17 @@ export function DeckEditorPage() {
             onEditCard={handleEditCard}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={formatConfig?.hasCommander ? isValidCommander : undefined}
+            onMakePartner={
+              formatConfig?.hasCommander && deck.commander ? handleMakePartnerClick : undefined
+            }
+            canMakePartner={
+              formatConfig?.hasCommander && deck.commander ? canMakePartner : undefined
+            }
+            onEditPartner={
+              formatConfig?.hasCommander && deck.commander && canHavePartner(deck.commander)
+                ? () => setShowPartnerPicker(true)
+                : undefined
+            }
             collectionByCopyId={collectionById}
             binderByCopyId={binderByCopyId}
             onAddFromSearch={(q) => {
@@ -1008,6 +1113,51 @@ export function DeckEditorPage() {
               Keep in deck
             </button>
           </div>
+        </Modal>
+      )}
+
+      {makePartnerTarget && deck.partnerCommander && (
+        <Modal onClose={() => setMakePartnerTarget(null)} labelledBy="make-partner-title">
+          <h2 id="make-partner-title" className="choice-dialog-title">
+            Make {makePartnerTarget.card.name} the partner commander?
+          </h2>
+          <p className="choice-dialog-body">
+            <strong>{deck.partnerCommander.name}</strong> is currently the partner. What should
+            happen to it?
+          </p>
+          <div className="choice-dialog-actions">
+            <button type="button" className="btn" onClick={() => setMakePartnerTarget(null)}>
+              Cancel
+            </button>
+            <button type="button" className="btn" onClick={() => handleConfirmMakePartner(false)}>
+              Remove from deck
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => handleConfirmMakePartner(true)}
+              autoFocus
+            >
+              Keep in deck
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {showPartnerPicker && deck.commander && (
+        <Modal onClose={() => setShowPartnerPicker(false)} labelledBy="partner-picker-title">
+          <h2 id="partner-picker-title" className="choice-dialog-title">
+            Partner commander
+          </h2>
+          {/* collectionMode={false}: the editor isn't constrained to owned
+              cards, so the picker lists every legal partner and the build does
+              the allocation when one is chosen. */}
+          <PartnerCommanderSelector
+            commander={deck.commander}
+            partner={deck.partnerCommander}
+            onSelect={handleSelectPartnerFromPicker}
+            collectionMode={false}
+          />
         </Modal>
       )}
 
