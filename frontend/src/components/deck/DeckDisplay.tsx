@@ -60,6 +60,7 @@ import {
   type BracketEstimation,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { BracketBreakdown } from './BracketBreakdown';
+import { BracketVerdictStrip } from './BracketVerdictStrip';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
@@ -69,6 +70,7 @@ import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
   buildCommanderProfile,
@@ -3008,6 +3010,10 @@ function DeckAnalysisView({
     return computeRoleCounts(allCards);
   }, [allCards, roleCounts]);
 
+  // Overlapping multi-role counts (a card counts toward every role it fills),
+  // always derived from the live card list — complements the primary-role bars.
+  const roleDensity = useMemo(() => computeRoleDensity(allCards), [allCards]);
+
   const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
   const effectiveRampSub = rampSubtypeCounts ?? derivedRoles?.rampSubtypeCounts;
   const effectiveRemovalSub = removalSubtypeCounts ?? derivedRoles?.removalSubtypeCounts;
@@ -3121,18 +3127,19 @@ function DeckAnalysisView({
                     {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
                     {bracketOverridden && <span className="deck-stats-bracket-tag"> manual</span>}
                   </strong>
-                  {bracketOverridden && bracketEstimation ? (
-                    <span className="deck-stats-bracket-note">
-                      Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
-                    </span>
-                  ) : (
+                  <BracketVerdictStrip
+                    target={bracketOverride}
+                    detected={bracketEstimation?.bracket}
+                  />
+                  {/* Detected vs target now lives in the strip above; keep the
+                      top hard-floor reason as context when on Auto. */}
+                  {!bracketOverridden &&
                     bracketEstimation &&
                     bracketEstimation.hardFloors.length > 0 && (
                       <span className="deck-stats-bracket-note">
                         {bracketEstimation.hardFloors[0].reason}
                       </span>
-                    )
-                  )}
+                    )}
                   {onSetBracketOverride && (
                     <label className="deck-stats-bracket-override">
                       <span>Set bracket</span>
@@ -3162,6 +3169,7 @@ function DeckAnalysisView({
                 <RolesPanel
                   roleCounts={effectiveRoleCounts}
                   roleTargets={roleTargets}
+                  density={roleDensity}
                   rampSubtypeCounts={effectiveRampSub}
                   removalSubtypeCounts={effectiveRemovalSub}
                   boardwipeSubtypeCounts={effectiveBoardwipeSub}
@@ -3237,6 +3245,7 @@ function Panel({
 function RolesPanel({
   roleCounts,
   roleTargets,
+  density,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -3244,6 +3253,8 @@ function RolesPanel({
 }: {
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
+  /** Overlapping multi-role counts (a card counts in every role it fills). */
+  density?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -3265,6 +3276,20 @@ function RolesPanel({
     const entries = Object.entries(counts).filter(([, v]) => v > 0);
     return entries.map(([k, v]) => `${v} ${k}`).join(' · ');
   };
+
+  // Density one-liner: how many cards fill each role counting overlaps, busiest
+  // first. Totals exceed the deck size because a card can do several jobs.
+  const densityLabels: Record<string, string> = {
+    cardDraw: 'Draw',
+    ramp: 'Ramp',
+    removal: 'Removal',
+    boardwipe: 'Wipes',
+  };
+  const densityEntries = density
+    ? Object.entries(density)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+    : [];
 
   const items = [
     {
@@ -3300,44 +3325,54 @@ function RolesPanel({
   const max = Math.max(1, ...items.map((it) => Math.max(it.value, it.want ?? 0)));
 
   return (
-    <ul className="deck-roles">
-      {items.map((it) => {
-        const hasTarget = typeof it.want === 'number';
-        const short = hasTarget && it.value < (it.want as number);
-        return (
-          <li key={it.label}>
-            <div className="deck-roles-row">
-              <span className="deck-roles-name">{it.label}</span>
-              <span className="deck-roles-count">
-                {hasTarget ? (
-                  <span className={short ? 'deck-roles-count-short' : undefined}>
-                    {it.value}/{it.want}
-                    {short && (
-                      <span
-                        title={`${(it.want as number) - it.value} short of target`}
-                        aria-label="below target"
-                      >
-                        {' '}
-                        ▾
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  it.value
-                )}
-              </span>
-            </div>
-            <div className="deck-roles-bar">
-              <div
-                className="deck-roles-bar-fill"
-                style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
-              />
-            </div>
-            {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {densityEntries.length > 0 && (
+        <div className="deck-roles-density">
+          <span className="deck-roles-density-line">
+            {densityEntries.map(([k, v]) => `${v} ${densityLabels[k] ?? k}`).join(' · ')}
+          </span>
+          <span className="deck-roles-density-note">cards fill multiple roles</span>
+        </div>
+      )}
+      <ul className="deck-roles">
+        {items.map((it) => {
+          const hasTarget = typeof it.want === 'number';
+          const short = hasTarget && it.value < (it.want as number);
+          return (
+            <li key={it.label}>
+              <div className="deck-roles-row">
+                <span className="deck-roles-name">{it.label}</span>
+                <span className="deck-roles-count">
+                  {hasTarget ? (
+                    <span className={short ? 'deck-roles-count-short' : undefined}>
+                      {it.value}/{it.want}
+                      {short && (
+                        <span
+                          title={`${(it.want as number) - it.value} short of target`}
+                          aria-label="below target"
+                        >
+                          {' '}
+                          ▾
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    it.value
+                  )}
+                </span>
+              </div>
+              <div className="deck-roles-bar">
+                <div
+                  className="deck-roles-bar-fill"
+                  style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
+                />
+              </div>
+              {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

@@ -2329,6 +2329,30 @@ input.toolbar-search-input {
   color: var(--text3);
 }
 
+/* Overlapping role-density one-liner above the per-role bars. Counts a card in
+   every role it fills, so totals run past the deck size — hence the caption. */
+.deck-roles-density {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.deck-roles-density-line {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-roles-density-note {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
 /* Types */
 .deck-stats-typelist {
   list-style: none;
