@@ -91,3 +91,66 @@ describe('ScryfallCache', () => {
     expect(cache.getMany(['a']).size).toBe(0);
   });
 });
+
+describe('ScryfallCache identifier lookups', () => {
+  it('returns an empty map for empty input', () => {
+    expect(cache.getManyByKeys([]).size).toBe(0);
+    cache.setLookups([]); // no-op, must not throw
+  });
+
+  it('resolves an identifier key to its card via the alias table', () => {
+    cache.setMany([card('id-a', 'Sol Ring')]);
+    cache.setLookups([{ key: 'ns:sol ring|cmr', scryfallId: 'id-a' }]);
+    const got = cache.getManyByKeys(['ns:sol ring|cmr']);
+    expect(got.get('ns:sol ring|cmr')?.name).toBe('Sol Ring');
+  });
+
+  it('omits keys with no alias', () => {
+    cache.setMany([card('id-a')]);
+    cache.setLookups([{ key: 'n:sol ring', scryfallId: 'id-a' }]);
+    const got = cache.getManyByKeys(['n:sol ring', 'n:unknown']);
+    expect(got.has('n:sol ring')).toBe(true);
+    expect(got.has('n:unknown')).toBe(false);
+  });
+
+  it('omits an alias whose underlying card is missing', () => {
+    // Alias points at a card we never stored — the JOIN finds nothing.
+    cache.setLookups([{ key: 'n:ghost', scryfallId: 'never-stored' }]);
+    expect(cache.getManyByKeys(['n:ghost']).size).toBe(0);
+  });
+
+  it('drops a stale alias even when the card is fresh', () => {
+    cache.setMany([card('id-a')]);
+    cache.setLookups([{ key: 'n:sol ring', scryfallId: 'id-a' }]);
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    (
+      cache as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      }
+    ).db
+      .prepare('UPDATE card_lookups SET cached_at = ? WHERE lookup_key = ?')
+      .run(eightDaysAgo, 'n:sol ring');
+    expect(cache.getManyByKeys(['n:sol ring']).size).toBe(0);
+  });
+
+  it('drops an alias when the underlying card is stale', () => {
+    cache.setMany([card('id-a')]);
+    cache.setLookups([{ key: 'n:sol ring', scryfallId: 'id-a' }]);
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    (
+      cache as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      }
+    ).db
+      .prepare('UPDATE cards SET cached_at = ? WHERE scryfall_id = ?')
+      .run(eightDaysAgo, 'id-a');
+    expect(cache.getManyByKeys(['n:sol ring']).size).toBe(0);
+  });
+
+  it('overwrites an alias on re-resolution to a different printing', () => {
+    cache.setMany([card('id-a', 'Sol Ring'), card('id-b', 'Sol Ring')]);
+    cache.setLookups([{ key: 'n:sol ring', scryfallId: 'id-a' }]);
+    cache.setLookups([{ key: 'n:sol ring', scryfallId: 'id-b' }]);
+    expect(cache.getManyByKeys(['n:sol ring']).get('n:sol ring')?.id).toBe('id-b');
+  });
+});

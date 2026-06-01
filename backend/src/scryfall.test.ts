@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, getCardById } from './scryfall';
+import {
+  resolveCards,
+  fetchCardsByIds,
+  fetchPrintings,
+  getCardById,
+  cardAliasKeys,
+} from './scryfall';
 import type { ScryfallCache } from './cache';
 import type { ScryfallCard } from './types';
 import type { ImportRow } from './parsers/types';
@@ -16,9 +22,14 @@ function card(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   };
 }
 
-function fakeCache(initial: ScryfallCard[] = []): ScryfallCache {
+function fakeCache(
+  initial: ScryfallCard[] = [],
+  initialLookups: Array<{ key: string; scryfallId: string }> = []
+): ScryfallCache {
   const map = new Map<string, ScryfallCard>();
+  const lookups = new Map<string, string>();
   for (const c of initial) map.set(c.id, c);
+  for (const l of initialLookups) lookups.set(l.key, l.scryfallId);
   return {
     getMany: vi.fn((ids: string[]) => {
       const out = new Map<string, ScryfallCard>();
@@ -30,6 +41,19 @@ function fakeCache(initial: ScryfallCard[] = []): ScryfallCache {
     }),
     setMany: vi.fn((cards: ScryfallCard[]) => {
       for (const c of cards) map.set(c.id, c);
+    }),
+    getManyByKeys: vi.fn((keys: string[]) => {
+      const out = new Map<string, ScryfallCard>();
+      for (const key of keys) {
+        const id = lookups.get(key);
+        if (id == null) continue;
+        const hit = map.get(id);
+        if (hit) out.set(key, hit);
+      }
+      return out;
+    }),
+    setLookups: vi.fn((entries: Array<{ key: string; scryfallId: string }>) => {
+      for (const e of entries) lookups.set(e.key, e.scryfallId);
     }),
   } as unknown as ScryfallCache;
 }
@@ -123,6 +147,64 @@ describe('resolveCards', () => {
     });
   });
 
+  it('resolves a name/set lookup from the alias cache without hitting the network', async () => {
+    const cached = card({ id: 'sf-1', name: 'Sol Ring', set: 'cmr' });
+    const cache = fakeCache([cached], [{ key: 'ns:sol ring|cmr', scryfallId: 'sf-1' }]);
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    const rows: ImportRow[] = [
+      { name: 'Sol Ring', setCode: 'CMR', quantity: 1, sourceFormat: 'plain' },
+    ];
+    const out = await resolveCards(rows, cache);
+    expect(out.resolved[0]).toBe(cached);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('records a name/set/collector -> id alias after resolving from the network', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({
+        object: 'list',
+        not_found: [],
+        data: [card({ id: 'sf-x', name: 'Lightning Bolt', set: 'lea', collector_number: '161' })],
+      })
+    );
+    const rows: ImportRow[] = [
+      {
+        name: 'Lightning Bolt',
+        setCode: 'LEA',
+        collectorNumber: '161',
+        quantity: 1,
+        sourceFormat: 'plain',
+      },
+    ];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    await promise;
+    expect(cache.setLookups).toHaveBeenCalledWith([
+      { key: 'nsc:lightning bolt|lea|161', scryfallId: 'sf-x' },
+    ]);
+    // A second resolution of the same row now hits the alias cache — no new fetch.
+    const fetchSpy = vi.spyOn(global, 'fetch');
+    fetchSpy.mockClear();
+    const out2 = await resolveCards(rows, cache);
+    expect(out2.resolved[0]?.id).toBe('sf-x');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not record an alias for id-based lookups', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ object: 'list', not_found: [], data: [card({ id: 'sf-1' })] })
+    );
+    const rows: ImportRow[] = [
+      { scryfallId: 'sf-1', name: 'Sol Ring', quantity: 1, sourceFormat: 'plain' },
+    ];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    await promise;
+    expect(cache.setLookups).not.toHaveBeenCalled();
+  });
+
   it('reports rows with no Scryfall match in unresolvedNames', async () => {
     const cache = fakeCache();
     vi.spyOn(global, 'fetch').mockResolvedValue(
@@ -133,6 +215,32 @@ describe('resolveCards', () => {
     await vi.runAllTimersAsync();
     const out = await promise;
     expect(out.unresolvedNames).toEqual(['Notacard']);
+  });
+
+  it('resolves more identifiers than fit in one batch across concurrent requests', async () => {
+    const cache = fakeCache();
+    // Echo back a card for every identifier the batch asked for, so each name resolves.
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      const body = JSON.parse((init as RequestInit).body as string) as {
+        identifiers: Array<{ name: string }>;
+      };
+      const data = body.identifiers.map((ident, i) =>
+        card({ id: `sf-${ident.name}-${i}`, name: ident.name })
+      );
+      return Promise.resolve(jsonResponse({ object: 'list', not_found: [], data }));
+    });
+    // 160 distinct names → 3 batches of 75/75/10.
+    const rows: ImportRow[] = Array.from({ length: 160 }, (_, i) => ({
+      name: `Card ${i}`,
+      quantity: 1,
+      sourceFormat: 'plain' as const,
+    }));
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(out.resolved.every((c) => c !== undefined)).toBe(true);
+    expect(out.unresolvedNames).toEqual([]);
   });
 
   it('normalizes split / DFC names to the front face', async () => {
@@ -151,6 +259,31 @@ describe('resolveCards', () => {
     expect(out.resolved[0]?.id).toBe('sf-d');
     const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
     expect(body.identifiers[0]).toEqual({ name: 'Front' });
+  });
+});
+
+describe('cardAliasKeys', () => {
+  it('produces ns + nsc keys matching the runtime lookup shape', () => {
+    expect(cardAliasKeys({ name: 'Sol Ring', set: 'CMR', collector_number: '472' })).toEqual([
+      'ns:sol ring|cmr',
+      'nsc:sol ring|cmr|472',
+    ]);
+  });
+
+  it('omits nsc when there is no collector number', () => {
+    expect(cardAliasKeys({ name: 'Sol Ring', set: 'cmr' })).toEqual(['ns:sol ring|cmr']);
+  });
+
+  it('keys split / DFC cards by their front face', () => {
+    expect(cardAliasKeys({ name: 'Front // Back', set: 'mid', collector_number: '50' })).toEqual([
+      'ns:front|mid',
+      'nsc:front|mid|50',
+    ]);
+  });
+
+  it('returns no keys when name or set is missing', () => {
+    expect(cardAliasKeys({ name: '', set: 'cmr' })).toEqual([]);
+    expect(cardAliasKeys({ name: 'Sol Ring', set: '' })).toEqual([]);
   });
 });
 

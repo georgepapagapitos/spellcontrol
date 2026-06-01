@@ -101,11 +101,13 @@ describe('api', () => {
   it('importText surfaces a chunk failure with batch context after retries exhaust', async () => {
     const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
     const text = lines.join('\n');
-    // First chunk succeeds; second fails 3 times (initial + 2 retries).
+    // One chunk succeeds; the rest fail 3 times (initial + 2 retries). Chunks
+    // upload concurrently, so which failing batch loses the race first is timing
+    // dependent — assert the batch-context shape, not a specific batch number.
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(uploadOk({ totalRows: 500 }))
       .mockRejectedValue(new TypeError('failed to fetch'));
-    await expect(importText(text)).rejects.toThrow(/batch 2 of 3/);
+    await expect(importText(text)).rejects.toThrow(/Import failed on batch \d+ of 3/);
   });
 
   it('atomicity: a mid-chunk failure leaves the caller with NO partial data', async () => {

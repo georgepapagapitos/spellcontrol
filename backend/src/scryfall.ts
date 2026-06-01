@@ -6,14 +6,63 @@ import type { ImportRow } from './parsers/types';
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
 const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 const BATCH_SIZE = 75;
-/** Scryfall asks for 50–100ms between requests, but tightens this under sustained load. */
-const REQUEST_DELAY_MS = 250;
+/**
+ * Scryfall asks for 50–100ms between requests. We pace request *starts* this far
+ * apart globally (across concurrent workers) so the aggregate stays within their
+ * ~10 req/s ceiling regardless of how many batches are in flight.
+ */
+const REQUEST_DELAY_MS = 100;
+/**
+ * How many collection batches we allow in flight at once. Concurrency hides
+ * per-request round-trip latency (the real cost of a cold import); REQUEST_DELAY_MS
+ * spacing keeps the aggregate rate safe. The 429 backoff in fetchBatchWithRetry is
+ * the safety net if we still push too hard.
+ */
+const BATCH_CONCURRENCY = 3;
 /** When we hit a 429, wait at least this long before retrying (we also honor Retry-After). */
 const MIN_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
 const MAX_RETRIES = 5;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Spaces request *starts* at least `minSpacingMs` apart across all callers, even
+ * when several run concurrently. Call (and await) the returned function immediately
+ * before each request so the aggregate rate stays within Scryfall's ceiling.
+ */
+function createRateGate(minSpacingMs: number): () => Promise<void> {
+  let nextAllowedStart = 0;
+  return async () => {
+    const now = Date.now();
+    const start = Math.max(now, nextAllowedStart);
+    nextAllowedStart = start + minSpacingMs;
+    const wait = start - now;
+    if (wait > 0) await sleep(wait);
+  };
+}
+
+/**
+ * Runs `worker` over `items` with at most `concurrency` in flight; results come
+ * back in input order. Workers here never throw (fetchBatchWithRetry resolves to
+ * null on failure), so the run never rejects.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const run = async (): Promise<void> => {
+    for (let i = next++; i < items.length; i = next++) {
+      results[i] = await worker(items[i], i);
+    }
+  };
+  const runnerCount = Math.max(1, Math.min(concurrency, items.length));
+  await Promise.all(Array.from({ length: runnerCount }, run));
+  return results;
+}
 
 /** Identifier shapes that Scryfall's /cards/collection endpoint accepts. */
 type Identifier =
@@ -87,6 +136,21 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
     }
   }
 
+  // For name/set/collector identifiers, resolve via the alias table. This is the
+  // common case (Moxfield / Archidekt / Deckbox / generic CSV / text lists) and
+  // previously always went to the network — so re-importing the same file refetched
+  // every card. Aliases are recorded after each successful batch below.
+  const nameKeys = Array.from(identifierByKey.keys()).filter((key) => !key.startsWith('id:'));
+  if (nameKeys.length > 0) {
+    const cachedByKey = cache.getManyByKeys(nameKeys);
+    for (const [key, card] of cachedByKey) {
+      for (const rowIdx of rowIdxsByKey.get(key)!) {
+        resolved[rowIdx] = card;
+      }
+      identifierByKey.delete(key); // resolved — don't fetch again
+    }
+  }
+
   if (identifierByKey.size === 0) {
     return { resolved, unresolvedNames: [] };
   }
@@ -95,13 +159,19 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
     `[scryfall] resolving ${identifierByKey.size} unique identifiers across ${rows.length} rows`
   );
 
-  // Step 3: batch the remaining identifiers. We send each unique identifier exactly once.
+  // Step 3: batch the remaining identifiers. We send each unique identifier exactly
+  // once, with up to BATCH_CONCURRENCY batches in flight. A shared rate gate spaces
+  // request starts so the aggregate rate stays within Scryfall's ceiling.
   const pendingEntries = Array.from(identifierByKey.entries());
-
+  const batches: Array<Array<[string, Identifier]>> = [];
   for (let i = 0; i < pendingEntries.length; i += BATCH_SIZE) {
-    const batch = pendingEntries.slice(i, i + BATCH_SIZE);
-    const batchNum = Math.floor(i / BATCH_SIZE);
+    batches.push(pendingEntries.slice(i, i + BATCH_SIZE));
+  }
 
+  const gate = createRateGate(REQUEST_DELAY_MS);
+
+  await mapWithConcurrency(batches, BATCH_CONCURRENCY, async (batch, batchNum) => {
+    await gate();
     const json = await fetchBatchWithRetry(
       batch.map(([, ident]) => ident),
       batchNum
@@ -111,25 +181,29 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
       logger.warn(
         `[scryfall] batch ${batchNum} returned no data, skipping ${batch.length} identifiers`
       );
-      continue;
+      return;
     }
 
+    // Record name/set/collector -> id aliases so a future import of the same file
+    // resolves from cache instead of the network. ID identifiers already resolve
+    // via the cards table, so they need no alias.
+    const aliases: Array<{ key: string; scryfallId: string }> = [];
     for (const [key, ident] of batch) {
       const card = json.data.find((c) => identifierMatchesCard(ident, c));
       if (card) {
         for (const rowIdx of rowIdxsByKey.get(key)!) {
           resolved[rowIdx] = card;
         }
+        if (!key.startsWith('id:')) aliases.push({ key, scryfallId: card.id });
       }
     }
     if (json.data.length > 0) {
       cache.setMany(json.data);
     }
-
-    if (i + BATCH_SIZE < pendingEntries.length) {
-      await sleep(REQUEST_DELAY_MS);
+    if (aliases.length > 0) {
+      cache.setLookups(aliases);
     }
-  }
+  });
 
   // Step 4: collect names of rows that never resolved.
   const unresolvedNames: string[] = [];
@@ -260,6 +334,15 @@ function parseRetryAfter(header: string): number {
   return MIN_BACKOFF_MS;
 }
 
+// Key builders shared between runtime lookups (identifierKey) and bulk-ingest
+// alias generation (cardAliasKeys) so the two can never drift. `name` is expected
+// to already be the front face (see buildIdentifier / cardAliasKeys); set is
+// lowercased here, collector is kept verbatim (it can carry letters/symbols).
+const nsKeyFor = (name: string, set: string): string =>
+  `ns:${name.toLowerCase()}|${set.toLowerCase()}`;
+const nscKeyFor = (name: string, set: string, collector: string): string =>
+  `nsc:${name.toLowerCase()}|${set.toLowerCase()}|${collector}`;
+
 /**
  * Stable key for an identifier so multiple rows that ask for the same Scryfall lookup
  * can share a single resolution.
@@ -268,10 +351,35 @@ function identifierKey(ident: Identifier): string {
   if ('id' in ident) return `id:${ident.id}`;
   const name = ident.name.toLowerCase();
   if ('collector_number' in ident && 'set' in ident) {
-    return `nsc:${name}|${ident.set.toLowerCase()}|${ident.collector_number}`;
+    return nscKeyFor(ident.name, ident.set, ident.collector_number);
   }
-  if ('set' in ident) return `ns:${name}|${ident.set.toLowerCase()}`;
+  if ('set' in ident) return nsKeyFor(ident.name, ident.set);
   return `n:${name}`;
+}
+
+/**
+ * The alias keys a card should be cached under so a future name/set/collector
+ * import row resolves to it from {@link ScryfallCache.getManyByKeys}. Mirrors the
+ * keys {@link identifierKey} produces for the corresponding import-row identifiers
+ * (front-face name, lowercased set). Used by the bulk-data ingest to pre-populate
+ * the alias table.
+ *
+ * Deliberately omits the bare `n:` (name-only) key: a name maps to many printings
+ * and Scryfall applies its own "best printing" heuristic for name-only lookups,
+ * which we don't replicate. Bare-name rows keep falling back to the network (and
+ * the resolved choice is then recorded lazily, preserving Scryfall's selection).
+ */
+export function cardAliasKeys(card: {
+  name: string;
+  set: string;
+  collector_number?: string;
+}): string[] {
+  const frontName = card.name.split(' // ')[0].trim();
+  if (!frontName || !card.set) return [];
+  const keys = [nsKeyFor(frontName, card.set)];
+  const collector = card.collector_number?.trim();
+  if (collector) keys.push(nscKeyFor(frontName, card.set, collector));
+  return keys;
 }
 
 /**

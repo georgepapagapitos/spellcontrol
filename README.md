@@ -169,6 +169,7 @@ The backend reads:
 - `ADMIN_USERNAMES` — optional, comma-separated list of usernames that should hold the `admin` role. On boot, any matching existing user is promoted (additively — names removed from the list keep their role). New registrations matching this list are promoted at insert time. Admins see an extra "Admin — manage users" card on the Settings page, where they can list users, see per-account storage size, and delete accounts.
 - `OFFLINE_BULK_DISABLED` — optional. Set to `1` to disable the daily Scryfall oracle bulk refresh. The bulk itself is built lazily on the first request to `/api/offline/oracle-cards`; this flag opts out of the once-a-day rebuild thereafter (the cached payload keeps serving). Useful on tightly memory-constrained hosts where the periodic ~1GB peak isn't worth it.
 - `COMBOS_INGEST_DISABLED` — optional. Set to `1` to skip the nightly Commander Spellbook ingest. The existing dataset keeps serving.
+- `SCRYFALL_BULK_INGEST_DISABLED` — optional. Set to `1` to skip the daily Scryfall `default_cards` bulk ingest into the SQLite card cache. With it disabled, imports still resolve — they just fall back to the live Scryfall API for cards not already cached on demand (the pre-ingest behavior). The ingest pre-populates the `cards` + `card_lookups` tables so re-importing a collection resolves locally with no network calls; it streams the dump (memory stays flat) and a meta file (`scryfall-bulk.meta.json`, co-located with `DB_PATH`) skips a re-pull within 20h of the last run.
 - `PORT` (default `3737`), `DB_PATH` (default `backend/data/scryfall-cache.db`).
 - `OFFLINE_DATA_DIR` — optional. Directory where the persisted Scryfall oracle bulk (`offline-oracle.json.gz` + `offline-oracle.meta.json`) is written and read. Defaults to `dirname(DB_PATH)` so the bulk co-locates with the SQLite cache (a single `/data` mount survives container recreates). Set explicitly only for custom layouts.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `OAUTH_WEB_REDIRECT_URI`, `OAUTH_NATIVE_REDIRECT_URI` — optional. Enable "Continue with Google" SSO when all four are set; with any unset, the `/api/auth/google*` routes return 503 and the frontend hides the button. Create an OAuth 2.0 Client (Web application type) in the Google Cloud Console and register the redirect URIs you use. See `.env.example` for the values you'll want in dev vs prod.
@@ -210,7 +211,9 @@ All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 ## Tweakables
 
 - Cache TTL — `TTL_MS` in [backend/src/cache.ts](backend/src/cache.ts)
-- Scryfall batch size and rate limit — top of [backend/src/scryfall.ts](backend/src/scryfall.ts)
+- Scryfall batch size, batch concurrency, and inter-batch delay — top of [backend/src/scryfall.ts](backend/src/scryfall.ts) (`BATCH_SIZE`, `BATCH_CONCURRENCY`, `REQUEST_DELAY_MS`)
+- Import chunk size and client upload concurrency — top of [frontend/src/lib/api.ts](frontend/src/lib/api.ts) (`IMPORT_CHUNK_SIZE`, `IMPORT_CHUNK_CONCURRENCY`)
+- Scryfall bulk ingest flush size — `FLUSH_AT` in [backend/src/scryfall-bulk.ts](backend/src/scryfall-bulk.ts)
 - Rate limits — `importLimiter` and `priceLimiter` in [backend/src/server.ts](backend/src/server.ts)
 - Default sorts for new binders — `NEW_BINDER_DEFAULT_SORTS` in [frontend/src/lib/sorting.ts](frontend/src/lib/sorting.ts)
 - Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/BinderEditor.tsx](frontend/src/components/BinderEditor.tsx)
