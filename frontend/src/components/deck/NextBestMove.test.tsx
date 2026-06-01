@@ -30,11 +30,28 @@ describe('NextBestMove', () => {
     expect(screen.getByText(/Light on ramp/)).toBeTruthy();
   });
 
-  it('fires onNavigate with the move destination', () => {
+  it('fires onNavigate with the move destination and focus', () => {
     const onNavigate = vi.fn();
     render(<NextBestMove moves={moves} onNavigate={onNavigate} />);
     fireEvent.click(screen.getByRole('button', { name: 'Go to Tune' }));
-    expect(onNavigate).toHaveBeenCalledWith('tune');
+    expect(onNavigate).toHaveBeenCalledWith('tune', undefined);
+  });
+
+  it('passes a panel focus hint through onNavigate (combo → Power)', () => {
+    const onNavigate = vi.fn();
+    const comboMove: Move[] = [
+      {
+        id: 'combo-x',
+        tier: 3,
+        title: 'Complete a combo',
+        detail: "You're one card from Infinite mana.",
+        navigateTo: 'power',
+        focus: 'combos',
+      },
+    ];
+    render(<NextBestMove moves={comboMove} onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Power' }));
+    expect(onNavigate).toHaveBeenCalledWith('power', 'combos');
   });
 
   it('renders no navigate button when onNavigate is absent', () => {

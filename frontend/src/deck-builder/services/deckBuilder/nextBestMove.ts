@@ -20,6 +20,9 @@ export interface NextBestMove {
   cardName?: string;
   /** Analysis view this move deep-links to. */
   navigateTo?: DeckView;
+  /** After navigating to `navigateTo`, reveal a specific panel within that view.
+   *  `'combos'` expands + scrolls the Combos panel and opens its one-away tab. */
+  focus?: 'combos';
 }
 
 export interface NextBestMoveInput {
@@ -224,6 +227,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         cardName: missingName,
         detail: `You're one card from ${produces}. Add ${missingName} to complete the combo.`,
         navigateTo: 'power',
+        focus: 'combos',
       });
       usedCards.add(missingName);
       break;

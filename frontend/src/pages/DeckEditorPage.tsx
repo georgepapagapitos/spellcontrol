@@ -13,7 +13,7 @@ import { Tabs } from '../components/Tabs';
 import { materializeBinders } from '../lib/materialize';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
-import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
+import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
@@ -110,6 +110,22 @@ export function DeckEditorPage() {
   }, []);
   // Chip / keyboard deep-links target a specific analysis view.
   const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
+
+  // The Combos panel lives inside the Power bento; switching to Power lands on
+  // the top of the bento, not the panel. A next-best-move with focus 'combos'
+  // (the "Complete a combo" suggestion) reveals + scrolls the panel and opens
+  // its one-away tab. The panel only mounts once Power is active, so reveal on
+  // the next frame, after the view switch has committed.
+  const combosRef = useRef<DeckCombosPanelHandle>(null);
+  const handleNbmNavigate = useCallback(
+    (next: DeckView, focus?: 'combos') => {
+      openView(next);
+      if (focus === 'combos') {
+        window.requestAnimationFrame(() => combosRef.current?.reveal('oneAway'));
+      }
+    },
+    [openView]
+  );
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -938,6 +954,7 @@ export function DeckEditorPage() {
             combosSlot={
               formatConfig?.hasCommander ? (
                 <DeckCombosPanel
+                  ref={combosRef}
                   embedded
                   deckId={deck.id}
                   deckOracleIds={deckOracleIds}
@@ -961,7 +978,7 @@ export function DeckEditorPage() {
             }
             nextBestMoveSlot={
               nextBestMoves.length > 0 ? (
-                <NextBestMove moves={nextBestMoves} onNavigate={openView} />
+                <NextBestMove moves={nextBestMoves} onNavigate={handleNbmNavigate} />
               ) : undefined
             }
             optimizeSlot={

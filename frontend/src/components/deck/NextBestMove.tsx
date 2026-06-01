@@ -13,7 +13,8 @@ const VIEW_LABELS: Record<DeckView, string> = {
 
 export interface NextBestMoveProps {
   moves: NextBestMove[];
-  onNavigate?: (view: DeckView) => void;
+  /** Deep-link to an analysis view; `focus` optionally targets a panel within it. */
+  onNavigate?: (view: DeckView, focus?: NextBestMove['focus']) => void;
 }
 
 /**
@@ -54,7 +55,7 @@ export function NextBestMove({ moves, onNavigate }: NextBestMoveProps): JSX.Elem
               <button
                 type="button"
                 className="next-best-move-nav"
-                onClick={() => onNavigate(move.navigateTo!)}
+                onClick={() => onNavigate(move.navigateTo!, move.focus)}
                 aria-label={`Go to ${VIEW_LABELS[move.navigateTo]}`}
               >
                 <span className="next-best-move-nav-label">{VIEW_LABELS[move.navigateTo]}</span>
