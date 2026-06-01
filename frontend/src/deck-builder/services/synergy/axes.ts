@@ -26,7 +26,8 @@ export type AxisKey =
   | 'equipment'
   | 'spellslinger'
   | 'enchantress'
-  | 'superfriends';
+  | 'superfriends'
+  | 'tribal';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -306,6 +307,33 @@ const superfriends: SynergyAxis = {
   },
 };
 
+const tribal: SynergyAxis = {
+  key: 'tribal',
+  label: 'Tribal / typal',
+  producer(card) {
+    // The typal "engine" is a shared creature type. Producers select/grant it:
+    // "choose a creature type" selectors and changelings (every creature type).
+    // NOTE: specific-type lords ("Other Goblins get +1/+1") are deliberately NOT
+    // generalized — that needs a creature-type list and would be brittle; this
+    // axis recognizes the colorless "chosen type" / changeling staples that
+    // appear across typal decks, like the other axes' partial heuristics.
+    if (/choose a creature type/.test(card.oracle)) return 'chooses a creature type';
+    if (
+      has(card, 'changeling') ||
+      /\bchangeling\b/.test(card.oracle) ||
+      /every creature type|all creature types/.test(card.oracle)
+    )
+      return 'changeling / every creature type';
+    return null;
+  },
+  payoff(card) {
+    if (/of the chosen type/.test(card.oracle)) return 'rewards your chosen creature type';
+    if (/shares?(?: at least one| a)? creature type/.test(card.oracle))
+      return 'rewards shared creature types';
+    return null;
+  },
+};
+
 export const AXES: SynergyAxis[] = [
   tokens,
   counters,
@@ -318,4 +346,5 @@ export const AXES: SynergyAxis[] = [
   spellslinger,
   enchantress,
   superfriends,
+  tribal,
 ];
