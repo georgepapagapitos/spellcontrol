@@ -140,6 +140,16 @@ export function DeckEditorPage() {
     return m;
   }, [deck]);
 
+  // Name → the actual deck printing. Feeds Optimize's Remove column so its card
+  // preview shows the printing in the deck (matching the thumbnail) instead of
+  // the default printing the carousel would otherwise fetch by name.
+  const deckCardsByName = useMemo(() => {
+    const m = new Map<string, ScryfallCard>();
+    if (!deck) return m;
+    for (const c of deck.cards) if (!m.has(c.card.name)) m.set(c.card.name, c.card);
+    return m;
+  }, [deck]);
+
   // Oracle ids of every card in the deck — fed to the combos panel so it can
   // bucket combos against the deck. `oracle_id` is on ScryfallCard; cards
   // imported before that field landed may lack it (combos for those rows just
@@ -994,6 +1004,7 @@ export function DeckEditorPage() {
                   swaps={deck.optimizeSwaps}
                   currentSize={deck.cards.length}
                   ownedNames={ownedNames}
+                  removalCards={deckCardsByName}
                   onApply={handleApplyOptimize}
                   applying={applyingOptimize}
                 />

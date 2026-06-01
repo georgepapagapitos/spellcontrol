@@ -1,6 +1,7 @@
 import './OptimizePanel.css';
 import { useMemo, useState } from 'react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { useOptimizePlan, type OptimizeSide, type TriState } from './useOptimizePlan';
 import { useCardCarousel } from './useCardCarousel';
 import { OwnershipBadge } from './OwnershipBadge';
@@ -11,6 +12,10 @@ export interface OptimizePanelProps {
   currentSize: number;
   /** Card names the player already owns — surfaces an "Owned" badge on adds. */
   ownedNames?: Set<string>;
+  /** Actual deck `ScryfallCard`s by name, for the Remove column. Lets the card
+   *  preview show the exact printing in the deck instead of re-fetching the
+   *  default printing by name (which can differ from the thumbnail). */
+  removalCards?: ReadonlyMap<string, ScryfallCard>;
   /** Commit the plan. Receives checked removal + addition names. */
   onApply: (removalNames: string[], additionNames: string[]) => void | Promise<void>;
   /** Disables the Apply button + checkboxes while a commit is in flight. */
@@ -255,7 +260,7 @@ function OptimizeColumn({
   ownedNames: Set<string>;
   applying: boolean;
   /** Open the card-detail carousel over this column's cards, at `name`. */
-  onPreview: (cards: OptimizeCard[], name: string) => void;
+  onPreview: (cards: OptimizeCard[], name: string, side: OptimizeSide) => void;
   /** Shown in place of the tiles when this column has no groups. */
   emptyHint?: string;
 }) {
@@ -306,7 +311,7 @@ function OptimizeColumn({
                   checked={isChecked(card.name)}
                   owned={side === 'add' && ownedNames.has(card.name)}
                   onToggle={() => plan.toggle(side, card.name)}
-                  onPreview={() => onPreview(allCards, card.name)}
+                  onPreview={() => onPreview(allCards, card.name, side)}
                   disabled={applying}
                 />
               ))}
@@ -322,6 +327,7 @@ export function OptimizePanel({
   swaps,
   currentSize,
   ownedNames,
+  removalCards,
   onApply,
   applying = false,
 }: OptimizePanelProps): JSX.Element {
@@ -329,10 +335,16 @@ export function OptimizePanel({
 
   const carousel = useCardCarousel('Optimize suggestions');
   // Open the carousel over a column's cards, labelled with each card's role +
-  // inclusion, starting at the tapped one.
-  const openPreview = (cards: OptimizeCard[], tappedName: string) =>
+  // inclusion, starting at the tapped one. For the Remove column, pass the
+  // actual deck card so the preview shows the printing in the deck (matching
+  // the thumbnail) rather than the default printing fetched by name.
+  const openPreview = (cards: OptimizeCard[], tappedName: string, side: OptimizeSide) =>
     void carousel.open(
-      cards.map((c) => ({ name: c.name, label: inclusionMeta(c) })),
+      cards.map((c) => ({
+        name: c.name,
+        label: inclusionMeta(c),
+        card: side === 'remove' ? removalCards?.get(c.name) : undefined,
+      })),
       tappedName
     );
 
