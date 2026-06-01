@@ -952,6 +952,7 @@ export function DeckEditorPage() {
             boardwipeSubtypeCounts={deck.boardwipeSubtypeCounts}
             cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
             bracketEstimation={deck.bracketEstimation}
+            deckCardsByName={deckCardsByName}
             bracketOverride={deck.bracketOverride}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             deckGrade={deck.deckGrade}

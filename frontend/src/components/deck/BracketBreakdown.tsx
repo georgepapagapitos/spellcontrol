@@ -1,7 +1,12 @@
 import './BracketBreakdown.css';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
+
+/** Actual deck `ScryfallCard`s by name. Passed so the card preview shows the
+ *  printing in the deck instead of re-fetching the default printing by name. */
+type DeckCardMap = ReadonlyMap<string, ScryfallCard>;
 
 // Mirror the soft-score formula in estimateBracket() so the bars reflect the
 // actual per-component contributions. Keep these in lockstep with
@@ -20,10 +25,14 @@ const INTERACTION_CAP = 15;
 const ELEVATE_BUMP_THRESHOLD = 66;
 const ELEVATE_CEDH_THRESHOLD = 80;
 
-function CardChips({ names }: { names: string[] }) {
+function CardChips({ names, deckCardsByName }: { names: string[]; deckCardsByName?: DeckCardMap }) {
   const carousel = useCardCarousel('Bracket cards');
   if (names.length === 0) return null;
-  const entries = names.map((name) => ({ name, label: 'Contributing card' }));
+  const entries = names.map((name) => ({
+    name,
+    label: 'Contributing card',
+    card: deckCardsByName?.get(name),
+  }));
   return (
     <>
       <ul className="bracket-breakdown-chips">
@@ -72,12 +81,14 @@ function SoftScoreRow({
   max,
   detail,
   chips,
+  deckCardsByName,
 }: {
   label: string;
   value: number;
   max: number;
   detail: string;
   chips?: string[];
+  deckCardsByName?: DeckCardMap;
 }) {
   const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
@@ -93,13 +104,19 @@ function SoftScoreRow({
       </div>
       <div className="deck-bracket-cell deck-bracket-cell-detail" role="cell">
         <p className="bracket-breakdown-bar-detail">{detail}</p>
-        {chips && <CardChips names={chips} />}
+        {chips && <CardChips names={chips} deckCardsByName={deckCardsByName} />}
       </div>
     </div>
   );
 }
 
-export function BracketBreakdown({ estimation }: { estimation: BracketEstimation }): JSX.Element {
+export function BracketBreakdown({
+  estimation,
+  deckCardsByName,
+}: {
+  estimation: BracketEstimation;
+  deckCardsByName?: DeckCardMap;
+}): JSX.Element {
   const { breakdown, hardFloors, softScore, bracket, label } = estimation;
 
   const floor = hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : 1;
@@ -160,7 +177,7 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
                     {comboNote && (
                       <span className="bracket-breakdown-floor-detail">{comboNote}</span>
                     )}
-                    <CardChips names={chips} />
+                    <CardChips names={chips} deckCardsByName={deckCardsByName} />
                   </div>
                 </div>
               );
@@ -191,6 +208,7 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
                 : 'No fast mana sources'
             }
             chips={breakdown.fastManaNames}
+            deckCardsByName={deckCardsByName}
           />
           <SoftScoreRow
             label="Tutors"
@@ -202,6 +220,7 @@ export function BracketBreakdown({ estimation }: { estimation: BracketEstimation
                 : 'No tutors detected'
             }
             chips={breakdown.tutorNames}
+            deckCardsByName={deckCardsByName}
           />
           <SoftScoreRow
             label="Low curve"

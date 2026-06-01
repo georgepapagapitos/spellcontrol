@@ -287,6 +287,9 @@ export interface DeckDisplayProps {
   sideboard?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
+  /** Actual deck cards by name — lets bracket-breakdown card previews show the
+   *  deck's printing instead of the default printing fetched by name. */
+  deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   /** User-pinned bracket (1–5); when set it overrides the auto estimate. */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
@@ -765,6 +768,7 @@ export function DeckDisplay({
   cards,
   sideboard = [],
   bracketEstimation,
+  deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
   deckGrade,
@@ -1650,6 +1654,7 @@ export function DeckDisplay({
             allCards={allCards}
             manaData={manaData}
             bracketEstimation={bracketEstimation}
+            deckCardsByName={deckCardsByName}
             bracketOverride={bracketOverride}
             onSetBracketOverride={onSetBracketOverride}
             roleCounts={roleCounts}
@@ -2974,6 +2979,7 @@ function DeckAnalysisView({
   allCards,
   manaData,
   bracketEstimation,
+  deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
   roleCounts,
@@ -3003,6 +3009,7 @@ function DeckAnalysisView({
   allCards: ScryfallCard[];
   manaData: DeckManaData;
   bracketEstimation?: BracketEstimation;
+  deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   roleCounts?: Record<string, number>;
@@ -3207,7 +3214,12 @@ function DeckAnalysisView({
                       </select>
                     </label>
                   )}
-                  {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
+                  {bracketEstimation && (
+                    <BracketBreakdown
+                      estimation={bracketEstimation}
+                      deckCardsByName={deckCardsByName}
+                    />
+                  )}
                 </div>
               </Panel>
             )}
