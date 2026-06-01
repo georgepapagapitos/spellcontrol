@@ -1735,6 +1735,20 @@ export function DeckDisplay({
                   }
                   binders={pinnedBinders}
                   otherDecks={pinnedOtherDecks}
+                  qty={pinnedRow?.qty ?? 1}
+                  onSetQty={
+                    onSetQty && pinnedRow ? (qty) => onSetQty(pinnedRow.card, qty) : undefined
+                  }
+                  onCut={
+                    onRemoveCard && pinnedRow && pinnedRow.slotIds.length > 0
+                      ? () => onRemoveCard(pinnedRow.slotIds[pinnedRow.slotIds.length - 1])
+                      : undefined
+                  }
+                  onEditPrinting={
+                    onEditCard && pinnedRow?.slotIds[0]
+                      ? () => onEditCard(pinnedRow.slotIds[0], pinnedRow.card)
+                      : undefined
+                  }
                   onCollapse={() => handlePaneOpenChange(false)}
                   onClear={() => setPinnedName(null)}
                 />
