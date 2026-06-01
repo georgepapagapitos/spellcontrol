@@ -8,6 +8,7 @@ import { searchValidPartners } from '@/deck-builder/services/scryfall/client';
 import { fetchPartnerPopularity } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
+import { OwnershipBadge } from './OwnershipBadge';
 import { ManaCost } from '../ManaCost';
 
 interface Props {
@@ -292,7 +293,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
                           <span className="commander-search-item-type">{card.type_line}</span>
                         </span>
                         <span className="partner-result-meta">
-                          {owned && <span className="partner-result-owned">Owned</span>}
+                          <OwnershipBadge owned={owned} />
                           {count > 0 && (
                             <span className="partner-result-count">{formatDeckCount(count)}</span>
                           )}
