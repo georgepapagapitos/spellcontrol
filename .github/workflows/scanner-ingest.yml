@@ -50,16 +50,22 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
+      # Build the shared file: deps BEFORE the consumer's npm ci. Their dist
+      # is gitignored, so a fresh checkout has none; building here makes the
+      # dist-guarded `prepare` a no-op when backend installs. If backend's
+      # `npm ci` ran first it would trigger binder-routing's build with no
+      # devDeps installed → TS2688 "Cannot find type definition file for
+      # 'node'". (Mirrors the ordering in ci.yml's frontend job.)
       - name: Build shared packages
         run: |
           npm --prefix packages/game-core ci --ignore-scripts
           npm --prefix packages/game-core run build
           npm --prefix packages/binder-routing ci --ignore-scripts
           npm --prefix packages/binder-routing run build
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
 
       - name: Ingest pHashes
         working-directory: backend
