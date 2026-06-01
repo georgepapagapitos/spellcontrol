@@ -33,12 +33,7 @@ import {
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
-import {
-  computePlanScore,
-  type PlanScore,
-  type StrategyInputs,
-  type StrategyEngineInput,
-} from './planScore';
+import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
 import {
@@ -185,53 +180,6 @@ export function buildCardSynergyMap(
     if (val != null) map[name] = val;
   }
   return map;
-}
-
-/**
- * Derive the PlanScore "strategy" inputs from the commander's EDHREC data —
- * no extra network calls. A deck card "reinforces the plan" when EDHREC marks
- * it a theme-synergy card for this commander, or its synergy clears a modest
- * floor (i.e. it shows up meaningfully more with this commander than at large).
- * The top-synergy cards become the coverage target; the commander's headline
- * theme names the plan. Returns null when no synergy signal exists (e.g. an
- * obscure commander) — strategy then scores `partial` and drops out.
- */
-const STRATEGY_SYNERGY_FLOOR = 0.15;
-
-export function buildStrategyInputs(
-  edhrecData: EDHRECCommanderData,
-  nonLandCards: ScryfallCard[]
-): StrategyInputs | null {
-  const byName = new Map<string, { synergy: number; isTheme: boolean }>();
-  for (const c of edhrecData.cardlists.allNonLand) {
-    byName.set(c.name.toLowerCase(), {
-      synergy: c.synergy ?? 0,
-      isTheme: !!c.isThemeSynergyCard,
-    });
-  }
-  const reinforces = (entry: { synergy: number; isTheme: boolean } | undefined) =>
-    !!entry && (entry.isTheme || entry.synergy >= STRATEGY_SYNERGY_FLOOR);
-
-  const themeByCard = new Set<string>();
-  for (const c of nonLandCards) {
-    const key = c.name.toLowerCase();
-    if (reinforces(byName.get(key))) themeByCard.add(key);
-  }
-
-  const topThemeCardNames = edhrecData.cardlists.allNonLand
-    .filter((c) => reinforces({ synergy: c.synergy ?? 0, isTheme: !!c.isThemeSynergyCard }))
-    .sort((a, b) => (b.synergy ?? 0) - (a.synergy ?? 0))
-    .slice(0, 60)
-    .map((c) => c.name);
-
-  if (themeByCard.size === 0 && topThemeCardNames.length === 0) return null;
-
-  return {
-    nonLandCards,
-    themeByCard,
-    topThemeCardNames,
-    planName: edhrecData.themes?.[0]?.name ?? null,
-  };
 }
 
 /**

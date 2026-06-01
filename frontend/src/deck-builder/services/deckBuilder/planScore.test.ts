@@ -10,7 +10,6 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 
 import {
   computePlanScore,
-  computeStrategySubscore,
   computeStrategyFromEngine,
   computeRolesSubscore,
   computeTempoSubscore,
@@ -66,7 +65,6 @@ function healthyInput(): PlanScoreInput {
     curvePhases: [phase('early', 12, 12), phase('mid', 8, 8), phase('late', 4, 4)],
     misfitInputs: { cards: [], cardInclusionMap: {} },
     gapCount: 0,
-    strategy: null,
   };
 }
 
@@ -78,28 +76,6 @@ describe('bandFor', () => {
     expect(bandFor(65)).toBe('Solid');
     expect(bandFor(50)).toBe('Rough');
     expect(bandFor(10)).toBe('Thin');
-  });
-});
-
-describe('computeStrategySubscore', () => {
-  it('is partial when no theme inputs', () => {
-    expect(computeStrategySubscore(null).partial).toBe(true);
-    expect(computeStrategySubscore(undefined).partial).toBe(true);
-  });
-
-  it('is partial when theme membership is empty', () => {
-    const s = computeStrategySubscore({ nonLandCards: [card('A')], themeByCard: new Set() });
-    expect(s.partial).toBe(true);
-  });
-
-  it('scores density (60%) + neutral coverage (40%) when no top-N data', () => {
-    // 3 of 10 non-land cards in theme = density 0.3 = full density marks.
-    const cards = Array.from({ length: 10 }, (_, i) => card(`c${i}`));
-    const themeByCard = new Set(['c0', 'c1', 'c2']);
-    const s = computeStrategySubscore({ nonLandCards: cards, themeByCard });
-    expect(s.partial).toBeUndefined();
-    // densityScore=1, coverageScore=0.5 → composite = 0.6 + 0.2 = 0.8 → 80
-    expect(s.value).toBe(80);
   });
 });
 
@@ -221,10 +197,17 @@ describe('computePlanScore', () => {
     expect(ps.bandLabel).toBe('Tuned');
   });
 
-  it('includes strategy in the composite when theme data is present', () => {
+  it('includes strategy in the composite when an engine is present', () => {
     const input = healthyInput();
-    const cards = Array.from({ length: 10 }, (_, i) => card(`c${i}`));
-    input.strategy = { nonLandCards: cards, themeByCard: new Set(['c0', 'c1', 'c2']) };
+    // density 1 (12/12 engine cards) + balance 0.2 (10 producers / 2 payoffs →
+    // balanceScore 0.5) → strategy = round((0.6 + 0.2) * 100) = 80.
+    input.strategyEngine = {
+      primaryLabel: 'Tokens',
+      primaryProducers: 10,
+      primaryPayoffs: 2,
+      engineCards: 12,
+      nonLandCount: 12,
+    };
     const ps = computePlanScore(input);
     expect(ps.subscores.strategy.partial).toBeUndefined();
     expect(ps.limitedData).toBe(false);
@@ -253,7 +236,6 @@ describe('computePlanScore', () => {
       curvePhases: [],
       misfitInputs: { cards: [], cardInclusionMap: {} },
       gapCount: 0,
-      strategy: null,
     });
     // cardFit on an empty deck is still 100 (no misfits, no gaps) and non-partial,
     // so overall == 100 here; strategy/roles/tempo are all partial.
