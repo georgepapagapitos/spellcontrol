@@ -77,6 +77,20 @@ const AXIS_QUERIES: Record<AxisKey, Record<AxisSide, string | null>> = {
     producer: '(o:"choose a creature type" or keyword:changeling or o:"every creature type")',
     payoff: '(o:"of the chosen type" or o:"shares a creature type" or o:"creature type with it")',
   },
+  blink: {
+    producer: '(o:exile o:"to the battlefield" -o:"from your graveyard" -o:"from a graveyard")',
+    payoff: '(o:"triggers an additional time" or o:"whenever a creature you control enters")',
+  },
+  vehicles: {
+    producer: 't:vehicle',
+    payoff:
+      '(o:"vehicles you control" or o:"whenever a vehicle" or o:"vehicle card" or o:"vehicle spell")',
+  },
+  grouphug: {
+    producer:
+      '(o:"each player draws" or o:"that player draws an additional" or o:"each player may")',
+    payoff: '(o:"whenever an opponent draws" or o:"if an opponent would draw a card")',
+  },
 };
 
 /** The Scryfall oracle query for one need, or null if no reliable query exists. */

@@ -88,7 +88,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Treasure'],
     oracle_text:
       'Whenever an opponent draws a card, that player may pay {2}. If the player doesn\'t, you create a Treasure token. (It\'s an artifact with "{T}, Sacrifice this token: Add one mana of any color.")',
-    expect: { producers: ['artifacts'], payoffs: [] },
+    expect: { producers: ['artifacts'], payoffs: ['grouphug'] },
   },
   {
     name: 'Academy Manufactor',
@@ -119,7 +119,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever a creature you control enters, put a +1/+1 counter on each creature you control.',
-    expect: { producers: ['counters'], payoffs: ['tokens'] },
+    expect: { producers: ['counters'], payoffs: ['tokens', 'blink'] },
   },
   {
     name: 'Impact Tremors',
@@ -127,7 +127,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    expect: { producers: [], payoffs: ['tokens', 'blink'] },
   },
   {
     name: 'Purphoros, God of the Forge',
@@ -135,7 +135,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Indestructible'],
     oracle_text:
       "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn.",
-    expect: { producers: [], payoffs: ['tokens'] },
+    expect: { producers: [], payoffs: ['tokens', 'blink'] },
   },
   {
     name: 'Cryptolith Rite',
@@ -227,7 +227,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Creatures with power less than this creature's power can't block creatures you control.\nWhenever another creature you control enters, put a +1/+1 counter on this creature.",
-    expect: { producers: ['counters'], payoffs: ['tokens'] },
+    expect: { producers: ['counters'], payoffs: ['tokens', 'blink'] },
   },
   {
     name: 'Mirror Entity',
@@ -331,7 +331,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Creature — Human Cleric',
     keywords: [],
     oracle_text: 'Whenever another creature enters, you gain 1 life.',
-    expect: { producers: ['lifegain'], payoffs: ['tokens'] },
+    expect: { producers: ['lifegain'], payoffs: ['tokens', 'blink'] },
   },
   {
     name: 'Sol Ring',
@@ -604,7 +604,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Legendary Creature — Dwarf Advisor',
     keywords: [],
     oracle_text: 'Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.',
-    expect: { producers: [], payoffs: ['equipment'] },
+    expect: { producers: [], payoffs: ['equipment', 'vehicles'] },
   },
   {
     name: 'Puresteel Paladin',
@@ -801,7 +801,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "When Oath of Teferi enters, exile another target permanent you control. Return it to the battlefield under its owner's control at the beginning of the next end step.\nYou may activate the loyalty abilities of planeswalkers you control twice each turn rather than only once.",
-    expect: { producers: [], payoffs: ['superfriends'] },
+    expect: { producers: ['blink'], payoffs: ['superfriends'] },
   },
   {
     name: 'The Chain Veil',
@@ -919,6 +919,363 @@ export const CORPUS: CorpusCard[] = [
     // Trap: a specific-type lord ("Other Goblins") — deliberately NOT generalized
     // without a creature-type list, so it classifies as nothing.
     oracle_text: 'Other Goblins get +1/+1 and have mountainwalk.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Soulherder',
+    type_line: 'Creature \u2014 Spirit',
+    keywords: [],
+    oracle_text:
+      "Whenever a creature is exiled from the battlefield, put a +1/+1 counter on this creature.\nAt the beginning of your end step, you may exile another target creature you control, then return that card to the battlefield under its owner's control.",
+    expect: { producers: ['blink', 'counters'], payoffs: [] },
+  },
+  {
+    name: "Conjurer's Closet",
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'At the beginning of your end step, you may exile target creature you control, then return that card to the battlefield under your control.',
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Ghostly Flicker',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'Exile two target artifacts, creatures, and/or lands you control, then return those cards to the battlefield under your control.',
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Eerie Interlude',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      "Exile any number of target creatures you control. Return those cards to the battlefield under their owner's control at the beginning of the next end step.",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Restoration Angel',
+    type_line: 'Creature \u2014 Angel',
+    keywords: ['Flying', 'Flash'],
+    oracle_text:
+      'Flash\nFlying\nWhen this creature enters, you may exile target non-Angel creature you control, then return that card to the battlefield under your control.',
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Flickerwisp',
+    type_line: 'Creature \u2014 Elemental',
+    keywords: ['Flying'],
+    oracle_text:
+      "Flying\nWhen this creature enters, exile another target permanent. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Cloudshift',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'Exile target creature you control, then return that card to the battlefield under your control.',
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Ephemerate',
+    type_line: 'Instant',
+    keywords: ['Rebound'],
+    oracle_text:
+      "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Brago, King Eternal',
+    type_line: 'Legendary Creature \u2014 Spirit Noble',
+    keywords: ['Flying'],
+    oracle_text:
+      "Flying\nWhenever Brago deals combat damage to a player, exile any number of target nonland permanents you control, then return those cards to the battlefield under their owner's control.",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Felidar Guardian',
+    type_line: 'Creature \u2014 Cat Beast',
+    keywords: [],
+    oracle_text:
+      "When this creature enters, you may exile another target permanent you control, then return that card to the battlefield under its owner's control.",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Thassa, Deep-Dwelling',
+    type_line: 'Legendary Enchantment Creature \u2014 God',
+    keywords: ['Indestructible'],
+    oracle_text:
+      "Indestructible\nAs long as your devotion to blue is less than five, Thassa isn't a creature.\nAt the beginning of your end step, exile up to one other target creature you control, then return that card to the battlefield under your control.\n{3}{U}: Tap another target creature.",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Deadeye Navigator',
+    type_line: 'Creature \u2014 Spirit',
+    keywords: ['Soulbond'],
+    oracle_text:
+      'Soulbond (You may pair this creature with another unpaired creature when either enters. They remain paired for as long as you control both of them.)\nAs long as Deadeye Navigator is paired with another creature, each of those creatures has "{1}{U}: Exile this creature, then return it to the battlefield under your control."',
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Eldrazi Displacer',
+    type_line: 'Creature \u2014 Eldrazi',
+    keywords: ['Devoid'],
+    oracle_text:
+      "Devoid (This card has no color.)\n{2}{C}: Exile another target creature, then return it to the battlefield tapped under its owner's control. ({C} represents colorless mana.)",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Teleportation Circle',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "At the beginning of your end step, exile up to one target artifact or creature you control, then return that card to the battlefield under its owner's control.",
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Charming Prince',
+    type_line: 'Creature \u2014 Human Noble',
+    keywords: ['Scry'],
+    oracle_text:
+      'When this creature enters, choose one \u2014\n\u2022 Scry 2.\n\u2022 You gain 3 life.\n\u2022 Exile another target creature you own. Return it to the battlefield under your control at the beginning of the next end step.',
+    expect: { producers: ['blink', 'lifegain'], payoffs: [] },
+  },
+  {
+    name: 'Yorion, Sky Nomad',
+    type_line: 'Legendary Creature \u2014 Bird Serpent',
+    keywords: ['Flying', 'Companion'],
+    oracle_text:
+      'Companion \u2014 Your starting deck contains at least twenty cards more than the minimum deck size. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nFlying\nWhen Yorion enters, exile any number of other nonland permanents you own and control. Return those cards to the battlefield at the beginning of the next end step.',
+    expect: { producers: ['blink'], payoffs: [] },
+  },
+  {
+    name: 'Panharmonicon',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.',
+    expect: { producers: [], payoffs: ['blink'] },
+  },
+  {
+    name: 'Yarok, the Desecrated',
+    type_line: 'Legendary Creature \u2014 Elemental Horror',
+    keywords: ['Lifelink', 'Deathtouch'],
+    oracle_text:
+      'Deathtouch, lifelink\nIf a permanent entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.',
+    expect: { producers: ['lifegain'], payoffs: ['blink'] },
+  },
+  {
+    name: 'Elesh Norn, Mother of Machines',
+    type_line: 'Legendary Creature \u2014 Phyrexian Praetor',
+    keywords: ['Vigilance'],
+    oracle_text:
+      "Vigilance\nIf a permanent entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\nPermanents entering don't cause abilities of permanents your opponents control to trigger.",
+    expect: { producers: [], payoffs: ['blink'] },
+  },
+  {
+    name: 'Mulldrifter',
+    type_line: 'Creature \u2014 Elemental',
+    keywords: ['Flying', 'Evoke'],
+    oracle_text:
+      "Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Banishing Light',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'When this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: "Smuggler's Copter",
+    type_line: 'Artifact \u2014 Vehicle',
+    keywords: ['Flying', 'Crew'],
+    oracle_text:
+      'Flying\nWhenever this Vehicle attacks or blocks, you may draw a card. If you do, discard a card.\nCrew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)',
+    expect: { producers: ['vehicles'], payoffs: [] },
+  },
+  {
+    name: 'Heart of Kiran',
+    type_line: 'Legendary Artifact \u2014 Vehicle',
+    keywords: ['Flying', 'Vigilance', 'Crew'],
+    oracle_text:
+      "Flying, vigilance\nCrew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)\nYou may remove a loyalty counter from a planeswalker you control rather than pay Heart of Kiran's crew cost.",
+    expect: { producers: ['vehicles'], payoffs: ['superfriends'] },
+  },
+  {
+    name: 'Skysovereign, Consul Flagship',
+    type_line: 'Legendary Artifact \u2014 Vehicle',
+    keywords: ['Flying', 'Crew'],
+    oracle_text:
+      'Flying\nWhenever Skysovereign enters or attacks, it deals 3 damage to target creature or planeswalker an opponent controls.\nCrew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)',
+    expect: { producers: ['vehicles'], payoffs: [] },
+  },
+  {
+    name: 'Parhelion II',
+    type_line: 'Legendary Artifact \u2014 Vehicle',
+    keywords: ['Flying', 'Vigilance', 'First strike', 'Crew'],
+    oracle_text:
+      'Flying, first strike, vigilance\nWhenever Parhelion II attacks, create two 4/4 white Angel creature tokens with flying and vigilance that are attacking.\nCrew 4 (Tap any number of creatures you control with total power 4 or more: This Vehicle becomes an artifact creature until end of turn.)',
+    expect: { producers: ['tokens', 'vehicles'], payoffs: [] },
+  },
+  {
+    name: "Cultivator's Caravan",
+    type_line: 'Artifact \u2014 Vehicle',
+    keywords: ['Crew'],
+    oracle_text:
+      '{T}: Add one mana of any color.\nCrew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)',
+    expect: { producers: ['vehicles'], payoffs: [] },
+  },
+  {
+    name: 'Consulate Dreadnought',
+    type_line: 'Artifact \u2014 Vehicle',
+    keywords: ['Crew'],
+    oracle_text:
+      'Crew 6 (Tap any number of creatures you control with total power 6 or more: This Vehicle becomes an artifact creature until end of turn.)',
+    expect: { producers: ['vehicles'], payoffs: [] },
+  },
+  {
+    name: 'Shorikai, Genesis Engine',
+    type_line: 'Legendary Artifact \u2014 Vehicle',
+    keywords: ['Crew'],
+    oracle_text:
+      '{1}, {T}: Draw two cards, then discard a card. Create a 1/1 colorless Pilot creature token with "This token crews Vehicles as though its power were 2 greater."\nCrew 8 (Tap any number of creatures you control with total power 8 or more: This Vehicle becomes an artifact creature until end of turn.)',
+    expect: { producers: ['tokens', 'vehicles'], payoffs: [] },
+  },
+  {
+    name: 'Depala, Pilot Exemplar',
+    type_line: 'Legendary Creature \u2014 Dwarf Pilot',
+    keywords: [],
+    oracle_text:
+      "Other Dwarves you control get +1/+1.\nEach Vehicle you control gets +1/+1 as long as it's a creature.\nWhenever Depala becomes tapped, you may pay {X}. If you do, reveal the top X cards of your library, put all Dwarf and Vehicle cards from among them into your hand, then put the rest on the bottom of your library in a random order.",
+    expect: { producers: [], payoffs: ['vehicles'] },
+  },
+  {
+    name: 'Kotori, Pilot Prodigy',
+    type_line: 'Legendary Creature \u2014 Moonfolk Pilot',
+    keywords: [],
+    oracle_text:
+      'Vehicles you control have crew 2.\nAt the beginning of combat on your turn, target artifact creature you control gains lifelink and vigilance until end of turn.',
+    expect: { producers: [], payoffs: ['vehicles'] },
+  },
+  {
+    name: 'Greasefang, Okiba Boss',
+    type_line: 'Legendary Creature \u2014 Rat Pilot',
+    keywords: [],
+    oracle_text:
+      "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
+    expect: { producers: [], payoffs: ['graveyard', 'vehicles'] },
+  },
+  {
+    name: 'Howling Mine',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "At the beginning of each player's draw step, if this artifact is untapped, that player draws an additional card.",
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Temple Bell',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text: '{T}: Each player draws a card.',
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Dictate of Kruphix',
+    type_line: 'Enchantment',
+    keywords: ['Flash'],
+    oracle_text:
+      "Flash (You may cast this spell any time you could cast an instant.)\nAt the beginning of each player's draw step, that player draws an additional card.",
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Kami of the Crescent Moon',
+    type_line: 'Legendary Creature \u2014 Spirit',
+    keywords: [],
+    oracle_text:
+      "At the beginning of each player's draw step, that player draws an additional card.",
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Rites of Flourishing',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "At the beginning of each player's draw step, that player draws an additional card.\nEach player may play an additional land on each of their turns.",
+    expect: { producers: ['grouphug', 'landfall'], payoffs: [] },
+  },
+  {
+    name: 'Heartbeat of Spring',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever a player taps a land for mana, that player adds one mana of any type that land produced.',
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Font of Mythos',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "At the beginning of each player's draw step, that player draws two additional cards.",
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Kynaios and Tiro of Meletis',
+    type_line: 'Legendary Creature \u2014 Human Soldier',
+    keywords: [],
+    oracle_text:
+      "At the beginning of your end step, draw a card. Each player may put a land card from their hand onto the battlefield, then each opponent who didn't draws a card.",
+    expect: { producers: ['grouphug', 'landfall'], payoffs: [] },
+  },
+  {
+    name: 'Nekusar, the Mindrazer',
+    type_line: 'Legendary Creature \u2014 Zombie Wizard',
+    keywords: [],
+    oracle_text:
+      "At the beginning of each player's draw step, that player draws an additional card.\nWhenever an opponent draws a card, Nekusar deals 1 damage to that player.",
+    expect: { producers: ['grouphug'], payoffs: ['grouphug'] },
+  },
+  {
+    name: 'Notion Thief',
+    type_line: 'Creature \u2014 Human Rogue',
+    keywords: ['Flash'],
+    oracle_text:
+      'Flash\nIf an opponent would draw a card except the first one they draw in each of their draw steps, instead that player skips that draw and you draw a card.',
+    expect: { producers: [], payoffs: ['grouphug'] },
+  },
+  {
+    name: 'Consecrated Sphinx',
+    type_line: 'Creature \u2014 Sphinx',
+    keywords: ['Flying'],
+    oracle_text: 'Flying\nWhenever an opponent draws a card, you may draw two cards.',
+    expect: { producers: [], payoffs: ['grouphug'] },
+  },
+  {
+    name: 'Underworld Dreams',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever an opponent draws a card, this enchantment deals 1 damage to that player.',
+    expect: { producers: [], payoffs: ['grouphug'] },
+  },
+  {
+    name: 'Fevered Visions',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "At the beginning of each player's end step, that player draws a card. If the player is your opponent and has four or more cards in hand, this enchantment deals 2 damage to that player.",
+    expect: { producers: ['grouphug'], payoffs: [] },
+  },
+  {
+    name: 'Divination',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text: 'Draw two cards.',
     expect: { producers: [], payoffs: [] },
   },
 ];
