@@ -5,7 +5,7 @@ import type { SubScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/
 const KEY_LABELS: Record<SubScoreKey, string> = {
   strategy: 'Strategy',
   roles: 'Roles',
-  tempo: 'Tempo',
+  curve: 'Curve',
   cardFit: 'Card fit',
 };
 

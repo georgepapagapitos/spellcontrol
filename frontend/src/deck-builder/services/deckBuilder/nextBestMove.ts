@@ -51,7 +51,7 @@ const ROLE_LABELS: Record<string, string> = {
 const SUBSCORE_VIEW: Record<SubScoreKey, DeckView> = {
   strategy: 'tune',
   roles: 'tune',
-  tempo: 'stats',
+  curve: 'stats',
   cardFit: 'tune',
 };
 
@@ -168,13 +168,13 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         continue;
       }
 
-      if (key === 'tempo') {
+      if (key === 'curve') {
         moves.push({
-          id: 'tempo',
+          id: 'curve',
           tier: 2,
           title: 'Fix the curve',
-          detail: `${sub.surface} Adjust the mana curve to smooth out your tempo.`,
-          navigateTo: SUBSCORE_VIEW.tempo,
+          detail: `${sub.surface} Adjust the mana curve to fill the underweight phase.`,
+          navigateTo: SUBSCORE_VIEW.curve,
         });
         continue;
       }

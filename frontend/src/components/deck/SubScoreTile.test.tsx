@@ -21,7 +21,7 @@ describe('SubScoreTile', () => {
 
   it('renders an em-dash and muted class for a partial subscore', () => {
     const { container } = render(
-      <SubScoreTile scoreKey="tempo" score={{ ...score, partial: true }} />
+      <SubScoreTile scoreKey="curve" score={{ ...score, partial: true }} />
     );
     expect(screen.getByText('—')).toBeTruthy();
     expect(container.querySelector('.sub-score-tile.is-partial')).toBeTruthy();

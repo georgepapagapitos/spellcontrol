@@ -308,7 +308,7 @@ export interface DeckDisplayProps {
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   deckGrade?: { letter: string; headline: string };
-  /** 0-100 PlanScore (strategy/roles/tempo/cardFit); kept live by the analysis hook. */
+  /** 0-100 PlanScore (strategy/roles/curve/cardFit); kept live by the analysis hook. */
   planScore?: PlanScore;
   /** Mean EDHREC salt score across non-land cards (generated decks only). */
   averageSalt?: number;

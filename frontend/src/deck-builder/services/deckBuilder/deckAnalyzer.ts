@@ -1145,7 +1145,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
   if (curveShape === 'top-heavy') {
     noteItems.push({
       icon: 'curve',
-      label: 'Tempo',
+      label: 'Curve',
       tab: 'curve',
       text: `avg CMC is ${avgCmc.toFixed(1)} — too many expensive spells`,
       hint: "you'll be sitting on uncastable hands while opponents develop their boards",
@@ -1153,7 +1153,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
   } else if (curveShape === 'bottom-heavy') {
     noteItems.push({
       icon: 'curve',
-      label: 'Tempo',
+      label: 'Curve',
       tab: 'curve',
       text: `avg CMC is ${avgCmc.toFixed(1)} — skews very low`,
       hint: "you'll run out of gas in the late game when opponents play their haymakers",
