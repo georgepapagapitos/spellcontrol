@@ -75,4 +75,43 @@ describe('NextBestMove', () => {
     render(<NextBestMove moves={[]} />);
     expect(screen.getByText(/Looks dialed in/)).toBeTruthy();
   });
+
+  it('holds a placeholder slot while combos are loading', () => {
+    render(<NextBestMove moves={moves} combosLoading />);
+    expect(screen.getByText(/Checking for combos/)).toBeTruthy();
+  });
+
+  it('shows the combo placeholder even with no other moves yet', () => {
+    render(<NextBestMove moves={[]} combosLoading />);
+    expect(screen.getByText(/Checking for combos/)).toBeTruthy();
+    // Not the healthy state — the check is still in flight.
+    expect(screen.queryByText(/Looks dialed in/)).toBeNull();
+  });
+
+  it('drops the placeholder once a combo move is present', () => {
+    const withCombo: Move[] = [
+      ...moves,
+      {
+        id: 'combo-x',
+        tier: 3,
+        title: 'Complete a combo',
+        detail: "You're one card from Infinite mana.",
+        navigateTo: 'power',
+        focus: 'combos',
+      },
+    ];
+    render(<NextBestMove moves={withCombo} combosLoading />);
+    expect(screen.queryByText(/Checking for combos/)).toBeNull();
+  });
+
+  it('omits the placeholder when the list is already full (no room)', () => {
+    const three: Move[] = [1, 2, 3].map((n) => ({
+      id: `m${n}`,
+      tier: 2,
+      title: `Move ${n}`,
+      detail: 'd',
+    }));
+    render(<NextBestMove moves={three} combosLoading />);
+    expect(screen.queryByText(/Checking for combos/)).toBeNull();
+  });
 });

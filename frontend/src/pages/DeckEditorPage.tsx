@@ -977,8 +977,12 @@ export function DeckEditorPage() {
               ) : undefined
             }
             nextBestMoveSlot={
-              nextBestMoves.length > 0 ? (
-                <NextBestMove moves={nextBestMoves} onNavigate={handleNbmNavigate} />
+              nextBestMoves.length > 0 || (formatConfig?.hasCommander && comboData.loading) ? (
+                <NextBestMove
+                  moves={nextBestMoves}
+                  onNavigate={handleNbmNavigate}
+                  combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                />
               ) : undefined
             }
             optimizeSlot={
