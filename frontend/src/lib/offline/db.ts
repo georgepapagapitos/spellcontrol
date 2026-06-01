@@ -19,6 +19,10 @@ const STORE_COMBOS = 'combos';
 const STORE_META = 'meta';
 
 const META_MANIFEST_KEY = 'manifest';
+// Version of the combos-only cache (see ensure-combos.ts). Tracked separately
+// from META_MANIFEST_KEY so the lightweight combos-only path never corrupts the
+// full offline-mode manifest (which also gates the oracle-card cache).
+const META_COMBOS_VERSION_KEY = 'combos-standalone-version';
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -166,6 +170,17 @@ export async function readManifest(): Promise<OfflineManifest | null> {
 export async function writeManifest(manifest: OfflineManifest): Promise<void> {
   const db = await getDB();
   await db.put(STORE_META, manifest, META_MANIFEST_KEY);
+}
+
+/** Version of the combos-only cache, or null if it was never populated. */
+export async function readStandaloneCombosVersion(): Promise<string | null> {
+  const db = await getDB();
+  return ((await db.get(STORE_META, META_COMBOS_VERSION_KEY)) as string | undefined) ?? null;
+}
+
+export async function writeStandaloneCombosVersion(version: string): Promise<void> {
+  const db = await getDB();
+  await db.put(STORE_META, version, META_COMBOS_VERSION_KEY);
 }
 
 export async function clearOfflineData(): Promise<void> {

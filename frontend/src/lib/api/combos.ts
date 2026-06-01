@@ -1,16 +1,7 @@
 import { handleResponse } from '../fetch-utils';
-import { matchCombosLocal } from '../offline';
-import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
+import { ensureCombosCached, matchCombosLocal } from '../offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';
 import { apiUrl } from '../api-base';
-
-function offlineActive(): boolean {
-  try {
-    return offlineDataAvailable(useOfflineStore.getState());
-  } catch {
-    return false;
-  }
-}
 
 export interface MatchRequest {
   ownedOracleIds: string[];
@@ -42,7 +33,13 @@ async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse> {
-  if (offlineActive()) {
+  // Prefer client-side matching against the device-local combo dataset: no
+  // login required, no per-request load on the server (whose /match endpoint
+  // has OOM-crashed under load), and it works offline. The dataset is global
+  // reference data, lazily cached on first use. We only fall back to the authed
+  // server endpoint when the dataset can't be cached (e.g. offline + empty
+  // cache on first run) — for a logged-in user that still works.
+  if (await ensureCombosCached()) {
     return matchCombosLocal({
       ownedOracleIds: req.ownedOracleIds,
       deckOracleIds: req.deckOracleIds,
