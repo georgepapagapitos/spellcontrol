@@ -692,22 +692,29 @@ export function DeckEditorPage() {
   // Bracket is glanceable info — it rides the hero meta line now (the old
   // feature-strip chip is gone); the Tune view still owns the override UI.
   const bracketValue = effectiveBracket(deck);
-  const showTuneTab = hasCommanderFormat || deck.cards.length > 0;
+  // Power + Tune share the same gate: any non-empty deck (or a commander
+  // format, which can have power signals before cards are added).
+  const showAnalysisExtras = hasCommanderFormat || deck.cards.length > 0;
   // The Tune tab carries no count badge — a bare number there read as a
   // mystery (it was the in-deck combo count); the combo count is shown,
   // clearly labelled, on the "In deck" sub-tab of the embedded Combos panel.
   const viewTabs: Array<{ id: DeckView; label: string }> = [
     { id: 'deck', label: 'Deck' },
     { id: 'stats', label: 'Stats' },
-    ...(showTuneTab ? [{ id: 'tune' as DeckView, label: 'Tune' }] : []),
+    ...(showAnalysisExtras
+      ? [
+          { id: 'power' as DeckView, label: 'Power' },
+          { id: 'tune' as DeckView, label: 'Tune' },
+        ]
+      : []),
   ];
   // Guard against a stale view that no longer has a tab. Map any legacy
-  // analysis id (overview/mana → stats; power/improve → tune) that might still
-  // be in `view` from before this restructure, then fall back to a real tab.
+  // analysis id that might still be in `view` from an earlier restructure, then
+  // fall back to a real tab. (overview/mana → stats; improve → tune; the old
+  // "power" id now maps to the real Power tab again.)
   const legacyViewMap: Record<string, DeckView> = {
     overview: 'stats',
     mana: 'stats',
-    power: 'tune',
     improve: 'tune',
   };
   const mappedView = legacyViewMap[view] ?? view;
