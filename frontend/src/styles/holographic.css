@@ -309,50 +309,25 @@
   }
 }
 
-/* Foil indication on grid thumbnails: reuse the CardPreview shine/glare
-   layers (.card-preview-foil-shine + .card-preview-foil-glare) and run
-   them in the same ambient-drift mode used on touch devices in the
-   preview. Grid items have no cursor tracking driving --active, so the
-   shine would otherwise be invisible — these overrides force a constant
-   opacity and a slow drift animation regardless of pointer capability. */
-.collection-grid-item.is-foil {
-  isolation: isolate;
-}
-
-.collection-grid-item.is-foil .card-preview-foil-shine {
-  opacity: var(--foil-strength, 0.35);
-  animation: foil-drift 8s ease-in-out infinite alternate;
-}
-
-.collection-grid-item.is-foil .card-preview-foil-glare {
-  opacity: 0.25;
-  background-image: radial-gradient(
-    ellipse 70% 70% at 50% 50%,
-    rgba(255, 255, 255, 0.3) 0%,
-    transparent 70%
-  );
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collection-grid-item.is-foil .card-preview-foil-shine {
-    animation: none;
-    background-position: 50% 50%;
-  }
-}
-
-/* Deck view foil thumbnails — the commander tile and every card tile in grid
-   view. Same ambient-drift reuse as collection grid items: no cursor here to
-   drive --active, so force a constant opacity + slow drift so an owned foil
-   copy shimmers in the deck just like it does in the full-screen preview. */
+/* Foil thumbnails outside the full-screen preview — collection grid items and
+   deck-view card tiles (commander tile + every grid-view card tile). Neither
+   has cursor tracking to drive --active, so reuse the CardPreview shine/glare
+   layers (.card-preview-foil-shine + .card-preview-foil-glare) in the same
+   ambient-drift mode used on touch devices: force a constant opacity + slow
+   drift so an owned foil copy shimmers like it does in the full-screen preview.
+   Both contexts are identical, so they share one rule set. */
+.collection-grid-item.is-foil,
 .deck-card-grid-tile.is-foil {
   isolation: isolate;
 }
 
+.collection-grid-item.is-foil .card-preview-foil-shine,
 .deck-card-grid-tile.is-foil .card-preview-foil-shine {
   opacity: var(--foil-strength, 0.35);
   animation: foil-drift 8s ease-in-out infinite alternate;
 }
 
+.collection-grid-item.is-foil .card-preview-foil-glare,
 .deck-card-grid-tile.is-foil .card-preview-foil-glare {
   opacity: 0.25;
   background-image: radial-gradient(
@@ -363,6 +338,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .collection-grid-item.is-foil .card-preview-foil-shine,
   .deck-card-grid-tile.is-foil .card-preview-foil-shine {
     animation: none;
     background-position: 50% 50%;
