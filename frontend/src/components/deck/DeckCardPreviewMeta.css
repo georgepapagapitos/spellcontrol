@@ -8,8 +8,8 @@
    tokens like --text/--surface here would render dark-on-dark in light mode.
 
    The block stays compact (a one-line summary + warnings + synergy reasons);
-   the panel itself owns the expand/collapse chevron that grows it and shrinks
-   the card, so this block never needs its own height management.
+   the panel is a fixed-height, always-scrollable surface, so this block never
+   needs its own height management — it just flows and the panel scrolls.
 
    Layout is fluid (flex, wrapping, rem units, no fixed widths) so it reflows
    from desktop down to ~320px with no horizontal overflow, web and native

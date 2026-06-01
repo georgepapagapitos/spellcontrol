@@ -34,12 +34,11 @@ interface Props {
 }
 
 /**
- * The 3D-transformed card image frame shared by the full-screen `CardPreview`
- * carousel and the desktop `DeckDetailPane`. Owns the holographic/foil shimmer
- * (via `useHolographic` + `classifyFoil`) and the front/back flip — the one
- * genuinely-shared piece between the two surfaces, extracted so neither
- * duplicates the foil/flip logic. Everything outside the frame (the sheet
- * chrome, the carousel scroll track, the info panel) stays with its surface.
+ * The 3D-transformed card image frame used by the full-screen `CardPreview`
+ * carousel. Owns the holographic/foil shimmer (via `useHolographic` +
+ * `classifyFoil`) and the front/back flip, extracted from the carousel so the
+ * foil/flip logic lives in one place. Everything outside the frame (the sheet
+ * chrome, the carousel scroll track, the info panel) stays with the carousel.
  */
 export function CardImageFrame({
   card,

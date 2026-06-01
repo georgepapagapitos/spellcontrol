@@ -1495,10 +1495,6 @@ input.toolbar-search-input {
   overflow-wrap: anywhere;
 }
 
-.deck-row-mana {
-  flex: 0 0 auto;
-}
-
 .deck-row-menu {
   width: 0.75rem;
   flex: 0 0 auto;
@@ -1616,17 +1612,6 @@ input.toolbar-search-input {
   white-space: nowrap;
 }
 
-.deck-row-mana {
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-
-.deck-row-mana .ms {
-  /* Bump mana icons slightly above the row text. em-scaling is intentional. */
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 1.05em;
-}
-
 .deck-row-price {
   color: var(--text3);
   font-variant-numeric: tabular-nums;
@@ -1703,20 +1688,12 @@ input.toolbar-search-input {
   color: var(--text2);
   line-height: 0;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 80ms ease-out;
 }
 
 .deck-row-menu-icon {
   display: block;
   width: 0.875rem;
   height: 0.875rem;
-}
-
-.deck-row:hover .deck-row-menu-trigger,
-.deck-row:focus-within .deck-row-menu-trigger,
-.deck-row-menu-trigger[data-open] {
-  opacity: 1;
 }
 
 .deck-row-menu-trigger:hover,
@@ -7799,6 +7776,12 @@ input.deck-row-qty-input.deck-row-qty-missing {
   cursor: help;
 }
 
+/* Space the reason text off the ✦ icon (the literal space between them
+   moved into the label span when it was split out for the mobile collapse). */
+.deck-row-synergy-label {
+  margin-left: 0.25rem;
+}
+
 /* EDHREC inclusion-% chip — a quiet, bordered marker sitting after the card
    name. Reads in muted text against a bordered rounded-rect so it's visually
    distinct from the accent-filled synergy pill. Theme-var only (replaces the
@@ -7825,5 +7808,26 @@ input.deck-row-qty-input.deck-row-qty-missing {
 @media (max-width: 600px) {
   .deck-row-inclusion {
     margin-left: 0.3rem;
+  }
+
+  /* Collapse the long text tags to icon-only badges on phones/native — the
+     ✦ synergy pill and the Partner tag drop their labels, leaving a compact
+     tappable icon. The full reasons / role / inclusion / legality are still a
+     tap away: tapping the row opens the detail sheet (DeckCardPreviewMeta),
+     which renders all of it. Mirrors the .deck-row-alloc-badge-label collapse
+     at 700px. Tablet (>600px) keeps the full text. */
+  .deck-row-synergy-label,
+  .deck-row-partner-label {
+    display: none;
+  }
+
+  .deck-row-synergy {
+    /* No text to truncate now — square the pill up around the lone ✦. */
+    max-width: none;
+    padding: 0 0.3rem;
+  }
+
+  .deck-row-partner-tag {
+    padding: 0.1rem 0.3rem;
   }
 }
