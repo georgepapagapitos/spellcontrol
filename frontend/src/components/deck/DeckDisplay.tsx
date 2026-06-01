@@ -3073,13 +3073,6 @@ function DeckAnalysisView({
   // Tap a saltiest-card name to preview it (swipe through the salt list).
   const saltCarousel = useCardCarousel('Saltiest cards');
 
-  // Power-view disclosure: the verdict hero leads, and the four detail tiles
-  // (Bracket/Roles/Engine/Combos) collapse behind a toggle — open by default on
-  // desktop, collapsed on phone where the hero answers the question on its own.
-  const [powerDetailsOpen, setPowerDetailsOpen] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 601px)').matches
-  );
-
   return (
     <div className="deck-analysis-view">
       {current === 'stats' && (
@@ -3170,101 +3163,79 @@ function DeckAnalysisView({
       {current === 'power' && (
         <div className="deck-bento deck-bento--power">
           {powerHeroSlot}
-          {/* The four detail tiles fold behind a disclosure — the hero above
-              leads with the verdict; tap to drill into the raw breakdowns. */}
-          <button
-            type="button"
-            className="power-details-toggle"
-            aria-expanded={powerDetailsOpen}
-            onClick={() => setPowerDetailsOpen((o) => !o)}
-          >
-            Details
-            {powerDetailsOpen ? (
-              <ChevronDown className="power-details-toggle-icon" aria-hidden="true" />
-            ) : (
-              <ChevronRight className="power-details-toggle-icon" aria-hidden="true" />
-            )}
-          </button>
-          {powerDetailsOpen && (
-            <>
-              {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
-              <div className="deck-stats-pair">
-                {(bracketEstimation || bracketOverride != null) && (
-                  <Panel title="Bracket">
-                    <div className="deck-stats-bracket">
-                      <strong>
-                        Bracket {effectiveBracketValue} —{' '}
-                        {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
-                        {bracketOverridden && (
-                          <span className="deck-stats-bracket-tag"> manual</span>
-                        )}
-                      </strong>
-                      <BracketVerdictStrip
-                        target={bracketOverride}
-                        detected={bracketEstimation?.bracket}
-                      />
-                      {/* Detected vs target now lives in the strip above; keep the
+          {/* Detailed breakdowns under the verdict hero. */}
+          {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
+          <div className="deck-stats-pair">
+            {(bracketEstimation || bracketOverride != null) && (
+              <Panel title="Bracket">
+                <div className="deck-stats-bracket">
+                  <strong>
+                    Bracket {effectiveBracketValue} —{' '}
+                    {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
+                    {bracketOverridden && <span className="deck-stats-bracket-tag"> manual</span>}
+                  </strong>
+                  <BracketVerdictStrip
+                    target={bracketOverride}
+                    detected={bracketEstimation?.bracket}
+                  />
+                  {/* Detected vs target now lives in the strip above; keep the
                       top hard-floor reason as context when on Auto. */}
-                      {!bracketOverridden &&
-                        bracketEstimation &&
-                        bracketEstimation.hardFloors.length > 0 && (
-                          <span className="deck-stats-bracket-note">
-                            {bracketEstimation.hardFloors[0].reason}
-                          </span>
-                        )}
-                      {onSetBracketOverride && (
-                        <label className="deck-stats-bracket-override">
-                          <span>Set bracket</span>
-                          <select
-                            className="deck-stats-bracket-select"
-                            value={bracketOverride ?? ''}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              onSetBracketOverride(
-                                v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5)
-                              );
-                            }}
-                          >
-                            <option value="">Auto</option>
-                            {([1, 2, 3, 4, 5] as const).map((b) => (
-                              <option key={b} value={b}>
-                                {b} — {bracketLabel(b)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
-                    </div>
-                  </Panel>
-                )}
-                {showRoles && (
-                  <Panel title="Roles">
-                    <RolesPanel
-                      roleCounts={effectiveRoleCounts}
-                      roleTargets={roleTargets}
-                      density={roleDensity}
-                      rampSubtypeCounts={effectiveRampSub}
-                      removalSubtypeCounts={effectiveRemovalSub}
-                      boardwipeSubtypeCounts={effectiveBoardwipeSub}
-                      cardDrawSubtypeCounts={effectiveDrawSub}
-                    />
-                  </Panel>
-                )}
-              </div>
-              {/* Engine — the synergy engine (lone, spans full width). */}
-              {engineSlot && (
-                <div className="deck-stats-pair">
-                  <Panel title="Engine">{engineSlot}</Panel>
+                  {!bracketOverridden &&
+                    bracketEstimation &&
+                    bracketEstimation.hardFloors.length > 0 && (
+                      <span className="deck-stats-bracket-note">
+                        {bracketEstimation.hardFloors[0].reason}
+                      </span>
+                    )}
+                  {onSetBracketOverride && (
+                    <label className="deck-stats-bracket-override">
+                      <span>Set bracket</span>
+                      <select
+                        className="deck-stats-bracket-select"
+                        value={bracketOverride ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          onSetBracketOverride(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
+                        }}
+                      >
+                        <option value="">Auto</option>
+                        {([1, 2, 3, 4, 5] as const).map((b) => (
+                          <option key={b} value={b}>
+                            {b} — {bracketLabel(b)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
                 </div>
-              )}
-              {/* Combos — full width (its own multi-column grid inside). */}
-              {combosSlot && (
-                <Panel title="Combos" wide>
-                  {combosSlot}
-                </Panel>
-              )}
-            </>
+              </Panel>
+            )}
+            {showRoles && (
+              <Panel title="Roles">
+                <RolesPanel
+                  roleCounts={effectiveRoleCounts}
+                  roleTargets={roleTargets}
+                  density={roleDensity}
+                  rampSubtypeCounts={effectiveRampSub}
+                  removalSubtypeCounts={effectiveRemovalSub}
+                  boardwipeSubtypeCounts={effectiveBoardwipeSub}
+                  cardDrawSubtypeCounts={effectiveDrawSub}
+                />
+              </Panel>
+            )}
+          </div>
+          {/* Engine — the synergy engine (lone, spans full width). */}
+          {engineSlot && (
+            <div className="deck-stats-pair">
+              <Panel title="Engine">{engineSlot}</Panel>
+            </div>
+          )}
+          {/* Combos — full width (its own multi-column grid inside). */}
+          {combosSlot && (
+            <Panel title="Combos" wide>
+              {combosSlot}
+            </Panel>
           )}
         </div>
       )}
