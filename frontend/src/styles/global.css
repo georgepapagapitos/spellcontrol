@@ -6019,110 +6019,44 @@ hr {
   padding: 0.5rem 1.1rem;
   padding-bottom: max(0.9rem, var(--safe-bottom));
   color: #fff;
-  /* Two fixed heights, toggled by the chevron — the panel never grows or
-     shrinks *between cards* (heights would jump); it only changes on an
-     explicit user tap. Collapsed is card-first; expanded trades card height
-     for reading room. The sheet's 1fr track absorbs the delta and the card
-     shrinks via its container-query sizing — no manual resize. border-box so
-     height includes padding (deterministic); flex column so the chevron stays
-     pinned while the inner content scrolls. */
+  /* One fixed, vh-capped height. The panel always shows its full content; when
+     that content is taller than the height, the inner region scrolls in place
+     (no chevron, no expand/collapse). vh-capped so the card never gets crushed
+     on short / landscape screens — because the panel scrolls, trimming its
+     height never clips content (unlike the old collapsed snapshot, which had to
+     stay flat to avoid a mid-word clip). border-box so height includes padding;
+     flex column so the inner region owns the scroll. The sheet's 1fr track
+     absorbs whatever the panel doesn't take and the card sizes itself via its
+     container query. Tunable: bump the rem to show more at rest (shrinks the
+     card), the vh to give short screens more card. */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  /* Intentionally a FLAT height (not vh-clamped): collapsed is `overflow:hidden`
-     and shows a bounded, complete-lines snapshot, so shrinking it on short
-     screens would pixel-clip the densest surface (the deck meta block) — exactly
-     the mid-word-clip we forbid. The card adapts instead: the sheet's 1fr track
-     gives back whatever the panel doesn't take, and the card shrinks via its
-     container-query sizing. So DON'T vh-clamp this; clamp the *expanded* panel
-     (below), which scrolls and therefore can shed height without clipping. */
-  height: 10.5rem;
+  height: min(13rem, 40vh);
   overflow: hidden;
-  transition: height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.card-preview-panel.is-expanded {
-  /* vh-capped so the card never gets crushed on short / landscape screens.
-     Expanded scrolls, so trimming its height never clips content. */
-  height: min(26rem, 60vh);
-}
-
-/* Short landscape (phones rotated; small landscape tablets) — the tightest
-   vertical budget. Hand more of it back to the card by trimming the expanded
-   panel further; it scrolls, so nothing is lost. Collapsed stays flat on
-   purpose (see above). */
-@media (orientation: landscape) and (max-height: 600px) {
-  .card-preview-panel.is-expanded {
-    height: min(26rem, 50vh);
-  }
-}
-
-/* Pinned chevron handle — taps toggle expand/collapse. Full-width, generous
-   touch target, reinforces the existing drag-grabber affordance. */
-.card-preview-panel-toggle {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 2rem;
-  margin-bottom: 0.15rem;
-  padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.45);
-  transition: color 0.12s;
-}
-
-.card-preview-panel-toggle:hover,
-.card-preview-panel-toggle:focus-visible {
-  color: #fff;
-  outline: none;
 }
 
 .card-preview-panel-inner {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 0.3rem;
   flex: 1 1 auto;
   min-height: 0;
-  /* Collapsed = locked: a fixed glanceable snapshot, no scroll. The chevron
-     is the only way to reveal more — expanding unlocks the scroll. */
-  overflow-y: hidden;
-}
-
-.card-preview-panel.is-expanded .card-preview-panel-inner {
+  width: 100%;
+  /* Always scrollable: the full info is present and reached by scrolling. */
   overflow-y: auto;
 }
 
-/* Collapsed = a clean snapshot of complete lines, never a mid-word pixel
-   clip. WHICH sections survive collapse is now decided per-surface in JS
-   (CardPreview's `COLLAPSED_SECTIONS` policy) — the component appends
-   `card-preview-collapsed-hidden` to the sections its source defers. This one
-   rule is the only CSS half of that policy; it hides whole sections, so kept
-   lines stay short, bounded, and complete (nothing overflows the fixed
-   collapsed height, so nothing gets cut in half). */
-.card-preview-collapsed-hidden {
-  display: none;
-}
-
-/* Caller-injected panel slots (renderPanelMeta / renderPanelExtra) get a thin
-   wrapper so the whole block can be hidden as one unit by the class above. A
-   plain flex-item wrapper (not `display: contents`) is deliberate: contents
-   would tie the hide rule on specificity and lose on source order, leaking the
-   slot through when collapsed. The wrapper carries no padding/margin, so the
-   panel inner's gap + spacing are unchanged from rendering the slot directly. */
+/* Caller-injected panel slots (renderPanelMeta / renderPanelExtra). Full width,
+   and left-aligned to override the panel's centered default — the injected
+   content (deck synergy list, printing picker) reads naturally left-aligned
+   rather than centered like the card's identity fields. */
 .card-preview-slot {
   min-width: 0;
-}
-
-/* Internal progressive disclosure within the deck meta block: even when the
-   meta slot is kept collapsed (deck view), its multi-line synergy list is
-   deferred to expand. Scoped here because it's a sub-section of a slot, not a
-   top-level panel section the policy toggles. */
-.card-preview-panel:not(.is-expanded) .deck-card-preview-meta-synergy {
-  display: none;
+  width: 100%;
+  text-align: left;
 }
 
 .card-preview-name-row {
@@ -6144,6 +6078,40 @@ hr {
   min-width: 0;
 }
 
+/* Type line + mana cost, just under the name — shown in every carousel
+   context (the card's identity at a glance, paired with the centered name). */
+.card-preview-typeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.card-preview-type {
+  overflow-wrap: anywhere;
+}
+
+.card-preview-mana {
+  /* Pin to the type-line size — the shared .mana-cost base bumps to --text-base. */
+  font-size: var(--text-sm);
+}
+
+.card-preview-mana .ms {
+  /* Match the type-line text size. em-scaling is intentional. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1em;
+}
+
+/* Physical-copy condition (NM/LP/…), appended to the meta line for owned
+   collection copies. Quiet — it's secondary to rarity/price. */
+.card-preview-condition {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .card-preview-context {
   font-size: var(--text-xs);
   color: rgba(255, 255, 255, 0.55);
@@ -6154,23 +6122,6 @@ hr {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.5;
-}
-
-/* Collapsed, the membership line is the one kept section that can wrap
-   arbitrarily (a card in many binders/decks). Clamp it to a single COMPLETE
-   line — whole pills only, ellipsis at the line boundary — so it can never
-   push a lower kept section (set / counter) past the fixed collapsed height,
-   which would pixel-clip that line. Expanding restores the full wrapping list.
-   Only the surfaces whose policy keeps `context` collapsed (collection, binder,
-   suggestion) are affected; the deck view defers context entirely. The
-   `:not(.card-preview-collapsed-hidden)` guard keeps this higher-specificity
-   `display` from re-showing context on surfaces that defer it (the hide class
-   would otherwise lose the cascade). */
-.card-preview-panel:not(.is-expanded) .card-preview-context:not(.card-preview-collapsed-hidden) {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 /* Inline pill linking out to a binder or deck from the card preview's
@@ -8121,6 +8072,26 @@ hr {
   align-items: center;
   gap: 2px;
   font-size: var(--text-base);
+}
+
+/* Shared mana-cost treatment for list rows — the deck list and the
+   collection list both render mana as a dedicated, right-aligned cell that
+   sits vertically centred in the row. Pass this class to <ManaCost> at both
+   call sites (DeckDisplay row + CardListTable row) so the two stay in lockstep.
+   The .mana-cost base bumps the span to --text-base; we pin it down to
+   --text-xs so the icons read a touch smaller than the row text. flex: 0 0 auto
+   keeps it a fixed cell; the neighbouring flex:1 name column pushes it right. */
+.mana-cost-row {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.mana-cost-row .ms {
+  /* Size mana icons to this wrapper (em-scaling intentional). */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1em;
 }
 
 .mana-cost-face {

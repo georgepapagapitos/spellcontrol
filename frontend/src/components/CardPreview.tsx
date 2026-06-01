@@ -1,8 +1,6 @@
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   ExternalLink,
   Layers,
   Notebook,
@@ -23,17 +21,23 @@ import type { EnrichedCard } from '../types';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { CardImageFrame } from './CardImageFrame';
+import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
-import {
-  collapsedSectionsFor,
-  type CardPreviewSection,
-  type CardPreviewSource,
-} from './card-preview-sections';
+
+/** Which surface opened the preview. Drives per-context panel content
+ *  (exposed as `data-source` on the panel for context-specific styling). */
+export type CardPreviewSource =
+  | 'deck'
+  | 'collection'
+  | 'binder'
+  | 'suggestion'
+  | 'search'
+  | 'playtest';
 
 /** One button in the preview's compact icon bar. Callers supply only
  *  the actions relevant to their view (collection: edit/delete; deck:
@@ -118,18 +122,12 @@ interface Props {
    */
   renderPanelMeta?: (i: number) => ReactNode;
   /**
-   * Which surface opened the preview. Selects the *collapsed* curation policy
-   * (`COLLAPSED_SECTIONS`) so each view shows its own essentials at a glance.
-   * Omitting it falls back to `DEFAULT_COLLAPSED_SECTIONS` (the pre-curation
-   * generic behavior). For one-off needs, `collapsedSections` overrides outright.
+   * Which surface opened the preview. Exposed as `data-source` on the panel so
+   * each view can tune its own panel presentation; also documents intent at the
+   * call site. The panel always shows its full content (it scrolls when tall),
+   * so this no longer gates section visibility.
    */
   source?: CardPreviewSource;
-  /**
-   * Explicit override of which sections stay visible when collapsed, bypassing
-   * the `source` lookup. Rarely needed — prefer `source`. Empty array = name +
-   * image only.
-   */
-  collapsedSections?: readonly CardPreviewSection[];
 }
 
 const PRELOAD_RADIUS = 2;
@@ -160,7 +158,6 @@ export function CardPreview({
   renderPanelExtra,
   renderPanelMeta,
   source,
-  collapsedSections,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -176,30 +173,6 @@ export function CardPreview({
   }, []);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
-  // Panel expand/collapse: tapping the chevron grows the info panel and (via
-  // the sheet's 1fr track + the card's container-query sizing) shrinks the
-  // card to make room. Defaults collapsed each open (the component remounts
-  // per open); sticks across card navigation within a single open. Generic —
-  // every CardPreview surface (collection, binder, deck) inherits it.
-  const [panelExpanded, setPanelExpanded] = useState(false);
-
-  // Collapsed curation: which panel sections survive collapse for this surface.
-  // Expanding always reveals everything, so this only matters while collapsed.
-  // Per-section visibility is applied as a class (display:none in CSS) rather
-  // than unmounting, so the DOM stays stable across the expand/collapse height
-  // animation and across card navigation — no remount flicker.
-  const collapsedVisible = useMemo(
-    () => new Set<CardPreviewSection>(collapsedSectionsFor(source, collapsedSections)),
-    [collapsedSections, source]
-  );
-  // Append the hide class to a section's className when the panel is collapsed
-  // and this section isn't in the surface's keep-list. Bounded, complete lines
-  // only — sections are hidden whole, never clipped mid-word.
-  const sectionClass = useCallback(
-    (base: string, key: CardPreviewSection) =>
-      !panelExpanded && !collapsedVisible.has(key) ? `${base} card-preview-collapsed-hidden` : base,
-    [panelExpanded, collapsedVisible]
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -548,27 +521,23 @@ export function CardPreview({
         </div>
 
         <div
-          className={`card-preview-panel${panelExpanded ? ' is-expanded' : ''}`}
+          className="card-preview-panel"
+          data-source={source}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            className="card-preview-panel-toggle"
-            aria-expanded={panelExpanded}
-            aria-label={panelExpanded ? 'Collapse details' : 'Expand details'}
-            onClick={() => setPanelExpanded((v) => !v)}
-          >
-            {panelExpanded ? (
-              <ChevronDown width={18} height={18} strokeWidth={2.4} aria-hidden />
-            ) : (
-              <ChevronUp width={18} height={18} strokeWidth={2.4} aria-hidden />
-            )}
-          </button>
           <div className="card-preview-panel-inner">
             <div className="card-preview-name-row">
               <div className="card-preview-name">{current.name}</div>
             </div>
-            <div className={sectionClass('card-preview-context', 'context')}>
+            {(current.typeLine || current.manaCost) && (
+              <div className="card-preview-typeline">
+                {current.manaCost && (
+                  <ManaCost cost={current.manaCost} className="card-preview-mana" />
+                )}
+                {current.typeLine && <span className="card-preview-type">{current.typeLine}</span>}
+              </div>
+            )}
+            <div className="card-preview-context">
               {binderName}
               {(() => {
                 // Aggregate binders and decks across every copy in the stack
@@ -636,11 +605,9 @@ export function CardPreview({
               })()}
             </div>
             {renderPanelMeta && (
-              <div className={sectionClass('card-preview-slot', 'panelMeta')}>
-                {renderPanelMeta(selected)}
-              </div>
+              <div className="card-preview-slot">{renderPanelMeta(selected)}</div>
             )}
-            <div className={sectionClass('card-preview-meta', 'meta')}>
+            <div className="card-preview-meta">
               <span
                 className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
               >
@@ -660,6 +627,15 @@ export function CardPreview({
                   </span>
                 ) : null;
               })()}
+              {current.condition && (
+                <span
+                  className="card-preview-condition"
+                  aria-label={`Condition ${current.condition}`}
+                >
+                  {' · '}
+                  {current.condition.toUpperCase()}
+                </span>
+              )}
             </div>
             {showRole &&
               (() => {
@@ -672,7 +648,7 @@ export function CardPreview({
                     ? multiRoleTitle({ name: current.name })
                     : badge.title;
                 return (
-                  <div className={sectionClass('card-preview-role', 'role')}>
+                  <div className="card-preview-role">
                     <span className={`deck-row-role-badge deck-row-role-${badge.tone}`} aria-hidden>
                       {badge.label}
                     </span>
@@ -680,7 +656,7 @@ export function CardPreview({
                   </div>
                 );
               })()}
-            <div className={sectionClass('card-preview-set', 'set')}>
+            <div className="card-preview-set">
               {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
                 <img
                   src={setMap[current.setCode.toUpperCase()].iconSvgUri}
@@ -701,7 +677,7 @@ export function CardPreview({
                 </span>
               )}
             </div>
-            <div className={sectionClass('card-preview-links', 'links')}>
+            <div className="card-preview-links">
               <a
                 href={`https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`}
                 target="_blank"
@@ -734,11 +710,9 @@ export function CardPreview({
               </a>
             </div>
             {renderPanelExtra && (
-              <div className={sectionClass('card-preview-slot', 'panelExtra')}>
-                {renderPanelExtra(selected)}
-              </div>
+              <div className="card-preview-slot">{renderPanelExtra(selected)}</div>
             )}
-            <div className={sectionClass('card-preview-counter', 'counter')}>
+            <div className="card-preview-counter">
               Card {selected + 1} of {cards.length}
               {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
             </div>

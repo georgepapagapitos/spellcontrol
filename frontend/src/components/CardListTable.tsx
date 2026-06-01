@@ -1302,9 +1302,13 @@ export function CardListTable({
                     <div className="collection-list-meta">
                       <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
                       <span className="card-list-cn">#{r.card.collectorNumber}</span>
-                      <ManaCost cost={r.card.manaCost} />
                     </div>
                   </div>
+                  {r.card.manaCost ? (
+                    <ManaCost cost={r.card.manaCost} className="mana-cost-row" />
+                  ) : (
+                    <span className="mana-cost-row" aria-hidden />
+                  )}
                   <div className="collection-list-right">
                     <CardRowMenu
                       card={r.card}
