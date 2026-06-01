@@ -12,7 +12,6 @@ import {
   LayoutGrid,
   List as ListIconLucide,
   MoreVertical,
-  PanelRightOpen,
   Pencil,
   Search,
   Trash2,
@@ -44,7 +43,6 @@ import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
 import { DeckHoverPeek } from './DeckHoverPeek';
-import { DeckDetailPane } from './DeckDetailPane';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
@@ -223,20 +221,6 @@ interface ShowPrefs {
 const VIEW_MODE_STORAGE_KEY = 'mtg-decks-view-mode';
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 const SHOW_PREFS_STORAGE_KEY = 'mtg-decks-show-prefs';
-// Desktop detail-pane open/closed preference. Defaults open the first time
-// (the pane only ever mounts >=1024, where there's room for it).
-const DETAIL_PANE_STORAGE_KEY = 'mtg-decks-detail-pane';
-
-function readStoredPaneOpen(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const v = window.localStorage.getItem(DETAIL_PANE_STORAGE_KEY);
-    return v === null ? true : v === '1';
-  } catch {
-    return true;
-  }
-}
-
 function readStoredGridSize(): DeckGridSize {
   if (typeof window === 'undefined') return '1x';
   try {
@@ -853,28 +837,6 @@ export function DeckDisplay({
   }, []);
   const effectiveGridSize: DeckGridSize = isNarrowGrid && gridSize === '3x' ? '2x' : gridSize;
 
-  // Desktop detail-pane: only engages at >=1024 (below that there's no room
-  // beside the list — those viewports keep the tap->sheet flow + hover-peek).
-  const [isWideForPane, setIsWideForPane] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mql = window.matchMedia('(min-width: 1024px)');
-    const update = () => setIsWideForPane(mql.matches);
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, []);
-  const [paneOpen, setPaneOpen] = useState<boolean>(() => readStoredPaneOpen());
-  const handlePaneOpenChange = (open: boolean) => {
-    setPaneOpen(open);
-    try {
-      window.localStorage.setItem(DETAIL_PANE_STORAGE_KEY, open ? '1' : '0');
-    } catch {
-      /* ignore */
-    }
-  };
-
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
     try {
@@ -1420,51 +1382,13 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // The row pinned into the desktop detail pane (>=1024, pane open). Resolved
-  // from the live `flat` each render so edits keep the pane in sync.
-  const [pinnedName, setPinnedName] = useState<string | null>(null);
   // Desktop-only hover-peek for the list view (no-op on touch / native).
   const hoverPeek = useDeckHoverPeek();
-  // When the detail pane is up, a row click pins it there (no overlay); below
-  // 1024 or with the pane collapsed, it opens the full-screen sheet as before.
-  const paneActive = activeView === 'deck' && isWideForPane && paneOpen;
-  // Pane hidden but the viewport is wide enough for it — show the slim re-open
-  // handle so the pane is one click away without stealing list width.
-  const paneCollapsedHandle = activeView === 'deck' && isWideForPane && !paneOpen;
   const openPreview = (rowName: string) => {
-    hoverPeek.clear(); // pane/sheet supersedes the transient peek
-    if (paneActive) {
-      setPinnedName(rowName);
-      return;
-    }
+    hoverPeek.clear(); // the carousel supersedes the transient peek
     const i = flat.indexByName.get(rowName);
     if (i !== undefined) setPreviewIndex(i);
   };
-
-  const pinnedIdx = pinnedName != null ? flat.indexByName.get(pinnedName) : undefined;
-  const pinnedRow = pinnedIdx !== undefined ? flat.rows[pinnedIdx] : null;
-  const pinnedCard = pinnedIdx !== undefined ? flat.cards[pinnedIdx] : null;
-  // Other binders / decks holding a copy of the pinned card — mirrors the
-  // sheet's getStackBinders / getStackAllocations, resolved for the one card.
-  const pinnedBinders: BinderInfo[] = [];
-  const pinnedOtherDecks: AllocationInfo[] = [];
-  if (pinnedRow) {
-    const seenBinder = new Set<string>();
-    const seenDeck = new Set<string>();
-    for (const cid of pinnedRow.allocatedCopyIds) {
-      for (const b of binderByCopyId?.get(cid) ?? []) {
-        if (!seenBinder.has(b.id)) {
-          seenBinder.add(b.id);
-          pinnedBinders.push(b);
-        }
-      }
-      const a = crossDeck.otherDeckAllocations?.get(cid);
-      if (a && a.deckId !== deckId && !seenDeck.has(a.deckId)) {
-        seenDeck.add(a.deckId);
-        pinnedOtherDecks.push(a);
-      }
-    }
-  }
 
   // Tap a headline stat (cards / value / missing) to drill into the cards behind
   // it — the same carousel pattern as the analysis-tab drill-downs.
@@ -1610,11 +1534,7 @@ export function DeckDisplay({
               </div>
             )}
 
-            <div
-              className={`deck-display-body${paneActive ? ' deck-display-body--pane' : ''}${
-                paneCollapsedHandle ? ' deck-display-body--pane-collapsed' : ''
-              }`}
-            >
+            <div className="deck-display-body">
               <div className="deck-display-main">
                 {viewMode === 'list' && (
                   <div className="deck-card-list" {...hoverPeek.listHandlers}>
@@ -1719,51 +1639,6 @@ export function DeckDisplay({
                   </button>
                 )}
               </div>
-              {paneActive && (
-                <DeckDetailPane
-                  card={pinnedCard}
-                  metaCard={pinnedRow?.card ?? null}
-                  isPartner={!!pinnedRow?.isPartner}
-                  isCommander={
-                    !!pinnedRow && !pinnedRow.isPartner && commander?.name === pinnedRow.name
-                  }
-                  status={pinnedRow?.status}
-                  synergies={pinnedRow ? synergyByName?.get(pinnedRow.name) : undefined}
-                  inclusionPct={pinnedRow ? cardInclusionMap?.[pinnedRow.name] : undefined}
-                  legality={
-                    pinnedRow?.slotIds[0] ? legalityBySlot.get(pinnedRow.slotIds[0]) : undefined
-                  }
-                  binders={pinnedBinders}
-                  otherDecks={pinnedOtherDecks}
-                  qty={pinnedRow?.qty ?? 1}
-                  onSetQty={
-                    onSetQty && pinnedRow ? (qty) => onSetQty(pinnedRow.card, qty) : undefined
-                  }
-                  onCut={
-                    onRemoveCard && pinnedRow && pinnedRow.slotIds.length > 0
-                      ? () => onRemoveCard(pinnedRow.slotIds[pinnedRow.slotIds.length - 1])
-                      : undefined
-                  }
-                  onEditPrinting={
-                    onEditCard && pinnedRow?.slotIds[0]
-                      ? () => onEditCard(pinnedRow.slotIds[0], pinnedRow.card)
-                      : undefined
-                  }
-                  onCollapse={() => handlePaneOpenChange(false)}
-                  onClear={() => setPinnedName(null)}
-                />
-              )}
-              {paneCollapsedHandle && (
-                <button
-                  type="button"
-                  className="deck-detail-pane-reopen"
-                  onClick={() => handlePaneOpenChange(true)}
-                  aria-label="Show card details"
-                  title="Show card details"
-                >
-                  <PanelRightOpen width={18} height={18} strokeWidth={2} aria-hidden />
-                </button>
-              )}
             </div>
           </>
         ) : (
@@ -1798,12 +1673,9 @@ export function DeckDisplay({
           />
         )}
 
-        {/* The floating hover-peek and the persistent pane both want the gutter
-            beside the list, so they're mutually exclusive: when the pane is up
-            it IS the desktop inspect surface (the peek is suppressed). Collapse
-            the pane and the peek returns. Below 1024 the peek is unaffected. */}
-        {!paneActive &&
-          hoverPeek.peek &&
+        {/* Desktop-only floating hover-peek: a transient card-art preview in the
+            gutter beside the list while hovering a row. No-op on touch/native. */}
+        {hoverPeek.peek &&
           (() => {
             // Resolve the hovered card's hero art from the same flat list the
             // carousel uses, so the peek matches the owned printing.
@@ -2927,7 +2799,7 @@ function DeckCardRow({
         {row.isPartner && (
           <span className="deck-row-partner-tag" title="Partner commander">
             <Handshake width={12} height={12} strokeWidth={2.4} aria-hidden />
-            Partner
+            <span className="deck-row-partner-label">Partner</span>
           </span>
         )}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
@@ -2939,7 +2811,10 @@ function DeckCardRow({
             title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
             aria-label={`Synergy: ${synergyReasons.join('; ')}`}
           >
-            <span aria-hidden>✦</span> {synergyReasons[0]}
+            <span className="deck-row-synergy-icon" aria-hidden>
+              ✦
+            </span>
+            <span className="deck-row-synergy-label">{synergyReasons[0]}</span>
           </span>
         )}
         {typeof inclusionPct === 'number' && (
@@ -2954,9 +2829,9 @@ function DeckCardRow({
       </span>
       {showPrefs.mana &&
         (mana ? (
-          <ManaCost cost={mana} className="deck-row-mana" />
+          <ManaCost cost={mana} className="mana-cost-row" />
         ) : (
-          <span className="deck-row-mana" aria-hidden />
+          <span className="mana-cost-row" aria-hidden />
         ))}
       <div className="deck-row-menu" ref={menuRef}>
         <button
