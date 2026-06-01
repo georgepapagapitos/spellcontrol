@@ -5810,6 +5810,26 @@ hr {
   display: none;
 }
 
+/* Responsive breathing room around the hero card. Applied to the TRACK
+   (not the sheet) on purpose: the track is the container-type:size query
+   container, so padding shrinks its content box → 100cqh/100cqw shrink →
+   --slide-size shrinks → the padding renders as a gutter around the card,
+   never as an inset on the info panel/label below. Tablet + desktop (≥601)
+   get top headroom; mobile (≤600) also gets side gutters so the card isn't
+   edge-to-edge. Don't fold this into the sheet or "optimize" it away. */
+@media (min-width: 601px) {
+  .card-preview-track {
+    padding-top: 1.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .card-preview-track {
+    padding-top: 0.75rem;
+    padding-inline: 0.75rem;
+  }
+}
+
 .card-preview-slide {
   flex: 0 0 var(--slide-size);
   min-width: 0;
@@ -6037,8 +6057,40 @@ hr {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: min(13rem, 40vh);
+  height: min(15rem, 44vh);
   overflow: hidden;
+}
+
+/* Uniform-content contexts: the same fields render on every card (set /
+   condition / price / printing-picker), so letting the panel shrink to its
+   content causes no height-jump between cards — and hands the freed vertical
+   space to a bigger card. Capped so a rare overflowing card still scrolls
+   (the inner region owns the scroll). Dense/variable sources — deck,
+   suggestion — intentionally keep the fixed height above for a stable
+   scrollable area. */
+.card-preview-panel[data-source='collection'],
+.card-preview-panel[data-source='binder'],
+.card-preview-panel[data-source='search'],
+.card-preview-panel[data-source='playtest'] {
+  height: auto;
+  max-height: min(15rem, 44vh);
+}
+
+/* Desktop has ample vertical room, so shrink the info panel a touch and hand
+   that height back to the hero card/grid (which sizes off the track's cqh).
+   Mobile/tablet keep the taller base above (more at-rest content, less
+   scrolling on small screens). Panel still scrolls, so nothing clips. */
+@media (min-width: 1024px) {
+  .card-preview-panel {
+    height: min(13rem, 40vh);
+  }
+  .card-preview-panel[data-source='collection'],
+  .card-preview-panel[data-source='binder'],
+  .card-preview-panel[data-source='search'],
+  .card-preview-panel[data-source='playtest'] {
+    height: auto;
+    max-height: min(13rem, 40vh);
+  }
 }
 
 .card-preview-panel-inner {
@@ -6305,9 +6357,11 @@ hr {
   inset: 0;
   display: grid;
   grid-template-rows: 1fr auto;
-  /* Pattern B — sheet child (see .card-preview-sheet). */
+  /* Pattern B — sheet child (see .card-preview-sheet). Top-only: the info
+     panel (bottom `auto` row) owns its own `padding-bottom: max(0.9rem,
+     var(--safe-bottom))`, so a sheet-level bottom inset would double up and
+     expose a safe-area-tall strip of scrim below the panel on native. */
   padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
   will-change: transform;
   /* Transparent — see .card-preview-sheet. Only the opaque binder page and
      info panel visibly rise; the dim is .binder-pages-backdrop. */
@@ -6330,13 +6384,19 @@ hr {
 
 .binder-pages-track {
   display: flex;
+  /* Explicitly pin to the `1fr` row (panel pins to row 2). Without this,
+     the track is auto-placed — and because .carousel-nav-layer (grid-row:1)
+     sits BEFORE the track in the DOM here (unlike CardPreview, where it's
+     last), auto-placement bumped the track into the `auto` row 2, which —
+     since container-type:size means its content adds no height — collapsed
+     it to its 8px padding (100cqh→0 → --slide-size→0 → zero-width slides). */
+  grid-row: 1;
+  grid-column: 1;
   /* This track is the sheet's `1fr` grid row; the panel is the `auto`
-     row directly below it (no longer overlapping). Center the slide
-     vertically within that remaining space — a binder slide is label +
-     page, so centering keeps the label and page balanced in the gap
-     above the panel on every viewport. min-height:0 lets the `1fr`
-     actually shrink so the page is bounded by --slide-size, not by the
-     intrinsic slide height. */
+     row directly below it. The slide is just the page grid (the per-slide
+     label is gone). Center it vertically in the remaining space.
+     min-height:0 lets the `1fr` actually shrink so the page is bounded by
+     --slide-size, not by the intrinsic slide height. */
   align-items: center;
   gap: var(--slide-spacing);
   width: 100%;
@@ -6347,7 +6407,12 @@ hr {
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
-  padding-bottom: 0.5rem;
+  /* Same breathing room as .card-preview-track (kept in lockstep so the two
+     carousels feel identical): 1.25rem bottom here, plus the top/side padding
+     in the media blocks below. Safe now that the track is pinned to grid-row 1
+     (a real 1fr height) — the earlier collapse was the row-placement bug, not
+     this padding. */
+  padding-bottom: 1.25rem;
   scrollbar-width: none;
   /* Size containment so the slide can bound itself against the track's
      actual rendered height (cqh). Same rationale as .card-preview-track —
@@ -6357,20 +6422,36 @@ hr {
   container-type: size;
   /* Width constraints (min() picks the smallest):
        (a) track width (100cqw) — never wider than the track.
-       (b) track height (100cqh − label) × --page-w-ratio. Subtract a
-           1.6rem reserve for the page label (binder-pages-slide-label,
-           ~1rem text + the slide's 6px gap below) so the page itself —
-           which has the actual aspect ratio — fits in what's left. The
-           multiplier --page-w-ratio = cols×5 / rows×7 varies by pocket
-           count (9-/4-pocket → 5:7, 12-pocket → 20:21).
-       (c) clamp(460,64vw,820) — desktop ceiling; no source-resolution
-           cap since pocket thumbnails downscale freely.
+       (b) track height (100cqh) × --page-w-ratio. The page fills the
+           track's content box (no reserve — the page label is gone, and the
+           breathing room comes from the track padding, exactly like
+           .card-preview-track's `calc(100cqh * 488/680)`). The multiplier
+           --page-w-ratio = cols×5 / rows×7 varies by pocket count
+           (9-/4-pocket → 5:7, 12-pocket → 20:21).
+       (c) clamp(460,64vw,820) — desktop ceiling. Higher than the card's
+           620 because a 3×3 page is inherently larger than one card; the
+           padding/spacing match, the max-size ceiling is page-appropriate.
      Defined on the track so the centering spacers below share it. */
-  --slide-size: min(
-    100cqw,
-    calc((100cqh - 1.6rem) * var(--page-w-ratio, 0.72)),
-    clamp(460px, 64vw, 820px)
-  );
+  --slide-size: min(100cqw, calc(100cqh * var(--page-w-ratio, 0.72)), clamp(460px, 64vw, 820px));
+}
+
+/* Breathing room around the page grid — kept identical to .card-preview-track
+   so the two carousels are consistent. Padding lives on the TRACK (the
+   container-type:size query container): it shrinks 100cqh/100cqw → --slide-size
+   → the page, rendering as a gutter around the grid, never an inset on the
+   panel. Tablet + desktop (≥601) get top headroom; mobile (≤600) also gets side
+   gutters. */
+@media (min-width: 601px) {
+  .binder-pages-track {
+    padding-top: 1.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .binder-pages-track {
+    padding-top: 0.75rem;
+    padding-inline: 0.75rem;
+  }
 }
 
 /* Centering spacers — see .card-preview-track::before/::after. */
@@ -6386,6 +6467,15 @@ hr {
   display: none;
 }
 
+/* NOTE: no breathing-room padding on .binder-pages-track. Unlike
+   .card-preview-track, the binder page grid is height-driven with a FIXED
+   1.6rem label reserve baked into --slide-size:
+     min(100cqw, calc((100cqh - 1.6rem) * --page-w-ratio), …)
+   Padding on this size container shrinks 100cqh, and combined with the
+   page+label fit math it drives --slide-size to ~0 and collapses the grid
+   (the slides go zero-width, leaving only the page labels). If binder top
+   breathing room is wanted, add it to .binder-pages-sheet's padding-top
+   (outside the size container), never here. */
 .binder-pages-slide {
   flex: 0 0 var(--slide-size);
   min-width: 0;
@@ -6394,14 +6484,6 @@ hr {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.binder-pages-slide-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.65);
-  text-align: center;
-  letter-spacing: 0.04em;
 }
 
 .binder-pages-page {
@@ -6441,28 +6523,6 @@ hr {
 .binder-pages-cell.is-allocated .binder-pages-cell-fallback {
   opacity: 0.4;
   filter: grayscale(0.7);
-}
-
-.binder-pages-cell.is-foil::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(
-    115deg,
-    #ff80c8 0%,
-    #78c8ff 25%,
-    #78ffb4 50%,
-    #ffdc78 75%,
-    #ff78c8 100%
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
 }
 
 .binder-pages-cell.empty {
@@ -6516,6 +6576,10 @@ hr {
 }
 
 .binder-pages-panel {
+  /* Explicitly the `auto` row 2 (track pins to row 1) so DOM order /
+     the nav-layer can't bump it. */
+  grid-row: 2;
+  grid-column: 1;
   /* In normal grid flow — the `auto` row of .binder-pages-sheet's
      `grid-template-rows: 1fr auto`. (Was position:absolute over the
      bottom, which forced the centered track to reserve ~2× the panel's

@@ -76,11 +76,42 @@ Anti-patterns this rule kills:
 
 ## Responsive
 
-- **Canonical breakpoints:** 480 / 600 / 700 / 1024 (major) / 1101 (deck editor).
-  Reuse these; don't introduce new ones casually.
+### Device tiers (what to build + test against)
+
+There are only **two viewport media-query boundaries** in the codebase — **600px**
+and **1024px** (each used ~30× across many files). Everything else is refinement
+*within* a tier, not a tier wall. "XL desktop" is **not** a breakpoint: it's where
+content hits its `max-width` cap and centers with side gutters (`--analysis-max:
+1320px` for deck-analysis boards, `--page-max: 1400px` for page containers).
+
+| Tier | Viewport range | Test at (px) | What defines it |
+|---|---|---|---|
+| **Mobile** | `≤ 600` | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement. |
+| **Tablet** | `601 – 1023` | 640 · 768 · 820 · 1023 | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport). |
+| **Desktop** | `1024 – 1399` | **1024** · 1101 · 1280 | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift. |
+| **XL desktop** | `≥ 1400` | 1440 · 1920 | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400). Test for balanced gutters / no dead space, not a reflow. |
+
+- **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
+  (desktop). Use **600**, not 599 — the codebase tolerates the 1px overlap with
+  `min-width: 600px` rules. Tablet is the implied `601–1023` gap.
+- **Secondary refinement widths** (reuse before inventing new): **480** (tight
+  phone), **640** (bento container query + early tablet), **700** (Cost/Optimize/
+  Substitution panels), **1101** (deck editor). Don't add bespoke widths casually —
+  if you need one, prefer snapping to this set.
+- **Container queries ≠ viewport.** The deck bento (`.deck-bento`,
+  `container-type: inline-size`) reflows on its **own** width at `640` / `1040`
+  container px — independent of viewport tier. This is why a half-width panel on a
+  wide tablet can look cramped even though the *viewport* is "desktop": tune the
+  **container** threshold, not a viewport media query.
+- **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
+  (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
+
+### Other responsive rules
+
 - **44px touch targets** on coarse pointers (`@media (pointer: coarse)`) for
   anything tappable.
-- **No horizontal overflow at 320px.**
+- **No horizontal overflow at 320px** (the hard floor).
+- **Both themes on every tier** — light and dark are independent surfaces.
 
 ## CSS file layout
 
