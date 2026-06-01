@@ -165,7 +165,7 @@ describe('buildNextBestMoves', () => {
     expect(moves[0].tier).toBe(3);
     expect(moves[0].cardName).toBe('Missing Piece');
     expect(moves[0].detail).toContain('Infinite mana');
-    expect(moves[0].navigateTo).toBe('tune');
+    expect(moves[0].navigateTo).toBe('power');
   });
 
   it('ignores combos missing more than one card', () => {

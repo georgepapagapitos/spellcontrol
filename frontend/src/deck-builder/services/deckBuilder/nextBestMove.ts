@@ -184,7 +184,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           id: 'cardfit',
           tier: 2,
           title: 'Tighten card fit',
-          detail: `${sub.surface} Swap low-fit cards for stronger options on the Improve view.`,
+          detail: `${sub.surface} Swap low-fit cards for stronger options on the Tune view.`,
           navigateTo: SUBSCORE_VIEW.cardFit,
         });
         continue;
@@ -223,7 +223,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         title: 'Complete a combo',
         cardName: missingName,
         detail: `You're one card from ${produces}. Add ${missingName} to complete the combo.`,
-        navigateTo: 'tune',
+        navigateTo: 'power',
       });
       usedCards.add(missingName);
       break;

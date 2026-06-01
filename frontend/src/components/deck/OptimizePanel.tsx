@@ -337,20 +337,30 @@ export function OptimizePanel({
     );
 
   // "Owned only" constrains the Add column to cards already in the collection —
-  // a "free upgrades from what I have" mode. Cuts (your own deck cards) are
-  // never filtered. The filtered set feeds the hook so totals/Apply stay honest.
+  // a "free upgrades from what I have" mode. The filtered set feeds the hook so
+  // totals/Apply stay honest.
   const [ownedOnly, setOwnedOnly] = useState(false);
   const ownedAdditionCount = useMemo(
     () => swaps.additions.filter((c) => owned.has(c.name)).length,
     [swaps.additions, owned]
   );
-  const effectiveSwaps = useMemo(
-    () =>
-      ownedOnly
-        ? { removals: swaps.removals, additions: swaps.additions.filter((c) => owned.has(c.name)) }
-        : swaps,
-    [swaps, ownedOnly, owned]
-  );
+  // Balance the Remove menu to the adds on offer: show only as many cuts as are
+  // needed to keep the deck legal once those adds go in, taking the best-ranked
+  // cuts. `swaps.removals` arrives globally sorted worst-card-first (sortScore =
+  // inclusion + curve adjust, with synergy/combo/load-bearing protection floors
+  // applied upstream), so slicing the front IS "pick the best N to cut". This
+  // makes a swap read as a swap (5 owned adds → the 5 best cuts) instead of
+  // dumping every possible cut regardless of how many cards are going in.
+  // Over-size decks get extra cuts (trim the excess down to legal); under-size
+  // decks get none (fill empty slots first, don't force swaps).
+  const effectiveSwaps = useMemo(() => {
+    const additions = ownedOnly
+      ? swaps.additions.filter((c) => owned.has(c.name))
+      : swaps.additions;
+    const cutsNeeded = Math.max(0, currentSize + additions.length - MAX_DECK_SIZE);
+    const removals = swaps.removals.slice(0, Math.min(swaps.removals.length, cutsNeeded));
+    return { removals, additions };
+  }, [swaps, ownedOnly, owned, currentSize]);
 
   const plan = useOptimizePlan(effectiveSwaps, currentSize);
   const removalGroups = useMemo(
