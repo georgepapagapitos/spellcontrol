@@ -1,5 +1,7 @@
 import './EnginePanel.css';
 import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import { OwnershipBadge } from './OwnershipBadge';
 import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/synergy/analysis';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import { useCardCarousel } from './useCardCarousel';
@@ -90,11 +92,7 @@ function SuggestionTile({
           {suggestion.inclusion != null
             ? `In ${Math.round(suggestion.inclusion)}% of decks`
             : 'Off-meta'}
-          {owned && (
-            <span className="deck-analysis-suggest-owned" title="In your collection">
-              Owned
-            </span>
-          )}
+          <OwnershipBadge owned={owned} />
         </span>
       </button>
       <button
@@ -104,6 +102,7 @@ function SuggestionTile({
         disabled={adding}
         aria-label={`Add ${suggestion.cardName}`}
       >
+        <Plus width={12} height={12} aria-hidden />
         {adding ? 'Adding…' : 'Add'}
       </button>
     </li>

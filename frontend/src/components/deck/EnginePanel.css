@@ -213,8 +213,10 @@
 
 .engine-suggestion-add {
   flex: 0 0 auto;
-  min-height: 44px;
-  padding: 0 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.75rem;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--on-accent);
@@ -245,10 +247,13 @@
   cursor: default;
 }
 
-/* Guarantee a 44px-wide tap target on touch devices (native app / mobile web). */
+/* Guarantee a 44px tap target on touch devices (native app / mobile web).
+   Kept off fine pointers so the button stays a normal, compact height on
+   desktop instead of an over-tall pill. */
 @media (pointer: coarse) {
   .engine-suggestion-add {
     min-width: 44px;
+    min-height: 44px;
   }
 }
 

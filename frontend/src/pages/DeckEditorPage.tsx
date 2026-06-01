@@ -688,35 +688,33 @@ export function DeckEditorPage() {
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Tune
   // (power + improve). Stats always shows; Tune shows for commander formats
   // (bracket + combos) or any non-empty deck (roles + suggestions). The live
-  // combo count rides on the Tune tab as a count badge (the old Power badge).
   const hasCommanderFormat = !!formatConfig?.hasCommander;
-  const comboCount = comboData.data?.inDeck.length ?? null;
   // Bracket is glanceable info — it rides the hero meta line now (the old
   // feature-strip chip is gone); the Tune view still owns the override UI.
   const bracketValue = effectiveBracket(deck);
-  const showTuneTab = hasCommanderFormat || deck.cards.length > 0;
-  const viewTabs: Array<{ id: DeckView; label: string; count?: number | null }> = [
+  // Power + Tune share the same gate: any non-empty deck (or a commander
+  // format, which can have power signals before cards are added).
+  const showAnalysisExtras = hasCommanderFormat || deck.cards.length > 0;
+  // The Tune tab carries no count badge — a bare number there read as a
+  // mystery (it was the in-deck combo count); the combo count is shown,
+  // clearly labelled, on the "In deck" sub-tab of the embedded Combos panel.
+  const viewTabs: Array<{ id: DeckView; label: string }> = [
     { id: 'deck', label: 'Deck' },
     { id: 'stats', label: 'Stats' },
-    ...(showTuneTab
+    ...(showAnalysisExtras
       ? [
-          {
-            id: 'tune' as DeckView,
-            label: 'Tune',
-            // Combo count is only meaningful for commander formats; otherwise
-            // the badge is omitted (undefined → no badge).
-            count: hasCommanderFormat ? (comboData.loading ? null : comboCount) : undefined,
-          },
+          { id: 'power' as DeckView, label: 'Power' },
+          { id: 'tune' as DeckView, label: 'Tune' },
         ]
       : []),
   ];
   // Guard against a stale view that no longer has a tab. Map any legacy
-  // analysis id (overview/mana → stats; power/improve → tune) that might still
-  // be in `view` from before this restructure, then fall back to a real tab.
+  // analysis id that might still be in `view` from an earlier restructure, then
+  // fall back to a real tab. (overview/mana → stats; improve → tune; the old
+  // "power" id now maps to the real Power tab again.)
   const legacyViewMap: Record<string, DeckView> = {
     overview: 'stats',
     mana: 'stats',
-    power: 'tune',
     improve: 'tune',
   };
   const mappedView = legacyViewMap[view] ?? view;
@@ -873,7 +871,6 @@ export function DeckEditorPage() {
           tabs={viewTabs.map((t) => ({
             id: t.id,
             label: t.label,
-            count: t.count,
             controls: `deck-view-panel-${t.id}`,
           }))}
         />

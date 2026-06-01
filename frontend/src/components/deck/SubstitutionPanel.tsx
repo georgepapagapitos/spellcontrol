@@ -6,6 +6,7 @@ import type {
   SubstituteRow,
 } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { useCardCarousel } from './useCardCarousel';
+import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge } from './VerdictBadge';
 
 export interface SubstitutionPanelProps {
@@ -87,9 +88,7 @@ function Row({
           />
           <span className="sub-card-text">
             <span className="sub-card-name">{row.usedName}</span>
-            <span className="sub-card-owned" title="In your collection">
-              Owned{row.usedSubtypeMatch ? ' · exact swap' : ''}
-            </span>
+            <OwnershipBadge owned detail={row.usedSubtypeMatch ? '· exact swap' : undefined} />
           </span>
         </button>
 

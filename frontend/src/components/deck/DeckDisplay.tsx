@@ -2957,7 +2957,7 @@ function DeckCardRow({
 // ── Analysis views ─────────────────────────────────────────────────────────
 /** The page-top analysis view ids. (Test hand is a separate standalone panel,
  *  not a view — goldfishing is a distinct activity.) */
-export type AnalysisTabId = 'stats' | 'tune';
+export type AnalysisTabId = 'stats' | 'power' | 'tune';
 
 /** The full page-top view set: the card-list editing surface plus the analysis
  *  views. `DeckEditorPage` owns this state and renders the hub tab bar. */
@@ -3071,12 +3071,6 @@ function DeckAnalysisView({
     <div className="deck-analysis-view">
       {current === 'stats' && (
         <div className="deck-bento deck-bento--stats">
-          {/* Next best move — a full-width banner up top when present. */}
-          {nextBestMoveSlot && (
-            <Panel title="Next best move" wide>
-              {nextBestMoveSlot}
-            </Panel>
-          )}
           {/* Mana curve — the hero, full-width so the stacked curve reads well. */}
           <Panel title="Mana curve" wide>
             <DeckCurvePhases
@@ -3160,8 +3154,8 @@ function DeckAnalysisView({
         </div>
       )}
 
-      {current === 'tune' && (
-        <div className="deck-bento deck-bento--tune">
+      {current === 'power' && (
+        <div className="deck-bento deck-bento--power">
           {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
           <div className="deck-stats-pair">
             {(bracketEstimation || bracketOverride != null) && (
@@ -3223,23 +3217,34 @@ function DeckAnalysisView({
               </Panel>
             )}
           </div>
+          {/* Engine — the synergy engine (lone, spans full width). */}
+          {engineSlot && (
+            <div className="deck-stats-pair">
+              <Panel title="Engine">{engineSlot}</Panel>
+            </div>
+          )}
           {/* Combos — full width (its own multi-column grid inside). */}
           {combosSlot && (
             <Panel title="Combos" wide>
               {combosSlot}
             </Panel>
           )}
-          {/* Engine + Optimize — a compact pair. */}
-          <div className="deck-stats-pair">
-            {engineSlot && <Panel title="Engine">{engineSlot}</Panel>}
-            {optimizeSlot && <Panel title="Optimize">{optimizeSlot}</Panel>}
-          </div>
-          {/* Optimize on a budget — compact, pairs on its own row. */}
-          {costSlot && (
-            <div className="deck-stats-pair">
-              <Panel title="Optimize on a budget">{costSlot}</Panel>
-            </div>
+        </div>
+      )}
+
+      {current === 'tune' && (
+        <div className="deck-bento deck-bento--tune">
+          {/* Next best move — a full-width banner up top when present. */}
+          {nextBestMoveSlot && (
+            <Panel title="Next best move" wide>
+              {nextBestMoveSlot}
+            </Panel>
           )}
+          {/* Optimize + Optimize on a budget — a compact pair. */}
+          <div className="deck-stats-pair">
+            {optimizeSlot && <Panel title="Optimize">{optimizeSlot}</Panel>}
+            {costSlot && <Panel title="Optimize on a budget">{costSlot}</Panel>}
+          </div>
           {/* From your collection — owned substitutes for missing staples. */}
           {substitutionSlot && (
             <Panel title="From your collection" wide>
