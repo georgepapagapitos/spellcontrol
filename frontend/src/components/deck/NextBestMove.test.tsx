@@ -30,11 +30,28 @@ describe('NextBestMove', () => {
     expect(screen.getByText(/Light on ramp/)).toBeTruthy();
   });
 
-  it('fires onNavigate with the move destination', () => {
+  it('fires onNavigate with the move destination and focus', () => {
     const onNavigate = vi.fn();
     render(<NextBestMove moves={moves} onNavigate={onNavigate} />);
     fireEvent.click(screen.getByRole('button', { name: 'Go to Tune' }));
-    expect(onNavigate).toHaveBeenCalledWith('tune');
+    expect(onNavigate).toHaveBeenCalledWith('tune', undefined);
+  });
+
+  it('passes a panel focus hint through onNavigate (combo → Power)', () => {
+    const onNavigate = vi.fn();
+    const comboMove: Move[] = [
+      {
+        id: 'combo-x',
+        tier: 3,
+        title: 'Complete a combo',
+        detail: "You're one card from Infinite mana.",
+        navigateTo: 'power',
+        focus: 'combos',
+      },
+    ];
+    render(<NextBestMove moves={comboMove} onNavigate={onNavigate} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Power' }));
+    expect(onNavigate).toHaveBeenCalledWith('power', 'combos');
   });
 
   it('renders no navigate button when onNavigate is absent', () => {
@@ -57,5 +74,44 @@ describe('NextBestMove', () => {
   it('renders the healthy state when there are no moves', () => {
     render(<NextBestMove moves={[]} />);
     expect(screen.getByText(/Looks dialed in/)).toBeTruthy();
+  });
+
+  it('holds a placeholder slot while combos are loading', () => {
+    render(<NextBestMove moves={moves} combosLoading />);
+    expect(screen.getByText(/Checking for combos/)).toBeTruthy();
+  });
+
+  it('shows the combo placeholder even with no other moves yet', () => {
+    render(<NextBestMove moves={[]} combosLoading />);
+    expect(screen.getByText(/Checking for combos/)).toBeTruthy();
+    // Not the healthy state — the check is still in flight.
+    expect(screen.queryByText(/Looks dialed in/)).toBeNull();
+  });
+
+  it('drops the placeholder once a combo move is present', () => {
+    const withCombo: Move[] = [
+      ...moves,
+      {
+        id: 'combo-x',
+        tier: 3,
+        title: 'Complete a combo',
+        detail: "You're one card from Infinite mana.",
+        navigateTo: 'power',
+        focus: 'combos',
+      },
+    ];
+    render(<NextBestMove moves={withCombo} combosLoading />);
+    expect(screen.queryByText(/Checking for combos/)).toBeNull();
+  });
+
+  it('omits the placeholder when the list is already full (no room)', () => {
+    const three: Move[] = [1, 2, 3].map((n) => ({
+      id: `m${n}`,
+      tier: 2,
+      title: `Move ${n}`,
+      detail: 'd',
+    }));
+    render(<NextBestMove moves={three} combosLoading />);
+    expect(screen.queryByText(/Checking for combos/)).toBeNull();
   });
 });

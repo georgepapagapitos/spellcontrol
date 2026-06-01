@@ -132,6 +132,29 @@
   height: 0.85rem;
 }
 
+/* ── Combo-check placeholder (async one-away combos still loading) ── */
+.next-best-move-row.is-loading {
+  opacity: 0.75;
+}
+
+.next-best-move-spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  animation: next-best-move-spin 0.8s linear infinite;
+}
+
+@keyframes next-best-move-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .next-best-move-spinner {
+    animation: none;
+  }
+}
+
 /* ── Healthy / empty state ── */
 .next-best-move.is-clear {
   flex-direction: row;

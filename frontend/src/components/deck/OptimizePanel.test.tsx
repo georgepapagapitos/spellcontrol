@@ -125,4 +125,63 @@ describe('OptimizePanel', () => {
     fireEvent.click(screen.getByLabelText('Owned upgrades only'));
     expect(screen.getByText(/No upgrades in your collection/)).toBeTruthy();
   });
+
+  // ── Cut-menu balancing: show only as many (best-ranked) cuts as the adds on
+  //    offer need to keep the deck legal, instead of every possible cut. ──
+  const balanceSwaps: OptimizeSwaps = {
+    // Pre-sorted worst-card-first (as computeOptimizeSwaps emits them).
+    removals: [
+      card({ name: 'Cut 1', inclusion: 3 }),
+      card({ name: 'Cut 2', inclusion: 6 }),
+      card({ name: 'Cut 3', inclusion: 9 }),
+      card({ name: 'Cut 4', inclusion: 12 }),
+    ],
+    additions: [
+      card({ name: 'Add 1', reasonCategory: 'synergy', inclusion: 70 }),
+      card({ name: 'Add 2', reasonCategory: 'synergy', inclusion: 60 }),
+    ],
+  };
+
+  it('trims a complete deck to the best N cuts matching the adds count', () => {
+    // 99-card deck + 2 adds → 2 cuts needed; only the 2 worst (front) cuts show.
+    render(<OptimizePanel swaps={balanceSwaps} currentSize={99} onApply={() => {}} />);
+    expect(screen.getByText('Cut 1')).toBeTruthy();
+    expect(screen.getByText('Cut 2')).toBeTruthy();
+    expect(screen.queryByText('Cut 3')).toBeNull();
+    expect(screen.queryByText('Cut 4')).toBeNull();
+    // Projected size stays legal at 99 (2 cuts, 2 adds).
+    expect(screen.getByLabelText(/projected deck size 99/)).toBeTruthy();
+  });
+
+  it('rebalances cuts when "Owned upgrades only" shrinks the adds', () => {
+    // Complete deck; only one owned add → only one cut should remain.
+    render(
+      <OptimizePanel
+        swaps={balanceSwaps}
+        currentSize={99}
+        ownedNames={new Set(['Add 1'])}
+        onApply={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Owned upgrades only'));
+    expect(screen.getByText('Cut 1')).toBeTruthy();
+    expect(screen.queryByText('Cut 2')).toBeNull();
+    expect(screen.getByText('Add 1')).toBeTruthy();
+    expect(screen.queryByText('Add 2')).toBeNull();
+  });
+
+  it('gives an over-size deck extra cuts to reach a legal size', () => {
+    // 101 cards + 2 adds → 4 cuts needed (trim the 2 excess + 2 swaps).
+    render(<OptimizePanel swaps={balanceSwaps} currentSize={101} onApply={() => {}} />);
+    expect(screen.getByText('Cut 4')).toBeTruthy();
+    expect(screen.getByLabelText(/projected deck size 99/)).toBeTruthy();
+  });
+
+  it('forces no cuts on an under-size deck (fill empty slots first)', () => {
+    // 90 cards + 2 adds → 92, still under 99, so no cuts are suggested.
+    render(<OptimizePanel swaps={balanceSwaps} currentSize={90} onApply={() => {}} />);
+    expect(screen.queryByText('Cut 1')).toBeNull();
+    expect(screen.getByText('Add 1')).toBeTruthy();
+    expect(screen.getByLabelText('Remove suggestions')).toBeTruthy();
+  });
 });
