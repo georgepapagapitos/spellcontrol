@@ -5370,7 +5370,9 @@ input.toolbar-search-input {
   padding: 2px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.7);
-  color: #e5484d;
+  /* Not-owned = muted/neutral, never alarming-red (a red banlist-style glyph
+     reads as "banned card" in an MTG context, not "you don't own it"). */
+  color: rgba(255, 255, 255, 0.82);
   line-height: 0;
 }
 
@@ -5424,7 +5426,7 @@ input.toolbar-search-input {
 }
 
 .deck-combos-filter-icon--not-owned {
-  color: #e5484d;
+  color: var(--text3);
 }
 
 /* On the active (accent-filled) pill the status colors lose contrast —

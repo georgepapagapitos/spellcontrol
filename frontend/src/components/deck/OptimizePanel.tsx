@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { useOptimizePlan, type OptimizeSide, type TriState } from './useOptimizePlan';
 import { useCardCarousel } from './useCardCarousel';
+import { OwnershipBadge } from './OwnershipBadge';
 
 export interface OptimizePanelProps {
   swaps: OptimizeSwaps;
@@ -218,11 +219,7 @@ function OptimizeTile({
                 Synergy
               </span>
             )}
-            {owned && (
-              <span className="deck-analysis-suggest-owned" title="In your collection">
-                Owned
-              </span>
-            )}
+            <OwnershipBadge owned={owned} />
           </span>
           {card.inclusion != null && (
             <span className="optimize-tile-bar" aria-hidden>

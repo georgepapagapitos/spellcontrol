@@ -6061,19 +6061,33 @@ hr {
   overflow: hidden;
 }
 
-/* Uniform-content contexts: the same fields render on every card (set /
-   condition / price / printing-picker), so letting the panel shrink to its
-   content causes no height-jump between cards — and hands the freed vertical
-   space to a bigger card. Capped so a rare overflowing card still scrolls
-   (the inner region owns the scroll). Dense/variable sources — deck,
-   suggestion — intentionally keep the fixed height above for a stable
-   scrollable area. */
+/* Fit-to-content contexts: the panel shrinks to whatever the card needs and
+   hands the freed vertical space back to the card. SAFE here only because
+   these sources render the *same fields on every card* (set / condition /
+   price / printing-picker) — so the panel height never changes between cards
+   and the hero can't shift mid-swipe. Capped so a rare overflowing card still
+   scrolls (the inner region owns the scroll).
+
+   NOTE: variable-content sources (deck, suggestion) deliberately do NOT live
+   here — auto height + variable content = the hero resizing as you swipe (the
+   jank). They get a stable fixed frame instead (base rule above + the
+   suggestion override below). */
 .card-preview-panel[data-source='collection'],
 .card-preview-panel[data-source='binder'],
 .card-preview-panel[data-source='search'],
 .card-preview-panel[data-source='playtest'] {
   height: auto;
   max-height: min(15rem, 44vh);
+}
+
+/* `suggestion` is the shared deck-analysis preview source (Engine / Optimize /
+   Combos / Gap / Suggestions). Its content is variable (the role line is
+   optional and can wrap), so it needs a stable fixed frame — but it carries
+   far less than a deck card's synergy list, so the base 15rem overshot it
+   (a big empty box, worst on tablet/mobile). Give it its own shorter fixed
+   height; overflow still scrolls via the inner region. */
+.card-preview-panel[data-source='suggestion'] {
+  height: min(12rem, 42vh);
 }
 
 /* Desktop has ample vertical room, so shrink the info panel a touch and hand
@@ -6090,6 +6104,9 @@ hr {
   .card-preview-panel[data-source='playtest'] {
     height: auto;
     max-height: min(13rem, 40vh);
+  }
+  .card-preview-panel[data-source='suggestion'] {
+    height: min(10.5rem, 38vh);
   }
 }
 

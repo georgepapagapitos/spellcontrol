@@ -32,6 +32,7 @@ import type { EnrichedCard } from '../../types';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { OwnershipBadge } from './OwnershipBadge';
 
 export interface DeckAnalysisPanelHandle {
   /** Expand the panel, scroll it into view, and focus the diagnosis header. */
@@ -777,11 +778,7 @@ function renderOwnershipBadge(o: Ownership): React.ReactNode {
       o.otherDecks.length > 0
         ? `${o.freeCopies} free · also in ${o.otherDecks.join(', ')}`
         : `${o.freeCopies} ${o.freeCopies === 1 ? 'copy' : 'copies'} owned`;
-    return (
-      <span className="deck-analysis-suggest-owned" title={tip}>
-        Owned
-      </span>
-    );
+    return <OwnershipBadge owned title={tip} />;
   }
   // in-other-deck — every copy is checked out elsewhere
   const tip =

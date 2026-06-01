@@ -9,11 +9,11 @@ import {
 } from 'react';
 import {
   AlertTriangle,
-  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Circle,
   Footprints,
   Infinity as InfinityIcon,
   ListChecks,
@@ -422,7 +422,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
               className={`deck-combos-filter-pill${ownershipFilter === 'notOwned' ? ' active' : ''}`}
               onClick={() => setOwnershipFilter('notOwned')}
             >
-              <Ban
+              <Circle
                 className="deck-combos-filter-icon deck-combos-filter-icon--not-owned"
                 width={13}
                 height={13}
@@ -628,7 +628,7 @@ function ComboRow({
                     {isOwned ? (
                       <CheckCircle2 width={18} height={18} strokeWidth={2.5} aria-hidden />
                     ) : (
-                      <Ban width={18} height={18} strokeWidth={2.5} aria-hidden />
+                      <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
                     )}
                   </span>
                 )}
