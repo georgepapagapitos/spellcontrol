@@ -50,6 +50,21 @@ describe('DeckColorBalance', () => {
     expect(screen.queryByText('Sources short')).toBeNull();
   });
 
+  it('flags a tiny splash that balanced forgives when the deck curve reads aggressive', () => {
+    // Same R: demand 2, production 1 as the splash-forgiveness case, but an
+    // aggressive curve tightens the bar (floor drops to 2, coverage bar rises),
+    // so the under-covered splash is now flagged.
+    const aggroCurve = { 1: 20, 2: 20, 3: 8, 4: 2 }; // avg 1.84, early 80% → aggressive-early
+    render(
+      <DeckColorBalance
+        colorRequirements={{ R: 2 }}
+        colorProduction={{ R: 1 }}
+        manaCurve={aggroCurve}
+      />
+    );
+    expect(screen.getByText('Sources short')).toBeTruthy();
+  });
+
   it('flags a color with demand but zero sources even when demand is small', () => {
     // B: demand 2, production 0 → you can't produce a color you need → always flag.
     render(<DeckColorBalance colorRequirements={{ B: 2 }} colorProduction={{ B: 0 }} />);

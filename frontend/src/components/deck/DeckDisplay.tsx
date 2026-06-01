@@ -3088,6 +3088,7 @@ function DeckAnalysisView({
                 colorDist={manaData.colorDist}
                 manaProduction={manaData.manaProduction}
                 cardsByColor={manaData.cardsByColor}
+                manaCurve={manaData.manaCurve}
               />
             </Panel>
             <Panel title="Types">
