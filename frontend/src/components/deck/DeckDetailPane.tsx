@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Layers, Notebook, PanelRightClose, RefreshCw, X } from 'lucide-react';
+import {
+  ExternalLink,
+  Layers,
+  Minus,
+  Notebook,
+  PanelRightClose,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Scissors,
+  X,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
@@ -29,6 +40,15 @@ interface Props {
   binders: BinderInfo[];
   /** Other decks holding a copy (the current deck is filtered out upstream). */
   otherDecks: AllocationInfo[];
+  /** Copies of this card in the deck (drives the qty stepper). */
+  qty: number;
+  /** Edit-in-place callbacks — each acts on the deck without closing the pane,
+   *  so you stay on the card you're tuning. Omitted when the host is read-only
+   *  or the action doesn't apply. Qty/cut are additionally suppressed by the
+   *  pane for the commander/partner (singletons managed elsewhere). */
+  onSetQty?: (qty: number) => void;
+  onCut?: () => void;
+  onEditPrinting?: () => void;
   /** Collapse the whole pane (persisted by the caller). */
   onCollapse: () => void;
   /** Clear the current selection back to the empty state. */
@@ -59,6 +79,10 @@ export function DeckDetailPane({
   legality,
   binders,
   otherDecks,
+  qty,
+  onSetQty,
+  onCut,
+  onEditPrinting,
   onCollapse,
   onClear,
 }: Props) {
@@ -108,7 +132,11 @@ export function DeckDetailPane({
           legality={legality}
           binders={binders}
           otherDecks={otherDecks}
+          qty={qty}
           setMap={setMap}
+          onSetQty={onSetQty}
+          onCut={onCut}
+          onEditPrinting={onEditPrinting}
           onClear={onClear}
         />
       ) : (
@@ -134,7 +162,11 @@ interface PaneCardProps {
   legality?: LegalityIssue;
   binders: BinderInfo[];
   otherDecks: AllocationInfo[];
+  qty: number;
   setMap: SetMap | null;
+  onSetQty?: (qty: number) => void;
+  onCut?: () => void;
+  onEditPrinting?: () => void;
   onClear: () => void;
 }
 
@@ -149,7 +181,11 @@ function PaneCard({
   legality,
   binders,
   otherDecks,
+  qty,
   setMap,
+  onSetQty,
+  onCut,
+  onEditPrinting,
   onClear,
 }: PaneCardProps) {
   const [flipped, setFlipped] = useState(false);
@@ -157,6 +193,12 @@ function PaneCard({
   const [imgErrored, setImgErrored] = useState(false);
   const setIcon = card.setCode ? setMap?.[card.setCode.toUpperCase()]?.iconSvgUri : undefined;
   const hasContext = binders.length > 0 || otherDecks.length > 0;
+  // The commander/partner are singletons managed through their own controls —
+  // a qty stepper or Cut here would be a footgun, so suppress them for those.
+  const canQuantityEdit = !isCommander && !isPartner;
+  const showQty = canQuantityEdit && !!onSetQty;
+  const showCut = canQuantityEdit && !!onCut;
+  const showEditRow = showQty || showCut || !!onEditPrinting;
 
   return (
     <div className="deck-detail-pane-card">
@@ -196,6 +238,63 @@ function PaneCard({
           <span>Clear</span>
         </button>
       </div>
+
+      {showEditRow && (
+        <div className="deck-detail-pane-edit">
+          {showQty && (
+            <div className="deck-detail-pane-qty" role="group" aria-label="Quantity in deck">
+              <button
+                type="button"
+                className="deck-detail-pane-qty-btn"
+                onClick={() => onSetQty?.(qty - 1)}
+                disabled={qty <= 1}
+                aria-label="Decrease quantity"
+                title="Decrease quantity"
+              >
+                <Minus width={15} height={15} strokeWidth={2.4} aria-hidden />
+              </button>
+              <span className="deck-detail-pane-qty-value" aria-live="polite">
+                {qty}
+              </span>
+              <button
+                type="button"
+                className="deck-detail-pane-qty-btn"
+                onClick={() => onSetQty?.(qty + 1)}
+                aria-label="Increase quantity"
+                title="Increase quantity"
+              >
+                <Plus width={15} height={15} strokeWidth={2.4} aria-hidden />
+              </button>
+            </div>
+          )}
+          <div className="deck-detail-pane-edit-actions">
+            {onEditPrinting && (
+              <button
+                type="button"
+                className="deck-detail-pane-edit-btn"
+                onClick={onEditPrinting}
+                aria-label="Edit printing"
+                title="Edit printing"
+              >
+                <Pencil width={15} height={15} strokeWidth={2} aria-hidden />
+                <span>Printing</span>
+              </button>
+            )}
+            {showCut && (
+              <button
+                type="button"
+                className="deck-detail-pane-edit-btn deck-detail-pane-edit-btn--danger"
+                onClick={onCut}
+                aria-label={qty > 1 ? 'Remove one copy from the deck' : 'Cut from the deck'}
+                title={qty > 1 ? 'Remove one copy' : 'Cut from deck'}
+              >
+                <Scissors width={15} height={15} strokeWidth={2} aria-hidden />
+                <span>Cut</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="deck-detail-pane-body">
         <div className="card-preview-name">{card.name}</div>
