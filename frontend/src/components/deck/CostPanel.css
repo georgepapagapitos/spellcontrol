@@ -238,20 +238,17 @@
 }
 
 /* ── Apply bar ──────────────────────────────────────────────────────── */
+/* Static panel footer (matches OptimizePanel). Not viewport-sticky — the
+   bento scrolls with the page, so a pinned bar floated over content. */
 .cost-applybar {
-  position: sticky;
-  bottom: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem 0.85rem;
   padding: 0.6rem 0.75rem;
-  /* Keep the Apply button clear of the native home-gesture bar (0 on web). */
-  padding-bottom: calc(0.6rem + var(--safe-bottom));
   border-radius: var(--radius);
   background: var(--surface2);
   border: 0.5px solid var(--border);
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
 }
 
 .cost-totals {
