@@ -1,4 +1,3 @@
-import type { ScryfallCard } from '@/deck-builder/types';
 import type { CurvePhaseAnalysis, RoleDeficit } from './deckAnalyzer';
 import { computeMisfits, computeCardFitSubscore, type MisfitInputs } from './cardFit';
 
@@ -48,70 +47,6 @@ export function headlineFor(score: number): string {
 function normalizedRatio(current: number, target: number): number {
   const ratio = Math.min(1.2, current / (target || 1));
   return ratio >= 1 ? 1 - Math.max(0, ratio - 1) * 0.5 : ratio;
-}
-
-// ── Strategy ────────────────────────────────────────────────────────────────
-const STRATEGY_DENSITY_TARGET = 0.3; // 30% of non-land cards reinforcing the plan = full marks
-const STRATEGY_COVERAGE_TARGET_TOP_N = 60; // overlap-with-top-60 of theme bucket
-const STRATEGY_COVERAGE_FULL_MARKS_HIT_RATE = 0.33; // 33% of top-N overlap = 100
-const STRATEGY_COVERAGE_MIN_DENOMINATOR = 20; // floor so small theme buckets aren't trivial
-
-export interface StrategyInputs {
-  /** Non-land deck cards (excluding commander). */
-  nonLandCards: ScryfallCard[];
-  /** Lowercased card name → true for cards in any active theme bucket. */
-  themeByCard: Set<string>;
-  /** Top EDHREC theme cards (names), most-popular first. Optional. */
-  topThemeCardNames?: string[];
-  /** Display name of the detected plan, e.g. "+1/+1 Counters". */
-  planName?: string | null;
-}
-
-export function computeStrategySubscore(inputs: StrategyInputs | null | undefined): SubScore {
-  if (!inputs || inputs.themeByCard.size === 0) {
-    return {
-      value: 0,
-      surface: 'No clear plan detected — set a theme to score strategy.',
-      bandLabel: 'Unscored',
-      partial: true,
-    };
-  }
-
-  const { nonLandCards, themeByCard, topThemeCardNames, planName } = inputs;
-  const nonLandCount = nonLandCards.length || 1;
-
-  // 1. Theme density: fraction of non-land cards that are in any selected theme.
-  let inTheme = 0;
-  for (const c of nonLandCards) {
-    if (themeByCard.has(c.name.toLowerCase())) inTheme++;
-  }
-  const density = inTheme / nonLandCount;
-  const densityScore = Math.min(1, density / STRATEGY_DENSITY_TARGET);
-
-  // 2. Theme coverage: of the top-N EDHREC theme cards, how many do we run?
-  let coverageScore = 0.5; // neutral when we have no theme-bucket data
-  if (topThemeCardNames && topThemeCardNames.length > 0) {
-    const topN = topThemeCardNames.slice(0, STRATEGY_COVERAGE_TARGET_TOP_N);
-    const deckNames = new Set(nonLandCards.map((c) => c.name.toLowerCase()));
-    let hits = 0;
-    for (const name of topN) {
-      if (deckNames.has(name.toLowerCase())) hits++;
-    }
-    const denom = Math.max(
-      STRATEGY_COVERAGE_MIN_DENOMINATOR,
-      topN.length * STRATEGY_COVERAGE_FULL_MARKS_HIT_RATE
-    );
-    coverageScore = Math.min(1, hits / denom);
-  }
-
-  // Composite: 60% density (deck-side commitment), 40% coverage (community alignment).
-  const composite = densityScore * 0.6 + coverageScore * 0.4;
-  const value = Math.round(composite * 100);
-
-  const plan = planName ?? 'your plan';
-  const verb = inTheme === 1 ? 'reinforces' : 'reinforce';
-  const surface = `${inTheme} of ${nonLandCount} non-land cards ${verb} ${plan}`;
-  return { value, surface, bandLabel: bandFor(value) };
 }
 
 // ── Strategy (native synergy engine) ─────────────────────────────────────────
@@ -277,15 +212,9 @@ export interface PlanScoreInput {
   /** Count of high-value EDHREC gaps not in the deck — cardFit penalty. */
   gapCount: number;
   /**
-   * Strategy inputs (theme membership + optional top-N theme cards). Omit/leave
-   * null when no theme data is available — strategy then scores `partial` and is
-   * dropped from the composite (graceful degrade until themes are wired).
-   */
-  strategy?: StrategyInputs | null;
-  /**
-   * Native-synergy strategy inputs. When provided (even as a no-engine value),
-   * this is used for the strategy dimension instead of the EDHREC-conformance
-   * `strategy` above. Preferred path.
+   * Native-synergy strategy inputs (producer↔payoff engine). Drives the strategy
+   * dimension; a null/no-engine value scores `partial` and drops from the
+   * composite. Omit only in tests that don't exercise the strategy dim.
    */
   strategyEngine?: StrategyEngineInput | null;
   /** Sample size for the byline (e.g. EDHREC numDecks). */
@@ -298,10 +227,7 @@ export function computePlanScore(input: PlanScoreInput): PlanScore {
   const cardFit = computeCardFitSubscore(misfits, input.gapCount);
 
   const subscores: Record<SubScoreKey, SubScore> = {
-    strategy:
-      input.strategyEngine !== undefined
-        ? computeStrategyFromEngine(input.strategyEngine)
-        : computeStrategySubscore(input.strategy),
+    strategy: computeStrategyFromEngine(input.strategyEngine),
     roles: computeRolesSubscore(roleSlotsFromCounts(input.roleCounts, input.roleTargets)),
     tempo: computeTempoSubscore(input.curvePhases),
     cardFit: { ...cardFit },
