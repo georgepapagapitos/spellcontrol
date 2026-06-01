@@ -90,8 +90,13 @@
   display: flex;
   align-items: flex-end;
   gap: 0.3rem;
-  /* Hero gets taller on bigger screens — the curve is the visual focal point. */
-  height: clamp(130px, 22vw, 200px);
+  /* Hero gets taller on wider panels — the curve is the visual focal point.
+     Sized in cqi (the bento container's inline width) rather than vw so the
+     hero scales with its own panel, not the raw viewport: on desktop the
+     analysis panel is narrower than the screen, and cqi keeps the chart's
+     proportions tied to the space it actually occupies. Matches the bento's
+     cqi-based gaps. */
+  height: clamp(130px, 24cqi, 200px);
   border-bottom: 0.5px solid var(--border); /* faint baseline rule */
 }
 

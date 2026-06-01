@@ -22,14 +22,18 @@ import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
-import { useHolographic } from '../lib/use-holographic';
-import { classifyFoil } from '../lib/foil-style';
+import { CardImageFrame } from './CardImageFrame';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
+import {
+  collapsedSectionsFor,
+  type CardPreviewSection,
+  type CardPreviewSource,
+} from './card-preview-sections';
 
 /** One button in the preview's compact icon bar. Callers supply only
  *  the actions relevant to their view (collection: edit/delete; deck:
@@ -113,6 +117,19 @@ interface Props {
    * CardPreview stays context-agnostic — it only renders the slot.
    */
   renderPanelMeta?: (i: number) => ReactNode;
+  /**
+   * Which surface opened the preview. Selects the *collapsed* curation policy
+   * (`COLLAPSED_SECTIONS`) so each view shows its own essentials at a glance.
+   * Omitting it falls back to `DEFAULT_COLLAPSED_SECTIONS` (the pre-curation
+   * generic behavior). For one-off needs, `collapsedSections` overrides outright.
+   */
+  source?: CardPreviewSource;
+  /**
+   * Explicit override of which sections stay visible when collapsed, bypassing
+   * the `source` lookup. Rarely needed — prefer `source`. Empty array = name +
+   * image only.
+   */
+  collapsedSections?: readonly CardPreviewSection[];
 }
 
 const PRELOAD_RADIUS = 2;
@@ -142,6 +159,8 @@ export function CardPreview({
   showRole,
   renderPanelExtra,
   renderPanelMeta,
+  source,
+  collapsedSections,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -163,6 +182,24 @@ export function CardPreview({
   // per open); sticks across card navigation within a single open. Generic —
   // every CardPreview surface (collection, binder, deck) inherits it.
   const [panelExpanded, setPanelExpanded] = useState(false);
+
+  // Collapsed curation: which panel sections survive collapse for this surface.
+  // Expanding always reveals everything, so this only matters while collapsed.
+  // Per-section visibility is applied as a class (display:none in CSS) rather
+  // than unmounting, so the DOM stays stable across the expand/collapse height
+  // animation and across card navigation — no remount flicker.
+  const collapsedVisible = useMemo(
+    () => new Set<CardPreviewSection>(collapsedSectionsFor(source, collapsedSections)),
+    [collapsedSections, source]
+  );
+  // Append the hide class to a section's className when the panel is collapsed
+  // and this section isn't in the surface's keep-list. Bounded, complete lines
+  // only — sections are hidden whole, never clipped mid-word.
+  const sectionClass = useCallback(
+    (base: string, key: CardPreviewSection) =>
+      !panelExpanded && !collapsedVisible.has(key) ? `${base} card-preview-collapsed-hidden` : base,
+    [panelExpanded, collapsedVisible]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -324,10 +361,10 @@ export function CardPreview({
   // only thing gated to foil cards (handled in CSS via the .is-foil class).
   // Suppress tilt while a touch swipe gesture is in flight — once the parent's
   // axis lock commits to either 'h' (carousel) or 'v' (dismiss), letting the
-  // card tilt at the same time looks noisy.
-  const holoRef = useHolographic(true, {
-    shouldSuppressTilt: () => axisLockRef.current !== null,
-  });
+  // card tilt at the same time looks noisy. Each CardImageFrame owns its own
+  // holographic hook (enabled only for the focused slide); this stable getter
+  // feeds them the swipe-gesture suppression signal.
+  const shouldSuppressTilt = useCallback(() => axisLockRef.current !== null, [axisLockRef]);
 
   // Slide list lifted into a memo so a re-render (e.g. the once-per-gesture
   // isDragging toggle) reuses these elements instead of rebuilding one DOM
@@ -371,10 +408,6 @@ export function CardPreview({
             />
           );
         }
-        const errored = imgErrors[c.scryfallId];
-        const shouldMount = mounted.has(c.scryfallId);
-        const style = classifyFoil(c);
-        const foilClass = style !== 'none' ? ` is-foil foil-${style}` : '';
         return (
           <div
             className={`card-preview-slide${i === selected ? ' is-active' : ''}`}
@@ -382,81 +415,18 @@ export function CardPreview({
             key={`${c.scryfallId}-${i}`}
             onClick={onSlideClick}
           >
-            <div
-              className={`card-preview-image-frame${foilClass}`}
-              ref={i === selected ? holoRef : undefined}
-            >
-              {shouldMount && (
-                <div
-                  className={`card-preview-flipper${flipped[c.scryfallId] ? ' is-flipped' : ''}`}
-                >
-                  <div className="card-preview-face card-preview-face-front">
-                    {c.imageNormal && !errored ? (
-                      <>
-                        {!imgLoaded[c.scryfallId] && (
-                          <div className="card-preview-image-skeleton" aria-hidden="true" />
-                        )}
-                        <img
-                          // Hero drawer can grow to ~620px on desktop;
-                          // `large` (672w) stays sharp there where
-                          // `normal` (488w) would upscale. Falls back to
-                          // normal for cards enriched before imageLarge
-                          // existed. Grids/thumbnails keep using normal.
-                          src={c.imageLarge || c.imageNormal}
-                          alt={c.name}
-                          className="card-preview-image"
-                          draggable={false}
-                          // All slides decode async: a synchronous
-                          // decode of the ~672×936 hero (a different,
-                          // usually-uncached URL than the grid's normal
-                          // art) lands mid-rise and stutters it. Let the
-                          // skeleton→image cross-fade cover the arrival
-                          // instead — that's what it's built for.
-                          decoding="async"
-                          loading={i === selected ? 'eager' : 'lazy'}
-                          fetchPriority={i === selected ? 'high' : 'auto'}
-                          // Cached images may already be complete before
-                          // onLoad can attach — mark them loaded on mount
-                          // so the skeleton doesn't linger forever.
-                          ref={(el) => {
-                            if (el?.complete && el.naturalWidth > 0) markLoaded(c.scryfallId);
-                          }}
-                          onLoad={() => markLoaded(c.scryfallId)}
-                          onError={() =>
-                            setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))
-                          }
-                        />
-                      </>
-                    ) : c.imageNormal && errored ? (
-                      <div className="card-preview-image-fallback">Image unavailable</div>
-                    ) : null}
-                    {c.foil && (
-                      <>
-                        <div className="card-preview-foil-shine" aria-hidden="true" />
-                        <div className="card-preview-foil-glare" aria-hidden="true" />
-                      </>
-                    )}
-                  </div>
-                  {c.imageNormalBack && (
-                    <div className="card-preview-face card-preview-face-back">
-                      <img
-                        src={c.imageLargeBack || c.imageNormalBack}
-                        alt={`${c.name} (back)`}
-                        className="card-preview-image"
-                        draggable={false}
-                        decoding="async"
-                      />
-                      {c.foil && (
-                        <>
-                          <div className="card-preview-foil-shine" aria-hidden="true" />
-                          <div className="card-preview-foil-glare" aria-hidden="true" />
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <CardImageFrame
+              card={c}
+              active={i === selected}
+              flipped={!!flipped[c.scryfallId]}
+              mounted={mounted.has(c.scryfallId)}
+              imgLoaded={!!imgLoaded[c.scryfallId]}
+              imgErrored={!!imgErrors[c.scryfallId]}
+              onImgLoad={() => markLoaded(c.scryfallId)}
+              onImgError={() => setImgErrors((prev) => ({ ...prev, [c.scryfallId]: true }))}
+              eager={i === selected}
+              shouldSuppressTilt={shouldSuppressTilt}
+            />
           </div>
         );
       }),
@@ -598,7 +568,7 @@ export function CardPreview({
             <div className="card-preview-name-row">
               <div className="card-preview-name">{current.name}</div>
             </div>
-            <div className="card-preview-context">
+            <div className={sectionClass('card-preview-context', 'context')}>
               {binderName}
               {(() => {
                 // Aggregate binders and decks across every copy in the stack
@@ -665,8 +635,12 @@ export function CardPreview({
                 );
               })()}
             </div>
-            {renderPanelMeta?.(selected)}
-            <div className="card-preview-meta">
+            {renderPanelMeta && (
+              <div className={sectionClass('card-preview-slot', 'panelMeta')}>
+                {renderPanelMeta(selected)}
+              </div>
+            )}
+            <div className={sectionClass('card-preview-meta', 'meta')}>
               <span
                 className={`card-preview-rarity rarity-${(current.rarity || '').toLowerCase()}`}
               >
@@ -698,7 +672,7 @@ export function CardPreview({
                     ? multiRoleTitle({ name: current.name })
                     : badge.title;
                 return (
-                  <div className="card-preview-role">
+                  <div className={sectionClass('card-preview-role', 'role')}>
                     <span className={`deck-row-role-badge deck-row-role-${badge.tone}`} aria-hidden>
                       {badge.label}
                     </span>
@@ -706,7 +680,7 @@ export function CardPreview({
                   </div>
                 );
               })()}
-            <div className="card-preview-set">
+            <div className={sectionClass('card-preview-set', 'set')}>
               {current.setCode && setMap?.[current.setCode.toUpperCase()]?.iconSvgUri ? (
                 <img
                   src={setMap[current.setCode.toUpperCase()].iconSvgUri}
@@ -727,7 +701,7 @@ export function CardPreview({
                 </span>
               )}
             </div>
-            <div className="card-preview-links">
+            <div className={sectionClass('card-preview-links', 'links')}>
               <a
                 href={`https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`}
                 target="_blank"
@@ -759,8 +733,12 @@ export function CardPreview({
                 />
               </a>
             </div>
-            {renderPanelExtra?.(selected)}
-            <div className="card-preview-counter">
+            {renderPanelExtra && (
+              <div className={sectionClass('card-preview-slot', 'panelExtra')}>
+                {renderPanelExtra(selected)}
+              </div>
+            )}
+            <div className={sectionClass('card-preview-counter', 'counter')}>
               Card {selected + 1} of {cards.length}
               {pageNumbers[selected] ? ` · Page ${pageNumbers[selected]} of ${totalPages}` : ''}
             </div>

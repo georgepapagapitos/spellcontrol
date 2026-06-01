@@ -1,0 +1,46 @@
+/* Target / Detected / Verdict summary at the top of the Bracket panel. The
+   verdict chip is the shared <VerdictBadge>; see VerdictBadge.css. */
+.bracket-verdict-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius);
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+}
+
+.bracket-verdict-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 0;
+}
+
+.bracket-verdict-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.bracket-verdict-figure dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+}
+
+.bracket-verdict-figure dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Let the chip + reason take the rest of the row and wrap the reason below. */
+.bracket-verdict-badge {
+  flex: 1 1 12rem;
+}

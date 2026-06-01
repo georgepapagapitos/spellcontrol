@@ -6029,14 +6029,32 @@ hr {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  /* Intentionally a FLAT height (not vh-clamped): collapsed is `overflow:hidden`
+     and shows a bounded, complete-lines snapshot, so shrinking it on short
+     screens would pixel-clip the densest surface (the deck meta block) — exactly
+     the mid-word-clip we forbid. The card adapts instead: the sheet's 1fr track
+     gives back whatever the panel doesn't take, and the card shrinks via its
+     container-query sizing. So DON'T vh-clamp this; clamp the *expanded* panel
+     (below), which scrolls and therefore can shed height without clipping. */
   height: 10.5rem;
   overflow: hidden;
   transition: height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .card-preview-panel.is-expanded {
-  /* vh-capped so the card never gets crushed on short / landscape screens. */
+  /* vh-capped so the card never gets crushed on short / landscape screens.
+     Expanded scrolls, so trimming its height never clips content. */
   height: min(26rem, 60vh);
+}
+
+/* Short landscape (phones rotated; small landscape tablets) — the tightest
+   vertical budget. Hand more of it back to the card by trimming the expanded
+   panel further; it scrolls, so nothing is lost. Collapsed stays flat on
+   purpose (see above). */
+@media (orientation: landscape) and (max-height: 600px) {
+  .card-preview-panel.is-expanded {
+    height: min(26rem, 50vh);
+  }
 }
 
 /* Pinned chevron handle — taps toggle expand/collapse. Full-width, generous
@@ -6079,16 +6097,30 @@ hr {
 }
 
 /* Collapsed = a clean snapshot of complete lines, never a mid-word pixel
-   clip. Keep the short, high-value lines (name, the deck summary line, any
-   warning, price); defer the lower-priority / variable-length sections —
-   where the card lives, set/printing, external links, the card counter, and
-   the multi-line synergy list — to the expanded state. Because the kept lines
-   are short and bounded, nothing overflows the collapsed height, so nothing
-   gets cut in half. */
-.card-preview-panel:not(.is-expanded) .card-preview-context,
-.card-preview-panel:not(.is-expanded) .card-preview-set,
-.card-preview-panel:not(.is-expanded) .card-preview-links,
-.card-preview-panel:not(.is-expanded) .card-preview-counter,
+   clip. WHICH sections survive collapse is now decided per-surface in JS
+   (CardPreview's `COLLAPSED_SECTIONS` policy) — the component appends
+   `card-preview-collapsed-hidden` to the sections its source defers. This one
+   rule is the only CSS half of that policy; it hides whole sections, so kept
+   lines stay short, bounded, and complete (nothing overflows the fixed
+   collapsed height, so nothing gets cut in half). */
+.card-preview-collapsed-hidden {
+  display: none;
+}
+
+/* Caller-injected panel slots (renderPanelMeta / renderPanelExtra) get a thin
+   wrapper so the whole block can be hidden as one unit by the class above. A
+   plain flex-item wrapper (not `display: contents`) is deliberate: contents
+   would tie the hide rule on specificity and lose on source order, leaking the
+   slot through when collapsed. The wrapper carries no padding/margin, so the
+   panel inner's gap + spacing are unchanged from rendering the slot directly. */
+.card-preview-slot {
+  min-width: 0;
+}
+
+/* Internal progressive disclosure within the deck meta block: even when the
+   meta slot is kept collapsed (deck view), its multi-line synergy list is
+   deferred to expand. Scoped here because it's a sub-section of a slot, not a
+   top-level panel section the policy toggles. */
 .card-preview-panel:not(.is-expanded) .deck-card-preview-meta-synergy {
   display: none;
 }
@@ -6122,6 +6154,23 @@ hr {
   white-space: normal;
   overflow-wrap: anywhere;
   line-height: 1.5;
+}
+
+/* Collapsed, the membership line is the one kept section that can wrap
+   arbitrarily (a card in many binders/decks). Clamp it to a single COMPLETE
+   line — whole pills only, ellipsis at the line boundary — so it can never
+   push a lower kept section (set / counter) past the fixed collapsed height,
+   which would pixel-clip that line. Expanding restores the full wrapping list.
+   Only the surfaces whose policy keeps `context` collapsed (collection, binder,
+   suggestion) are affected; the deck view defers context entirely. The
+   `:not(.card-preview-collapsed-hidden)` guard keeps this higher-specificity
+   `display` from re-showing context on surfaces that defer it (the hide class
+   would otherwise lose the cascade). */
+.card-preview-panel:not(.is-expanded) .card-preview-context:not(.card-preview-collapsed-hidden) {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Inline pill linking out to a binder or deck from the card preview's

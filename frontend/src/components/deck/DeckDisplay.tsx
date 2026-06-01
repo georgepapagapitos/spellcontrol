@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   List as ListIconLucide,
   MoreVertical,
+  PanelRightOpen,
   Pencil,
   Search,
   Trash2,
@@ -42,6 +43,9 @@ import { Modal } from '../Modal';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
+import { DeckHoverPeek } from './DeckHoverPeek';
+import { DeckDetailPane } from './DeckDetailPane';
+import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import {
@@ -58,15 +62,19 @@ import {
   type BracketEstimation,
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { BracketBreakdown } from './BracketBreakdown';
+import { BracketVerdictStrip } from './BracketVerdictStrip';
 import { GapAnalysisPanel } from './GapAnalysisPanel';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
-import { type DeckManaData } from './DeckManaPanel';
+import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
+import { ValidationChecklist } from './ValidationChecklist';
+import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
   buildCommanderProfile,
@@ -215,6 +223,19 @@ interface ShowPrefs {
 const VIEW_MODE_STORAGE_KEY = 'mtg-decks-view-mode';
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 const SHOW_PREFS_STORAGE_KEY = 'mtg-decks-show-prefs';
+// Desktop detail-pane open/closed preference. Defaults open the first time
+// (the pane only ever mounts >=1024, where there's room for it).
+const DETAIL_PANE_STORAGE_KEY = 'mtg-decks-detail-pane';
+
+function readStoredPaneOpen(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const v = window.localStorage.getItem(DETAIL_PANE_STORAGE_KEY);
+    return v === null ? true : v === '1';
+  } catch {
+    return true;
+  }
+}
 
 function readStoredGridSize(): DeckGridSize {
   if (typeof window === 'undefined') return '1x';
@@ -372,6 +393,8 @@ export interface DeckDisplayProps {
   optimizeSlot?: React.ReactNode;
   /** Budget cost-optimizer surface, rendered in the Improve view. */
   costSlot?: React.ReactNode;
+  /** Owned-substitute surface ("From your collection"), rendered in the Improve view. */
+  substitutionSlot?: React.ReactNode;
   /** Native synergy "Engine" surface, rendered in the Improve view. */
   engineSlot?: React.ReactNode;
   /**
@@ -793,6 +816,7 @@ export function DeckDisplay({
   nextBestMoveSlot,
   optimizeSlot,
   costSlot,
+  substitutionSlot,
   engineSlot,
   activeView = 'deck',
   onShowTestHand,
@@ -828,6 +852,29 @@ export function DeckDisplay({
     return () => mql.removeEventListener('change', update);
   }, []);
   const effectiveGridSize: DeckGridSize = isNarrowGrid && gridSize === '3x' ? '2x' : gridSize;
+
+  // Desktop detail-pane: only engages at >=1024 (below that there's no room
+  // beside the list — those viewports keep the tap->sheet flow + hover-peek).
+  const [isWideForPane, setIsWideForPane] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsWideForPane(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const [paneOpen, setPaneOpen] = useState<boolean>(() => readStoredPaneOpen());
+  const handlePaneOpenChange = (open: boolean) => {
+    setPaneOpen(open);
+    try {
+      window.localStorage.setItem(DETAIL_PANE_STORAGE_KEY, open ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
     try {
@@ -1068,6 +1115,17 @@ export function DeckDisplay({
     for (const dc of cards) list.push(dc.card);
     return list;
   }, [commander, partnerCommander, cards]);
+
+  // The deck's legal color identity = the commander(s)' combined identity.
+  // Undefined when there's no commander, which skips the identity validation gate.
+  const commanderIdentity = useMemo<string[] | undefined>(() => {
+    if (!commander) return undefined;
+    const set = new Set<string>();
+    for (const c of [commander, partnerCommander]) {
+      for (const k of c?.color_identity ?? []) set.add(k);
+    }
+    return [...set];
+  }, [commander, partnerCommander]);
 
   // The commander's parsed ability profile — shared by the per-card synergy
   // reasons and the deck-identity strip.
@@ -1362,10 +1420,51 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // The row pinned into the desktop detail pane (>=1024, pane open). Resolved
+  // from the live `flat` each render so edits keep the pane in sync.
+  const [pinnedName, setPinnedName] = useState<string | null>(null);
+  // Desktop-only hover-peek for the list view (no-op on touch / native).
+  const hoverPeek = useDeckHoverPeek();
+  // When the detail pane is up, a row click pins it there (no overlay); below
+  // 1024 or with the pane collapsed, it opens the full-screen sheet as before.
+  const paneActive = activeView === 'deck' && isWideForPane && paneOpen;
+  // Pane hidden but the viewport is wide enough for it — show the slim re-open
+  // handle so the pane is one click away without stealing list width.
+  const paneCollapsedHandle = activeView === 'deck' && isWideForPane && !paneOpen;
   const openPreview = (rowName: string) => {
+    hoverPeek.clear(); // pane/sheet supersedes the transient peek
+    if (paneActive) {
+      setPinnedName(rowName);
+      return;
+    }
     const i = flat.indexByName.get(rowName);
     if (i !== undefined) setPreviewIndex(i);
   };
+
+  const pinnedIdx = pinnedName != null ? flat.indexByName.get(pinnedName) : undefined;
+  const pinnedRow = pinnedIdx !== undefined ? flat.rows[pinnedIdx] : null;
+  const pinnedCard = pinnedIdx !== undefined ? flat.cards[pinnedIdx] : null;
+  // Other binders / decks holding a copy of the pinned card — mirrors the
+  // sheet's getStackBinders / getStackAllocations, resolved for the one card.
+  const pinnedBinders: BinderInfo[] = [];
+  const pinnedOtherDecks: AllocationInfo[] = [];
+  if (pinnedRow) {
+    const seenBinder = new Set<string>();
+    const seenDeck = new Set<string>();
+    for (const cid of pinnedRow.allocatedCopyIds) {
+      for (const b of binderByCopyId?.get(cid) ?? []) {
+        if (!seenBinder.has(b.id)) {
+          seenBinder.add(b.id);
+          pinnedBinders.push(b);
+        }
+      }
+      const a = crossDeck.otherDeckAllocations?.get(cid);
+      if (a && a.deckId !== deckId && !seenDeck.has(a.deckId)) {
+        seenDeck.add(a.deckId);
+        pinnedOtherDecks.push(a);
+      }
+    }
+  }
 
   // Tap a headline stat (cards / value / missing) to drill into the cards behind
   // it — the same carousel pattern as the analysis-tab drill-downs.
@@ -1511,10 +1610,14 @@ export function DeckDisplay({
               </div>
             )}
 
-            <div className="deck-display-body">
+            <div
+              className={`deck-display-body${paneActive ? ' deck-display-body--pane' : ''}${
+                paneCollapsedHandle ? ' deck-display-body--pane-collapsed' : ''
+              }`}
+            >
               <div className="deck-display-main">
                 {viewMode === 'list' && (
-                  <div className="deck-card-list">
+                  <div className="deck-card-list" {...hoverPeek.listHandlers}>
                     {visibleGroups.map((g) => (
                       <CategorySection
                         key={g.title}
@@ -1616,6 +1719,37 @@ export function DeckDisplay({
                   </button>
                 )}
               </div>
+              {paneActive && (
+                <DeckDetailPane
+                  card={pinnedCard}
+                  metaCard={pinnedRow?.card ?? null}
+                  isPartner={!!pinnedRow?.isPartner}
+                  isCommander={
+                    !!pinnedRow && !pinnedRow.isPartner && commander?.name === pinnedRow.name
+                  }
+                  status={pinnedRow?.status}
+                  synergies={pinnedRow ? synergyByName?.get(pinnedRow.name) : undefined}
+                  inclusionPct={pinnedRow ? cardInclusionMap?.[pinnedRow.name] : undefined}
+                  legality={
+                    pinnedRow?.slotIds[0] ? legalityBySlot.get(pinnedRow.slotIds[0]) : undefined
+                  }
+                  binders={pinnedBinders}
+                  otherDecks={pinnedOtherDecks}
+                  onCollapse={() => handlePaneOpenChange(false)}
+                  onClear={() => setPinnedName(null)}
+                />
+              )}
+              {paneCollapsedHandle && (
+                <button
+                  type="button"
+                  className="deck-detail-pane-reopen"
+                  onClick={() => handlePaneOpenChange(true)}
+                  aria-label="Show card details"
+                  title="Show card details"
+                >
+                  <PanelRightOpen width={18} height={18} strokeWidth={2} aria-hidden />
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -1643,13 +1777,37 @@ export function DeckDisplay({
             nextBestMoveSlot={nextBestMoveSlot}
             optimizeSlot={optimizeSlot}
             costSlot={costSlot}
+            substitutionSlot={substitutionSlot}
             engineSlot={engineSlot}
             commanderName={commander?.name}
+            commanderIdentity={commanderIdentity}
           />
         )}
 
+        {/* The floating hover-peek and the persistent pane both want the gutter
+            beside the list, so they're mutually exclusive: when the pane is up
+            it IS the desktop inspect surface (the peek is suppressed). Collapse
+            the pane and the peek returns. Below 1024 the peek is unaffected. */}
+        {!paneActive &&
+          hoverPeek.peek &&
+          (() => {
+            // Resolve the hovered card's hero art from the same flat list the
+            // carousel uses, so the peek matches the owned printing.
+            const i = flat.indexByName.get(hoverPeek.peek.name);
+            const card = i !== undefined ? flat.cards[i] : undefined;
+            return (
+              <DeckHoverPeek
+                imageUrl={card?.imageLarge || card?.imageNormal}
+                left={hoverPeek.peek.left}
+                top={hoverPeek.peek.top}
+                width={hoverPeek.peek.width}
+              />
+            );
+          })()}
+
         {previewIndex !== null && (
           <CardPreview
+            source="deck"
             cards={flat.cards}
             sectionLabels={flat.labels}
             pageNumbers={flat.cards.map(() => 0)}
@@ -2696,6 +2854,7 @@ function DeckCardRow({
   return (
     <li
       className="deck-row"
+      data-peek-name={row.name}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -2941,8 +3100,10 @@ function DeckAnalysisView({
   nextBestMoveSlot,
   optimizeSlot,
   costSlot,
+  substitutionSlot,
   engineSlot,
   commanderName,
+  commanderIdentity,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -2968,9 +3129,12 @@ function DeckAnalysisView({
   nextBestMoveSlot?: React.ReactNode;
   optimizeSlot?: React.ReactNode;
   costSlot?: React.ReactNode;
+  substitutionSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
+  /** The deck's legal color identity (commander union); drives the identity gate. */
+  commanderIdentity?: string[];
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -2979,12 +3143,30 @@ function DeckAnalysisView({
     return computeRoleCounts(allCards);
   }, [allCards, roleCounts]);
 
+  // Overlapping multi-role counts (a card counts toward every role it fills),
+  // always derived from the live card list — complements the primary-role bars.
+  const roleDensity = useMemo(() => computeRoleDensity(allCards), [allCards]);
+
   const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
   const effectiveRampSub = rampSubtypeCounts ?? derivedRoles?.rampSubtypeCounts;
   const effectiveRemovalSub = removalSubtypeCounts ?? derivedRoles?.removalSubtypeCounts;
   const effectiveBoardwipeSub = boardwipeSubtypeCounts ?? derivedRoles?.boardwipeSubtypeCounts;
   const effectiveDrawSub = cardDrawSubtypeCounts ?? derivedRoles?.cardDrawSubtypeCounts;
   const showRoles = effectiveRoleCounts !== undefined;
+
+  // Pass/fail deck-health checklist for the Stats board — legality gates plus the
+  // soft role/curve targets, derived from the live list + role analysis.
+  const validation = useMemo(
+    () =>
+      buildValidationChecklist({
+        cards: allCards,
+        commanderIdentity,
+        roleCounts: effectiveRoleCounts,
+        roleTargets,
+        averageCmc: manaData.averageCmc,
+      }),
+    [allCards, commanderIdentity, effectiveRoleCounts, roleTargets, manaData.averageCmc]
+  );
 
   const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
@@ -3022,6 +3204,7 @@ function DeckAnalysisView({
                 colorDist={manaData.colorDist}
                 manaProduction={manaData.manaProduction}
                 cardsByColor={manaData.cardsByColor}
+                manaCurve={manaData.manaCurve}
               />
             </Panel>
             <Panel title="Types">
@@ -3031,13 +3214,21 @@ function DeckAnalysisView({
               />
             </Panel>
           </div>
-          {/* Plan score + Saltiest — a second compact pair. */}
+          {/* Validation — pass/fail deck-health gate, pairs with Plan score. */}
           <div className="deck-stats-pair">
+            {validation.checks.length > 0 && (
+              <Panel title="Validation">
+                <ValidationChecklist result={validation} />
+              </Panel>
+            )}
             {planScore && (
               <Panel title="Plan score">
                 <PlanScoreDashboard plan={planScore} />
               </Panel>
             )}
+          </div>
+          {/* Saltiest — lone, spans full width. */}
+          <div className="deck-stats-pair">
             {saltiestCards && saltiestCards.length > 0 && (
               <Panel title="Saltiest cards">
                 <ul className="deck-saltiest-list">
@@ -3092,18 +3283,19 @@ function DeckAnalysisView({
                     {effectiveBracketValue != null ? bracketLabel(effectiveBracketValue) : '—'}
                     {bracketOverridden && <span className="deck-stats-bracket-tag"> manual</span>}
                   </strong>
-                  {bracketOverridden && bracketEstimation ? (
-                    <span className="deck-stats-bracket-note">
-                      Auto estimate: {bracketEstimation.bracket} — {bracketEstimation.label}
-                    </span>
-                  ) : (
+                  <BracketVerdictStrip
+                    target={bracketOverride}
+                    detected={bracketEstimation?.bracket}
+                  />
+                  {/* Detected vs target now lives in the strip above; keep the
+                      top hard-floor reason as context when on Auto. */}
+                  {!bracketOverridden &&
                     bracketEstimation &&
                     bracketEstimation.hardFloors.length > 0 && (
                       <span className="deck-stats-bracket-note">
                         {bracketEstimation.hardFloors[0].reason}
                       </span>
-                    )
-                  )}
+                    )}
                   {onSetBracketOverride && (
                     <label className="deck-stats-bracket-override">
                       <span>Set bracket</span>
@@ -3133,6 +3325,7 @@ function DeckAnalysisView({
                 <RolesPanel
                   roleCounts={effectiveRoleCounts}
                   roleTargets={roleTargets}
+                  density={roleDensity}
                   rampSubtypeCounts={effectiveRampSub}
                   removalSubtypeCounts={effectiveRemovalSub}
                   boardwipeSubtypeCounts={effectiveBoardwipeSub}
@@ -3157,6 +3350,12 @@ function DeckAnalysisView({
             <div className="deck-stats-pair">
               <Panel title="Optimize on a budget">{costSlot}</Panel>
             </div>
+          )}
+          {/* From your collection — owned substitutes for missing staples. */}
+          {substitutionSlot && (
+            <Panel title="From your collection" wide>
+              {substitutionSlot}
+            </Panel>
           )}
           {/* Cards to consider — full width (its own multi-column grid). */}
           {gapAnalysis && gapAnalysis.length > 0 && (
@@ -3202,6 +3401,7 @@ function Panel({
 function RolesPanel({
   roleCounts,
   roleTargets,
+  density,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -3209,6 +3409,8 @@ function RolesPanel({
 }: {
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
+  /** Overlapping multi-role counts (a card counts in every role it fills). */
+  density?: Record<string, number>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -3230,6 +3432,20 @@ function RolesPanel({
     const entries = Object.entries(counts).filter(([, v]) => v > 0);
     return entries.map(([k, v]) => `${v} ${k}`).join(' · ');
   };
+
+  // Density one-liner: how many cards fill each role counting overlaps, busiest
+  // first. Totals exceed the deck size because a card can do several jobs.
+  const densityLabels: Record<string, string> = {
+    cardDraw: 'Draw',
+    ramp: 'Ramp',
+    removal: 'Removal',
+    boardwipe: 'Wipes',
+  };
+  const densityEntries = density
+    ? Object.entries(density)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+    : [];
 
   const items = [
     {
@@ -3265,44 +3481,54 @@ function RolesPanel({
   const max = Math.max(1, ...items.map((it) => Math.max(it.value, it.want ?? 0)));
 
   return (
-    <ul className="deck-roles">
-      {items.map((it) => {
-        const hasTarget = typeof it.want === 'number';
-        const short = hasTarget && it.value < (it.want as number);
-        return (
-          <li key={it.label}>
-            <div className="deck-roles-row">
-              <span className="deck-roles-name">{it.label}</span>
-              <span className="deck-roles-count">
-                {hasTarget ? (
-                  <span className={short ? 'deck-roles-count-short' : undefined}>
-                    {it.value}/{it.want}
-                    {short && (
-                      <span
-                        title={`${(it.want as number) - it.value} short of target`}
-                        aria-label="below target"
-                      >
-                        {' '}
-                        ▾
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  it.value
-                )}
-              </span>
-            </div>
-            <div className="deck-roles-bar">
-              <div
-                className="deck-roles-bar-fill"
-                style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
-              />
-            </div>
-            {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {densityEntries.length > 0 && (
+        <div className="deck-roles-density">
+          <span className="deck-roles-density-line">
+            {densityEntries.map(([k, v]) => `${v} ${densityLabels[k] ?? k}`).join(' · ')}
+          </span>
+          <span className="deck-roles-density-note">cards fill multiple roles</span>
+        </div>
+      )}
+      <ul className="deck-roles">
+        {items.map((it) => {
+          const hasTarget = typeof it.want === 'number';
+          const short = hasTarget && it.value < (it.want as number);
+          return (
+            <li key={it.label}>
+              <div className="deck-roles-row">
+                <span className="deck-roles-name">{it.label}</span>
+                <span className="deck-roles-count">
+                  {hasTarget ? (
+                    <span className={short ? 'deck-roles-count-short' : undefined}>
+                      {it.value}/{it.want}
+                      {short && (
+                        <span
+                          title={`${(it.want as number) - it.value} short of target`}
+                          aria-label="below target"
+                        >
+                          {' '}
+                          ▾
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    it.value
+                  )}
+                </span>
+              </div>
+              <div className="deck-roles-bar">
+                <div
+                  className="deck-roles-bar-fill"
+                  style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
+                />
+              </div>
+              {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 

@@ -494,6 +494,8 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
       {previewCards && previewCards.length > 0 && (
         <CardPreview
+          source="suggestion"
+          showRole
           cards={previewCards}
           index={previewIndex}
           binderName={previewComboTitle}

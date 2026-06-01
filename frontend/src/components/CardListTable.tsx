@@ -1070,6 +1070,7 @@ export function CardListTable({
 
       {previewIndex !== null && sorted[previewIndex] && (
         <CardPreview
+          source="collection"
           cards={previewCards}
           index={previewIndex}
           binderName="Collection"

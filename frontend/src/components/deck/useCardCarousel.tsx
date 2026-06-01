@@ -117,6 +117,13 @@ export function useCardCarousel(binderName: string): CardCarousel {
   const preview =
     cards && cards.length > 0 ? (
       <CardPreview
+        // Every useCardCarousel consumer is a deck-analysis drill-down (mana
+        // curve, types, colors, bracket, engine/optimize/substitution
+        // suggestions, saltiest). They all want the same collapsed essentials:
+        // why the card surfaced (the carousel `label` → context line) + role +
+        // price. `showRole` lights up the role line the 'suggestion' policy keeps.
+        source="suggestion"
+        showRole
         cards={cards}
         index={index}
         binderName={binderName}

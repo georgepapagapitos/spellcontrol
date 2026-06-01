@@ -307,6 +307,7 @@ export function BinderPagePreview({
 
       {innerCard && (
         <CardPreview
+          source="binder"
           cards={innerCard.cards}
           index={innerCard.index}
           binderName={binderName}
