@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import type { CurveColorBucket } from './deck-mana-types';
+import { gradeCurve, PACING_LABEL } from '@/deck-builder/services/deckBuilder/curveGrading';
 import './DeckCurvePhases.css';
 
 /**
@@ -20,21 +21,6 @@ import './DeckCurvePhases.css';
 
 // CMC slots we render, in order. 7 is the catch-all "7+" bucket.
 const CMC_SLOTS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
-
-type PhaseKey = 'early' | 'mid' | 'late';
-
-type Phase = {
-  key: PhaseKey;
-  label: string;
-  /** CMCs that fall into this phase (7 = 7+). */
-  cmcs: number[];
-};
-
-const PHASES: Phase[] = [
-  { key: 'early', label: 'Early', cmcs: [0, 1, 2] },
-  { key: 'mid', label: 'Mid', cmcs: [3, 4] },
-  { key: 'late', label: 'Late', cmcs: [5, 6, 7] },
-];
 
 // Human-readable labels for the legend + aria text (text present, never
 // color-only, for a11y).
@@ -66,37 +52,6 @@ const SEGMENT_ORDER = ['W', 'U', 'B', 'R', 'G', 'gold', 'colorless'] as const;
 type SegmentKey = (typeof SEGMENT_ORDER)[number];
 
 type CurveMode = 'color' | 'count';
-
-/**
- * Grading heuristic (explainability, not science).
- *
- * A healthy Commander curve is front-loaded: plenty of cheap plays early, few
- * haymakers. Each phase is graded on its share of nonland spells vs. a simple
- * target band — Early ≈ 45%, Mid ≈ 35%, Late ≈ 20%. Early/Mid are one-sided
- * (only being under target hurts); Late is two-sided (top-heavy is the classic
- * Commander mistake). The grade is the fractional deviation mapped to letters.
- */
-const PHASE_TARGET: Record<PhaseKey, number> = {
-  early: 0.45,
-  mid: 0.35,
-  late: 0.2,
-};
-
-function gradeFromDeviation(deviation: number): string {
-  if (deviation <= 0.1) return 'A';
-  if (deviation <= 0.2) return 'B';
-  if (deviation <= 0.35) return 'C';
-  if (deviation <= 0.55) return 'D';
-  return 'F';
-}
-
-function gradePhase(key: PhaseKey, share: number): string {
-  const target = PHASE_TARGET[key];
-  if (target === 0) return 'A';
-  const raw = (target - share) / target; // >0 means under target
-  const penalized = key === 'late' ? Math.abs(raw) : Math.max(0, raw);
-  return gradeFromDeviation(penalized);
-}
 
 /** Category for a single card, matching the 0 / 1 / 2+ rule used upstream to
  *  build `curveByColor`. Reads `color_identity` off the carried Scryfall card;
@@ -145,20 +100,19 @@ export function DeckCurvePhases({
   // Fall back to "count" if there's no per-color data to show.
   const effectiveMode: CurveMode = mode === 'color' && hasColorData ? 'color' : 'count';
 
-  const { slots, maxCount, total, phaseTotals } = useMemo(() => {
+  // Pacing-aware phase grades — the deck's own curve picks the target band.
+  const grading = useMemo(() => gradeCurve(manaCurve), [manaCurve]);
+  const phaseTotals = grading.phases;
+  const total = grading.total;
+
+  const { slots, maxCount } = useMemo(() => {
     const slots = CMC_SLOTS.map((cmc) => ({
       cmc,
       label: cmc === 7 ? '7+' : String(cmc),
       count: manaCurve[cmc] ?? 0,
     }));
     const maxCount = slots.reduce((m, s) => Math.max(m, s.count), 0);
-    const total = slots.reduce((sum, s) => sum + s.count, 0);
-    const phaseTotals = PHASES.map((phase) => {
-      const count = phase.cmcs.reduce((sum, cmc) => sum + (manaCurve[cmc] ?? 0), 0);
-      const share = total > 0 ? count / total : 0;
-      return { ...phase, count, share, grade: gradePhase(phase.key, share) };
-    });
-    return { slots, maxCount, total, phaseTotals };
+    return { slots, maxCount };
   }, [manaCurve]);
 
   // Which color categories actually appear, for the legend.
@@ -172,7 +126,10 @@ export function DeckCurvePhases({
       <div className="deck-curve-phases-head">
         <div className="deck-curve-phases-head-meta">
           <h4 className="deck-curve-phases-heading">Mana curve</h4>
-          <span className="deck-curve-phases-avg">Avg CMC {averageCmc.toFixed(2)}</span>
+          <span className="deck-curve-phases-avg">
+            Avg CMC {averageCmc.toFixed(2)}
+            {total > 0 && ` · ${PACING_LABEL[grading.pacing]} curve`}
+          </span>
         </div>
         {hasColorData && (
           <div
