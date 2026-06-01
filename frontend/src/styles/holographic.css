@@ -317,18 +317,21 @@
    drift so an owned foil copy shimmers like it does in the full-screen preview.
    Both contexts are identical, so they share one rule set. */
 .collection-grid-item.is-foil,
-.deck-card-grid-tile.is-foil {
+.deck-card-grid-tile.is-foil,
+.binder-pages-cell.is-foil {
   isolation: isolate;
 }
 
 .collection-grid-item.is-foil .card-preview-foil-shine,
-.deck-card-grid-tile.is-foil .card-preview-foil-shine {
+.deck-card-grid-tile.is-foil .card-preview-foil-shine,
+.binder-pages-cell.is-foil .card-preview-foil-shine {
   opacity: var(--foil-strength, 0.35);
   animation: foil-drift 8s ease-in-out infinite alternate;
 }
 
 .collection-grid-item.is-foil .card-preview-foil-glare,
-.deck-card-grid-tile.is-foil .card-preview-foil-glare {
+.deck-card-grid-tile.is-foil .card-preview-foil-glare,
+.binder-pages-cell.is-foil .card-preview-foil-glare {
   opacity: 0.25;
   background-image: radial-gradient(
     ellipse 70% 70% at 50% 50%,
@@ -339,7 +342,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .collection-grid-item.is-foil .card-preview-foil-shine,
-  .deck-card-grid-tile.is-foil .card-preview-foil-shine {
+  .deck-card-grid-tile.is-foil .card-preview-foil-shine,
+  .binder-pages-cell.is-foil .card-preview-foil-shine {
     animation: none;
     background-position: 50% 50%;
   }
