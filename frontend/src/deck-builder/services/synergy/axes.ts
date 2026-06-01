@@ -25,7 +25,8 @@ export type AxisKey =
   | 'artifacts'
   | 'equipment'
   | 'spellslinger'
-  | 'enchantress';
+  | 'enchantress'
+  | 'superfriends';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -274,6 +275,37 @@ const enchantress: SynergyAxis = {
   },
 };
 
+const superfriends: SynergyAxis = {
+  key: 'superfriends',
+  label: 'Superfriends / planeswalkers',
+  producer(card) {
+    // The planeswalkers themselves are the engine pieces (mirrors how `equipment`
+    // treats equipment cards as producers); proliferate and direct loyalty adders
+    // feed their loyalty, and planeswalker tutors deploy them. NOTE: generic
+    // counter-doublers (Doubling Season, Vorinclex) are deliberately *not* here —
+    // their templating is "counters", not loyalty-specific, so they read as the
+    // `counters` axis. Only loyalty-named or planeswalker-named text qualifies.
+    if (card.typeLine.includes('planeswalker')) return 'planeswalker (loyalty engine)';
+    if (has(card, 'proliferate') || /\bproliferate\b/.test(card.oracle)) return 'proliferate';
+    if (/(?:enters with|put|add)[^.]*loyalty counter/.test(card.oracle))
+      return 'adds loyalty counters';
+    if (/(?:search|reveal|return|put)[^.]*planeswalker card/.test(card.oracle))
+      return 'tutors planeswalkers';
+    return null;
+  },
+  payoff(card) {
+    // "you control" / "loyalty ability" / "planeswalker spell" gate out removal
+    // ("destroy target ... planeswalker") and opponents' walkers ("they control").
+    if (/for each planeswalker you control/.test(card.oracle))
+      return 'scales with your planeswalkers';
+    if (/planeswalkers? you control/.test(card.oracle)) return 'cares about your planeswalkers';
+    if (/loyalty abilit/.test(card.oracle)) return 'rewards loyalty activations';
+    if (/cast (?:a |an |target )?planeswalker spells?/.test(card.oracle))
+      return 'pays off casting planeswalkers';
+    return null;
+  },
+};
+
 export const AXES: SynergyAxis[] = [
   tokens,
   counters,
@@ -285,4 +317,5 @@ export const AXES: SynergyAxis[] = [
   equipment,
   spellslinger,
   enchantress,
+  superfriends,
 ];

@@ -68,6 +68,11 @@ const AXIS_QUERIES: Record<AxisKey, Record<AxisSide, string | null>> = {
       '(o:"enchantment spells you cast cost" or o:"return target enchantment card" or o:"search your library for an enchantment")',
     payoff: '(keyword:constellation or o:"whenever you cast an enchantment")',
   },
+  superfriends: {
+    producer: '(t:planeswalker or keyword:proliferate or o:"planeswalker card")',
+    payoff:
+      '(o:"planeswalker you control" or o:"for each planeswalker" or o:"loyalty abilities" or o:"planeswalker spell")',
+  },
 };
 
 /** The Scryfall oracle query for one need, or null if no reliable query exists. */
