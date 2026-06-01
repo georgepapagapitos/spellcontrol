@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { matchCombos, getCombo, fetchOracleIds } from './combos';
+import { ensureCombosCached, matchCombosLocal } from '../offline';
+
+// matchCombos prefers client-side matching; mock the offline layer so we can
+// drive both the local path and the server fallback deterministically.
+vi.mock('../offline', () => ({
+  ensureCombosCached: vi.fn(),
+  matchCombosLocal: vi.fn(),
+}));
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -11,6 +19,9 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  // Default: dataset can't be cached → exercise the server fallback path.
+  vi.mocked(ensureCombosCached).mockResolvedValue(false);
+  vi.mocked(matchCombosLocal).mockReset();
 });
 
 describe('timeout + abort handling', () => {
@@ -59,6 +70,29 @@ describe('matchCombos', () => {
       jsonResponse({ error: 'Authentication required.' }, { status: 401 })
     );
     await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/Authentication required/);
+  });
+});
+
+describe('matchCombos (client-side)', () => {
+  it('matches locally against the cached dataset and never calls the server', async () => {
+    vi.mocked(ensureCombosCached).mockResolvedValue(true);
+    const local = { inDeck: [], oneAway: [], almostInCollection: [] };
+    vi.mocked(matchCombosLocal).mockResolvedValue(local);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const result = await matchCombos({
+      ownedOracleIds: ['a'],
+      deckOracleIds: ['a'],
+      format: 'commander',
+    });
+
+    expect(result).toBe(local);
+    expect(matchCombosLocal).toHaveBeenCalledWith({
+      ownedOracleIds: ['a'],
+      deckOracleIds: ['a'],
+      format: 'commander',
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
