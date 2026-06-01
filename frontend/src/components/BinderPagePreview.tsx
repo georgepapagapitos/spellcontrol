@@ -8,6 +8,7 @@ import { useCenteredSlide } from '../lib/use-centered-slide';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
+import { classifyFoil } from '../lib/foil-style';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -214,7 +215,15 @@ export function BinderPagePreview({
           </button>
           <div className="card-preview-grabber" aria-hidden="true" />
           {pages.length > 1 && (
-            <>
+            // Mirror CardPreview: the prev/next arrows MUST live inside
+            // .carousel-nav-layer (grid-row:1 / grid-column:1, overlaying the
+            // track cell with justify-content:space-between). Rendered as bare
+            // children of the sheet grid they auto-place as in-flow grid items,
+            // spawning implicit rows that steal height from the `1fr` track —
+            // collapsing the page grid to a sliver and piling the arrows on the
+            // left edge. The layer takes them out of the row flow and pins them
+            // to opposite edges of the track.
+            <div className="carousel-nav-layer">
               <button
                 type="button"
                 className="carousel-nav carousel-nav-prev"
@@ -251,7 +260,7 @@ export function BinderPagePreview({
               >
                 <ChevronRight width={20} height={20} strokeWidth={2.4} aria-hidden />
               </button>
-            </>
+            </div>
           )}
           <div className="binder-pages-track" ref={trackRef}>
             {pages.map((page, i) => {
@@ -279,7 +288,8 @@ export function BinderPagePreview({
                   key={`${page.pageNum}-${i}`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="binder-pages-slide-label">page {page.pageNum}</div>
+                  {/* Page number lives in the bottom info panel; no per-slide
+                      label above the grid (was .binder-pages-slide-label). */}
                   <SlideGrid
                     slots={page.slots}
                     cols={cols}
@@ -385,10 +395,11 @@ function Cell({
   onTap: (card: EnrichedCard) => void;
 }) {
   if (!card) return <div className="binder-pages-cell empty" />;
+  const foilStyle = classifyFoil(card);
   return (
     <button
       type="button"
-      className={`binder-pages-cell${card.foil ? ' is-foil' : ''}${
+      className={`binder-pages-cell${card.foil ? ` is-foil foil-${foilStyle}` : ''}${
         allocation ? ' is-allocated' : ''
       }`}
       onClick={() => onTap(card)}
@@ -400,6 +411,12 @@ function Cell({
         <CellImage src={card.imageNormal} alt={card.name} />
       ) : (
         <span className="binder-pages-cell-fallback">{card.name}</span>
+      )}
+      {card.foil && (
+        <>
+          <div className="card-preview-foil-shine" aria-hidden="true" />
+          <div className="card-preview-foil-glare" aria-hidden="true" />
+        </>
       )}
       {allocation && (
         <Link
