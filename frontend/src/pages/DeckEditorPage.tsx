@@ -17,6 +17,7 @@ import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
+import { PowerHero } from '../components/deck/PowerHero';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
@@ -961,6 +962,23 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
+            powerHeroSlot={
+              formatConfig?.hasCommander ? (
+                <PowerHero
+                  bracket={effectiveBracket(deck) ?? null}
+                  bracketOverridden={deck.bracketOverride != null}
+                  bracketReasons={(deck.bracketEstimation?.hardFloors ?? []).map((f) => f.reason)}
+                  engineLabel={deck.synergyAnalysis?.axes[0]?.label}
+                  engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
+                  enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
+                  engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
+                  comboInDeck={comboData.data?.inDeck.length ?? 0}
+                  comboOneAway={comboData.data?.oneAway.length ?? 0}
+                  comboOwnedMissing={comboData.data?.almostInCollection.length ?? 0}
+                  combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                />
+              ) : undefined
+            }
             combosSlot={
               formatConfig?.hasCommander ? (
                 <DeckCombosPanel
