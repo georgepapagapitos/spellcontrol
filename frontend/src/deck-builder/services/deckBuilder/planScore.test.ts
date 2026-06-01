@@ -12,7 +12,7 @@ import {
   computePlanScore,
   computeStrategyFromEngine,
   computeRolesSubscore,
-  computeTempoSubscore,
+  computeCurveSubscore,
   roleSlotsFromCounts,
   roleSlotsFromDeficits,
   bandFor,
@@ -160,13 +160,13 @@ describe('computeRolesSubscore', () => {
   });
 });
 
-describe('computeTempoSubscore', () => {
+describe('computeCurveSubscore', () => {
   it('is partial with no phase data', () => {
-    expect(computeTempoSubscore([]).partial).toBe(true);
+    expect(computeCurveSubscore([]).partial).toBe(true);
   });
 
   it('scores 100 when every phase is on target', () => {
-    const s = computeTempoSubscore([
+    const s = computeCurveSubscore([
       phase('early', 12, 12),
       phase('mid', 8, 8),
       phase('late', 4, 4),
@@ -176,7 +176,7 @@ describe('computeTempoSubscore', () => {
 
   it('weights early gaps heaviest and names the weakest phase', () => {
     // early light (6/12=0.5), mid/late on target. early weight 1.4 dominates.
-    const s = computeTempoSubscore([
+    const s = computeCurveSubscore([
       phase('early', 6, 12),
       phase('mid', 8, 8),
       phase('late', 4, 4),
@@ -192,7 +192,7 @@ describe('computePlanScore', () => {
     const ps = computePlanScore(healthyInput());
     expect(ps.subscores.strategy.partial).toBe(true);
     expect(ps.limitedData).toBe(true);
-    // roles=100, tempo=100, cardFit=100 → overall 100, NOT diluted by a 0 strategy.
+    // roles=100, curve=100, cardFit=100 → overall 100, NOT diluted by a 0 strategy.
     expect(ps.overall).toBe(100);
     expect(ps.bandLabel).toBe('Tuned');
   });
@@ -211,21 +211,21 @@ describe('computePlanScore', () => {
     const ps = computePlanScore(input);
     expect(ps.subscores.strategy.partial).toBeUndefined();
     expect(ps.limitedData).toBe(false);
-    // strategy=80 (0.30), roles=100 (0.25), tempo=100 (0.20), cardFit=100 (0.25)
+    // strategy=80 (0.30), roles=100 (0.25), curve=100 (0.20), cardFit=100 (0.25)
     // = (80*.3 + 100*.7) / 1.0 = 94
     expect(ps.overall).toBe(94);
   });
 
   it('weighted average uses only non-partial denominators', () => {
-    // Only cardFit (with misfits) non-partial besides roles/tempo; strategy partial.
+    // Only cardFit (with misfits) non-partial besides roles/curve; strategy partial.
     const input = healthyInput();
     input.roleTargets = {}; // roles partial
     input.roleCounts = {};
-    input.curvePhases = []; // tempo partial
+    input.curvePhases = []; // curve partial
     // cardFit alone non-partial → overall == cardFit value (100, no misfits/gaps).
     const ps = computePlanScore(input);
     expect(ps.subscores.roles.partial).toBe(true);
-    expect(ps.subscores.tempo.partial).toBe(true);
+    expect(ps.subscores.curve.partial).toBe(true);
     expect(ps.overall).toBe(ps.subscores.cardFit.value);
   });
 
@@ -238,7 +238,7 @@ describe('computePlanScore', () => {
       gapCount: 0,
     });
     // cardFit on an empty deck is still 100 (no misfits, no gaps) and non-partial,
-    // so overall == 100 here; strategy/roles/tempo are all partial.
+    // so overall == 100 here; strategy/roles/curve are all partial.
     expect(ps.subscores.cardFit.partial).toBeUndefined();
     expect(ps.overall).toBe(100);
     expect(ps.limitedData).toBe(true);

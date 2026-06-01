@@ -12,7 +12,7 @@ const base: PlanScore = {
   subscores: {
     strategy: { value: 80, surface: '', bandLabel: 'Healthy' },
     roles: { value: 70, surface: '', bandLabel: 'Solid' },
-    tempo: { value: 60, surface: '', bandLabel: 'Solid' },
+    curve: { value: 60, surface: '', bandLabel: 'Solid' },
     cardFit: { value: 50, surface: '', bandLabel: 'Mixed' },
   },
   limitedData: false,
