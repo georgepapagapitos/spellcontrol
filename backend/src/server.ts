@@ -21,6 +21,7 @@ import { scannerRouter } from './routes/scanner';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import { resolveCards, fetchCardsByIds, fetchPrintings, getCardById } from './scryfall';
+import { runScryfallBulkIngest } from './scryfall-bulk';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { sliceResolvedDeckImport } from './deck-import';
@@ -234,21 +235,37 @@ app.post(
         });
       }
 
-      const expanded = expandByQuantity(parseResult.rows);
-      const { resolved, unresolvedNames } = await resolveCards(expanded, cache);
+      // Resolve the parsed (unexpanded) rows: resolveCards dedupes by identifier
+      // anyway, so quantity has no bearing on the network calls. Expanding only
+      // afterward — during the merge — avoids materializing a second, potentially
+      // huge ImportRow[] just to throw it away (a 2000-copy row would otherwise be
+      // 2000 duplicate objects before dedup collapsed them again).
+      const { resolved, unresolvedNames } = await resolveCards(parseResult.rows, cache);
 
       let hits = 0;
       let misses = 0;
-      const cards: EnrichedCard[] = expanded.map((row, i) => {
+      let total = 0;
+      const cards: EnrichedCard[] = [];
+      parseResult.rows.forEach((row, i) => {
         const sCard = resolved[i];
-        if (sCard) hits++;
-        else misses++;
-        return mergeCard(row, sCard);
+        const qty = Math.min(MAX_QTY_PER_ROW, Math.max(1, row.quantity || 1));
+        for (let q = 0; q < qty; q++) {
+          if (total >= MAX_TOTAL_CARDS) {
+            throw new ImportTooLargeError(
+              `Import exceeds the ${MAX_TOTAL_CARDS.toLocaleString()}-card limit. ` +
+                `Split it into smaller files.`
+            );
+          }
+          total++;
+          if (sCard) hits++;
+          else misses++;
+          cards.push(mergeCard(row, sCard));
+        }
       });
 
       const response: UploadResponse = {
         cards,
-        totalRows: expanded.length,
+        totalRows: total,
         scryfallHits: hits,
         scryfallMisses: misses,
         unresolvedNames: dedupePreservingOrder(unresolvedNames),
@@ -646,6 +663,25 @@ function scheduleComboIngest(): void {
   setInterval(() => void tick(), TWENTY_FOUR_HOURS);
 }
 
+/**
+ * Kicks off the Scryfall bulk-card refresh: pulls the daily `default_cards` dump
+ * into the SQLite cache so imports resolve locally. Like the combo schedule it's
+ * a single setInterval — the ingest's own meta-file recency guard skips a re-pull
+ * when a redeploy lands within 20h of the last run. Runs in the background so the
+ * first ingest (a few minutes streaming ~450MB) never blocks boot; until it
+ * finishes, imports fall back to the live Scryfall path as before.
+ */
+function scheduleScryfallBulkIngest(): void {
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  const tick = () => {
+    runScryfallBulkIngest(cache, DB_PATH).catch((err) => {
+      logger.error('[scryfall-bulk] schedule tick failed:', err);
+    });
+  };
+  tick();
+  setInterval(tick, TWENTY_FOUR_HOURS);
+}
+
 async function start() {
   await ensureSchema();
   await promoteAdminsAtBoot();
@@ -657,6 +693,10 @@ async function start() {
 
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
     scheduleComboIngest();
+  }
+
+  if (process.env.SCRYFALL_BULK_INGEST_DISABLED !== '1') {
+    scheduleScryfallBulkIngest();
   }
 
   // Eagerly load the scanner matcher (pHash + embedding DBs + ONNX session) so

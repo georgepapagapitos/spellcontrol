@@ -8,6 +8,14 @@ import { mergeUploadResponses } from './merge-upload-responses';
 
 const TIMEOUT_MS = 120_000;
 const IMPORT_CHUNK_SIZE = 500;
+/**
+ * How many import chunks we upload at once. Concurrency overlaps the per-chunk
+ * round trips (each chunk does its own server-side Scryfall resolution), cutting
+ * wall-clock on large imports. Kept modest so we don't fan out so hard that the
+ * backend trips Scryfall's rate limit; the server-side cache + 429 backoff absorb
+ * the rest.
+ */
+const IMPORT_CHUNK_CONCURRENCY = 3;
 
 // Retry transient network failures on import-chunk uploads. Each entry is the
 // delay before the next attempt; an empty array would mean no retry. Tests run
@@ -87,11 +95,11 @@ async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
  * Import via pasted text or a file's text contents.
  *
  * Big collections (1k+ rows) are split into chunks of {@link IMPORT_CHUNK_SIZE}
- * lines and uploaded sequentially. Each chunk gets its own retry budget so a
- * transient network failure (tab suspended, cellular handoff, NAT timeout)
- * only restarts that one chunk instead of the whole import. Header rows in
- * CSV/TSV/ManaBox files are preserved in every chunk so each is independently
- * parseable.
+ * lines and uploaded with up to {@link IMPORT_CHUNK_CONCURRENCY} in flight at
+ * once. Each chunk gets its own retry budget so a transient network failure (tab
+ * suspended, cellular handoff, NAT timeout) only restarts that one chunk instead
+ * of the whole import. Header rows in CSV/TSV/ManaBox files are preserved in every
+ * chunk so each is independently parseable.
  *
  * **Atomicity contract** (relied on by UploadPanel and any future caller):
  * the function either resolves with the merged UploadResponse for ALL
@@ -112,19 +120,30 @@ export async function importText(
     onProgress?.({ chunkIndex: 1, totalChunks: 1 });
     return postImportChunkWithRetry(text);
   }
-  const responses: UploadResponse[] = [];
-  for (let i = 0; i < chunks.length; i++) {
-    onProgress?.({ chunkIndex: i + 1, totalChunks: chunks.length });
-    try {
-      responses.push(await postImportChunkWithRetry(chunks[i]));
-    } catch (err) {
-      // Atomicity: throw discards the in-progress `responses` array;
-      // never expose it to the caller. The backend is stateless across
-      // chunks, so there is no server-side rollback to perform.
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      throw new Error(`Import failed on batch ${i + 1} of ${chunks.length}: ${message}`);
+
+  // Upload chunks with bounded concurrency. Results are kept in input order so the
+  // merge is deterministic; progress reports the number completed so far. Atomicity:
+  // any chunk failure rejects the whole import and the partial `responses` array is
+  // never exposed (the backend is stateless across chunks, so nothing to roll back).
+  const responses: UploadResponse[] = new Array(chunks.length);
+  let completed = 0;
+  let nextChunk = 0;
+
+  const worker = async (): Promise<void> => {
+    for (let i = nextChunk++; i < chunks.length; i = nextChunk++) {
+      try {
+        responses[i] = await postImportChunkWithRetry(chunks[i]);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        throw new Error(`Import failed on batch ${i + 1} of ${chunks.length}: ${message}`);
+      }
+      completed++;
+      onProgress?.({ chunkIndex: completed, totalChunks: chunks.length });
     }
-  }
+  };
+
+  const workerCount = Math.min(IMPORT_CHUNK_CONCURRENCY, chunks.length);
+  await Promise.all(Array.from({ length: workerCount }, worker));
   return mergeUploadResponses(responses);
 }
 
