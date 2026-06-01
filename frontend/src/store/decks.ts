@@ -105,7 +105,7 @@ export interface Deck {
    */
   cardInclusionMap?: Record<string, number>;
   /**
-   * 0-100 PlanScore (4 weighted dimensions: strategy/roles/tempo/cardFit) with
+   * 0-100 PlanScore (4 weighted dimensions: strategy/roles/curve/cardFit) with
    * its sub-scores. Kept live by useCommanderBracketAnalysis (recomputed as
    * cards change), like roleTargets/gapAnalysis — not a generation snapshot.
    */

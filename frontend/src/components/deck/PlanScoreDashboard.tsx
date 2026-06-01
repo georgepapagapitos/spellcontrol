@@ -4,7 +4,7 @@ import { HeroScore } from './HeroScore';
 import { SubScoreTile } from './SubScoreTile';
 
 /** Canonical display order for the four dimensions. */
-const ORDER: SubScoreKey[] = ['strategy', 'roles', 'tempo', 'cardFit'];
+const ORDER: SubScoreKey[] = ['strategy', 'roles', 'curve', 'cardFit'];
 
 export interface PlanScoreDashboardProps {
   plan: PlanScore;

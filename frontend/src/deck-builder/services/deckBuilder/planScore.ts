@@ -1,7 +1,7 @@
 import type { CurvePhaseAnalysis, RoleDeficit } from './deckAnalyzer';
 import { computeMisfits, computeCardFitSubscore, type MisfitInputs } from './cardFit';
 
-export type SubScoreKey = 'strategy' | 'roles' | 'tempo' | 'cardFit';
+export type SubScoreKey = 'strategy' | 'roles' | 'curve' | 'cardFit';
 
 export interface SubScore {
   /** 0-100 */
@@ -163,10 +163,12 @@ export function computeRolesSubscore(slots: RoleSlot[]): SubScore {
   return { value, surface, bandLabel: bandFor(value) };
 }
 
-// ── Tempo ─────────────────────────────────────────────────────────────────
+// ── Curve ─────────────────────────────────────────────────────────────────
+// Grades the deck's mana-curve shape (phase distribution vs pacing-aware
+// targets). Named "curve" (not "tempo") because that's what it measures.
 const PHASE_WEIGHTS: Record<string, number> = { early: 1.4, mid: 1.0, late: 0.7 };
 
-export function computeTempoSubscore(curvePhases: CurvePhaseAnalysis[]): SubScore {
+export function computeCurveSubscore(curvePhases: CurvePhaseAnalysis[]): SubScore {
   const scorable = curvePhases.filter((p) => p.target > 0);
   if (scorable.length === 0) {
     return { value: 50, surface: 'No curve data available.', bandLabel: 'Unscored', partial: true };
@@ -197,7 +199,7 @@ export function computeTempoSubscore(curvePhases: CurvePhaseAnalysis[]): SubScor
 const WEIGHTS: Record<SubScoreKey, number> = {
   strategy: 0.3,
   roles: 0.25,
-  tempo: 0.2,
+  curve: 0.2,
   cardFit: 0.25,
 };
 
@@ -205,7 +207,7 @@ export interface PlanScoreInput {
   /** Role counts + targets — fed into the roles dimension. */
   roleCounts: Record<string, number>;
   roleTargets: Record<string, number>;
-  /** Curve-phase analysis (from getCurvePhases / DeckAnalysis.curvePhases) — tempo dimension. */
+  /** Curve-phase analysis (from getCurvePhases / DeckAnalysis.curvePhases) — curve dimension. */
   curvePhases: CurvePhaseAnalysis[];
   /** Misfit inputs (deck cards, inclusion/synergy maps, gap candidates) — cardFit dimension. */
   misfitInputs: MisfitInputs;
@@ -229,7 +231,7 @@ export function computePlanScore(input: PlanScoreInput): PlanScore {
   const subscores: Record<SubScoreKey, SubScore> = {
     strategy: computeStrategyFromEngine(input.strategyEngine),
     roles: computeRolesSubscore(roleSlotsFromCounts(input.roleCounts, input.roleTargets)),
-    tempo: computeTempoSubscore(input.curvePhases),
+    curve: computeCurveSubscore(input.curvePhases),
     cardFit: { ...cardFit },
   };
 

@@ -263,7 +263,7 @@ export interface GradeBracketResult {
   /**
    * Curve-phase analysis lifted out of the rich `analyzeDeck` pass (only set
    * when EDHREC data + role targets were available, i.e. the grade branch ran).
-   * Surfaced so callers can feed the PlanScore "tempo" dimension without
+   * Surfaced so callers can feed the PlanScore "curve" dimension without
    * recomputing the whole analysis.
    */
   curvePhases?: CurvePhaseAnalysis[];
@@ -331,7 +331,7 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   gapAnalysis?: GapAnalysisCard[];
   /** Per-card EDHREC inclusion % keyed by card name (basics omitted). */
   cardInclusionMap?: Record<string, number>;
-  /** 0-100 PlanScore (strategy/roles/tempo/cardFit). Undefined if not computable. */
+  /** 0-100 PlanScore (strategy/roles/curve/cardFit). Undefined if not computable. */
   planScore?: PlanScore;
   /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
   optimizeSwaps?: OptimizeSwaps;
@@ -491,7 +491,7 @@ export async function analyzeCommanderDeck(
     // `isOwned` later against the live collection.
     const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames);
 
-    // PlanScore (0-100, four weighted dimensions). Tempo needs the curve-phase
+    // PlanScore (0-100, four weighted dimensions). The curve dim needs the curve-phase
     // analysis lifted out of the grade pass; if the grade branch didn't run
     // (no curvePhases), skip — the dashboard falls back to the letter grade.
     // Per-card EDHREC synergy — feeds both the PlanScore cardFit dim and the
