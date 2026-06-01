@@ -620,11 +620,11 @@ export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
   const shape = lateDelta > 3 ? 'top-heavy' : earlyDelta > 3 ? 'bottom-heavy' : 'uneven';
 
   const messages: Record<string, string> = {
-    A: 'Excellent tempo — plays on curve consistently.',
-    B: 'Good tempo with minor gaps in the curve.',
-    C: `Tempo is a bit ${shape} — may stall at some points.`,
-    D: `Tempo is ${shape} — expect awkward turns.`,
-    F: 'Poor tempo — likely to miss plays or waste mana often.',
+    A: 'Excellent curve — plays on time consistently.',
+    B: 'Good curve with minor gaps.',
+    C: `Curve is a bit ${shape} — may stall at some points.`,
+    D: `Curve is ${shape} — expect awkward turns.`,
+    F: 'Poor curve — likely to miss plays or waste mana often.',
   };
 
   return { letter, message: messages[letter] || messages.F };
@@ -927,7 +927,7 @@ const SUMMARY_SVGS: Record<string, string> = {
     '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
   // Mountain — matches Mana tab icon
   lands: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
-  // ChartColumn (BarChart3) — matches Tempo tab icon
+  // ChartColumn (BarChart3) — matches Curve tab icon
   curve:
     '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
 };
@@ -1637,7 +1637,7 @@ export function computeOptimizeSwaps(
     }
   }
 
-  // ── Pass 4: Curve fills when tempo is weak ──
+  // ── Pass 4: Curve fills when the curve grade is weak ──
   if (['C', 'D', 'F'].includes(analysis.curveGrade.letter)) {
     const underfilled = analysis.curvePhases.filter((p) => p.delta < -2);
     for (const phase of underfilled) {
