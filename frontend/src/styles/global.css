@@ -5478,10 +5478,15 @@ hr {
   display: grid;
   grid-template-rows: 1fr auto;
   will-change: transform;
-  /* Pattern B — sheet child. Pad the visible surface so the card slot and
-     info panel clear the status bar / home gesture on native. Zero on web. */
+  /* Pattern B — sheet child. Pad the top so the card slot + close button clear
+     the status bar on native (zero on web). We deliberately do NOT pad the
+     bottom here: the info panel is the grid's bottom row and owns its own
+     `padding-bottom: max(0.9rem, var(--safe-bottom))`, which keeps its text
+     above the home gesture while letting its opaque background bleed to the
+     true device edge. A sheet-level `padding-bottom: var(--safe-bottom)` would
+     lift that background up and expose a safe-area-tall strip of dim scrim +
+     the page behind it below the panel (invisible on web where safe-bottom=0). */
   padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
   /* Transparent: the sheet is just the transform carrier. Only its opaque
      children — the card image and the info panel — visibly rise; the dim
      behind them is .card-preview-backdrop, which stays put. */
