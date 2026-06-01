@@ -111,6 +111,7 @@ export function DeckColorPanel({
   colorDist,
   manaProduction,
   cardsByColor,
+  manaCurve,
 }: {
   colorDist: { counts: Record<string, number>; total: number };
   manaProduction: {
@@ -121,6 +122,8 @@ export function DeckColorPanel({
   /** Per-color card lists for the Distribution donut drill-down (non-land cards
    *  by color identity). */
   cardsByColor?: Record<string, CardTally[]>;
+  /** Nonland mana curve (CMC → count) → pacing for the Mana base shortfall bar. */
+  manaCurve?: Record<number, number>;
 }): JSX.Element {
   // Two carousels so each drill-down shows an accurate context label: the
   // Production sources vs. the Distribution (colored cards) for a color.
@@ -149,6 +152,7 @@ export function DeckColorPanel({
         colorProduction={manaProduction.counts}
         sourcesByColor={manaProduction.sourcesByColor}
         onShowSources={(k) => openTally(sourcesCarousel, manaProduction.sourcesByColor?.[k])}
+        manaCurve={manaCurve}
       />
 
       {sourcesCarousel.preview}

@@ -1,4 +1,8 @@
 import { useMemo } from 'react';
+import {
+  isColorShort,
+  shortfallThresholdsForCurve,
+} from '@/deck-builder/services/deckBuilder/colorShortfall';
 import type { CardTally } from './useCardCarousel';
 import './DeckColorBalance.css';
 
@@ -29,41 +33,35 @@ const COLOR_NAME: Record<Color, string> = {
  * Shortfall heuristic (simple + transparent).
  *
  * A color is flagged "short" when it has real pip demand but its sources cover
- * less than 60% of that demand. The 0.6 ratio is a rough rule of thumb: you
- * generally want at least as many sources as pips for a color you lean on, and
- * dropping much below that makes the color unreliable to cast on curve. Colors
- * with zero demand are never flagged and render in a neutral, dimmed style.
+ * too little of that demand. The bar — a coverage ratio plus a splash-forgiveness
+ * floor — is **pacing-aware**: it's derived from the deck's own mana curve so an
+ * aggressive deck (which must hit its colors on curve) is judged stricter and a
+ * late-game deck more forgiving. The thresholds + predicate live in the tested
+ * `colorShortfall` helper; see it for the bands. Colors with zero demand are
+ * never flagged and render in a neutral, dimmed style.
  */
-const SHORTFALL_RATIO = 0.6;
-// Below this many colored pips, a single source easily covers the demand, so we don't
-// flag the color as short (small-splash forgiveness). Zero-source colors flag regardless.
-const MIN_FLAG_DEMAND = 3;
-
 export function DeckColorBalance({
   colorRequirements,
   colorProduction,
   sourcesByColor,
   onShowSources,
+  manaCurve,
 }: {
   colorRequirements: Record<string, number>;
   colorProduction: Record<string, number>;
   sourcesByColor?: Record<string, CardTally[]>;
   onShowSources?: (color: string) => void;
+  /** The deck's nonland mana curve (CMC → count), used to derive pacing for the
+   *  shortfall thresholds. Absent → balanced pacing → the static base bar. */
+  manaCurve?: Record<number, number>;
 }): JSX.Element {
   const { rows, scaleMax, colorlessProd } = useMemo(() => {
+    const thresholds = shortfallThresholdsForCurve(manaCurve ?? {});
     const rows = WUBRG.map((color) => {
       const demand = colorRequirements[color] ?? 0;
       const production = colorProduction[color] ?? 0;
       const hasDemand = demand > 0;
-      // Flag a color as "short" when:
-      //  - it has demand but zero sources (you literally can't produce it) — always flag, or
-      //  - production falls below the shortfall ratio AND demand is non-trivial.
-      // The MIN_FLAG_DEMAND guard forgives tiny splashes: a color with only 1-2 pips
-      // is comfortably covered by a single source, so we don't nag about it.
-      const short =
-        hasDemand &&
-        production < demand * SHORTFALL_RATIO &&
-        (production === 0 || demand >= MIN_FLAG_DEMAND);
+      const short = isColorShort(demand, production, thresholds);
       return { color, name: COLOR_NAME[color], demand, production, hasDemand, short };
     }).filter((row) => row.demand > 0 || row.production > 0);
 
@@ -72,7 +70,7 @@ export function DeckColorBalance({
     // the colorless source count so its bar reads on the same axis.
     const scaleMax = rows.reduce((m, r) => Math.max(m, r.demand, r.production), colorlessProd);
     return { rows, scaleMax, colorlessProd };
-  }, [colorRequirements, colorProduction]);
+  }, [colorRequirements, colorProduction, manaCurve]);
 
   // A row is tappable when we have its source list to open.
   const sourceCount = (color: string) => sourcesByColor?.[color]?.length ?? 0;
