@@ -235,7 +235,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Changeling'],
     oracle_text:
       'Changeling (This card is every creature type.)\n{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // Changeling makes it a tribal enabler; the {X} pump is a creature anthem.
+    expect: { producers: ['tribal'], payoffs: ['tokens'] },
   },
   {
     name: 'Beast Within',
@@ -833,6 +834,91 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     // Trap: "planeswalker" in removal text, but not "you control" — not a payoff.
     oracle_text: 'Destroy target creature or planeswalker.',
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── Tribal / typal ────────────────────────────────────────────────────────
+  {
+    name: 'Metallic Mimic',
+    type_line: 'Artifact Creature — Shapeshifter',
+    keywords: [],
+    oracle_text:
+      'As this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nEach other creature you control of the chosen type enters with an additional +1/+1 counter on it.',
+    // Also a counters producer ("enters with an additional +1/+1 counter").
+    expect: { producers: ['counters', 'tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Adaptive Automaton',
+    type_line: 'Artifact Creature — Construct',
+    keywords: [],
+    oracle_text:
+      'As this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nOther creatures you control of the chosen type get +1/+1.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Door of Destinies',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'As this artifact enters, choose a creature type.\nWhenever you cast a spell of the chosen type, put a charge counter on this artifact.\nCreatures you control of the chosen type get +1/+1 for each charge counter on this artifact.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: "Vanquisher's Banner",
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'As this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\nWhenever you cast a creature spell of the chosen type, draw a card.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Kindred Discovery',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'As this enchantment enters, choose a creature type.\nWhenever a creature you control of the chosen type enters or attacks, draw a card.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Cavern of Souls',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.",
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Coat of Arms',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'Each creature gets +1/+1 for each other creature on the battlefield that shares at least one creature type with it.',
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Shared Animosity',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.',
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Maskwood Nexus',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "Creatures you control are every creature type. The same is true for creature spells you control and creature cards you own that aren't on the battlefield.\n{3}, {T}: Create a 2/2 blue Shapeshifter creature token with changeling.",
+    // Tribal enabler (every creature type / changeling) that also makes tokens.
+    expect: { producers: ['tokens', 'tribal'], payoffs: [] },
+  },
+  {
+    name: 'Goblin King',
+    type_line: 'Creature — Goblin',
+    keywords: [],
+    // Trap: a specific-type lord ("Other Goblins") — deliberately NOT generalized
+    // without a creature-type list, so it classifies as nothing.
+    oracle_text: 'Other Goblins get +1/+1 and have mountainwalk.',
     expect: { producers: [], payoffs: [] },
   },
 ];
