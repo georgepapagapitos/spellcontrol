@@ -20,6 +20,9 @@ export interface NextBestMove {
   cardName?: string;
   /** Analysis view this move deep-links to. */
   navigateTo?: DeckView;
+  /** After navigating to `navigateTo`, reveal a specific panel within that view.
+   *  `'combos'` expands + scrolls the Combos panel and opens its one-away tab. */
+  focus?: 'combos';
 }
 
 export interface NextBestMoveInput {
@@ -184,7 +187,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           id: 'cardfit',
           tier: 2,
           title: 'Tighten card fit',
-          detail: `${sub.surface} Swap low-fit cards for stronger options on the Improve view.`,
+          detail: `${sub.surface} Swap low-fit cards for stronger options on the Tune view.`,
           navigateTo: SUBSCORE_VIEW.cardFit,
         });
         continue;
@@ -223,7 +226,8 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         title: 'Complete a combo',
         cardName: missingName,
         detail: `You're one card from ${produces}. Add ${missingName} to complete the combo.`,
-        navigateTo: 'tune',
+        navigateTo: 'power',
+        focus: 'combos',
       });
       usedCards.add(missingName);
       break;

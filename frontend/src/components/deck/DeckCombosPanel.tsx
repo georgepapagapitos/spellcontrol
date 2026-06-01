@@ -34,8 +34,9 @@ import { Tabs } from '../Tabs';
 import { MagicText } from './MagicText';
 
 export interface DeckCombosPanelHandle {
-  /** Expand the panel (if collapsed), scroll it into view, and focus the first tab. */
-  reveal(): void;
+  /** Expand the panel (if collapsed), optionally switch to `tab`, scroll it into
+   *  view, and focus the first tab. */
+  reveal(tab?: Tab): void;
 }
 
 interface Props {
@@ -244,8 +245,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   }, [collapsed]);
 
   useImperativeHandle(ref, () => ({
-    reveal: () => {
+    reveal: (revealTab) => {
       setCollapsed(false);
+      if (revealTab) setTab(revealTab);
       // Wait a frame so the panel has expanded before scrolling/focusing.
       window.requestAnimationFrame(() => {
         containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

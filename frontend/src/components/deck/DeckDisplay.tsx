@@ -287,6 +287,9 @@ export interface DeckDisplayProps {
   sideboard?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
+  /** Actual deck cards by name — lets bracket-breakdown card previews show the
+   *  deck's printing instead of the default printing fetched by name. */
+  deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   /** User-pinned bracket (1–5); when set it overrides the auto estimate. */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
@@ -381,6 +384,8 @@ export interface DeckDisplayProps {
   substitutionSlot?: React.ReactNode;
   /** Native synergy "Engine" surface, rendered in the Improve view. */
   engineSlot?: React.ReactNode;
+  /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
+  powerHeroSlot?: React.ReactNode;
   /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
@@ -763,6 +768,7 @@ export function DeckDisplay({
   cards,
   sideboard = [],
   bracketEstimation,
+  deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
   deckGrade,
@@ -802,6 +808,7 @@ export function DeckDisplay({
   costSlot,
   substitutionSlot,
   engineSlot,
+  powerHeroSlot,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1647,6 +1654,7 @@ export function DeckDisplay({
             allCards={allCards}
             manaData={manaData}
             bracketEstimation={bracketEstimation}
+            deckCardsByName={deckCardsByName}
             bracketOverride={bracketOverride}
             onSetBracketOverride={onSetBracketOverride}
             roleCounts={roleCounts}
@@ -1668,6 +1676,7 @@ export function DeckDisplay({
             costSlot={costSlot}
             substitutionSlot={substitutionSlot}
             engineSlot={engineSlot}
+            powerHeroSlot={powerHeroSlot}
             commanderName={commander?.name}
             commanderIdentity={commanderIdentity}
           />
@@ -2970,6 +2979,7 @@ function DeckAnalysisView({
   allCards,
   manaData,
   bracketEstimation,
+  deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
   roleCounts,
@@ -2991,6 +3001,7 @@ function DeckAnalysisView({
   costSlot,
   substitutionSlot,
   engineSlot,
+  powerHeroSlot,
   commanderName,
   commanderIdentity,
 }: {
@@ -2998,6 +3009,7 @@ function DeckAnalysisView({
   allCards: ScryfallCard[];
   manaData: DeckManaData;
   bracketEstimation?: BracketEstimation;
+  deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   roleCounts?: Record<string, number>;
@@ -3020,6 +3032,7 @@ function DeckAnalysisView({
   costSlot?: React.ReactNode;
   substitutionSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
+  powerHeroSlot?: React.ReactNode;
   /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
   commanderName?: string;
   /** The deck's legal color identity (commander union); drives the identity gate. */
@@ -3156,6 +3169,8 @@ function DeckAnalysisView({
 
       {current === 'power' && (
         <div className="deck-bento deck-bento--power">
+          {powerHeroSlot}
+          {/* Detailed breakdowns under the verdict hero. */}
           {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
           <div className="deck-stats-pair">
             {(bracketEstimation || bracketOverride != null) && (
@@ -3199,7 +3214,12 @@ function DeckAnalysisView({
                       </select>
                     </label>
                   )}
-                  {bracketEstimation && <BracketBreakdown estimation={bracketEstimation} />}
+                  {bracketEstimation && (
+                    <BracketBreakdown
+                      estimation={bracketEstimation}
+                      deckCardsByName={deckCardsByName}
+                    />
+                  )}
                 </div>
               </Panel>
             )}

@@ -13,10 +13,11 @@ import { Tabs } from '../components/Tabs';
 import { materializeBinders } from '../lib/materialize';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
-import { DeckCombosPanel } from '../components/deck/DeckCombosPanel';
+import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
+import { PowerHero } from '../components/deck/PowerHero';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
@@ -111,6 +112,22 @@ export function DeckEditorPage() {
   // Chip / keyboard deep-links target a specific analysis view.
   const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
 
+  // The Combos panel lives inside the Power bento; switching to Power lands on
+  // the top of the bento, not the panel. A next-best-move with focus 'combos'
+  // (the "Complete a combo" suggestion) reveals + scrolls the panel and opens
+  // its one-away tab. The panel only mounts once Power is active, so reveal on
+  // the next frame, after the view switch has committed.
+  const combosRef = useRef<DeckCombosPanelHandle>(null);
+  const handleNbmNavigate = useCallback(
+    (next: DeckView, focus?: 'combos') => {
+      openView(next);
+      if (focus === 'combos') {
+        window.requestAnimationFrame(() => combosRef.current?.reveal('oneAway'));
+      }
+    },
+    [openView]
+  );
+
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
   // multiple times.
@@ -121,6 +138,16 @@ export function DeckEditorPage() {
     if (!deck) return m;
     for (const c of deck.cards) m.set(c.card.name, (m.get(c.card.name) ?? 0) + 1);
     for (const c of deck.sideboard) m.set(c.card.name, (m.get(c.card.name) ?? 0) + 1);
+    return m;
+  }, [deck]);
+
+  // Name → the actual deck printing. Feeds Optimize's Remove column so its card
+  // preview shows the printing in the deck (matching the thumbnail) instead of
+  // the default printing the carousel would otherwise fetch by name.
+  const deckCardsByName = useMemo(() => {
+    const m = new Map<string, ScryfallCard>();
+    if (!deck) return m;
+    for (const c of deck.cards) if (!m.has(c.card.name)) m.set(c.card.name, c.card);
     return m;
   }, [deck]);
 
@@ -925,6 +952,7 @@ export function DeckEditorPage() {
             boardwipeSubtypeCounts={deck.boardwipeSubtypeCounts}
             cardDrawSubtypeCounts={deck.cardDrawSubtypeCounts}
             bracketEstimation={deck.bracketEstimation}
+            deckCardsByName={deckCardsByName}
             bracketOverride={deck.bracketOverride}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
             deckGrade={deck.deckGrade}
@@ -935,9 +963,27 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
+            powerHeroSlot={
+              formatConfig?.hasCommander ? (
+                <PowerHero
+                  bracket={effectiveBracket(deck) ?? null}
+                  bracketOverridden={deck.bracketOverride != null}
+                  bracketReasons={(deck.bracketEstimation?.hardFloors ?? []).map((f) => f.reason)}
+                  engineLabel={deck.synergyAnalysis?.axes[0]?.label}
+                  engineProducers={deck.synergyAnalysis?.axes[0]?.producers}
+                  enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
+                  engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
+                  comboInDeck={comboData.data?.inDeck.length ?? 0}
+                  comboOneAway={comboData.data?.oneAway.length ?? 0}
+                  comboOwnedMissing={comboData.data?.almostInCollection.length ?? 0}
+                  combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                />
+              ) : undefined
+            }
             combosSlot={
               formatConfig?.hasCommander ? (
                 <DeckCombosPanel
+                  ref={combosRef}
                   embedded
                   deckId={deck.id}
                   deckOracleIds={deckOracleIds}
@@ -960,8 +1006,12 @@ export function DeckEditorPage() {
               ) : undefined
             }
             nextBestMoveSlot={
-              nextBestMoves.length > 0 ? (
-                <NextBestMove moves={nextBestMoves} onNavigate={openView} />
+              nextBestMoves.length > 0 || (formatConfig?.hasCommander && comboData.loading) ? (
+                <NextBestMove
+                  moves={nextBestMoves}
+                  onNavigate={handleNbmNavigate}
+                  combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                />
               ) : undefined
             }
             optimizeSlot={
@@ -973,6 +1023,7 @@ export function DeckEditorPage() {
                   swaps={deck.optimizeSwaps}
                   currentSize={deck.cards.length}
                   ownedNames={ownedNames}
+                  removalCards={deckCardsByName}
                   onApply={handleApplyOptimize}
                   applying={applyingOptimize}
                 />

@@ -1,6 +1,7 @@
 import './OptimizePanel.css';
 import { useMemo, useState } from 'react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { useOptimizePlan, type OptimizeSide, type TriState } from './useOptimizePlan';
 import { useCardCarousel } from './useCardCarousel';
 import { OwnershipBadge } from './OwnershipBadge';
@@ -11,6 +12,10 @@ export interface OptimizePanelProps {
   currentSize: number;
   /** Card names the player already owns — surfaces an "Owned" badge on adds. */
   ownedNames?: Set<string>;
+  /** Actual deck `ScryfallCard`s by name, for the Remove column. Lets the card
+   *  preview show the exact printing in the deck instead of re-fetching the
+   *  default printing by name (which can differ from the thumbnail). */
+  removalCards?: ReadonlyMap<string, ScryfallCard>;
   /** Commit the plan. Receives checked removal + addition names. */
   onApply: (removalNames: string[], additionNames: string[]) => void | Promise<void>;
   /** Disables the Apply button + checkboxes while a commit is in flight. */
@@ -255,7 +260,7 @@ function OptimizeColumn({
   ownedNames: Set<string>;
   applying: boolean;
   /** Open the card-detail carousel over this column's cards, at `name`. */
-  onPreview: (cards: OptimizeCard[], name: string) => void;
+  onPreview: (cards: OptimizeCard[], name: string, side: OptimizeSide) => void;
   /** Shown in place of the tiles when this column has no groups. */
   emptyHint?: string;
 }) {
@@ -306,7 +311,7 @@ function OptimizeColumn({
                   checked={isChecked(card.name)}
                   owned={side === 'add' && ownedNames.has(card.name)}
                   onToggle={() => plan.toggle(side, card.name)}
-                  onPreview={() => onPreview(allCards, card.name)}
+                  onPreview={() => onPreview(allCards, card.name, side)}
                   disabled={applying}
                 />
               ))}
@@ -322,6 +327,7 @@ export function OptimizePanel({
   swaps,
   currentSize,
   ownedNames,
+  removalCards,
   onApply,
   applying = false,
 }: OptimizePanelProps): JSX.Element {
@@ -329,28 +335,44 @@ export function OptimizePanel({
 
   const carousel = useCardCarousel('Optimize suggestions');
   // Open the carousel over a column's cards, labelled with each card's role +
-  // inclusion, starting at the tapped one.
-  const openPreview = (cards: OptimizeCard[], tappedName: string) =>
+  // inclusion, starting at the tapped one. For the Remove column, pass the
+  // actual deck card so the preview shows the printing in the deck (matching
+  // the thumbnail) rather than the default printing fetched by name.
+  const openPreview = (cards: OptimizeCard[], tappedName: string, side: OptimizeSide) =>
     void carousel.open(
-      cards.map((c) => ({ name: c.name, label: inclusionMeta(c) })),
+      cards.map((c) => ({
+        name: c.name,
+        label: inclusionMeta(c),
+        card: side === 'remove' ? removalCards?.get(c.name) : undefined,
+      })),
       tappedName
     );
 
   // "Owned only" constrains the Add column to cards already in the collection —
-  // a "free upgrades from what I have" mode. Cuts (your own deck cards) are
-  // never filtered. The filtered set feeds the hook so totals/Apply stay honest.
+  // a "free upgrades from what I have" mode. The filtered set feeds the hook so
+  // totals/Apply stay honest.
   const [ownedOnly, setOwnedOnly] = useState(false);
   const ownedAdditionCount = useMemo(
     () => swaps.additions.filter((c) => owned.has(c.name)).length,
     [swaps.additions, owned]
   );
-  const effectiveSwaps = useMemo(
-    () =>
-      ownedOnly
-        ? { removals: swaps.removals, additions: swaps.additions.filter((c) => owned.has(c.name)) }
-        : swaps,
-    [swaps, ownedOnly, owned]
-  );
+  // Balance the Remove menu to the adds on offer: show only as many cuts as are
+  // needed to keep the deck legal once those adds go in, taking the best-ranked
+  // cuts. `swaps.removals` arrives globally sorted worst-card-first (sortScore =
+  // inclusion + curve adjust, with synergy/combo/load-bearing protection floors
+  // applied upstream), so slicing the front IS "pick the best N to cut". This
+  // makes a swap read as a swap (5 owned adds → the 5 best cuts) instead of
+  // dumping every possible cut regardless of how many cards are going in.
+  // Over-size decks get extra cuts (trim the excess down to legal); under-size
+  // decks get none (fill empty slots first, don't force swaps).
+  const effectiveSwaps = useMemo(() => {
+    const additions = ownedOnly
+      ? swaps.additions.filter((c) => owned.has(c.name))
+      : swaps.additions;
+    const cutsNeeded = Math.max(0, currentSize + additions.length - MAX_DECK_SIZE);
+    const removals = swaps.removals.slice(0, Math.min(swaps.removals.length, cutsNeeded));
+    return { removals, additions };
+  }, [swaps, ownedOnly, owned, currentSize]);
 
   const plan = useOptimizePlan(effectiveSwaps, currentSize);
   const removalGroups = useMemo(
