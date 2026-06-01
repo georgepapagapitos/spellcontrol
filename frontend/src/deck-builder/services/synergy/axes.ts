@@ -27,7 +27,10 @@ export type AxisKey =
   | 'spellslinger'
   | 'enchantress'
   | 'superfriends'
-  | 'tribal';
+  | 'tribal'
+  | 'blink'
+  | 'vehicles'
+  | 'grouphug';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -334,6 +337,94 @@ const tribal: SynergyAxis = {
   },
 };
 
+// ── Blink / flicker ──────────────────────────────────────────────────────────
+// A flicker exiles a permanent and returns it to the battlefield — that round
+// trip IS the mechanic. The producer is the flicker engine itself.
+const FLICKER_RETURN = /return (?:it|them|that card|those cards|that permanent) to the battlefield/;
+
+const blink: SynergyAxis = {
+  key: 'blink',
+  label: 'Blink / flicker',
+  producer(card) {
+    // Requiring a literal "return … to the battlefield" of the exiled object
+    // excludes permanent-exile removal (Swords to Plowshares, Banishing Light);
+    // excluding the graveyard keeps reanimation in the `graveyard` axis. We do
+    // NOT require "you control" — Flickerwisp / Brago flicker any permanent but
+    // always return it under its owner's control, so they're still flicker
+    // engines, never theft.
+    if (
+      /\bexile\b/.test(card.oracle) &&
+      FLICKER_RETURN.test(card.oracle) &&
+      !/from (?:your|a|their|its owner's) graveyard/.test(card.oracle)
+    )
+      return 'blinks (exile and return) permanents';
+    return null;
+  },
+  payoff(card) {
+    // Panharmonicon / Yarok / Elesh Norn-style ETB-trigger doublers are the
+    // blink-specific payoff. Generic creature-ETB triggers ("whenever a creature
+    // you control enters") are also genuine blink payoffs and INTENTIONALLY
+    // co-tag with the `tokens` axis — Impact Tremors rewards both go-wide and
+    // blink. We deliberately do NOT tag self-ETB value creatures (Mulldrifter):
+    // "when this creature enters" is a one-shot, not an engine signal, and
+    // matching it would obliterate precision (nearly every value creature has
+    // an ETB).
+    if (/entering causes a triggered ability[^.]*triggers an additional time/.test(card.oracle))
+      return 'doubles your enters-the-battlefield triggers';
+    if (hasCreatureEtbTrigger(card.oracle)) return 'rewards creatures entering';
+    return null;
+  },
+};
+
+// ── Vehicles / crew ──────────────────────────────────────────────────────────
+// Mirrors the `equipment` axis: the Vehicle cards are the engine (producers),
+// payoffs buff / crew-discount / cast / tutor / recur them. A Vehicle is
+// identified by its type line or the Crew keyword (Scryfall only lists "Crew"
+// for actual Vehicles) — deliberately NOT a raw "crew N" oracle match, which
+// would mis-tag crew-cost reducers ("Vehicles you control have crew 0") as
+// Vehicles instead of payoffs.
+const vehicles: SynergyAxis = {
+  key: 'vehicles',
+  label: 'Vehicles / crew',
+  producer(card) {
+    if (card.typeLine.includes('vehicle') || has(card, 'crew')) return 'vehicle (crew engine)';
+    return null;
+  },
+  payoff(card) {
+    if (/whenever you cast[^.]*vehicle/.test(card.oracle)) return 'pays off casting vehicles';
+    if (/whenever a vehicle[^.]*(?:enters|attacks)/.test(card.oracle))
+      return 'triggers on your vehicles';
+    if (/vehicles? you control/.test(card.oracle)) return 'cares about your vehicles';
+    if (/vehicle card/.test(card.oracle)) return 'tutors/recurs vehicles';
+    return null;
+  },
+};
+
+// ── Group hug ────────────────────────────────────────────────────────────────
+// Symmetric, altruistic resource generation (extra draws / lands / mana for
+// everyone) is the producer; the payoff is the punisher that turns the table's
+// extra resources against them. Self-only card advantage ("Draw two cards") is
+// NOT group hug — the giveaway is "each player" / "that player".
+const grouphug: SynergyAxis = {
+  key: 'grouphug',
+  label: 'Group hug',
+  producer(card) {
+    if (/each player draws/.test(card.oracle)) return 'each player draws (symmetric)';
+    if (/each player's [a-z]+ step/.test(card.oracle) && /that player draws/.test(card.oracle))
+      return 'extra draws for every player';
+    if (/each player may (?:play|put)[^.]*lands?/.test(card.oracle))
+      return 'each player ramps (extra lands)';
+    if (/whenever a player taps a land for mana/.test(card.oracle))
+      return 'symmetric mana for all players';
+    return null;
+  },
+  payoff(card) {
+    if (/whenever an opponent draws a card/.test(card.oracle)) return 'exploits opponents drawing';
+    if (/if an opponent would draw a card/.test(card.oracle)) return "redirects opponents' draws";
+    return null;
+  },
+};
+
 export const AXES: SynergyAxis[] = [
   tokens,
   counters,
@@ -347,4 +438,7 @@ export const AXES: SynergyAxis[] = [
   enchantress,
   superfriends,
   tribal,
+  blink,
+  vehicles,
+  grouphug,
 ];
