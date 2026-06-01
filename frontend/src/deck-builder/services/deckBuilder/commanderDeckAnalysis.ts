@@ -33,12 +33,7 @@ import {
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
-import {
-  computePlanScore,
-  type PlanScore,
-  type StrategyInputs,
-  type StrategyEngineInput,
-} from './planScore';
+import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
 import {
@@ -188,53 +183,6 @@ export function buildCardSynergyMap(
 }
 
 /**
- * Derive the PlanScore "strategy" inputs from the commander's EDHREC data —
- * no extra network calls. A deck card "reinforces the plan" when EDHREC marks
- * it a theme-synergy card for this commander, or its synergy clears a modest
- * floor (i.e. it shows up meaningfully more with this commander than at large).
- * The top-synergy cards become the coverage target; the commander's headline
- * theme names the plan. Returns null when no synergy signal exists (e.g. an
- * obscure commander) — strategy then scores `partial` and drops out.
- */
-const STRATEGY_SYNERGY_FLOOR = 0.15;
-
-export function buildStrategyInputs(
-  edhrecData: EDHRECCommanderData,
-  nonLandCards: ScryfallCard[]
-): StrategyInputs | null {
-  const byName = new Map<string, { synergy: number; isTheme: boolean }>();
-  for (const c of edhrecData.cardlists.allNonLand) {
-    byName.set(c.name.toLowerCase(), {
-      synergy: c.synergy ?? 0,
-      isTheme: !!c.isThemeSynergyCard,
-    });
-  }
-  const reinforces = (entry: { synergy: number; isTheme: boolean } | undefined) =>
-    !!entry && (entry.isTheme || entry.synergy >= STRATEGY_SYNERGY_FLOOR);
-
-  const themeByCard = new Set<string>();
-  for (const c of nonLandCards) {
-    const key = c.name.toLowerCase();
-    if (reinforces(byName.get(key))) themeByCard.add(key);
-  }
-
-  const topThemeCardNames = edhrecData.cardlists.allNonLand
-    .filter((c) => reinforces({ synergy: c.synergy ?? 0, isTheme: !!c.isThemeSynergyCard }))
-    .sort((a, b) => (b.synergy ?? 0) - (a.synergy ?? 0))
-    .slice(0, 60)
-    .map((c) => c.name);
-
-  if (themeByCard.size === 0 && topThemeCardNames.length === 0) return null;
-
-  return {
-    nonLandCards,
-    themeByCard,
-    topThemeCardNames,
-    planName: edhrecData.themes?.[0]?.name ?? null,
-  };
-}
-
-/**
  * Distil a DeckSynergy into the PlanScore strategy inputs: the primary engine
  * axis (busiest invested axis), its producer/payoff counts, and how many deck
  * cards participate in any invested axis. `primaryLabel` is null when the deck
@@ -315,7 +263,7 @@ export interface GradeBracketResult {
   /**
    * Curve-phase analysis lifted out of the rich `analyzeDeck` pass (only set
    * when EDHREC data + role targets were available, i.e. the grade branch ran).
-   * Surfaced so callers can feed the PlanScore "tempo" dimension without
+   * Surfaced so callers can feed the PlanScore "curve" dimension without
    * recomputing the whole analysis.
    */
   curvePhases?: CurvePhaseAnalysis[];
@@ -383,7 +331,7 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   gapAnalysis?: GapAnalysisCard[];
   /** Per-card EDHREC inclusion % keyed by card name (basics omitted). */
   cardInclusionMap?: Record<string, number>;
-  /** 0-100 PlanScore (strategy/roles/tempo/cardFit). Undefined if not computable. */
+  /** 0-100 PlanScore (strategy/roles/curve/cardFit). Undefined if not computable. */
   planScore?: PlanScore;
   /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
   optimizeSwaps?: OptimizeSwaps;
@@ -543,7 +491,7 @@ export async function analyzeCommanderDeck(
     // `isOwned` later against the live collection.
     const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames);
 
-    // PlanScore (0-100, four weighted dimensions). Tempo needs the curve-phase
+    // PlanScore (0-100, four weighted dimensions). The curve dim needs the curve-phase
     // analysis lifted out of the grade pass; if the grade branch didn't run
     // (no curvePhases), skip — the dashboard falls back to the letter grade.
     // Per-card EDHREC synergy — feeds both the PlanScore cardFit dim and the

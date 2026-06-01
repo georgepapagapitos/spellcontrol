@@ -18,7 +18,7 @@ function plan(overrides: Partial<PlanScore['subscores']>, limitedData = false): 
     subscores: {
       strategy: sub(90),
       roles: sub(90),
-      tempo: sub(90),
+      curve: sub(90),
       cardFit: sub(90),
       ...overrides,
     },
@@ -73,30 +73,30 @@ describe('buildNextBestMoves', () => {
       base({
         cardCount: 100,
         deckTarget: 99,
-        planScore: plan({ tempo: sub(40) }),
+        planScore: plan({ curve: sub(40) }),
       })
     );
     expect(moves.map((m) => m.tier)).toEqual([1, 2]);
-    expect(moves[1].id).toBe('tempo');
+    expect(moves[1].id).toBe('curve');
   });
 
   it('picks the weakest sub-score first among multiple weak ones', () => {
     const moves = buildNextBestMoves(
       base({
-        planScore: plan({ tempo: sub(70), cardFit: sub(40) }),
+        planScore: plan({ curve: sub(70), cardFit: sub(40) }),
       })
     );
     expect(moves[0].id).toBe('cardfit');
-    expect(moves[1].id).toBe('tempo');
+    expect(moves[1].id).toBe('curve');
   });
 
   it('skips partial sub-scores even when below threshold', () => {
     const moves = buildNextBestMoves(
       base({
-        planScore: plan({ strategy: sub(10, true), tempo: sub(60) }),
+        planScore: plan({ strategy: sub(10, true), curve: sub(60) }),
       })
     );
-    expect(moves.map((m) => m.id)).toEqual(['tempo']);
+    expect(moves.map((m) => m.id)).toEqual(['curve']);
   });
 
   it('matches a role-deficit to a same-role gap card', () => {
@@ -244,7 +244,7 @@ describe('buildNextBestMoves', () => {
         roleTargets: { ramp: 10, removal: 10 },
         gapAnalysis: [gap('R', { synergy: 4 })],
         planScore: plan(
-          { roles: sub(30), tempo: sub(40), cardFit: sub(50), strategy: sub(60) },
+          { roles: sub(30), curve: sub(40), cardFit: sub(50), strategy: sub(60) },
           true
         ),
       })

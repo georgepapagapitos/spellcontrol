@@ -235,7 +235,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Changeling'],
     oracle_text:
       'Changeling (This card is every creature type.)\n{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // Changeling makes it a tribal enabler; the {X} pump is a creature anthem.
+    expect: { producers: ['tribal'], payoffs: ['tokens'] },
   },
   {
     name: 'Beast Within',
@@ -398,7 +399,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       '+1: Create three 1/1 white Soldier creature tokens.\n−3: Destroy all creatures with power 4 or greater.\n−7: You get an emblem with "Creatures you control get +2/+2 and have flying."',
-    expect: { producers: ['tokens'], payoffs: ['tokens'] },
+    // A planeswalker is itself a superfriends producer (the loyalty engine).
+    expect: { producers: ['tokens', 'superfriends'], payoffs: ['tokens'] },
   },
   {
     name: 'Trading Post',
@@ -725,6 +727,198 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Creature — Bird',
     keywords: ['Flying'],
     oracle_text: 'Flying\n{T}: Add one mana of any color.',
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── Superfriends / planeswalkers ──────────────────────────────────────────
+  {
+    name: 'Teferi, Hero of Dominaria',
+    type_line: 'Legendary Planeswalker — Teferi',
+    keywords: [],
+    oracle_text:
+      '+1: Draw a card. At the beginning of the next end step, untap up to two lands.\n−3: Put target nonland permanent into its owner\'s library third from the top.\n−8: You get an emblem with "Whenever you draw a card, exile target permanent an opponent controls."',
+    expect: { producers: ['superfriends'], payoffs: [] },
+  },
+  {
+    name: 'Flux Channeler',
+    type_line: 'Creature — Human Wizard',
+    keywords: ['Proliferate'],
+    oracle_text:
+      'Whenever you cast a noncreature spell, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)',
+    expect: { producers: ['superfriends'], payoffs: [] },
+  },
+  {
+    name: 'Evolution Sage',
+    type_line: 'Creature — Elf Druid',
+    keywords: ['Proliferate', 'Landfall'],
+    oracle_text:
+      'Landfall — Whenever a land you control enters, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)',
+    expect: { producers: ['superfriends'], payoffs: ['landfall'] },
+  },
+  {
+    name: "Atraxa, Praetors' Voice",
+    type_line: 'Legendary Creature — Phyrexian Angel Horror',
+    keywords: ['Deathtouch', 'Flying', 'Lifelink', 'Vigilance', 'Proliferate'],
+    oracle_text:
+      'Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)',
+    expect: { producers: ['lifegain', 'superfriends'], payoffs: [] },
+  },
+  {
+    name: "Karn's Bastion",
+    type_line: 'Land',
+    keywords: ['Proliferate'],
+    oracle_text:
+      '{T}: Add {C}.\n{4}, {T}: Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)',
+    expect: { producers: ['superfriends'], payoffs: [] },
+  },
+  {
+    name: 'Sword of Truth and Justice',
+    type_line: 'Artifact — Equipment',
+    keywords: ['Proliferate', 'Equip'],
+    oracle_text:
+      'Equipped creature gets +2/+2 and has protection from white and from blue.\nWhenever equipped creature deals combat damage to a player, put a +1/+1 counter on a creature you control, then proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)\nEquip {2}',
+    expect: { producers: ['counters', 'equipment', 'superfriends'], payoffs: [] },
+  },
+  {
+    name: 'Oath of Gideon',
+    type_line: 'Legendary Enchantment',
+    keywords: [],
+    oracle_text:
+      'When Oath of Gideon enters, create two 1/1 white Kor Ally creature tokens.\nEach planeswalker you control enters with an additional loyalty counter on it.',
+    expect: { producers: ['tokens', 'superfriends'], payoffs: ['superfriends'] },
+  },
+  {
+    name: 'Call the Gatewatch',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Search your library for a planeswalker card, reveal it, put it into your hand, then shuffle.',
+    expect: { producers: ['superfriends'], payoffs: [] },
+  },
+  {
+    name: 'Oath of Teferi',
+    type_line: 'Legendary Enchantment',
+    keywords: [],
+    oracle_text:
+      "When Oath of Teferi enters, exile another target permanent you control. Return it to the battlefield under its owner's control at the beginning of the next end step.\nYou may activate the loyalty abilities of planeswalkers you control twice each turn rather than only once.",
+    expect: { producers: [], payoffs: ['superfriends'] },
+  },
+  {
+    name: 'The Chain Veil',
+    type_line: 'Legendary Artifact',
+    keywords: [],
+    oracle_text:
+      "At the beginning of your end step, if you didn't activate a loyalty ability of a planeswalker this turn, you lose 2 life.\n{4}, {T}: For each planeswalker you control, you may activate one of its loyalty abilities once this turn as though none of its loyalty abilities have been activated this turn.",
+    expect: { producers: [], payoffs: ['superfriends'] },
+  },
+  {
+    name: 'Carth the Lion',
+    type_line: 'Legendary Creature — Human Warrior',
+    keywords: [],
+    oracle_text:
+      "Whenever Carth enters or a planeswalker you control dies, look at the top seven cards of your library. You may reveal a planeswalker card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.\nPlaneswalkers' loyalty abilities you activate cost an additional [+1] to activate.",
+    expect: { producers: ['superfriends'], payoffs: ['superfriends'] },
+  },
+  {
+    name: 'Interplanar Beacon',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      'Whenever you cast a planeswalker spell, you gain 1 life.\n{T}: Add {C}.\n{1}, {T}: Add two mana of different colors. Spend this mana only to cast planeswalker spells.',
+    // Also a lifegain producer ("you gain 1 life"); payoff is casting planeswalkers.
+    expect: { producers: ['lifegain'], payoffs: ['superfriends'] },
+  },
+  {
+    name: "Hero's Downfall",
+    type_line: 'Instant',
+    keywords: [],
+    // Trap: "planeswalker" in removal text, but not "you control" — not a payoff.
+    oracle_text: 'Destroy target creature or planeswalker.',
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── Tribal / typal ────────────────────────────────────────────────────────
+  {
+    name: 'Metallic Mimic',
+    type_line: 'Artifact Creature — Shapeshifter',
+    keywords: [],
+    oracle_text:
+      'As this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nEach other creature you control of the chosen type enters with an additional +1/+1 counter on it.',
+    // Also a counters producer ("enters with an additional +1/+1 counter").
+    expect: { producers: ['counters', 'tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Adaptive Automaton',
+    type_line: 'Artifact Creature — Construct',
+    keywords: [],
+    oracle_text:
+      'As this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nOther creatures you control of the chosen type get +1/+1.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Door of Destinies',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'As this artifact enters, choose a creature type.\nWhenever you cast a spell of the chosen type, put a charge counter on this artifact.\nCreatures you control of the chosen type get +1/+1 for each charge counter on this artifact.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: "Vanquisher's Banner",
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'As this artifact enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.\nWhenever you cast a creature spell of the chosen type, draw a card.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Kindred Discovery',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'As this enchantment enters, choose a creature type.\nWhenever a creature you control of the chosen type enters or attacks, draw a card.',
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Cavern of Souls',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      "As this land enters, choose a creature type.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen type, and that spell can't be countered.",
+    expect: { producers: ['tribal'], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Coat of Arms',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'Each creature gets +1/+1 for each other creature on the battlefield that shares at least one creature type with it.',
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Shared Animosity',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.',
+    expect: { producers: [], payoffs: ['tribal'] },
+  },
+  {
+    name: 'Maskwood Nexus',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "Creatures you control are every creature type. The same is true for creature spells you control and creature cards you own that aren't on the battlefield.\n{3}, {T}: Create a 2/2 blue Shapeshifter creature token with changeling.",
+    // Tribal enabler (every creature type / changeling) that also makes tokens.
+    expect: { producers: ['tokens', 'tribal'], payoffs: [] },
+  },
+  {
+    name: 'Goblin King',
+    type_line: 'Creature — Goblin',
+    keywords: [],
+    // Trap: a specific-type lord ("Other Goblins") — deliberately NOT generalized
+    // without a creature-type list, so it classifies as nothing.
+    oracle_text: 'Other Goblins get +1/+1 and have mountainwalk.',
     expect: { producers: [], payoffs: [] },
   },
 ];

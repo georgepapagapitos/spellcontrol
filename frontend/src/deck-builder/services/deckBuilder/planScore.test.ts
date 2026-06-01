@@ -10,10 +10,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 
 import {
   computePlanScore,
-  computeStrategySubscore,
   computeStrategyFromEngine,
   computeRolesSubscore,
-  computeTempoSubscore,
+  computeCurveSubscore,
   roleSlotsFromCounts,
   roleSlotsFromDeficits,
   bandFor,
@@ -66,7 +65,6 @@ function healthyInput(): PlanScoreInput {
     curvePhases: [phase('early', 12, 12), phase('mid', 8, 8), phase('late', 4, 4)],
     misfitInputs: { cards: [], cardInclusionMap: {} },
     gapCount: 0,
-    strategy: null,
   };
 }
 
@@ -78,28 +76,6 @@ describe('bandFor', () => {
     expect(bandFor(65)).toBe('Solid');
     expect(bandFor(50)).toBe('Rough');
     expect(bandFor(10)).toBe('Thin');
-  });
-});
-
-describe('computeStrategySubscore', () => {
-  it('is partial when no theme inputs', () => {
-    expect(computeStrategySubscore(null).partial).toBe(true);
-    expect(computeStrategySubscore(undefined).partial).toBe(true);
-  });
-
-  it('is partial when theme membership is empty', () => {
-    const s = computeStrategySubscore({ nonLandCards: [card('A')], themeByCard: new Set() });
-    expect(s.partial).toBe(true);
-  });
-
-  it('scores density (60%) + neutral coverage (40%) when no top-N data', () => {
-    // 3 of 10 non-land cards in theme = density 0.3 = full density marks.
-    const cards = Array.from({ length: 10 }, (_, i) => card(`c${i}`));
-    const themeByCard = new Set(['c0', 'c1', 'c2']);
-    const s = computeStrategySubscore({ nonLandCards: cards, themeByCard });
-    expect(s.partial).toBeUndefined();
-    // densityScore=1, coverageScore=0.5 → composite = 0.6 + 0.2 = 0.8 → 80
-    expect(s.value).toBe(80);
   });
 });
 
@@ -184,13 +160,13 @@ describe('computeRolesSubscore', () => {
   });
 });
 
-describe('computeTempoSubscore', () => {
+describe('computeCurveSubscore', () => {
   it('is partial with no phase data', () => {
-    expect(computeTempoSubscore([]).partial).toBe(true);
+    expect(computeCurveSubscore([]).partial).toBe(true);
   });
 
   it('scores 100 when every phase is on target', () => {
-    const s = computeTempoSubscore([
+    const s = computeCurveSubscore([
       phase('early', 12, 12),
       phase('mid', 8, 8),
       phase('late', 4, 4),
@@ -200,7 +176,7 @@ describe('computeTempoSubscore', () => {
 
   it('weights early gaps heaviest and names the weakest phase', () => {
     // early light (6/12=0.5), mid/late on target. early weight 1.4 dominates.
-    const s = computeTempoSubscore([
+    const s = computeCurveSubscore([
       phase('early', 6, 12),
       phase('mid', 8, 8),
       phase('late', 4, 4),
@@ -216,33 +192,40 @@ describe('computePlanScore', () => {
     const ps = computePlanScore(healthyInput());
     expect(ps.subscores.strategy.partial).toBe(true);
     expect(ps.limitedData).toBe(true);
-    // roles=100, tempo=100, cardFit=100 → overall 100, NOT diluted by a 0 strategy.
+    // roles=100, curve=100, cardFit=100 → overall 100, NOT diluted by a 0 strategy.
     expect(ps.overall).toBe(100);
     expect(ps.bandLabel).toBe('Tuned');
   });
 
-  it('includes strategy in the composite when theme data is present', () => {
+  it('includes strategy in the composite when an engine is present', () => {
     const input = healthyInput();
-    const cards = Array.from({ length: 10 }, (_, i) => card(`c${i}`));
-    input.strategy = { nonLandCards: cards, themeByCard: new Set(['c0', 'c1', 'c2']) };
+    // density 1 (12/12 engine cards) + balance 0.2 (10 producers / 2 payoffs →
+    // balanceScore 0.5) → strategy = round((0.6 + 0.2) * 100) = 80.
+    input.strategyEngine = {
+      primaryLabel: 'Tokens',
+      primaryProducers: 10,
+      primaryPayoffs: 2,
+      engineCards: 12,
+      nonLandCount: 12,
+    };
     const ps = computePlanScore(input);
     expect(ps.subscores.strategy.partial).toBeUndefined();
     expect(ps.limitedData).toBe(false);
-    // strategy=80 (0.30), roles=100 (0.25), tempo=100 (0.20), cardFit=100 (0.25)
+    // strategy=80 (0.30), roles=100 (0.25), curve=100 (0.20), cardFit=100 (0.25)
     // = (80*.3 + 100*.7) / 1.0 = 94
     expect(ps.overall).toBe(94);
   });
 
   it('weighted average uses only non-partial denominators', () => {
-    // Only cardFit (with misfits) non-partial besides roles/tempo; strategy partial.
+    // Only cardFit (with misfits) non-partial besides roles/curve; strategy partial.
     const input = healthyInput();
     input.roleTargets = {}; // roles partial
     input.roleCounts = {};
-    input.curvePhases = []; // tempo partial
+    input.curvePhases = []; // curve partial
     // cardFit alone non-partial → overall == cardFit value (100, no misfits/gaps).
     const ps = computePlanScore(input);
     expect(ps.subscores.roles.partial).toBe(true);
-    expect(ps.subscores.tempo.partial).toBe(true);
+    expect(ps.subscores.curve.partial).toBe(true);
     expect(ps.overall).toBe(ps.subscores.cardFit.value);
   });
 
@@ -253,10 +236,9 @@ describe('computePlanScore', () => {
       curvePhases: [],
       misfitInputs: { cards: [], cardInclusionMap: {} },
       gapCount: 0,
-      strategy: null,
     });
     // cardFit on an empty deck is still 100 (no misfits, no gaps) and non-partial,
-    // so overall == 100 here; strategy/roles/tempo are all partial.
+    // so overall == 100 here; strategy/roles/curve are all partial.
     expect(ps.subscores.cardFit.partial).toBeUndefined();
     expect(ps.overall).toBe(100);
     expect(ps.limitedData).toBe(true);
