@@ -26,6 +26,7 @@ import type { OfflineManifest, SlimCard } from './types';
 export { syncOfflineData } from './download';
 export type { DownloadPhase, DownloadProgress } from './download';
 export { matchCombosLocal } from './match-combos';
+export { ensureCombosCached, resetCombosCacheForTesting } from './ensure-combos';
 export { clearOfflineData, getOfflineDataStats, readManifest as readOfflineManifest } from './db';
 export type { OfflineManifest } from './types';
 
