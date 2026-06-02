@@ -1,0 +1,135 @@
+/* StatsHero — the Stats-tab verdict hero (functional verdict + build health).
+   Container-query responsive: it's a child of `.deck-bento` (a
+   `container-name: bento` query container), so it reflows off the bento's
+   measured width, not the viewport. Theme vars + --text-* scale only; see
+   STYLE_GUIDE.md. */
+
+.stats-hero {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: clamp(0.85rem, 2cqi, 1.25rem);
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* Stacked by default (phones / 1-col bento); side-by-side at the bento's
+   640cqi band. The solo variant (no plan score) stays single-column. */
+.stats-hero-pillars {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@container bento (min-width: 640px) {
+  .stats-hero-pillars {
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(1rem, 2.5cqi, 1.75rem);
+  }
+
+  .stats-hero-pillars.is-solo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stats-hero-pillar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+/* Eyebrow — mirrors .deck-stats-panel-title. */
+.stats-hero-eyebrow {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text3);
+}
+
+/* ── Functional verdict ── */
+.stats-hero-verdict {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.stats-hero-verdict-glyph {
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stats-hero-verdict-label {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Tone family — reuses the VerdictBadge status tokens. */
+.stats-hero-verdict.is-success {
+  color: var(--success);
+}
+
+.stats-hero-verdict.is-warn {
+  color: var(--warn-text);
+}
+
+.stats-hero-verdict.is-err {
+  color: var(--err-text);
+}
+
+.stats-hero-ratio {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-hero-shortfalls {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text3);
+}
+
+/* ── Build health ── */
+.stats-hero-band {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.stats-hero-band-num {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+.stats-hero-limited {
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.stats-hero-headline {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text2);
+}
+
+.stats-hero-softspot {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text3);
+}
