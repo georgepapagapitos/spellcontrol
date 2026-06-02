@@ -208,6 +208,25 @@ export function DeckEditorPage() {
 
   const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
 
+  // The Power hero's summary lines deep-link to their detail panels below.
+  // Bracket and Engine are always-open panels, so a scroll suffices; Combos is
+  // collapsible, so reuse its reveal() handle (expand + scroll + focus), landing
+  // on the one-away tab when the user owns completable pieces.
+  const scrollToPowerPanel = useCallback((id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, []);
+  const handleViewBracket = useCallback(
+    () => scrollToPowerPanel('deck-power-bracket'),
+    [scrollToPowerPanel]
+  );
+  const handleViewEngine = useCallback(
+    () => scrollToPowerPanel('deck-power-engine'),
+    [scrollToPowerPanel]
+  );
+  const handleViewCombos = useCallback(() => {
+    combosRef.current?.reveal(comboData.data?.almostInCollection.length ? 'oneAway' : 'inDeck');
+  }, [comboData.data?.almostInCollection.length]);
+
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
     const ci = new Set<string>();
@@ -974,9 +993,22 @@ export function DeckEditorPage() {
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
                   engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
                   comboInDeck={comboData.data?.inDeck.length ?? 0}
-                  comboOneAway={comboData.data?.oneAway.length ?? 0}
                   comboOwnedMissing={comboData.data?.almostInCollection.length ?? 0}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                  // Link a pillar to its panel only when that panel actually renders below.
+                  onViewBracket={
+                    deck.bracketEstimation || deck.bracketOverride != null
+                      ? handleViewBracket
+                      : undefined
+                  }
+                  onViewEngine={
+                    deck.synergyAnalysis &&
+                    (deck.synergyAnalysis.warnings.length > 0 ||
+                      deck.synergyAnalysis.axes.length > 0)
+                      ? handleViewEngine
+                      : undefined
+                  }
+                  onViewCombos={handleViewCombos}
                 />
               ) : undefined
             }

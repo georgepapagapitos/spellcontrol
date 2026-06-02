@@ -18,18 +18,65 @@ export interface PowerHeroProps {
   /** True when the synergy analysis flagged a lopsided engine. */
   engineLopsided?: boolean;
   comboInDeck: number;
-  comboOneAway: number;
-  /** One-away combos whose missing piece the user already owns. */
+  /** One-away combos whose missing piece the user already owns (completable). */
   comboOwnedMissing: number;
   combosLoading: boolean;
+  /** Reveal the Bracket panel below. When omitted, the bracket line is static. */
+  onViewBracket?: () => void;
+  /** Reveal the Engine panel below. When omitted, the engine line is static. */
+  onViewEngine?: () => void;
+  /** Reveal the Combos panel below. When omitted, the combo line is static. */
+  onViewCombos?: () => void;
+}
+
+/** A "go to detail" affordance: a typographic chevron in the surrounding font
+ *  (congruent + baseline-aligned), tinted with the app's interactive accent.
+ *  Spacing comes from the flex `gap` in the bracket/combo lines and from an
+ *  explicit space in the inline engine label. */
+function LinkChevron(): JSX.Element {
+  return (
+    <span className="power-hero-link-chevron" aria-hidden="true">
+      {'›'}
+    </span>
+  );
+}
+
+/**
+ * A hero summary line. When `onClick` is provided it renders as a tappable
+ * button (full-row hover/tap target) that jumps to the matching detail panel
+ * below; otherwise it's static text in `as`. The chevron lives in `children`
+ * (caller-placed, gated on the callback) so it sits inline with the right line.
+ */
+function HeroLink({
+  onClick,
+  ariaLabel,
+  contentClassName,
+  as: Tag = 'p',
+  children,
+}: {
+  onClick?: () => void;
+  ariaLabel: string;
+  contentClassName: string;
+  as?: 'p' | 'div';
+  children: React.ReactNode;
+}): JSX.Element {
+  if (!onClick) {
+    return <Tag className={contentClassName}>{children}</Tag>;
+  }
+  return (
+    <button type="button" className="power-hero-link" onClick={onClick} aria-label={ariaLabel}>
+      <span className={contentClassName}>{children}</span>
+    </button>
+  );
 }
 
 /**
  * The Power-tab verdict hero: a two-pillar summary that leads with how strong a
  * deck is (Power level, self-explained via its bracket floors) and what it does
  * (Gameplan — the primary engine + combo counts), plus a collection-aware chip
- * when the user owns the missing piece for a one-away combo. Purely
- * presentational — every value maps to an existing field, computed by the page.
+ * when the user owns the missing piece for a one-away combo. Each pillar line
+ * can deep-link (tap to reveal) the matching detail panel below; values map to
+ * existing fields computed by the page.
  */
 export function PowerHero({
   bracket,
@@ -40,9 +87,11 @@ export function PowerHero({
   enginePayoffs,
   engineLopsided,
   comboInDeck,
-  comboOneAway,
   comboOwnedMissing,
   combosLoading,
+  onViewBracket,
+  onViewEngine,
+  onViewCombos,
 }: PowerHeroProps): JSX.Element {
   const producers = engineProducers ?? 0;
   const payoffs = enginePayoffs ?? 0;
@@ -56,7 +105,11 @@ export function PowerHero({
         {/* ── Power level ── */}
         <div className="power-hero-pillar">
           <span className="power-hero-eyebrow">Power level</span>
-          <p className="power-hero-bracket">
+          <HeroLink
+            onClick={onViewBracket}
+            ariaLabel="View bracket details"
+            contentClassName="power-hero-bracket"
+          >
             {bracket != null ? (
               <>
                 Bracket <strong className="power-hero-bracket-num">{bracket}</strong> ·{' '}
@@ -66,7 +119,8 @@ export function PowerHero({
               <>Bracket —</>
             )}
             {bracketOverridden && <span className="power-hero-tag">manual</span>}
-          </p>
+            {onViewBracket && <LinkChevron />}
+          </HeroLink>
           {showReasons && (
             <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
           )}
@@ -76,24 +130,41 @@ export function PowerHero({
         <div className="power-hero-pillar">
           <span className="power-hero-eyebrow">Gameplan</span>
           {engineLabel ? (
-            <p className="power-hero-engine">
-              <span className="power-hero-engine-label">{engineLabel}</span>
-              <span className="power-hero-engine-counts">
-                {producers} prod · {payoffs} payoff
+            <HeroLink
+              onClick={onViewEngine}
+              ariaLabel="View engine details"
+              contentClassName="power-hero-engine"
+              as="div"
+            >
+              <span className="power-hero-engine-label">
+                {engineLabel}
+                {onViewEngine && (
+                  <>
+                    {' '}
+                    <LinkChevron />
+                  </>
+                )}
               </span>
-              {engineLopsided ? (
-                <span className="power-hero-lopsided">
-                  <AlertTriangle className="power-hero-warn-icon" aria-hidden="true" />
-                  lopsided
-                </span>
-              ) : (
-                engineBalanced && (
-                  <span className="power-hero-balanced" aria-hidden="true">
-                    ✓
+              <span className="power-hero-engine-verdict">
+                {engineLopsided ? (
+                  <span className="power-hero-lopsided">
+                    <AlertTriangle className="power-hero-warn-icon" aria-hidden="true" />
+                    Lopsided
                   </span>
-                )
-              )}
-            </p>
+                ) : engineBalanced ? (
+                  <span className="power-hero-balanced">Balanced engine</span>
+                ) : null}
+                {(engineLopsided || engineBalanced) && (
+                  <span className="power-hero-engine-sep" aria-hidden="true">
+                    ·
+                  </span>
+                )}
+                <span className="power-hero-engine-counts">
+                  {producers} {producers === 1 ? 'enabler' : 'enablers'}, {payoffs}{' '}
+                  {payoffs === 1 ? 'payoff' : 'payoffs'}
+                </span>
+              </span>
+            </HeroLink>
           ) : (
             <p className="power-hero-muted">No dominant engine yet</p>
           )}
@@ -103,9 +174,17 @@ export function PowerHero({
               Checking for combos…
             </p>
           ) : (
-            <p className="power-hero-combos">
-              {comboInDeck} in deck · {comboOneAway} one away
-            </p>
+            <HeroLink
+              onClick={onViewCombos}
+              ariaLabel="View combos"
+              contentClassName="power-hero-combos"
+            >
+              {comboInDeck} {comboInDeck === 1 ? 'combo' : 'combos'} in deck ·{' '}
+              {comboOwnedMissing > 0
+                ? `${comboOwnedMissing} you can complete`
+                : 'none you can complete now'}
+              {onViewCombos && <LinkChevron />}
+            </HeroLink>
           )}
         </div>
       </div>
