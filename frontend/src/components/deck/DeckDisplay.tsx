@@ -10,23 +10,21 @@ import {
   Handshake,
   Layers,
   LayoutGrid,
+  Library,
   List as ListIconLucide,
   MoreVertical,
   Pencil,
+  PiggyBank,
   Search,
+  Target,
   Trash2,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type {
-  ScryfallCard,
-  DeckFormat,
-  ThemeResult,
-  GapAnalysisCard,
-  BuildReport,
-} from '@/deck-builder/types';
+import type { ScryfallCard, DeckFormat, ThemeResult, BuildReport } from '@/deck-builder/types';
 import { producedManaColors, isManaSourceType, deckColorIdentity } from '@/lib/mana-sources';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
@@ -61,7 +59,8 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { BracketBreakdown } from './BracketBreakdown';
 import { BracketVerdictStrip } from './BracketVerdictStrip';
-import { GapAnalysisPanel } from './GapAnalysisPanel';
+import { CollapsibleLane, type CollapsibleLaneHandle } from './CollapsibleLane';
+import type { LaneId } from '@/lib/deck-change';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
 import { type DeckManaData } from './deck-mana-types';
@@ -305,12 +304,8 @@ export interface DeckDisplayProps {
   roleCounts?: Record<string, number>;
   /** Target role counts (balanced-roles generation); drives have/want display. */
   roleTargets?: Record<string, number>;
-  /** EDHREC-suggested cards the deck is missing (generated commander decks). */
-  gapAnalysis?: GapAnalysisCard[];
   /** Post-generation fill+flag report (set at generation only). */
   buildReport?: BuildReport;
-  /** Owned card names so suggestion rows can flag what's already collected. */
-  ownedNames?: Set<string>;
   /**
    * EDHREC inclusion rate per card name (0–100), persisted by the analysis
    * hook on generated commander decks. When present, each card row shows a
@@ -379,14 +374,35 @@ export interface DeckDisplayProps {
   /** Cut/add Optimize surface, rendered in the Improve view. Built by the page
    *  (it owns the apply flow: resolve names → store add/remove). */
   optimizeSlot?: React.ReactNode;
-  /** Budget cost-optimizer surface, rendered in the Improve view. */
+  /** Budget cost-optimizer surface — the Tune tab's "Fit a budget" lane. */
   costSlot?: React.ReactNode;
-  /** Owned-substitute surface ("From your collection"), rendered in the Improve view. */
+  /** Owned-substitute surface — the Tune tab's "Build from my binder" lane. */
   substitutionSlot?: React.ReactNode;
-  /** Native synergy "Engine" surface, rendered in the Improve view. */
+  /** Engine *diagnostics* (axis-balance bars + warnings), rendered on the Power
+   *  tab. The off-meta suggestion rows are relocated to `synergyPicksSlot`. */
   engineSlot?: React.ReactNode;
+  /** Relocated off-meta synergy picks — the "Synergy picks" sub-view of the
+   *  Tune tab's "Upgrade the power" lane, beside the Optimize plan. */
+  synergyPicksSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
+  /** Tune lane to expand on first paint (the one the verdict hero points at). */
+  tuneDefaultLane?: LaneId;
+  /** One-shot reveal target: a hero deep-link force-expands + scrolls this lane. */
+  tuneFocusLane?: LaneId | null;
+  /** Called once `tuneFocusLane` has been revealed, so the page can clear it. */
+  onTuneFocusHandled?: () => void;
+  /**
+   * In-context "Swap this card": for an in-deck card at `slotId`, return the
+   * role-scoped replacement section rendered in the card-preview panel. `close`
+   * dismisses the preview after a swap commits (the previewed card is gone).
+   * Returns null when there's nothing to offer (e.g. commander, untagged role).
+   */
+  renderSwapSuggestions?: (
+    card: ScryfallCard,
+    slotId: string,
+    close: () => void
+  ) => React.ReactNode;
   /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
@@ -778,9 +794,7 @@ export function DeckDisplay({
   saltiestCards,
   roleCounts,
   roleTargets,
-  gapAnalysis,
   buildReport,
-  ownedNames,
   cardInclusionMap,
   rampSubtypeCounts,
   removalSubtypeCounts,
@@ -809,7 +823,12 @@ export function DeckDisplay({
   costSlot,
   substitutionSlot,
   engineSlot,
+  synergyPicksSlot,
   powerHeroSlot,
+  tuneDefaultLane,
+  tuneFocusLane,
+  onTuneFocusHandled,
+  renderSwapSuggestions,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1420,9 +1439,8 @@ export function DeckDisplay({
         aria-labelledby={`sc-tab-${activeView}`}
       >
         {/* `deck` view: the card-list editing surface (toolbar + banner + body).
-            The analysis views (overview/mana/power/improve) replace it
-            full-width — the page-top hub tab bar in DeckEditorPage switches
-            between them. */}
+            The analysis views (stats/power/tune) replace it full-width — the
+            page-top hub tab bar in DeckEditorPage switches between them. */}
         {activeView === 'deck' ? (
           <>
             <DeckToolbar
@@ -1660,9 +1678,7 @@ export function DeckDisplay({
             onSetBracketOverride={onSetBracketOverride}
             roleCounts={roleCounts}
             roleTargets={roleTargets}
-            gapAnalysis={gapAnalysis}
             buildReport={buildReport}
-            ownedNames={ownedNames}
             rampSubtypeCounts={rampSubtypeCounts}
             removalSubtypeCounts={removalSubtypeCounts}
             boardwipeSubtypeCounts={boardwipeSubtypeCounts}
@@ -1677,8 +1693,11 @@ export function DeckDisplay({
             costSlot={costSlot}
             substitutionSlot={substitutionSlot}
             engineSlot={engineSlot}
+            synergyPicksSlot={synergyPicksSlot}
             powerHeroSlot={powerHeroSlot}
-            commanderName={commander?.name}
+            tuneDefaultLane={tuneDefaultLane}
+            tuneFocusLane={tuneFocusLane}
+            onTuneFocusHandled={onTuneFocusHandled}
             commanderIdentity={commanderIdentity}
           />
         )}
@@ -1727,6 +1746,15 @@ export function DeckDisplay({
                   status={r.status}
                 />
               );
+            }}
+            renderPanelExtra={(i) => {
+              // In-context "Swap this card": offered only for a real in-deck card
+              // (commander/partner rows carry no slotId, so they're excluded).
+              const r = flat.rows[i];
+              if (!r || !renderSwapSuggestions) return null;
+              const slotId = r.slotIds[r.slotIds.length - 1];
+              if (!slotId) return null;
+              return renderSwapSuggestions(r.card, slotId, () => setPreviewIndex(null));
             }}
             getStackBinders={(i) => {
               const r = flat.rows[i];
@@ -2985,9 +3013,7 @@ function DeckAnalysisView({
   onSetBracketOverride,
   roleCounts,
   roleTargets,
-  gapAnalysis,
   buildReport,
-  ownedNames,
   rampSubtypeCounts,
   removalSubtypeCounts,
   boardwipeSubtypeCounts,
@@ -3002,8 +3028,11 @@ function DeckAnalysisView({
   costSlot,
   substitutionSlot,
   engineSlot,
+  synergyPicksSlot,
   powerHeroSlot,
-  commanderName,
+  tuneDefaultLane,
+  tuneFocusLane,
+  onTuneFocusHandled,
   commanderIdentity,
 }: {
   view: AnalysisTabId;
@@ -3015,9 +3044,7 @@ function DeckAnalysisView({
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
-  gapAnalysis?: GapAnalysisCard[];
   buildReport?: BuildReport;
-  ownedNames?: Set<string>;
   rampSubtypeCounts?: Record<string, number>;
   removalSubtypeCounts?: Record<string, number>;
   boardwipeSubtypeCounts?: Record<string, number>;
@@ -3033,9 +3060,14 @@ function DeckAnalysisView({
   costSlot?: React.ReactNode;
   substitutionSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
+  synergyPicksSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
-  /** Commander name, for the gap panel's "In X% of {commander} decks" wording. */
-  commanderName?: string;
+  /** Tune lane to expand on first paint (the verdict hero's target). */
+  tuneDefaultLane?: LaneId;
+  /** One-shot lane to reveal + scroll (a hero deep-link). */
+  tuneFocusLane?: LaneId | null;
+  /** Cleared by the page once the focus lane has been revealed. */
+  onTuneFocusHandled?: () => void;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   commanderIdentity?: string[];
 }) {
@@ -3080,6 +3112,31 @@ function DeckAnalysisView({
 
   // Tap a saltiest-card name to preview it (swipe through the salt list).
   const saltCarousel = useCardCarousel('Saltiest cards');
+
+  // ── Tune intent lanes — imperative reveal targets for hero deep-links. ──
+  const fillGapsLaneRef = useRef<CollapsibleLaneHandle>(null);
+  const upgradeLaneRef = useRef<CollapsibleLaneHandle>(null);
+  const budgetLaneRef = useRef<CollapsibleLaneHandle>(null);
+  const binderLaneRef = useRef<CollapsibleLaneHandle>(null);
+  const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle>>>(
+    () => ({
+      'fill-gaps': fillGapsLaneRef,
+      upgrade: upgradeLaneRef,
+      budget: budgetLaneRef,
+      binder: binderLaneRef,
+    }),
+    []
+  );
+  // A hero move deep-linked into a lane: expand + scroll it, then let the page
+  // clear the one-shot target. Lanes only mount on the Tune tab, so wait for it.
+  useEffect(() => {
+    if (!tuneFocusLane || current !== 'tune') return;
+    // Consume the one-shot FIRST. A lane with no data isn't mounted (ref null) —
+    // there's nothing to reveal, but the page state must still clear, or a later
+    // mount (analysis populating optimizeSwaps) would surprise-scroll.
+    onTuneFocusHandled?.();
+    laneRefs[tuneFocusLane]?.current?.reveal();
+  }, [tuneFocusLane, current, laneRefs, onTuneFocusHandled]);
 
   return (
     <div className="deck-analysis-view">
@@ -3263,38 +3320,61 @@ function DeckAnalysisView({
 
       {current === 'tune' && (
         <div className="deck-bento deck-bento--tune">
-          {/* Next best move — a full-width banner up top when present. */}
-          {nextBestMoveSlot && (
-            <Panel title="Next best move" wide>
-              {nextBestMoveSlot}
-            </Panel>
-          )}
-          {/* Optimize + Optimize on a budget — a compact pair. */}
-          <div className="deck-stats-pair">
-            {optimizeSlot && <Panel title="Optimize">{optimizeSlot}</Panel>}
-            {costSlot && <Panel title="Optimize on a budget">{costSlot}</Panel>}
-          </div>
-          {/* From your collection — owned substitutes for missing staples. */}
-          {substitutionSlot && (
-            <Panel title="From your collection" wide>
-              {substitutionSlot}
-            </Panel>
-          )}
-          {/* Cards to consider — full width (its own multi-column grid). */}
-          {gapAnalysis && gapAnalysis.length > 0 && (
-            <Panel title="Cards to consider" wide>
-              <GapAnalysisPanel
-                cards={gapAnalysis}
-                ownedNames={ownedNames}
-                commanderName={commanderName}
-              />
-            </Panel>
-          )}
-          {/* Suggestions — full width (its own multi-column grid). */}
+          {/* Verdict hero — the single highest-leverage move + the intent router
+              (deep-links into the lanes below). Full-width, like the Power hero. */}
+          {nextBestMoveSlot}
+          {/* Four intent lanes — collapsible. The hero points at one, which
+              opens by default; the rest start collapsed (hero-pointed-expand).
+              Cards-to-consider is folded into Fill the gaps (the Suggestions
+              superset, whose gaps/all pills are the Top-picks/All views). */}
           {suggestionsSlot && (
-            <Panel title="Suggestions" wide>
+            <CollapsibleLane
+              ref={fillGapsLaneRef}
+              title="Fill the gaps"
+              icon={<Target width={16} height={16} aria-hidden />}
+              summary={<span>EDHREC staples your deck is missing</span>}
+              defaultCollapsed={tuneDefaultLane !== 'fill-gaps'}
+              storageKey="spellcontrol-tune-fill-gaps"
+            >
               {suggestionsSlot}
-            </Panel>
+            </CollapsibleLane>
+          )}
+          {(optimizeSlot || synergyPicksSlot) && (
+            <CollapsibleLane
+              ref={upgradeLaneRef}
+              title="Upgrade the power"
+              icon={<TrendingUp width={16} height={16} aria-hidden />}
+              summary={<span>Higher-impact cards for your weakest slots</span>}
+              defaultCollapsed={tuneDefaultLane !== 'upgrade'}
+              storageKey="spellcontrol-tune-upgrade"
+            >
+              {optimizeSlot}
+              {synergyPicksSlot}
+            </CollapsibleLane>
+          )}
+          {costSlot && (
+            <CollapsibleLane
+              ref={budgetLaneRef}
+              title="Fit a budget"
+              icon={<PiggyBank width={16} height={16} aria-hidden />}
+              summary={<span>Cheaper cards that play the same role</span>}
+              defaultCollapsed={tuneDefaultLane !== 'budget'}
+              storageKey="spellcontrol-tune-budget"
+            >
+              {costSlot}
+            </CollapsibleLane>
+          )}
+          {substitutionSlot && (
+            <CollapsibleLane
+              ref={binderLaneRef}
+              title="Build from my binder"
+              icon={<Library width={16} height={16} aria-hidden />}
+              summary={<span>Owned cards that fill a missing role</span>}
+              defaultCollapsed={tuneDefaultLane !== 'binder'}
+              storageKey="spellcontrol-tune-binder"
+            >
+              {substitutionSlot}
+            </CollapsibleLane>
           )}
         </div>
       )}

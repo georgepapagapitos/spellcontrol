@@ -1899,6 +1899,17 @@ input.toolbar-search-input {
   font: inherit;
 }
 
+/* 44px touch targets on coarse pointers for every disclosure header — Combos,
+   Test hand, Stats, and the Tune intent lanes (which reuse .deck-combos-header
+   chrome via CollapsibleLane). */
+@media (pointer: coarse) {
+  .deck-combos-header,
+  .deck-test-hand-header,
+  .deck-stats-header {
+    min-height: 44px;
+  }
+}
+
 /* Stats header has only icon · title · caret (meta moved into the
    Overview panel). Title takes the slack so the caret stays pinned to
    the panel's right edge on every breakpoint. */
