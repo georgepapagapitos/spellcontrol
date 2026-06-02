@@ -546,14 +546,26 @@ function SuggestionsSection({
 
   const filtered = useMemo(() => {
     let list = classified;
+    let limit = 30;
     if (filter === 'gaps') {
-      if (deficitRoles.length === 0) return classified.slice(0, 24);
-      const roleSet = new Set(deficitRoles);
-      list = classified.filter((c) => c.role && roleSet.has(c.role));
+      if (deficitRoles.length === 0) {
+        limit = 24;
+      } else {
+        const roleSet = new Set(deficitRoles);
+        list = classified.filter((c) => c.role && roleSet.has(c.role));
+      }
     } else if (filter !== 'all') {
       list = classified.filter((c) => c.role === filter);
     }
-    return list.slice(0, 30);
+    // Owned-first (the locked default): a free owned copy surfaces above an
+    // only-in-other-deck copy, above an unowned staple — so "build it tonight"
+    // beats "go buy this". A stable sort preserves EDHREC inclusion order
+    // within each ownership band (candidates arrive inclusion-ranked).
+    const ownedRank = (o: Ownership): number =>
+      o.state === 'available' ? 0 : o.state === 'in-other-deck' ? 1 : 2;
+    return [...list]
+      .sort((a, b) => ownedRank(a.ownership) - ownedRank(b.ownership))
+      .slice(0, limit);
   }, [classified, filter, deficitRoles]);
 
   /** Resolve a thumbnail URL for an EDHREC card. Mirrors the priority used

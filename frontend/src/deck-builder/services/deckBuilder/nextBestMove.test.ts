@@ -87,7 +87,9 @@ describe('buildNextBestMoves', () => {
       })
     );
     expect(moves[0].id).toBe('cardfit');
+    expect(moves[0].focus).toBe('upgrade');
     expect(moves[1].id).toBe('curve');
+    expect(moves[1].focus).toBeUndefined(); // curve routes to Stats, not a Tune lane
   });
 
   it('skips partial sub-scores even when below threshold', () => {
@@ -114,6 +116,38 @@ describe('buildNextBestMoves', () => {
     expect(roleMove?.detail).toContain('ramp');
     expect(roleMove?.detail).toContain('Cultivate');
     expect(roleMove?.navigateTo).toBe('tune');
+    expect(roleMove?.focus).toBe('fill-gaps');
+  });
+
+  it('prefers an OWNED role-gap card over a higher-listed unowned one (owned-first)', () => {
+    const moves = buildNextBestMoves(
+      base({
+        roleCounts: { ramp: 2 },
+        roleTargets: { ramp: 10 },
+        gapAnalysis: [
+          gap('Sol Ring', { role: 'ramp', inclusion: 95 }),
+          gap('Arcane Signet', { role: 'ramp', inclusion: 80 }),
+        ],
+        planScore: plan({ roles: sub(40) }),
+        ownedNames: new Set(['Arcane Signet']),
+      })
+    );
+    const roleMove = moves.find((m) => m.id === 'roles-ramp');
+    expect(roleMove?.cardName).toBe('Arcane Signet'); // owned beats the higher-listed Sol Ring
+    expect(roleMove?.detail).toContain('You own Arcane Signet');
+  });
+
+  it('prefers an OWNED synergy card for a weak strategy sub-score (owned-first)', () => {
+    const moves = buildNextBestMoves(
+      base({
+        gapAnalysis: [gap('High', { synergy: 3 }), gap('Owned', { synergy: 1 })],
+        planScore: plan({ strategy: sub(40) }),
+        ownedNames: new Set(['Owned']),
+      })
+    );
+    const strat = moves.find((m) => m.id === 'strategy');
+    expect(strat?.cardName).toBe('Owned'); // owned beats the higher-synergy unowned card
+    expect(strat?.detail).toContain('You own Owned');
   });
 
   it('picks the lowest-ratio role when several have deficits', () => {
@@ -136,6 +170,7 @@ describe('buildNextBestMoves', () => {
     );
     const strat = moves.find((m) => m.id === 'strategy');
     expect(strat?.cardName).toBe('High');
+    expect(strat?.focus).toBe('upgrade');
   });
 
   it('surfaces a near-miss combo with exactly one missing card as tier 3', () => {

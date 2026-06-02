@@ -1,0 +1,17 @@
+/* CollapsibleLane — a Tune-tab intent lane. Reuses the global deck-combos-*
+   header/body chrome (see styles/deck-builder.css) so the disclosure matches
+   the Analysis + Combos panels; this file only adds the lane wrapper. Theme
+   vars only; see STYLE_GUIDE.md. */
+
+.tune-lane {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* Summary chips in the collapsed header read as muted, tabular at-a-glance
+   counts (mirrors .deck-combos-header-summary spacing). */
+.tune-lane .deck-combos-header-summary {
+  font-variant-numeric: tabular-nums;
+}

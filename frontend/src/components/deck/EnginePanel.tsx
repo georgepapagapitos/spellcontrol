@@ -14,6 +14,14 @@ export interface EnginePanelProps {
   onAdd: (cardName: string) => void | Promise<void>;
   /** Names currently being added (disables their button). */
   addingNames?: Set<string>;
+  /**
+   * Diagnostics-only mode: render just the headline + per-axis balance bars +
+   * warnings, omitting the off-meta suggestion rows. Used on the Power tab,
+   * where the bars are the gameplan diagnostic; the suggestion *rows* now live
+   * in the Tune tab's "Upgrade the power" lane (see SynergyPicks), so all
+   * "add a card" prescription stays in one place.
+   */
+  showSuggestions?: boolean;
 }
 
 function scryThumb(name: string): string {
@@ -114,6 +122,7 @@ export function EnginePanel({
   ownedNames,
   onAdd,
   addingNames,
+  showSuggestions = true,
 }: EnginePanelProps): JSX.Element {
   const owned = ownedNames ?? new Set<string>();
   const adding = addingNames ?? new Set<string>();
@@ -167,35 +176,36 @@ export function EnginePanel({
         </ul>
       )}
 
-      {groups.length > 0 ? (
-        <div className="engine-suggestions">
-          <h3 className="engine-suggestions-title">Off-meta cards that fill your gaps</h3>
-          {groups.map((group) => (
-            <div key={group.label} className="engine-suggestion-group">
-              <h4 className="engine-suggestion-group-label">{group.label}</h4>
-              <ul className="engine-suggestion-list">
-                {group.items.map((s) => (
-                  <SuggestionTile
-                    key={s.cardName}
-                    suggestion={s}
-                    owned={owned.has(s.cardName)}
-                    adding={adding.has(s.cardName)}
-                    onAdd={() => onAdd(s.cardName)}
-                    onPreview={() => void carousel.open(previewEntries, s.cardName)}
-                  />
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="engine-empty">
-          No off-meta suggestions right now — your engine looks balanced, or no clear engine was
-          detected.
-        </p>
-      )}
+      {showSuggestions &&
+        (groups.length > 0 ? (
+          <div className="engine-suggestions">
+            <h3 className="engine-suggestions-title">Off-meta cards that fill your gaps</h3>
+            {groups.map((group) => (
+              <div key={group.label} className="engine-suggestion-group">
+                <h4 className="engine-suggestion-group-label">{group.label}</h4>
+                <ul className="engine-suggestion-list">
+                  {group.items.map((s) => (
+                    <SuggestionTile
+                      key={s.cardName}
+                      suggestion={s}
+                      owned={owned.has(s.cardName)}
+                      adding={adding.has(s.cardName)}
+                      onAdd={() => onAdd(s.cardName)}
+                      onPreview={() => void carousel.open(previewEntries, s.cardName)}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="engine-empty">
+            No off-meta suggestions right now — your engine looks balanced, or no clear engine was
+            detected.
+          </p>
+        ))}
 
-      {carousel.preview}
+      {showSuggestions && carousel.preview}
     </section>
   );
 }
