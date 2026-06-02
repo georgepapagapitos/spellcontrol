@@ -13,7 +13,7 @@
  * the full `ScryfallCard` is carried only when already resolved; thin EDHREC
  * rows carry `name` + `imageUrl` and resolve lazily on apply.
  */
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 
@@ -166,5 +166,30 @@ export function fromSynergySuggestion(s: SynergySuggestion, ownership?: ChangeOw
     group: s.axisLabel,
     axis: s.axis,
     side: s.side,
+  };
+}
+
+/**
+ * Adapt an EDHREC gap card (a role-bearing staple the deck is missing) into an
+ * add Change — used by the Fill-the-gaps lane and the in-context "Swap this
+ * card" view (same-role alternatives). Ownership is supplied live by the caller;
+ * the string price is parsed into a signed acquire delta.
+ */
+export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Change {
+  return {
+    id: `fill-gaps:${g.name}`,
+    type: 'add',
+    lane: 'fill-gaps',
+    name: g.name,
+    reason: g.roleLabel ? `${g.roleLabel} staple` : 'EDHREC staple',
+    ownership,
+    deltaPrice: parsePrice(g.price) ?? undefined,
+    role: g.role,
+    roleLabel: g.roleLabel,
+    inclusion: g.inclusion,
+    synergy: g.synergy,
+    cmc: g.cmc,
+    typeLine: g.typeLine,
+    imageUrl: g.imageUrl,
   };
 }

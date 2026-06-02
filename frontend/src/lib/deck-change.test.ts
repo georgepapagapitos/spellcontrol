@@ -4,9 +4,11 @@ import {
   sortOwnedFirst,
   laneSummary,
   fromSynergySuggestion,
+  fromGapCard,
   parsePrice,
 } from './deck-change';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
+import type { GapAnalysisCard } from '@/deck-builder/types';
 
 /** Minimal add Change for the lane helpers. */
 function add(over: Partial<Change>): Change {
@@ -123,6 +125,38 @@ describe('fromSynergySuggestion', () => {
     const c = fromSynergySuggestion({ ...base, inclusion: undefined });
     expect(c.inclusion).toBeUndefined();
     expect(c.ownership).toBeUndefined();
+  });
+});
+
+describe('fromGapCard', () => {
+  const gap: GapAnalysisCard = {
+    name: 'Cultivate',
+    price: '$1.50',
+    inclusion: 62,
+    synergy: 0.3,
+    typeLine: 'Sorcery',
+    cmc: 3,
+    role: 'ramp',
+    roleLabel: 'Ramp',
+    imageUrl: 'http://img/cultivate',
+  };
+
+  it('maps an EDHREC gap card into an add Change with parsed price + role', () => {
+    const c = fromGapCard(gap, 'owned');
+    expect(c.type).toBe('add');
+    expect(c.name).toBe('Cultivate');
+    expect(c.reason).toBe('Ramp staple');
+    expect(c.ownership).toBe('owned');
+    expect(c.deltaPrice).toBe(1.5);
+    expect(c.role).toBe('ramp');
+    expect(c.inclusion).toBe(62);
+    expect(c.imageUrl).toBe('http://img/cultivate');
+  });
+
+  it('falls back to a generic reason + undefined price when fields are absent', () => {
+    const c = fromGapCard({ ...gap, roleLabel: undefined, price: null });
+    expect(c.reason).toBe('EDHREC staple');
+    expect(c.deltaPrice).toBeUndefined();
   });
 });
 

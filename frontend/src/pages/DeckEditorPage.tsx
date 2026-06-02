@@ -31,7 +31,10 @@ import {
   buildNextBestMoves,
   type NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
-import type { LaneId } from '@/lib/deck-change';
+import { fromGapCard, sortOwnedFirst, type LaneId } from '@/lib/deck-change';
+import { SwapThisCard } from '../components/deck/SwapThisCard';
+import { classifyCandidate } from '../lib/deck-analysis';
+import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
@@ -108,6 +111,9 @@ export function DeckEditorPage() {
   const [applyingOptimize, setApplyingOptimize] = useState(false);
   const [applyingCost, setApplyingCost] = useState(false);
   const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
+  // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
+  // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
+  const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
   const openView = useCallback((next: DeckView) => {
     setView(next);
     window.requestAnimationFrame(() => {
@@ -139,6 +145,13 @@ export function DeckEditorPage() {
     },
     [openView]
   );
+
+  // Load tagger role data on mount (deduped) so the in-context "Swap this card"
+  // section can scope alternatives to a card's role even when the preview is
+  // opened from the Deck tab, where the Analysis panel isn't mounted.
+  useEffect(() => {
+    if (!hasTaggerData()) void loadTaggerData();
+  }, []);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -478,6 +491,61 @@ export function DeckEditorPage() {
         return next;
       });
     }
+  };
+
+  // In-context swap: cut the in-deck card at `slotId` and add `newName` in its
+  // place (resolve → allocate → add). Removal runs BEFORE the add so the freed
+  // physical copy is re-allocatable; net size is unchanged (1-for-1), keeping a
+  // 99-card deck legal. `close()` dismisses the preview (the card it showed is
+  // gone). Uses its own loading gate (swappingSlot).
+  const handleSwapInDeck = async (
+    slotId: string,
+    oldName: string,
+    newName: string,
+    close: () => void
+  ) => {
+    if (!deck) return;
+    setSwappingSlot(slotId);
+    try {
+      const scry = await getCardByName(newName);
+      if (!scry) {
+        pushToast({ message: `Couldn't find ${newName}`, tone: 'error' });
+        return;
+      }
+      removeCard(deck.id, slotId);
+      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const claim = pickCollectionCopy(newName, collectionCards, allocations, scry.id);
+      addCard(deck.id, scry, claim?.copyId ?? null);
+      pushToast({ message: `Swapped ${oldName} → ${newName}`, tone: 'success' });
+      close();
+    } catch {
+      pushToast({ message: `Couldn't swap ${oldName}`, tone: 'error' });
+    } finally {
+      setSwappingSlot(null);
+    }
+  };
+
+  // Build the in-context "Swap this card" section for an in-deck card: role-scoped
+  // EDHREC alternatives (same functional role, not the card itself), owned-first,
+  // capped. Returns null when the role is untagged or there are no alternatives.
+  const renderSwapSuggestions = (card: ScryfallCard, slotId: string, close: () => void) => {
+    if (!deck) return null;
+    const role = classifyCandidate(card.name);
+    if (!role) return null;
+    const gaps = (deck.gapAnalysis ?? []).filter((g) => g.role === role && g.name !== card.name);
+    if (gaps.length === 0) return null;
+    const alternatives = sortOwnedFirst(
+      gaps.map((g) => fromGapCard(g, ownedNames.has(g.name) ? 'owned' : 'unowned'))
+    ).slice(0, 6);
+    return (
+      <SwapThisCard
+        currentName={card.name}
+        alternatives={alternatives}
+        swapping={swappingSlot === slotId}
+        commanderName={deck.commander?.name}
+        onSwap={(name) => void handleSwapInDeck(slotId, card.name, name, close)}
+      />
+    );
   };
 
   // Apply budget swaps: each pair cuts the pricier card and adds the cheaper
@@ -989,6 +1057,7 @@ export function DeckEditorPage() {
             tuneDefaultLane={tuneDefaultLane}
             tuneFocusLane={tuneFocusLane}
             onTuneFocusHandled={clearTuneFocus}
+            renderSwapSuggestions={renderSwapSuggestions}
             powerHeroSlot={
               formatConfig?.hasCommander ? (
                 <PowerHero

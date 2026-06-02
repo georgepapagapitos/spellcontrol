@@ -393,6 +393,17 @@ export interface DeckDisplayProps {
   /** Called once `tuneFocusLane` has been revealed, so the page can clear it. */
   onTuneFocusHandled?: () => void;
   /**
+   * In-context "Swap this card": for an in-deck card at `slotId`, return the
+   * role-scoped replacement section rendered in the card-preview panel. `close`
+   * dismisses the preview after a swap commits (the previewed card is gone).
+   * Returns null when there's nothing to offer (e.g. commander, untagged role).
+   */
+  renderSwapSuggestions?: (
+    card: ScryfallCard,
+    slotId: string,
+    close: () => void
+  ) => React.ReactNode;
+  /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
    * hub tab bar lives in the page (`DeckEditorPage`), which owns this state.
@@ -817,6 +828,7 @@ export function DeckDisplay({
   tuneDefaultLane,
   tuneFocusLane,
   onTuneFocusHandled,
+  renderSwapSuggestions,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1734,6 +1746,15 @@ export function DeckDisplay({
                   status={r.status}
                 />
               );
+            }}
+            renderPanelExtra={(i) => {
+              // In-context "Swap this card": offered only for a real in-deck card
+              // (commander/partner rows carry no slotId, so they're excluded).
+              const r = flat.rows[i];
+              if (!r || !renderSwapSuggestions) return null;
+              const slotId = r.slotIds[r.slotIds.length - 1];
+              if (!slotId) return null;
+              return renderSwapSuggestions(r.card, slotId, () => setPreviewIndex(null));
             }}
             getStackBinders={(i) => {
               const r = flat.rows[i];
