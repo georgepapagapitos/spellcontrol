@@ -102,9 +102,25 @@ jobs:
         run: |
           ls -lh backend/data/scanner/ backend/data/scanner/embed/ frontend/public/scanner/
 
+      # Mint a GitHub App installation token so the PR is created by the app,
+      # not the default GITHUB_TOKEN. PRs opened with GITHUB_TOKEN do NOT
+      # trigger other workflows (GitHub's anti-recursion safeguard), so the
+      # required CI checks ("Frontend/Backend — typecheck & test") would never
+      # run and the "protect main" ruleset would block the PR forever. An app
+      # token is a non-GITHUB_TOKEN actor, so its push/PR fires CI normally.
+      # Requires repo secrets SCANNER_BOT_APP_ID + SCANNER_BOT_PRIVATE_KEY
+      # (a GitHub App installed on this repo with Contents + Pull requests: write).
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SCANNER_BOT_APP_ID }}
+          private-key: ${{ secrets.SCANNER_BOT_PRIVATE_KEY }}
+
       - name: Open refresh PR
         uses: peter-evans/create-pull-request@v8
         with:
+          token: ${{ steps.app-token.outputs.token }}
           branch: chore/scanner-ingest-refresh
           delete-branch: true
           base: main
