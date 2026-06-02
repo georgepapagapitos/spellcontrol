@@ -40,15 +40,26 @@ describe('SynergyPicks', () => {
     expect(screen.getByText('Blade Historian')).toBeTruthy();
   });
 
-  it('flags owned picks live from ownedNames and leaves the rest unmarked', () => {
+  it('flags owned picks live from the ownership resolver and leaves the rest unmarked', () => {
     render(
       <SynergyPicks
         suggestions={suggestions}
         onAdd={vi.fn()}
-        ownedNames={new Set(['Blade Historian'])}
+        resolveOwnership={(n) => (n === 'Blade Historian' ? 'owned' : 'unowned')}
       />
     );
     expect(screen.getAllByText('Owned')).toHaveLength(1);
+  });
+
+  it('renders the "In other deck" chip for a claimed-elsewhere pick', () => {
+    render(
+      <SynergyPicks
+        suggestions={[suggestions[0]]}
+        onAdd={vi.fn()}
+        resolveOwnership={() => 'in-other-deck'}
+      />
+    );
+    expect(screen.getByText('In other deck')).toBeTruthy();
   });
 
   it('renders "Off-meta" for a pick with no inclusion', () => {

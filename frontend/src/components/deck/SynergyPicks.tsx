@@ -2,14 +2,20 @@ import './SynergyPicks.css';
 import { useMemo } from 'react';
 import { DeckCardRow } from './DeckCardRow';
 import { useCardCarousel } from './useCardCarousel';
-import { fromSynergySuggestion, sortOwnedFirst, type Change } from '@/lib/deck-change';
+import {
+  fromSynergySuggestion,
+  sortOwnedFirst,
+  type Change,
+  type ChangeOwnership,
+} from '@/lib/deck-change';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 
 export interface SynergyPicksProps {
   /** Off-meta engine suggestions (deck.synergyAnalysis.suggestions). */
   suggestions: SynergySuggestion[];
-  /** Owned card names — re-derived live so the row's ownership is never stale. */
-  ownedNames?: Set<string>;
+  /** Allocation-aware ownership for a card name (owned / in-other-deck / unowned),
+   *  re-derived live so the row's ownership is never stale. */
+  resolveOwnership?: (name: string) => ChangeOwnership;
   /** Add a single suggested card by name (shared with the old Engine panel). */
   onAdd: (cardName: string) => void | Promise<void>;
   /** Names currently being added (disables their Add button). */
@@ -28,21 +34,21 @@ export interface SynergyPicksProps {
  */
 export function SynergyPicks({
   suggestions,
-  ownedNames,
+  resolveOwnership,
   onAdd,
   addingNames,
   commanderName,
 }: SynergyPicksProps): JSX.Element | null {
-  const owned = ownedNames ?? new Set<string>();
   const adding = addingNames ?? new Set<string>();
   const carousel = useCardCarousel('Synergy picks');
 
-  // Each suggestion → a normalized Change with live ownership, grouped by axis
-  // so each gap reads as a labeled section (matching the old Engine grouping).
+  // Each suggestion → a normalized Change with live, allocation-aware ownership,
+  // grouped by axis so each gap reads as a labeled section (matching the old
+  // Engine grouping).
   const groups = useMemo(() => {
     const map = new Map<string, Change[]>();
     for (const s of suggestions) {
-      const change = fromSynergySuggestion(s, owned.has(s.cardName) ? 'owned' : 'unowned');
+      const change = fromSynergySuggestion(s, resolveOwnership?.(s.cardName) ?? 'unowned');
       const bucket = map.get(s.axisLabel);
       if (bucket) bucket.push(change);
       else map.set(s.axisLabel, [change]);
@@ -53,9 +59,7 @@ export function SynergyPicks({
       label,
       changes: sortOwnedFirst(changes),
     }));
-    // `owned` is a fresh Set each render; depend on its identity via ownedNames.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestions, ownedNames]);
+  }, [suggestions, resolveOwnership]);
 
   // Carousel slots in render order, labeled with inclusion (or "Off-meta").
   const previewEntries = useMemo(

@@ -31,7 +31,7 @@ import {
   buildNextBestMoves,
   type NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
-import { fromGapCard, sortOwnedFirst, type LaneId } from '@/lib/deck-change';
+import { fromGapCard, sortOwnedFirst, type LaneId, type ChangeOwnership } from '@/lib/deck-change';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { classifyCandidate } from '../lib/deck-analysis';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
@@ -67,6 +67,7 @@ export function DeckEditorPage() {
   const setCommander = useDecksStore((s) => s.setCommander);
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
+  const decks = useDecksStore((s) => s.decks);
   const collectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
@@ -203,6 +204,38 @@ export function DeckEditorPage() {
     for (const c of collectionCards) names.add(c.name);
     return names;
   }, [collectionCards]);
+
+  // Allocation-aware ownership for a card name (mirrors DeckAnalysisPanel) so
+  // every Tune surface agrees: 'owned' = a free/unallocated copy (or one already
+  // in THIS deck) exists; 'in-other-deck' = every copy is claimed by other decks;
+  // else 'unowned'. Re-derived live — never the persisted isOwned snapshot. This
+  // matters because pickCollectionCopy only claims FREE copies, so a card whose
+  // copies are all elsewhere can't actually be added tonight.
+  const ownershipByName = useMemo(() => {
+    const allocations = buildAllocationMap(decks);
+    const byName = new Map<string, { free: number; claimed: number }>();
+    for (const copy of collectionCards) {
+      if (!copy.name) continue;
+      const key = copy.name.toLowerCase();
+      const e = byName.get(key) ?? { free: 0, claimed: 0 };
+      const claim = allocations.get(copy.copyId);
+      if (!claim || claim.deckId === deck?.id) e.free += 1;
+      else e.claimed += 1;
+      byName.set(key, e);
+    }
+    return byName;
+  }, [collectionCards, decks, deck?.id]);
+
+  const ownershipFor = useCallback(
+    (name: string): ChangeOwnership => {
+      const e = ownershipByName.get(name.toLowerCase());
+      if (!e) return 'unowned';
+      if (e.free > 0) return 'owned';
+      if (e.claimed > 0) return 'in-other-deck';
+      return 'unowned';
+    },
+    [ownershipByName]
+  );
 
   // Which binder(s) each collection copy lives in — mirrors how the
   // collection table derives `binders` per row (materialize, then map by
@@ -532,10 +565,15 @@ export function DeckEditorPage() {
     if (!deck) return null;
     const role = classifyCandidate(card.name);
     if (!role) return null;
-    const gaps = (deck.gapAnalysis ?? []).filter((g) => g.role === role && g.name !== card.name);
+    // Never re-propose a card already in the deck (addCard doesn't dedup, so it
+    // would duplicate a slot) — guards the gapAnalysis recompute/offline window.
+    const deckCardNames = new Set(deck.cards.map((c) => c.card.name));
+    const gaps = (deck.gapAnalysis ?? []).filter(
+      (g) => g.role === role && g.name !== card.name && !deckCardNames.has(g.name)
+    );
     if (gaps.length === 0) return null;
     const alternatives = sortOwnedFirst(
-      gaps.map((g) => fromGapCard(g, ownedNames.has(g.name) ? 'owned' : 'unowned'))
+      gaps.map((g) => fromGapCard(g, ownershipFor(g.name)))
     ).slice(0, 6);
     return (
       <SwapThisCard
@@ -1163,7 +1201,7 @@ export function DeckEditorPage() {
               deck.synergyAnalysis.suggestions.length > 0 ? (
                 <SynergyPicks
                   suggestions={deck.synergyAnalysis.suggestions}
-                  ownedNames={ownedNames}
+                  resolveOwnership={ownershipFor}
                   onAdd={handleAddEngineCard}
                   addingNames={addingEngineNames}
                   commanderName={deck.commander?.name}

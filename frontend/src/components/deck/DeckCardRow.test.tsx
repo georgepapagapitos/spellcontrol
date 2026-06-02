@@ -73,7 +73,9 @@ describe('DeckCardRow', () => {
   it('fires onPreview from the thumbnail/body when provided', () => {
     const onPreview = vi.fn();
     render(<DeckCardRow change={add()} onPreview={onPreview} />);
-    fireEvent.click(screen.getByLabelText('Preview Sol Ring', { selector: '.deck-card-row-art' }));
+    fireEvent.click(
+      screen.getByLabelText('Preview Sol Ring art', { selector: '.deck-card-row-art' })
+    );
     expect(onPreview).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sol Ring' }));
   });
 

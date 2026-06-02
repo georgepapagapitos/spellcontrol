@@ -79,7 +79,7 @@ export function DeckCardRow({
         className="deck-card-row-art"
         onClick={preview}
         disabled={!preview}
-        aria-label={preview ? `Preview ${name}` : undefined}
+        aria-label={preview ? `Preview ${name} art` : `${name} art`}
       >
         <img src={thumb} alt="" loading="lazy" />
         {change.isGameChanger && (
@@ -94,7 +94,7 @@ export function DeckCardRow({
         className="deck-card-row-body"
         onClick={preview}
         disabled={!preview}
-        aria-label={preview ? `Preview ${name}` : undefined}
+        aria-label={preview ? `Preview ${name}` : name}
       >
         <span className="deck-card-row-title">
           <span className="deck-card-row-name">{name}</span>
@@ -131,6 +131,7 @@ export function DeckCardRow({
           className="deck-card-row-act"
           onClick={() => onAct(change)}
           disabled={acting}
+          aria-label={acting ? `Adding ${name}` : `${actLabel} ${name}`}
         >
           {acting ? (
             <Loader2 className="deck-card-row-spinner" aria-hidden />
