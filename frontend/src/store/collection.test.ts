@@ -388,6 +388,62 @@ describe('refreshPrices', () => {
   });
 });
 
+describe('autoRefreshStalePrices', () => {
+  const THROTTLE_KEY = 'spellcontrol:lastPriceAutoRefreshAttempt';
+  beforeEach(() => localStorage.removeItem(THROTTLE_KEY));
+
+  it('no-ops with an empty collection', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('skips when every price is fresh (priced within the last day)', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', pricedAt: Date.now() })],
+    });
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refreshes when a price is stale and records the attempt timestamp', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ prices: {} }) });
+    vi.stubGlobal('fetch', fetchMock);
+    // no pricedAt → maximally stale
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(Number(localStorage.getItem(THROTTLE_KEY))).toBeGreaterThan(0);
+  });
+
+  it('skips when an attempt fired within the retry window', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    localStorage.setItem(THROTTLE_KEY, String(Date.now()));
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('skips when the browser reports offline', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const desc = Object.getOwnPropertyDescriptor(navigator, 'onLine');
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    try {
+      await useCollectionStore.getState().autoRefreshStalePrices();
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      if (desc) Object.defineProperty(navigator, 'onLine', desc);
+      else Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    }
+  });
+});
+
 describe('backup snapshot / restore', () => {
   it('builds a snapshot with a populated collection', () => {
     useCollectionStore.setState({
