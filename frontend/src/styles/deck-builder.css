@@ -2061,6 +2061,16 @@ input.toolbar-search-input {
   grid-column: 1 / -1;
 }
 
+/* Grid items must be allowed to shrink below their content's min-content, or a
+   wide child (the Power tab's combos grid / bracket breakdown) blows the
+   single-column track out past the viewport on phones — panels render wider than
+   their container and spill off the right edge. The ≥640px template already uses
+   minmax(0,1fr); this covers the base single column + the nested pair sub-grid. */
+.deck-bento > *,
+.deck-stats-pair > * {
+  min-width: 0;
+}
+
 /* ── Bento boards (Stats / Tune analysis tabs) ───────────────────────────────
    Each analysis tab is one dense, contained bento that reflows to its OWN
    width (container queries), not just the viewport — so it fills desktop
@@ -2075,7 +2085,9 @@ input.toolbar-search-input {
   container-type: inline-size;
   container-name: bento;
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, …) not 1fr: 1fr's floor is min-content, which lets a wide child
+     blow the single column past the container on phones. */
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   grid-auto-flow: row dense;
   gap: clamp(0.85rem, 2.2cqi, 1.5rem);
@@ -4990,9 +5002,16 @@ input.toolbar-search-input {
   font-weight: 500;
 }
 
-.sc-tabs--underline .sc-tab:hover {
-  color: var(--text);
-  border-bottom-color: var(--border2);
+/* Real pointers only: on touch the tapped tab keeps :hover, so its hover-
+   underline lingers after back/navigation moves the active tab elsewhere (two
+   underlines at once). `and (pointer: fine)` is load-bearing — some Samsung
+   WebViews report `hover: hover` on touch, so the bare hover query isn't enough;
+   pointer:fine excludes them. Mouse/trackpad get the hover cue; touch doesn't. */
+@media (hover: hover) and (pointer: fine) {
+  .sc-tabs--underline .sc-tab:hover {
+    color: var(--text);
+    border-bottom-color: var(--border2);
+  }
 }
 
 /* Override the default `.sc-tab.active` pill — underline tabs use accent text +
