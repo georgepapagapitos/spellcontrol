@@ -63,6 +63,9 @@
   --tier-color: var(--success, #2f7d4f);
 }
 
+/* Every row is one consistent card — same chrome, padding, and type scale. The
+   numbered badge + ordering carry priority; the badge's tier tint signals
+   severity. (No per-rank emphasis: the #1 move is not visually special.) */
 .next-best-move-rank {
   flex: 0 0 auto;
   display: flex;
@@ -175,18 +178,26 @@
   color: var(--text2);
 }
 
-/* ── Responsive — stack the nav button under the body on narrow containers
-   so nothing overflows at 320px. ── */
-@media (max-width: 480px) {
+/* ── Mobile: the nav becomes a full-width CTA stacked under the body text.
+   Inline-right reads as cramped chrome on a phone; a full-bleed button is a
+   bigger, more obvious tap target. Wraps cleanly (no indent, edge-to-edge) so
+   width:100% == the row's content width — no overflow. Above 600px it stays the
+   compact inline-right affordance. ── */
+@media (max-width: 600px) {
   .next-best-move-row {
     flex-wrap: wrap;
   }
 
+  .next-best-move-body {
+    /* basis 0 so [rank][body] always share line 1 (the number stays beside the
+       title) and only the full-width button wraps to its own line below. */
+    flex-basis: 0;
+  }
+
   .next-best-move-nav {
-    align-self: stretch;
-    justify-content: center;
     width: 100%;
-    margin-left: 2.05rem;
+    margin-left: 0;
+    justify-content: center;
   }
 }
 
