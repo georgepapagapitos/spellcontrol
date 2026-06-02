@@ -70,7 +70,7 @@ export interface CardCarousel {
  * only a name are fetched from Scryfall (in parallel) and converted to
  * EnrichedCard. Any that fail to resolve are skipped so the carousel never shows
  * a broken slot. One source of truth for the pattern that used to be copy-pasted
- * into each panel (mirrors GapAnalysisPanel.openCarousel).
+ * into each deck-analysis panel.
  */
 export function useCardCarousel(binderName: string): CardCarousel {
   const [cards, setCards] = useState<EnrichedCard[] | null>(null);

@@ -51,7 +51,10 @@ export function NextBestMove({ moves, onNavigate, combosLoading }: NextBestMoveP
       </header>
       <ol className="next-best-move-list">
         {shown.map((move, i) => (
-          <li key={move.id} className={`next-best-move-row is-tier-${move.tier}`}>
+          <li
+            key={move.id}
+            className={`next-best-move-row is-tier-${move.tier}${i === 0 ? ' is-primary' : ''}`}
+          >
             <span className="next-best-move-rank" aria-hidden="true">
               {i + 1}
             </span>

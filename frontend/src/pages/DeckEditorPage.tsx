@@ -21,12 +21,17 @@ import { PowerHero } from '../components/deck/PowerHero';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
+import { SynergyPicks } from '../components/deck/SynergyPicks';
 import { SubstitutionPanel } from '../components/deck/SubstitutionPanel';
 import {
   buildSubstitutionPlan,
   type SubstituteCandidate,
 } from '@/deck-builder/services/deckBuilder/substituteFinder';
-import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
+import {
+  buildNextBestMoves,
+  type NextBestMoveFocus,
+} from '@/deck-builder/services/deckBuilder/nextBestMove';
+import type { LaneId } from '@/lib/deck-change';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
@@ -90,8 +95,8 @@ export function DeckEditorPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
-  // The deck editor is a set of page-top distinct views (Deck · Overview ·
-  // Mana · Power · Improve) switched by the hub tab bar below the header. `view`
+  // The deck editor is a set of page-top distinct views (Deck · Stats · Power ·
+  // Tune) switched by the hub tab bar below the header. `view`
   // is the active one; the feature-strip chips + keyboard shortcuts deep-link
   // into a view and scroll it into reach. Test hand is NOT a view — it's its own
   // standalone overlay (goldfishing is a distinct activity), opened on demand
@@ -118,11 +123,18 @@ export function DeckEditorPage() {
   // its one-away tab. The panel only mounts once Power is active, so reveal on
   // the next frame, after the view switch has committed.
   const combosRef = useRef<DeckCombosPanelHandle>(null);
+  // A hero move that deep-links into a Tune lane sets this; DeckDisplay expands +
+  // scrolls the matching lane, then clears it (one-shot) via onTuneFocusHandled.
+  const [tuneFocusLane, setTuneFocusLane] = useState<LaneId | null>(null);
+  const clearTuneFocus = useCallback(() => setTuneFocusLane(null), []);
   const handleNbmNavigate = useCallback(
-    (next: DeckView, focus?: 'combos') => {
+    (next: DeckView, focus?: NextBestMoveFocus) => {
       openView(next);
       if (focus === 'combos') {
         window.requestAnimationFrame(() => combosRef.current?.reveal('oneAway'));
+      } else if (focus) {
+        // A Tune intent lane — hand the target to DeckDisplay to reveal + scroll.
+        setTuneFocusLane(focus);
       }
     },
     [openView]
@@ -244,6 +256,18 @@ export function DeckEditorPage() {
       oneAwayCombos: comboData.data?.oneAway,
     });
   }, [deck, comboData.data]);
+
+  // Which Tune lane to expand on first paint — the one the verdict hero points
+  // at (hero-pointed-expand). Falls back to Fill the gaps when the top move
+  // routes elsewhere (Deck/Stats/Power).
+  const tuneDefaultLane = useMemo<LaneId>(() => {
+    const lanes: readonly LaneId[] = ['fill-gaps', 'upgrade', 'budget', 'binder'];
+    const hit = nextBestMoves.find(
+      (m): m is typeof m & { focus: LaneId } =>
+        m.focus != null && (lanes as readonly string[]).includes(m.focus)
+    );
+    return hit?.focus ?? 'fill-gaps';
+  }, [nextBestMoves]);
 
   // Owned-substitute plan ("From your collection") — derived live from the
   // persisted gap analysis + the live collection (ownership is intentionally a
@@ -886,9 +910,9 @@ export function DeckEditorPage() {
         </div>
       </header>
 
-      {/* Page-top distinct-view tabs (Deck · Overview · Mana · Power · Improve),
-          mirroring the Collection hub. Sticky so it stays in reach as the
-          active view scrolls. */}
+      {/* Page-top distinct-view tabs (Deck · Stats · Power · Tune; Power/Tune
+          appear only with analysis extras), mirroring the Collection hub. Sticky
+          so it stays in reach as the active view scrolls. */}
       <div className="deck-editor-view-tabs" ref={viewScrollRef}>
         <Tabs
           ariaLabel="Deck views"
@@ -943,9 +967,7 @@ export function DeckEditorPage() {
             }}
             roleCounts={deck.roleCounts}
             roleTargets={deck.roleTargets}
-            gapAnalysis={deck.gapAnalysis}
             buildReport={deck.buildReport}
-            ownedNames={ownedNames}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -963,6 +985,9 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
+            tuneDefaultLane={tuneDefaultLane}
+            tuneFocusLane={tuneFocusLane}
+            onTuneFocusHandled={clearTuneFocus}
             powerHeroSlot={
               formatConfig?.hasCommander ? (
                 <PowerHero
@@ -1052,14 +1077,26 @@ export function DeckEditorPage() {
             engineSlot={
               formatConfig?.hasCommander &&
               deck.synergyAnalysis &&
-              (deck.synergyAnalysis.suggestions.length > 0 ||
-                deck.synergyAnalysis.warnings.length > 0 ||
-                deck.synergyAnalysis.axes.length > 0) ? (
+              (deck.synergyAnalysis.warnings.length > 0 || deck.synergyAnalysis.axes.length > 0) ? (
+                // Power tab keeps only the axis-balance diagnostics; the
+                // off-meta picks move to the Tune Upgrade lane (synergyPicksSlot).
                 <EnginePanel
                   analysis={deck.synergyAnalysis}
+                  onAdd={handleAddEngineCard}
+                  showSuggestions={false}
+                />
+              ) : undefined
+            }
+            synergyPicksSlot={
+              formatConfig?.hasCommander &&
+              deck.synergyAnalysis &&
+              deck.synergyAnalysis.suggestions.length > 0 ? (
+                <SynergyPicks
+                  suggestions={deck.synergyAnalysis.suggestions}
                   ownedNames={ownedNames}
                   onAdd={handleAddEngineCard}
                   addingNames={addingEngineNames}
+                  commanderName={deck.commander?.name}
                 />
               ) : undefined
             }

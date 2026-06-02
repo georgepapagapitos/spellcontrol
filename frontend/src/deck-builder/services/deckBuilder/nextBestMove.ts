@@ -20,10 +20,15 @@ export interface NextBestMove {
   cardName?: string;
   /** Analysis view this move deep-links to. */
   navigateTo?: DeckView;
-  /** After navigating to `navigateTo`, reveal a specific panel within that view.
-   *  `'combos'` expands + scrolls the Combos panel and opens its one-away tab. */
-  focus?: 'combos';
+  /** After navigating to `navigateTo`, reveal a specific surface within that view.
+   *  `'combos'` expands + scrolls the Power-tab Combos panel and opens its
+   *  one-away tab; the lane ids expand + scroll the matching Tune intent lane. */
+  focus?: NextBestMoveFocus;
 }
+
+/** Intent targets a move can deep-link to: the Power Combos panel, or one of the
+ *  four Tune intent lanes (so a within-Tune move opens the right lane). */
+export type NextBestMoveFocus = 'combos' | 'fill-gaps' | 'upgrade' | 'budget' | 'binder';
 
 export interface NextBestMoveInput {
   /** Live PlanScore on the deck (deck.planScore). Tier-2 + limited-data note. */
@@ -166,6 +171,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
             ? `Light on ${label} (${deficit.current} of ${deficit.target}). Add ${gap.name} — in ${Math.round(gap.inclusion)}% of decks like this.`
             : `Light on ${label} (${deficit.current} of ${deficit.target}). Add more ${label} to hit the target.`,
           navigateTo: SUBSCORE_VIEW.roles,
+          focus: 'fill-gaps',
         });
         if (gap) usedCards.add(gap.name);
         continue;
@@ -189,6 +195,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           title: 'Tighten card fit',
           detail: `${sub.surface} Swap low-fit cards for stronger options on the Tune view.`,
           navigateTo: SUBSCORE_VIEW.cardFit,
+          focus: 'upgrade',
         });
         continue;
       }
@@ -204,6 +211,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
             ? `${sub.surface} Add ${gap.name} (synergy +${gap.synergy.toFixed(2)}, in ${Math.round(gap.inclusion)}% of builds) to lean into your strategy.`
             : `${sub.surface} Add more on-theme cards to lean into your strategy.`,
           navigateTo: SUBSCORE_VIEW.strategy,
+          focus: 'upgrade',
         });
         if (gap) usedCards.add(gap.name);
         continue;
