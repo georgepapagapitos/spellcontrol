@@ -1,0 +1,216 @@
+/* DeckCardRow — the one shared Tune-tab card row (Engine synergy picks,
+   in-context "Swap this card" alternatives). Co-located per house rule (CSS
+   isn't lint-gated). Theme vars + --text-* scale only; see STYLE_GUIDE.md.
+   Reuses OwnershipBadge.css + VerdictBadge.css unchanged. */
+
+.deck-card-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  padding: 0.5rem 0.55rem;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Thumbnail — a small MTG-card crop; tap opens the carousel. */
+.deck-card-row-art {
+  position: relative;
+  flex: 0 0 auto;
+  width: 2.6rem;
+  padding: 0;
+  border: 0.5px solid var(--border);
+  border-radius: calc(var(--radius) * 0.6);
+  overflow: hidden;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.deck-card-row-art:disabled {
+  cursor: default;
+}
+
+.deck-card-row-art img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+}
+
+/* Game-changer overlay — bracket-relevant high-power flag. Mirrors the house GC
+   badge (.optimize-tile-gc): a dark translucent chip with warn-tone text, so it
+   stays legible on any card art and in any theme. */
+.deck-card-row-gc {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  padding: 0.02rem 0.22rem;
+  border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--warn-text);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.deck-card-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-card-row-body:disabled {
+  cursor: default;
+}
+
+.deck-card-row-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.deck-card-row-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.deck-card-row-role {
+  padding: 0.02rem 0.3rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.deck-card-row-synergy-tag {
+  padding: 0.02rem 0.3rem;
+  border-radius: 999px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.deck-card-row-other {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.02rem 0.35rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.deck-card-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.deck-card-row-incl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-card-row-incl.is-offmeta {
+  color: var(--text3);
+  font-style: italic;
+}
+
+.deck-card-row-incl-bar {
+  display: inline-block;
+  width: 3rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.deck-card-row-incl-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.deck-card-row-syn {
+  color: var(--success, #2f7d4f);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-card-row-price {
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-card-row-verdict {
+  margin-top: 0.05rem;
+}
+
+/* Primary action — Add / Swap in. */
+.deck-card-row-act {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.65rem;
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--on-accent, #fff);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 120ms ease;
+}
+
+.deck-card-row-act:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.deck-card-row-act:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.deck-card-row-spinner {
+  width: 14px;
+  height: 14px;
+  animation: deck-card-row-spin 0.8s linear infinite;
+}
+
+@keyframes deck-card-row-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-card-row-spinner {
+    animation: none;
+  }
+}
+
+/* 44px touch targets on coarse pointers. */
+@media (pointer: coarse) {
+  .deck-card-row-act {
+    min-height: 44px;
+  }
+}

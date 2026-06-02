@@ -1,0 +1,33 @@
+/* SwapThisCard — in-context "Swap this card" section inside the card-preview
+   panel. Rows render via the shared DeckCardRow; this file styles the wrapper.
+   Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
+
+.swap-this-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.swap-this-card-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.swap-this-card-sub {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
+
+.swap-this-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}

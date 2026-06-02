@@ -20,10 +20,15 @@ export interface NextBestMove {
   cardName?: string;
   /** Analysis view this move deep-links to. */
   navigateTo?: DeckView;
-  /** After navigating to `navigateTo`, reveal a specific panel within that view.
-   *  `'combos'` expands + scrolls the Combos panel and opens its one-away tab. */
-  focus?: 'combos';
+  /** After navigating to `navigateTo`, reveal a specific surface within that view.
+   *  `'combos'` expands + scrolls the Power-tab Combos panel and opens its
+   *  one-away tab; the lane ids expand + scroll the matching Tune intent lane. */
+  focus?: NextBestMoveFocus;
 }
+
+/** Intent targets a move can deep-link to: the Power Combos panel, or one of the
+ *  four Tune intent lanes (so a within-Tune move opens the right lane). */
+export type NextBestMoveFocus = 'combos' | 'fill-gaps' | 'upgrade' | 'budget' | 'binder';
 
 export interface NextBestMoveInput {
   /** Live PlanScore on the deck (deck.planScore). Tier-2 + limited-data note. */
@@ -40,6 +45,10 @@ export interface NextBestMoveInput {
   deckTarget: number;
   /** Near-miss combos — the `oneAway` slice of ComboMatchResponse. */
   oneAwayCombos?: ComboMatch[];
+  /** Live owned card names. When a role/synergy gap can be filled by a card the
+   *  player already owns, the hero prefers it ("build it tonight" over "go buy").
+   *  Re-derived live by the page — never the stale persisted `isOwned` snapshot. */
+  ownedNames?: Set<string>;
 }
 
 /** Display labels for the functional roles (mirrors planScore's ROLE_LABELS). */
@@ -85,23 +94,31 @@ function mostDeficitRole(
   return worst;
 }
 
-/** First gap card matching `role` whose name isn't already claimed. */
+/** Gap card matching `role` whose name isn't already claimed — preferring one
+ *  the player already owns (owned-first), else the top (inclusion-ranked) match. */
 function gapForRole(
   gapAnalysis: GapAnalysisCard[] | undefined,
   role: string,
-  used: Set<string>
+  used: Set<string>,
+  ownedNames?: Set<string>
 ): GapAnalysisCard | undefined {
-  return gapAnalysis?.find((g) => g.role === role && !used.has(g.name));
+  const matches = gapAnalysis?.filter((g) => g.role === role && !used.has(g.name)) ?? [];
+  if (matches.length === 0) return undefined;
+  return matches.find((g) => ownedNames?.has(g.name)) ?? matches[0];
 }
 
-/** Highest-synergy gap card whose name isn't already claimed. */
+/** Highest-synergy gap card whose name isn't already claimed — preferring one
+ *  the player already owns (owned-first) among the positive-synergy candidates. */
 function topSynergyGap(
   gapAnalysis: GapAnalysisCard[] | undefined,
-  used: Set<string>
+  used: Set<string>,
+  ownedNames?: Set<string>
 ): GapAnalysisCard | undefined {
-  return gapAnalysis
-    ?.filter((g) => g.synergy > 0 && !used.has(g.name))
-    .sort((a, b) => b.synergy - a.synergy)[0];
+  const positive =
+    gapAnalysis
+      ?.filter((g) => g.synergy > 0 && !used.has(g.name))
+      .sort((a, b) => b.synergy - a.synergy) ?? [];
+  return positive.find((g) => ownedNames?.has(g.name)) ?? positive[0];
 }
 
 /**
@@ -110,8 +127,16 @@ function topSynergyGap(
  * top 3. No React/DOM/network — safe on server and client.
  */
 export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
-  const { planScore, roleCounts, roleTargets, gapAnalysis, cardCount, deckTarget, oneAwayCombos } =
-    input;
+  const {
+    planScore,
+    roleCounts,
+    roleTargets,
+    gapAnalysis,
+    cardCount,
+    deckTarget,
+    oneAwayCombos,
+    ownedNames,
+  } = input;
 
   const moves: NextBestMove[] = [];
   // Card names already claimed by a move — prevents two moves recommending the
@@ -156,16 +181,20 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         const deficit = mostDeficitRole(roleCounts, roleTargets);
         if (!deficit) continue;
         const label = roleLabel(deficit.role);
-        const gap = gapForRole(gapAnalysis, deficit.role, usedCards);
+        const gap = gapForRole(gapAnalysis, deficit.role, usedCards, ownedNames);
+        const owns = gap != null && (ownedNames?.has(gap.name) ?? false);
         moves.push({
           id: `roles-${deficit.role}`,
           tier: 2,
           title: `Add ${label}`,
           cardName: gap?.name,
           detail: gap
-            ? `Light on ${label} (${deficit.current} of ${deficit.target}). Add ${gap.name} — in ${Math.round(gap.inclusion)}% of decks like this.`
+            ? owns
+              ? `Light on ${label} (${deficit.current} of ${deficit.target}). You own ${gap.name} — add it tonight (in ${Math.round(gap.inclusion)}% of decks like this).`
+              : `Light on ${label} (${deficit.current} of ${deficit.target}). Add ${gap.name} — in ${Math.round(gap.inclusion)}% of decks like this.`
             : `Light on ${label} (${deficit.current} of ${deficit.target}). Add more ${label} to hit the target.`,
           navigateTo: SUBSCORE_VIEW.roles,
+          focus: 'fill-gaps',
         });
         if (gap) usedCards.add(gap.name);
         continue;
@@ -189,21 +218,26 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           title: 'Tighten card fit',
           detail: `${sub.surface} Swap low-fit cards for stronger options on the Tune view.`,
           navigateTo: SUBSCORE_VIEW.cardFit,
+          focus: 'upgrade',
         });
         continue;
       }
 
       if (key === 'strategy') {
-        const gap = topSynergyGap(gapAnalysis, usedCards);
+        const gap = topSynergyGap(gapAnalysis, usedCards, ownedNames);
+        const owns = gap != null && (ownedNames?.has(gap.name) ?? false);
         moves.push({
           id: 'strategy',
           tier: 2,
           title: 'Reinforce the plan',
           cardName: gap?.name,
           detail: gap
-            ? `${sub.surface} Add ${gap.name} (synergy +${gap.synergy.toFixed(2)}, in ${Math.round(gap.inclusion)}% of builds) to lean into your strategy.`
+            ? owns
+              ? `${sub.surface} You own ${gap.name} (synergy +${gap.synergy.toFixed(2)}, in ${Math.round(gap.inclusion)}% of builds) — add it to lean into your strategy.`
+              : `${sub.surface} Add ${gap.name} (synergy +${gap.synergy.toFixed(2)}, in ${Math.round(gap.inclusion)}% of builds) to lean into your strategy.`
             : `${sub.surface} Add more on-theme cards to lean into your strategy.`,
           navigateTo: SUBSCORE_VIEW.strategy,
+          focus: 'upgrade',
         });
         if (gap) usedCards.add(gap.name);
         continue;

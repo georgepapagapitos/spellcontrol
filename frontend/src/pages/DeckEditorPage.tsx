@@ -21,12 +21,20 @@ import { PowerHero } from '../components/deck/PowerHero';
 import { OptimizePanel } from '../components/deck/OptimizePanel';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
+import { SynergyPicks } from '../components/deck/SynergyPicks';
 import { SubstitutionPanel } from '../components/deck/SubstitutionPanel';
 import {
   buildSubstitutionPlan,
   type SubstituteCandidate,
 } from '@/deck-builder/services/deckBuilder/substituteFinder';
-import { buildNextBestMoves } from '@/deck-builder/services/deckBuilder/nextBestMove';
+import {
+  buildNextBestMoves,
+  type NextBestMoveFocus,
+} from '@/deck-builder/services/deckBuilder/nextBestMove';
+import { fromGapCard, sortOwnedFirst, type LaneId, type ChangeOwnership } from '@/lib/deck-change';
+import { SwapThisCard } from '../components/deck/SwapThisCard';
+import { classifyCandidate } from '../lib/deck-analysis';
+import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
@@ -59,6 +67,7 @@ export function DeckEditorPage() {
   const setCommander = useDecksStore((s) => s.setCommander);
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
+  const decks = useDecksStore((s) => s.decks);
   const collectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
@@ -90,8 +99,8 @@ export function DeckEditorPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
-  // The deck editor is a set of page-top distinct views (Deck · Overview ·
-  // Mana · Power · Improve) switched by the hub tab bar below the header. `view`
+  // The deck editor is a set of page-top distinct views (Deck · Stats · Power ·
+  // Tune) switched by the hub tab bar below the header. `view`
   // is the active one; the feature-strip chips + keyboard shortcuts deep-link
   // into a view and scroll it into reach. Test hand is NOT a view — it's its own
   // standalone overlay (goldfishing is a distinct activity), opened on demand
@@ -122,6 +131,9 @@ export function DeckEditorPage() {
   const [applyingOptimize, setApplyingOptimize] = useState(false);
   const [applyingCost, setApplyingCost] = useState(false);
   const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
+  // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
+  // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
+  const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
   const openView = useCallback(
     (next: DeckView) => {
       setView(next);
@@ -140,15 +152,29 @@ export function DeckEditorPage() {
   // its one-away tab. The panel only mounts once Power is active, so reveal on
   // the next frame, after the view switch has committed.
   const combosRef = useRef<DeckCombosPanelHandle>(null);
+  // A hero move that deep-links into a Tune lane sets this; DeckDisplay expands +
+  // scrolls the matching lane, then clears it (one-shot) via onTuneFocusHandled.
+  const [tuneFocusLane, setTuneFocusLane] = useState<LaneId | null>(null);
+  const clearTuneFocus = useCallback(() => setTuneFocusLane(null), []);
   const handleNbmNavigate = useCallback(
-    (next: DeckView, focus?: 'combos') => {
+    (next: DeckView, focus?: NextBestMoveFocus) => {
       openView(next);
       if (focus === 'combos') {
         window.requestAnimationFrame(() => combosRef.current?.reveal('oneAway'));
+      } else if (focus) {
+        // A Tune intent lane — hand the target to DeckDisplay to reveal + scroll.
+        setTuneFocusLane(focus);
       }
     },
     [openView]
   );
+
+  // Load tagger role data on mount (deduped) so the in-context "Swap this card"
+  // section can scope alternatives to a card's role even when the preview is
+  // opened from the Deck tab, where the Analysis panel isn't mounted.
+  useEffect(() => {
+    if (!hasTaggerData()) void loadTaggerData();
+  }, []);
 
   // Counts already in this deck — fed to the search panel so it can mark
   // duplicates with a live "in deck × N" hint and let users add basics
@@ -200,6 +226,38 @@ export function DeckEditorPage() {
     for (const c of collectionCards) names.add(c.name);
     return names;
   }, [collectionCards]);
+
+  // Allocation-aware ownership for a card name (mirrors DeckAnalysisPanel) so
+  // every Tune surface agrees: 'owned' = a free/unallocated copy (or one already
+  // in THIS deck) exists; 'in-other-deck' = every copy is claimed by other decks;
+  // else 'unowned'. Re-derived live — never the persisted isOwned snapshot. This
+  // matters because pickCollectionCopy only claims FREE copies, so a card whose
+  // copies are all elsewhere can't actually be added tonight.
+  const ownershipByName = useMemo(() => {
+    const allocations = buildAllocationMap(decks);
+    const byName = new Map<string, { free: number; claimed: number }>();
+    for (const copy of collectionCards) {
+      if (!copy.name) continue;
+      const key = copy.name.toLowerCase();
+      const e = byName.get(key) ?? { free: 0, claimed: 0 };
+      const claim = allocations.get(copy.copyId);
+      if (!claim || claim.deckId === deck?.id) e.free += 1;
+      else e.claimed += 1;
+      byName.set(key, e);
+    }
+    return byName;
+  }, [collectionCards, decks, deck?.id]);
+
+  const ownershipFor = useCallback(
+    (name: string): ChangeOwnership => {
+      const e = ownershipByName.get(name.toLowerCase());
+      if (!e) return 'unowned';
+      if (e.free > 0) return 'owned';
+      if (e.claimed > 0) return 'in-other-deck';
+      return 'unowned';
+    },
+    [ownershipByName]
+  );
 
   // Which binder(s) each collection copy lives in — mirrors how the
   // collection table derives `binders` per row (materialize, then map by
@@ -283,8 +341,21 @@ export function DeckEditorPage() {
       cardCount: deck.cards.length,
       deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
       oneAwayCombos: comboData.data?.oneAway,
+      ownedNames,
     });
-  }, [deck, comboData.data]);
+  }, [deck, comboData.data, ownedNames]);
+
+  // Which Tune lane to expand on first paint — the one the verdict hero points
+  // at (hero-pointed-expand). Falls back to Fill the gaps when the top move
+  // routes elsewhere (Deck/Stats/Power).
+  const tuneDefaultLane = useMemo<LaneId>(() => {
+    const lanes: readonly LaneId[] = ['fill-gaps', 'upgrade', 'budget', 'binder'];
+    const hit = nextBestMoves.find(
+      (m): m is typeof m & { focus: LaneId } =>
+        m.focus != null && (lanes as readonly string[]).includes(m.focus)
+    );
+    return hit?.focus ?? 'fill-gaps';
+  }, [nextBestMoves]);
 
   // Owned-substitute plan ("From your collection") — derived live from the
   // persisted gap analysis + the live collection (ownership is intentionally a
@@ -494,6 +565,66 @@ export function DeckEditorPage() {
         return next;
       });
     }
+  };
+
+  // In-context swap: cut the in-deck card at `slotId` and add `newName` in its
+  // place (resolve → allocate → add). Removal runs BEFORE the add so the freed
+  // physical copy is re-allocatable; net size is unchanged (1-for-1), keeping a
+  // 99-card deck legal. `close()` dismisses the preview (the card it showed is
+  // gone). Uses its own loading gate (swappingSlot).
+  const handleSwapInDeck = async (
+    slotId: string,
+    oldName: string,
+    newName: string,
+    close: () => void
+  ) => {
+    if (!deck) return;
+    setSwappingSlot(slotId);
+    try {
+      const scry = await getCardByName(newName);
+      if (!scry) {
+        pushToast({ message: `Couldn't find ${newName}`, tone: 'error' });
+        return;
+      }
+      removeCard(deck.id, slotId);
+      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const claim = pickCollectionCopy(newName, collectionCards, allocations, scry.id);
+      addCard(deck.id, scry, claim?.copyId ?? null);
+      pushToast({ message: `Swapped ${oldName} → ${newName}`, tone: 'success' });
+      close();
+    } catch {
+      pushToast({ message: `Couldn't swap ${oldName}`, tone: 'error' });
+    } finally {
+      setSwappingSlot(null);
+    }
+  };
+
+  // Build the in-context "Swap this card" section for an in-deck card: role-scoped
+  // EDHREC alternatives (same functional role, not the card itself), owned-first,
+  // capped. Returns null when the role is untagged or there are no alternatives.
+  const renderSwapSuggestions = (card: ScryfallCard, slotId: string, close: () => void) => {
+    if (!deck) return null;
+    const role = classifyCandidate(card.name);
+    if (!role) return null;
+    // Never re-propose a card already in the deck (addCard doesn't dedup, so it
+    // would duplicate a slot) — guards the gapAnalysis recompute/offline window.
+    const deckCardNames = new Set(deck.cards.map((c) => c.card.name));
+    const gaps = (deck.gapAnalysis ?? []).filter(
+      (g) => g.role === role && g.name !== card.name && !deckCardNames.has(g.name)
+    );
+    if (gaps.length === 0) return null;
+    const alternatives = sortOwnedFirst(
+      gaps.map((g) => fromGapCard(g, ownershipFor(g.name)))
+    ).slice(0, 6);
+    return (
+      <SwapThisCard
+        currentName={card.name}
+        alternatives={alternatives}
+        swapping={swappingSlot === slotId}
+        commanderName={deck.commander?.name}
+        onSwap={(name) => void handleSwapInDeck(slotId, card.name, name, close)}
+      />
+    );
   };
 
   // Apply budget swaps: each pair cuts the pricier card and adds the cheaper
@@ -927,9 +1058,9 @@ export function DeckEditorPage() {
         </div>
       </header>
 
-      {/* Page-top distinct-view tabs (Deck · Overview · Mana · Power · Improve),
-          mirroring the Collection hub. Sticky so it stays in reach as the
-          active view scrolls. */}
+      {/* Page-top distinct-view tabs (Deck · Stats · Power · Tune; Power/Tune
+          appear only with analysis extras), mirroring the Collection hub. Sticky
+          so it stays in reach as the active view scrolls. */}
       <div className="deck-editor-view-tabs" ref={viewScrollRef}>
         <Tabs
           ariaLabel="Deck views"
@@ -984,9 +1115,7 @@ export function DeckEditorPage() {
             }}
             roleCounts={deck.roleCounts}
             roleTargets={deck.roleTargets}
-            gapAnalysis={deck.gapAnalysis}
             buildReport={deck.buildReport}
-            ownedNames={ownedNames}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -1004,6 +1133,10 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
+            tuneDefaultLane={tuneDefaultLane}
+            tuneFocusLane={tuneFocusLane}
+            onTuneFocusHandled={clearTuneFocus}
+            renderSwapSuggestions={renderSwapSuggestions}
             powerHeroSlot={
               formatConfig?.hasCommander ? (
                 <PowerHero
@@ -1106,14 +1239,26 @@ export function DeckEditorPage() {
             engineSlot={
               formatConfig?.hasCommander &&
               deck.synergyAnalysis &&
-              (deck.synergyAnalysis.suggestions.length > 0 ||
-                deck.synergyAnalysis.warnings.length > 0 ||
-                deck.synergyAnalysis.axes.length > 0) ? (
+              (deck.synergyAnalysis.warnings.length > 0 || deck.synergyAnalysis.axes.length > 0) ? (
+                // Power tab keeps only the axis-balance diagnostics; the
+                // off-meta picks move to the Tune Upgrade lane (synergyPicksSlot).
                 <EnginePanel
                   analysis={deck.synergyAnalysis}
-                  ownedNames={ownedNames}
+                  onAdd={handleAddEngineCard}
+                  showSuggestions={false}
+                />
+              ) : undefined
+            }
+            synergyPicksSlot={
+              formatConfig?.hasCommander &&
+              deck.synergyAnalysis &&
+              deck.synergyAnalysis.suggestions.length > 0 ? (
+                <SynergyPicks
+                  suggestions={deck.synergyAnalysis.suggestions}
+                  resolveOwnership={ownershipFor}
                   onAdd={handleAddEngineCard}
                   addingNames={addingEngineNames}
+                  commanderName={deck.commander?.name}
                 />
               ) : undefined
             }
