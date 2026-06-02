@@ -75,9 +75,11 @@
   }
 }
 
-/* Background is a mouse-only affordance (hover + press). On touch there's no
-   resting hover, and a tap-flash reads as heavy, so leave it off there. */
-@media (hover: hover) {
+/* Background is a real-pointer-only affordance (hover + press). `and (pointer:
+   fine)` is load-bearing: some Samsung WebViews report `hover: hover` on touch,
+   so the bare hover query would still flash a background on tap. Touch gets none
+   — the scroll/reveal is the feedback. */
+@media (hover: hover) and (pointer: fine) {
   .power-hero-link:hover {
     background: color-mix(in srgb, var(--text) 6%, transparent);
   }
@@ -97,7 +99,6 @@
 .power-hero-link-chevron {
   color: var(--accent);
   font-weight: 700;
-  font-size: 1.1em;
 }
 
 /* ── Power level ── */

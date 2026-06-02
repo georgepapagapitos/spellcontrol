@@ -5002,9 +5002,16 @@ input.toolbar-search-input {
   font-weight: 500;
 }
 
-.sc-tabs--underline .sc-tab:hover {
-  color: var(--text);
-  border-bottom-color: var(--border2);
+/* Real pointers only: on touch the tapped tab keeps :hover, so its hover-
+   underline lingers after back/navigation moves the active tab elsewhere (two
+   underlines at once). `and (pointer: fine)` is load-bearing — some Samsung
+   WebViews report `hover: hover` on touch, so the bare hover query isn't enough;
+   pointer:fine excludes them. Mouse/trackpad get the hover cue; touch doesn't. */
+@media (hover: hover) and (pointer: fine) {
+  .sc-tabs--underline .sc-tab:hover {
+    color: var(--text);
+    border-bottom-color: var(--border2);
+  }
 }
 
 /* Override the default `.sc-tab.active` pill — underline tabs use accent text +
