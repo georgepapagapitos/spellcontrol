@@ -28,6 +28,23 @@
   overflow: hidden;
 }
 
+/* Snap-back: when a swipe releases short of dismissal the JS clears the inline
+   transform, and this transition animates the sheet home. Suppressed mid-drag
+   (`is-dragging`) so the sheet tracks the finger 1:1. */
+.card-group-sheet:not(.is-dragging) {
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Symmetric exit — slide down (continues from the release offset via
+   --sheet-exit-from). Shared keyframes with the CardPreview / binder sheets. */
+.card-group-sheet.is-closing {
+  animation: sheet-fall 0.34s var(--ease-drawer) forwards;
+}
+
+.card-group-backdrop.is-closing {
+  animation: fade-out 0.34s var(--ease-drawer) forwards;
+}
+
 /* Centered card panel once there's room (tablet/desktop). */
 @media (min-width: 600px) {
   .card-group-backdrop {
@@ -45,18 +62,37 @@
 }
 
 .card-group-head {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   padding: clamp(0.85rem, 3vw, 1.15rem);
-  padding-top: max(0.85rem, var(--safe-top));
+  padding-top: max(1.1rem, var(--safe-top));
   border-bottom: 0.5px solid var(--border);
+}
+
+/* Grab-handle pill — the affordance for swipe-to-dismiss. Touch-only, so it's
+   hidden on the centered ≥600px panel. */
+.card-group-handle {
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--text3);
+  opacity: 0.5;
 }
 
 @media (min-width: 600px) {
   .card-group-head {
     padding-top: clamp(0.85rem, 3vw, 1.15rem);
+  }
+
+  .card-group-handle {
+    display: none;
   }
 }
 
