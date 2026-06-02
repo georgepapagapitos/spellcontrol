@@ -108,6 +108,19 @@ export default function App() {
   // stale data between cold starts.
   useEffect(() => registerOfflineSyncOnResume(), []);
 
+  // Once the collection has hydrated, silently bring stale card prices up to
+  // date. Scryfall refreshes prices at most once a day, so this self-gates to
+  // a daily, on-stale background refresh (no-op when offline / nothing stale /
+  // attempted recently). Runs for guests and authed users alike — prices live
+  // device-local. The ref keeps it to one attempt per mount.
+  const hydrating = useCollectionStore((s) => s.hydrating);
+  const priceRefreshTried = useRef(false);
+  useEffect(() => {
+    if (hydrating || priceRefreshTried.current) return;
+    priceRefreshTried.current = true;
+    void useCollectionStore.getState().autoRefreshStalePrices();
+  }, [hydrating]);
+
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
   // on every status change while still firing again if a different user logs in
   // (e.g. logout → login as someone else). startSync runs in the background;
