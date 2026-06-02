@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
 import { DeckColorBalance } from './DeckColorBalance';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
+import { CardGroupSheet } from './CardGroupSheet';
 import './DeckColorPanel.css';
 
 /**
@@ -130,10 +132,30 @@ export function DeckColorPanel({
   const sourcesCarousel = useCardCarousel('Mana sources');
   const colorsCarousel = useCardCarousel('Color');
 
-  const openTally = (carousel: ReturnType<typeof useCardCarousel>, tally?: CardTally[]) => {
+  // Tapping a color opens the grouped overview sheet (grid/list) first, then a
+  // tapped card hands off to that drill-down's carousel for the detail read.
+  const [groupSheet, setGroupSheet] = useState<{
+    title: string;
+    tally: CardTally[];
+    carousel: ReturnType<typeof useCardCarousel>;
+  } | null>(null);
+
+  const openGroup = (
+    carousel: ReturnType<typeof useCardCarousel>,
+    tally: CardTally[] | undefined,
+    title: string
+  ) => {
     if (!tally || tally.length === 0) return;
-    void carousel.open(tallyToEntries(tally), tally[0].name);
+    const sorted = [...tally].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    setGroupSheet({ title, tally: sorted, carousel });
   };
+
+  const pickFromGroup = (picked: CardTally) => {
+    if (!groupSheet) return;
+    void groupSheet.carousel.open(tallyToEntries(groupSheet.tally), picked.name);
+  };
+
+  const colorLabel = (k: string) => COLOR_INFO[k]?.label ?? k;
 
   return (
     <div className="deck-color-panel">
@@ -143,7 +165,7 @@ export function DeckColorPanel({
           counts={colorDist.counts}
           total={colorDist.total}
           cardsByColor={cardsByColor}
-          onShowColor={(k) => openTally(colorsCarousel, cardsByColor?.[k])}
+          onShowColor={(k) => openGroup(colorsCarousel, cardsByColor?.[k], colorLabel(k))}
         />
       </section>
 
@@ -151,10 +173,20 @@ export function DeckColorPanel({
         colorRequirements={colorDist.counts}
         colorProduction={manaProduction.counts}
         sourcesByColor={manaProduction.sourcesByColor}
-        onShowSources={(k) => openTally(sourcesCarousel, manaProduction.sourcesByColor?.[k])}
+        onShowSources={(k) =>
+          openGroup(sourcesCarousel, manaProduction.sourcesByColor?.[k], `${colorLabel(k)} sources`)
+        }
         manaCurve={manaCurve}
       />
 
+      {groupSheet && (
+        <CardGroupSheet
+          title={groupSheet.title}
+          tally={groupSheet.tally}
+          onPick={pickFromGroup}
+          onClose={() => setGroupSheet(null)}
+        />
+      )}
       {sourcesCarousel.preview}
       {colorsCarousel.preview}
     </div>

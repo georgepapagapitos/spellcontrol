@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
+import { CardGroupSheet } from './CardGroupSheet';
 import type { CurveColorBucket } from './deck-mana-types';
 import { gradeCurve, PACING_LABEL } from '@/deck-builder/services/deckBuilder/curveGrading';
 import './DeckCurvePhases.css';
@@ -82,12 +83,21 @@ export function DeckCurvePhases({
 }): JSX.Element {
   const carousel = useCardCarousel('Mana curve');
   const [mode, setMode] = useState<CurveMode>('color');
+  // Tapping a bucket opens the grouped overview sheet (the high-level "see them
+  // all" step) before the one-at-a-time carousel.
+  const [groupSheet, setGroupSheet] = useState<{ title: string; tally: CardTally[] } | null>(null);
 
-  // Open the carousel for a set of cards (already a CardTally[]).
-  const showTally = (tally: CardTally[]) => {
+  // Open the grouped overview sheet for a set of cards (already a CardTally[]).
+  const showTally = (tally: CardTally[], title: string) => {
     if (tally.length === 0) return;
     const sorted = [...tally].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-    void carousel.open(tallyToEntries(sorted), sorted[0].name);
+    setGroupSheet({ title, tally: sorted });
+  };
+
+  // From the grouped sheet, hand a tapped card off to the detail carousel.
+  const pickFromGroup = (picked: CardTally) => {
+    if (!groupSheet) return;
+    void carousel.open(tallyToEntries(groupSheet.tally), picked.name);
   };
 
   const hasColorData = useMemo(() => {
@@ -208,7 +218,12 @@ export function DeckCurvePhases({
                             type="button"
                             className={`${cls} deck-curve-phases-seg-btn`}
                             style={style}
-                            onClick={() => showTally(segCards)}
+                            onClick={() =>
+                              showTally(
+                                segCards,
+                                `${SEGMENT_LABEL[segKey]} · ${slot.label} mana value`
+                              )
+                            }
                             aria-label={aria}
                           />
                         ) : (
@@ -222,7 +237,7 @@ export function DeckCurvePhases({
                     type="button"
                     className="deck-curve-phases-bar-fill deck-curve-phases-bar-fill-btn"
                     style={{ height: `${heightPct}%` }}
-                    onClick={() => showTally(cards)}
+                    onClick={() => showTally(cards, `${slot.label} mana value`)}
                     aria-label={`Show the ${slot.count} cards at mana value ${slot.label}`}
                   />
                 ) : (
@@ -274,7 +289,7 @@ export function DeckCurvePhases({
                 <button
                   type="button"
                   className="deck-curve-phases-phase-btn"
-                  onClick={() => showTally(cards)}
+                  onClick={() => showTally(cards, `${phase.label} game`)}
                   aria-label={`Show the ${phase.count} ${phase.label}-game cards`}
                 >
                   {body}
@@ -287,6 +302,14 @@ export function DeckCurvePhases({
         })}
       </ul>
       {total === 0 && <p className="deck-curve-phases-empty">No nonland cards yet.</p>}
+      {groupSheet && (
+        <CardGroupSheet
+          title={groupSheet.title}
+          tally={groupSheet.tally}
+          onPick={pickFromGroup}
+          onClose={() => setGroupSheet(null)}
+        />
+      )}
       {carousel.preview}
     </section>
   );
