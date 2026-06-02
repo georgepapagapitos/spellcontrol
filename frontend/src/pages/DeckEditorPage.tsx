@@ -254,8 +254,9 @@ export function DeckEditorPage() {
       cardCount: deck.cards.length,
       deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
       oneAwayCombos: comboData.data?.oneAway,
+      ownedNames,
     });
-  }, [deck, comboData.data]);
+  }, [deck, comboData.data, ownedNames]);
 
   // Which Tune lane to expand on first paint — the one the verdict hero points
   // at (hero-pointed-expand). Falls back to Fill the gaps when the top move

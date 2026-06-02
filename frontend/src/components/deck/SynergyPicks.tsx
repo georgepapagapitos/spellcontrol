@@ -2,7 +2,7 @@ import './SynergyPicks.css';
 import { useMemo } from 'react';
 import { DeckCardRow } from './DeckCardRow';
 import { useCardCarousel } from './useCardCarousel';
-import { fromSynergySuggestion, type Change } from '@/lib/deck-change';
+import { fromSynergySuggestion, sortOwnedFirst, type Change } from '@/lib/deck-change';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 
 export interface SynergyPicksProps {
@@ -47,7 +47,12 @@ export function SynergyPicks({
       if (bucket) bucket.push(change);
       else map.set(s.axisLabel, [change]);
     }
-    return Array.from(map.entries()).map(([label, changes]) => ({ label, changes }));
+    // Owned-first within each axis group (the locked default): cards you already
+    // own surface above the ones you'd have to acquire.
+    return Array.from(map.entries()).map(([label, changes]) => ({
+      label,
+      changes: sortOwnedFirst(changes),
+    }));
     // `owned` is a fresh Set each render; depend on its identity via ownedNames.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestions, ownedNames]);
