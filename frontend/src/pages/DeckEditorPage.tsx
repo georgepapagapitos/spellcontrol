@@ -1,6 +1,6 @@
 import { Copy, MoreVertical, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import {
@@ -108,19 +108,41 @@ export function DeckEditorPage() {
   // (same card-picker pattern as Add cards), so it's never pinned inline.
   const viewScrollRef = useRef<HTMLDivElement>(null);
   const [showTestHand, setShowTestHand] = useState(false);
-  const [view, setView] = useState<DeckView>('deck');
+  // The active view lives in the URL (`?view=power`) so each tab switch is a real
+  // history entry: hardware/gesture back walks back through the tabs you visited
+  // before exiting the editor, and tabs become deep-linkable. 'deck' is the clean
+  // default (no param). Mirrors PlayPage's `?tab=` pattern.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = (searchParams.get('view') as DeckView | null) ?? 'deck';
+  const setView = useCallback(
+    (next: DeckView) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next === 'deck') p.delete('view');
+          else p.set('view', next);
+          return p;
+        },
+        { replace: false }
+      );
+    },
+    [setSearchParams]
+  );
   const [applyingOptimize, setApplyingOptimize] = useState(false);
   const [applyingCost, setApplyingCost] = useState(false);
   const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
   // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
   // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
-  const openView = useCallback((next: DeckView) => {
-    setView(next);
-    window.requestAnimationFrame(() => {
-      viewScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, []);
+  const openView = useCallback(
+    (next: DeckView) => {
+      setView(next);
+      window.requestAnimationFrame(() => {
+        viewScrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    },
+    [setView]
+  );
   // Chip / keyboard deep-links target a specific analysis view.
   const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
 
@@ -265,6 +287,25 @@ export function DeckEditorPage() {
   }, [collectionCards, binderDefs]);
 
   const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
+
+  // The Power hero's summary lines deep-link to their detail panels below.
+  // Bracket and Engine are always-open panels, so a scroll suffices; Combos is
+  // collapsible, so reuse its reveal() handle (expand + scroll + focus), landing
+  // on the one-away tab when the user owns completable pieces.
+  const scrollToPowerPanel = useCallback((id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, []);
+  const handleViewBracket = useCallback(
+    () => scrollToPowerPanel('deck-power-bracket'),
+    [scrollToPowerPanel]
+  );
+  const handleViewEngine = useCallback(
+    () => scrollToPowerPanel('deck-power-engine'),
+    [scrollToPowerPanel]
+  );
+  const handleViewCombos = useCallback(() => {
+    combosRef.current?.reveal(comboData.data?.almostInCollection.length ? 'oneAway' : 'inDeck');
+  }, [comboData.data?.almostInCollection.length]);
 
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
@@ -1107,9 +1148,22 @@ export function DeckEditorPage() {
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
                   engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
                   comboInDeck={comboData.data?.inDeck.length ?? 0}
-                  comboOneAway={comboData.data?.oneAway.length ?? 0}
                   comboOwnedMissing={comboData.data?.almostInCollection.length ?? 0}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
+                  // Link a pillar to its panel only when that panel actually renders below.
+                  onViewBracket={
+                    deck.bracketEstimation || deck.bracketOverride != null
+                      ? handleViewBracket
+                      : undefined
+                  }
+                  onViewEngine={
+                    deck.synergyAnalysis &&
+                    (deck.synergyAnalysis.warnings.length > 0 ||
+                      deck.synergyAnalysis.axes.length > 0)
+                      ? handleViewEngine
+                      : undefined
+                  }
+                  onViewCombos={handleViewCombos}
                 />
               ) : undefined
             }

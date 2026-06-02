@@ -43,6 +43,18 @@ function newImportId(): string {
 
 export type ImportMode = 'replace' | 'merge' | 'binder';
 
+// Prices come from Scryfall, which refreshes at most once every 24h, so a
+// card priced less than a day ago is as fresh as it can be — no point asking
+// again. A card is "stale" once its pricedAt is older than this (or missing).
+const PRICE_STALE_MS = 24 * 60 * 60 * 1000;
+// Floor between auto-refresh *attempts*, so a failed/offline try (or a fast
+// remount) can't thrash the endpoint. Device-local — see PRICE_REFRESH_LS_KEY.
+const PRICE_REFRESH_RETRY_MS = 60 * 60 * 1000;
+// Throttle timestamp lives in localStorage, NOT the synced store: "when did
+// THIS device last try a price refresh" is a device concern and must never
+// ride the sync path (it would clobber another device's clock for no reason).
+const PRICE_REFRESH_LS_KEY = 'spellcontrol:lastPriceAutoRefreshAttempt';
+
 interface CollectionState {
   cards: EnrichedCard[];
   fileName: string;
@@ -96,6 +108,14 @@ interface CollectionState {
    * in place, persists, and toggles isRefreshingPrices around the request.
    */
   refreshPrices: (scryfallIds?: string[]) => Promise<void>;
+  /**
+   * Silently refreshes prices when they've gone stale (>24h old or missing),
+   * delegating to refreshPrices(). Self-gating and safe to call on every boot:
+   * no-ops when there are no cards, when offline, when a refresh is already
+   * running, when nothing is stale, or when another attempt fired within the
+   * retry window. Throttle is device-local (localStorage), never synced.
+   */
+  autoRefreshStalePrices: () => Promise<void>;
   /**
    * Updates a single card in the collection by copyId. Replaces any provided
    * fields on the matching EnrichedCard, persists to IndexedDB, and preserves
@@ -517,6 +537,33 @@ export const useCollectionStore = create<CollectionState>()(
         } finally {
           set({ isRefreshingPrices: false });
         }
+      },
+
+      autoRefreshStalePrices: async () => {
+        const s = get();
+        if (s.cards.length === 0 || s.isRefreshingPrices) return;
+        // Never reach for the network when we know we're offline. (navigator is
+        // absent in the node test env; treat that as "online" so logic is testable.)
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+        const now = Date.now();
+        // Stale if ANY card was priced over a day ago or has never been priced
+        // (missing pricedAt → treated as epoch 0, i.e. maximally stale).
+        const stale = s.cards.some((c) => now - (c.pricedAt ?? 0) > PRICE_STALE_MS);
+        if (!stale) return;
+
+        // Device-local attempt throttle: skip if we already tried recently, so a
+        // failed/offline run (or a quick remount) can't hammer the endpoint.
+        try {
+          const last = Number(localStorage.getItem(PRICE_REFRESH_LS_KEY)) || 0;
+          if (now - last < PRICE_REFRESH_RETRY_MS) return;
+          localStorage.setItem(PRICE_REFRESH_LS_KEY, String(now));
+        } catch {
+          // localStorage unavailable (private mode / SSR) — fall through and
+          // still refresh; the in-flight isRefreshingPrices guard prevents overlap.
+        }
+
+        await get().refreshPrices();
       },
 
       clearCards: async () => {

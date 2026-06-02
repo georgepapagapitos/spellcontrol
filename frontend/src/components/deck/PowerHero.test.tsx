@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { PowerHero, type PowerHeroProps } from './PowerHero';
 
 const base: PowerHeroProps = {
@@ -12,7 +12,6 @@ const base: PowerHeroProps = {
   enginePayoffs: 8,
   engineLopsided: false,
   comboInDeck: 2,
-  comboOneAway: 3,
   comboOwnedMissing: 0,
   combosLoading: false,
 };
@@ -22,7 +21,8 @@ function renderHero(overrides: Partial<PowerHeroProps> = {}) {
 }
 
 /** Match by an element's full (whitespace-collapsed) textContent, since the
- *  hero splits copy across many text nodes (e.g. "10 prod · 8 payoff"). */
+ *  hero splits copy across many text nodes (e.g. "Balanced engine · 10
+ *  enablers, 8 payoffs"). */
 function hasText(re: RegExp): boolean {
   return Array.from(document.querySelectorAll('p, span')).some((el) =>
     re.test((el.textContent ?? '').replace(/\s+/g, ' ').trim())
@@ -53,18 +53,23 @@ describe('PowerHero', () => {
     expect(hasText(/^Bracket —$/)).toBe(true);
   });
 
-  it('renders the engine label and producer/payoff counts when balanced', () => {
+  it('renders the engine label and a "Balanced engine" verdict with spelled-out counts', () => {
     renderHero();
     expect(screen.getByText('Tokens / go-wide')).toBeTruthy();
-    expect(hasText(/^10 prod · 8 payoff$/)).toBe(true);
-    expect(screen.getByText('✓')).toBeTruthy();
-    expect(screen.queryByText('lopsided')).toBeNull();
+    expect(screen.getByText('Balanced engine')).toBeTruthy();
+    expect(hasText(/10 enablers, 8 payoffs/)).toBe(true);
+    expect(screen.queryByText('Lopsided')).toBeNull();
   });
 
-  it('shows the lopsided warning when the engine is lopsided', () => {
+  it('shows the lopsided verdict when the engine is lopsided', () => {
     renderHero({ engineLopsided: true });
-    expect(screen.getByText('lopsided')).toBeTruthy();
-    expect(screen.queryByText('✓')).toBeNull();
+    expect(screen.getByText('Lopsided')).toBeTruthy();
+    expect(screen.queryByText('Balanced engine')).toBeNull();
+  });
+
+  it('pluralizes a single enabler/payoff', () => {
+    renderHero({ engineProducers: 1, enginePayoffs: 1 });
+    expect(hasText(/1 enabler, 1 payoff$/)).toBe(true);
   });
 
   it('shows "No dominant engine yet" when there is no engine', () => {
@@ -79,10 +84,20 @@ describe('PowerHero', () => {
     expect(hasText(/in deck/)).toBe(false);
   });
 
-  it('renders combo counts when not loading', () => {
+  it('renders the in-deck count and "none you can complete now" with no owned pieces', () => {
     renderHero();
-    expect(hasText(/^2 in deck · 3 one away$/)).toBe(true);
+    expect(hasText(/^2 combos in deck · none you can complete now$/)).toBe(true);
     expect(screen.queryByText('Checking for combos…')).toBeNull();
+  });
+
+  it('shows the completable count when the user owns missing pieces', () => {
+    renderHero({ comboOwnedMissing: 3 });
+    expect(hasText(/^2 combos in deck · 3 you can complete$/)).toBe(true);
+  });
+
+  it('singularizes a single in-deck combo', () => {
+    renderHero({ comboInDeck: 1 });
+    expect(hasText(/^1 combo in deck · /)).toBe(true);
   });
 
   it('shows the collection chip only when owned-missing > 0 and not loading', () => {
@@ -100,5 +115,25 @@ describe('PowerHero', () => {
 
     renderHero({ comboOwnedMissing: 2 });
     expect(hasText(/You own the missing piece for 2 combos /)).toBe(true);
+  });
+
+  it('renders tappable links that fire navigation callbacks when wired', () => {
+    const onViewBracket = vi.fn();
+    const onViewEngine = vi.fn();
+    const onViewCombos = vi.fn();
+    renderHero({ onViewBracket, onViewEngine, onViewCombos });
+    fireEvent.click(screen.getByLabelText('View bracket details'));
+    fireEvent.click(screen.getByLabelText('View engine details'));
+    fireEvent.click(screen.getByLabelText('View combos'));
+    expect(onViewBracket).toHaveBeenCalledTimes(1);
+    expect(onViewEngine).toHaveBeenCalledTimes(1);
+    expect(onViewCombos).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders static lines (no link buttons) when navigation callbacks are absent', () => {
+    renderHero();
+    expect(screen.queryByLabelText('View bracket details')).toBeNull();
+    expect(screen.queryByLabelText('View engine details')).toBeNull();
+    expect(screen.queryByLabelText('View combos')).toBeNull();
   });
 });

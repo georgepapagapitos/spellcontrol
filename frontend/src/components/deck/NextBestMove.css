@@ -67,8 +67,10 @@
   --tier-color: var(--success, #2f7d4f);
 }
 
-/* The #1 move — the hero headline. Larger, lifted onto the base surface, with a
-   tier-tinted leading edge so the single most important action reads first. */
+/* The #1 move — the verdict-hero headline. Larger, lifted onto the base surface,
+   with a tier-tinted leading edge so the single most important action reads
+   first. (This reframe supersedes the earlier "no per-rank emphasis" list note:
+   in the hero, the top move IS the focal point.) */
 .next-best-move-row.is-primary {
   gap: 0.8rem;
   padding: 0.75rem 0.8rem;
@@ -203,18 +205,26 @@
   color: var(--text2);
 }
 
-/* ── Responsive — stack the nav button under the body on narrow containers
-   so nothing overflows at 320px. ── */
-@media (max-width: 480px) {
+/* ── Mobile: the nav becomes a full-width CTA stacked under the body text.
+   Inline-right reads as cramped chrome on a phone; a full-bleed button is a
+   bigger, more obvious tap target. Wraps cleanly (no indent, edge-to-edge) so
+   width:100% == the row's content width — no overflow. Above 600px it stays the
+   compact inline-right affordance. ── */
+@media (max-width: 600px) {
   .next-best-move-row {
     flex-wrap: wrap;
   }
 
+  .next-best-move-body {
+    /* basis 0 so [rank][body] always share line 1 (the number stays beside the
+       title) and only the full-width button wraps to its own line below. */
+    flex-basis: 0;
+  }
+
   .next-best-move-nav {
-    align-self: stretch;
-    justify-content: center;
     width: 100%;
-    margin-left: 2.05rem;
+    margin-left: 0;
+    justify-content: center;
   }
 }
 

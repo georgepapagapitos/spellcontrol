@@ -3238,7 +3238,7 @@ function DeckAnalysisView({
           {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
           <div className="deck-stats-pair">
             {(bracketEstimation || bracketOverride != null) && (
-              <Panel title="Bracket">
+              <Panel id="deck-power-bracket" title="Bracket">
                 <div className="deck-stats-bracket">
                   <strong>
                     Bracket {effectiveBracketValue} —{' '}
@@ -3304,7 +3304,9 @@ function DeckAnalysisView({
           {/* Engine — the synergy engine (lone, spans full width). */}
           {engineSlot && (
             <div className="deck-stats-pair">
-              <Panel title="Engine">{engineSlot}</Panel>
+              <Panel id="deck-power-engine" title="Engine">
+                {engineSlot}
+              </Panel>
             </div>
           )}
           {/* Combos — full width (its own multi-column grid inside). */}
@@ -3384,15 +3386,18 @@ function Panel({
   title,
   children,
   wide,
+  id,
 }: {
   title: string;
   children: React.ReactNode;
   /** Span the full surface width (for list-heavy panels whose items lay out in
    *  their own multi-column grid, e.g. Cards to consider). */
   wide?: boolean;
+  /** Stable id so the Power hero's summary lines can scroll to this panel. */
+  id?: string;
 }) {
   return (
-    <div className={`deck-stats-panel${wide ? ' deck-stats-panel--wide' : ''}`}>
+    <div id={id} className={`deck-stats-panel${wide ? ' deck-stats-panel--wide' : ''}`}>
       <h4 className="deck-stats-panel-title">{title}</h4>
       {children}
     </div>
