@@ -1,6 +1,8 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { LayoutGrid, Rows3 } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
+import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
+import { useSheetExit } from '../../lib/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { CardTally } from './useCardCarousel';
 import './CardGroupSheet.css';
@@ -46,15 +48,41 @@ export function CardGroupSheet({
 }): JSX.Element {
   const labelId = useId();
   const [layout, setLayout] = useState<GroupLayout>(readLayout);
+  const sheetRef = useRef<HTMLElement>(null);
+  const scrollBodyRef = useRef<HTMLUListElement>(null);
   useLockBodyScroll();
+
+  // Symmetric slide-down exit so every dismiss path (✕, Escape, backdrop,
+  // swipe) plays `sheet-fall` and continues from the finger's release offset
+  // instead of vanishing — same contract as the CardPreview carousel.
+  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
+
+  // Swipe-down-to-dismiss. The gesture spans the whole sheet but is GATED to
+  // when the grid/list body is scrolled to the top (iOS-style): short buckets
+  // (no scroll) dismiss from anywhere, long ones scroll first, then dismiss —
+  // so the swipe never fights the body's native vertical scroll.
+  const { isDragging, touchHandlers } = useSwipeDownDismiss({
+    onDismiss: beginClose,
+    sheetRef,
+    canStartDrag: () => (scrollBodyRef.current?.scrollTop ?? 0) <= 0,
+  });
+
+  // Snap-back: when a drag releases short of dismissal, clear the imperative
+  // inline transform so the `:not(.is-dragging)` CSS transition animates the
+  // sheet home. A real dismiss leaves the transform for `sheet-fall` to take over.
+  useLayoutEffect(() => {
+    if (isDragging || isClosing) return;
+    const sheet = sheetRef.current;
+    if (sheet) sheet.style.transform = '';
+  }, [isDragging, isClosing]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') beginClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [beginClose]);
 
   const chooseLayout = (next: GroupLayout) => {
     setLayout(next);
@@ -68,15 +96,26 @@ export function CardGroupSheet({
   const totalCards = tally.reduce((n, t) => n + t.count, 0);
 
   return (
-    <div className="card-group-backdrop" onClick={onClose}>
+    <div
+      className={`card-group-backdrop${isClosing ? ' is-closing' : ''}`}
+      onClick={() => beginClose()}
+    >
       <section
-        className="card-group-sheet"
+        ref={sheetRef}
+        className={`card-group-sheet${isDragging ? ' is-dragging' : ''}${
+          isClosing ? ' is-closing' : ''
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
+        style={exitStyle}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
+        {...touchHandlers}
       >
         <header className="card-group-head">
+          {/* Affordance for swipe-to-dismiss (touch only; hidden ≥600px). */}
+          <span className="card-group-handle" aria-hidden="true" />
           <div className="card-group-head-meta">
             <h3 id={labelId} className="card-group-title">
               {title}
@@ -109,14 +148,19 @@ export function CardGroupSheet({
                 <Rows3 size={16} aria-hidden="true" />
               </button>
             </div>
-            <button type="button" className="card-group-close" onClick={onClose} aria-label="Close">
+            <button
+              type="button"
+              className="card-group-close"
+              onClick={() => beginClose()}
+              aria-label="Close"
+            >
               ✕
             </button>
           </div>
         </header>
 
         {layout === 'grid' ? (
-          <ul className="card-group-grid" aria-label={title}>
+          <ul className="card-group-grid" aria-label={title} ref={scrollBodyRef}>
             {tally.map((t) => (
               <li key={t.name} className="card-group-cell">
                 <button
@@ -142,7 +186,7 @@ export function CardGroupSheet({
             ))}
           </ul>
         ) : (
-          <ul className="card-group-list" aria-label={title}>
+          <ul className="card-group-list" aria-label={title} ref={scrollBodyRef}>
             {tally.map((t) => (
               <li key={t.name}>
                 <button

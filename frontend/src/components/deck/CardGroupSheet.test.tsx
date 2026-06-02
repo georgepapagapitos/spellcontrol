@@ -72,15 +72,72 @@ describe('CardGroupSheet', () => {
     expect(container.querySelector('.card-group-grid')).toBeNull();
   });
 
-  it('closes via the ✕ button, the backdrop, and Escape', () => {
+  // Every dismiss path goes through the symmetric exit: it flips `is-closing`
+  // and fires onClose only when the `sheet-fall` animation ends (not synchronously).
+  const dismissEnd = (container: HTMLElement) => {
+    const sheet = container.querySelector('.card-group-sheet') as HTMLElement;
+    expect(sheet.className).toContain('is-closing');
+    fireEvent.animationEnd(sheet, { animationName: 'sheet-fall' });
+  };
+
+  it('dismisses via the ✕ button (waits for sheet-fall, then onClose)', () => {
     const onClose = vi.fn();
     const { container } = render(
       <CardGroupSheet title="Bucket" tally={tally} onPick={vi.fn()} onClose={onClose} />
     );
     fireEvent.click(screen.getByLabelText('Close'));
+    expect(onClose).not.toHaveBeenCalled(); // exit animation in flight
+    dismissEnd(container);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses via the backdrop', () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <CardGroupSheet title="Bucket" tally={tally} onPick={vi.fn()} onClose={onClose} />
+    );
     fireEvent.click(container.querySelector('.card-group-backdrop') as Element);
+    dismissEnd(container);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses via Escape', () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <CardGroupSheet title="Bucket" tally={tally} onPick={vi.fn()} onClose={onClose} />
+    );
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalledTimes(3);
+    dismissEnd(container);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses on a downward swipe when the body is at the top', () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <CardGroupSheet title="Bucket" tally={tally} onPick={vi.fn()} onClose={onClose} />
+    );
+    const sheet = container.querySelector('.card-group-sheet') as Element;
+    // Body defaults to scrollTop 0 → the swipe gate is open.
+    fireEvent.touchStart(sheet, { touches: [{ clientX: 100, clientY: 100 }] });
+    fireEvent.touchMove(sheet, { touches: [{ clientX: 100, clientY: 320 }] });
+    fireEvent.touchEnd(sheet, { changedTouches: [{ clientX: 100, clientY: 320 }] });
+    dismissEnd(container);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT dismiss on a downward swipe while the body is scrolled (defers to native scroll)', () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <CardGroupSheet title="Bucket" tally={tally} onPick={vi.fn()} onClose={onClose} />
+    );
+    const sheet = container.querySelector('.card-group-sheet') as Element;
+    const body = container.querySelector('.card-group-grid') as HTMLElement;
+    body.scrollTop = 200; // gate closed — swipe should scroll, not dismiss
+    fireEvent.touchStart(sheet, { touches: [{ clientX: 100, clientY: 100 }] });
+    fireEvent.touchMove(sheet, { touches: [{ clientX: 100, clientY: 320 }] });
+    fireEvent.touchEnd(sheet, { changedTouches: [{ clientX: 100, clientY: 320 }] });
+    expect(sheet.className).not.toContain('is-closing');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('does not close when the sheet body itself is clicked', () => {

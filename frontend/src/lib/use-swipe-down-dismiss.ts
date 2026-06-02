@@ -26,6 +26,15 @@ interface Options {
    * dismiss drag cannot also scroll it.
    */
   trackRef?: RefObject<HTMLElement | null>;
+  /**
+   * Optional gate checked at the moment a vertical drag would commit. Return
+   * false to let the touch fall through to native scrolling instead of starting
+   * a dismiss — e.g. a sheet whose body scrolls vertically returns
+   * `scrollTop <= 0` so the swipe only dismisses once the content is at the top.
+   * Omitted → vertical drags always start a dismiss (the carousel's behavior,
+   * where the nested scroll is horizontal so there's nothing to defer to).
+   */
+  canStartDrag?: () => boolean;
 }
 
 interface Result {
@@ -69,7 +78,12 @@ interface Result {
  *    the snap-back home. On a dismiss the transform is left in place for the
  *    `sheet-fall` keyframe to take over from.
  */
-export function useSwipeDownDismiss({ onDismiss, sheetRef, trackRef }: Options): Result {
+export function useSwipeDownDismiss({
+  onDismiss,
+  sheetRef,
+  trackRef,
+  canStartDrag,
+}: Options): Result {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const axisLockRef = useRef<'h' | 'v' | null>(null);
@@ -105,7 +119,13 @@ export function useSwipeDownDismiss({ onDismiss, sheetRef, trackRef }: Options):
       const hCommit = Math.abs(dx) > AXIS_LOCK_THRESHOLD_PX;
       const vCommit = dy > AXIS_LOCK_THRESHOLD_PX;
       if (hCommit || vCommit) {
-        axisLockRef.current = vCommit && dy > Math.abs(dx) ? 'v' : 'h';
+        // Vertical-dominant downward drag becomes a dismiss only when the
+        // consumer's gate allows it (e.g. scroll body at the top). When it's
+        // gated off we lock 'h' — deferring the WHOLE gesture to native scroll
+        // — rather than leaving the lock open, which would let a later move
+        // catch 'v' mid-drag and jump the sheet by the accumulated delta.
+        const verticalDismiss = vCommit && dy > Math.abs(dx) && (canStartDrag?.() ?? true);
+        axisLockRef.current = verticalDismiss ? 'v' : 'h';
         if (axisLockRef.current === 'v') setIsDragging(true);
       }
     }
