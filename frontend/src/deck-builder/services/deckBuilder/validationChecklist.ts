@@ -20,6 +20,36 @@ export interface ValidationResult {
   softWarns: number;
 }
 
+/**
+ * The verdict tone vocabulary the roll-up emits. Defined here (not imported from
+ * the component layer) so the service stays UI-free; VerdictBadge's `VerdictTone`
+ * is a superset, so these values stay assignable to it at the call sites.
+ */
+export type ValidationTone = 'success' | 'warn' | 'err';
+
+export interface ValidationSummary {
+  tone: ValidationTone;
+  label: string;
+  reason: string;
+}
+
+/**
+ * Roll the checklist up into one headline verdict: tone + a short label
+ * ("All clear" / "N to tune" / "N to fix") + the pass-ratio reason. Shared by the
+ * ValidationChecklist chip and the Stats-tab hero so there's one verdict roll-up.
+ */
+export function summarizeValidation(result: ValidationResult): ValidationSummary {
+  const { passCount, total, hardFails, softWarns } = result;
+  const reason = `${passCount} of ${total} checks pass.`;
+  if (hardFails > 0) {
+    return { tone: 'err', label: `${hardFails} to fix`, reason };
+  }
+  if (softWarns > 0) {
+    return { tone: 'warn', label: `${softWarns} to tune`, reason };
+  }
+  return { tone: 'success', label: 'All clear', reason };
+}
+
 export interface ValidationInput {
   /** The full deck incl. commander(s) — each card's name / type_line / cmc / color_identity. */
   cards: Array<{ name: string; type_line?: string; cmc?: number; color_identity?: string[] }>;

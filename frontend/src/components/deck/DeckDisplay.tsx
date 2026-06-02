@@ -72,6 +72,7 @@ import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
 import { ValidationChecklist } from './ValidationChecklist';
+import { StatsHero } from './StatsHero';
 import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
@@ -3084,7 +3085,13 @@ function DeckAnalysisView({
     <div className="deck-analysis-view">
       {current === 'stats' && (
         <div className="deck-bento deck-bento--stats">
-          {/* Mana curve — the hero, full-width so the stacked curve reads well. */}
+          {/* Functional verdict hero — leads the tab with the "is it functional?"
+              answer; demotes curve/color/types/validation below. Guarded like the
+              checklist itself (no checks → nothing to verdict). */}
+          {validation.checks.length > 0 && (
+            <StatsHero validation={validation} planScore={planScore ?? null} />
+          )}
+          {/* Mana curve — full-width so the stacked curve reads well. */}
           <Panel title="Mana curve" wide>
             <DeckCurvePhases
               manaCurve={manaData.manaCurve}
