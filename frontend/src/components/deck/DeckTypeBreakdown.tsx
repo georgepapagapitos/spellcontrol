@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
+import { CardGroupSheet } from './CardGroupSheet';
 import './DeckTypeBreakdown.css';
 
 /**
@@ -18,11 +19,20 @@ export function DeckTypeBreakdown({
   cardsByType?: Record<string, CardTally[]>;
 }): JSX.Element {
   const carousel = useCardCarousel('Card types');
+  // Tapping a type row opens the grouped overview sheet (same drill-down as the
+  // curve) before the one-at-a-time carousel.
+  const [groupSheet, setGroupSheet] = useState<{ title: string; tally: CardTally[] } | null>(null);
 
   const showType = (type: string) => {
     const tally = cardsByType?.[type] ?? [];
     if (tally.length === 0) return;
-    void carousel.open(tallyToEntries(tally), tally[0].name);
+    const sorted = [...tally].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    setGroupSheet({ title: type, tally: sorted });
+  };
+
+  const pickFromGroup = (picked: CardTally) => {
+    if (!groupSheet) return;
+    void carousel.open(tallyToEntries(groupSheet.tally), picked.name);
   };
   const { rows, total } = useMemo(() => {
     const entries = Object.entries(typeCounts).filter(([, count]) => count > 0);
@@ -88,6 +98,14 @@ export function DeckTypeBreakdown({
             );
           })}
         </ul>
+      )}
+      {groupSheet && (
+        <CardGroupSheet
+          title={groupSheet.title}
+          tally={groupSheet.tally}
+          onPick={pickFromGroup}
+          onClose={() => setGroupSheet(null)}
+        />
       )}
       {carousel.preview}
     </section>
