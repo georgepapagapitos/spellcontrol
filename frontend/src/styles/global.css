@@ -2811,6 +2811,15 @@ input[type='text'] {
   box-shadow: var(--shadow-tooltip);
 }
 
+/* Belt-and-suspenders: the JS capability gate (useHoverCapable) already keeps the
+   tooltip from rendering on touch/coarse pointers, but pin it shut in CSS too —
+   mirrors the deck hover-peek's gate so the two surfaces behave identically. */
+@media (hover: none), (pointer: coarse) {
+  .tooltip {
+    display: none;
+  }
+}
+
 .tooltip-name {
   font-weight: bold;
   margin-bottom: 3px;

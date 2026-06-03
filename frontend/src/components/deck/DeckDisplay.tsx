@@ -706,6 +706,9 @@ function AllocationChip({ row }: { row: Row }) {
         title={title}
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
+        // The whole deck-row is the hover-peek trigger; this inline deck-link
+        // sits inside it, so suppress the floating card while it's hovered/aimed at.
+        data-peek-suppress
       >
         <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
         <span className="deck-row-alloc-badge-label">{info.deckName}</span>
@@ -2861,7 +2864,11 @@ function DeckCardRow({
         ) : (
           <span className="mana-cost-row" aria-hidden />
         ))}
-      <div className="deck-row-menu" ref={menuRef}>
+      {/* data-peek-suppress: the whole row carries `data-peek-name`, so without
+          this the desktop hover-peek would float a card over the kebab and its
+          open menu. The marker (read by useDeckHoverPeek via isPeekSuppressed)
+          keeps the action zone clear. */}
+      <div className="deck-row-menu" ref={menuRef} data-peek-suppress>
         <button
           type="button"
           className="deck-row-menu-trigger"
