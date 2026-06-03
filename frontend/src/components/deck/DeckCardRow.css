@@ -19,10 +19,12 @@
   flex: 0 0 auto;
   width: 2.6rem;
   padding: 0;
-  border: 0.5px solid var(--border);
+  /* No CSS frame — the printed card art is its own edge; a border here doubles
+     up against it and reads as a halo. (Matches the old gap-suggestion thumb.) */
+  border: 0;
   border-radius: calc(var(--radius) * 0.6);
   overflow: hidden;
-  background: var(--surface);
+  background: var(--surface2);
   cursor: pointer;
 }
 
@@ -35,6 +37,8 @@
   width: 100%;
   aspect-ratio: 488 / 680;
   object-fit: cover;
+  /* Crop to the card's top (art + title) — more recognizable than a center crop. */
+  object-position: center top;
 }
 
 /* Game-changer overlay — bracket-relevant high-power flag. Mirrors the house GC
@@ -59,15 +63,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  padding: 0;
-  background: transparent;
-  border: 0;
+  /* Non-interactive text — only the thumbnail previews. */
   text-align: left;
-  cursor: pointer;
-}
-
-.deck-card-row-body:disabled {
-  cursor: default;
 }
 
 .deck-card-row-title {
@@ -183,6 +180,21 @@
 
 .deck-card-row-act:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+/* Cut variant — a secondary, destructive-leaning action (in "Consider cutting"),
+   so it reads as outline + muted, never competing with the accent Add buttons.
+   Warn tone on hover signals the removal. */
+.deck-card-row-act.is-cut {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  color: var(--text2);
+}
+
+.deck-card-row-act.is-cut:hover:not(:disabled) {
+  opacity: 1;
+  border-color: var(--warn-text, #b4690e);
+  color: var(--warn-text, #b4690e);
 }
 
 .deck-card-row-act:disabled {

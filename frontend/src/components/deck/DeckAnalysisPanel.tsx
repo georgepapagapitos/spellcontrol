@@ -856,7 +856,7 @@ function SuggestionRow({
         disabled={isAdding}
         aria-label={`Add ${card.name}`}
       >
-        <Plus width={12} height={12} aria-hidden />
+        <Plus width={14} height={14} aria-hidden />
         {isAdding ? 'Adding…' : 'Add'}
       </button>
     </li>
