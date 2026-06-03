@@ -2,7 +2,7 @@
  * The canonical shared model for the Tune-tab "prescription" surfaces.
  *
  * The Tune tab consolidates several deck-tuning surfaces (Fill the gaps /
- * Upgrade power / Fit a budget / Build from my binder) plus an in-context
+ * Upgrade power / Fit a budget / Build from my collection) plus an in-context
  * carousel "Swap this card" view. Each surface used to render its own bespoke
  * card row; this module gives them one shared `Change` shape so a lane and the
  * card-preview can never disagree about a recommendation, and the shared
@@ -15,6 +15,8 @@
  */
 import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
+import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 
 export { parsePrice };
@@ -22,7 +24,7 @@ export { parsePrice };
 export type ChangeType = 'add' | 'cut' | 'swap';
 
 /** The four intent lanes. The hero is a router, not a Change-owning lane. */
-export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'binder';
+export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'collection';
 
 /**
  * Allocation-aware ownership, evaluated at render time:
@@ -192,4 +194,100 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
     typeLine: g.typeLine,
     imageUrl: g.imageUrl,
   };
+}
+
+/**
+ * Adapt an `OptimizeCard` into a Change. The optimizer emits two pools —
+ * `additions` (higher-impact cards to bring in) and `removals` (weak/excess
+ * slots to cut) — so `kind` selects which side this row is. Additions are add
+ * Changes carrying live ownership; removals are ownership-blind cut Changes (you
+ * cut a slot you run regardless of whether you own a copy elsewhere). `group`
+ * carries the optimizer's `reasonCategory` for sub-section grouping.
+ */
+export function fromOptimizeCard(
+  o: OptimizeCard,
+  kind: 'add' | 'cut',
+  ownership?: ChangeOwnership
+): Change {
+  return {
+    id: `upgrade:${kind}:${o.name}`,
+    type: kind,
+    lane: 'upgrade',
+    name: o.name,
+    reason: o.reason,
+    ownership: kind === 'cut' ? undefined : ownership,
+    deltaPrice: o.price != null ? (parsePrice(o.price) ?? undefined) : undefined,
+    role: o.role,
+    roleLabel: o.roleLabel,
+    inclusion: o.inclusion ?? undefined,
+    isGameChanger: o.isGameChanger,
+    isThemeSynergy: o.isThemeSynergy,
+    group: o.reasonCategory,
+    cmc: o.cmc,
+    typeLine: o.primaryType,
+    imageUrl: o.imageUrl,
+  };
+}
+
+/**
+ * Adapt an owned-substitute row into a Change. "Build from my collection"
+ * resolves a missing staple you DON'T own to a card you DO own that fills the
+ * same role; mechanically that's an **add of the owned card** (nothing is cut —
+ * the wanted staple was never in the deck), framed with the wanted context that
+ * `substituteFinder` already wrote into `reason` (e.g. "Mind Stone fills the
+ * 2-mana ramp slot — owned, same mana rock"). Always owned by construction.
+ */
+export function fromSubstituteRow(r: SubstituteRow): Change {
+  return {
+    id: `collection:${r.usedName}`,
+    type: 'add',
+    lane: 'collection',
+    name: r.usedName,
+    reason: r.reason,
+    ownership: 'owned',
+    role: r.wantedRole,
+    roleLabel: r.wantedRoleLabel,
+    cmc: r.wantedCmc,
+  };
+}
+
+/** Higher = stronger reason to keep this row when two sources name one card. */
+function improveSignal(c: Change): number {
+  let s = 0;
+  if (c.ownership === 'owned')
+    s += 1000; // owned beats everything (zero-spend)
+  else if (c.ownership === 'in-other-deck') s += 500;
+  if (c.isThemeSynergy || typeof c.synergy === 'number') s += 100; // load-bearing synergy
+  if (c.lane === 'upgrade') s += 10; // optimizer-scored (whole-deck balanced)
+  return s + (c.inclusion ?? 0); // EDHREC inclusion as the fine tiebreak
+}
+
+/**
+ * Merge the Improve lane's add candidates from every source (gaps, optimize
+ * additions, synergy picks, owned substitutes) into one list: dedupe by card
+ * name (case-insensitive), keeping the higher-`improveSignal` row but **unioning**
+ * the synergy signal and best-known inclusion/synergy — so a card recommended by
+ * two sources surfaces as the stronger of the two (a staple that's also a synergy
+ * pick keeps both). Cuts are NOT merged here (handled in the "Consider cutting"
+ * sub-section). Returns owned-first order (the locked default).
+ */
+export function mergeImprove(changes: readonly Change[]): Change[] {
+  const byName = new Map<string, Change>();
+  for (const c of changes) {
+    if (c.type !== 'add') continue;
+    const key = c.name.toLowerCase();
+    const prior = byName.get(key);
+    if (!prior) {
+      byName.set(key, { ...c });
+      continue;
+    }
+    const winner = improveSignal(c) >= improveSignal(prior) ? c : prior;
+    byName.set(key, {
+      ...winner,
+      isThemeSynergy: prior.isThemeSynergy || c.isThemeSynergy || undefined,
+      inclusion: winner.inclusion ?? prior.inclusion ?? c.inclusion,
+      synergy: winner.synergy ?? prior.synergy ?? c.synergy,
+    });
+  }
+  return sortOwnedFirst([...byName.values()]);
 }

@@ -110,6 +110,7 @@
 
 .engine-suggestion-group-label {
   margin: 0 0 0.35rem;
+  font-family: var(--font-serif);
   font-size: var(--text-xs);
   font-weight: 700;
   text-transform: uppercase;

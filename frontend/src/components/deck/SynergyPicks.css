@@ -10,8 +10,11 @@
 
 .synergy-picks-title {
   margin: 0;
+  font-family: var(--font-serif);
   font-size: var(--text-sm);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text);
 }
 
@@ -29,6 +32,7 @@
 
 .synergy-picks-group-label {
   margin: 0.35rem 0 0.1rem;
+  font-family: var(--font-serif);
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;

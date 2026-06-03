@@ -10,8 +10,39 @@
   border-radius: var(--radius-lg);
 }
 
-/* Summary chips in the collapsed header read as muted, tabular at-a-glance
-   counts (mirrors .deck-combos-header-summary spacing). */
+/* Lane headers carry a full descriptor sentence (not the short count-chips the
+   shared chrome assumes), so the 4-col grid squeezes them into a tall sliver on
+   a phone. Re-flow into two rows — icon · title · chevron on top, the descriptor
+   as a full-width subtitle beneath the title — so it reads as one wrapped line
+   instead of a 5-line column. Scoped to .tune-lane; Combos/Stats/Test-hand keep
+   the inline 4-col layout. */
+.tune-lane .deck-combos-header {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 0.55rem;
+  row-gap: 0.15rem;
+}
+
+.tune-lane .deck-combos-header > svg:first-child {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.tune-lane .deck-combos-title {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.tune-lane .deck-combos-header-trailing {
+  grid-row: 1;
+  grid-column: 3;
+}
+
 .tune-lane .deck-combos-header-summary {
+  grid-row: 2;
+  /* Span from the title column to the right edge — indented past the icon. */
+  grid-column: 2 / -1;
+  margin-left: 0;
+  white-space: normal;
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
 }

@@ -10,13 +10,11 @@ import {
   Handshake,
   Layers,
   LayoutGrid,
-  Library,
   List as ListIconLucide,
   MoreVertical,
   Pencil,
   PiggyBank,
   Search,
-  Target,
   Trash2,
   TrendingUp,
   X,
@@ -367,23 +365,20 @@ export interface DeckDisplayProps {
    * Power / Improve tabs. (Test hand stays a separate standalone panel.)
    */
   combosSlot?: React.ReactNode;
-  suggestionsSlot?: React.ReactNode;
+  /** Unified Tune "Improve the deck" engine — merges EDHREC gap staples, optimizer
+   *  additions, off-meta synergy picks, and (in Owned-only mode) owned
+   *  substitutes into one list; optimizer removals fall into "Consider cutting".
+   *  Replaces the old fill-gaps / upgrade / collection lanes. Built by the page
+   *  (owns the add/cut flow + the EDHREC theme-browser). */
+  improveSlot?: React.ReactNode;
   /** "Next best move" suggestions, rendered atop the Overview view. Built by
    *  the page (it owns the live combo data + view-navigation callback). */
   nextBestMoveSlot?: React.ReactNode;
-  /** Cut/add Optimize surface, rendered in the Improve view. Built by the page
-   *  (it owns the apply flow: resolve names → store add/remove). */
-  optimizeSlot?: React.ReactNode;
   /** Budget cost-optimizer surface — the Tune tab's "Fit a budget" lane. */
   costSlot?: React.ReactNode;
-  /** Owned-substitute surface — the Tune tab's "Build from my binder" lane. */
-  substitutionSlot?: React.ReactNode;
   /** Engine *diagnostics* (axis-balance bars + warnings), rendered on the Power
-   *  tab. The off-meta suggestion rows are relocated to `synergyPicksSlot`. */
+   *  tab. */
   engineSlot?: React.ReactNode;
-  /** Relocated off-meta synergy picks — the "Synergy picks" sub-view of the
-   *  Tune tab's "Upgrade the power" lane, beside the Optimize plan. */
-  synergyPicksSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the one the verdict hero points at). */
@@ -817,13 +812,10 @@ export function DeckDisplay({
   onExportOpenChange,
   onAddFromSearch,
   combosSlot,
-  suggestionsSlot,
+  improveSlot,
   nextBestMoveSlot,
-  optimizeSlot,
   costSlot,
-  substitutionSlot,
   engineSlot,
-  synergyPicksSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -1409,7 +1401,8 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Desktop-only hover-peek for the list view (no-op on touch / native).
+  // Hover-peek for the list view — cursor-anchored, any hover-capable viewport
+  // (the shared default; consistent with the Improve lane). No-op on touch/native.
   const hoverPeek = useDeckHoverPeek();
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
@@ -1687,13 +1680,10 @@ export function DeckDisplay({
             saltiestCards={saltiestCards}
             planScore={planScore}
             combosSlot={combosSlot}
-            suggestionsSlot={suggestionsSlot}
+            improveSlot={improveSlot}
             nextBestMoveSlot={nextBestMoveSlot}
-            optimizeSlot={optimizeSlot}
             costSlot={costSlot}
-            substitutionSlot={substitutionSlot}
             engineSlot={engineSlot}
-            synergyPicksSlot={synergyPicksSlot}
             powerHeroSlot={powerHeroSlot}
             tuneDefaultLane={tuneDefaultLane}
             tuneFocusLane={tuneFocusLane}
@@ -3022,13 +3012,10 @@ function DeckAnalysisView({
   saltiestCards,
   planScore,
   combosSlot,
-  suggestionsSlot,
+  improveSlot,
   nextBestMoveSlot,
-  optimizeSlot,
   costSlot,
-  substitutionSlot,
   engineSlot,
-  synergyPicksSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -3054,13 +3041,10 @@ function DeckAnalysisView({
   planScore?: PlanScore;
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
-  suggestionsSlot?: React.ReactNode;
+  improveSlot?: React.ReactNode;
   nextBestMoveSlot?: React.ReactNode;
-  optimizeSlot?: React.ReactNode;
   costSlot?: React.ReactNode;
-  substitutionSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
-  synergyPicksSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the verdict hero's target). */
   tuneDefaultLane?: LaneId;
@@ -3114,16 +3098,16 @@ function DeckAnalysisView({
   const saltCarousel = useCardCarousel('Saltiest cards');
 
   // ── Tune intent lanes — imperative reveal targets for hero deep-links. ──
-  const fillGapsLaneRef = useRef<CollapsibleLaneHandle>(null);
-  const upgradeLaneRef = useRef<CollapsibleLaneHandle>(null);
+  // The three improve-flavored focuses (fill-gaps / upgrade / collection) all
+  // resolve to the single merged Improve lane; budget is its own lane.
+  const improveLaneRef = useRef<CollapsibleLaneHandle>(null);
   const budgetLaneRef = useRef<CollapsibleLaneHandle>(null);
-  const binderLaneRef = useRef<CollapsibleLaneHandle>(null);
   const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle>>>(
     () => ({
-      'fill-gaps': fillGapsLaneRef,
-      upgrade: upgradeLaneRef,
+      'fill-gaps': improveLaneRef,
+      upgrade: improveLaneRef,
+      collection: improveLaneRef,
       budget: budgetLaneRef,
-      binder: binderLaneRef,
     }),
     []
   );
@@ -3323,57 +3307,36 @@ function DeckAnalysisView({
           {/* Verdict hero — the single highest-leverage move + the intent router
               (deep-links into the lanes below). Full-width, like the Power hero. */}
           {nextBestMoveSlot}
-          {/* Four intent lanes — collapsible. The hero points at one, which
-              opens by default; the rest start collapsed (hero-pointed-expand).
-              Cards-to-consider is folded into Fill the gaps (the Suggestions
-              superset, whose gaps/all pills are the Top-picks/All views). */}
-          {suggestionsSlot && (
+          {/* Two intent lanes — collapsible (hero-pointed-expand). The Improve
+              engine merges the old Fill-the-gaps / Upgrade-power / Build-from-
+              collection sources into one ranked, owned-filterable list; Trim cost
+              stays separate (its swap-to-target apply contract is distinct). */}
+          {improveSlot && (
             <CollapsibleLane
-              ref={fillGapsLaneRef}
-              title="Fill the gaps"
-              icon={<Target width={16} height={16} aria-hidden />}
-              summary={<span>EDHREC staples your deck is missing</span>}
-              defaultCollapsed={tuneDefaultLane !== 'fill-gaps'}
-              storageKey="spellcontrol-tune-fill-gaps"
-            >
-              {suggestionsSlot}
-            </CollapsibleLane>
-          )}
-          {(optimizeSlot || synergyPicksSlot) && (
-            <CollapsibleLane
-              ref={upgradeLaneRef}
-              title="Upgrade the power"
+              ref={improveLaneRef}
+              title="Improve the deck"
               icon={<TrendingUp width={16} height={16} aria-hidden />}
-              summary={<span>Higher-impact cards for your weakest slots</span>}
-              defaultCollapsed={tuneDefaultLane !== 'upgrade'}
-              storageKey="spellcontrol-tune-upgrade"
+              summary={<span>Your best adds — staples, power, and synergy</span>}
+              defaultCollapsed={
+                tuneDefaultLane !== 'fill-gaps' &&
+                tuneDefaultLane !== 'upgrade' &&
+                tuneDefaultLane !== 'collection'
+              }
+              storageKey="spellcontrol-tune-improve"
             >
-              {optimizeSlot}
-              {synergyPicksSlot}
+              {improveSlot}
             </CollapsibleLane>
           )}
           {costSlot && (
             <CollapsibleLane
               ref={budgetLaneRef}
-              title="Fit a budget"
+              title="Trim cost"
               icon={<PiggyBank width={16} height={16} aria-hidden />}
               summary={<span>Cheaper cards that play the same role</span>}
               defaultCollapsed={tuneDefaultLane !== 'budget'}
               storageKey="spellcontrol-tune-budget"
             >
               {costSlot}
-            </CollapsibleLane>
-          )}
-          {substitutionSlot && (
-            <CollapsibleLane
-              ref={binderLaneRef}
-              title="Build from my binder"
-              icon={<Library width={16} height={16} aria-hidden />}
-              summary={<span>Owned cards that fill a missing role</span>}
-              defaultCollapsed={tuneDefaultLane !== 'binder'}
-              storageKey="spellcontrol-tune-binder"
-            >
-              {substitutionSlot}
             </CollapsibleLane>
           )}
         </div>

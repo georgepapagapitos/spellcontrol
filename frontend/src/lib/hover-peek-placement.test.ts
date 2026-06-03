@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computePeekPlacement, peekWidth, type PeekRect } from './hover-peek-placement';
+import {
+  computePeekPlacement,
+  computePointerPlacement,
+  peekWidth,
+  type PeekRect,
+} from './hover-peek-placement';
 
 // A roomy desktop viewport for the common cases.
 const VIEWPORT = { width: 1440, height: 900 };
@@ -53,6 +58,33 @@ describe('computePeekPlacement', () => {
   it('honors custom gap and margin', () => {
     const { left } = computePeekPlacement(row({}), VIEWPORT, CARD_W, CARD_H, 20, 4);
     expect(left).toBe(320 + 20);
+  });
+});
+
+describe('computePointerPlacement', () => {
+  it('floats to the right of the cursor with the gap when there is room', () => {
+    const { left, top } = computePointerPlacement(500, 450, VIEWPORT, CARD_W, CARD_H);
+    expect(left).toBe(500 + 16); // pointerX + default gap
+    expect(top).toBe(450 - CARD_H / 2); // vertically centered on the cursor
+  });
+
+  it('flips to the left of the cursor when the right would overflow', () => {
+    const { left } = computePointerPlacement(1400, 450, VIEWPORT, CARD_W, CARD_H);
+    expect(left).toBe(1400 - 16 - CARD_W);
+  });
+
+  it('flips left and stays on-screen in a narrow viewport', () => {
+    const narrow = { width: 380, height: 700 };
+    const { left, top } = computePointerPlacement(360, 350, narrow, CARD_W, CARD_H);
+    expect(left).toBe(360 - 16 - CARD_W); // flipped to the left of the cursor (104)
+    expect(left).toBeGreaterThanOrEqual(8);
+    expect(left + CARD_W).toBeLessThanOrEqual(380 - 8); // fully on-screen
+    expect(top).toBe(350 - CARD_H / 2);
+  });
+
+  it('clamps the vertical edges around the cursor', () => {
+    expect(computePointerPlacement(500, 0, VIEWPORT, CARD_W, CARD_H).top).toBe(8);
+    expect(computePointerPlacement(500, 900, VIEWPORT, CARD_W, CARD_H).top).toBe(900 - CARD_H - 8);
   });
 });
 

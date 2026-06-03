@@ -18,11 +18,10 @@ import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
 import { PowerHero } from '../components/deck/PowerHero';
-import { OptimizePanel } from '../components/deck/OptimizePanel';
+import { ImproveLane } from '../components/deck/ImproveLane';
+import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
-import { SynergyPicks } from '../components/deck/SynergyPicks';
-import { SubstitutionPanel } from '../components/deck/SubstitutionPanel';
 import {
   buildSubstitutionPlan,
   type SubstituteCandidate,
@@ -51,6 +50,14 @@ import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { getCardPrice, getCardByName } from '../deck-builder/services/scryfall/client';
+
+/** Functional role key → display label (the four roles the tagger classifies). */
+const ROLE_LABEL: Record<string, string> = {
+  ramp: 'Ramp',
+  removal: 'Removal',
+  boardwipe: 'Board Wipes',
+  cardDraw: 'Card Advantage',
+};
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -128,9 +135,15 @@ export function DeckEditorPage() {
     },
     [setSearchParams]
   );
-  const [applyingOptimize, setApplyingOptimize] = useState(false);
   const [applyingCost, setApplyingCost] = useState(false);
   const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
+  // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
+  // and a post-cut refill nudge (the card just cut + its role).
+  const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  const [refillAfterCut, setRefillAfterCut] = useState<{
+    name: string;
+    role: string | null;
+  } | null>(null);
   // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
   // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
@@ -180,6 +193,16 @@ export function DeckEditorPage() {
   // duplicates with a live "in deck × N" hint and let users add basics
   // multiple times.
   const formatConfig = deck ? DECK_FORMAT_CONFIGS[deck.format] : null;
+
+  // Commander decks are exactly 100 (mainboard 99, or 98 with a partner — the
+  // partner is the 2nd commander). Other formats have no hard upper bound here,
+  // so the replace-when-full prompt only fires for commander-like formats.
+  const isCommander = !!formatConfig?.hasCommander;
+  const mainboardLimit =
+    isCommander && formatConfig
+      ? formatConfig.mainboardSize - (deck?.partnerCommander ? 1 : 0)
+      : Infinity;
+  const deckIsFull = !!deck && deck.cards.length >= mainboardLimit;
 
   const existingCardCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -349,7 +372,7 @@ export function DeckEditorPage() {
   // at (hero-pointed-expand). Falls back to Fill the gaps when the top move
   // routes elsewhere (Deck/Stats/Power).
   const tuneDefaultLane = useMemo<LaneId>(() => {
-    const lanes: readonly LaneId[] = ['fill-gaps', 'upgrade', 'budget', 'binder'];
+    const lanes: readonly LaneId[] = ['fill-gaps', 'upgrade', 'budget', 'collection'];
     const hit = nextBestMoves.find(
       (m): m is typeof m & { focus: LaneId } =>
         m.focus != null && (lanes as readonly string[]).includes(m.focus)
@@ -503,50 +526,10 @@ export function DeckEditorPage() {
   // Apply an Optimize plan: cut the selected removals (by name → slot) and add
   // the selected additions (resolved from Scryfall + allocated against the
   // collection). Removals run first so the freed copies can be reallocated.
-  const handleApplyOptimize = async (removalNames: string[], additionNames: string[]) => {
-    if (!deck) return;
-    setApplyingOptimize(true);
-    try {
-      const slotsByName = new Map<string, string[]>();
-      for (const c of deck.cards) {
-        const k = c.card.name.toLowerCase();
-        const arr = slotsByName.get(k) ?? [];
-        arr.push(c.slotId);
-        slotsByName.set(k, arr);
-      }
-      let cuts = 0;
-      for (const name of removalNames) {
-        const slotId = slotsByName.get(name.toLowerCase())?.shift();
-        if (slotId) {
-          removeCard(deck.id, slotId);
-          cuts += 1;
-        }
-      }
-      let adds = 0;
-      for (const name of additionNames) {
-        try {
-          const scry = await getCardByName(name);
-          if (!scry) continue;
-          const allocations = buildAllocationMap(useDecksStore.getState().decks);
-          const claim = pickCollectionCopy(name, collectionCards, allocations, scry.id);
-          addCard(deck.id, scry, claim?.copyId ?? null);
-          adds += 1;
-        } catch {
-          /* skip cards that won't resolve */
-        }
-      }
-      pushToast({
-        message: `Applied ${cuts} cut${cuts === 1 ? '' : 's'} and ${adds} addition${adds === 1 ? '' : 's'}`,
-        tone: 'success',
-      });
-    } finally {
-      setApplyingOptimize(false);
-    }
-  };
-
-  // Add a single off-meta engine suggestion: resolve the name → full card,
-  // claim a collection copy if available, add. Mirrors Optimize's add path.
-  const handleAddEngineCard = async (cardName: string) => {
+  // Raw add: resolve name → full card, claim a free collection copy if any, add
+  // to the mainboard (or sideboard). The size-aware `handleAddEngineCard` and the
+  // deck-size prompt's actions (replace / sideboard / add-anyway) all route here.
+  const addResolvedCard = async (cardName: string, zone: 'main' | 'sideboard' = 'main') => {
     if (!deck) return;
     setAddingEngineNames((prev) => new Set(prev).add(cardName));
     try {
@@ -554,8 +537,13 @@ export function DeckEditorPage() {
       if (!scry) return;
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       const claim = pickCollectionCopy(cardName, collectionCards, allocations, scry.id);
-      addCard(deck.id, scry, claim?.copyId ?? null);
-      pushToast({ message: `Added ${cardName}`, tone: 'success' });
+      if (zone === 'sideboard') {
+        addSideboardCard(deck.id, scry, claim?.copyId ?? null);
+        pushToast({ message: `Added ${cardName} to sideboard`, tone: 'success' });
+      } else {
+        addCard(deck.id, scry, claim?.copyId ?? null);
+        pushToast({ message: `Added ${cardName}`, tone: 'success' });
+      }
     } catch {
       pushToast({ message: `Couldn't add ${cardName}`, tone: 'error' });
     } finally {
@@ -566,6 +554,125 @@ export function DeckEditorPage() {
       });
     }
   };
+
+  // Add from a Tune lane. A Commander deck at its card limit would overfill, so
+  // open the replace-when-full prompt instead of silently going to 101; otherwise
+  // add straight away.
+  const handleAddEngineCard = async (cardName: string) => {
+    if (!deck) return;
+    if (deckIsFull) {
+      setPendingAdd(cardName);
+      return;
+    }
+    await addResolvedCard(cardName);
+  };
+
+  // Cut a single in-deck card by name (the Improve lane's "Consider cutting"
+  // rows). removeCard is synchronous, so no in-flight gate. If the cut drops a
+  // previously-full Commander deck below the limit, nudge for a same-role refill.
+  const handleCutEngineCard = (cardName: string) => {
+    if (!deck) return;
+    const key = cardName.toLowerCase();
+    const slotId = deck.cards.find((c) => c.card.name.toLowerCase() === key)?.slotId;
+    if (!slotId) return;
+    const wasFull = deck.cards.length >= mainboardLimit;
+    removeCard(deck.id, slotId);
+    pushToast({ message: `Cut ${cardName}`, tone: 'success' });
+    if (isCommander && wasFull) {
+      setRefillAfterCut({ name: cardName, role: classifyCandidate(cardName) ?? null });
+    }
+  };
+
+  // Replace a chosen in-deck card with the pending add (1-for-1 keeps the deck
+  // legal): cut the slot first so its physical copy frees up, then add.
+  const handleReplaceWhenFull = async (cutSlotId: string) => {
+    if (!deck || !pendingAdd) return;
+    const name = pendingAdd;
+    setPendingAdd(null);
+    removeCard(deck.id, cutSlotId);
+    await addResolvedCard(name);
+  };
+
+  // Full-deck escape hatches: stash the card off-mainboard, or add over-limit.
+  const addToSideboardAndClose = async () => {
+    if (!pendingAdd) return;
+    const name = pendingAdd;
+    setPendingAdd(null);
+    await addResolvedCard(name, 'sideboard');
+  };
+  const addAnywayAndClose = async () => {
+    if (!pendingAdd) return;
+    const name = pendingAdd;
+    setPendingAdd(null);
+    await addResolvedCard(name);
+  };
+
+  // Replace-when-full options: cards to cut, suggested role-matched first (same
+  // role as the card being added → keeps the curve balanced), then the
+  // optimizer's weak/excess removals; `all` is every deck card for "pick another".
+  // Plain consts (not hooks) — computed below the early-return guard, only
+  // meaningful while a prompt is open.
+  const replaceOptions =
+    !pendingAdd || !deck
+      ? null
+      : (() => {
+          const newRole = classifyCandidate(pendingAdd);
+          const labelFor = (name: string): string | undefined => {
+            const r = classifyCandidate(name);
+            return r ? ROLE_LABEL[r] : undefined;
+          };
+          const toOpt = (
+            c: { slotId: string; card: ScryfallCard },
+            hint?: string
+          ): SizePromptOption => ({
+            key: c.slotId,
+            name: c.card.name,
+            roleLabel: labelFor(c.card.name),
+            hint,
+            onPick: () => void handleReplaceWhenFull(c.slotId),
+          });
+          const roleMatched = newRole
+            ? deck.cards.filter((c) => classifyCandidate(c.card.name) === newRole)
+            : [];
+          const matchedSlots = new Set(roleMatched.map((c) => c.slotId));
+          const weakNames = new Set(
+            (deck.optimizeSwaps?.removals ?? []).map((r) => r.name.toLowerCase())
+          );
+          const weak = deck.cards.filter(
+            (c) => weakNames.has(c.card.name.toLowerCase()) && !matchedSlots.has(c.slotId)
+          );
+          const suggested = [
+            ...roleMatched.map((c) => toOpt(c, 'same role')),
+            ...weak.map((c) => toOpt(c, 'weak slot')),
+          ].slice(0, 8);
+          const all = [...deck.cards]
+            .sort((a, b) => a.card.name.localeCompare(b.card.name))
+            .map((c) => toOpt(c));
+          return { suggested, all };
+        })();
+
+  // Refill-after-cut options: same-role staples the deck is missing (owned-first
+  // hint), to bring the deck back to its legal count.
+  const refillOptions: SizePromptOption[] =
+    !refillAfterCut || !deck
+      ? []
+      : (() => {
+          const role = refillAfterCut.role;
+          const deckNames = new Set(deck.cards.map((c) => c.card.name.toLowerCase()));
+          return (deck.gapAnalysis ?? [])
+            .filter((g) => (!role || g.role === role) && !deckNames.has(g.name.toLowerCase()))
+            .slice(0, 8)
+            .map((g) => ({
+              key: g.name,
+              name: g.name,
+              roleLabel: g.roleLabel,
+              hint: ownershipFor(g.name) === 'owned' ? 'owned' : undefined,
+              onPick: () => {
+                setRefillAfterCut(null);
+                void addResolvedCard(g.name);
+              },
+            }));
+        })();
 
   // In-context swap: cut the in-deck card at `slotId` and add `newName` in its
   // place (resolve → allocate → add). Removal runs BEFORE the add so the freed
@@ -1179,16 +1286,34 @@ export function DeckEditorPage() {
                 />
               ) : undefined
             }
-            suggestionsSlot={
-              formatConfig?.hasCommander ? (
-                <DeckAnalysisPanel
-                  embedded
-                  deckId={deck.id}
-                  format={deck.format}
-                  commander={deck.commander}
-                  partnerCommander={deck.partnerCommander}
-                  mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
-                  onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+            improveSlot={
+              formatConfig?.hasCommander &&
+              ((deck.gapAnalysis?.length ?? 0) > 0 ||
+                (deck.optimizeSwaps &&
+                  (deck.optimizeSwaps.additions.length > 0 ||
+                    deck.optimizeSwaps.removals.length > 0)) ||
+                (deck.synergyAnalysis?.suggestions.length ?? 0) > 0) ? (
+                <ImproveLane
+                  gaps={deck.gapAnalysis ?? []}
+                  optimize={deck.optimizeSwaps}
+                  synergy={deck.synergyAnalysis?.suggestions ?? []}
+                  substitutes={substitutionPlan?.rows ?? []}
+                  resolveOwnership={ownershipFor}
+                  onAdd={handleAddEngineCard}
+                  onCut={handleCutEngineCard}
+                  busyNames={addingEngineNames}
+                  commanderName={deck.commander?.name}
+                  browser={
+                    <DeckAnalysisPanel
+                      embedded
+                      deckId={deck.id}
+                      format={deck.format}
+                      commander={deck.commander}
+                      partnerCommander={deck.partnerCommander}
+                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                      onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
+                    />
+                  }
                 />
               ) : undefined
             }
@@ -1198,21 +1323,6 @@ export function DeckEditorPage() {
                   moves={nextBestMoves}
                   onNavigate={handleNbmNavigate}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
-                />
-              ) : undefined
-            }
-            optimizeSlot={
-              formatConfig?.hasCommander &&
-              deck.optimizeSwaps &&
-              (deck.optimizeSwaps.removals.length > 0 ||
-                deck.optimizeSwaps.additions.length > 0) ? (
-                <OptimizePanel
-                  swaps={deck.optimizeSwaps}
-                  currentSize={deck.cards.length}
-                  ownedNames={ownedNames}
-                  removalCards={deckCardsByName}
-                  onApply={handleApplyOptimize}
-                  applying={applyingOptimize}
                 />
               ) : undefined
             }
@@ -1227,38 +1337,16 @@ export function DeckEditorPage() {
                 />
               ) : undefined
             }
-            substitutionSlot={
-              formatConfig?.hasCommander && substitutionPlan && substitutionPlan.rows.length > 0 ? (
-                <SubstitutionPanel
-                  plan={substitutionPlan}
-                  onAdd={handleAddEngineCard}
-                  addingNames={addingEngineNames}
-                />
-              ) : undefined
-            }
             engineSlot={
               formatConfig?.hasCommander &&
               deck.synergyAnalysis &&
               (deck.synergyAnalysis.warnings.length > 0 || deck.synergyAnalysis.axes.length > 0) ? (
-                // Power tab keeps only the axis-balance diagnostics; the
-                // off-meta picks move to the Tune Upgrade lane (synergyPicksSlot).
+                // Power tab keeps only the axis-balance diagnostics; the off-meta
+                // picks live in the Tune Improve engine (synergy source).
                 <EnginePanel
                   analysis={deck.synergyAnalysis}
                   onAdd={handleAddEngineCard}
                   showSuggestions={false}
-                />
-              ) : undefined
-            }
-            synergyPicksSlot={
-              formatConfig?.hasCommander &&
-              deck.synergyAnalysis &&
-              deck.synergyAnalysis.suggestions.length > 0 ? (
-                <SynergyPicks
-                  suggestions={deck.synergyAnalysis.suggestions}
-                  resolveOwnership={ownershipFor}
-                  onAdd={handleAddEngineCard}
-                  addingNames={addingEngineNames}
-                  commanderName={deck.commander?.name}
                 />
               ) : undefined
             }
@@ -1447,6 +1535,35 @@ export function DeckEditorPage() {
             collectionMode={false}
           />
         </Modal>
+      )}
+
+      {/* Deck-size guard: replace-when-full (adding to a full Commander deck). */}
+      {pendingAdd && replaceOptions && deck && (
+        <DeckSizePrompt
+          title={`Deck is full (${deck.cards.length}/${mainboardLimit})`}
+          subtitle={`Replace a card with ${pendingAdd}?`}
+          actionVerb="Replace"
+          options={replaceOptions.suggested}
+          moreOptions={replaceOptions.all}
+          footer={[
+            { label: 'Add to sideboard', onClick: () => void addToSideboardAndClose() },
+            { label: 'Add anyway', onClick: () => void addAnywayAndClose() },
+            { label: 'Cancel', onClick: () => setPendingAdd(null), primary: true },
+          ]}
+          onClose={() => setPendingAdd(null)}
+        />
+      )}
+
+      {/* Deck-size guard: refill nudge (a cut dropped a full deck below 100). */}
+      {refillAfterCut && deck && (
+        <DeckSizePrompt
+          title={`Cut ${refillAfterCut.name}`}
+          subtitle="Add a replacement to keep your deck at its limit?"
+          actionVerb="Add"
+          options={refillOptions}
+          footer={[{ label: 'Leave it', onClick: () => setRefillAfterCut(null), primary: true }]}
+          onClose={() => setRefillAfterCut(null)}
+        />
       )}
 
       {/* Suppress unused-import lint */}
