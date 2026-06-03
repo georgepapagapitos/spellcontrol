@@ -1,5 +1,5 @@
 import './DeckCardRow.css';
-import { Loader2, Plus } from 'lucide-react';
+import { ArrowLeftRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge, type Verdict } from './VerdictBadge';
 import type { Change } from '@/lib/deck-change';
@@ -23,18 +23,26 @@ const VERDICT_FOR_TYPE: Record<Change['type'], Verdict> = {
   swap: 'substitute',
 };
 
+/** type → the action button's leading icon + default verb (icon size 14, per
+ *  STYLE_GUIDE action-button anatomy). An explicit `actLabel` still wins. */
+const ACT_ICON = { add: Plus, cut: Minus, swap: ArrowLeftRight } as const;
+const ACT_VERB: Record<Change['type'], string> = { add: 'Add', cut: 'Cut', swap: 'Swap' };
+
 export interface DeckCardRowProps {
   change: Change;
   /** Threaded so the inclusion line reads "In N% of {commanderName} decks". */
   commanderName?: string;
   /** Tap the thumbnail/body → open the card carousel (the complement view). */
   onPreview?: (change: Change) => void;
-  /** The row's primary action (Add / Swap in). Omit for a read-only row. */
+  /** The row's primary action (Add / Cut / Swap in). Omit for a read-only row. */
   onAct?: (change: Change) => void;
-  /** Action button label. */
+  /** Override the action button label. Defaults to the verb for `change.type`. */
   actLabel?: string;
   /** Action in flight — disables the button and shows a spinner. */
   acting?: boolean;
+  /** Marks the row for the desktop hover-peek (`useDeckHoverPeek` reads
+   *  `[data-peek-name]`). Omit to opt the row out of hover-peek. */
+  peekName?: string;
 }
 
 /**
@@ -49,12 +57,15 @@ export function DeckCardRow({
   commanderName,
   onPreview,
   onAct,
-  actLabel = 'Add',
+  actLabel,
   acting,
+  peekName,
 }: DeckCardRowProps): JSX.Element {
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice } = change;
   const thumb = change.imageUrl || fallbackThumb(name);
   const preview = onPreview ? () => onPreview(change) : undefined;
+  const ActIcon = ACT_ICON[change.type];
+  const label = actLabel ?? ACT_VERB[change.type];
 
   // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick.
   const inclusionNode =
@@ -74,12 +85,16 @@ export function DeckCardRow({
 
   return (
     <li className="deck-card-row">
+      {/* Only the thumbnail is the preview affordance — tap opens the carousel,
+          hover (desktop) floats the peek. The body is non-interactive text so a
+          stray tap/hover on the name or badges doesn't trigger either. */}
       <button
         type="button"
         className="deck-card-row-art"
+        data-peek-name={peekName}
         onClick={preview}
         disabled={!preview}
-        aria-label={preview ? `Preview ${name} art` : `${name} art`}
+        aria-label={preview ? `Preview ${name}` : `${name} art`}
       >
         <img src={thumb} alt="" loading="lazy" />
         {change.isGameChanger && (
@@ -89,13 +104,7 @@ export function DeckCardRow({
         )}
       </button>
 
-      <button
-        type="button"
-        className="deck-card-row-body"
-        onClick={preview}
-        disabled={!preview}
-        aria-label={preview ? `Preview ${name}` : name}
-      >
+      <div className="deck-card-row-body">
         <span className="deck-card-row-title">
           <span className="deck-card-row-name">{name}</span>
           {roleLabel && <span className="deck-card-row-role">{roleLabel}</span>}
@@ -123,22 +132,22 @@ export function DeckCardRow({
           reason={reason}
           className="deck-card-row-verdict"
         />
-      </button>
+      </div>
 
       {onAct && (
         <button
           type="button"
-          className="deck-card-row-act"
+          className={`deck-card-row-act${change.type === 'cut' ? ' is-cut' : ''}`}
           onClick={() => onAct(change)}
           disabled={acting}
-          aria-label={acting ? `Adding ${name}` : `${actLabel} ${name}`}
+          aria-label={acting ? `${label}ing ${name}` : `${label} ${name}`}
         >
           {acting ? (
             <Loader2 className="deck-card-row-spinner" aria-hidden />
           ) : (
-            <Plus width={14} height={14} aria-hidden />
+            <ActIcon width={14} height={14} aria-hidden />
           )}
-          {actLabel}
+          {label}
         </button>
       )}
     </li>

@@ -70,13 +70,21 @@ describe('DeckCardRow', () => {
     expect(actBtn.disabled).toBe(true);
   });
 
-  it('fires onPreview from the thumbnail/body when provided', () => {
+  it('fires onPreview only from the thumbnail (not the row body)', () => {
     const onPreview = vi.fn();
-    render(<DeckCardRow change={add()} onPreview={onPreview} />);
-    fireEvent.click(
-      screen.getByLabelText('Preview Sol Ring art', { selector: '.deck-card-row-art' })
+    const { container } = render(
+      <DeckCardRow change={add()} onPreview={onPreview} peekName="Sol Ring" />
     );
+    // The body is non-interactive — clicking the name must NOT preview.
+    fireEvent.click(screen.getByText('Sol Ring'));
+    expect(onPreview).not.toHaveBeenCalled();
+    // Only the thumbnail opens the preview.
+    fireEvent.click(screen.getByLabelText('Preview Sol Ring'));
     expect(onPreview).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sol Ring' }));
+    // The body carries no data-peek-name; only the thumbnail does (hover-peek).
+    expect(container.querySelector('.deck-card-row-art')?.getAttribute('data-peek-name')).toBe(
+      'Sol Ring'
+    );
   });
 
   it('renders no action button when onAct is omitted', () => {

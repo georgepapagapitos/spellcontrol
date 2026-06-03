@@ -1,6 +1,7 @@
 import './SubstitutionPanel.css';
 import { useMemo } from 'react';
 import type { MouseEvent } from 'react';
+import { Plus } from 'lucide-react';
 import type {
   SubstitutionPlan,
   SubstituteRow,
@@ -99,6 +100,7 @@ function Row({
           disabled={adding}
           aria-label={`Add ${row.usedName}`}
         >
+          <Plus width={14} height={14} aria-hidden />
           {adding ? 'Adding…' : 'Add'}
         </button>
       </div>

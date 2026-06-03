@@ -5,10 +5,15 @@ import {
   laneSummary,
   fromSynergySuggestion,
   fromGapCard,
+  fromOptimizeCard,
+  fromSubstituteRow,
+  mergeImprove,
   parsePrice,
 } from './deck-change';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 
 /** Minimal add Change for the lane helpers. */
 function add(over: Partial<Change>): Change {
@@ -157,6 +162,107 @@ describe('fromGapCard', () => {
     const c = fromGapCard({ ...gap, roleLabel: undefined, price: null });
     expect(c.reason).toBe('EDHREC staple');
     expect(c.deltaPrice).toBeUndefined();
+  });
+});
+
+describe('fromOptimizeCard', () => {
+  const base: OptimizeCard = {
+    name: 'Smothering Tithe',
+    reason: 'Fills Card Advantage gap',
+    reasonCategory: 'Card Advantage',
+    inclusion: 41,
+    price: '$24.00',
+    role: 'cardDraw',
+    roleLabel: 'Card Advantage',
+    imageUrl: 'http://img/tithe',
+    cmc: 4,
+    primaryType: 'Enchantment',
+    isGameChanger: true,
+    isThemeSynergy: false,
+  };
+
+  it('maps an addition into an add Change carrying live ownership', () => {
+    const c = fromOptimizeCard(base, 'add', 'unowned');
+    expect(c.type).toBe('add');
+    expect(c.lane).toBe('upgrade');
+    expect(c.id).toBe('upgrade:add:Smothering Tithe');
+    expect(c.ownership).toBe('unowned');
+    expect(c.deltaPrice).toBe(24);
+    expect(c.inclusion).toBe(41);
+    expect(c.group).toBe('Card Advantage');
+    expect(c.isGameChanger).toBe(true);
+  });
+
+  it('maps a removal into an ownership-blind cut Change', () => {
+    const c = fromOptimizeCard({ ...base, name: 'Hedron Archive' }, 'cut', 'owned');
+    expect(c.type).toBe('cut');
+    expect(c.id).toBe('upgrade:cut:Hedron Archive');
+    expect(c.ownership).toBeUndefined(); // cuts are ownership-blind
+  });
+
+  it('leaves price + inclusion undefined when the optimizer omits them', () => {
+    const c = fromOptimizeCard({ ...base, price: undefined, inclusion: null }, 'add');
+    expect(c.deltaPrice).toBeUndefined();
+    expect(c.inclusion).toBeUndefined();
+  });
+});
+
+describe('fromSubstituteRow', () => {
+  const row: SubstituteRow = {
+    wantedName: 'Cyclonic Rift',
+    wantedRole: 'boardwipe',
+    wantedRoleLabel: 'Board Wipes',
+    wantedCmc: 7,
+    usedName: 'Evacuation',
+    usedSubtypeMatch: true,
+    reason: 'Evacuation fills the board-wipe slot — owned, same bounce',
+  };
+
+  it('adapts to an add of the OWNED card (nothing is cut), always owned', () => {
+    const c = fromSubstituteRow(row);
+    expect(c.type).toBe('add');
+    expect(c.lane).toBe('collection');
+    expect(c.name).toBe('Evacuation'); // the owned card we actually add
+    expect(c.id).toBe('collection:Evacuation');
+    expect(c.ownership).toBe('owned');
+    expect(c.reason).toContain('Evacuation');
+    expect(c.role).toBe('boardwipe');
+    expect(c.roleLabel).toBe('Board Wipes');
+    expect(c.cmc).toBe(7);
+  });
+});
+
+describe('mergeImprove', () => {
+  it('dedupes by name (case-insensitive), keeping the higher-signal row', () => {
+    const owned = add({ name: 'Cultivate', ownership: 'owned', inclusion: 60 });
+    const unowned = add({ name: 'cultivate', ownership: 'unowned', inclusion: 60 });
+    const out = mergeImprove([unowned, owned]);
+    expect(out).toHaveLength(1);
+    expect(out[0].ownership).toBe('owned'); // owned wins regardless of input order
+  });
+
+  it('unions the synergy signal across sources for a survivor', () => {
+    const staple = add({ name: 'Esper Sentinel', ownership: 'owned', inclusion: 70 });
+    const synergy = add({
+      name: 'Esper Sentinel',
+      ownership: 'owned',
+      isThemeSynergy: true,
+      synergy: 18,
+    });
+    const out = mergeImprove([staple, synergy]);
+    expect(out).toHaveLength(1);
+    expect(out[0].isThemeSynergy).toBe(true); // synergy flag survives the merge
+    expect(out[0].inclusion).toBe(70); // best-known inclusion kept
+    expect(out[0].synergy).toBe(18);
+  });
+
+  it('returns owned-first order and ignores cuts', () => {
+    const out = mergeImprove([
+      add({ name: 'unowned', ownership: 'unowned' }),
+      add({ name: 'owned', ownership: 'owned' }),
+      add({ name: 'cutme', type: 'cut', ownership: undefined }),
+    ]);
+    expect(out.map((c) => c.name)).toEqual(['owned', 'unowned']); // cut dropped
   });
 });
 

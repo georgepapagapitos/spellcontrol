@@ -1,14 +1,27 @@
 import { type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { computePeekPlacement, peekWidth } from '@/lib/hover-peek-placement';
+import {
+  computePeekPlacement,
+  computePointerPlacement,
+  peekWidth,
+} from '@/lib/hover-peek-placement';
 
 // MTG card aspect ratio (Scryfall normal is 488×680) — derives the peek height
 // from its (viewport-responsive) width for the vertical centering/clamping math.
 const CARD_ASPECT = 680 / 488;
-// Below this viewport width there's no gutter to host the peek beside the row,
-// so it would just overlap the list. Fall back to click→sheet there. (The
-// `(hover: hover) and (pointer: fine)` capability gate already excludes touch;
-// this additionally excludes narrow desktop windows + tablet-with-mouse <1024.)
-const PEEK_MIN_VIEWPORT = 1024;
+// Default min viewport for the gutter ('row') anchor: below this there's no
+// gutter to host the peek beside a row, so it would overlap the list. The
+// default cursor ('pointer') anchor needs no gutter, so it activates at any width.
+
+export interface HoverPeekOptions {
+  /** Smallest viewport width (px) at which the peek activates. Default 0 — the
+   *  cursor anchor needs no gutter. Pass a floor (e.g. 1024) only for the legacy
+   *  gutter anchor, which needs the room. */
+  minViewport?: number;
+  /** 'pointer' (default) floats the peek beside the cursor — works in a centered
+   *  panel or a list, at any width, and is the unified behavior across surfaces.
+   *  'row' pins it in the gutter beside the hovered row (needs `minViewport`). */
+  anchor?: 'row' | 'pointer';
+}
 
 export interface HoverPeekState {
   name: string;
@@ -20,16 +33,18 @@ export interface HoverPeekState {
 }
 
 /**
- * Desktop-only hover-peek for the deck list: hovering a row floats the full card
- * art into the empty horizontal gutter beside it (the 20q2 `FloatingPreview`
- * pattern) so a card can be inspected without leaving the list or opening the
- * full-screen sheet. Capability-gated to `(hover: hover) and (pointer: fine)`,
- * so touch / mobile / native never trigger it — those keep the tap→sheet flow
- * unchanged. Returns the active peek plus delegated handlers to spread on the
- * list container (one `data-peek-name` attribute per row is all the markup it
- * needs).
+ * Hover-peek shared by the deck list and the Tune Improve lane: hovering a
+ * `[data-peek-name]` element floats the full card art beside the cursor so a card
+ * can be inspected without leaving the surface or opening the full-screen sheet.
+ * Cursor-anchored by default (works in a list or a centered panel, at any
+ * viewport width); a legacy `anchor: 'row'` gutter mode remains for callers that
+ * have the room. Capability-gated to `(hover: hover) and (pointer: fine)`, so
+ * touch / mobile / native never trigger it — those keep the tap→sheet flow.
+ * Dismisses the moment the pointer leaves a tracked element (or the container).
+ * Returns the active peek plus delegated handlers to spread on the container
+ * (one `data-peek-name` attribute per hoverable element is all the markup it needs).
  */
-export function useDeckHoverPeek() {
+export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverPeekOptions = {}) {
   const [peek, setPeek] = useState<HoverPeekState | null>(null);
   // Mirror in a ref (synced via effect, never written during render) so the
   // stable handlers can dedupe against the current peek without re-subscribing.
@@ -67,26 +82,31 @@ export function useDeckHoverPeek() {
     };
   }, [peek]);
 
-  const onMouseOver = useCallback((e: MouseEvent) => {
-    if (!capableRef.current) return;
-    const vw = window.innerWidth;
-    if (vw < PEEK_MIN_VIEWPORT) return; // no desktop gutter to host the peek
-    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-peek-name]');
-    // Hovering a gap between rows: keep the current peek rather than flicker it.
-    if (!el) return;
-    const name = el.dataset.peekName;
-    if (!name || name === peekRef.current?.name) return;
-    const rect = el.getBoundingClientRect();
-    const width = peekWidth(vw);
-    const height = Math.round(width * CARD_ASPECT);
-    const { left, top } = computePeekPlacement(
-      rect,
-      { width: vw, height: window.innerHeight },
-      width,
-      height
-    );
-    setPeek({ name, left, top, width });
-  }, []);
+  const onMouseOver = useCallback(
+    (e: MouseEvent) => {
+      if (!capableRef.current) return;
+      const vw = window.innerWidth;
+      if (vw < minViewport) return; // gutter anchor needs the room; pointer passes 0
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-peek-name]');
+      if (!el) {
+        // Pointer anchor follows the thumbnail, so leaving it (onto the row body
+        // or a gap) hides the peek. Row anchor keeps it to avoid row-to-row flicker.
+        if (anchor === 'pointer') setPeek(null);
+        return;
+      }
+      const name = el.dataset.peekName;
+      if (!name || name === peekRef.current?.name) return;
+      const width = peekWidth(vw);
+      const height = Math.round(width * CARD_ASPECT);
+      const viewport = { width: vw, height: window.innerHeight };
+      const { left, top } =
+        anchor === 'pointer'
+          ? computePointerPlacement(e.clientX, e.clientY, viewport, width, height)
+          : computePeekPlacement(el.getBoundingClientRect(), viewport, width, height);
+      setPeek({ name, left, top, width });
+    },
+    [minViewport, anchor]
+  );
 
   const onMouseLeave = useCallback(() => setPeek(null), []);
 

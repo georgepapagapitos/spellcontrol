@@ -1,5 +1,6 @@
 import './CostPanel.css';
 import { useCallback, useMemo, useState, type MouseEvent } from 'react';
+import { Check } from 'lucide-react';
 import {
   autoCheckToTarget,
   type CostConfidence,
@@ -324,6 +325,7 @@ export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): 
           disabled={selectedCount === 0 || applying}
           aria-label={applyAria}
         >
+          <Check width={14} height={14} aria-hidden />
           {applying ? 'Applying…' : `Apply ${selectedCount} swap${selectedCount === 1 ? '' : 's'}`}
         </button>
       </div>
