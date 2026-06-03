@@ -35,6 +35,23 @@ Anti-patterns this rule kills:
   mobile, a rect on desktop).
 - A text action button styled as a pill so it reads like a tag.
 
+**Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
+button is an **accent-fill rect with a leading lucide icon at `width/height={14}`
++ a text label** (`var(--accent)` bg, `var(--on-accent)` text, `var(--radius)`,
+`:hover` → `var(--accent-hover)`). Two intents share the look, differing only by
+glyph: per-card **add** uses `Plus`; bulk **apply / commit a plan** uses `Check`.
+The baseline is `DeckCardRow`'s `.deck-card-row-act`; `.sub-add`,
+`.deck-analysis-suggest-add`, `.engine-suggestion-add`, `.optimize-apply`,
+`.cost-apply` all match it. Don't ship a hover-only-accent or icon-less variant —
+on touch there's no hover, so a muted base reads as a different (secondary)
+control. A genuine **secondary** action (e.g. Cost's "Auto-select to target")
+may stay outline (`var(--surface2)` bg + border), but that's the only tier-2.
+
+**Collapsible/section titles use `var(--font-serif)`, uppercase,
+`letter-spacing`** — the `.deck-combos-title` family. Any new lane/group heading
+(`.synergy-picks-title`, `.engine-suggestion-group-label`, …) joins it; a plain
+sans-bold heading reads as off-family.
+
 ## Tabs / view switchers
 
 - Page-level "distinct views" switcher → the `underline` variant of

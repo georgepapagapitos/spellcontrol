@@ -37,6 +37,33 @@ export function peekWidth(viewportWidth: number, min = 200, max = 300, vwFractio
   return Math.round(Math.min(max, Math.max(min, viewportWidth * vwFraction)));
 }
 
+/**
+ * Cursor-anchored placement: float the peek just beside the pointer, on the side
+ * with room, clamped into the viewport. Unlike `computePeekPlacement` (which pins
+ * to a row's gutter) this needs no empty gutter, so it works inside a centered
+ * max-width panel and at any viewport width — the right fit for the Improve lane.
+ */
+export function computePointerPlacement(
+  pointerX: number,
+  pointerY: number,
+  viewport: PeekViewport,
+  cardW: number,
+  cardH: number,
+  gap = 16,
+  margin = 8
+): PeekPlacement {
+  // Prefer the right of the cursor; flip left if it would overflow.
+  let left = pointerX + gap;
+  if (left + cardW + margin > viewport.width) left = pointerX - gap - cardW;
+  left = Math.max(margin, Math.min(left, viewport.width - cardW - margin));
+
+  // Vertically center on the cursor, clamped on-screen.
+  let top = pointerY - cardH / 2;
+  top = Math.max(margin, Math.min(top, viewport.height - cardH - margin));
+
+  return { left, top };
+}
+
 export function computePeekPlacement(
   row: PeekRect,
   viewport: PeekViewport,

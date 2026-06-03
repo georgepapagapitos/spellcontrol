@@ -1,5 +1,6 @@
 import './OptimizePanel.css';
 import { useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useOptimizePlan, type OptimizeSide, type TriState } from './useOptimizePlan';
@@ -487,6 +488,7 @@ export function OptimizePanel({
           aria-label={applyAria}
           onClick={() => onApply(plan.checkedRemovalNames, plan.checkedAdditionNames)}
         >
+          <Check width={14} height={14} aria-hidden />
           {applying ? 'Applying…' : 'Apply changes'}
         </button>
       </div>
