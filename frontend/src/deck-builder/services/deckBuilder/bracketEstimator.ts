@@ -166,6 +166,16 @@ const STAX_FLOOR_BRACKET_3_THRESHOLD = 3;
 const STAX_FLOOR_BRACKET_4_THRESHOLD = 5;
 
 /**
+ * True when `name` is a canonical stax / lock piece (the same curated pool the
+ * estimator counts for its stax floors). Exposed so the Bracket Fit replacement
+ * finder can refuse to swap in another stax piece — which would re-trigger the
+ * very floor the cut was meant to lower.
+ */
+export function isStaxPiece(name: string): boolean {
+  return STAX_PIECES.has(name);
+}
+
+/**
  * Tutor handling — known divergence from current strict-RC text.
  *
  * The October 2025 RC update **removed tutor restrictions entirely** from

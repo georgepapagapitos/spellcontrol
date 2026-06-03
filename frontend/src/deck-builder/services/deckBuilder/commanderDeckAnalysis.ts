@@ -5,7 +5,7 @@ import type {
   DetectedCombo,
   GapAnalysisCard,
 } from '@/deck-builder/types';
-import type { ComboMatchResponse } from '@/types/combos';
+import type { ComboMatch, ComboMatchResponse } from '@/types/combos';
 import {
   getCardRole,
   getRampSubtype,
@@ -22,6 +22,7 @@ import {
 import { isBasicLandName } from '@/lib/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
+import { buildBracketFitPlan, type BracketFitPlan } from './bracketFit';
 import {
   analyzeDeck,
   getDeckSummaryData,
@@ -339,6 +340,12 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   costPlan?: CostPlan;
   /** Native synergy engine analysis + off-meta suggestions (the "Engine" surface). */
   synergyAnalysis?: SynergyAnalysis;
+  /**
+   * Bracket Fit coaching plan — concrete card moves to reach the user's target
+   * bracket. Only computed when `targetBracket` is passed; null when there's no
+   * target, the deck is aligned-with-no-target, or no estimation is available.
+   */
+  bracketFit?: BracketFitPlan | null;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -351,6 +358,17 @@ export interface AnalyzeCommanderDeckParams {
   colorIdentity?: string[];
   /** Combos already matched by the editor's combos panel. */
   detectedCombos?: DetectedCombo[];
+  /**
+   * The user's target bracket (Deck.bracketOverride). When set, the analysis
+   * additionally fetches the target-bracket EDHREC pool and computes the
+   * Bracket Fit coaching plan. Absent → bracketFit is null (no target set).
+   */
+  targetBracket?: 1 | 2 | 3 | 4 | 5;
+  /**
+   * One-away combos (from the editor's combos panel) — the deterministic
+   * power-up adds for the upshift case. Only used when `targetBracket` is set.
+   */
+  oneAwayCombos?: ComboMatch[];
 }
 
 const RECOMMENDATION_SUPERTYPE = /^(Legendary|Basic|Snow|Tribal|Kindred|World|Ongoing)\s+/i;
@@ -448,6 +466,30 @@ export async function analyzeCommanderDeck(
     const edhrecData = params.partnerCommander
       ? await fetchPartnerCommanderData(params.commander.name, params.partnerCommander.name)
       : await fetchCommanderData(params.commander.name);
+
+    // Bracket Fit: when the user has set a target bracket, also fetch the
+    // target-bracket EDHREC pool — the card pool a deck at that bracket would
+    // run, the source for downshift replacements and upshift adds. Best-effort:
+    // an empty pool (offline / cache miss) degrades the plan to tagger-local
+    // cuts only, never an error.
+    let targetPool: EDHRECCommanderData | null = null;
+    if (params.targetBracket) {
+      try {
+        const pool = params.partnerCommander
+          ? await fetchPartnerCommanderData(
+              params.commander.name,
+              params.partnerCommander.name,
+              undefined,
+              params.targetBracket
+            )
+          : await fetchCommanderData(params.commander.name, undefined, params.targetBracket);
+        // An empty pool (offline short-circuit / no data) is treated as "no pool"
+        // so the engine flags offlineDegraded rather than matching nothing.
+        targetPool = pool.cardlists.allNonLand.length > 0 ? pool : null;
+      } catch {
+        targetPool = null;
+      }
+    }
 
     const { roleCounts } = computeRoleCounts(params.cards);
     const { targets: roleTargets } = getDynamicRoleTargets(
@@ -617,6 +659,33 @@ export async function analyzeCommanderDeck(
       synergyAnalysis = buildSynergyAnalysis(deckSynergy, []);
     }
 
+    // Bracket Fit coaching plan — only when a target bracket is set. The engine
+    // re-runs the real estimateBracket in its verify loop, so it must receive the
+    // SAME card list `bracketEstimation` was built from (commanders included) to
+    // stay consistent; commanders never appear in a trigger list so they're never
+    // cut. Pure + synchronous: the target pool and oneAway combos are passed in.
+    const bracketFit = buildBracketFitPlan(
+      params.targetBracket ?? null,
+      gradeBracket.bracketEstimation,
+      {
+        gameChangerNames,
+        allCardNames,
+        detectedCombos: params.detectedCombos ?? [],
+        averageCmc,
+        cardCmcMap: Object.fromEntries(
+          params.cards.map((c) => [
+            c.name,
+            { cmc: c.cmc ?? 0, isLand: (c.type_line || '').toLowerCase().includes('land') },
+          ])
+        ),
+        roleCounts,
+        targetPool,
+        cardInclusionMap,
+        oneAwayCombos: params.oneAwayCombos ?? [],
+        gapAnalysis,
+      }
+    );
+
     // Return only the lean, persistable fields — the rich `analysis` and
     // `curvePhases` were transient inputs and must not leak into the store.
     return {
@@ -629,6 +698,7 @@ export async function analyzeCommanderDeck(
       optimizeSwaps,
       costPlan,
       synergyAnalysis,
+      bracketFit,
     };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);

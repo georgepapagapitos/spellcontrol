@@ -379,6 +379,11 @@ export interface DeckDisplayProps {
   /** Engine *diagnostics* (axis-balance bars + warnings), rendered on the Power
    *  tab. */
   engineSlot?: React.ReactNode;
+  /** Bracket Fit coaching lane — target-bracket card moves, rendered inside the
+   *  Power tab's Bracket panel below the verdict strip. Built by the page (owns
+   *  the plan + the add/cut/swap handlers); only passed when bracketOverride is
+   *  set and the plan isn't aligned. */
+  bracketFitSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the one the verdict hero points at). */
@@ -816,6 +821,7 @@ export function DeckDisplay({
   nextBestMoveSlot,
   costSlot,
   engineSlot,
+  bracketFitSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -1684,6 +1690,7 @@ export function DeckDisplay({
             nextBestMoveSlot={nextBestMoveSlot}
             costSlot={costSlot}
             engineSlot={engineSlot}
+            bracketFitSlot={bracketFitSlot}
             powerHeroSlot={powerHeroSlot}
             tuneDefaultLane={tuneDefaultLane}
             tuneFocusLane={tuneFocusLane}
@@ -3016,6 +3023,7 @@ function DeckAnalysisView({
   nextBestMoveSlot,
   costSlot,
   engineSlot,
+  bracketFitSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -3045,6 +3053,8 @@ function DeckAnalysisView({
   nextBestMoveSlot?: React.ReactNode;
   costSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
+  /** Bracket Fit coaching lane — rendered inside the Bracket panel. */
+  bracketFitSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the verdict hero's target). */
   tuneDefaultLane?: LaneId;
@@ -3102,12 +3112,18 @@ function DeckAnalysisView({
   // resolve to the single merged Improve lane; budget is its own lane.
   const improveLaneRef = useRef<CollapsibleLaneHandle>(null);
   const budgetLaneRef = useRef<CollapsibleLaneHandle>(null);
+  // Bracket Fit lives on the Power tab (inside the Bracket panel), not the Tune
+  // tab — the page builds + owns its CollapsibleLane. This ref keeps the laneRefs
+  // map exhaustive over LaneId; the Tune-tab deep-link below never targets it
+  // (its slot isn't mounted on Tune), so it stays inert until a future hero link.
+  const bracketFitLaneRef = useRef<CollapsibleLaneHandle>(null);
   const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle>>>(
     () => ({
       'fill-gaps': improveLaneRef,
       upgrade: improveLaneRef,
       collection: improveLaneRef,
       budget: budgetLaneRef,
+      'bracket-fit': bracketFitLaneRef,
     }),
     []
   );
@@ -3268,6 +3284,10 @@ function DeckAnalysisView({
                       deckCardsByName={deckCardsByName}
                     />
                   )}
+                  {/* Bracket Fit coaching lane — prescriptive card moves toward
+                      the target. The page only builds it when a target is set and
+                      the plan isn't aligned; null otherwise. */}
+                  {bracketFitSlot}
                 </div>
               </Panel>
             )}

@@ -8,6 +8,7 @@ import type {
   BuildReport,
 } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
@@ -138,6 +139,16 @@ export interface Deck {
    * kept and shown as a secondary reference. `null`/absent means "use auto".
    */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * Bracket Fit coaching plan — concrete card moves to reach the user's target
+   * bracket. Computed (and kept live) by useCommanderBracketAnalysis only when
+   * `bracketOverride` is set; folded into the deck signature so it recomputes
+   * when the target changes as well as when cards change. `null`/absent means no
+   * target set, a non-commander deck, or no estimation yet. When the deck is
+   * `aligned` (estimate === target) the plan still carries a `direction` of
+   * `'aligned'` with no moves so the panel can show its confirmation.
+   */
+  bracketFit?: BracketFitPlan | null;
   /**
    * Hash of the inputs (commander + mainboard card names) the persisted
    * deckGrade/bracketEstimation were last computed from. Set for any commander

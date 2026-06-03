@@ -32,7 +32,11 @@ function makeDeck(over: Partial<Deck> = {}): Deck {
 }
 
 // Mirrors buildSignature() in the hook.
-function sig(deck: Deck, combo: ComboMatchResponse | null = null): string {
+function sig(
+  deck: Deck,
+  combo: ComboMatchResponse | null = null,
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
+): string {
   return [
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
@@ -44,6 +48,7 @@ function sig(deck: Deck, combo: ComboMatchResponse | null = null): string {
       .map((m) => m.combo.id)
       .sort()
       .join(','),
+    String(bracketOverride ?? ''),
   ].join('|');
 }
 
@@ -117,6 +122,13 @@ describe('useCommanderBracketAnalysis — active', () => {
       roleTargets: RESULT.roleTargets,
       gapAnalysis: RESULT.gapAnalysis,
       cardInclusionMap: RESULT.cardInclusionMap,
+      // Fields absent from the RESULT mock resolve to undefined; bracketFit
+      // defaults to null when the analysis didn't produce a plan.
+      planScore: undefined,
+      optimizeSwaps: undefined,
+      costPlan: undefined,
+      synergyAnalysis: undefined,
+      bracketFit: null,
       gradeBracketSignature: sig(a.deck as Deck),
     });
   });

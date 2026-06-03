@@ -1,0 +1,81 @@
+/* BracketFitLane — the Power-tab "Bracket Fit" coaching lane body. Rows render
+   via the shared DeckCardRow and the chrome via CollapsibleLane; this file styles
+   the headline, the contextual notes, the list, and the aligned/empty states.
+   Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
+
+.bracket-fit-lane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  /* Grid/flex child safety — never let a long row name blow the column out. */
+  min-width: 0;
+}
+
+/* One-line plan headline ("Cut 2 cards to reach Bracket 2."). */
+.bracket-fit-headline {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Contextual notes — muted, sit above the row list. */
+.bracket-fit-offline-note,
+.bracket-fit-ceiling-note,
+.bracket-fit-unachievable-note,
+.bracket-fit-empty {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  color: var(--text3);
+}
+
+/* The ceiling note is informational (B5 build-ceiling) — accent its left edge. */
+.bracket-fit-ceiling-note {
+  padding: 0.4rem 0.55rem;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: var(--accent-light);
+  color: var(--text2);
+}
+
+/* The unachievable note warns the target can't be reached by cuts alone. */
+.bracket-fit-unachievable-note {
+  padding: 0.4rem 0.55rem;
+  border-left: 2px solid var(--status-warn, var(--accent));
+  border-radius: 0 6px 6px 0;
+  background: var(--surface2, var(--surface));
+  color: var(--text2);
+}
+
+.bracket-fit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* Summary chip in the collapsed CollapsibleLane header ("3 moves"). */
+.bracket-fit-summary-chip {
+  font-variant-numeric: tabular-nums;
+  color: var(--text3);
+}
+
+/* Aligned confirmation — a single VerdictBadge chip, no lane chrome. Gets a
+   44px touch target so the panel row height matches an interactive lane on
+   touch devices, even though it carries no action. */
+.bracket-fit-aligned {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.25rem 0;
+}
+
+@media (pointer: coarse) {
+  .bracket-fit-aligned {
+    min-height: 48px;
+  }
+}

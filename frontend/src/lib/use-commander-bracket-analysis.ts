@@ -16,17 +16,30 @@ interface Args {
   hasCommander: boolean;
   colorIdentity: string[];
   updateDeck: (id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>) => void;
+  /**
+   * The user's target bracket (Deck.bracketOverride). Folded into the analysis
+   * signature so the Bracket Fit plan recomputes when the target changes — not
+   * only when cards change. Absent/null → no target, bracketFit recorded as null.
+   */
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
 }
 
 const DEBOUNCE_MS = 500;
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)
- * + the sorted mainboard card-name multiset + the matched in-deck combo ids.
- * Combo ids are folded in because they load asynchronously — including them
- * makes the analysis recompute once combos arrive (or change with the deck).
+ * + the sorted mainboard card-name multiset + the matched in-deck combo ids +
+ * the user's target bracket. Combo ids are folded in because they load
+ * asynchronously — including them makes the analysis recompute once combos
+ * arrive (or change with the deck). The target bracket is folded in so the
+ * Bracket Fit plan recomputes the moment the user picks/changes/clears a target,
+ * even when the card list is unchanged.
  */
-function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): string {
+function buildSignature(
+  deck: Deck,
+  comboData: ComboMatchResponse | null,
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
+): string {
   const cardNames = deck.cards.map((c) => c.card.name).sort();
   const comboIds = (comboData?.inDeck ?? []).map((m) => m.combo.id).sort();
   return [
@@ -34,6 +47,7 @@ function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): strin
     deck.partnerCommander?.name ?? '',
     cardNames.join(','),
     comboIds.join(','),
+    String(bracketOverride ?? ''),
   ].join('|');
 }
 
@@ -55,13 +69,21 @@ function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): strin
  * is unreachable (the existing values, if any, are left untouched).
  */
 export function useCommanderBracketAnalysis(args: Args): void {
-  const { deck, comboData, mainboardSize, hasCommander, colorIdentity, updateDeck } = args;
+  const {
+    deck,
+    comboData,
+    mainboardSize,
+    hasCommander,
+    colorIdentity,
+    updateDeck,
+    bracketOverride,
+  } = args;
 
   const enabled = Boolean(deck && hasCommander && deck.commander && mainboardSize != null);
 
   const signature = useMemo(
-    () => (deck && enabled ? buildSignature(deck, comboData) : ''),
-    [deck, comboData, enabled]
+    () => (deck && enabled ? buildSignature(deck, comboData, bracketOverride) : ''),
+    [deck, comboData, enabled, bracketOverride]
   );
 
   const persistedSignature = deck?.gradeBracketSignature;
@@ -83,6 +105,10 @@ export function useCommanderBracketAnalysis(args: Args): void {
     const partnerCommander = deck.partnerCommander;
     const cards = deck.cards.map((c) => c.card);
     const detectedCombos = comboMatchesToDetected(comboData);
+    // The user's target bracket + the live oneAway combos feed the Bracket Fit
+    // plan (target-pool fetch + upshift combo-completion adds happen inside).
+    const targetBracket = bracketOverride ?? undefined;
+    const oneAwayCombos = comboData?.oneAway ?? [];
 
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
@@ -93,6 +119,8 @@ export function useCommanderBracketAnalysis(args: Args): void {
         deckSize: mainboardSize,
         colorIdentity,
         detectedCombos,
+        targetBracket,
+        oneAwayCombos,
       })
         .then((result) => {
           if (reqIdRef.current !== myReqId) return;
@@ -113,6 +141,8 @@ export function useCommanderBracketAnalysis(args: Args): void {
             optimizeSwaps: result.optimizeSwaps,
             costPlan: result.costPlan,
             synergyAnalysis: result.synergyAnalysis,
+            // null when no target set / non-commander — clears a stale plan.
+            bracketFit: result.bracketFit ?? null,
             gradeBracketSignature: signature,
           });
         })

@@ -21,6 +21,7 @@ import { PowerHero } from '../components/deck/PowerHero';
 import { ImproveLane } from '../components/deck/ImproveLane';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { CostPanel } from '../components/deck/CostPanel';
+import { BracketFitLane } from '../components/deck/BracketFitLane';
 import { EnginePanel } from '../components/deck/EnginePanel';
 import {
   buildSubstitutionPlan,
@@ -147,6 +148,10 @@ export function DeckEditorPage() {
   // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
   // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
+  // Bracket Fit swaps gate the row by the CUT card's name (the page-side swap
+  // state is slot-keyed, which BracketFitLane can't see). Tracked separately so a
+  // swap-in-flight disables only its own row.
+  const [bracketFitSwapName, setBracketFitSwapName] = useState<string | null>(null);
   const openView = useCallback(
     (next: DeckView) => {
       setView(next);
@@ -347,6 +352,9 @@ export function DeckEditorPage() {
     hasCommander: deck ? DECK_FORMAT_CONFIGS[deck.format].hasCommander : false,
     colorIdentity: commanderColorIdentity,
     updateDeck,
+    // The user's target bracket drives the Bracket Fit plan; folding it into the
+    // hook recomputes the plan when the target changes, not only when cards do.
+    bracketOverride: deck?.bracketOverride,
   });
 
   // "Next best move" — the single highest-leverage change, derived from the
@@ -1347,6 +1355,41 @@ export function DeckEditorPage() {
                   analysis={deck.synergyAnalysis}
                   onAdd={handleAddEngineCard}
                   showSuggestions={false}
+                />
+              ) : undefined
+            }
+            bracketFitSlot={
+              // Bracket Fit lives in the Power-tab Bracket panel. Only build it for
+              // a commander deck with a target set and a non-aligned plan — the
+              // aligned case renders its own tiny confirmation chip (no lane body).
+              // Reuses the EXACT add/cut/swap apply paths the Tune lane uses, incl.
+              // DeckSizePrompt-on-full via handleAddEngineCard.
+              formatConfig?.hasCommander && deck.bracketOverride != null && deck.bracketFit ? (
+                <BracketFitLane
+                  plan={deck.bracketFit}
+                  commanderName={deck.commander?.name}
+                  resolveOwnership={ownershipFor}
+                  onAdd={handleAddEngineCard}
+                  onCut={handleCutEngineCard}
+                  onSwap={(outName, inName) => {
+                    // Guard against a double-submit before the cut re-renders: the
+                    // cut name's busy gate disables the row, but also bail if a
+                    // swap for this exact card is already in flight.
+                    if (bracketFitSwapName === outName) return;
+                    // Cut the in-deck card, add the replacement (1-for-1). Locate
+                    // the slot from the cut name; no-op preview-close (no carousel).
+                    const slotId = deck.cards.find((c) => c.card.name === outName)?.slotId;
+                    if (!slotId) return;
+                    setBracketFitSwapName(outName);
+                    void handleSwapInDeck(slotId, outName, inName, () => {}).finally(() =>
+                      setBracketFitSwapName(null)
+                    );
+                  }}
+                  busyNames={
+                    bracketFitSwapName
+                      ? new Set([...addingEngineNames, bracketFitSwapName])
+                      : addingEngineNames
+                  }
                 />
               ) : undefined
             }
