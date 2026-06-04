@@ -1404,9 +1404,11 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Hover-peek for the list view — cursor-anchored, any hover-capable viewport
-  // (the shared default; consistent with the Improve lane). No-op on touch/native.
-  const hoverPeek = useDeckHoverPeek();
+  // Hover-peek for the list view — row/gutter anchor: the peek locks to a steady
+  // position beside the hovered row (fixed horizontally, tracks the row vertically)
+  // rather than landing at the cursor's rest point, which reads as steadier when
+  // scanning a list. minViewport 0 so it engages at all widths. No-op on touch/native.
+  const hoverPeek = useDeckHoverPeek({ anchor: 'row' });
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
     const i = flat.indexByName.get(rowName);
