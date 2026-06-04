@@ -88,3 +88,22 @@ export function computePeekPlacement(
 
   return { left, top };
 }
+
+/**
+ * Does a peek card actually fit in a gutter beside the row without overlapping
+ * it? True when there's room to the right OR left of the row for the full card.
+ * The `'row'` gutter anchor is only worth using when this holds; on a narrow
+ * window (full-width rows, no spare gutter) `computePeekPlacement` would clamp
+ * the card into overlap, so callers should fall back to the cursor placement.
+ */
+export function rowGutterFits(
+  row: PeekRect,
+  viewport: PeekViewport,
+  cardW: number,
+  gap = 12,
+  margin = 8
+): boolean {
+  const fitsRight = row.right + gap + cardW + margin <= viewport.width;
+  const fitsLeft = row.left - gap - cardW >= margin;
+  return fitsRight || fitsLeft;
+}
