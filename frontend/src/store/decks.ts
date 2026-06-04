@@ -12,6 +12,7 @@ import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { SynergyAnalysis } from '@/deck-builder/services/synergy/analysis';
+import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 import {
   dedupeDeckAllocations,
   isBasicLandName,
@@ -125,6 +126,11 @@ export interface Deck {
    * suggestions). Kept live by useCommanderBracketAnalysis like optimizeSwaps.
    */
   synergyAnalysis?: SynergyAnalysis;
+  /**
+   * Win-condition detection (primary + secondary paths). Kept live by
+   * useCommanderBracketAnalysis like synergyAnalysis.
+   */
+  winConditions?: WinConditionAnalysis;
   /**
    * How the generated deck measured up to its build intent (fill + flag).
    * Set once at generation; generated decks only. See {@link BuildReport}.

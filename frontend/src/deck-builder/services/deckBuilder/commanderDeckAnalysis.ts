@@ -47,6 +47,8 @@ import {
   selectOracleCandidates,
   type OracleNeedResult,
 } from '../synergy/oracleSearch';
+import { detectWinConditions } from '../winConditions/detect';
+import type { WinConditionAnalysis } from '../winConditions/types';
 
 export interface DeckGrade {
   letter: string;
@@ -339,6 +341,8 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   costPlan?: CostPlan;
   /** Native synergy engine analysis + off-meta suggestions (the "Engine" surface). */
   synergyAnalysis?: SynergyAnalysis;
+  /** Win-condition detection (primary + secondary paths). */
+  winConditions?: WinConditionAnalysis;
 }
 
 export interface AnalyzeCommanderDeckParams {
@@ -617,6 +621,24 @@ export async function analyzeCommanderDeck(
       synergyAnalysis = buildSynergyAnalysis(deckSynergy, []);
     }
 
+    // Win-condition detection — pure, composes existing signals (combos,
+    // synergy axes, oracle text). Best-effort: failure leaves winConditions absent.
+    let winConditions: WinConditionAnalysis | undefined;
+    try {
+      winConditions = detectWinConditions({
+        cards: params.cards,
+        commander: params.commander,
+        combosInDeck: (params.detectedCombos ?? []).map((c) => ({
+          results: c.results,
+          cards: c.cards,
+        })),
+        deckSynergy,
+        format: 'commander',
+      });
+    } catch (err) {
+      logger.warn('[CommanderDeckAnalysis] Win-condition detection failed:', err);
+    }
+
     // Return only the lean, persistable fields — the rich `analysis` and
     // `curvePhases` were transient inputs and must not leak into the store.
     return {
@@ -629,6 +651,7 @@ export async function analyzeCommanderDeck(
       optimizeSwaps,
       costPlan,
       synergyAnalysis,
+      winConditions,
     };
   } catch (err) {
     logger.warn('[CommanderDeckAnalysis] Failed to analyze manual deck:', err);

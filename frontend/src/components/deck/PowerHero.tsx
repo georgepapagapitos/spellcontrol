@@ -27,6 +27,12 @@ export interface PowerHeroProps {
   onViewEngine?: () => void;
   /** Reveal the Combos panel below. When omitted, the combo line is static. */
   onViewCombos?: () => void;
+  /** One-line win-condition summary, e.g. "Wins via Infinite combo · backup: Mill". */
+  winConditionSummary?: string;
+  /** True when noClearWinCondition — renders a warn tone instead of normal text. */
+  winConditionWarn?: boolean;
+  /** Reveal the Win conditions panel below. When omitted, the line is static. */
+  onViewWinConditions?: () => void;
 }
 
 /** A "go to detail" affordance: a typographic chevron in the surrounding font
@@ -92,6 +98,9 @@ export function PowerHero({
   onViewBracket,
   onViewEngine,
   onViewCombos,
+  winConditionSummary,
+  winConditionWarn,
+  onViewWinConditions,
 }: PowerHeroProps): JSX.Element {
   const producers = engineProducers ?? 0;
   const payoffs = enginePayoffs ?? 0;
@@ -184,6 +193,24 @@ export function PowerHero({
                 ? `${comboOwnedMissing} you can complete`
                 : 'none you can complete now'}
               {onViewCombos && <LinkChevron />}
+            </HeroLink>
+          )}
+          {winConditionSummary && (
+            <HeroLink
+              onClick={onViewWinConditions}
+              ariaLabel="View win conditions"
+              contentClassName={`power-hero-wincon${winConditionWarn ? ' power-hero-wincon--warn' : ''}`}
+            >
+              {winConditionWarn && (
+                <AlertTriangle
+                  className="power-hero-warn-icon"
+                  width={12}
+                  height={12}
+                  aria-hidden
+                />
+              )}{' '}
+              {winConditionSummary}
+              {onViewWinConditions && <LinkChevron />}
             </HeroLink>
           )}
         </div>

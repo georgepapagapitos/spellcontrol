@@ -22,6 +22,7 @@ import { ImproveLane } from '../components/deck/ImproveLane';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { CostPanel } from '../components/deck/CostPanel';
 import { EnginePanel } from '../components/deck/EnginePanel';
+import { WinConditionPanel } from '../components/deck/WinConditionPanel';
 import {
   buildSubstitutionPlan,
   type SubstituteCandidate,
@@ -51,6 +52,22 @@ import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { getCardPrice, getCardByName } from '../deck-builder/services/scryfall/client';
+import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
+
+/**
+ * Build a one-line win-condition summary for the PowerHero Gameplan pillar.
+ * e.g. "Wins via Infinite combo · backup: Mill, Aristocrats"
+ */
+function buildWinConditionSummary(wc: WinConditionAnalysis | undefined): string | undefined {
+  if (!wc) return undefined;
+  if (wc.noClearWinCondition) return 'No clear win condition';
+  if (!wc.primary) return undefined;
+  const parts: string[] = [`Wins via ${wc.primary.label}`];
+  if (wc.secondary.length > 0) {
+    parts.push(`backup: ${wc.secondary.map((s) => s.label).join(', ')}`);
+  }
+  return parts.join(' · ');
+}
 
 /** Functional role key → display label (the four roles the tagger classifies). */
 const ROLE_LABEL: Record<string, string> = {
@@ -332,6 +349,10 @@ export function DeckEditorPage() {
   );
   const handleViewEngine = useCallback(
     () => scrollToPowerPanel('deck-power-engine'),
+    [scrollToPowerPanel]
+  );
+  const handleViewWinConditions = useCallback(
+    () => scrollToPowerPanel('deck-power-wincon'),
     [scrollToPowerPanel]
   );
   const handleViewCombos = useCallback(() => {
@@ -1302,6 +1323,9 @@ export function DeckEditorPage() {
                       : undefined
                   }
                   onViewCombos={handleViewCombos}
+                  winConditionSummary={buildWinConditionSummary(deck.winConditions)}
+                  winConditionWarn={deck.winConditions?.noClearWinCondition}
+                  onViewWinConditions={deck.winConditions ? handleViewWinConditions : undefined}
                 />
               ) : undefined
             }
@@ -1379,6 +1403,11 @@ export function DeckEditorPage() {
                   onAdd={handleAddEngineCard}
                   showSuggestions={false}
                 />
+              ) : undefined
+            }
+            winConditionSlot={
+              formatConfig?.hasCommander && deck.winConditions ? (
+                <WinConditionPanel analysis={deck.winConditions} />
               ) : undefined
             }
           />
