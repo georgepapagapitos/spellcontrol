@@ -16,6 +16,7 @@ backend/data/*.db
 backend/data/*.db-shm
 backend/data/*.db-wal
 backend/data/offline-oracle.*
+backend/data/scryfall-bulk.meta.json
 backend/dist/
 
 # Frontend
