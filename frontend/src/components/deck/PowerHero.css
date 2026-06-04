@@ -231,6 +231,21 @@
   }
 }
 
+/* ── Win condition summary line ── */
+.power-hero-wincon {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.power-hero-wincon--warn {
+  color: var(--warn-text, #b85c00);
+  font-weight: 600;
+}
+
 /* ── Collection hook — full-width chip below the pillars. ── */
 .power-hero-collection {
   display: flex;

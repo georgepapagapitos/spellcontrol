@@ -379,6 +379,8 @@ export interface DeckDisplayProps {
   /** Engine *diagnostics* (axis-balance bars + warnings), rendered on the Power
    *  tab. */
   engineSlot?: React.ReactNode;
+  /** Win-condition detection panel, rendered on the Power tab. */
+  winConditionSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the one the verdict hero points at). */
@@ -822,6 +824,7 @@ export function DeckDisplay({
   nextBestMoveSlot,
   costSlot,
   engineSlot,
+  winConditionSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -1691,6 +1694,7 @@ export function DeckDisplay({
             nextBestMoveSlot={nextBestMoveSlot}
             costSlot={costSlot}
             engineSlot={engineSlot}
+            winConditionSlot={winConditionSlot}
             powerHeroSlot={powerHeroSlot}
             tuneDefaultLane={tuneDefaultLane}
             tuneFocusLane={tuneFocusLane}
@@ -3030,6 +3034,7 @@ function DeckAnalysisView({
   nextBestMoveSlot,
   costSlot,
   engineSlot,
+  winConditionSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -3059,6 +3064,7 @@ function DeckAnalysisView({
   nextBestMoveSlot?: React.ReactNode;
   costSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
+  winConditionSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the verdict hero's target). */
   tuneDefaultLane?: LaneId;
@@ -3308,6 +3314,14 @@ function DeckAnalysisView({
             <div className="deck-stats-pair">
               <Panel id="deck-power-engine" title="Engine">
                 {engineSlot}
+              </Panel>
+            </div>
+          )}
+          {/* Win conditions — how the deck wins (lone, spans full width). */}
+          {winConditionSlot && (
+            <div className="deck-stats-pair">
+              <Panel id="deck-power-wincon" title="Win conditions">
+                {winConditionSlot}
               </Panel>
             </div>
           )}

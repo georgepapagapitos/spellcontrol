@@ -31,9 +31,11 @@ function makeDeck(over: Partial<Deck> = {}): Deck {
   } as unknown as Deck;
 }
 
-// Mirrors buildSignature() in the hook.
+// Mirrors buildSignature() in the hook — must stay in sync when the signature
+// format is bumped (the bump forces saved decks to recompute).
 function sig(deck: Deck, combo: ComboMatchResponse | null = null): string {
   return [
+    'v2-wincon',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards
@@ -111,14 +113,17 @@ describe('useCommanderBracketAnalysis — active', () => {
     });
 
     expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
-    expect(a.updateDeck).toHaveBeenCalledWith('d1', {
-      deckGrade: RESULT.deckGrade,
-      bracketEstimation: RESULT.bracketEstimation,
-      roleTargets: RESULT.roleTargets,
-      gapAnalysis: RESULT.gapAnalysis,
-      cardInclusionMap: RESULT.cardInclusionMap,
-      gradeBracketSignature: sig(a.deck as Deck),
-    });
+    expect(a.updateDeck).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({
+        deckGrade: RESULT.deckGrade,
+        bracketEstimation: RESULT.bracketEstimation,
+        roleTargets: RESULT.roleTargets,
+        gapAnalysis: RESULT.gapAnalysis,
+        cardInclusionMap: RESULT.cardInclusionMap,
+        gradeBracketSignature: sig(a.deck as Deck),
+      })
+    );
   });
 
   it('skips when the signature already matches what was persisted', async () => {

@@ -30,6 +30,7 @@ function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): strin
   const cardNames = deck.cards.map((c) => c.card.name).sort();
   const comboIds = (comboData?.inDeck ?? []).map((m) => m.combo.id).sort();
   return [
+    'v2-wincon',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     cardNames.join(','),
@@ -113,6 +114,7 @@ export function useCommanderBracketAnalysis(args: Args): void {
             optimizeSwaps: result.optimizeSwaps,
             costPlan: result.costPlan,
             synergyAnalysis: result.synergyAnalysis,
+            winConditions: result.winConditions,
             gradeBracketSignature: signature,
           });
         })
