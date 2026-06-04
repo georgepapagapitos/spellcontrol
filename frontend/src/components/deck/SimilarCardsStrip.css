@@ -1,0 +1,48 @@
+/* SimilarCardsStrip — "Similar cards" section inside the card-preview carousel
+   panel. Rows render via the shared DeckCardRow; this file styles the wrapper
+   and the two sub-group labels. Theme vars + --text-* scale only; see
+   STYLE_GUIDE.md. Mirrors SwapThisCard.css in structure. */
+
+.similar-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.similar-cards-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.similar-cards-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.similar-cards-group-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.similar-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.similar-cards-loading {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
+}
