@@ -3,6 +3,7 @@ import {
   computePeekPlacement,
   computePointerPlacement,
   peekWidth,
+  rowGutterFits,
 } from '@/lib/hover-peek-placement';
 import { HOVER_HIDE_DELAY_MS, HOVER_INTENT_DELAY_MS, isPeekSuppressed } from '@/lib/hover-intent';
 import { useHoverCapable } from '@/lib/use-hover-capable';
@@ -187,10 +188,13 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
         const w = peekWidth(window.innerWidth);
         const height = Math.round(w * CARD_ASPECT);
         const viewport = { width: window.innerWidth, height: window.innerHeight };
-        const { left, top } =
-          anchor === 'pointer'
-            ? computePointerPlacement(clientX, clientY, viewport, w, height)
-            : computePeekPlacement(rect, viewport, w, height);
+        // Gutter lock only when a card actually fits beside the row; on a narrow
+        // window (full-width rows, no spare gutter) fall back to the cursor
+        // placement so the peek floats clear instead of clamping over the list.
+        const useRowGutter = anchor === 'row' && rowGutterFits(rect, viewport, w);
+        const { left, top } = useRowGutter
+          ? computePeekPlacement(rect, viewport, w, height)
+          : computePointerPlacement(clientX, clientY, viewport, w, height);
         setPeek({ name, left, top, width: w });
       }, HOVER_INTENT_DELAY_MS);
     },
