@@ -158,6 +158,8 @@ interface InputOverrides {
   oneAwayCombos?: ComboMatch[];
   gapAnalysis?: GapAnalysisCard[];
   cardCmcMap?: Record<string, { cmc: number; isLand: boolean }>;
+  commanderNames?: string[];
+  deckFull?: boolean;
 }
 
 function makeInput(o: InputOverrides): BracketFitInput {
@@ -184,6 +186,8 @@ function makeInput(o: InputOverrides): BracketFitInput {
     oneAwayCombos: o.oneAwayCombos ?? [],
     gapAnalysis: o.gapAnalysis ?? [],
     cardCmcMap: o.cardCmcMap,
+    commanderNames: o.commanderNames,
+    deckFull: o.deckFull,
   };
 }
 
@@ -703,6 +707,103 @@ describe('upshift — B4 target', () => {
     const plan = computeUpshiftPlan(input, 4);
     expect(plan.moves.filter((m) => m.signal === 'upshift-gc')).toHaveLength(2);
     expect(plan.moves.filter((m) => m.signal === 'upshift-fill').length).toBeGreaterThan(0);
+  });
+});
+
+describe('upshift — full-deck pairing (each add → a 1-for-1 swap)', () => {
+  const gcPool = () =>
+    makePool([
+      poolCard({ name: 'GC A', inclusion: 90, isGameChanger: true }),
+      poolCard({ name: 'GC B', inclusion: 80, isGameChanger: true }),
+      poolCard({ name: 'GC C', inclusion: 70, isGameChanger: true }),
+    ]);
+
+  it('pairs each add with the lowest-inclusion cut, excluding lands & commanders', () => {
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'Weak A', 'Weak B', 'Weak C', 'Forest'],
+      commanderNames: ['Cmdr'],
+      targetPool: gcPool(),
+      deckFull: true,
+      // Forest (land) and Cmdr (commander) have the lowest inclusion but must
+      // never be picked as cuts; the three Weak cards are the cuttable pool.
+      cardInclusionMap: { Forest: 1, Cmdr: 0, 'Weak A': 10, 'Weak C': 20, 'Weak B': 30 },
+      cardCmcMap: {
+        Forest: { cmc: 0, isLand: true },
+        Cmdr: { cmc: 4, isLand: false },
+        'Weak A': { cmc: 2, isLand: false },
+        'Weak B': { cmc: 3, isLand: false },
+        'Weak C': { cmc: 3, isLand: false },
+      },
+    });
+    const plan = computeUpshiftPlan(input, 3);
+    expect(plan.direction).toBe('too-weak');
+    const gcMoves = plan.moves.filter((m) => m.signal === 'upshift-gc');
+    expect(gcMoves).toHaveLength(3);
+    // All rewritten as swaps; the incoming card is the GC, the cut is a Weak card.
+    expect(gcMoves.every((m) => m.type === 'swap')).toBe(true);
+    expect(gcMoves.map((m) => m.inName)).toEqual(['GC A', 'GC B', 'GC C']);
+    // Cuts assigned lowest-inclusion first: Weak A(10) → Weak C(20) → Weak B(30).
+    expect(gcMoves.map((m) => m.name)).toEqual(['Weak A', 'Weak C', 'Weak B']);
+    // The incoming GC keeps its GC flag; the cut (weak) card is not a GC.
+    expect(gcMoves.every((m) => m.inIsGameChanger === true)).toBe(true);
+    expect(gcMoves.every((m) => m.isGameChanger === false)).toBe(true);
+    expect(plan.summary).toContain('Swap in');
+  });
+
+  it('never cuts a Game Changer already in the deck to make room', () => {
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'DeckGC', 'Weak A', 'Forest'],
+      commanderNames: ['Cmdr'],
+      gameChangerNames: new Set(['DeckGC']),
+      targetPool: makePool([poolCard({ name: 'GC X', inclusion: 95, isGameChanger: true })]),
+      deckFull: true,
+      // DeckGC has the lowest inclusion but is a GC → keep it; cut Weak A instead.
+      cardInclusionMap: { DeckGC: 1, 'Weak A': 50 },
+      cardCmcMap: {
+        Forest: { cmc: 0, isLand: true },
+        Cmdr: { cmc: 4, isLand: false },
+        DeckGC: { cmc: 3, isLand: false },
+        'Weak A': { cmc: 2, isLand: false },
+      },
+    });
+    const plan = computeUpshiftPlan(input, 4);
+    const swap = plan.moves.find((m) => m.type === 'swap');
+    expect(swap?.inName).toBe('GC X');
+    expect(swap?.name).toBe('Weak A');
+  });
+
+  it('degrades to pure adds when cut candidates run out', () => {
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'Weak A', 'Forest'], // only one cuttable card
+      commanderNames: ['Cmdr'],
+      targetPool: gcPool(), // three GC adds
+      deckFull: true,
+      cardInclusionMap: { 'Weak A': 10 },
+      cardCmcMap: {
+        Forest: { cmc: 0, isLand: true },
+        Cmdr: { cmc: 4, isLand: false },
+        'Weak A': { cmc: 2, isLand: false },
+      },
+    });
+    const plan = computeUpshiftPlan(input, 3);
+    const gcMoves = plan.moves.filter((m) => m.signal === 'upshift-gc');
+    expect(gcMoves).toHaveLength(3);
+    expect(gcMoves[0].type).toBe('swap'); // the one available cut
+    expect(gcMoves[1].type).toBe('add');
+    expect(gcMoves[2].type).toBe('add');
+  });
+
+  it('leaves adds pure when the deck is not full', () => {
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'Weak A', 'Weak B', 'Forest'],
+      commanderNames: ['Cmdr'],
+      targetPool: gcPool(),
+      deckFull: false,
+      cardInclusionMap: { 'Weak A': 10, 'Weak B': 20 },
+    });
+    const plan = computeUpshiftPlan(input, 3);
+    expect(plan.moves.every((m) => m.type === 'add')).toBe(true);
+    expect(plan.summary).toContain('Add');
   });
 });
 

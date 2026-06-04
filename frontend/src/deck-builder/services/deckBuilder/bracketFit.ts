@@ -84,6 +84,14 @@ export interface BracketFitMove {
   synergy?: number;
   /** True when the cut card (cut/swap) is a Game Changer. */
   isGameChanger?: boolean;
+  /**
+   * True when the INCOMING card of a swap is a Game Changer. Only set on upshift
+   * swaps (where the replacement coming in can be a power card); downshift swaps
+   * filter the replacement so it can never be a GC, leaving this undefined. Lets
+   * the adapter flag the GC badge on the right card (the row surfaces the
+   * incoming card as primary).
+   */
+  inIsGameChanger?: boolean;
   /** Mana value of the replacement/added card when known. */
   cmc?: number;
   /** Type line of the replacement/added card when known. */
@@ -137,6 +145,19 @@ export interface BracketFitInput {
   oneAwayCombos: ComboMatch[];
   /** Gap-analysis cards (top EDHREC adds not in deck) — soft upshift adds. */
   gapAnalysis: GapAnalysisCard[];
+  /**
+   * Commander name(s) — excluded from upshift cut-candidate picking so the
+   * "make room" pass never proposes cutting the commander. Absent → treated as
+   * no commanders (every name is cuttable).
+   */
+  commanderNames?: string[];
+  /**
+   * True when the mainboard is at its size limit (a tuned 100-card Commander deck
+   * is always full). When full, each upshift ADD is pre-paired with a suggested
+   * cut and emitted as a SWAP — so the add never trips the editor's
+   * replace-when-full prompt. When the deck still has open slots, adds stay pure.
+   */
+  deckFull?: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -549,10 +570,42 @@ function oneAwayMissingNames(match: ComboMatch): string[] {
 }
 
 /**
+ * Rank the deck's own cards as upshift cut candidates — the slots to free when a
+ * full deck needs room for a power-up add. Lowest EDHREC inclusion first (the
+ * least-played, most expendable cards). Never proposes a land, a Game Changer
+ * (keep the power you have), a combo piece (cutting it would lower power — the
+ * opposite of the goal), or a commander. The user still confirms every swap, and
+ * the row shows the cut card's art, so a borderline suggestion is visible, not
+ * silent.
+ */
+function pickUpshiftCutCandidates(input: BracketFitInput): string[] {
+  const commanders = new Set(input.commanderNames ?? []);
+  const comboPieces = new Set<string>();
+  for (const c of input.detectedCombos) for (const piece of c.cards) comboPieces.add(piece);
+  const cmcMap = input.cardCmcMap ?? {};
+
+  const candidates = input.allCardNames.filter((name) => {
+    if (commanders.has(name)) return false;
+    if (input.gameChangerNames.has(name)) return false;
+    if (comboPieces.has(name)) return false;
+    if (cmcMap[name]?.isLand) return false;
+    return true;
+  });
+  candidates.sort((a, b) => (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0));
+  return candidates;
+}
+
+/**
  * Build add suggestions that move the deck toward the target bracket.
  * Priority: (1) oneAway combo completion (deterministic power jump),
  * (2) missing Game Changers at the target level, (3) fast mana / tutors /
  * high-inclusion gap cards from the target pool.
+ *
+ * When the deck is full ({@link BracketFitInput.deckFull}), each emitted add is
+ * post-paired with a suggested cut and rewritten as a SWAP — so a tuned 100-card
+ * deck powers up 1-for-1 instead of tripping the editor's replace-when-full
+ * prompt on every add. Combo-completion adds are paired too (the deck is full
+ * either way). Adds run out of cut candidates → they degrade back to pure adds.
  */
 function computeUpshiftPlanWithTarget(
   input: BracketFitInput,
@@ -668,6 +721,30 @@ function computeUpshiftPlanWithTarget(
     }
   }
 
+  // ── Full-deck pairing ──
+  // A tuned 100-card deck has no open slots, so every raw ADD would otherwise
+  // trip the editor's replace-when-full prompt. Pre-pair each add with the
+  // lowest-impact in-deck cut and rewrite it as a 1-for-1 SWAP. The incoming
+  // card's metadata (inclusion/cmc/type/image/role) stays on the move; only the
+  // cut name and the GC flag move onto the swap shape. Runs out of cut
+  // candidates → the remaining adds stay pure.
+  let pairedCount = 0;
+  if (input.deckFull) {
+    const cutPool = pickUpshiftCutCandidates(input);
+    let ci = 0;
+    for (const m of moves) {
+      if (m.type !== 'add') continue;
+      if (ci >= cutPool.length) break;
+      const cutName = cutPool[ci++];
+      m.inName = m.name; // the add becomes the incoming card
+      m.name = cutName; // the cut card becomes the move's primary `name`
+      m.type = 'swap';
+      m.inIsGameChanger = m.isGameChanger; // preserve the add's GC for its badge
+      m.isGameChanger = input.gameChangerNames.has(cutName); // the cut card's GC (≈ false)
+      pairedCount++;
+    }
+  }
+
   let note: string | undefined;
   if (ceiling) {
     note =
@@ -680,9 +757,10 @@ function computeUpshiftPlanWithTarget(
       note ?? 'Connect to EDHREC for power-up suggestions — no card pool is available offline.';
   }
 
+  const verb = pairedCount > 0 ? 'Swap in' : 'Add';
   const summary =
     moves.length > 0
-      ? `Add ${moves.length} card${moves.length === 1 ? '' : 's'} to reach Bracket ${target}.`
+      ? `${verb} ${moves.length} card${moves.length === 1 ? '' : 's'} to reach Bracket ${target}.`
       : `No concrete adds available${offlineDegraded ? ' offline' : ''}.`;
 
   return {

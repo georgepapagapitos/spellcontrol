@@ -1,5 +1,5 @@
 import './BracketFitLane.css';
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import { Target } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
@@ -10,10 +10,28 @@ import { useCardCarousel } from './useCardCarousel';
 import { fromBracketFitMove, type Change, type ChangeOwnership } from '@/lib/deck-change';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 
+const OWNED_ONLY_KEY = 'spellcontrol-bracket-fit-owned-only';
+
 /** Full-size card art for the desktop hover-peek — the Scryfall named-image CDN
  *  redirect (no JS API call), so the peek is crisp regardless of a row's thumb. */
 function peekImage(name: string): string {
   return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`;
+}
+
+function readOwnedOnly(): boolean {
+  try {
+    return window.localStorage.getItem(OWNED_ONLY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeOwnedOnly(v: boolean): void {
+  try {
+    window.localStorage.setItem(OWNED_ONLY_KEY, v ? '1' : '0');
+  } catch {
+    /* storage unavailable — non-fatal */
+  }
 }
 
 export interface BracketFitLaneProps {
@@ -58,6 +76,7 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
     const busy = busyNames ?? new Set<string>();
     const carousel = useCardCarousel('Bracket Fit');
     const hoverPeek = useDeckHoverPeek();
+    const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
 
     const isUpshift = plan.direction === 'too-weak';
 
@@ -74,18 +93,36 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
       [plan.moves, resolveOwnership]
     );
 
+    // Owned-only is an UPSHIFT-only filter: powering up draws Game Changers and
+    // staples you likely don't own, so the toggle restricts the suggestions to
+    // power cards already in your collection (ownership describes the card coming
+    // IN, for both adds and full-deck swaps). Downshift cuts/replacements aren't
+    // filtered — you cut an offender regardless of what you own.
+    const ownedFilterActive = isUpshift && ownedOnly;
+    const shown = useMemo(
+      () => (ownedFilterActive ? changes.filter((c) => c.ownership === 'owned') : changes),
+      [changes, ownedFilterActive]
+    );
+
     // Carousel spans every previewable row so swiping works across the lane.
     const previewEntries = useMemo(
       () =>
-        changes.map((c) => ({
+        shown.map((c) => ({
           name: c.name,
           label:
             typeof c.inclusion === 'number'
               ? `In ${Math.round(c.inclusion)}% of decks`
               : 'Bracket Fit',
         })),
-      [changes]
+      [shown]
     );
+
+    const toggleOwned = () => {
+      setOwnedOnly((v) => {
+        writeOwnedOnly(!v);
+        return !v;
+      });
+    };
 
     // Dispatch a row's action to the right shared handler by Change type. For a
     // swap, Change.name is the replacement (add) and Change.inName is the card to
@@ -156,9 +193,25 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
             <p className="bracket-fit-unachievable-note">{plan.note}</p>
           )}
 
-          {changes.length > 0 ? (
+          {isUpshift && changes.length > 0 && (
+            <div className="bracket-fit-controls">
+              <button
+                type="button"
+                className={`bracket-fit-filter${ownedOnly ? ' is-active' : ''}`}
+                aria-pressed={ownedOnly}
+                onClick={toggleOwned}
+              >
+                Owned only
+              </button>
+              <span className="bracket-fit-count">
+                {shown.length} {shown.length === 1 ? 'card' : 'cards'}
+              </span>
+            </div>
+          )}
+
+          {shown.length > 0 ? (
             <ul className="bracket-fit-list">
-              {changes.map((change) => {
+              {shown.map((change) => {
                 const act = actFor(change);
                 return (
                   <DeckCardRow
@@ -173,6 +226,10 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
                 );
               })}
             </ul>
+          ) : ownedFilterActive && changes.length > 0 ? (
+            <p className="bracket-fit-empty">
+              No owned power-ups right now — turn off Owned only to see cards to acquire.
+            </p>
           ) : (
             !plan.offlineDegraded && (
               <p className="bracket-fit-empty">

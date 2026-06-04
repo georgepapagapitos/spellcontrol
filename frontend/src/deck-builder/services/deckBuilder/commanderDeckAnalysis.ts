@@ -683,6 +683,13 @@ export async function analyzeCommanderDeck(
         cardInclusionMap,
         oneAwayCombos: params.oneAwayCombos ?? [],
         gapAnalysis,
+        commanderNames: params.partnerCommander
+          ? [params.commander.name, params.partnerCommander.name]
+          : [params.commander.name],
+        // A full mainboard (a tuned Commander deck) → pair upshift adds with a
+        // suggested cut so they apply 1-for-1 instead of tripping the
+        // replace-when-full prompt. `cards` is the mainboard (commanders excluded).
+        deckFull: params.cards.length >= params.deckSize,
       }
     );
 

@@ -330,8 +330,10 @@ export function fromBracketFitMove(move: BracketFitMove, ownership?: ChangeOwner
       roleLabel: move.roleLabel,
       inclusion: move.inclusion,
       synergy: move.synergy,
-      // The GC flag belongs to the card being cut; the replacement is never a GC.
-      isGameChanger: false,
+      // The primary card is the one coming IN. On a downshift swap that's a
+      // filtered (never-GC) replacement → false; on an upshift swap it can be a
+      // Game Changer, carried as `inIsGameChanger`.
+      isGameChanger: move.inIsGameChanger ?? false,
       group: move.signal,
       cmc: move.cmc,
       typeLine: move.typeLine,

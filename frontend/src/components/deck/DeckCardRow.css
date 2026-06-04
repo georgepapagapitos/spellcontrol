@@ -32,6 +32,42 @@
   cursor: default;
 }
 
+/* Swap art cluster: offender (out) → arrow → incoming card. The out thumb is
+   smaller + dimmed so the incoming card stays the focal point; the arrow reads
+   the trade direction. Used only on swap rows (Bracket Fit). */
+.deck-card-row-swap-art {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.deck-card-row-out {
+  flex: 0 0 auto;
+  width: 2rem;
+  border-radius: calc(var(--radius) * 0.6);
+  overflow: hidden;
+  /* Dim + slightly desaturate the card leaving the deck. */
+  opacity: 0.5;
+  filter: grayscale(0.35);
+}
+
+.deck-card-row-out img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.deck-card-row-swap-arrow {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--text3);
+}
+
 .deck-card-row-art img {
   display: block;
   width: 100%;
