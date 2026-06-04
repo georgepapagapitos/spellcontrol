@@ -394,6 +394,7 @@ export function DeckEditorPage() {
       deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
       oneAwayCombos: comboData.data?.oneAway,
       ownedNames,
+      winConditions: deck.winConditions,
     });
   }, [deck, comboData.data, ownedNames]);
 

@@ -289,4 +289,62 @@ describe('buildNextBestMoves', () => {
     expect(moves[0].tier).toBe(1);
     expect(moves.map((m) => m.tier)).toEqual([1, 2, 2]);
   });
+
+  // ── Win-condition coaching move ──────────────────────────────────────────
+
+  it('emits a tier-1 no-win-condition move when noClearWinCondition is true', () => {
+    const moves = buildNextBestMoves(
+      base({
+        winConditions: { primary: null, secondary: [], noClearWinCondition: true },
+      })
+    );
+    expect(moves).toHaveLength(1);
+    expect(moves[0].id).toBe('no-win-condition');
+    expect(moves[0].tier).toBe(1);
+    expect(moves[0].navigateTo).toBe('power');
+    expect(moves[0].focus).toBeUndefined();
+  });
+
+  it('does NOT emit the no-win-condition move when noClearWinCondition is false', () => {
+    const moves = buildNextBestMoves(
+      base({
+        winConditions: {
+          primary: {
+            category: 'combat',
+            label: 'Combat',
+            summary: 'Wins via combat',
+            evidence: [],
+            score: 5,
+          },
+          secondary: [],
+          noClearWinCondition: false,
+        },
+      })
+    );
+    expect(moves.find((m) => m.id === 'no-win-condition')).toBeUndefined();
+  });
+
+  it('does NOT emit the no-win-condition move when winConditions is absent', () => {
+    const moves = buildNextBestMoves(base());
+    expect(moves.find((m) => m.id === 'no-win-condition')).toBeUndefined();
+  });
+
+  it('no-win-condition is the first move and counts against the MAX_MOVES cap', () => {
+    // 3 other tier-1/tier-2 moves + win-condition — cap should still give us 3 total,
+    // with the win-condition move appearing first (it's tier 1, inserted first).
+    const moves = buildNextBestMoves(
+      base({
+        cardCount: 101,
+        deckTarget: 99,
+        roleCounts: { ramp: 1, removal: 1 },
+        roleTargets: { ramp: 10, removal: 10 },
+        gapAnalysis: [gap('R', { synergy: 4 })],
+        planScore: plan({ roles: sub(30), curve: sub(40), cardFit: sub(50), strategy: sub(60) }),
+        winConditions: { primary: null, secondary: [], noClearWinCondition: true },
+      })
+    );
+    expect(moves).toHaveLength(3);
+    expect(moves[0].id).toBe('no-win-condition');
+    expect(moves[0].tier).toBe(1);
+  });
 });
