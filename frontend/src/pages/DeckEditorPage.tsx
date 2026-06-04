@@ -32,6 +32,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { fromGapCard, sortOwnedFirst, type LaneId, type ChangeOwnership } from '@/lib/deck-change';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
+import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
 import { classifyCandidate } from '../lib/deck-analysis';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
@@ -279,6 +280,13 @@ export function DeckEditorPage() {
       if (e.claimed > 0) return 'in-other-deck';
       return 'unowned';
     },
+    [ownershipByName]
+  );
+
+  // Free (unallocated) owned copies of a card name — drives the "N free" badge on
+  // similar-card suggestions. Mirrors `ownershipFor` over the same live map.
+  const freeCountFor = useCallback(
+    (name: string): number => ownershipByName.get(name.toLowerCase())?.free ?? 0,
     [ownershipByName]
   );
 
@@ -730,6 +738,28 @@ export function DeckEditorPage() {
         swapping={swappingSlot === slotId}
         commanderName={deck.commander?.name}
         onSwap={(name) => void handleSwapInDeck(slotId, card.name, name, close)}
+      />
+    );
+  };
+
+  // In-context "Similar cards" for an in-deck card: owned look-alikes from the
+  // collection, then broader synergy-axis discovery (see <SimilarCardsStrip>).
+  // Same `(card, slotId, close)` shape + swap mechanics as renderSwapSuggestions.
+  const renderSimilarCards = (card: ScryfallCard, slotId: string, close: () => void) => {
+    if (!deck) return null;
+    return (
+      <SimilarCardsStrip
+        target={card}
+        deckCardNames={deck.cards.map((c) => c.card.name)}
+        collectionCards={collectionCards}
+        ownershipFor={ownershipFor}
+        freeCountFor={freeCountFor}
+        identity={commanderColorIdentity}
+        inclusionMap={deck.cardInclusionMap ?? {}}
+        onSwap={(name) => void handleSwapInDeck(slotId, card.name, name, close)}
+        swapping={swappingSlot === slotId}
+        commanderName={deck.commander?.name}
+        enabled
       />
     );
   };
@@ -1244,6 +1274,7 @@ export function DeckEditorPage() {
             tuneFocusLane={tuneFocusLane}
             onTuneFocusHandled={clearTuneFocus}
             renderSwapSuggestions={renderSwapSuggestions}
+            renderSimilarCards={renderSimilarCards}
             powerHeroSlot={
               formatConfig?.hasCommander ? (
                 <PowerHero

@@ -23,8 +23,12 @@ export { parsePrice };
 
 export type ChangeType = 'add' | 'cut' | 'swap';
 
-/** The four intent lanes. The hero is a router, not a Change-owning lane. */
-export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'collection';
+/**
+ * The intent lanes a Change can belong to: the four Tune lanes plus `similar`,
+ * which tags the carousel's "Similar cards" suggestion rows (not a Tune lane).
+ * The hero is a router, not a Change-owning lane.
+ */
+export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'collection' | 'similar';
 
 /**
  * Allocation-aware ownership, evaluated at render time:

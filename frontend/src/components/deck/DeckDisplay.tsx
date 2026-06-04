@@ -399,6 +399,12 @@ export interface DeckDisplayProps {
     close: () => void
   ) => React.ReactNode;
   /**
+   * In-context "Similar cards" section, rendered below the swap suggestions for
+   * an in-deck card: owned look-alikes from the collection, then broader
+   * discovery. Same `(card, slotId, close)` shape as `renderSwapSuggestions`.
+   */
+  renderSimilarCards?: (card: ScryfallCard, slotId: string, close: () => void) => React.ReactNode;
+  /**
    * Which page-top view is active. `deck` shows the card-list editing surface;
    * the analysis ids show that view full-width (the card list is hidden). The
    * hub tab bar lives in the page (`DeckEditorPage`), which owns this state.
@@ -821,6 +827,7 @@ export function DeckDisplay({
   tuneFocusLane,
   onTuneFocusHandled,
   renderSwapSuggestions,
+  renderSimilarCards,
   activeView = 'deck',
   onShowTestHand,
 }: DeckDisplayProps) {
@@ -1738,13 +1745,20 @@ export function DeckDisplay({
               );
             }}
             renderPanelExtra={(i) => {
-              // In-context "Swap this card": offered only for a real in-deck card
-              // (commander/partner rows carry no slotId, so they're excluded).
+              // In-context "Swap this card" + "Similar cards": offered only for a
+              // real in-deck card (commander/partner rows carry no slotId, so
+              // they're excluded).
               const r = flat.rows[i];
-              if (!r || !renderSwapSuggestions) return null;
+              if (!r) return null;
               const slotId = r.slotIds[r.slotIds.length - 1];
               if (!slotId) return null;
-              return renderSwapSuggestions(r.card, slotId, () => setPreviewIndex(null));
+              const close = () => setPreviewIndex(null);
+              return (
+                <>
+                  {renderSwapSuggestions?.(r.card, slotId, close)}
+                  {renderSimilarCards?.(r.card, slotId, close)}
+                </>
+              );
             }}
             getStackBinders={(i) => {
               const r = flat.rows[i];
@@ -3108,6 +3122,10 @@ function DeckAnalysisView({
       upgrade: improveLaneRef,
       collection: improveLaneRef,
       budget: budgetLaneRef,
+      // 'similar' only tags the carousel's similar-card rows — it's never a
+      // collapsible Tune lane, so it maps to the inert Improve ref purely to keep
+      // this map exhaustive over LaneId (nothing deep-links to it).
+      similar: improveLaneRef,
     }),
     []
   );
