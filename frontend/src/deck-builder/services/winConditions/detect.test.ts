@@ -282,22 +282,82 @@ describe('aristocrats', () => {
 // ── Burn ──────────────────────────────────────────────────────────────────
 
 describe('burn', () => {
-  it('detects burn spells targeting players', () => {
+  it('detects burn spells targeting players, including X-spell finishers', () => {
     const result = detectWinConditions(
       input({
         cards: [
           card('Lightning Bolt', 'deals 3 damage to any target.', 'Instant'),
-          card(
-            'Fireball',
-            'deals x damage divided evenly, rounded down, among any number of targets.',
-            'Sorcery'
-          ),
           card('Comet Storm', 'deals x damage to each opponent.', 'Instant'),
+          card('Fireball', 'fireball deals x damage to any target. ...', 'Sorcery'),
         ],
         deckSynergy: emptySynergy(['spellslinger']),
       })
     );
     expect(result.primary?.category).toBe('burn');
+    // X-spell finishers are the bulk of the archetype — they must be detected,
+    // not just the fixed-damage Bolt.
+    expect(result.primary?.evidence).toContain('Comet Storm');
+    expect(result.primary?.evidence).toContain('Fireball');
+  });
+
+  it('qualifies an uninvested burn deck once it runs enough spells', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('Lightning Bolt', 'deals 3 damage to any target.', 'Instant'),
+          card('Lava Spike', 'deals 3 damage to target player.', 'Sorcery'),
+          card('Comet Storm', 'deals x damage to each opponent.', 'Instant'),
+          card('Fireball', 'fireball deals x damage to any target.', 'Sorcery'),
+        ],
+        // No invested spellslinger axis — qualifies purely on raw count (≥4).
+      })
+    );
+    expect(result.primary?.category).toBe('burn');
+  });
+
+  it('does not flag a couple of incidental burn spells as the win-con', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('Lightning Bolt', 'deals 3 damage to any target.', 'Instant'),
+          card('Comet Storm', 'deals x damage to each opponent.', 'Instant'),
+        ],
+        // 2 burn spells, not invested → below the strategic floor.
+      })
+    );
+    expect(result.primary?.category).not.toBe('burn');
+  });
+});
+
+// ── X-spell drain ────────────────────────────────────────────────────────────
+
+describe('aristocrats — X drain finishers', () => {
+  it('counts Exsanguinate-style X drain as a drain effect', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card(
+            'Exsanguinate',
+            'each opponent loses x life. you gain life equal to the life lost this way.',
+            'Sorcery'
+          ),
+          card(
+            'Torment of Hailfire',
+            'repeat the following process x times. ... each opponent loses 3 life.',
+            'Sorcery'
+          ),
+          card('Viscera Seer', 'sacrifice a creature: scry 1.', 'Creature'),
+          card(
+            'Zulaport Cutthroat',
+            'whenever another creature you control dies, each opponent loses 1 life and you gain 1 life.',
+            'Creature'
+          ),
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('aristocrats');
+    expect(result.primary?.label).toBe('Aristocrats / drain');
+    expect(result.primary?.evidence).toContain('Exsanguinate');
   });
 });
 
@@ -364,6 +424,28 @@ describe('voltron / commander damage', () => {
     );
     expect(result.primary?.category).not.toBe('voltron');
   });
+
+  it('does NOT call a big evasive commander with zero gear "voltron"', () => {
+    // A 7-power double-strike flyer with no equipment/auras must not produce a
+    // voltron win-con with empty evidence ("0 equipment — commander has evasion").
+    const cmdr = {
+      name: 'Big Evasive Commander',
+      type_line: 'Legendary Creature',
+      power: '7',
+      keywords: ['Flying', 'Double strike', 'Trample'],
+    };
+    const result = detectWinConditions(
+      input({
+        commander: cmdr,
+        cards: [
+          card('Sol Ring', 'add {c}{c}.', 'Artifact'),
+          card('Arcane Signet', 'add one mana.', 'Artifact'),
+        ],
+        format: 'commander',
+      })
+    );
+    expect(result.primary?.category).not.toBe('voltron');
+  });
 });
 
 // ── No clear win condition ────────────────────────────────────────────────
@@ -385,6 +467,73 @@ describe('no clear win condition', () => {
         ],
       })
     );
+    expect(result.noClearWinCondition).toBe(true);
+  });
+
+  it('fires for an unfocused goodstuff pile with only incidental cards', () => {
+    // A couple of incidental token makers + one sac outlet — none committed
+    // enough to be a real plan, and too few creatures for the combat fallback.
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('Tireless Provisioner', 'landfall — create a treasure or food token.', 'Creature'),
+          card('Spectral Sailor', 'flash. {3}{u}: draw a card.', 'Creature'),
+          card('Viscera Seer', 'sacrifice a creature: scry 1.', 'Creature'),
+          card('Sol Ring', 'add {c}{c}.', 'Artifact'),
+        ],
+      })
+    );
+    expect(result.noClearWinCondition).toBe(true);
+  });
+});
+
+// ── Strategic-commitment gate ─────────────────────────────────────────────────
+
+describe('strategic-commitment gate', () => {
+  it('does not call two incidental token makers a go-wide deck', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('Tireless Provisioner', 'create a 1/1 ... creature token.', 'Creature'),
+          card('Hydra Broodmaster', 'create x x/x green hydra creature tokens.', 'Creature'),
+        ],
+        // 2 token makers, tokens NOT invested → below the strategic floor.
+      })
+    );
+    expect(result.primary?.category).not.toBe('go-wide');
+  });
+
+  it('calls it go-wide once the deck is committed (≥4 cards)', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('A', 'create a 1/1 creature token.', 'Creature'),
+          card('B', 'create a 1/1 creature token.', 'Creature'),
+          card('C', 'create a 1/1 creature token.', 'Creature'),
+          card('D', 'creatures you control get +1/+1.', 'Enchantment'),
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('go-wide');
+  });
+});
+
+// ── Generic combat fallback ──────────────────────────────────────────────────
+
+describe('generic combat fallback', () => {
+  it('reads a creature-dense deck with no specific plan as combat', () => {
+    const cards = Array.from({ length: 16 }, (_, i) =>
+      card(`Beater ${i}`, 'vanilla beater.', 'Creature')
+    );
+    const result = detectWinConditions(input({ cards }));
+    expect(result.primary?.category).toBe('combat');
+  });
+
+  it('does not fall back to combat for a thin creature base', () => {
+    const cards = Array.from({ length: 8 }, (_, i) =>
+      card(`Beater ${i}`, 'vanilla beater.', 'Creature')
+    );
+    const result = detectWinConditions(input({ cards }));
     expect(result.noClearWinCondition).toBe(true);
   });
 });
