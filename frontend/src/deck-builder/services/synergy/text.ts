@@ -164,3 +164,64 @@ export function isTokenDoubler(oracle: string): boolean {
     /one or more (?:creature )?tokens would be created/.test(oracle)
   );
 }
+
+// ── Discard, with subject + trigger detection ───────────────────────────────
+
+export interface DiscardSignals {
+  /** Causes cards to be discarded — your own loot/rummage OR forced opponent discard. */
+  causes: boolean;
+  /** The causation targets opponents ("target player/each opponent discards") — hand attack. */
+  forced: boolean;
+  /** Rewards a discard *happening* (a triggered ability keyed on discarding). */
+  rewards: boolean;
+  /** That reward keys off *opponents* discarding (Megrim / Waste Not punishers). */
+  rewardsOpponents: boolean;
+}
+
+// "Each opponent / target player … discards" — a forced-discard (hand-attack)
+// engine. Deliberately excludes the bare "an opponent discards" TRIGGER form
+// ("Whenever an opponent discards …"), which is a payoff, handled below.
+const FORCED_DISCARD =
+  /\b(?:target player|target opponent|each opponent|each player|that player|they)\b[^.]*\bdiscards?\b/;
+// Imperative "Discard a card" — a cost or one-shot loot/rummage that fuels you.
+const SELF_DISCARD_IMPERATIVE = /\bdiscard (?:a|an|two|three|four|your|that|x|\d+|cards?)\b/;
+// Triggered abilities keyed on a discard — these are payoffs, never producers.
+const DISCARD_TRIGGER_OPPONENT =
+  /whenever (?:a|an|each|another)?\s*(?:opponent|player)s?\b[^.]*\bdiscards?\b/;
+const DISCARD_TRIGGER_SELF = /whenever you (?:cycle or )?discards?\b|\bif you discards?\b/;
+
+/**
+ * Classify a card's relationship to discarding, distinguishing the engine that
+ * *causes* discards (your loot/rummage or forced opponent discard) from the
+ * payoff that *rewards* a discard. Mirrors `tokenCreation`'s subject awareness:
+ * forced opponent discard (Mind Rot, Tergrid's Lantern) is a deliberate enabler,
+ * whereas a "Whenever … discards" trigger (Megrim, Bone Miser) is a payoff — so a
+ * card that only triggers on discards is never mistaken for one that makes them.
+ */
+export function discardSignals(oracle: string): DiscardSignals {
+  let causes = false;
+  let forced = false;
+  let rewards = false;
+  let rewardsOpponents = false;
+  for (const clause of splitClauses(oracle)) {
+    // Triggers win the clause: "Whenever you discard a card, …" is a payoff, not
+    // an instruction to discard — checking it first stops the imperative regex
+    // from also tagging the same clause as a producer.
+    if (DISCARD_TRIGGER_OPPONENT.test(clause)) {
+      rewards = true;
+      rewardsOpponents = true;
+      continue;
+    }
+    if (DISCARD_TRIGGER_SELF.test(clause)) {
+      rewards = true;
+      continue;
+    }
+    if (FORCED_DISCARD.test(clause)) {
+      causes = true;
+      forced = true;
+      continue;
+    }
+    if (SELF_DISCARD_IMPERATIVE.test(clause)) causes = true;
+  }
+  return { causes, forced, rewards, rewardsOpponents };
+}
