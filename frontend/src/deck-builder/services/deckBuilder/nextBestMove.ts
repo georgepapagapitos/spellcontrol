@@ -2,6 +2,7 @@ import type { PlanScore, SubScoreKey } from './planScore';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { DeckView } from '@/components/deck/DeckDisplay';
 import type { ComboMatch } from '@/types/combos';
+import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 
 /**
  * One ranked, data-grounded suggestion for the single highest-leverage change
@@ -49,6 +50,8 @@ export interface NextBestMoveInput {
    *  player already owns, the hero prefers it ("build it tonight" over "go buy").
    *  Re-derived live by the page — never the stale persisted `isOwned` snapshot. */
   ownedNames?: Set<string>;
+  /** Win-condition analysis from detect.ts — drives the "no clear win condition" move. */
+  winConditions?: WinConditionAnalysis;
 }
 
 /** Display labels for the functional roles (mirrors planScore's ROLE_LABELS). */
@@ -136,12 +139,25 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     deckTarget,
     oneAwayCombos,
     ownedNames,
+    winConditions,
   } = input;
 
   const moves: NextBestMove[] = [];
   // Card names already claimed by a move — prevents two moves recommending the
   // same card across tiers.
   const usedCards = new Set<string>();
+
+  // ── Tier 1: structural — no detectable win path ─────────────────────────
+  if (winConditions?.noClearWinCondition) {
+    moves.push({
+      id: 'no-win-condition',
+      tier: 1,
+      title: 'Define a win condition',
+      detail:
+        'This deck has no clear path to victory. Add combo pieces, an infect package, a mill plan, or build around a dominant synergy to give the deck a win condition.',
+      navigateTo: 'power',
+    });
+  }
 
   // ── Tier 1: structural — deck size vs target ────────────────────────────
   const excess = cardCount - deckTarget;
