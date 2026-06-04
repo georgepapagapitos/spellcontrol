@@ -63,8 +63,12 @@ function isAltWin(oracle: string, name: string): boolean {
 
 // ── Burn detection (direct damage to players) ────────────────────────────────
 
+// `(?:\d+|x)` is load-bearing: most commander burn FINISHERS deal `X` damage
+// (Fireball, Comet Storm, Crackle with Power), not a fixed number — a `\d+`-only
+// regex silently misses the entire X-spell family, which is the bulk of the
+// archetype.
 const BURN_RE =
-  /deals? \d+ damage to (?:(?:target|each) (?:player|opponent)|any target)|deals? \d+ damage to players/;
+  /deals? (?:\d+|x) damage to (?:(?:target|each) (?:player|opponent)|any target)|deals? (?:\d+|x) damage to players/;
 
 function isBurnSpell(typeLine: string, oracle: string): boolean {
   const isSpell = /instant|sorcery/.test(typeLine);
@@ -73,8 +77,10 @@ function isBurnSpell(typeLine: string, oracle: string): boolean {
 
 // ── Aristocrats drain scan ────────────────────────────────────────────────────
 
+// Same X-spell concern as burn: the canonical drain finishers (Exsanguinate,
+// Torment of Hailfire) cost `X`, so allow `x` alongside a literal count.
 const DRAIN_RE =
-  /(?:each opponent|target opponent|all opponents) (?:loses|lose) \d+ life|opponent loses \d+ life each/;
+  /(?:each opponent|target opponent|all opponents) (?:loses|lose) (?:\d+|x) life|opponent loses (?:\d+|x) life each/;
 
 function drainsDamage(oracle: string): boolean {
   return DRAIN_RE.test(oracle);
@@ -117,19 +123,49 @@ function commanderPower(cmd: CardLike): number {
   return isNaN(n) ? 0 : n;
 }
 
-// ── Threshold for "real" win condition ───────────────────────────────────────
+// ── Qualification gates ───────────────────────────────────────────────────────
 
-/** Minimum score to surface a win-con path. */
-const DETECT_THRESHOLD = 2;
+/**
+ * Strategic win-cons (mill / poison / go-wide / aristocrats / burn / voltron) are
+ * *plans*, not discrete buttons — a couple of incidental token-makers or sac
+ * effects don't make a deck a "tokens deck". They qualify only when the deck is
+ * genuinely committed: either the synergy engine flagged the axis as `invested`
+ * (≥5 producers+payoffs with both halves — its "the deck commits to this" signal),
+ * or there's a substantial raw count of relevant cards. This is what keeps the
+ * primary label honest and lets "no clear win condition" actually fire on an
+ * unfocused goodstuff pile.
+ */
+const STRATEGIC_MIN_CARDS = 4;
+
+/** Invested-axis score bonus — a flagged engine should clearly outrank an
+ *  incidental, one-sided pile of the same card type. */
+const INVESTED_BONUS = 4;
+
+function strategicQualifies(evidenceCount: number, invested: boolean): boolean {
+  return invested || evidenceCount >= STRATEGIC_MIN_CARDS;
+}
+
+/** Min creatures for the generic-combat fallback to read as a real creature
+ *  base (vs. a control/spells shell that happens to run a few bodies). */
+const COMBAT_MIN_CREATURES = 15;
 
 // ── Main detector ─────────────────────────────────────────────────────────────
 
 /**
  * Detect how a commander deck wins. Returns primary + secondary win conditions,
- * ranked by evidence strength.
+ * ranked by commitment.
  *
- * Score formula: each evidence card = 1 pt; synergy `invested` membership = +3;
- * combo presence = separate scoring.
+ * Two kinds of path:
+ *  - Discrete finishers (combo, alt-win): a single card/combo is a real win
+ *    condition, so any present count qualifies.
+ *  - Strategic plans (mill / poison / go-wide / aristocrats / burn / voltron):
+ *    qualify only on real commitment — an `invested` synergy axis or a
+ *    substantial raw card count (`strategicQualifies`). This keeps a couple of
+ *    incidental cards from being mislabelled as the deck's plan.
+ *
+ * Score = relevant card count + `INVESTED_BONUS` when the synergy engine flagged
+ * the axis (so a committed engine outranks an incidental pile). When nothing
+ * qualifies, returns `noClearWinCondition`.
  */
 export function detectWinConditions(input: WinConditionInput): WinConditionAnalysis {
   const { cards, commander, combosInDeck, deckSynergy, format } = input;
@@ -189,14 +225,14 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
     const m = millSignals(parsed.oracle);
     if (m.opponentMill || m.doubler) millCards.push(card.name);
   }
-  const millScore = millCards.length + (investedSet.has('mill') ? 3 : 0);
-  if (millScore >= DETECT_THRESHOLD) {
+  const millInvested = investedSet.has('mill');
+  if (strategicQualifies(millCards.length, millInvested)) {
     candidates.push({
       category: 'mill',
       label: 'Mill',
       summary: `${millCards.length} mill card${millCards.length === 1 ? '' : 's'} targeting opponents`,
       evidence: millCards.slice(0, 8),
-      score: millScore,
+      score: millCards.length + (millInvested ? INVESTED_BONUS : 0),
     });
   }
 
@@ -213,14 +249,17 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       poisonCards.push(card.name);
     }
   }
-  const poisonScore = poisonCards.length + (investedSet.has('poison') ? 3 : 0);
-  if (poisonScore >= DETECT_THRESHOLD) {
+  // Poison is deterministic and rare, so a smaller commitment still reads as a
+  // real plan — but a lone incidental infect creature shouldn't. Qualify at ≥2
+  // poison cards or an invested poison axis.
+  const poisonInvested = investedSet.has('poison');
+  if (poisonInvested || poisonCards.length >= 2) {
     candidates.push({
       category: 'poison',
       label: 'Poison / infect',
       summary: `${poisonCards.length} infect/toxic/poison card${poisonCards.length === 1 ? '' : 's'}`,
       evidence: poisonCards.slice(0, 8),
-      score: poisonScore,
+      score: poisonCards.length + (poisonInvested ? INVESTED_BONUS : 0),
     });
   }
 
@@ -235,15 +274,16 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       anthemCards.push(card.name);
     }
   }
-  const goWideScore = tokenCards.length + anthemCards.length + (investedSet.has('tokens') ? 3 : 0);
-  if (goWideScore >= DETECT_THRESHOLD) {
+  const goWideInvested = investedSet.has('tokens');
+  const goWideCount = tokenCards.length + anthemCards.length;
+  if (strategicQualifies(goWideCount, goWideInvested)) {
     const allEvidence = Array.from(new Set([...tokenCards, ...anthemCards]));
     candidates.push({
       category: 'go-wide',
       label: 'Go-wide tokens',
       summary: `${tokenCards.length} token maker${tokenCards.length === 1 ? '' : 's'}${anthemCards.length > 0 ? `, ${anthemCards.length} anthem${anthemCards.length === 1 ? '' : 's'}` : ''}`,
       evidence: allEvidence.slice(0, 8),
-      score: goWideScore,
+      score: goWideCount + (goWideInvested ? INVESTED_BONUS : 0),
     });
   }
 
@@ -258,21 +298,19 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
     if (s.rewards) sacPayoffs.push(card.name);
     if (drainsDamage(parsed.oracle)) drainCards.push(card.name);
   }
-  const aristoScore =
-    sacOutlets.length +
-    sacPayoffs.length +
-    drainCards.length +
-    (investedSet.has('sacrifice') ? 3 : 0) +
-    (investedSet.has('lifegain') ? 1 : 0);
-  if (aristoScore >= DETECT_THRESHOLD) {
-    const allEvidence = Array.from(new Set([...sacOutlets, ...sacPayoffs, ...drainCards]));
+  const aristoInvested = investedSet.has('sacrifice');
+  const aristoEvidence = Array.from(new Set([...sacOutlets, ...sacPayoffs, ...drainCards]));
+  if (strategicQualifies(aristoEvidence.length, aristoInvested)) {
     const hasDrain = drainCards.length > 0;
     candidates.push({
       category: 'aristocrats',
       label: hasDrain ? 'Aristocrats / drain' : 'Aristocrats',
       summary: `${sacOutlets.length} sacrifice outlet${sacOutlets.length === 1 ? '' : 's'}, ${sacPayoffs.length} payoff${sacPayoffs.length === 1 ? '' : 's'}${hasDrain ? `, ${drainCards.length} drain effect${drainCards.length === 1 ? '' : 's'}` : ''}`,
-      evidence: allEvidence.slice(0, 8),
-      score: aristoScore,
+      evidence: aristoEvidence.slice(0, 8),
+      score:
+        aristoEvidence.length +
+        (aristoInvested ? INVESTED_BONUS : 0) +
+        (investedSet.has('lifegain') ? 1 : 0),
     });
   }
 
@@ -282,14 +320,14 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
     const parsed = parseCard(card);
     if (isBurnSpell(parsed.typeLine, parsed.oracle)) burnCards.push(card.name);
   }
-  const burnScore = burnCards.length + (investedSet.has('spellslinger') ? 2 : 0);
-  if (burnScore >= DETECT_THRESHOLD) {
+  const burnInvested = investedSet.has('spellslinger');
+  if (strategicQualifies(burnCards.length, burnInvested)) {
     candidates.push({
       category: 'burn',
       label: 'Burn',
       summary: `${burnCards.length} direct-damage spell${burnCards.length === 1 ? '' : 's'}`,
       evidence: burnCards.slice(0, 8),
-      score: burnScore,
+      score: burnCards.length + (burnInvested ? INVESTED_BONUS : 0),
     });
   }
 
@@ -302,18 +340,21 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       if (/\bequip\b/.test(parsed.oracle)) equipCards.push(card.name);
       if (/enchant creature\b/.test(parsed.oracle)) auraCards.push(card.name);
     }
+    const gearCount = equipCards.length + auraCards.length;
+    const voltronInvested = investedSet.has('equipment') || investedSet.has('auras');
     const cmdPower = commanderPower(commander);
     const cmdEvasion = commanderHasEvasion(commander);
-    const voltronScore =
-      equipCards.length +
-      auraCards.length +
-      (investedSet.has('equipment') ? 3 : 0) +
-      (investedSet.has('auras') ? 3 : 0) +
-      (cmdPower >= 5 ? 2 : cmdPower >= 3 ? 1 : 0) +
-      (cmdEvasion ? 2 : 0);
-
-    if (voltronScore >= DETECT_THRESHOLD) {
+    // Evidence floor: voltron is "suit up the commander", so it requires actual
+    // equipment/auras. Commander power + evasion only *boost* a real gear base —
+    // they can never qualify voltron on their own (otherwise a big evasive
+    // commander with zero equipment would render "0 equipment" as a win-con).
+    if (gearCount >= 1 && strategicQualifies(gearCount, voltronInvested)) {
       const allEvidence = Array.from(new Set([...equipCards, ...auraCards]));
+      const voltronScore =
+        gearCount +
+        (voltronInvested ? INVESTED_BONUS : 0) +
+        (cmdPower >= 5 ? 2 : cmdPower >= 3 ? 1 : 0) +
+        (cmdEvasion ? 2 : 0);
       candidates.push({
         category: 'voltron',
         label: 'Voltron / commander damage',
@@ -325,30 +366,32 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   }
 
   // ── 9. Generic combat (fallback) ─────────────────────────────────────────
-  const combatScore = countCreatures(cards);
-  // Only surface generic combat if no other path is present (it's the default)
-  // and the deck has enough creatures to be a real combat plan.
+  const creatureCount = countCreatures(cards);
+  // Only surface generic combat if no specific path is present (it's the default)
+  // and the deck has a real creature base — not a control/spells shell that just
+  // runs a few bodies. Below that floor, "no clear win condition" is the honest
+  // answer.
   const hasSpecificPath = candidates.length > 0;
-  if (!hasSpecificPath && combatScore >= 12) {
+  if (!hasSpecificPath && creatureCount >= COMBAT_MIN_CREATURES) {
     candidates.push({
       category: 'combat',
       label: 'Combat / aggro',
-      summary: `${combatScore} creature${combatScore === 1 ? '' : 's'} — generic combat plan`,
+      summary: `${creatureCount} creature${creatureCount === 1 ? '' : 's'} — generic combat plan`,
       evidence: [],
-      score: Math.min(combatScore, 10),
+      score: Math.min(creatureCount, 10),
     });
   }
 
   // ── Rank and return ───────────────────────────────────────────────────────
+  // Each block has already applied its own qualification gate, so any candidate
+  // here is a genuine path; rank by score (commitment) descending.
   candidates.sort((a, b) => b.score - a.score);
 
-  const above = candidates.filter((c) => c.score >= DETECT_THRESHOLD);
-
-  if (above.length === 0) {
+  if (candidates.length === 0) {
     return { primary: null, secondary: [], noClearWinCondition: true };
   }
 
-  const [primary, ...rest] = above;
+  const [primary, ...rest] = candidates;
   return {
     primary,
     secondary: rest,
