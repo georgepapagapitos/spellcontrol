@@ -24,112 +24,25 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    // The PWA / service worker has been RETIRED. SpellControl ships a native
+    // app for real offline use, and the web app-shell precache only ever
+    // caused stale-bundle confusion: a Fly deploy would land but returning
+    // browsers kept serving the previously-cached bundle until the SW updated.
+    // The web app is now a plain SPA (always online); offline card data is
+    // IndexedDB-backed and SW-independent (lib/offline/auto-sync).
+    //
+    // `selfDestroying: true` is the supported teardown path — it emits a
+    // service worker that UNREGISTERS any SW a prior build installed and
+    // purges its caches, so existing browsers self-heal on their next
+    // update check (a bare plugin removal would strand them on the old SW,
+    // since a 404 on sw.js does not reliably unregister it). Keep this for a
+    // few weeks until old SWs have aged out, then the plugin can be deleted
+    // entirely (register-pwa.ts already only tears SWs down — see there).
+    // `injectRegister: false` leaves registration to register-pwa.ts so the
+    // native (Capacitor) path can opt out.
     VitePWA({
-      // 'prompt' hands control of the SW swap to us so we can apply it
-      // silently in the common case but defer (see `register-pwa.ts`) when
-      // a local playtest is active — auto-reload mid-game would be hostile.
-      registerType: 'prompt',
-      injectRegister: 'auto',
-      includeAssets: ['tagger-tags.json', 'sc-icon.svg'],
-      manifest: {
-        name: 'SpellControl',
-        short_name: 'SpellControl',
-        description: 'Plan physical Magic: The Gathering binders, decks, and games.',
-        theme_color: '#0a1f3d',
-        background_color: '#0a1f3d',
-        display: 'standalone',
-        start_url: '/',
-        scope: '/',
-        // Single SVG icon — modern PWA spec accepts SVG for all sizes via
-        // `purpose: 'any maskable'`. Saves us from generating 8 PNG sizes.
-        icons: [
-          {
-            src: '/sc-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
-          },
-        ],
-      },
-      workbox: {
-        // Precache the build output. globPatterns covers HTML/JS/CSS/fonts;
-        // tagger-tags.json is added via includeAssets above so the offline
-        // deck builder works cold.
-        globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,json}'],
-        // The scanner vendors opencv.js into public/scanner/opencv.js
-        // (~10MB) and loads it via a classic <script> tag — see
-        // lib/scanner/opencv-loader.ts for why we bypassed Vite's ESM
-        // dynamic-import path. Excluded from precache so the build doesn't
-        // fail Workbox's size gate; first scanner open fetches it (native
-        // APK ships it bundled either way). CLIP inference and the
-        // embedding DB now live server-side (see
-        // backend/src/scanner/matcher.ts), so they're no longer in the
-        // bundle at all — only opencv stays on-device.
-        globIgnores: ['**/opencv*.js'],
-        // Keep the precache cap generous — the tagger JSON + font subsets
-        // alone push past Workbox's 2MB default.
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-        navigateFallback: '/index.html',
-        // Backend routes must reach the server. Without this, top-level
-        // navigations to /api/* (notably the Google OAuth start /api/auth/google
-        // and its callback /api/auth/google/callback) get the cached index.html
-        // instead — the backend never runs, no Set-Cookie ever happens, and
-        // the SPA's catch-all silently lands the user on /collection as a
-        // guest. Password login works only because it's an XHR (handled by
-        // runtimeCaching below), not a navigation.
-        navigateFallbackDenylist: [/^\/api\//],
-        // Routes the SW handles at request time (vs. precache).
-        runtimeCaching: [
-          {
-            // Scryfall card images — viewed once, kept forever-ish. CacheFirst
-            // means the browser doesn't even re-validate, which matches the
-            // immutable nature of Scryfall's image URLs (they version via
-            // the path so URLs change when art changes).
-            urlPattern: /^https:\/\/cards\.scryfall\.io\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'scryfall-images',
-              expiration: {
-                maxEntries: 2000,
-                maxAgeSeconds: 60 * 60 * 24 * 90, // 90 days
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Offline bulk endpoints — never SW-cache, they're huge and the
-            // app stores them in IndexedDB via lib/offline/download.ts. SW
-            // caching would double-store and confuse the manifest version check.
-            urlPattern: /\/api\/offline\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            // Generic /api fall-through. NetworkFirst with a short timeout
-            // so a slow/offline backend doesn't strand the UI — falls back
-            // to whatever was last cached. Offline-toggle-on flows don't
-            // hit /api at all so this only matters when toggle is off.
-            urlPattern: /\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api',
-              networkTimeoutSeconds: 4,
-              expiration: { maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
-          {
-            // Google Fonts CSS + woff files used by the app.
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'google-fonts',
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
-      },
-      // Dev SW is intentionally OFF — it makes HMR flaky and only matters
-      // for production behavior. Test the PWA via `npm run build && npm run preview`.
+      selfDestroying: true,
+      injectRegister: false,
       devOptions: { enabled: false },
     }),
   ],

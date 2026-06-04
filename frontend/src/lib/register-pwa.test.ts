@@ -54,14 +54,36 @@ describe('registerPwa', () => {
     await expect(registerPwa()).resolves.toBeUndefined();
   });
 
-  it('on web, does not tear down service workers', async () => {
+  it('on web, unregisters any prior SW and clears its caches (PWA retired)', async () => {
     mockedIsNative.mockReturnValue(false);
-    const getRegistrations = vi.fn();
+    const unregister = vi.fn().mockResolvedValue(true);
+    const getRegistrations = vi.fn().mockResolvedValue([{ unregister }]);
     stubServiceWorker({ getRegistrations });
-    // `virtual:pwa-register` is unresolved under Vitest, so registerPwa
-    // returns via its import catch — it must not touch the SW registry.
+    const cacheDelete = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal('caches', {
+      keys: vi.fn().mockResolvedValue(['workbox-precache-v1']),
+      delete: cacheDelete,
+    });
+
     await expect(registerPwa()).resolves.toBeUndefined();
-    expect(getRegistrations).not.toHaveBeenCalled();
+
+    expect(getRegistrations).toHaveBeenCalledOnce();
+    expect(unregister).toHaveBeenCalledOnce();
+    expect(cacheDelete).toHaveBeenCalledWith('workbox-precache-v1');
+  });
+
+  it('on web, swallows teardown failures', async () => {
+    mockedIsNative.mockReturnValue(false);
+    stubServiceWorker({ getRegistrations: vi.fn().mockRejectedValue(new Error('nope')) });
+    await expect(registerPwa()).resolves.toBeUndefined();
+  });
+
+  it('on web, does not write the native build-id', async () => {
+    mockedIsNative.mockReturnValue(false);
+    stubServiceWorker({ getRegistrations: vi.fn().mockResolvedValue([]) });
+    vi.stubGlobal('caches', { keys: vi.fn().mockResolvedValue([]), delete: vi.fn() });
+    await registerPwa();
+    expect(localStorage.getItem(BUILD_ID_KEY)).toBeNull();
   });
 });
 

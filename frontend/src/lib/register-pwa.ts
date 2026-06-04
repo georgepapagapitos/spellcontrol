@@ -1,30 +1,23 @@
 import { logger } from '@/lib/logger';
 import { isNativePlatform } from '@/lib/platform';
-import { usePlayStore } from '@/store/play';
-import { usePwaStore } from '@/store/pwa';
 
 /**
- * Wire the Workbox-generated service worker into our app.
+ * Tear down the retired service worker.
  *
- * Only `onNeedRefresh` is handled. It fires when a new SW has finished
- * installing in the background — in the common case (no fragile local
- * state) we apply silently and the SW swap reloads the tab. If a
- * playtest is active we defer instead and surface a passive "update
- * available" control on the Settings page so a tab doesn't reload out
- * from under someone mid-game.
+ * SpellControl no longer ships a PWA (see vite.config.ts: the plugin is in
+ * `selfDestroying` mode, kept only to retire existing SWs). The web app is a
+ * plain SPA — the app-shell precache only ever caused stale-bundle confusion
+ * after a deploy. Offline card data is IndexedDB-backed and SW-independent
+ * (lib/offline/auto-sync), so removing the SW costs nothing.
  *
- * `onOfflineReady` is intentionally omitted: with always-on card data
- * (see `lib/offline/auto-sync`), the app just works offline, full stop —
- * a "now available offline" confirmation toast is redundant, and it
- * tended to re-fire on every watchtower-driven SW update which looked
- * like a bug to the user.
+ * Both platforms now do the same thing: unregister any service worker a prior
+ * build left behind and clear its caches so a returning browser drops straight
+ * to the freshly-served bundle. Native gates the teardown behind a build-id
+ * compare so a relaunched-but-unchanged install doesn't needlessly re-download
+ * its cached assets; web tears down unconditionally (idempotent no-op once the
+ * SW is gone). This complements the selfDestroying sw.js, which also frees
+ * browsers via their own update check even when they never load this build.
  */
-function isPlaytestActive(): boolean {
-  const { local, online } = usePlayStore.getState();
-  const localActive = local && local.status !== 'finished';
-  const onlineActive = online && online.status !== 'finished';
-  return Boolean(localActive || onlineActive);
-}
 
 /**
  * Tear down any service worker (and its caches) a previous build left
@@ -88,48 +81,18 @@ export async function reconcileNativeBundle(currentBuildId: string): Promise<voi
 export async function registerPwa(): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  // The native (Capacitor) app bundles every asset in the APK and serves
-  // it from the local `https://localhost` origin, so a Workbox precache
-  // layer adds nothing — and it actively hurts: a freshly installed build
-  // boots the *previous* build's cached app-shell (a white screen until
-  // the SW silently updates). Skip registration on native, and tear down
-  // any SW/caches an earlier build left behind so existing installs
-  // self-heal. Native offline support is handled by lib/offline/auto-sync,
-  // independent of the service worker.
-  //
-  // Build-id gate: we previously nuked on *every* native boot, which was
-  // wasteful — a relaunched-but-unchanged install would re-download every
-  // cached asset for no reason. `__BUILD_ID__` is baked in at build time
-  // (see vite.config.ts); compare it to the id this device last saw and
-  // only tear down when they differ (or on first boot).
+  // Native (Capacitor) bundles every asset in the APK and serves it from the
+  // local `https://localhost` origin, so a precache layer adds nothing and a
+  // stale one shows the previous build's shell. Gate the teardown behind a
+  // build-id compare so a relaunched-but-unchanged install keeps its cache.
+  // `__BUILD_ID__` is baked in at build time (see vite.config.ts).
   if (isNativePlatform()) {
     await reconcileNativeBundle(__BUILD_ID__);
     return;
   }
 
-  // The `virtual:pwa-register` module is injected by vite-plugin-pwa at
-  // build time. Dynamic import keeps the unit-test bundle from choking on
-  // the unresolved specifier under Vitest's node environment.
-  let registerSW: typeof import('virtual:pwa-register').registerSW;
-  try {
-    ({ registerSW } = await import('virtual:pwa-register'));
-  } catch {
-    // No PWA register module — running under tests, an unsupported browser,
-    // or the plugin is disabled. Silent skip; the app works fine without.
-    return;
-  }
-
-  const updateSW = registerSW({
-    onNeedRefresh() {
-      const apply = () => updateSW(true);
-      if (isPlaytestActive()) {
-        usePwaStore.getState().setPending(apply);
-        return;
-      }
-      void apply();
-    },
-    onRegisterError(error) {
-      logger.warn('[pwa] service worker registration failed:', error);
-    },
-  });
+  // Web: the PWA is retired. Unconditionally unregister any SW a prior build
+  // installed and clear its caches so the browser stops serving the cached
+  // app shell. Idempotent — a no-op once no SW remains.
+  await unregisterServiceWorkers();
 }

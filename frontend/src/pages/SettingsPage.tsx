@@ -24,7 +24,6 @@ import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
-import { usePwaStore } from '../store/pwa';
 
 export function SettingsPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -53,10 +52,6 @@ export function SettingsPage() {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
-  const [updateBusy, setUpdateBusy] = useState(false);
-
-  const updateAvailable = usePwaStore((s) => s.updateAvailable);
-  const applyPendingUpdate = usePwaStore((s) => s.applyPendingUpdate);
 
   // Sign-in methods state — what's linked, plus the in-flight states for the
   // link-Google and unlink-Google flows.
@@ -229,21 +224,6 @@ export function SettingsPage() {
       }
     } finally {
       setDeleteBusy(false);
-    }
-  }
-
-  async function handleApplyUpdate() {
-    setUpdateBusy(true);
-    try {
-      await applyPendingUpdate();
-      // applyPendingUpdate reloads the tab; nothing below runs in practice.
-    } catch (err) {
-      logger.warn('[settings] apply update failed:', err);
-      toast.show({
-        message: 'Could not apply the update. Try reloading the page.',
-        tone: 'error',
-      });
-      setUpdateBusy(false);
     }
   }
 
@@ -519,26 +499,6 @@ export function SettingsPage() {
           </p>
         </header>
         <div className="settings-card-body">
-          {updateAvailable && (
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value">Update available</div>
-                <div className="settings-row-hint">
-                  A newer version is ready. Updates apply automatically when no game is active —
-                  apply now to reload immediately.
-                </div>
-              </div>
-              <button
-                type="button"
-                className="pill-btn"
-                onClick={() => void handleApplyUpdate()}
-                disabled={updateBusy}
-              >
-                {updateBusy ? 'Updating…' : 'Update now'}
-              </button>
-            </div>
-          )}
-
           <div className="settings-row">
             <div className="settings-row-text">
               <div className="settings-row-value">Reset app cache</div>
