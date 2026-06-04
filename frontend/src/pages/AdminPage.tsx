@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore, type Deck } from '../store/decks';
 import { buildAllocationMap, findSuboptimalPrintings } from '../lib/allocations';
@@ -9,6 +10,7 @@ import type { EnrichedCard } from '../types';
 type Tab = 'overview' | 'decks' | 'allocations' | 'collection' | 'binders' | 'storage' | 'raw';
 
 export function AdminPage() {
+  const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const cards = useCollectionStore((s) => s.cards);
   const hydrating = useCollectionStore((s) => s.hydrating);
   const binders = useCollectionStore((s) => s.binders);
@@ -82,8 +84,10 @@ export function AdminPage() {
   }, [suboptimalPrintings]);
   const [remapResult, setRemapResult] = useState<string | null>(null);
 
-  // Expose everything on window for console poking.
+  // Expose everything on window for console poking. Admin-only: never install
+  // the debug helpers for a non-admin who somehow mounts this component.
   useEffect(() => {
+    if (!isAdmin) return;
     type DebugWindow = Window & {
       __debug?: Record<string, unknown>;
     };
@@ -124,7 +128,7 @@ export function AdminPage() {
     return () => {
       delete (window as DebugWindow).__debug;
     };
-  }, [cards, decks, binders, allocationMap, collectionByCopyId, cardsByName]);
+  }, [isAdmin, cards, decks, binders, allocationMap, collectionByCopyId, cardsByName]);
 
   const overview = useMemo(() => {
     const totalCopies = cards.length;
@@ -165,6 +169,11 @@ export function AdminPage() {
       nameMismatch,
     };
   }, [cards, cardsByName, decks, binders, collectionByCopyId]);
+
+  // Defense-in-depth behind the App.tsx route guard: bail for non-admins even
+  // if another entry point mounts this page directly. Placed after all hooks
+  // to respect the Rules of Hooks.
+  if (!isAdmin) return <Navigate to="/collection" replace />;
 
   return (
     <div className="admin-page">

@@ -3158,7 +3158,7 @@ function DeckAnalysisView({
               />
             </Panel>
           </div>
-          {/* Validation — pass/fail deck-health gate, pairs with Plan score. */}
+          {/* Validation — pass/fail deck-health gate, pairs with Build health. */}
           <div className="deck-stats-pair">
             {validation.checks.length > 0 && (
               <Panel title="Validation">
@@ -3166,7 +3166,7 @@ function DeckAnalysisView({
               </Panel>
             )}
             {planScore && (
-              <Panel title="Plan score">
+              <Panel title="Build health">
                 <PlanScoreDashboard plan={planScore} />
               </Panel>
             )}

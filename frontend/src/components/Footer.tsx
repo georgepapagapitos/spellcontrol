@@ -3,8 +3,10 @@
  * comes from them; this is the cheapest way to honor that.
  */
 import { Link } from 'react-router-dom';
+import { useAuth } from '../store/auth';
 
 export function Footer() {
+  const isAdmin = useAuth((s) => s.user?.role === 'admin');
   return (
     <footer className="footer">
       <p className="footer-fineprint">
@@ -12,7 +14,12 @@ export function Footer() {
         <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
           Scryfall
         </a>
-        . <Link to="/admin">Debug</Link>
+        {isAdmin && (
+          <>
+            {'. '}
+            <Link to="/admin">Debug</Link>
+          </>
+        )}
       </p>
     </footer>
   );
