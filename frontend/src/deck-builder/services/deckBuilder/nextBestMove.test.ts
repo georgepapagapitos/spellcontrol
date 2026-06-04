@@ -52,6 +52,35 @@ describe('buildNextBestMoves', () => {
     expect(moves).toEqual([]);
   });
 
+  it('surfaces a lopsided engine as a "Balance your engine" move citing the missing side', () => {
+    const moves = buildNextBestMoves(
+      base({
+        planScore: plan({}),
+        lopsided: [
+          {
+            axis: 'tokens',
+            label: 'Tokens / go-wide',
+            side: 'payoff',
+            text: 'Tokens / go-wide: 9 producers but no payoff to reward them.',
+          },
+        ],
+      })
+    );
+    const move = moves.find((m) => m.id === 'engine-tokens');
+    expect(move).toBeDefined();
+    expect(move?.tier).toBe(2);
+    expect(move?.title).toBe('Balance your engine');
+    expect(move?.detail).toContain('no payoff');
+    expect(move?.detail).toContain('payoff'); // names the missing side
+    expect(move?.navigateTo).toBe('tune');
+    expect(move?.focus).toBe('fill-gaps');
+  });
+
+  it('omits the engine move when there is no lopsided axis', () => {
+    const moves = buildNextBestMoves(base({ planScore: plan({}), lopsided: [] }));
+    expect(moves.some((m) => m.id.startsWith('engine-'))).toBe(false);
+  });
+
   it('flags over-target size as a tier-1 trim move', () => {
     const moves = buildNextBestMoves(base({ cardCount: 101, deckTarget: 99 }));
     expect(moves[0].tier).toBe(1);

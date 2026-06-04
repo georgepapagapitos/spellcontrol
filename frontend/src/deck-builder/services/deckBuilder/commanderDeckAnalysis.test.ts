@@ -191,6 +191,7 @@ describe('buildStrategyEngineInput', () => {
       ],
       invested: ['tokens'],
       warnings: [],
+      lopsided: [],
       headline: '',
     };
     const input = buildStrategyEngineInput(synergy, 60);
@@ -204,7 +205,13 @@ describe('buildStrategyEngineInput', () => {
   });
 
   it('returns a null primaryLabel when nothing is invested', () => {
-    const synergy: DeckSynergy = { axes: [], invested: [], warnings: [], headline: '' };
+    const synergy: DeckSynergy = {
+      axes: [],
+      invested: [],
+      warnings: [],
+      lopsided: [],
+      headline: '',
+    };
     expect(buildStrategyEngineInput(synergy, 50).primaryLabel).toBeNull();
   });
 });

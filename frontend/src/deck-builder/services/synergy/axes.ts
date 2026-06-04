@@ -8,11 +8,16 @@
  */
 import type { ParsedCard } from './text';
 import {
+  splitClauses,
   tokenCreation,
   hasCreatureEtbTrigger,
   hasCreatureAnthem,
   scalesWithCreatures,
   isTokenDoubler,
+  discardSignals,
+  millSignals,
+  paysOffCreatureDeath,
+  sacrificeSignals,
 } from './text';
 
 export type AxisKey =
@@ -30,7 +35,15 @@ export type AxisKey =
   | 'tribal'
   | 'blink'
   | 'vehicles'
-  | 'grouphug';
+  | 'grouphug'
+  | 'energy'
+  | 'auras'
+  | 'discard'
+  | 'mill'
+  | 'monarch'
+  | 'poison'
+  | 'cycling'
+  | 'venture';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -73,13 +86,22 @@ const counters: SynergyAxis = {
   producer(card) {
     if (has(card, 'fabricate')) return 'puts +1/+1 counters';
     if (/enters with [^.]*\+1\/\+1 counter/.test(card.oracle)) return 'enters with +1/+1 counters';
-    if (/\+1\/\+1 counter on (?:a|each|target|this|that|up to)/.test(card.oracle))
+    if (/\+1\/\+1 counters? on (?:a|each|target|this|that|up to|another)/.test(card.oracle))
       return 'puts +1/+1 counters';
     return null;
   },
   payoff(card) {
     if (/twice that many of those counters/.test(card.oracle)) return 'doubles your +1/+1 counters';
-    if (/that many plus one \+1\/\+1 counters/.test(card.oracle)) return 'amplifies +1/+1 counters';
+    // Counter doublers (Doubling Season, Vorinclex, Deepglow Skate, Branching
+    // Evolution, Corpsejack Menace) read as the counters axis — their templating is
+    // counter-generic, not loyalty.
+    if (
+      /double the number of[^.]*counters?|twice that many of (?:those|each)[^.]*counters?|twice that many \+1\/\+1 counters/.test(
+        card.oracle
+      )
+    )
+      return 'doubles counters';
+    if (/that many plus one/.test(card.oracle)) return 'amplifies +1/+1 counters';
     if (/for each \+1\/\+1 counter/.test(card.oracle)) return 'scales with +1/+1 counters';
     if (/move all counters|move (?:a|one or more|those) counters/.test(card.oracle))
       return 'moves/banks counters';
@@ -89,21 +111,19 @@ const counters: SynergyAxis = {
   },
 };
 
-const SAC_OUTLET =
-  /sacrifice (?:a|an|another|one or more|two|three|x) (?:other )?(?:creatures?|permanents?|artifacts?|tokens?)/;
-
 const sacrifice: SynergyAxis = {
   key: 'sacrifice',
   label: 'Sacrifice / aristocrats',
   producer(card) {
-    // The "producer" here is a sac OUTLET — it consumes fodder to fuel payoffs.
-    return SAC_OUTLET.test(card.oracle) ? 'sacrifice outlet' : null;
+    // A sac OUTLET — imperative "Sacrifice a creature" you activate — NOT a
+    // "Whenever you sacrifice" trigger (that's the payoff below).
+    return sacrificeSignals(card.oracle).outlet ? 'sacrifice outlet' : null;
   },
   payoff(card) {
-    if (/whenever [^.]*\bcreature[^.]*\bdies\b/.test(card.oracle))
-      return 'pays off creatures dying';
-    if (/whenever [^.]*\bdies\b/.test(card.oracle) && /\bcreature\b/.test(card.oracle))
-      return 'pays off a creature dying';
+    // Rewards YOUR creatures dying (excludes opponent-only death triggers like
+    // Massacre Wurm/Yahenni), or any "Whenever you sacrifice …" reward.
+    if (paysOffCreatureDeath(card.oracle)) return 'pays off creatures dying';
+    if (sacrificeSignals(card.oracle).rewards) return 'rewards sacrificing';
     return null;
   },
 };
@@ -113,13 +133,21 @@ const lifegain: SynergyAxis = {
   label: 'Lifegain',
   producer(card) {
     if (has(card, 'lifelink')) return 'lifelink';
-    if (/you gain \d+ life/.test(card.oracle)) return 'gains you life';
+    // "you gain 3 life", "gain that much life", or "gain life equal to …" (note the
+    // word order — "life" precedes "equal to", so it needs its own branch).
+    if (/\bgain (?:\d+|x|that much) life/.test(card.oracle)) return 'gains you life';
+    if (/\bgain life equal to/.test(card.oracle)) return 'gains you life';
+    if (/creatures you control (?:have|gain)[^.]*lifelink|gain lifelink/.test(card.oracle))
+      return 'grants lifelink';
     return null;
   },
   payoff(card) {
     if (/whenever you gain life/.test(card.oracle)) return 'triggers when you gain life';
+    if (/if you(?:'ve)? gained (?:\d+ (?:or more )?)?life this turn/.test(card.oracle))
+      return 'triggers on lifegain';
     if (/for each \d+ life you (?:gained|have gained)/.test(card.oracle))
       return 'scales with life gained';
+    if (/(?:you )?gain twice that much life/.test(card.oracle)) return 'doubles your lifegain';
     return null;
   },
 };
@@ -130,8 +158,23 @@ const landfall: SynergyAxis = {
   producer(card) {
     if (/play (?:an?|two|three|x)? ?additional lands?/.test(card.oracle))
       return 'plays extra lands';
-    if (/\bland\b/.test(card.oracle) && /onto the battlefield/.test(card.oracle))
-      return 'puts lands onto the battlefield';
+    if (/play (?:a |an )?lands? from your graveyard/.test(card.oracle))
+      return 'plays lands from your graveyard';
+    // Your land hitting the battlefield — clause-scoped so removal that ramps the
+    // OPPONENT (Path to Exile, Settle the Wreckage: "its controller may search
+    // their library … onto the battlefield") is excluded, while a card that ramps
+    // BOTH (Tempt with Discovery) still tags off its own self-ramp clause. Requires
+    // a "land card" or basic-type card (Farseek's "Mountain card", Nature's Lore's
+    // "Forest card") so flicker effects that merely include lands (Ghostly Flicker:
+    // "lands you control … return those cards to the battlefield") don't tag.
+    for (const clause of splitClauses(card.oracle)) {
+      if (
+        /(?:lands?|forest|plains|island|swamp|mountain) cards?/.test(clause) &&
+        /(?:onto|to) the battlefield/.test(clause) &&
+        !/its controller|that player|target player|their library/.test(clause)
+      )
+        return 'puts lands onto the battlefield';
+    }
     return null;
   },
   payoff(card) {
@@ -158,31 +201,37 @@ const graveyard: SynergyAxis = {
   key: 'graveyard',
   label: 'Graveyard / recursion',
   producer(card) {
-    // Self-mill / fill-your-yard. "into your graveyard" (yours), not "into a
-    // graveyard" — the latter is graveyard *hate* (Rest in Peace).
-    if (
-      has(card, 'mill') ||
-      /\bmills?\b/.test(card.oracle) ||
-      /into your graveyard/.test(card.oracle)
-    )
+    // Self-mill / fill-your-yard. SELF mill only — opponent mill ("target player
+    // mills") is a deck-out plan and belongs to the `mill` axis, not your yard.
+    // "into your graveyard" (yours), not "into a graveyard" (that's graveyard
+    // *hate*, Rest in Peace).
+    if (millSignals(card.oracle).selfMill || /into your graveyard/.test(card.oracle))
       return 'fills your graveyard';
     if (has(card, 'surveil') || /\bsurveil\b/.test(card.oracle)) return 'surveil';
+    // Dredge self-mills as a draw replacement, but its text is reminder-only
+    // ("Dredge 3 (… mill three cards …)") and gets stripped — match the keyword.
+    if (has(card, 'dredge') || /\bdredge \d/.test(card.oracle)) return 'dredge (self-mill)';
     return null;
   },
   payoff(card) {
-    if (
-      /(?:put|return) target [^.]*card from a graveyard (?:onto|to) the battlefield/.test(
-        card.oracle
-      )
-    )
+    const o = card.oracle;
+    if (/(?:put|return) target [^.]*card from a graveyard (?:onto|to) the battlefield/.test(o))
       return 'reanimates';
-    if (/return (?:target )?[^.]*card[^.]*from (?:your|a) graveyard/.test(card.oracle))
-      return 'recurs from your graveyard';
-    if (/from your graveyard (?:to|onto) the battlefield/.test(card.oracle))
-      return 'recurs from your graveyard';
-    if (/creature card in a graveyard/.test(card.oracle)) return 'reanimates';
+    // A card that only returns ITSELF from the graveyard (Death Tyrant, Gryff's
+    // Boon, Reassembling Skeleton) is recursive resilience, not a graveyard-value
+    // engine — don't tag it unless it also recurs OTHER cards.
+    const selfReturnOnly =
+      /return this (?:card|aura|permanent|creature) from (?:your|a) graveyard/.test(o) &&
+      !/(?:put|return) (?:target|a|all|each|x|another)[^.]*card/.test(o);
+    if (!selfReturnOnly) {
+      if (/return (?:target )?[^.]*card[^.]*from (?:your|a) graveyard/.test(o))
+        return 'recurs from your graveyard';
+      if (/from your graveyard (?:to|onto) the battlefield/.test(o))
+        return 'recurs from your graveyard';
+    }
+    if (/creature card in a graveyard/.test(o)) return 'reanimates';
     if (GY_RECUR_KEYWORDS.some((k) => has(card, k))) return 'graveyard recursion';
-    if (/cast [^.]*from your graveyard/.test(card.oracle)) return 'casts from your graveyard';
+    if (/cast [^.]*from your graveyard/.test(o)) return 'casts from your graveyard';
     return null;
   },
 };
@@ -198,6 +247,17 @@ const artifacts: SynergyAxis = {
     if (/artifact (?:creature )?token/.test(card.oracle)) return 'creates artifact tokens';
     if (has(card, 'fabricate')) return 'fabricate (servo tokens)';
     if (ARTIFACT_TOKEN_KEYWORDS.some((k) => has(card, k))) return 'creates artifact tokens';
+    // investigate → Clue, incubate → Incubator — both make artifact tokens, but
+    // the token wording lives in reminder text that gets stripped, so match the verb.
+    if (/\binvestigate\b/.test(card.oracle) || /\bincubate\b/.test(card.oracle))
+      return 'creates artifact tokens';
+    // Token copies of an artifact (Osgir, Saheeli's Artistry) are artifact tokens.
+    if (
+      /tokens? that(?:'s| are)(?: a)? cop(?:y|ies) of (?:target |that |the )?(?:a )?artifact/.test(
+        card.oracle
+      )
+    )
+      return 'creates artifact token copies';
     return null;
   },
   payoff(card) {
@@ -302,7 +362,19 @@ const superfriends: SynergyAxis = {
     // ("destroy target ... planeswalker") and opponents' walkers ("they control").
     if (/for each planeswalker you control/.test(card.oracle))
       return 'scales with your planeswalkers';
-    if (/planeswalkers? you control/.test(card.oracle)) return 'cares about your planeswalkers';
+    // "planeswalkers you control" — but NOT the incidental "creature or
+    // planeswalker you control" phrasing (aristocrats/clones: Cruel Celebrant,
+    // Spark Double), nor DEFENSIVE mentions where the walker is just protected
+    // alongside you ("attack you or planeswalkers you control" — Archangel of
+    // Tithes, Soul Snare, Comeuppance). Neither cares about walkers as an engine.
+    if (
+      /planeswalkers? you control/.test(card.oracle) &&
+      !/creatures? (?:and|or) planeswalkers? you control/.test(card.oracle) &&
+      !/(?:you or|you and|attacking you|attack you|dealt to you)[^.]*planeswalkers? you control/.test(
+        card.oracle
+      )
+    )
+      return 'cares about your planeswalkers';
     if (/loyalty abilit/.test(card.oracle)) return 'rewards loyalty activations';
     if (/cast (?:a |an |target )?planeswalker spells?/.test(card.oracle))
       return 'pays off casting planeswalkers';
@@ -425,6 +497,201 @@ const grouphug: SynergyAxis = {
   },
 };
 
+// ── Energy ───────────────────────────────────────────────────────────────────
+// Energy is a hidden resource tracked only by the {E} symbol — the parenthetical
+// "(two energy counters)" gloss is reminder text and gets stripped, so the word
+// "energy" never survives normalization. Match the symbol, not the word. The
+// producer banks {E} ("you get {E}{E}"); the payoff spends it ("Pay {E}{E}", and
+// the open-ended "pay any amount of {E}"). Many energy cards do both.
+const energy: SynergyAxis = {
+  key: 'energy',
+  label: 'Energy',
+  producer(card) {
+    // "You get {E}", but also "you get that many {E}", "and get {E}{E}", "you may
+    // get {E}" — the {E} symbol is the only signal (the "(energy counter)" gloss
+    // is reminder text and is stripped), so anchor on `get … {E}`.
+    return /\bget (?:that many |an amount of |[a-z]+ )?\{e\}/.test(card.oracle)
+      ? 'generates energy'
+      : null;
+  },
+  payoff(card) {
+    return /pay (?:any amount of |[a-z]+ )?\{e\}/.test(card.oracle) ? 'spends energy' : null;
+  },
+};
+
+// ── Auras / enchant-creature (Voltron) ────────────────────────────────────────
+// Unlike Equipment, Auras are heterogeneous — removal (Pacifism), reanimation
+// (Animate Dead) and ramp Auras share the type but aren't an engine. So the
+// producer is NOT "is an Aura"; it's the *buff* Aura ("enchanted creature gets
+// +…") plus Aura cost-reducers and tutors. Payoffs care about your Auras —
+// cast-triggers, Auras-you-control, per-Aura scaling, and mass-attach (Bruna).
+const AURA_BUFF = /enchanted (?:creature|permanent) gets \+/;
+
+const auras: SynergyAxis = {
+  key: 'auras',
+  label: 'Auras / enchant-creature',
+  producer(card) {
+    // A buff Aura is the Voltron piece — but a *reanimation* Aura (Dance of the
+    // Dead, Necromancy) also grants "+1/+1" yet enchants a creature card in a
+    // graveyard; it's a graveyard engine, not Voltron. Gate those out.
+    if (
+      card.typeLine.includes('aura') &&
+      AURA_BUFF.test(card.oracle) &&
+      !/enchant creature card in a graveyard/.test(card.oracle)
+    )
+      return 'Voltron aura (buffs the enchanted creature)';
+    if (/aura (?:spells?|cards?) you cast cost/.test(card.oracle)) return 'reduces Aura cost';
+    if (
+      /search your library for an aura card/.test(card.oracle) ||
+      /return[^.]*aura cards?/.test(card.oracle)
+    )
+      return 'tutors Auras';
+    return null;
+  },
+  payoff(card) {
+    if (/whenever you cast (?:an? )?aura/.test(card.oracle)) return 'pays off casting Auras';
+    if (/auras? you control/.test(card.oracle)) return 'triggers on your Auras';
+    if (/for each aura/.test(card.oracle)) return 'scales with your Auras';
+    if (/attach (?:to it )?(?:any number of )?auras?\b/.test(card.oracle))
+      return 'attaches your Auras';
+    return null;
+  },
+};
+
+// ── Discard / madness ─────────────────────────────────────────────────────────
+// "Discard matters" spans self-discard (loot/rummage → madness, reanimator fuel)
+// and forced opponent discard (hand attack → Megrim/Tergrid punishers). The
+// producer makes discards happen; the payoff rewards one. Subject + trigger
+// detection lives in `discardSignals` so "Whenever you discard …" (a payoff) is
+// never mistaken for "Discard a card" (a producer). Madness is a keyword payoff.
+const discard: SynergyAxis = {
+  key: 'discard',
+  label: 'Discard / madness',
+  producer(card) {
+    const d = discardSignals(card.oracle);
+    if (d.forced) return 'forces discards (hand attack)';
+    if (d.causes) return 'discards cards (loot/rummage)';
+    return null;
+  },
+  payoff(card) {
+    if (has(card, 'madness') || /\bmadness\b/.test(card.oracle)) return 'madness';
+    const d = discardSignals(card.oracle);
+    if (d.rewardsOpponents) return 'punishes opponents discarding';
+    if (d.rewards) return 'rewards your discards';
+    return null;
+  },
+};
+
+// ── Mill ──────────────────────────────────────────────────────────────────────
+// Opponent mill is a deck-out / attrition plan, distinct from self-mill (which
+// fills YOUR graveyard → the graveyard axis). `millSignals` splits them by the
+// subject of the mill verb, fixing the old conflation where "Target player mills"
+// wrongly read as "fills your graveyard".
+const mill: SynergyAxis = {
+  key: 'mill',
+  label: 'Mill / deck-out',
+  producer(card) {
+    return millSignals(card.oracle).opponentMill ? 'mills your opponents' : null;
+  },
+  payoff(card) {
+    return millSignals(card.oracle).doubler ? 'amplifies milling' : null;
+  },
+};
+
+// ── Monarch ───────────────────────────────────────────────────────────────────
+// A self-contained, keyword-grade mechanic. Producer anchors on the subject
+// "you become the monarch" — excluding handoff/removal ("its controller / target
+// player becomes the monarch") and the default The Monarch emblem. Payoffs key on
+// "you're the monarch" / re-crowning triggers / crown-loss punishers.
+const monarch: SynergyAxis = {
+  key: 'monarch',
+  label: 'Monarch',
+  producer(card) {
+    return /you become the monarch/.test(card.oracle) ? 'you become the monarch' : null;
+  },
+  payoff(card) {
+    if (/(?:if|while|as long as) you're the monarch/.test(card.oracle))
+      return 'rewards being the monarch';
+    if (/whenever you become the monarch/.test(card.oracle))
+      return 'triggers when you become the monarch';
+    if (/whenever an opponent becomes the monarch|if an opponent is the monarch/.test(card.oracle))
+      return 'reacts to the crown';
+    return null;
+  },
+};
+
+// ── Poison / infect / toxic ───────────────────────────────────────────────────
+// The infect/toxic creatures (and infect-granters) ARE the engine — mirrors how
+// equipment/vehicles treat their cards as producers. \binfect\b word-boundary
+// skips "infection counter" (Diseased Vermin); predicates run on oracle text so a
+// card merely NAMED "Toxic Deluge" never tags.
+const poison: SynergyAxis = {
+  key: 'poison',
+  label: 'Poison / infect',
+  producer(card) {
+    if (has(card, 'infect') || /\binfect\b/.test(card.oracle)) return 'infect (poison)';
+    if (has(card, 'toxic') || /\btoxic \d/.test(card.oracle)) return 'toxic (poison)';
+    return null;
+  },
+  payoff(card) {
+    if (
+      /with infect get|creatures you control[^.]*\binfect\b|whenever you cast[^.]*infect/.test(
+        card.oracle
+      )
+    )
+      return 'rewards infect creatures';
+    if (/for each poison counter|ten or more poison counters/.test(card.oracle))
+      return 'scales with poison';
+    return null;
+  },
+};
+
+// ── Cycling ───────────────────────────────────────────────────────────────────
+// Cycling cards are the fuel (type/keyword producer, like equipment); cost
+// reducers enable them; "whenever you cycle" cards are the payoff. Distinct from
+// the discard axis even though cycling discards a card — the engine keys on the
+// Cycling keyword, not the discard.
+const cycling: SynergyAxis = {
+  key: 'cycling',
+  label: 'Cycling',
+  producer(card) {
+    if (has(card, 'cycling') || /\bcycling \{|\bcycling—|\btypecycling/.test(card.oracle))
+      return 'has cycling';
+    if (/cycling abilities[^.]*cost|pay \{0\} rather than pay (?:the )?cycling/.test(card.oracle))
+      return 'reduces cycling cost';
+    return null;
+  },
+  payoff(card) {
+    // "Whenever you cycle" and the symmetric "whenever a player cycles" (Astral
+    // Slide, Lightning Rift) both reward the cycling engine.
+    return /when(?:ever)? (?:you|a player) cycles?/.test(card.oracle) ? 'rewards cycling' : null;
+  },
+};
+
+// ── Venture / dungeon / initiative ────────────────────────────────────────────
+// D&D-set mechanic with unique vocabulary (zero overlap with the other axes).
+// Producers venture / take the initiative; payoffs reward a completed dungeon.
+const venture: SynergyAxis = {
+  key: 'venture',
+  label: 'Venture / dungeon',
+  producer(card) {
+    if (/venture into the (?:dungeon|undercity)/.test(card.oracle))
+      return 'ventures into the dungeon';
+    if (/you take the initiative/.test(card.oracle)) return 'takes the initiative';
+    return null;
+  },
+  payoff(card) {
+    if (
+      /(?:if|whenever|as long as|when) you('ve| have)? completed (?:a|your|another) dungeon/.test(
+        card.oracle
+      )
+    )
+      return 'rewards completing a dungeon';
+    if (/whenever you venture/.test(card.oracle)) return 'rewards venturing';
+    return null;
+  },
+};
+
 export const AXES: SynergyAxis[] = [
   tokens,
   counters,
@@ -441,4 +708,12 @@ export const AXES: SynergyAxis[] = [
   blink,
   vehicles,
   grouphug,
+  energy,
+  auras,
+  discard,
+  mill,
+  monarch,
+  poison,
+  cycling,
+  venture,
 ];

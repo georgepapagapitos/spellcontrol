@@ -94,6 +94,55 @@
   border-radius: var(--radius, 0.4rem);
 }
 
+/* "Show N fixes" — jumps a lopsided-engine warning to the suggestions that fill it. */
+.engine-warning-fix {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.engine-warning-fix:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.engine-warning-fix:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Brief highlight on the suggestion group a warning jumped to. */
+.engine-suggestion-group.is-flash {
+  animation: engine-group-flash 1.6s ease-out;
+  border-radius: var(--radius, 0.4rem);
+}
+
+@keyframes engine-group-flash {
+  0%,
+  30% {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engine-suggestion-group.is-flash {
+    animation: none;
+    outline: 2px solid var(--accent);
+  }
+}
+
 /* ── Off-meta suggestions ───────────────────────────────────────────────── */
 .engine-suggestions {
   display: flex;

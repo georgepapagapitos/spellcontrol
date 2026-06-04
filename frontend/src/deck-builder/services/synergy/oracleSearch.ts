@@ -91,6 +91,40 @@ const AXIS_QUERIES: Record<AxisKey, Record<AxisSide, string | null>> = {
       '(o:"each player draws" or o:"that player draws an additional" or o:"each player may")',
     payoff: '(o:"whenever an opponent draws" or o:"if an opponent would draw a card")',
   },
+  energy: {
+    producer: 'o:"you get {E}"',
+    payoff: 'o:"pay {E}"',
+  },
+  auras: {
+    producer:
+      '(t:aura o:"enchanted creature gets +" or o:"aura spells you cast cost" or o:"search your library for an aura card")',
+    payoff: '(o:"whenever you cast an aura" or o:"auras you control" or o:"for each aura")',
+  },
+  discard: {
+    producer: '(o:"discard a card" or o:"target player discards" or o:"each opponent discards")',
+    payoff: '(keyword:madness or o:"whenever you discard" or o:"whenever an opponent discards")',
+  },
+  mill: {
+    producer: '(o:"target player mills" or o:"each opponent mills" or o:"opponent would mill")',
+    payoff: '(o:"mill twice that many" or o:"they mill twice that many")',
+  },
+  monarch: {
+    producer: 'o:"you become the monarch"',
+    payoff:
+      '(o:"you\'re the monarch" or o:"whenever you become the monarch" or o:"an opponent becomes the monarch")',
+  },
+  poison: {
+    producer: '(keyword:infect or keyword:toxic or o:"has infect")',
+    payoff: '(o:"creatures you control" o:infect or o:"for each poison counter")',
+  },
+  cycling: {
+    producer: '(keyword:cycling or o:"cycling abilities you activate cost")',
+    payoff: '(o:"whenever you cycle" or o:"when you cycle this card")',
+  },
+  venture: {
+    producer: '(keyword:"venture into the dungeon" or o:"you take the initiative")',
+    payoff: '(o:"completed a dungeon" or o:"completed dungeon" or o:"whenever you venture")',
+  },
 };
 
 /** The Scryfall oracle query for one need, or null if no reliable query exists. */

@@ -12,6 +12,13 @@ build/
 # Docker image is reproducible across deploys (refreshed nightly by
 # .github/workflows/scanner-ingest.yml). Ignore the SQLite cache files
 # specifically instead.
+#
+# card-embeddings.bin (~26 MB, regenerated nightly) is tracked via Git LFS
+# (see .gitattributes) so the daily refresh adds a ~130-byte pointer to the
+# git pack instead of a fresh 26 MB blob. card-hashes.bin (1.2 MB) and the
+# ONNX model stay as regular git objects. Working with this repo requires
+# git-lfs installed; `git lfs pull` materializes the real embedding DB (a
+# missing/pointer file just disables the server scanner — it won't crash).
 backend/data/*.db
 backend/data/*.db-shm
 backend/data/*.db-wal

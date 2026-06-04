@@ -141,6 +141,9 @@ export function DeckCardRow({
           onClick={() => onAct(change)}
           disabled={acting}
           aria-label={acting ? `${label}ing ${name}` : `${label} ${name}`}
+          // The hover-peek floats from the thumbnail toward this right-aligned
+          // action; suppress so aiming at it clears the peek (matches the deck list).
+          data-peek-suppress
         >
           {acting ? (
             <Loader2 className="deck-card-row-spinner" aria-hidden />

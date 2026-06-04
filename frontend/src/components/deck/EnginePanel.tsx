@@ -1,9 +1,10 @@
 import './EnginePanel.css';
-import { useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Plus, ArrowDown } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/synergy/analysis';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
+import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import { useCardCarousel } from './useCardCarousel';
 
 export interface EnginePanelProps {
@@ -18,7 +19,7 @@ export interface EnginePanelProps {
    * Diagnostics-only mode: render just the headline + per-axis balance bars +
    * warnings, omitting the off-meta suggestion rows. Used on the Power tab,
    * where the bars are the gameplan diagnostic; the suggestion *rows* now live
-   * in the Tune tab's "Upgrade the power" lane (see SynergyPicks), so all
+   * in the Tune tab's "Improve the deck" lane (see ImproveLane), so all
    * "add a card" prescription stays in one place.
    */
   showSuggestions?: boolean;
@@ -129,6 +130,18 @@ export function EnginePanel({
 
   const carousel = useCardCarousel('Engine suggestions');
 
+  // Refs to each suggestion group, so a lopsided-engine warning can scroll to the
+  // fills for its axis. `flashAxis` briefly highlights the group it jumped to.
+  const groupRefs = useRef(new Map<AxisKey, HTMLDivElement>());
+  const [flashAxis, setFlashAxis] = useState<AxisKey | null>(null);
+  const jumpToFixes = (axis: AxisKey): void => {
+    const el = groupRefs.current.get(axis);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlashAxis(axis);
+    window.setTimeout(() => setFlashAxis((a) => (a === axis ? null : a)), 1600);
+  };
+
   // Every suggestion (in render order) becomes a carousel slot, labeled with its
   // inclusion. Tapping any tile opens the shared CardPreview carousel at that card.
   const previewEntries = useMemo(
@@ -140,16 +153,32 @@ export function EnginePanel({
     [analysis.suggestions]
   );
 
-  // Group suggestions by axis label so each gap reads as a section.
+  // Group suggestions by axis so each gap reads as a section (and a warning can
+  // link to it). Keyed by axis label for display, but carries the axis key.
   const groups = useMemo(() => {
-    const map = new Map<string, SynergySuggestion[]>();
+    const map = new Map<string, { axis: AxisKey; items: SynergySuggestion[] }>();
     for (const s of analysis.suggestions) {
       const bucket = map.get(s.axisLabel);
-      if (bucket) bucket.push(s);
-      else map.set(s.axisLabel, [s]);
+      if (bucket) bucket.items.push(s);
+      else map.set(s.axisLabel, { axis: s.axis, items: [s] });
     }
-    return Array.from(map.entries()).map(([label, items]) => ({ label, items }));
+    return Array.from(map.entries()).map(([label, g]) => ({ label, axis: g.axis, items: g.items }));
   }, [analysis.suggestions]);
+
+  // How many in-panel fills exist per axis+side — drives the "Show N fixes" link
+  // on a lopsided warning. Only meaningful when suggestions render here.
+  const fixCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    if (showSuggestions) {
+      for (const s of analysis.suggestions) {
+        const k = `${s.axis}:${s.side}`;
+        m.set(k, (m.get(k) ?? 0) + 1);
+      }
+    }
+    return m;
+  }, [analysis.suggestions, showSuggestions]);
+
+  const lopsided = analysis.lopsided ?? [];
 
   // Only show axes the deck actually engages with (has at least one card).
   const axes = analysis.axes.filter((a) => a.producers + a.payoffs > 0);
@@ -166,14 +195,37 @@ export function EnginePanel({
         </ul>
       )}
 
-      {analysis.warnings.length > 0 && (
+      {lopsided.length > 0 ? (
         <ul className="engine-warnings">
-          {analysis.warnings.map((w) => (
-            <li key={w} className="engine-warning">
-              {w}
-            </li>
-          ))}
+          {lopsided.map((w) => {
+            const fixes = fixCounts.get(`${w.axis}:${w.side}`) ?? 0;
+            return (
+              <li key={`${w.axis}:${w.side}`} className="engine-warning">
+                {w.text}
+                {fixes > 0 && (
+                  <button
+                    type="button"
+                    className="engine-warning-fix"
+                    onClick={() => jumpToFixes(w.axis)}
+                  >
+                    Show {fixes} fix{fixes === 1 ? '' : 'es'}
+                    <ArrowDown width={12} height={12} aria-hidden />
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
+      ) : (
+        analysis.warnings.length > 0 && (
+          <ul className="engine-warnings">
+            {analysis.warnings.map((w) => (
+              <li key={w} className="engine-warning">
+                {w}
+              </li>
+            ))}
+          </ul>
+        )
       )}
 
       {showSuggestions &&
@@ -181,7 +233,14 @@ export function EnginePanel({
           <div className="engine-suggestions">
             <h3 className="engine-suggestions-title">Off-meta cards that fill your gaps</h3>
             {groups.map((group) => (
-              <div key={group.label} className="engine-suggestion-group">
+              <div
+                key={group.label}
+                className={`engine-suggestion-group${flashAxis === group.axis ? ' is-flash' : ''}`}
+                ref={(el) => {
+                  if (el) groupRefs.current.set(group.axis, el);
+                  else groupRefs.current.delete(group.axis);
+                }}
+              >
                 <h4 className="engine-suggestion-group-label">{group.label}</h4>
                 <ul className="engine-suggestion-list">
                   {group.items.map((s) => (

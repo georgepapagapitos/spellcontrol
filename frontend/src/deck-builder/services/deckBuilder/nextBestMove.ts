@@ -2,6 +2,7 @@ import type { PlanScore, SubScoreKey } from './planScore';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { DeckView } from '@/components/deck/DeckDisplay';
 import type { ComboMatch } from '@/types/combos';
+import type { LopsidedAxis } from '@/deck-builder/services/synergy/deckSynergy';
 
 /**
  * One ranked, data-grounded suggestion for the single highest-leverage change
@@ -45,6 +46,10 @@ export interface NextBestMoveInput {
   deckTarget: number;
   /** Near-miss combos — the `oneAway` slice of ComboMatchResponse. */
   oneAwayCombos?: ComboMatch[];
+  /** Lopsided engines from the native synergy analysis (deck.synergyAnalysis.lopsided):
+   *  axes the deck is invested in but missing one half. Drives the "Balance your
+   *  engine" move, which cites the producer↔payoff imbalance the crowd-stats miss. */
+  lopsided?: LopsidedAxis[];
   /** Live owned card names. When a role/synergy gap can be filled by a card the
    *  player already owns, the hero prefers it ("build it tonight" over "go buy").
    *  Re-derived live by the page — never the stale persisted `isOwned` snapshot. */
@@ -136,6 +141,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     deckTarget,
     oneAwayCombos,
     ownedNames,
+    lopsided,
   } = input;
 
   const moves: NextBestMove[] = [];
@@ -161,6 +167,24 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       title: `Add ${short} card${short === 1 ? '' : 's'}`,
       detail: `Your deck has ${cardCount} cards, ${short} under the ${deckTarget}-card target. Fill the remaining ${short === 1 ? 'slot' : 'slots'} to complete the deck.`,
       navigateTo: 'deck',
+    });
+  }
+
+  // ── Tier 2: lopsided engine (native synergy) ────────────────────────────
+  // A producer↔payoff imbalance EDHREC's consensus can't see — e.g. nine token
+  // producers and no payoff to reward them. Ranked above the generic sub-score
+  // nudges because an un-paid-off engine is a concrete strategic hole. Names the
+  // missing half and deep-links to the Tune fills.
+  if (lopsided && lopsided.length > 0) {
+    const w = lopsided[0];
+    const sideWord = w.side === 'payoff' ? 'payoff' : 'producer';
+    moves.push({
+      id: `engine-${w.axis}`,
+      tier: 2,
+      title: 'Balance your engine',
+      detail: `${w.text} Add a ${w.label} ${sideWord} so they pay off — the Improve lane suggests some.`,
+      navigateTo: 'tune',
+      focus: 'fill-gaps',
     });
   }
 

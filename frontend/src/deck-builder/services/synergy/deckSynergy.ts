@@ -23,6 +23,19 @@ export interface AxisSummary {
   total: number;
 }
 
+/**
+ * A lopsided engine: an axis the deck is invested in but missing one half. `side`
+ * is the side that's MISSING (what the deck needs more of) — it maps directly to
+ * a `SynergySuggestion.side`, so the UI can link a warning to the fills for it.
+ */
+export interface LopsidedAxis {
+  axis: AxisKey;
+  label: string;
+  /** The side the deck is short on — what to add. */
+  side: 'producer' | 'payoff';
+  text: string;
+}
+
 export interface DeckSynergy {
   /** Axes with at least one hit, busiest first. */
   axes: AxisSummary[];
@@ -30,6 +43,10 @@ export interface DeckSynergy {
   invested: AxisKey[];
   /** Human-readable engine notes ("Tokens: 9 producers but no payoff"). */
   warnings: string[];
+  /** Structured form of the warnings — same notes, but axis-keyed so the UI can
+   *  link each to the suggestions that fill it. Additive; `warnings` stays for
+   *  back-compat with already-persisted `synergyAnalysis`. */
+  lopsided: LopsidedAxis[];
   headline: string;
 }
 
@@ -70,14 +87,17 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
     .map((s) => s.axis);
 
   const warnings: string[] = [];
+  const lopsided: LopsidedAxis[] = [];
   for (const s of axes) {
     if (s.total < INVEST_THRESHOLD) continue;
     if (s.producers.length >= LOPSIDED_MIN && s.payoffs.length === 0) {
-      warnings.push(`${s.label}: ${s.producers.length} producers but no payoff to reward them.`);
+      const text = `${s.label}: ${s.producers.length} producers but no payoff to reward them.`;
+      warnings.push(text);
+      lopsided.push({ axis: s.axis, label: s.label, side: 'payoff', text });
     } else if (s.payoffs.length >= LOPSIDED_MIN && s.producers.length <= 1) {
-      warnings.push(
-        `${s.label}: ${s.payoffs.length} payoffs but only ${s.producers.length} producer${s.producers.length === 1 ? '' : 's'} to feed them.`
-      );
+      const text = `${s.label}: ${s.payoffs.length} payoffs but only ${s.producers.length} producer${s.producers.length === 1 ? '' : 's'} to feed them.`;
+      warnings.push(text);
+      lopsided.push({ axis: s.axis, label: s.label, side: 'producer', text });
     }
   }
 
@@ -87,7 +107,7 @@ export function analyzeDeckSynergy(cards: CardLike[]): DeckSynergy {
       ? 'No clear producer/payoff engine detected.'
       : `Primary engine: ${top.label} (${top.producers.length} producers / ${top.payoffs.length} payoffs).`;
 
-  return { axes, invested, warnings, headline };
+  return { axes, invested, warnings, lopsided, headline };
 }
 
 /**

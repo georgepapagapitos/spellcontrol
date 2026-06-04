@@ -38,6 +38,25 @@ describe('analyzeDeckSynergy', () => {
     );
     const res = analyzeDeckSynergy(deck);
     expect(res.warnings.some((w) => /payoff/i.test(w) && /producer/i.test(w))).toBe(true);
+    // Structured form: payoff-starved tokens → the deck needs a *producer*.
+    const lop = res.lopsided.find((l) => l.axis === 'tokens');
+    expect(lop?.side).toBe('producer');
+    expect(lop?.text).toBe(res.warnings.find((w) => /Tokens/.test(w)));
+  });
+
+  it('flags a producer-heavy axis as needing a payoff', () => {
+    // 6 token producers, 0 payoffs → the missing half is the payoff.
+    const deck = pick(
+      'Krenko, Mob Boss',
+      'Secure the Wastes',
+      'Hornet Queen',
+      'Grave Titan',
+      'Ophiomancer',
+      'Scute Swarm'
+    );
+    const res = analyzeDeckSynergy(deck);
+    const lop = res.lopsided.find((l) => l.axis === 'tokens');
+    expect(lop?.side).toBe('payoff');
   });
 
   it('flags a load-bearing token card in an invested token deck', () => {
