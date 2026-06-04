@@ -408,7 +408,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       '{1}, {T}, Discard a card: You gain 4 life.\n{1}, {T}, Pay 1 life: Create a 0/1 white Goat creature token.\n{1}, {T}, Sacrifice a creature: Return target artifact card from your graveyard to your hand.\n{1}, {T}, Sacrifice an artifact: Draw a card.',
-    expect: { producers: ['tokens', 'sacrifice', 'lifegain'], payoffs: ['graveyard'] },
+    expect: { producers: ['tokens', 'sacrifice', 'lifegain', 'discard'], payoffs: ['graveyard'] },
   },
   {
     name: 'Pawn of Ulamog',
@@ -604,7 +604,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Legendary Creature — Dwarf Advisor',
     keywords: [],
     oracle_text: 'Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.',
-    expect: { producers: [], payoffs: ['equipment', 'vehicles'] },
+    expect: { producers: [], payoffs: ['auras', 'equipment', 'vehicles'] },
   },
   {
     name: 'Puresteel Paladin',
@@ -1095,7 +1095,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Crew'],
     oracle_text:
       'Flying\nWhenever this Vehicle attacks or blocks, you may draw a card. If you do, discard a card.\nCrew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)',
-    expect: { producers: ['vehicles'], payoffs: [] },
+    expect: { producers: ['vehicles', 'discard'], payoffs: [] },
   },
   {
     name: 'Heart of Kiran',
@@ -1143,7 +1143,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Crew'],
     oracle_text:
       '{1}, {T}: Draw two cards, then discard a card. Create a 1/1 colorless Pilot creature token with "This token crews Vehicles as though its power were 2 greater."\nCrew 8 (Tap any number of creatures you control with total power 8 or more: This Vehicle becomes an artifact creature until end of turn.)',
-    expect: { producers: ['tokens', 'vehicles'], payoffs: [] },
+    expect: { producers: ['tokens', 'vehicles', 'discard'], payoffs: [] },
   },
   {
     name: 'Depala, Pilot Exemplar',
@@ -1277,5 +1277,195 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text: 'Draw two cards.',
     expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Attune with Aether',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Search your library for a basic land card, reveal it, put it into your hand, then shuffle. You get {E}{E} (two energy counters).',
+    expect: { producers: ['energy'], payoffs: [] },
+  },
+  {
+    name: 'Aetherworks Marvel',
+    type_line: 'Legendary Artifact',
+    keywords: [],
+    oracle_text:
+      'Whenever a permanent you control is put into a graveyard, you get {E} (an energy counter).\n{T}, Pay six {E}: Look at the top six cards of your library. You may cast a spell from among them without paying its mana cost. Put the rest on the bottom of your library in a random order.',
+    expect: { producers: ['energy'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Longtusk Cub',
+    type_line: 'Creature \u2014 Cat',
+    keywords: [],
+    oracle_text:
+      'Whenever this creature deals combat damage to a player, you get {E}{E} (two energy counters).\nPay {E}{E}: Put a +1/+1 counter on this creature.',
+    expect: { producers: ['counters', 'energy'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Bristling Hydra',
+    type_line: 'Creature \u2014 Hydra',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you get {E}{E}{E} (three energy counters).\nPay {E}{E}{E}: Put a +1/+1 counter on this creature. It gains hexproof until end of turn.',
+    expect: { producers: ['counters', 'energy'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Electrostatic Pummeler',
+    type_line: 'Artifact Creature \u2014 Construct',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you get {E}{E}{E} (three energy counters).\nPay {E}{E}{E}: This creature gets +X/+X until end of turn, where X is its power.',
+    expect: { producers: ['energy'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Whirler Virtuoso',
+    type_line: 'Creature \u2014 Vedalken Artificer',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you get {E}{E}{E} (three energy counters).\nPay {E}{E}{E}: Create a 1/1 colorless Thopter artifact creature token with flying.',
+    expect: { producers: ['artifacts', 'energy', 'tokens'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Harnessed Lightning',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'Choose target creature. You get {E}{E}{E} (three energy counters), then you may pay any amount of {E}. Harnessed Lightning deals that much damage to that creature.',
+    expect: { producers: ['energy'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Aether Hub',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      'When this land enters, you get {E} (an energy counter).\n{T}: Add {C}.\n{T}, Pay {E}: Add one mana of any color.',
+    expect: { producers: ['energy'], payoffs: ['energy'] },
+  },
+  {
+    name: 'Ethereal Armor',
+    type_line: 'Enchantment \u2014 Aura',
+    keywords: ['Enchant'],
+    oracle_text:
+      'Enchant creature\nEnchanted creature gets +1/+1 for each enchantment you control and has first strike.',
+    expect: { producers: ['auras'], payoffs: [] },
+  },
+  {
+    name: 'Daybreak Coronet',
+    type_line: 'Enchantment \u2014 Aura',
+    keywords: ['Enchant'],
+    oracle_text:
+      'Enchant creature with another Aura attached to it\nEnchanted creature gets +3/+3 and has first strike, vigilance, and lifelink. (Damage dealt by the creature also causes its controller to gain that much life.)',
+    expect: { producers: ['auras'], payoffs: [] },
+  },
+  {
+    name: "Light-Paws, Emperor's Voice",
+    type_line: 'Legendary Creature \u2014 Fox Advisor',
+    keywords: [],
+    oracle_text:
+      'Whenever an Aura you control enters, if you cast it, you may search your library for an Aura card with mana value less than or equal to that Aura and with a different name than each Aura you control, put that card onto the battlefield attached to Light-Paws, then shuffle.',
+    expect: { producers: ['auras'], payoffs: ['auras'] },
+  },
+  {
+    name: 'Bruna, Light of Alabaster',
+    type_line: 'Legendary Creature \u2014 Angel',
+    keywords: ['Flying', 'Vigilance'],
+    oracle_text:
+      'Flying, vigilance\nWhenever Bruna attacks or blocks, you may attach to it any number of Auras on the battlefield and you may put onto the battlefield attached to it any number of Aura cards that could enchant it from your graveyard and/or hand.',
+    expect: { producers: [], payoffs: ['auras'] },
+  },
+  {
+    name: 'Hateful Eidolon',
+    type_line: 'Enchantment Creature \u2014 Spirit',
+    keywords: ['Lifelink'],
+    oracle_text:
+      'Lifelink\nWhenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.',
+    expect: { producers: ['lifegain'], payoffs: ['auras', 'sacrifice'] },
+  },
+  {
+    name: 'Pacifism',
+    type_line: 'Enchantment \u2014 Aura',
+    keywords: ['Enchant'],
+    oracle_text: "Enchant creature\nEnchanted creature can't attack or block.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Faithless Looting',
+    type_line: 'Sorcery',
+    keywords: ['Flashback'],
+    oracle_text:
+      'Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    expect: { producers: ['discard'], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Faith of the Devoted',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever you cycle or discard a card, you may pay {1}. If you do, each opponent loses 2 life and you gain 2 life.',
+    expect: { producers: ['lifegain'], payoffs: ['discard'] },
+  },
+  {
+    name: 'Waste Not',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever an opponent discards a creature card, create a 2/2 black Zombie creature token.\nWhenever an opponent discards a land card, add {B}{B}.\nWhenever an opponent discards a noncreature, nonland card, draw a card.',
+    expect: { producers: ['tokens'], payoffs: ['discard'] },
+  },
+  {
+    name: 'Tergrid, God of Fright',
+    type_line: 'Legendary Creature \u2014 God',
+    keywords: ['Menace'],
+    oracle_text:
+      "Menace\nWhenever an opponent sacrifices a nontoken permanent or discards a permanent card, you may put that card from a graveyard onto the battlefield under your control.\n{T}: Target player loses 3 life unless they sacrifice a nonland permanent of their choice or discard a card.\n{3}{B}: Untap Tergrid's Lantern.",
+    expect: { producers: ['discard'], payoffs: ['discard'] },
+  },
+  {
+    name: 'Glint-Horn Buccaneer',
+    type_line: 'Creature \u2014 Minotaur Pirate',
+    keywords: ['Haste'],
+    oracle_text:
+      'Haste\nWhenever you discard a card, this creature deals 1 damage to each opponent.\n{1}{R}, Discard a card: Draw a card. Activate only if this creature is attacking.',
+    expect: { producers: ['discard'], payoffs: ['discard'] },
+  },
+  {
+    name: 'Bone Miser',
+    type_line: 'Creature \u2014 Zombie Wizard',
+    keywords: [],
+    oracle_text:
+      'Whenever you discard a creature card, create a 2/2 black Zombie creature token.\nWhenever you discard a land card, add {B}{B}.\nWhenever you discard a noncreature, nonland card, draw a card.',
+    expect: { producers: ['tokens'], payoffs: ['discard'] },
+  },
+  {
+    name: 'Anje Falkenrath',
+    type_line: 'Legendary Creature \u2014 Vampire',
+    keywords: ['Haste'],
+    oracle_text:
+      'Haste\n{T}, Discard a card: Draw a card.\nWhenever you discard a card, if it has madness, untap Anje Falkenrath.',
+    expect: { producers: ['discard'], payoffs: ['discard'] },
+  },
+  {
+    name: 'Megrim',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever an opponent discards a card, this enchantment deals 2 damage to that player.',
+    expect: { producers: [], payoffs: ['discard'] },
+  },
+  {
+    name: 'Mind Rot',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text: 'Target player discards two cards.',
+    expect: { producers: ['discard'], payoffs: [] },
+  },
+  {
+    name: 'Fiery Temper',
+    type_line: 'Instant',
+    keywords: ['Madness'],
+    oracle_text:
+      'Fiery Temper deals 3 damage to any target.\nMadness {R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)',
+    expect: { producers: [], payoffs: ['discard'] },
   },
 ];
