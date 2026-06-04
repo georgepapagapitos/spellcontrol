@@ -11,6 +11,9 @@
 }
 
 .bracket-breakdown-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
   margin: 0;
   font-family: var(--font-serif);
   font-size: var(--text-sm);
@@ -19,6 +22,10 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* The "ⓘ" info affordance beside these headings is the shared <InfoTip>
+   (components/InfoTip.tsx + .css) — a portal tooltip. Only the heading layout
+   lives here; the heading is flex so the icon sits inline + centered. */
 
 .bracket-breakdown-empty {
   margin: 0;

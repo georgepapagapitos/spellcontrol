@@ -1,5 +1,5 @@
 import './DeckCardRow.css';
-import { ArrowLeftRight, Loader2, Minus, Plus } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge, type Verdict } from './VerdictBadge';
 import type { Change } from '@/lib/deck-change';
@@ -34,6 +34,9 @@ export interface DeckCardRowProps {
   commanderName?: string;
   /** Tap the thumbnail/body → open the card carousel (the complement view). */
   onPreview?: (change: Change) => void;
+  /** Tap the offender (out) thumbnail on a swap → preview the card being CUT.
+   *  Omit to leave the out thumb non-interactive. */
+  onPreviewOut?: (change: Change) => void;
   /** The row's primary action (Add / Cut / Swap in). Omit for a read-only row. */
   onAct?: (change: Change) => void;
   /** Override the action button label. Defaults to the verb for `change.type`. */
@@ -56,6 +59,7 @@ export function DeckCardRow({
   change,
   commanderName,
   onPreview,
+  onPreviewOut,
   onAct,
   actLabel,
   acting,
@@ -64,8 +68,26 @@ export function DeckCardRow({
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice } = change;
   const thumb = change.imageUrl || fallbackThumb(name);
   const preview = onPreview ? () => onPreview(change) : undefined;
+  const previewOut = onPreviewOut ? () => onPreviewOut(change) : undefined;
   const ActIcon = ACT_ICON[change.type];
   const label = actLabel ?? ACT_VERB[change.type];
+  // On a swap the row's primary card is the one coming IN; `inName` is the card
+  // being CUT. Show the offender's art (dimmed) → arrow → the incoming card, so
+  // the trade reads visually instead of only living in the reason text.
+  const outName = change.type === 'swap' ? change.inName : undefined;
+
+  const inThumb = (
+    <button
+      type="button"
+      className="deck-card-row-art"
+      data-peek-name={peekName}
+      onClick={preview}
+      disabled={!preview}
+      aria-label={preview ? `Preview ${name}` : `${name} art`}
+    >
+      <img src={thumb} alt="" loading="lazy" />
+    </button>
+  );
 
   // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick.
   const inclusionNode =
@@ -85,28 +107,43 @@ export function DeckCardRow({
 
   return (
     <li className="deck-card-row">
-      {/* Only the thumbnail is the preview affordance — tap opens the carousel,
-          hover (desktop) floats the peek. The body is non-interactive text so a
-          stray tap/hover on the name or badges doesn't trigger either. */}
-      <button
-        type="button"
-        className="deck-card-row-art"
-        data-peek-name={peekName}
-        onClick={preview}
-        disabled={!preview}
-        aria-label={preview ? `Preview ${name}` : `${name} art`}
-      >
-        <img src={thumb} alt="" loading="lazy" />
-        {change.isGameChanger && (
-          <span className="deck-card-row-gc" title="Game changer">
-            GC
-          </span>
-        )}
-      </button>
+      {/* Only the incoming-card thumbnail is the preview affordance — tap opens
+          the carousel, hover (desktop) floats the peek. The body is
+          non-interactive text so a stray tap/hover doesn't trigger either. On a
+          swap, the offender (card being cut) art sits left of an arrow, dimmed. */}
+      {outName ? (
+        <div className="deck-card-row-swap-art">
+          <button
+            type="button"
+            className="deck-card-row-out"
+            data-peek-name={previewOut ? outName : undefined}
+            onClick={previewOut}
+            disabled={!previewOut}
+            aria-label={
+              previewOut ? `Preview ${outName} (being cut)` : `${outName} art (being cut)`
+            }
+            title={`Cut ${outName}`}
+          >
+            <img src={fallbackThumb(outName)} alt="" loading="lazy" />
+          </button>
+          <ArrowRight className="deck-card-row-swap-arrow" aria-hidden />
+          {inThumb}
+        </div>
+      ) : (
+        inThumb
+      )}
 
       <div className="deck-card-row-body">
         <span className="deck-card-row-title">
           <span className="deck-card-row-name">{name}</span>
+          {change.isGameChanger && (
+            <span
+              className="deck-card-row-gc-tag"
+              title="Game Changer — high-power, bracket-relevant"
+            >
+              Game Changer
+            </span>
+          )}
           {roleLabel && <span className="deck-card-row-role">{roleLabel}</span>}
           {change.isThemeSynergy && <span className="deck-card-row-synergy-tag">Synergy</span>}
           {ownership === 'owned' && <OwnershipBadge owned />}

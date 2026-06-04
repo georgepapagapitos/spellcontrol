@@ -7,6 +7,7 @@ import {
   fromGapCard,
   fromOptimizeCard,
   fromSubstituteRow,
+  fromBracketFitMove,
   mergeImprove,
   parsePrice,
 } from './deck-change';
@@ -14,6 +15,7 @@ import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest'
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
+import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
 
 /** Minimal add Change for the lane helpers. */
 function add(over: Partial<Change>): Change {
@@ -204,6 +206,83 @@ describe('fromOptimizeCard', () => {
     const c = fromOptimizeCard({ ...base, price: undefined, inclusion: null }, 'add');
     expect(c.deltaPrice).toBeUndefined();
     expect(c.inclusion).toBeUndefined();
+  });
+});
+
+describe('fromBracketFitMove', () => {
+  it('maps a pure cut into an ownership-blind cut Change', () => {
+    const move: BracketFitMove = {
+      type: 'cut',
+      name: 'Armageddon',
+      reason: 'Mass land denial isn’t allowed below Bracket 4.',
+      signal: 'mass-land-denial',
+      isGameChanger: false,
+    };
+    const c = fromBracketFitMove(move);
+    expect(c.type).toBe('cut');
+    expect(c.lane).toBe('bracket-fit');
+    expect(c.id).toBe('bracket-fit:cut:Armageddon');
+    expect(c.name).toBe('Armageddon');
+    expect(c.ownership).toBeUndefined(); // cuts are ownership-blind
+    expect(c.group).toBe('mass-land-denial');
+  });
+
+  it('maps an add carrying live ownership + metadata', () => {
+    const move: BracketFitMove = {
+      type: 'add',
+      name: 'Rhystic Study',
+      reason: 'Game Changer the deck lacks.',
+      signal: 'upshift-gc',
+      inclusion: 70,
+      cmc: 3,
+      typeLine: 'Enchantment',
+      imageUrl: 'http://img/rhystic',
+      isGameChanger: true,
+    };
+    const c = fromBracketFitMove(move, 'owned');
+    expect(c.type).toBe('add');
+    expect(c.name).toBe('Rhystic Study');
+    expect(c.ownership).toBe('owned');
+    expect(c.isGameChanger).toBe(true);
+    expect(c.inclusion).toBe(70);
+  });
+
+  it('surfaces the replacement as primary on a downshift swap; never a GC', () => {
+    const move: BracketFitMove = {
+      type: 'swap',
+      name: 'Cyclonic Rift', // the card being cut
+      inName: 'Evacuation', // the lower-power replacement coming in
+      reason: 'Game Changer over the Bracket 2 limit.',
+      signal: 'game-changer',
+      inclusion: 40,
+      imageUrl: 'http://img/evac',
+    };
+    const c = fromBracketFitMove(move, 'unowned');
+    expect(c.type).toBe('swap');
+    expect(c.id).toBe('bracket-fit:swap:Cyclonic Rift');
+    expect(c.name).toBe('Evacuation'); // primary = the incoming card
+    expect(c.inName).toBe('Cyclonic Rift'); // the slot to cut
+    expect(c.reason).toBe('Replaces Cyclonic Rift — Game Changer over the Bracket 2 limit.');
+    expect(c.ownership).toBe('unowned');
+    expect(c.isGameChanger).toBe(false); // downshift replacement is never a GC
+  });
+
+  it('flags the incoming Game Changer on an upshift swap (inIsGameChanger)', () => {
+    const move: BracketFitMove = {
+      type: 'swap',
+      name: 'Llanowar Elves', // lowest-impact slot cut to make room
+      inName: 'Smothering Tithe', // the GC powering the deck up
+      reason: 'Game Changer the deck lacks.',
+      signal: 'upshift-gc',
+      inclusion: 65,
+      isGameChanger: false, // the cut card is not a GC
+      inIsGameChanger: true, // the incoming card is
+    };
+    const c = fromBracketFitMove(move, 'owned');
+    expect(c.type).toBe('swap');
+    expect(c.name).toBe('Smothering Tithe');
+    expect(c.inName).toBe('Llanowar Elves');
+    expect(c.isGameChanger).toBe(true); // the incoming GC drives the badge
   });
 });
 

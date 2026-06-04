@@ -17,6 +17,7 @@ import type { ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
+import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 
 export { parsePrice };
@@ -24,11 +25,12 @@ export { parsePrice };
 export type ChangeType = 'add' | 'cut' | 'swap';
 
 /**
- * The intent lanes a Change can belong to: the four Tune lanes plus `similar`,
- * which tags the carousel's "Similar cards" suggestion rows (not a Tune lane).
- * The hero is a router, not a Change-owning lane.
+ * The intent lanes a Change can belong to: the four Tune lanes, the carousel's
+ * `similar` suggestion rows (not a Tune lane), and the Power tab's `bracket-fit`
+ * coaching lane (target-bracket card moves). The hero is a router, not a
+ * Change-owning lane.
  */
-export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'collection' | 'similar';
+export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'collection' | 'similar' | 'bracket-fit';
 
 /**
  * Allocation-aware ownership, evaluated at render time:
@@ -294,4 +296,68 @@ export function mergeImprove(changes: readonly Change[]): Change[] {
     });
   }
   return sortOwnedFirst([...byName.values()]);
+}
+
+/**
+ * Adapt a Bracket Fit engine {@link BracketFitMove} into a `Change` for the
+ * shared `<DeckCardRow>`. The engine emits three move types:
+ *   - 'cut'  → cut `name` (ownership-blind, like an Optimize removal). The row
+ *     IS the card leaving; its `isGameChanger` flags why it floors the bracket.
+ *   - 'swap' → cut `name`, add `inName` (a same-role, lower-power replacement).
+ *     The row surfaces the REPLACEMENT (`inName`) as its primary card — so the
+ *     thumbnail, inclusion bar, role and ownership all describe the card coming
+ *     IN — with the cut card folded into the reason ("Replaces {cut} — …"). The
+ *     engine's inclusion/synergy/cmc/type/image already describe the replacement.
+ *   - 'add'  → add `name` (power the deck up toward the target); all metadata
+ *     describes the added card.
+ *
+ * Ownership is supplied live by the caller (re-derived each render, never cached)
+ * and applies only to the card being ADDED — a pure cut is ownership-blind. For a
+ * swap, ownership describes the replacement (the caller resolves it for `inName`).
+ */
+export function fromBracketFitMove(move: BracketFitMove, ownership?: ChangeOwnership): Change {
+  if (move.type === 'swap' && move.inName) {
+    // Render the replacement as the primary card; fold the cut into the reason.
+    const reason = `Replaces ${move.name} — ${move.reason}`;
+    return {
+      id: `bracket-fit:swap:${move.name}`,
+      type: 'swap',
+      lane: 'bracket-fit',
+      name: move.inName,
+      inName: move.name, // the card being cut (the page reads this to find the slot)
+      reason,
+      ownership,
+      role: move.role,
+      roleLabel: move.roleLabel,
+      inclusion: move.inclusion,
+      synergy: move.synergy,
+      // The primary card is the one coming IN. On a downshift swap that's a
+      // filtered (never-GC) replacement → false; on an upshift swap it can be a
+      // Game Changer, carried as `inIsGameChanger`.
+      isGameChanger: move.inIsGameChanger ?? false,
+      group: move.signal,
+      cmc: move.cmc,
+      typeLine: move.typeLine,
+      imageUrl: move.imageUrl,
+    };
+  }
+
+  return {
+    id: `bracket-fit:${move.type}:${move.name}`,
+    type: move.type,
+    lane: 'bracket-fit',
+    name: move.name,
+    reason: move.reason,
+    // Adds carry live ownership; a pure cut is ownership-blind.
+    ownership: move.type === 'cut' ? undefined : ownership,
+    role: move.role,
+    roleLabel: move.roleLabel,
+    inclusion: move.inclusion,
+    synergy: move.synergy,
+    isGameChanger: move.isGameChanger,
+    group: move.signal,
+    cmc: move.cmc,
+    typeLine: move.typeLine,
+    imageUrl: move.imageUrl,
+  };
 }

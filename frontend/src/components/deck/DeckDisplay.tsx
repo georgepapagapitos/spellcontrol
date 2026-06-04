@@ -381,6 +381,11 @@ export interface DeckDisplayProps {
   engineSlot?: React.ReactNode;
   /** Win-condition detection panel, rendered on the Power tab. */
   winConditionSlot?: React.ReactNode;
+  /** Bracket Fit coaching lane — target-bracket card moves, rendered inside the
+   *  Power tab's Bracket panel below the verdict strip. Built by the page (owns
+   *  the plan + the add/cut/swap handlers); only passed when bracketOverride is
+   *  set and the plan isn't aligned. */
+  bracketFitSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the one the verdict hero points at). */
@@ -825,6 +830,7 @@ export function DeckDisplay({
   costSlot,
   engineSlot,
   winConditionSlot,
+  bracketFitSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -1695,6 +1701,7 @@ export function DeckDisplay({
             costSlot={costSlot}
             engineSlot={engineSlot}
             winConditionSlot={winConditionSlot}
+            bracketFitSlot={bracketFitSlot}
             powerHeroSlot={powerHeroSlot}
             tuneDefaultLane={tuneDefaultLane}
             tuneFocusLane={tuneFocusLane}
@@ -3035,6 +3042,7 @@ function DeckAnalysisView({
   costSlot,
   engineSlot,
   winConditionSlot,
+  bracketFitSlot,
   powerHeroSlot,
   tuneDefaultLane,
   tuneFocusLane,
@@ -3065,6 +3073,8 @@ function DeckAnalysisView({
   costSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
   winConditionSlot?: React.ReactNode;
+  /** Bracket Fit coaching lane — rendered inside the Bracket panel. */
+  bracketFitSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
   /** Tune lane to expand on first paint (the verdict hero's target). */
   tuneDefaultLane?: LaneId;
@@ -3122,6 +3132,11 @@ function DeckAnalysisView({
   // resolve to the single merged Improve lane; budget is its own lane.
   const improveLaneRef = useRef<CollapsibleLaneHandle>(null);
   const budgetLaneRef = useRef<CollapsibleLaneHandle>(null);
+  // Bracket Fit lives on the Power tab (inside the Bracket panel), not the Tune
+  // tab — the page builds + owns its CollapsibleLane. This ref keeps the laneRefs
+  // map exhaustive over LaneId; the Tune-tab deep-link below never targets it
+  // (its slot isn't mounted on Tune), so it stays inert until a future hero link.
+  const bracketFitLaneRef = useRef<CollapsibleLaneHandle>(null);
   const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle>>>(
     () => ({
       'fill-gaps': improveLaneRef,
@@ -3132,6 +3147,7 @@ function DeckAnalysisView({
       // collapsible Tune lane, so it maps to the inert Improve ref purely to keep
       // this map exhaustive over LaneId (nothing deep-links to it).
       similar: improveLaneRef,
+      'bracket-fit': bracketFitLaneRef,
     }),
     []
   );
@@ -3243,10 +3259,14 @@ function DeckAnalysisView({
         <div className="deck-bento deck-bento--power">
           {powerHeroSlot}
           {/* Detailed breakdowns under the verdict hero. */}
-          {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
+          {/* Bracket + Roles — a compact pair (lone survivor spans full width).
+              When the prescriptive Bracket Fit lane is showing, the Bracket panel
+              is list-heavy and wants room: both panels go full-width (stacked) so
+              the lane isn't crushed into a half-width track and Roles doesn't
+              orphan an empty cell beside the tall lane. */}
           <div className="deck-stats-pair">
             {(bracketEstimation || bracketOverride != null) && (
-              <Panel id="deck-power-bracket" title="Bracket">
+              <Panel id="deck-power-bracket" title="Bracket" wide={!!bracketFitSlot}>
                 <div className="deck-stats-bracket">
                   <strong>
                     Bracket {effectiveBracketValue} —{' '}
@@ -3292,11 +3312,15 @@ function DeckAnalysisView({
                       deckCardsByName={deckCardsByName}
                     />
                   )}
+                  {/* Bracket Fit coaching lane — prescriptive card moves toward
+                      the target. The page only builds it when a target is set and
+                      the plan isn't aligned; null otherwise. */}
+                  {bracketFitSlot}
                 </div>
               </Panel>
             )}
             {showRoles && (
-              <Panel title="Roles">
+              <Panel title="Roles" wide={!!bracketFitSlot}>
                 <RolesPanel
                   roleCounts={effectiveRoleCounts}
                   roleTargets={roleTargets}
