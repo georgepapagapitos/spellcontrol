@@ -31,11 +31,15 @@ function makeDeck(over: Partial<Deck> = {}): Deck {
   } as unknown as Deck;
 }
 
-// Mirrors buildSignature() in the hook — must stay in sync when the signature
-// format is bumped (the bump forces saved decks to recompute).
-function sig(deck: Deck, combo: ComboMatchResponse | null = null): string {
+// Mirrors buildSignature() in the hook — keep the leading version token in sync
+// with ANALYSIS_ENGINE_VERSION there.
+function sig(
+  deck: Deck,
+  combo: ComboMatchResponse | null = null,
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
+): string {
   return [
-    'v2-wincon',
+    'v3-wincon-bracketfit',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards
@@ -46,6 +50,7 @@ function sig(deck: Deck, combo: ComboMatchResponse | null = null): string {
       .map((m) => m.combo.id)
       .sort()
       .join(','),
+    String(bracketOverride ?? ''),
   ].join('|');
 }
 
@@ -121,6 +126,9 @@ describe('useCommanderBracketAnalysis — active', () => {
         roleTargets: RESULT.roleTargets,
         gapAnalysis: RESULT.gapAnalysis,
         cardInclusionMap: RESULT.cardInclusionMap,
+        // bracketFit defaults to null when the analysis didn't produce a plan
+        // (no target set); recovered alongside win-condition detection.
+        bracketFit: null,
         gradeBracketSignature: sig(a.deck as Deck),
       })
     );

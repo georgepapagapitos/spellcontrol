@@ -16,25 +16,54 @@ interface Args {
   hasCommander: boolean;
   colorIdentity: string[];
   updateDeck: (id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>) => void;
+  /**
+   * The user's target bracket (Deck.bracketOverride). Folded into the analysis
+   * signature so the Bracket Fit plan recomputes when the target changes — not
+   * only when cards change. Absent/null → no target, bracketFit recorded as null.
+   */
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
 }
 
 const DEBOUNCE_MS = 500;
 
 /**
- * Signature of every input that materially affects grade/bracket: commander(s)
- * + the sorted mainboard card-name multiset + the matched in-deck combo ids.
- * Combo ids are folded in because they load asynchronously — including them
- * makes the analysis recompute once combos arrive (or change with the deck).
+ * Bump when the analysis ENGINE changes in a way that should invalidate every
+ * persisted result (deck.bracketFit / gapAnalysis / optimizeSwaps / …) even
+ * though the deck's cards/commander/target are unchanged. Folded into the
+ * signature, so a bump forces a one-time recompute the next time each deck's
+ * analysis runs — no manual toggle or deck edit needed.
+ *
+ * History:
+ *   v2 — Bracket Fit: capped upshift suggestions (≤5 one-away combos, ≤12 total)
+ *        + full-deck add↔cut pairing. v1 plans had unbounded "swap in N" lists.
+ *   v3 — added win-condition detection + restored Bracket Fit alongside it; bumped
+ *        to bust any cache from the window when Bracket Fit was missing from main.
  */
-function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): string {
+const ANALYSIS_ENGINE_VERSION = 'v3-wincon-bracketfit';
+
+/**
+ * Signature of every input that materially affects grade/bracket: commander(s)
+ * + the sorted mainboard card-name multiset + the matched in-deck combo ids +
+ * the user's target bracket. Combo ids are folded in because they load
+ * asynchronously — including them makes the analysis recompute once combos
+ * arrive (or change with the deck). The target bracket is folded in so the
+ * Bracket Fit plan recomputes the moment the user picks/changes/clears a target,
+ * even when the card list is unchanged.
+ */
+function buildSignature(
+  deck: Deck,
+  comboData: ComboMatchResponse | null,
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
+): string {
   const cardNames = deck.cards.map((c) => c.card.name).sort();
   const comboIds = (comboData?.inDeck ?? []).map((m) => m.combo.id).sort();
   return [
-    'v2-wincon',
+    ANALYSIS_ENGINE_VERSION,
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     cardNames.join(','),
     comboIds.join(','),
+    String(bracketOverride ?? ''),
   ].join('|');
 }
 
@@ -56,13 +85,21 @@ function buildSignature(deck: Deck, comboData: ComboMatchResponse | null): strin
  * is unreachable (the existing values, if any, are left untouched).
  */
 export function useCommanderBracketAnalysis(args: Args): void {
-  const { deck, comboData, mainboardSize, hasCommander, colorIdentity, updateDeck } = args;
+  const {
+    deck,
+    comboData,
+    mainboardSize,
+    hasCommander,
+    colorIdentity,
+    updateDeck,
+    bracketOverride,
+  } = args;
 
   const enabled = Boolean(deck && hasCommander && deck.commander && mainboardSize != null);
 
   const signature = useMemo(
-    () => (deck && enabled ? buildSignature(deck, comboData) : ''),
-    [deck, comboData, enabled]
+    () => (deck && enabled ? buildSignature(deck, comboData, bracketOverride) : ''),
+    [deck, comboData, enabled, bracketOverride]
   );
 
   const persistedSignature = deck?.gradeBracketSignature;
@@ -84,6 +121,10 @@ export function useCommanderBracketAnalysis(args: Args): void {
     const partnerCommander = deck.partnerCommander;
     const cards = deck.cards.map((c) => c.card);
     const detectedCombos = comboMatchesToDetected(comboData);
+    // The user's target bracket + the live oneAway combos feed the Bracket Fit
+    // plan (target-pool fetch + upshift combo-completion adds happen inside).
+    const targetBracket = bracketOverride ?? undefined;
+    const oneAwayCombos = comboData?.oneAway ?? [];
 
     const myReqId = ++reqIdRef.current;
     const timer = window.setTimeout(() => {
@@ -94,6 +135,8 @@ export function useCommanderBracketAnalysis(args: Args): void {
         deckSize: mainboardSize,
         colorIdentity,
         detectedCombos,
+        targetBracket,
+        oneAwayCombos,
       })
         .then((result) => {
           if (reqIdRef.current !== myReqId) return;
@@ -115,6 +158,8 @@ export function useCommanderBracketAnalysis(args: Args): void {
             costPlan: result.costPlan,
             synergyAnalysis: result.synergyAnalysis,
             winConditions: result.winConditions,
+            // null when no target set / non-commander — clears a stale plan.
+            bracketFit: result.bracketFit ?? null,
             gradeBracketSignature: signature,
           });
         })

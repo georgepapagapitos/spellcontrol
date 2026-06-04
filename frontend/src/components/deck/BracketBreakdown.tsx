@@ -1,4 +1,6 @@
 import './BracketBreakdown.css';
+import type { ReactNode } from 'react';
+import { InfoTip } from '../InfoTip';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -24,6 +26,37 @@ const INTERACTION_CAP = 15;
 
 const ELEVATE_BUMP_THRESHOLD = 66;
 const ELEVATE_CEDH_THRESHOLD = 80;
+
+const HARD_FLOOR_TIP =
+  'A hard floor is a deterministic signal — Game Changers, mass land denial, infinite combos, stax, or extra-turn cards — that forces a MINIMUM bracket. No amount of tuning can drop the deck below it; the only way down is to cut the offending cards.';
+// One consolidated explainer for the whole soft score — intro + every signal —
+// so the four rows don't each need their own info icon (which read as clutter).
+const SOFT_SCORE_TIP: ReactNode = (
+  <>
+    <p className="info-tip-lead">
+      The soft score (0–100) rates how tuned the deck is. It can only push the bracket{' '}
+      <strong>up</strong> from the hard floor — never below it. Four signals feed it:
+    </p>
+    <ul className="info-tip-list">
+      <li>
+        <strong>Fast mana</strong> — rocks/rituals that make more mana than they cost (Sol Ring,
+        Mana Crypt). 8 pts each, max 40.
+      </li>
+      <li>
+        <strong>Tutors</strong> — cards that search your library for anything (Demonic Tutor). They
+        make the deck consistent. 5 pts each, max 25.
+      </li>
+      <li>
+        <strong>Low curve</strong> — a low average mana value does powerful things sooner; below 3.5
+        earns up to 20 pts.
+      </li>
+      <li>
+        <strong>Interaction</strong> — removal and board wipes; more answers = a more resilient
+        deck. Up to 15 pts.
+      </li>
+    </ul>
+  </>
+);
 
 function CardChips({ names, deckCardsByName }: { names: string[]; deckCardsByName?: DeckCardMap }) {
   const carousel = useCardCarousel('Bracket cards');
@@ -143,7 +176,10 @@ export function BracketBreakdown({
     <section className="bracket-breakdown" aria-label="Bracket breakdown">
       {/* ── 1. Hard floors ── deterministic signals that force a minimum bracket. */}
       <div className="bracket-breakdown-section">
-        <h4 className="bracket-breakdown-heading">Hard floors</h4>
+        <h4 className="bracket-breakdown-heading">
+          Hard floors
+          <InfoTip label="a hard floor" text={HARD_FLOOR_TIP} />
+        </h4>
         {sortedFloors.length === 0 ? (
           <p className="bracket-breakdown-empty">No hard floors — bracket set by soft score.</p>
         ) : (
@@ -188,7 +224,10 @@ export function BracketBreakdown({
 
       {/* ── 2. Soft score ── the 0–100 tuning components. */}
       <div className="bracket-breakdown-section">
-        <h4 className="bracket-breakdown-heading">Soft score</h4>
+        <h4 className="bracket-breakdown-heading">
+          Soft score
+          <InfoTip label="the soft score" text={SOFT_SCORE_TIP} wide />
+        </h4>
         <div className="deck-bracket-table" role="table" aria-label="Soft score">
           <div className="deck-bracket-row deck-bracket-head" role="row">
             <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
