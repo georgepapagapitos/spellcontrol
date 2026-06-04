@@ -202,10 +202,21 @@ export function DeckNewPage() {
 
       let collectionNames: Set<string> | undefined;
       if (customization.collectionMode) {
-        collectionNames = new Set(collectionCards.map((c) => c.name));
+        if (customization.collectionStrategy === 'available') {
+          // Only include card names that have at least one copy not claimed by another deck.
+          const claimed = new Map(buildAllocationMap(decks));
+          collectionNames = new Set<string>();
+          for (const card of collectionCards) {
+            if (!claimed.has(card.copyId)) collectionNames.add(card.name);
+          }
+        } else {
+          collectionNames = new Set(collectionCards.map((c) => c.name));
+        }
         if (collectionNames.size === 0) {
           setError(
-            'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
+            customization.collectionStrategy === 'available'
+              ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards" mode.'
+              : 'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
           );
           setIsGenerating(false);
           setProgress(null);

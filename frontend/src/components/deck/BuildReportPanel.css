@@ -78,6 +78,14 @@
   font-weight: 400;
 }
 
+.build-report-conflict-note {
+  margin: 0.15rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--warn-text, #b85c00);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 /* Phones: tighten the inter-line gap. Report lines wrap (overflow-wrap:
    anywhere) and the gap chips already flex-wrap, so no reflow is needed —

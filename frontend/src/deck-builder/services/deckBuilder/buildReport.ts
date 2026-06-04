@@ -14,8 +14,9 @@ export function assembleBuildReport(input: {
   generated: GeneratedDeck;
   customization: Customization;
   collectionNames: Set<string>;
+  claimedConflicts?: number;
 }): BuildReport {
-  const { generated, customization, collectionNames } = input;
+  const { generated, customization, collectionNames, claimedConflicts } = input;
 
   const builtFromCollection = generated.builtFromCollection ?? customization.collectionMode;
   const collectionStrategy = customization.collectionStrategy;
@@ -68,6 +69,11 @@ export function assembleBuildReport(input: {
     if (roleGaps.length > 0) {
       report.roleGaps = roleGaps;
     }
+  }
+
+  // Coaching: cards that are owned but all copies are committed to other decks.
+  if (claimedConflicts != null && claimedConflicts > 0) {
+    report.claimedConflicts = claimedConflicts;
   }
 
   return report;

@@ -51,7 +51,24 @@ export function saveGeneratedDeck(
   }
 
   const collectionNames = new Set(collection.map((c) => c.name));
-  const buildReport = assembleBuildReport({ generated, customization, collectionNames });
+
+  // Count cards where all owned copies are allocated to other decks.
+  let claimedConflicts = 0;
+  for (const dc of cards) {
+    if (dc.allocatedCopyId === null && collectionNames.has(dc.card.name)) {
+      claimedConflicts++;
+    }
+  }
+  if (commander && commanderAlloc === null && collectionNames.has(commander.name))
+    claimedConflicts++;
+  if (partner && partnerAlloc === null && collectionNames.has(partner.name)) claimedConflicts++;
+
+  const buildReport = assembleBuildReport({
+    generated,
+    customization,
+    collectionNames,
+    claimedConflicts: claimedConflicts > 0 ? claimedConflicts : undefined,
+  });
 
   return createDeck({
     source: 'generated',

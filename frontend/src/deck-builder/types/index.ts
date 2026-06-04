@@ -299,6 +299,8 @@ export interface BuildReport {
   basicsPadded?: number;
   /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
   roleGaps?: Array<{ role: string; have: number; want: number }>;
+  /** Cards that are owned but all copies are committed to other decks. */
+  claimedConflicts?: number;
 }
 
 export interface GeneratedDeck {
@@ -399,7 +401,7 @@ export type MaxRarity = 'common' | 'uncommon' | 'rare' | 'mythic' | null;
 // 2=any (no filter, default), 3=extra (no filter + boost salty cards).
 export type SaltTolerance = 0 | 1 | 2 | 3;
 
-export type CollectionStrategy = 'full' | 'partial';
+export type CollectionStrategy = 'full' | 'partial' | 'available';
 
 // Ban list (preset or custom)
 export interface BanList {
