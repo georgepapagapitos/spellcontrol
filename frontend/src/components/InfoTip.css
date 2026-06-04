@@ -1,0 +1,77 @@
+/* InfoTip — the shared "ⓘ" info affordance + portal tooltip. Co-located per house
+   rule. The bubble is portaled into <body> and positioned `fixed` inline by the
+   component, so this file only styles the trigger and the bubble's box/typography
+   (no positioning, no reveal selectors — visibility is React-controlled by
+   mount/unmount). See InfoTip.tsx + STYLE_GUIDE.md (§ Info tooltips). */
+
+.info-tip {
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-tip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  /* Kill inline baseline space so the glyph sits dead-center against adjacent
+     text rather than riding low on the line box. */
+  line-height: 0;
+  transition: color 0.12s ease;
+}
+
+.info-tip-btn svg {
+  display: block;
+}
+
+.info-tip-btn:hover,
+.info-tip-btn:focus-visible {
+  color: var(--accent);
+}
+
+/* The portaled bubble — position (fixed left/top/width) is set inline by the
+   component; this is box + typography only. High z-index so it floats above
+   sticky panels and overlays. */
+.info-tip-bubble {
+  z-index: var(--z-tooltip);
+  max-width: min(18rem, 92vw);
+  padding: 0.5rem 0.6rem;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md, 0 4px 16px rgba(0, 0, 0, 0.18));
+  font-family: var(--font-sans, inherit);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text2);
+}
+
+.info-tip-bubble--wide {
+  max-width: min(24rem, 92vw);
+}
+
+/* Content helpers for multi-point explainers (intro line + bulleted signals). */
+.info-tip-lead {
+  margin: 0 0 0.4rem 0;
+}
+
+.info-tip-list {
+  margin: 0;
+  padding-left: 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.info-tip-list li {
+  /* Break long card names instead of overflowing the bubble. */
+  overflow-wrap: anywhere;
+}

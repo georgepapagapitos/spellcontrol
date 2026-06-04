@@ -36,16 +36,17 @@ Anti-patterns this rule kills:
 - A text action button styled as a pill so it reads like a tag.
 
 **Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
-button is an **accent-fill rect with a leading lucide icon at `width/height={14}`
-+ a text label** (`var(--accent)` bg, `var(--on-accent)` text, `var(--radius)`,
-`:hover` → `var(--accent-hover)`). Two intents share the look, differing only by
-glyph: per-card **add** uses `Plus`; bulk **apply / commit a plan** uses `Check`.
-The baseline is `DeckCardRow`'s `.deck-card-row-act`; `.sub-add`,
-`.deck-analysis-suggest-add`, `.engine-suggestion-add`, `.optimize-apply`,
-`.cost-apply` all match it. Don't ship a hover-only-accent or icon-less variant —
-on touch there's no hover, so a muted base reads as a different (secondary)
-control. A genuine **secondary** action (e.g. Cost's "Auto-select to target")
-may stay outline (`var(--surface2)` bg + border), but that's the only tier-2.
+button is an \*\*accent-fill rect with a leading lucide icon at `width/height={14}`
+
+- a text label** (`var(--accent)` bg, `var(--on-accent)` text, `var(--radius)`,
+  `:hover` → `var(--accent-hover)`). Two intents share the look, differing only by
+  glyph: per-card **add** uses `Plus`; bulk **apply / commit a plan** uses `Check`.
+  The baseline is `DeckCardRow`'s `.deck-card-row-act`; `.sub-add`,
+  `.deck-analysis-suggest-add`, `.engine-suggestion-add`, `.optimize-apply`,
+  `.cost-apply` all match it. Don't ship a hover-only-accent or icon-less variant —
+  on touch there's no hover, so a muted base reads as a different (secondary)
+  control. A genuine **secondary\*\* action (e.g. Cost's "Auto-select to target")
+  may stay outline (`var(--surface2)` bg + border), but that's the only tier-2.
 
 **Collapsible/section titles use `var(--font-serif)`, uppercase,
 `letter-spacing`** — the `.deck-combos-title` family. Any new lane/group heading
@@ -68,6 +69,34 @@ sans-bold heading reads as off-family.
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
+
+## Info tooltips
+
+When a label needs a plain-language explainer for a concept not everyone knows
+(jargon, a scoring formula), use the shared **`components/InfoTip.tsx`** — a
+small `ⓘ` icon button beside the label with a portal tooltip. Don't hand-roll a
+tooltip; reuse this so they behave identically everywhere.
+
+- **Portal, always.** The bubble renders through `createPortal` into `<body>`
+  and is positioned `fixed` from the trigger's rect, clamped to the viewport
+  (flips above when there's no room below). This is non-negotiable: an in-flow
+  `position: absolute`/`fixed` tooltip gets **clipped by `overflow: hidden`**
+  ancestors (tables) and **trapped by `container-type`** containing blocks (the
+  deck bento), so it must escape to `<body>`. Use `--z-tooltip`.
+- **Reveal model** (mirrors the hover-peek capability story): mouse **hover**
+  opens / mouse-leave closes (a click never _pins_ it open); keyboard **focus**
+  opens / blur closes; on touch a **tap** focuses the trigger → opens, tapping
+  away closes. Also closes on `Esc` and any scroll/resize so it never floats
+  stale. No extra capability media-queries needed — the event set covers all.
+- **Don't over-pepper.** One `ⓘ` per _concept_, not per data point. If several
+  related rows each want a gloss (e.g. the four soft-score signals), prefer **one
+  consolidated `wide` tooltip** on the section heading (intro + a bulleted list
+  via `.info-tip-lead` / `.info-tip-list`) over N icons — many icons read as
+  clutter. (Settled while building the Bracket panel's Hard-floor / Soft-score
+  explainers.)
+- The trigger sits inline in a flex label; `.info-tip-btn` zeroes its line-height
+  so the glyph centers against the text. Pass rich `text` (a node) for
+  multi-point bodies.
 
 ## Z-index / layering
 
@@ -97,16 +126,16 @@ sans-bold heading reads as off-family.
 
 There are only **two viewport media-query boundaries** in the codebase — **600px**
 and **1024px** (each used ~30× across many files). Everything else is refinement
-*within* a tier, not a tier wall. "XL desktop" is **not** a breakpoint: it's where
+_within_ a tier, not a tier wall. "XL desktop" is **not** a breakpoint: it's where
 content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 1320px` for deck-analysis boards, `--page-max: 1400px` for page containers).
 
-| Tier | Viewport range | Test at (px) | What defines it |
-|---|---|---|---|
-| **Mobile** | `≤ 600` | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement. |
-| **Tablet** | `601 – 1023` | 640 · 768 · 820 · 1023 | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport). |
-| **Desktop** | `1024 – 1399` | **1024** · 1101 · 1280 | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift. |
-| **XL desktop** | `≥ 1400` | 1440 · 1920 | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400). Test for balanced gutters / no dead space, not a reflow. |
+| Tier           | Viewport range | Test at (px)                    | What defines it                                                                                                                                                              |
+| -------------- | -------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mobile**     | `≤ 600`        | **320** · 375 · 414 · 480 · 600 | base styles; phone layouts, bottom sheets. **320 = hard no-overflow floor.** 480 = cramped-phone refinement.                                                                 |
+| **Tablet**     | `601 – 1023`   | 640 · 768 · 820 · 1023          | the gap between the two poles. 640 = deck-bento 2-col **container**-query trigger (not viewport).                                                                            |
+| **Desktop**    | `1024 – 1399`  | **1024** · 1101 · 1280          | sticky panels, multi-column, hover-peek (`≥1024`). 1101 = deck-editor layout shift.                                                                                          |
+| **XL desktop** | `≥ 1400`       | 1440 · 1920                     | content **stops growing** and centers: deck-analysis caps at `--analysis-max` (1320), pages at `--page-max` (1400). Test for balanced gutters / no dead space, not a reflow. |
 
 - **The two real breakpoints:** `max-width: 600px` (mobile) and `min-width: 1024px`
   (desktop). Use **600**, not 599 — the codebase tolerates the 1px overlap with
@@ -118,7 +147,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **Container queries ≠ viewport.** The deck bento (`.deck-bento`,
   `container-type: inline-size`) reflows on its **own** width at `640` / `1040`
   container px — independent of viewport tier. This is why a half-width panel on a
-  wide tablet can look cramped even though the *viewport* is "desktop": tune the
+  wide tablet can look cramped even though the _viewport_ is "desktop": tune the
   **container** threshold, not a viewport media query.
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
   (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
