@@ -1,7 +1,17 @@
 import { Layers } from 'lucide-react';
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
+import { HOVER_HIDE_DELAY_MS, HOVER_INTENT_DELAY_MS } from '../lib/hover-intent';
+import { useHoverCapable } from '../lib/use-hover-capable';
 import { isLand } from '../lib/colors';
 import { truncateLongWords } from '../lib/slot-text';
 import { CardPreviewContext } from './CardPreviewContext';
@@ -21,25 +31,45 @@ interface TooltipPos {
 const TIP_MARGIN = 8;
 const VIEWPORT_PAD = 6;
 
-// Hover-capable pointers (real mouse/trackpad) get the floating tooltip on
-// mouseenter. Click/tap opens the CardPreview modal on every device.
-//
-// `(hover: hover)` alone is unreliable on Chrome/Android, which often reports
-// hover capability as true because the device *could* connect a stylus or
-// mouse — even when the user is tapping with a finger. Combine with
-// `(pointer: coarse)` so a coarse primary pointer (finger) suppresses the
-// hover tooltip regardless.
-const hasHover =
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(hover: hover)').matches &&
-  !window.matchMedia('(pointer: coarse)').matches;
-
 export function CardSlot({ card, showImage }: Props) {
   const preview = useContext(CardPreviewContext);
   const previewOpen = preview?.isPreviewOpen ?? false;
   const allocations = useAllocations();
+  // Hover-capable pointers (real mouse/trackpad/stylus) get the floating tooltip;
+  // touch/native tap to open the CardPreview modal instead. Shared, reactive gate
+  // — same `(hover: hover) and (pointer: fine)` the deck hover-peek uses — so a
+  // finger never raises it (Chrome/Android falsely reports plain `hover: hover`).
+  const hoverCapable = useHoverCapable();
   const [hovered, setHovered] = useState(false);
+  // Stable id so the slot can point `aria-describedby` at the tooltip while it's
+  // shown (WAI-ARIA tooltip pattern); without it the role="tooltip" is inert for
+  // assistive tech.
+  const tooltipId = useId();
+  // True while a show dwell is counting down (before the tooltip is shown). Used
+  // to keep the scroll/resize teardown listener attached during the dwell too —
+  // bounded to the one card currently dwelling, so a mid-dwell scroll cancels the
+  // pending tooltip (mirrors the deck peek's always-on teardown without putting a
+  // listener on every slot in the grid).
+  const [dwelling, setDwelling] = useState(false);
+
+  // Hover-intent timers (mouse only): a show dwell so the tooltip is raised after
+  // a deliberate pause (never while the cursor just passes over), and a hide grace
+  // so a brief exit — clipping the slot edge, dipping out and back — doesn't tear
+  // it down. Keyboard focus opens it immediately (that's already deliberate).
+  const showTimer = useRef<number | null>(null);
+  const hideTimer = useRef<number | null>(null);
+  const cancelShow = useCallback(() => {
+    if (showTimer.current !== null) {
+      window.clearTimeout(showTimer.current);
+      showTimer.current = null;
+    }
+  }, []);
+  const cancelHide = useCallback(() => {
+    if (hideTimer.current !== null) {
+      window.clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  }, []);
 
   // Mouseenter from a slot underneath the preview modal still fires (the
   // backdrop doesn't capture pointer events from React's synthetic system),
@@ -48,13 +78,36 @@ export function CardSlot({ card, showImage }: Props) {
   const [prevPreviewOpen, setPrevPreviewOpen] = useState(previewOpen);
   if (prevPreviewOpen !== previewOpen) {
     setPrevPreviewOpen(previewOpen);
-    if (previewOpen) setHovered(false);
+    if (previewOpen) {
+      setHovered(false);
+      setDwelling(false);
+    }
   }
+  // Cancel any dwell/grace still counting down when a preview opens, or a queued
+  // tooltip would pop over the carousel after the click that opened it. In an
+  // effect (not render) since it touches the timer refs; it runs before the
+  // timers' macrotasks can fire, so nothing pending lands.
+  useEffect(() => {
+    if (previewOpen) {
+      cancelShow();
+      cancelHide();
+    }
+  }, [previewOpen, cancelShow, cancelHide]);
   const [pos, setPos] = useState<TooltipPos | null>(null);
   const [imgError, setImgError] = useState(false);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Tear the tooltip down now (no grace): used for scroll, Escape, and an
+  // unmount/preview-open. Clears a pending dwell as well as a shown tooltip.
+  const hideNow = useCallback(() => {
+    cancelShow();
+    cancelHide();
+    setDwelling(false);
+    setHovered(false);
+    setPos(null);
+  }, [cancelShow, cancelHide]);
 
   const [prevImageNormal, setPrevImageNormal] = useState(card?.imageNormal);
   if (prevImageNormal !== card?.imageNormal) {
@@ -123,25 +176,76 @@ export function CardSlot({ card, showImage }: Props) {
     reposition();
   }, [hovered, card, imgError, reposition]);
 
-  // Close the tooltip on scroll (any scrollable ancestor) and reposition on resize.
+  // Close the tooltip on scroll (any scrollable ancestor) and reposition on
+  // resize. Attached while shown OR mid-dwell, so a scroll during the dwell
+  // cancels the pending tooltip too (hideNow clears both); reposition only
+  // matters once shown.
   useEffect(() => {
-    if (!hovered) return;
-    const onScroll = () => setHovered(false);
+    if (!hovered && !dwelling) return;
     const onResize = () => reposition();
-    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
-    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', hideNow, { capture: true, passive: true });
+    if (hovered) window.addEventListener('resize', onResize);
     return () => {
-      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('scroll', hideNow, true);
       window.removeEventListener('resize', onResize);
     };
-  }, [hovered, reposition]);
+  }, [hovered, dwelling, reposition, hideNow]);
 
+  // WCAG 1.4.13 (content on hover/focus must be dismissable): Escape tears the
+  // tooltip down without moving the pointer. Document-level + only while shown, so
+  // it covers the pure-hover case too — the slot's own onKeyDown only fires when
+  // the slot itself holds focus, which a mouse-hover user never gives it.
+  useEffect(() => {
+    if (!hovered) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') hideNow();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hovered, hideNow]);
+
+  // Never leave a timer running past unmount (it would setState on a gone
+  // component, or fire while the slot is recycled for another card).
+  useEffect(
+    () => () => {
+      cancelShow();
+      cancelHide();
+    },
+    [cancelShow, cancelHide]
+  );
+
+  // Mouse hover: raise the tooltip only after a deliberate dwell. Re-entering a
+  // slot whose tooltip is up (or mid-grace) just cancels the teardown — no flash.
   const show = () => {
-    if (hasHover && !previewOpen) setHovered(true);
+    if (!hoverCapable || previewOpen) return;
+    cancelHide();
+    if (hovered) return;
+    cancelShow();
+    setDwelling(true);
+    showTimer.current = window.setTimeout(() => {
+      showTimer.current = null;
+      setDwelling(false);
+      setHovered(true);
+    }, HOVER_INTENT_DELAY_MS);
   };
+  // Keyboard focus is already a deliberate act — no dwell, show at once. Still
+  // gated on capability so a touch device with a keyboard doesn't build a tooltip
+  // that CSS hides anyway (and fires its lazy set-map fetch); matches the mouse path.
+  const showNow = () => {
+    if (!hoverCapable || previewOpen) return;
+    cancelHide();
+    setHovered(true);
+  };
+  // Mouse leave: tear down after a short grace, so a brief exit doesn't flicker.
   const hide = () => {
-    setHovered(false);
-    setPos(null);
+    cancelShow();
+    setDwelling(false);
+    if (hideTimer.current !== null) return; // already counting down
+    hideTimer.current = window.setTimeout(() => {
+      hideTimer.current = null;
+      setHovered(false);
+      setPos(null);
+    }, HOVER_HIDE_DELAY_MS);
   };
   const handleClick = () => {
     if (card) preview?.openCard(card);
@@ -151,6 +255,8 @@ export function CardSlot({ card, showImage }: Props) {
       e.preventDefault();
       handleClick();
     }
+    // Escape-to-dismiss is handled by a document-level listener (above) so it
+    // works for hover-shown tooltips, not only focus.
   };
 
   if (!card) return <div className="slot empty" />;
@@ -170,7 +276,7 @@ export function CardSlot({ card, showImage }: Props) {
         className={`slot ${cls}${card.foil ? ' foil' : ''}${allocation ? ' is-allocated' : ''}`}
         onMouseEnter={show}
         onMouseLeave={hide}
-        onFocus={show}
+        onFocus={showNow}
         onBlur={hide}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -179,6 +285,7 @@ export function CardSlot({ card, showImage }: Props) {
         aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}${
           allocation ? ` (in deck: ${allocation.deckName})` : ''
         }`}
+        aria-describedby={hovered ? tooltipId : undefined}
       >
         {showImage && card.imageSmall ? (
           <img
@@ -214,6 +321,7 @@ export function CardSlot({ card, showImage }: Props) {
       {hovered && (
         <div
           ref={tooltipRef}
+          id={tooltipId}
           className="tooltip"
           role="tooltip"
           style={{
@@ -247,7 +355,9 @@ export function CardSlot({ card, showImage }: Props) {
             <div className="tooltip-image-wrap">
               <img
                 src={card.imageNormal}
-                alt={card.name}
+                // Decorative within the described region: the name is already the
+                // tooltip's text, so an alt here just makes SRs announce it twice.
+                alt=""
                 className="tooltip-image"
                 loading="lazy"
                 onError={() => setImgError(true)}

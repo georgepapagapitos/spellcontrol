@@ -3,6 +3,7 @@ import {
   computePeekPlacement,
   computePointerPlacement,
   peekWidth,
+  rowGutterFits,
   type PeekRect,
 } from './hover-peek-placement';
 
@@ -85,6 +86,30 @@ describe('computePointerPlacement', () => {
   it('clamps the vertical edges around the cursor', () => {
     expect(computePointerPlacement(500, 0, VIEWPORT, CARD_W, CARD_H).top).toBe(8);
     expect(computePointerPlacement(500, 900, VIEWPORT, CARD_W, CARD_H).top).toBe(900 - CARD_H - 8);
+  });
+});
+
+describe('rowGutterFits', () => {
+  it('fits when the right gutter has room for the card', () => {
+    expect(rowGutterFits(row({}), VIEWPORT, CARD_W)).toBe(true);
+  });
+
+  it('fits via the left gutter when the row hugs the right edge', () => {
+    // No room on the right (right=1420), but left=1140 leaves room on the left.
+    expect(rowGutterFits(row({ left: 1140, right: 1420 }), VIEWPORT, CARD_W)).toBe(true);
+  });
+
+  it('does NOT fit on a narrow window where a full-width row leaves no gutter', () => {
+    const narrow = { width: 360, height: 720 };
+    // Right overflows and the left fallback would go negative → no gutter fits.
+    expect(rowGutterFits(row({ left: 20, right: 340 }), narrow, CARD_W)).toBe(false);
+  });
+
+  it('honors custom gap and margin', () => {
+    // Exactly enough room on the right with gap=12,margin=8: right+12+240+8 = 1440.
+    expect(rowGutterFits(row({ right: 1180 }), VIEWPORT, CARD_W, 12, 8)).toBe(true);
+    // One pixel more and it no longer fits the right; left (40) also too tight.
+    expect(rowGutterFits(row({ left: 30, right: 1181 }), VIEWPORT, CARD_W, 12, 8)).toBe(false);
   });
 });
 

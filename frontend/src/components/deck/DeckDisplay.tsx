@@ -706,6 +706,9 @@ function AllocationChip({ row }: { row: Row }) {
         title={title}
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
+        // The whole deck-row is the hover-peek trigger; this inline deck-link
+        // sits inside it, so suppress the floating card while it's hovered/aimed at.
+        data-peek-suppress
       >
         <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
         <span className="deck-row-alloc-badge-label">{info.deckName}</span>
@@ -1401,9 +1404,11 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Hover-peek for the list view — cursor-anchored, any hover-capable viewport
-  // (the shared default; consistent with the Improve lane). No-op on touch/native.
-  const hoverPeek = useDeckHoverPeek();
+  // Hover-peek for the list view — row/gutter anchor: the peek locks to a steady
+  // position beside the hovered row (fixed horizontally, tracks the row vertically)
+  // rather than landing at the cursor's rest point, which reads as steadier when
+  // scanning a list. minViewport 0 so it engages at all widths. No-op on touch/native.
+  const hoverPeek = useDeckHoverPeek({ anchor: 'row' });
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
     const i = flat.indexByName.get(rowName);
@@ -2861,7 +2866,11 @@ function DeckCardRow({
         ) : (
           <span className="mana-cost-row" aria-hidden />
         ))}
-      <div className="deck-row-menu" ref={menuRef}>
+      {/* data-peek-suppress: the whole row carries `data-peek-name`, so without
+          this the desktop hover-peek would float a card over the kebab and its
+          open menu. The marker (read by useDeckHoverPeek via isPeekSuppressed)
+          keeps the action zone clear. */}
+      <div className="deck-row-menu" ref={menuRef} data-peek-suppress>
         <button
           type="button"
           className="deck-row-menu-trigger"
