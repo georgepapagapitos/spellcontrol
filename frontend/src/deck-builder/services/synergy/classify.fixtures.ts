@@ -2718,4 +2718,27 @@ export const CORPUS: CorpusCard[] = [
       "Whenever another creature you control enters, you gain life equal to that creature's toughness.\n{1}{G}{W}, {T}: Populate. (Create a token that's a copy of a creature token you control.)",
     expect: { producers: ['lifegain'], payoffs: ['blink', 'tokens'] },
   },
+  {
+    name: 'Slimefoot, the Stowaway',
+    type_line: 'Legendary Creature \u2014 Fungus',
+    keywords: [],
+    oracle_text:
+      'Whenever a Saproling you control dies, Slimefoot deals 1 damage to each opponent and you gain 1 life.\n{4}: Create a 1/1 green Saproling creature token.',
+    expect: { producers: ['lifegain', 'tokens'], payoffs: ['sacrifice'] },
+  },
+  {
+    name: 'Skirk Prospector',
+    type_line: 'Creature \u2014 Goblin',
+    keywords: [],
+    oracle_text: 'Sacrifice a Goblin: Add {R}.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Trepanation Blade',
+    type_line: 'Artifact \u2014 Equipment',
+    keywords: ['Equip'],
+    oracle_text:
+      'Whenever equipped creature attacks, defending player reveals cards from the top of their library until they reveal a land card. The creature gets +1/+0 until end of turn for each card revealed this way. That player puts the revealed cards into their graveyard.\nEquip {2}',
+    expect: { producers: ['equipment', 'mill'], payoffs: [] },
+  },
 ];
