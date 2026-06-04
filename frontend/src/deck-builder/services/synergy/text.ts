@@ -120,13 +120,64 @@ export function tokenCreation(oracle: string): TokenCreation {
       kinds.add(nc[1]);
     }
     // Bare "create … token" with a P/T but no explicit "creature token" → still
-    // a creature token (e.g. "create a 1/1 … token").
-    if (!/creature token/.test(after) && !nc && /\d+\/\d+/.test(after)) {
+    // a creature token (e.g. "create a 1/1 … token"). A *Vehicle* token with a
+    // P/T (Mu Yanling, The Bus Runner) is NOT a go-wide creature — it's an
+    // artifact until crewed — so it must not read as a tokens-axis producer.
+    if (
+      !/creature token/.test(after) &&
+      !nc &&
+      /\d+\/\d+/.test(after) &&
+      !/\bvehicle\b/.test(after)
+    ) {
+      creaturesForYou = true;
+      kinds.add('creature');
+    }
+    // Copy tokens — "create a token that's a copy of …" (Kiki-Jiki, Helm of the
+    // Host, Rite of Replication) carry no P/T or "creature token" wording but are
+    // go-wide creature producers. The opponent-subject guard above still applies
+    // (Fractured Identity's "each player other than its controller creates").
+    if (/tokens? that(?:'s| are)(?: a)? cop/.test(after)) {
       creaturesForYou = true;
       kinds.add('creature');
     }
   }
   return { creaturesForYou, noncreatureForYou, kinds: [...kinds] };
+}
+
+// ── Sacrifice, with outlet vs. reward detection ──────────────────────────────
+
+export interface SacrificeSignals {
+  /** A sac OUTLET you control — imperative "Sacrifice a creature" that feeds payoffs. */
+  outlet: boolean;
+  /** Rewards a sacrifice happening ("Whenever you sacrifice …") — a payoff, not an outlet. */
+  rewards: boolean;
+}
+
+const SAC_OUTLET_RE =
+  /sacrifice (?:a|an|another|one or more|two|three|x) (?:other )?(?:creatures?|permanents?|artifacts?|tokens?)/;
+// "Whenever you/a player/another … sacrifices" — a sacrifice payoff. Deliberately
+// NOT the bare "whenever an opponent sacrifices" (Tergrid), which is a punisher
+// keyed on opponents, not your aristocrats engine.
+const SAC_REWARD_RE =
+  /whenever (?:you|a player|another)[^.]*\bsacrifices?\b|whenever[^.]*\bis sacrificed\b/;
+
+/**
+ * Separate a sac OUTLET (imperative "Sacrifice a creature" you activate) from a
+ * payoff that triggers when a sacrifice happens ("Whenever you sacrifice …").
+ * Mirrors `discardSignals`: a "Whenever you sacrifice" trigger is a payoff and
+ * must not be mistaken for an outlet (Prowling Geistcatcher, Smothering Abomination).
+ */
+export function sacrificeSignals(oracle: string): SacrificeSignals {
+  let outlet = false;
+  let rewards = false;
+  for (const clause of splitClauses(oracle)) {
+    if (SAC_REWARD_RE.test(clause)) {
+      rewards = true;
+      continue;
+    }
+    if (SAC_OUTLET_RE.test(clause)) outlet = true;
+  }
+  return { outlet, rewards };
 }
 
 /** True when text references a creature entering that you'd benefit from. */
@@ -179,10 +230,12 @@ export interface DiscardSignals {
 }
 
 // "Each opponent / target player … discards" — a forced-discard (hand-attack)
-// engine. Deliberately excludes the bare "an opponent discards" TRIGGER form
-// ("Whenever an opponent discards …"), which is a payoff, handled below.
+// engine. Deliberately excludes (a) the bare "an opponent discards" TRIGGER form
+// ("Whenever an opponent discards …"), a payoff handled below, and (b) the
+// SYMMETRIC "each player … discards" wheel (Geier Reach Sanitarium), which is
+// group draw, not a hand-attack you build around — that reads as `grouphug`.
 const FORCED_DISCARD =
-  /\b(?:target player|target opponent|each opponent|each player|that player|they)\b[^.]*\bdiscards?\b/;
+  /\b(?:target player|target opponent|each opponent|that player|they)\b[^.]*\bdiscards?\b/;
 // Imperative "Discard a card" — a cost or one-shot loot/rummage that fuels you.
 const SELF_DISCARD_IMPERATIVE = /\bdiscard (?:a|an|two|three|four|your|that|x|\d+|cards?)\b/;
 // Triggered abilities keyed on a discard — these are payoffs, never producers.
@@ -224,4 +277,71 @@ export function discardSignals(oracle: string): DiscardSignals {
     if (SELF_DISCARD_IMPERATIVE.test(clause)) causes = true;
   }
   return { causes, forced, rewards, rewardsOpponents };
+}
+
+// ── Mill, with subject detection (self-mill ≠ opponent mill) ─────────────────
+
+export interface MillSignals {
+  /** You mill your OWN library — that fills your graveyard (the `graveyard` axis). */
+  selfMill: boolean;
+  /** You mill OPPONENTS — a deck-out / attrition plan (the `mill` axis). */
+  opponentMill: boolean;
+  /** Amplifies milling ("mill twice that many") — a mill payoff. */
+  doubler: boolean;
+}
+
+// Subject-aware opponent mill. "Target player mills" can hit yourself, but as a
+// strategy signal it reads as the deck-out plan; the symmetric/self cases below
+// stay with the graveyard axis. Excludes nothing by `you` here because the
+// clause loop checks opponent subjects first and self-mill second.
+const OPPONENT_MILL =
+  /\b(?:target opponent|each opponent|target player|that player|an opponent|opponents|enchanted player)\b[^.]*\bmills?\b/;
+const MILL_DOUBLER = /mill (?:twice that many|that many cards plus)|they mill twice that many/;
+
+/**
+ * Classify milling by subject. Self-mill (Stitcher's Supplier, World Shaper) is
+ * graveyard-fuel and belongs to the `graveyard` axis; opponent mill (Glimpse the
+ * Unthinkable, Bruvac) is a deck-out plan and belongs to the `mill` axis. The old
+ * bare `/\bmills?\b/` graveyard predicate conflated the two — every opponent-mill
+ * card wrongly read as "fills your graveyard". This is the fix.
+ */
+export function millSignals(oracle: string): MillSignals {
+  let selfMill = false;
+  let opponentMill = false;
+  const doubler = MILL_DOUBLER.test(oracle);
+  for (const clause of splitClauses(oracle)) {
+    if (OPPONENT_MILL.test(clause)) {
+      opponentMill = true;
+      continue;
+    }
+    // Subjectless "mill three cards" / "you (may) mill" = you mill yourself.
+    // Self-mill commonly spells the number out ("mill three cards"), so accept a
+    // word before "card(s)" too, not just digits.
+    if (/\byou (?:may )?mill\b/.test(clause) || /\bmill (?:\w+ )?cards?\b/.test(clause))
+      selfMill = true;
+  }
+  return { selfMill, opponentMill, doubler };
+}
+
+// ── Creature-death payoff, excluding opponent-only triggers ──────────────────
+
+/**
+ * True when the card rewards YOUR creatures dying (aristocrats). Excludes
+ * triggers that fire ONLY on opponents' creatures dying (Massacre Wurm, Yahenni)
+ * — those are removal/attrition punishers, not your sacrifice engine — unless the
+ * same clause also covers creatures you control (Death Tyrant). Same-clause
+ * scoping also tightens the old oracle-wide "creature mentioned anywhere" branch.
+ */
+export function paysOffCreatureDeath(oracle: string): boolean {
+  for (const clause of splitClauses(oracle)) {
+    if (!/\bdies\b/.test(clause) || !/\bcreature/.test(clause)) continue;
+    if (!/\bwhenever\b/.test(clause)) continue;
+    const opponentOnly =
+      /creatures? an opponent controls? dies|creatures? your opponents control[^.]*dies/.test(
+        clause
+      ) && !/you control[^.]*dies|dies[^.]*you control/.test(clause);
+    if (opponentOnly) continue;
+    return true;
+  }
+  return false;
 }
