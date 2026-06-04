@@ -81,6 +81,7 @@ export default function App() {
   const status = useAuth((s) => s.status);
   const userId = useAuth((s) => s.user?.id);
   const username = useAuth((s) => s.user?.username);
+  const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const bootstrap = useAuth((s) => s.bootstrap);
   const syncStartedFor = useRef<string | null>(null);
   const navigate = useNavigate();
@@ -204,7 +205,10 @@ export default function App() {
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route
+            path="/admin"
+            element={isAdmin ? <AdminPage /> : <Navigate to="/collection" replace />}
+          />
           <Route path="*" element={<Navigate to="/collection" replace />} />
         </Route>
       </Routes>

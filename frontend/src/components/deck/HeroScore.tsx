@@ -27,7 +27,7 @@ export function HeroScore({ plan }: HeroScoreProps): JSX.Element {
     <section
       className={`hero-score ${band}`}
       role="group"
-      aria-label={`Plan score ${clamped} out of 100, ${bandLabel}`}
+      aria-label={`Build health ${clamped} out of 100, ${bandLabel}`}
     >
       <div
         className="hero-score-ring"
