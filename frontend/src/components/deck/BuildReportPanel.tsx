@@ -43,6 +43,7 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
     ownedPercentTarget,
     basicsPadded,
     roleGaps,
+    claimedConflicts,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -69,6 +70,13 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
         <p className="build-report-line">
           padded <strong>{basicsPadded}</strong> basic
           {basicsPadded === 1 ? '' : 's'}
+        </p>
+      )}
+
+      {claimedConflicts != null && claimedConflicts > 0 && (
+        <p className="build-report-conflict-note">
+          {claimedConflicts} card{claimedConflicts === 1 ? ' is' : 's are'} committed to other decks
+          — open them in the deck view and use Similar Cards to swap in free alternatives.
         </p>
       )}
 

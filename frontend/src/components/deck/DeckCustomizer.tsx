@@ -253,7 +253,9 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
     : active
       ? strategy === 'partial'
         ? `Prioritizing your cards (~${pct}% owned); the rest come from outside your collection.`
-        : 'Generator will only suggest cards you own.'
+        : strategy === 'available'
+          ? 'Generator will only use copies not committed to other decks.'
+          : 'Generator will only suggest cards you own.'
       : 'Constrain the build to your owned cards.';
   return (
     <div className={`deck-customizer-group collection-group${active ? ' active' : ''}`}>
@@ -284,6 +286,7 @@ function CollectionGroup({ customization, update }: DeckCustomizerProps) {
               options={[
                 { value: 'full', label: 'Only my cards', sublabel: 'Owned only' },
                 { value: 'partial', label: 'Prioritize mine', sublabel: 'Mostly owned' },
+                { value: 'available', label: 'Available only', sublabel: 'Free copies' },
               ]}
               onChange={(v) => update({ collectionStrategy: v })}
             />
