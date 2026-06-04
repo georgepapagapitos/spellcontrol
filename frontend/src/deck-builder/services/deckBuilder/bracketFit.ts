@@ -595,6 +595,17 @@ function pickUpshiftCutCandidates(input: BracketFitInput): string[] {
   return candidates;
 }
 
+/** Most popular one-away combos to suggest completing (the rest are noise). */
+const ONEAWAY_COMBO_LIMIT = 5;
+/**
+ * Hard ceiling on upshift suggestions. A coaching lane is a focused shortlist,
+ * not a rebuild — never propose more moves than a person would actually make
+ * (and on a full deck a swap count near 100 is absurd: you can't replace the
+ * whole deck). Priority order (combos → Game Changers → fills) means the cap
+ * trims the lowest-value tail first.
+ */
+const MAX_UPSHIFT_MOVES = 12;
+
 /**
  * Build add suggestions that move the deck toward the target bracket.
  * Priority: (1) oneAway combo completion (deterministic power jump),
@@ -648,8 +659,14 @@ function computeUpshiftPlanWithTarget(
     });
   };
 
-  // 1. oneAway combo completion — always highest priority.
-  for (const match of input.oneAwayCombos) {
+  // 1. oneAway combo completion — always highest priority, but BOUNDED: a popular
+  //    commander can be one-away on dozens of combos, and "complete every one" is
+  //    noise (and impossible — you can't swap in more cards than the deck holds).
+  //    Take the most popular few; the overall cap below trims further.
+  const topOneAway = [...input.oneAwayCombos]
+    .sort((a, b) => (b.combo.popularity ?? 0) - (a.combo.popularity ?? 0))
+    .slice(0, ONEAWAY_COMBO_LIMIT);
+  for (const match of topOneAway) {
     const missing = oneAwayMissingNames(match).filter((n) => !deckNames.has(n));
     if (missing.length !== 1) continue; // only truly "one away" adds are deterministic
     const name = missing[0];
@@ -720,6 +737,10 @@ function computeUpshiftPlanWithTarget(
       filled++;
     }
   }
+
+  // Hard ceiling — keep the highest-priority head (combos → GCs → fills) and drop
+  // the rest. Prevents an absurd "swap in 100+ cards" lane on combo-dense decks.
+  if (moves.length > MAX_UPSHIFT_MOVES) moves.length = MAX_UPSHIFT_MOVES;
 
   // ── Full-deck pairing ──
   // A tuned 100-card deck has no open slots, so every raw ADD would otherwise

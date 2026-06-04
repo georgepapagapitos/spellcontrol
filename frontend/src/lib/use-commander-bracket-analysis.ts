@@ -27,6 +27,19 @@ interface Args {
 const DEBOUNCE_MS = 500;
 
 /**
+ * Bump when the analysis ENGINE changes in a way that should invalidate every
+ * persisted result (deck.bracketFit / gapAnalysis / optimizeSwaps / …) even
+ * though the deck's cards/commander/target are unchanged. Folded into the
+ * signature, so a bump forces a one-time recompute the next time each deck's
+ * analysis runs — no manual toggle or deck edit needed.
+ *
+ * History:
+ *   v2 — Bracket Fit: capped upshift suggestions (≤5 one-away combos, ≤12 total)
+ *        + full-deck add↔cut pairing. v1 plans had unbounded "swap in N" lists.
+ */
+const ANALYSIS_ENGINE_VERSION = 'v2';
+
+/**
  * Signature of every input that materially affects grade/bracket: commander(s)
  * + the sorted mainboard card-name multiset + the matched in-deck combo ids +
  * the user's target bracket. Combo ids are folded in because they load
@@ -43,6 +56,7 @@ function buildSignature(
   const cardNames = deck.cards.map((c) => c.card.name).sort();
   const comboIds = (comboData?.inDeck ?? []).map((m) => m.combo.id).sort();
   return [
+    ANALYSIS_ENGINE_VERSION,
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     cardNames.join(','),

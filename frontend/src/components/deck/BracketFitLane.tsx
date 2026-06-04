@@ -1,11 +1,11 @@
 import './BracketFitLane.css';
 import { forwardRef, useMemo, useState } from 'react';
-import { Target } from 'lucide-react';
+import { Target, AlertTriangle } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { VerdictBadge } from './VerdictBadge';
 import { CollapsibleLane, type CollapsibleLaneHandle } from './CollapsibleLane';
-import { useDeckHoverPeek } from './use-deck-hover-peek';
+import { useDeckHoverPeek, HOVER_PEEK_MIN_VIEWPORT } from './use-deck-hover-peek';
 import { useCardCarousel } from './useCardCarousel';
 import { fromBracketFitMove, type Change, type ChangeOwnership } from '@/lib/deck-change';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
@@ -75,7 +75,8 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
   ): JSX.Element {
     const busy = busyNames ?? new Set<string>();
     const carousel = useCardCarousel('Bracket Fit');
-    const hoverPeek = useDeckHoverPeek();
+    // Desktop-only hover-peek (≥1024px per STYLE_GUIDE); tablet/mobile tap→carousel.
+    const hoverPeek = useDeckHoverPeek({ minViewport: HOVER_PEEK_MIN_VIEWPORT });
     const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
 
     const isUpshift = plan.direction === 'too-weak';
@@ -104,18 +105,29 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
       [changes, ownedFilterActive]
     );
 
-    // Carousel spans every previewable row so swiping works across the lane.
-    const previewEntries = useMemo(
-      () =>
-        shown.map((c) => ({
-          name: c.name,
-          label:
-            typeof c.inclusion === 'number'
-              ? `In ${Math.round(c.inclusion)}% of decks`
-              : 'Bracket Fit',
-        })),
-      [shown]
-    );
+    // Carousel spans every previewable card so swiping works across the lane.
+    // For a swap that's BOTH sides — the card coming in (Change.name) AND the
+    // offender being cut (Change.inName) — so tapping either thumbnail inspects
+    // that card and you can swipe between them. Deduped (a card can recur).
+    const previewEntries = useMemo(() => {
+      const seen = new Set<string>();
+      const entries: { name: string; label: string }[] = [];
+      const push = (name: string | undefined, label: string) => {
+        if (!name || seen.has(name)) return;
+        seen.add(name);
+        entries.push({ name, label });
+      };
+      for (const c of shown) {
+        push(
+          c.name,
+          typeof c.inclusion === 'number'
+            ? `In ${Math.round(c.inclusion)}% of decks`
+            : 'Bracket Fit'
+        );
+        if (c.type === 'swap') push(c.inName, 'Being cut');
+      }
+      return entries;
+    }, [shown]);
 
     const toggleOwned = () => {
       setOwnedOnly((v) => {
@@ -156,7 +168,21 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
       );
     }
 
-    const headline = plan.summary;
+    // Headline tracks the VISIBLE list. With Owned only on, the engine's summary
+    // ("Swap in 10 cards…") would over-count, so recompute from `shown`. The verb
+    // follows the move shape (full-deck upshift = swaps, otherwise adds).
+    const upshiftVerb = changes.some((c) => c.type === 'swap') ? 'Swap in' : 'Add';
+    let headline = plan.summary;
+    if (ownedFilterActive) {
+      headline =
+        shown.length === 0
+          ? 'No owned power-ups available.'
+          : `${upshiftVerb} ${shown.length} owned card${shown.length === 1 ? '' : 's'}.`;
+    }
+
+    // Owned only hides the cards you'd need to acquire, so the owned subset may
+    // not be enough to actually reach the target — say so rather than implying it.
+    const ownedShortfall = ownedFilterActive && shown.length > 0 && shown.length < changes.length;
     const showCeilingNote = isUpshift && plan.targetBracket === 5 && plan.detectedBracket >= 4;
 
     return (
@@ -209,6 +235,16 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
             </div>
           )}
 
+          {ownedShortfall && (
+            <p className="bracket-fit-owned-note">
+              <AlertTriangle className="bracket-fit-owned-note-icon" aria-hidden />
+              <span>
+                Owned cards alone may not reach Bracket {plan.targetBracket} — turn off Owned only
+                to include cards to acquire.
+              </span>
+            </p>
+          )}
+
           {shown.length > 0 ? (
             <ul className="bracket-fit-list">
               {shown.map((change) => {
@@ -222,6 +258,11 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
                     onAct={() => void act()}
                     acting={busy.has(busyKeyFor(change))}
                     onPreview={() => void carousel.open(previewEntries, change.name)}
+                    onPreviewOut={
+                      change.inName
+                        ? () => void carousel.open(previewEntries, change.inName as string)
+                        : undefined
+                    }
                   />
                 );
               })}

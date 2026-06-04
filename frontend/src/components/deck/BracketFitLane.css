@@ -23,11 +23,33 @@
 .bracket-fit-offline-note,
 .bracket-fit-ceiling-note,
 .bracket-fit-unachievable-note,
+.bracket-fit-owned-note,
 .bracket-fit-empty {
   margin: 0;
   font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--text3);
+}
+
+/* Owned-only reachability disclaimer — a soft warn accent so it reads as a
+   caveat, not an error. Icon + text on one baseline-aligned row. */
+.bracket-fit-owned-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-left: 2px solid var(--status-warn, var(--accent));
+  border-radius: 0 6px 6px 0;
+  background: var(--surface2, var(--surface));
+  color: var(--text2);
+}
+
+.bracket-fit-owned-note-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-top: 0.1rem;
+  color: var(--status-warn, var(--warn-text, var(--accent)));
 }
 
 /* The ceiling note is informational (B5 build-ceiling) — accent its left edge. */

@@ -39,7 +39,7 @@ import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
 import { DeckHoverPeek } from './DeckHoverPeek';
-import { useDeckHoverPeek } from './use-deck-hover-peek';
+import { useDeckHoverPeek, HOVER_PEEK_MIN_VIEWPORT } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import {
@@ -1413,8 +1413,10 @@ export function DeckDisplay({
   // Hover-peek for the list view — row/gutter anchor: the peek locks to a steady
   // position beside the hovered row (fixed horizontally, tracks the row vertically)
   // rather than landing at the cursor's rest point, which reads as steadier when
-  // scanning a list. minViewport 0 so it engages at all widths. No-op on touch/native.
-  const hoverPeek = useDeckHoverPeek({ anchor: 'row' });
+  // scanning a list. Desktop-only (≥1024px per STYLE_GUIDE) — below that the
+  // gutter has no room and a cursor-following peek reads as noise; tablet/mobile
+  // use tap→carousel. No-op on touch/native (capability-gated).
+  const hoverPeek = useDeckHoverPeek({ anchor: 'row', minViewport: HOVER_PEEK_MIN_VIEWPORT });
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
     const i = flat.indexByName.get(rowName);
@@ -3244,10 +3246,14 @@ function DeckAnalysisView({
         <div className="deck-bento deck-bento--power">
           {powerHeroSlot}
           {/* Detailed breakdowns under the verdict hero. */}
-          {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
+          {/* Bracket + Roles — a compact pair (lone survivor spans full width).
+              When the prescriptive Bracket Fit lane is showing, the Bracket panel
+              is list-heavy and wants room: both panels go full-width (stacked) so
+              the lane isn't crushed into a half-width track and Roles doesn't
+              orphan an empty cell beside the tall lane. */}
           <div className="deck-stats-pair">
             {(bracketEstimation || bracketOverride != null) && (
-              <Panel id="deck-power-bracket" title="Bracket">
+              <Panel id="deck-power-bracket" title="Bracket" wide={!!bracketFitSlot}>
                 <div className="deck-stats-bracket">
                   <strong>
                     Bracket {effectiveBracketValue} —{' '}
@@ -3301,7 +3307,7 @@ function DeckAnalysisView({
               </Panel>
             )}
             {showRoles && (
-              <Panel title="Roles">
+              <Panel title="Roles" wide={!!bracketFitSlot}>
                 <RolesPanel
                   roleCounts={effectiveRoleCounts}
                   roleTargets={roleTargets}

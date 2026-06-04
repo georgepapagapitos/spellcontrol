@@ -46,11 +46,28 @@
 .deck-card-row-out {
   flex: 0 0 auto;
   width: 2rem;
+  padding: 0;
+  border: 0;
   border-radius: calc(var(--radius) * 0.6);
   overflow: hidden;
+  background: transparent;
+  cursor: pointer;
   /* Dim + slightly desaturate the card leaving the deck. */
   opacity: 0.5;
   filter: grayscale(0.35);
+  transition: opacity 0.12s ease;
+}
+
+/* Inspectable on hover/focus — undo the dim so the card you're about to read
+   reads clearly. */
+.deck-card-row-out:not(:disabled):hover,
+.deck-card-row-out:not(:disabled):focus-visible {
+  opacity: 0.85;
+  filter: grayscale(0);
+}
+
+.deck-card-row-out:disabled {
+  cursor: default;
 }
 
 .deck-card-row-out img {
@@ -77,20 +94,19 @@
   object-position: center top;
 }
 
-/* Game-changer overlay — bracket-relevant high-power flag. Mirrors the house GC
-   badge (.optimize-tile-gc): a dark translucent chip with warn-tone text, so it
-   stays legible on any card art and in any theme. */
-.deck-card-row-gc {
-  position: absolute;
-  top: 0.15rem;
-  left: 0.15rem;
-  padding: 0.02rem 0.22rem;
-  border-radius: 0.3rem;
-  background: rgba(0, 0, 0, 0.7);
+/* Game-changer flag — bracket-relevant high-power. A body chip beside the name
+   (not an art overlay, which was illegible on the small thumb and worse on dense
+   native viewports); a warn-tone pill that reads the same in every theme/size,
+   matching the role/synergy chips. */
+.deck-card-row-gc-tag {
+  padding: 0.02rem 0.35rem;
+  border-radius: 999px;
+  background: var(--warn-bg, transparent);
+  border: 0.5px solid var(--warn-border);
   color: var(--warn-text);
   font-size: var(--text-xs);
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .deck-card-row-body {
@@ -193,6 +209,21 @@
 
 .deck-card-row-verdict {
   margin-top: 0.05rem;
+  min-width: 0;
+}
+
+/* Clamp the reason to a few lines so a long explanation (e.g. a Bracket Fit
+   "Replaces X — completes a combo…" swap) can't blow the row up to a dozen
+   lines in a narrow column — it stays a uniform, scannable card with an
+   ellipsis; the full text is still in the carousel/preview. */
+.deck-card-row-verdict .verdict-reason {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  /* Break long unspaced tokens (card names with no spaces) instead of overflowing. */
+  overflow-wrap: anywhere;
 }
 
 /* Primary action — Add / Swap in. */

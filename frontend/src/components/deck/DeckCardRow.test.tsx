@@ -46,9 +46,9 @@ describe('DeckCardRow', () => {
     expect(screen.getByText('In other deck')).toBeTruthy();
   });
 
-  it('renders the GC overlay and Synergy tag from flags', () => {
+  it('renders the Game Changer + Synergy tags from flags', () => {
     render(<DeckCardRow change={add({ isGameChanger: true, isThemeSynergy: true })} />);
-    expect(screen.getByText('GC')).toBeTruthy();
+    expect(screen.getByText('Game Changer')).toBeTruthy();
     expect(screen.getByText('Synergy')).toBeTruthy();
   });
 

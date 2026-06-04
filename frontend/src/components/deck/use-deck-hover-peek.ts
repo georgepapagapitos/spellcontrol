@@ -15,6 +15,16 @@ const CARD_ASPECT = 680 / 488;
 // gutter to host the peek beside a row, so it would overlap the list. The
 // default cursor ('pointer') anchor needs no gutter, so it activates at any width.
 
+/**
+ * Hover-peek is a **desktop (≥1024px) affordance** per STYLE_GUIDE ("hover-peek
+ * `≥1024`"). Below it, the deck surfaces are cramped enough that a floating peek
+ * (gutter-locked or cursor-following) reads as noise — tablet/mobile use
+ * tap→carousel instead. Pass this as `minViewport` on every peek caller so the
+ * feature simply doesn't activate under desktop width. (Capability-gating still
+ * applies on top — a fine pointer is also required.)
+ */
+export const HOVER_PEEK_MIN_VIEWPORT = 1024;
+
 export interface HoverPeekOptions {
   /** Smallest viewport width (px) at which the peek activates. Default 0 — the
    *  cursor anchor needs no gutter. Pass a floor (e.g. 1024) only for the legacy

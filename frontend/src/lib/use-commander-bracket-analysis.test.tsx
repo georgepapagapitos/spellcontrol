@@ -31,13 +31,15 @@ function makeDeck(over: Partial<Deck> = {}): Deck {
   } as unknown as Deck;
 }
 
-// Mirrors buildSignature() in the hook.
+// Mirrors buildSignature() in the hook — keep the leading version token in sync
+// with ANALYSIS_ENGINE_VERSION there.
 function sig(
   deck: Deck,
   combo: ComboMatchResponse | null = null,
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
+    'v2',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

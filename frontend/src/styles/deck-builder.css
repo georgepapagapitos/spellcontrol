@@ -2381,6 +2381,15 @@ input.toolbar-search-input {
   gap: 0.15rem;
 }
 
+/* The prescriptive Bracket Fit lane (a CollapsibleLane) is a distinct block from
+   the tight bracket readout above it — separate it so the "Floor Bracket … →
+   Bracket" line and the Power Up / Bracket Fit lane don't crowd each other. The
+   aligned chip gets the same breathing room. */
+.deck-stats-bracket > .tune-lane,
+.deck-stats-bracket > .bracket-fit-aligned {
+  margin-top: 0.85rem;
+}
+
 .deck-stats-bracket strong {
   font-family: var(--font-serif);
   font-size: var(--text-md);

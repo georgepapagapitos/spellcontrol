@@ -69,6 +69,34 @@ sans-bold heading reads as off-family.
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
 
+## Info tooltips
+
+When a label needs a plain-language explainer for a concept not everyone knows
+(jargon, a scoring formula), use the shared **`components/InfoTip.tsx`** — a
+small `ⓘ` icon button beside the label with a portal tooltip. Don't hand-roll a
+tooltip; reuse this so they behave identically everywhere.
+
+- **Portal, always.** The bubble renders through `createPortal` into `<body>`
+  and is positioned `fixed` from the trigger's rect, clamped to the viewport
+  (flips above when there's no room below). This is non-negotiable: an in-flow
+  `position: absolute`/`fixed` tooltip gets **clipped by `overflow: hidden`**
+  ancestors (tables) and **trapped by `container-type`** containing blocks (the
+  deck bento), so it must escape to `<body>`. Use `--z-tooltip`.
+- **Reveal model** (mirrors the hover-peek capability story): mouse **hover**
+  opens / mouse-leave closes (a click never _pins_ it open); keyboard **focus**
+  opens / blur closes; on touch a **tap** focuses the trigger → opens, tapping
+  away closes. Also closes on `Esc` and any scroll/resize so it never floats
+  stale. No extra capability media-queries needed — the event set covers all.
+- **Don't over-pepper.** One `ⓘ` per _concept_, not per data point. If several
+  related rows each want a gloss (e.g. the four soft-score signals), prefer **one
+  consolidated `wide` tooltip** on the section heading (intro + a bulleted list
+  via `.info-tip-lead` / `.info-tip-list`) over N icons — many icons read as
+  clutter. (Settled while building the Bracket panel's Hard-floor / Soft-score
+  explainers.)
+- The trigger sits inline in a flex label; `.info-tip-btn` zeroes its line-height
+  so the glyph centers against the text. Pass rich `text` (a node) for
+  multi-point bodies.
+
 ## Z-index / layering
 
 - **Always use the `--z-*` tokens** (in `global.css`), never raw integers:

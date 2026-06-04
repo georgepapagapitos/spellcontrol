@@ -807,6 +807,65 @@ describe('upshift — full-deck pairing (each add → a 1-for-1 swap)', () => {
   });
 });
 
+describe('upshift — bounded suggestion count', () => {
+  const oneAway = (id: string, popularity: number, missingName: string): ComboMatch => ({
+    combo: {
+      id,
+      identity: 'U',
+      produces: ['Win'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity,
+      cardCount: 2,
+      bracket: 4,
+      cards: [
+        { oracleId: `${id}-have`, cardName: `Have ${id}`, quantity: 1 },
+        { oracleId: `${id}-need`, cardName: missingName, quantity: 1 },
+      ],
+    },
+    presentOracleIds: [`${id}-have`],
+    missingOracleIds: [`${id}-need`],
+  });
+
+  it('completes at most the 5 most popular one-away combos', () => {
+    const combos = [1, 2, 3, 4, 5, 6, 7].map((n) => oneAway(`c${n}`, n, `Need ${n}`));
+    const input = makeInput({ allCardNames: ['Forest'], oneAwayCombos: combos });
+    const plan = computeUpshiftPlan(input, 4);
+    const comboMoves = plan.moves.filter((m) => m.signal === 'upshift-combo');
+    expect(comboMoves).toHaveLength(5);
+    // The 5 highest-popularity combos (7,6,5,4,3) → their missing pieces.
+    expect(comboMoves.map((m) => m.name).sort()).toEqual(
+      ['Need 3', 'Need 4', 'Need 5', 'Need 6', 'Need 7'].sort()
+    );
+  });
+
+  it('caps the total upshift moves at 12 (never a whole-deck rebuild)', () => {
+    const combos = [1, 2, 3, 4, 5].map((n) => oneAway(`c${n}`, n, `Need ${n}`));
+    const pool = makePool(
+      [1, 2, 3, 4, 5, 6].map((n) =>
+        poolCard({ name: `GC ${n}`, inclusion: 90 - n, isGameChanger: true })
+      )
+    );
+    const gap: GapAnalysisCard[] = [1, 2, 3, 4, 5].map((n) => ({
+      name: `Fill ${n}`,
+      price: null,
+      inclusion: 60 - n,
+      synergy: 0,
+      typeLine: 'Artifact',
+    }));
+    const input = makeInput({
+      allCardNames: ['Forest'],
+      oneAwayCombos: combos,
+      targetPool: pool,
+      gapAnalysis: gap,
+    });
+    // 5 combos + 6 GCs + 5 fills = 16 candidates → capped to 12.
+    const plan = computeUpshiftPlan(input, 4);
+    expect(plan.moves).toHaveLength(12);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // B4 == B5 ceiling
 // ─────────────────────────────────────────────────────────────────────────────

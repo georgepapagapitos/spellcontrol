@@ -3,7 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
-import { useDeckHoverPeek } from './use-deck-hover-peek';
+import { useDeckHoverPeek, HOVER_PEEK_MIN_VIEWPORT } from './use-deck-hover-peek';
 import { useCardCarousel } from './useCardCarousel';
 import {
   fromGapCard,
@@ -92,10 +92,11 @@ export function ImproveLane({
   const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
   const carousel = useCardCarousel('Improve the deck');
   // Cursor-anchored hover-peek (the shared default) — floats the card beside the
-  // pointer on any hover-capable viewport, consistent with the deck list. Touch
-  // still uses tap→carousel (capability-gated). Dismisses when the pointer leaves
-  // a thumbnail (the only `data-peek-name` element on a row).
-  const hoverPeek = useDeckHoverPeek();
+  // pointer, consistent with the deck list. Desktop-only (≥1024px per
+  // STYLE_GUIDE); tablet/mobile use tap→carousel. Touch/native stay off
+  // (capability-gated). Dismisses when the pointer leaves a thumbnail (the only
+  // `data-peek-name` element on a row).
+  const hoverPeek = useDeckHoverPeek({ minViewport: HOVER_PEEK_MIN_VIEWPORT });
 
   // Every prescriptive add-source → a normalized Change with live ownership,
   // then merged (dedupe by name, keep the higher-signal row) + owned-first.
