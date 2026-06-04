@@ -45,7 +45,14 @@ jobs:
     timeout-minutes: 240
 
     steps:
+      # lfs: true so the regenerated card-embeddings.bin (~26 MB) is committed
+      # through Git LFS — the working tree needs the LFS smudge/clean filters
+      # set up and the existing pointer materialized. The ingest overwrites the
+      # file wholesale, and create-pull-request below commits it as a pointer
+      # (the 26 MB blob is uploaded to LFS storage, not the git pack).
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - uses: actions/setup-node@v6
         with:

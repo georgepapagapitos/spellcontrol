@@ -29,7 +29,14 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      # lfs: true is REQUIRED — backend/data/scanner/card-embeddings.bin is a
+      # Git LFS file. Without this the checkout yields a 133-byte pointer, the
+      # Docker build COPYs that pointer instead of the 26 MB embedding DB, and
+      # the server matcher silently disables itself (getMatcher() sees a
+      # malformed file). flyctl uploads this working tree as the build context.
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
