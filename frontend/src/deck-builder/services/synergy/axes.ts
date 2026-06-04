@@ -92,10 +92,11 @@ const counters: SynergyAxis = {
   },
   payoff(card) {
     if (/twice that many of those counters/.test(card.oracle)) return 'doubles your +1/+1 counters';
-    // Generic counter doublers (Doubling Season, Vorinclex, Deepglow Skate) read
-    // as the counters axis — their templating is counter-generic, not loyalty.
+    // Counter doublers (Doubling Season, Vorinclex, Deepglow Skate, Branching
+    // Evolution, Corpsejack Menace) read as the counters axis — their templating is
+    // counter-generic, not loyalty.
     if (
-      /double the number of[^.]*counters?|twice that many of (?:those|each)[^.]*counters?/.test(
+      /double the number of[^.]*counters?|twice that many of (?:those|each)[^.]*counters?|twice that many \+1\/\+1 counters/.test(
         card.oracle
       )
     )
@@ -132,9 +133,10 @@ const lifegain: SynergyAxis = {
   label: 'Lifegain',
   producer(card) {
     if (has(card, 'lifelink')) return 'lifelink';
-    // "you gain 3 life", but also "gain that much life", "gain life equal to …",
-    // and granting lifelink to your team (True Conviction).
-    if (/\bgain (?:\d+|x|that much|life equal to) life/.test(card.oracle)) return 'gains you life';
+    // "you gain 3 life", "gain that much life", or "gain life equal to …" (note the
+    // word order — "life" precedes "equal to", so it needs its own branch).
+    if (/\bgain (?:\d+|x|that much) life/.test(card.oracle)) return 'gains you life';
+    if (/\bgain life equal to/.test(card.oracle)) return 'gains you life';
     if (/creatures you control (?:have|gain)[^.]*lifelink|gain lifelink/.test(card.oracle))
       return 'grants lifelink';
     return null;
@@ -161,12 +163,13 @@ const landfall: SynergyAxis = {
     // Your land hitting the battlefield — clause-scoped so removal that ramps the
     // OPPONENT (Path to Exile, Settle the Wreckage: "its controller may search
     // their library … onto the battlefield") is excluded, while a card that ramps
-    // BOTH (Tempt with Discovery) still tags off its own self-ramp clause. Require
-    // "land card" so flicker effects that merely include lands (Ghostly Flicker:
+    // BOTH (Tempt with Discovery) still tags off its own self-ramp clause. Requires
+    // a "land card" or basic-type card (Farseek's "Mountain card", Nature's Lore's
+    // "Forest card") so flicker effects that merely include lands (Ghostly Flicker:
     // "lands you control … return those cards to the battlefield") don't tag.
     for (const clause of splitClauses(card.oracle)) {
       if (
-        /lands? cards?/.test(clause) &&
+        /(?:lands?|forest|plains|island|swamp|mountain) cards?/.test(clause) &&
         /(?:onto|to) the battlefield/.test(clause) &&
         !/its controller|that player|target player|their library/.test(clause)
       )
@@ -205,6 +208,9 @@ const graveyard: SynergyAxis = {
     if (millSignals(card.oracle).selfMill || /into your graveyard/.test(card.oracle))
       return 'fills your graveyard';
     if (has(card, 'surveil') || /\bsurveil\b/.test(card.oracle)) return 'surveil';
+    // Dredge self-mills as a draw replacement, but its text is reminder-only
+    // ("Dredge 3 (… mill three cards …)") and gets stripped — match the keyword.
+    if (has(card, 'dredge') || /\bdredge \d/.test(card.oracle)) return 'dredge (self-mill)';
     return null;
   },
   payoff(card) {
@@ -245,6 +251,13 @@ const artifacts: SynergyAxis = {
     // the token wording lives in reminder text that gets stripped, so match the verb.
     if (/\binvestigate\b/.test(card.oracle) || /\bincubate\b/.test(card.oracle))
       return 'creates artifact tokens';
+    // Token copies of an artifact (Osgir, Saheeli's Artistry) are artifact tokens.
+    if (
+      /tokens? that(?:'s| are)(?: a)? cop(?:y|ies) of (?:target |that |the )?(?:a )?artifact/.test(
+        card.oracle
+      )
+    )
+      return 'creates artifact token copies';
     return null;
   },
   payoff(card) {
@@ -350,11 +363,16 @@ const superfriends: SynergyAxis = {
     if (/for each planeswalker you control/.test(card.oracle))
       return 'scales with your planeswalkers';
     // "planeswalkers you control" — but NOT the incidental "creature or
-    // planeswalker you control" phrasing on aristocrats/clone cards (Cruel
-    // Celebrant, Spark Double), which don't care about planeswalkers as an engine.
+    // planeswalker you control" phrasing (aristocrats/clones: Cruel Celebrant,
+    // Spark Double), nor DEFENSIVE mentions where the walker is just protected
+    // alongside you ("attack you or planeswalkers you control" — Archangel of
+    // Tithes, Soul Snare, Comeuppance). Neither cares about walkers as an engine.
     if (
       /planeswalkers? you control/.test(card.oracle) &&
-      !/creatures? (?:and|or) planeswalkers? you control/.test(card.oracle)
+      !/creatures? (?:and|or) planeswalkers? you control/.test(card.oracle) &&
+      !/(?:you or|you and|attacking you|attack you|dealt to you)[^.]*planeswalkers? you control/.test(
+        card.oracle
+      )
     )
       return 'cares about your planeswalkers';
     if (/loyalty abilit/.test(card.oracle)) return 'rewards loyalty activations';
@@ -596,8 +614,8 @@ const monarch: SynergyAxis = {
       return 'rewards being the monarch';
     if (/whenever you become the monarch/.test(card.oracle))
       return 'triggers when you become the monarch';
-    if (/whenever an opponent becomes the monarch/.test(card.oracle))
-      return 'punishes losing the crown';
+    if (/whenever an opponent becomes the monarch|if an opponent is the monarch/.test(card.oracle))
+      return 'reacts to the crown';
     return null;
   },
 };
@@ -639,12 +657,14 @@ const cycling: SynergyAxis = {
   producer(card) {
     if (has(card, 'cycling') || /\bcycling \{|\bcycling—|\btypecycling/.test(card.oracle))
       return 'has cycling';
-    if (/cycling abilities[^.]*cost|pay \{0\} rather than pay cycling/.test(card.oracle))
+    if (/cycling abilities[^.]*cost|pay \{0\} rather than pay (?:the )?cycling/.test(card.oracle))
       return 'reduces cycling cost';
     return null;
   },
   payoff(card) {
-    return /when(?:ever)? you cycle/.test(card.oracle) ? 'rewards cycling' : null;
+    // "Whenever you cycle" and the symmetric "whenever a player cycles" (Astral
+    // Slide, Lightning Rift) both reward the cycling engine.
+    return /when(?:ever)? (?:you|a player) cycles?/.test(card.oracle) ? 'rewards cycling' : null;
   },
 };
 

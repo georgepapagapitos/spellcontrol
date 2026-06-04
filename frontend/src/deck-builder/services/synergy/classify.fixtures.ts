@@ -1577,7 +1577,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Sacrifice this creature: You gain life equal to the life you've lost this turn. (Damage causes loss of life.)",
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: ['lifegain'], payoffs: [] },
   },
   {
     name: 'Chrome Host Seedshark',
@@ -2062,7 +2062,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Each opponent reveals cards from the top of their library until they reveal X land cards, then puts all cards revealed this way into their graveyard. X can't be 0.",
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: ['mill'], payoffs: [] },
   },
   {
     name: 'Mortician Beetle',
@@ -2453,7 +2453,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Defender'],
     oracle_text:
       'Defender, flying\nAt the beginning of your end step, you may gain life equal to the power of target creature you control.',
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: ['lifegain'], payoffs: [] },
   },
   {
     name: 'White Plume Adventurer',
@@ -2502,5 +2502,220 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'Zenith Flare deals X damage to any target and you gain X life, where X is the number of cards with a cycling ability in your graveyard.',
     expect: { producers: ['lifegain'], payoffs: [] },
+  },
+  {
+    name: 'Aetherflux Reservoir',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "Whenever you cast a spell, you gain 1 life for each spell you've cast this turn.\nPay 50 life: This artifact deals 50 damage to any target.",
+    expect: { producers: ['lifegain'], payoffs: [] },
+  },
+  {
+    name: 'Archangel of Tithes',
+    type_line: 'Creature \u2014 Angel',
+    keywords: ['Flying'],
+    oracle_text:
+      "Flying\nAs long as this creature is untapped, creatures can't attack you or planeswalkers you control unless their controller pays {1} for each of those creatures.\nAs long as this creature is attacking, creatures can't block unless their controller pays {1} for each of those creatures.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Astral Slide',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "Whenever a player cycles a card, you may exile target creature. If you do, return that card to the battlefield under its owner's control at the beginning of the next end step.",
+    expect: { producers: ['blink'], payoffs: ['cycling'] },
+  },
+  {
+    name: 'Branching Evolution',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on that creature instead.',
+    expect: { producers: [], payoffs: ['counters'] },
+  },
+  {
+    name: 'Codex Shredder',
+    type_line: 'Artifact',
+    keywords: ['Mill'],
+    oracle_text:
+      '{T}: Target player mills a card. (They put the top card of their library into their graveyard.)\n{5}, {T}, Sacrifice this artifact: Return target card from your graveyard to your hand.',
+    expect: { producers: ['mill'], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Comeuppance',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      "Prevent all damage that would be dealt to you and planeswalkers you control this turn by sources you don't control. If damage from a creature source is prevented this way, Comeuppance deals that much damage to that creature. If damage from a noncreature source is prevented this way, Comeuppance deals that much damage to the source's controller.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Consuming Aberration',
+    type_line: 'Creature \u2014 Horror',
+    keywords: [],
+    oracle_text:
+      "Consuming Aberration's power and toughness are each equal to the number of cards in your opponents' graveyards.\nWhenever you cast a spell, each opponent reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard.",
+    expect: { producers: ['mill'], payoffs: [] },
+  },
+  {
+    name: 'Corpsejack Menace',
+    type_line: 'Creature \u2014 Fungus',
+    keywords: [],
+    oracle_text:
+      'If one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on it instead.',
+    expect: { producers: [], payoffs: ['counters'] },
+  },
+  {
+    name: 'Crop Rotation',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Farseek',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Gavi, Nest Warden',
+    type_line: 'Legendary Creature \u2014 Human Shaman',
+    keywords: [],
+    oracle_text:
+      'You may pay {0} rather than pay the cycling cost of the first card you cycle each turn.\nWhenever you draw your second card each turn, create a 2/2 red and white Dinosaur Cat creature token.',
+    expect: { producers: ['cycling', 'tokens'], payoffs: [] },
+  },
+  {
+    name: 'Gray Merchant of Asphodel',
+    type_line: 'Creature \u2014 Zombie',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way. (Each {B} in the mana costs of permanents you control counts toward your devotion to black.)',
+    expect: { producers: ['lifegain'], payoffs: [] },
+  },
+  {
+    name: 'Greater Mossdog',
+    type_line: 'Creature \u2014 Plant Dog',
+    keywords: ['Dredge', 'Mill'],
+    oracle_text:
+      'Dredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)',
+    expect: { producers: ['graveyard'], payoffs: [] },
+  },
+  {
+    name: 'Harvester of Souls',
+    type_line: 'Creature \u2014 Demon',
+    keywords: ['Deathtouch'],
+    oracle_text:
+      'Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever another nontoken creature dies, you may draw a card.',
+    expect: { producers: [], payoffs: ['sacrifice'] },
+  },
+  {
+    name: 'Lightning Rift',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'Whenever a player cycles a card, you may pay {1}. If you do, this enchantment deals 2 damage to any target.',
+    expect: { producers: [], payoffs: ['cycling'] },
+  },
+  {
+    name: 'Mind Funeral',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Target opponent reveals cards from the top of their library until four land cards are revealed. That player puts all cards revealed this way into their graveyard.',
+    expect: { producers: ['mill'], payoffs: [] },
+  },
+  {
+    name: "Nature's Lore",
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Search your library for a Forest card, put that card onto the battlefield, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Nemesis of Reason',
+    type_line: 'Creature \u2014 Leviathan Horror',
+    keywords: ['Mill'],
+    oracle_text: 'Whenever this creature attacks, defending player mills ten cards.',
+    expect: { producers: ['mill'], payoffs: [] },
+  },
+  {
+    name: 'Poison-Tip Archer',
+    type_line: 'Creature \u2014 Elf Archer',
+    keywords: ['Reach', 'Deathtouch'],
+    oracle_text:
+      'Reach (This creature can block creatures with flying.)\nDeathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever another creature dies, each opponent loses 1 life.',
+    expect: { producers: [], payoffs: ['sacrifice'] },
+  },
+  {
+    name: 'Primal Vigor',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'If one or more tokens would be created, twice that many of those tokens are created instead.\nIf one or more +1/+1 counters would be put on a creature, twice that many +1/+1 counters are put on that creature instead.',
+    expect: { producers: [], payoffs: ['counters', 'tokens'] },
+  },
+  {
+    name: 'Queen Marchesa',
+    type_line: 'Legendary Creature \u2014 Human Assassin',
+    keywords: ['Haste', 'Deathtouch'],
+    oracle_text:
+      'Deathtouch, haste\nWhen Queen Marchesa enters, you become the monarch.\nAt the beginning of your upkeep, if an opponent is the monarch, create a 1/1 black Assassin creature token with deathtouch and haste.',
+    expect: { producers: ['monarch', 'tokens'], payoffs: ['monarch'] },
+  },
+  {
+    name: "Saheeli's Artistry",
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      "Choose one or both \u2014\n\u2022 Create a token that's a copy of target artifact.\n\u2022 Create a token that's a copy of target creature, except it's an artifact in addition to its other types.",
+    expect: { producers: ['artifacts', 'tokens'], payoffs: [] },
+  },
+  {
+    name: 'Skyshroud Claim',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Search your library for up to two Forest cards, put them onto the battlefield, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: 'Soul Snare',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "{W}, Sacrifice this enchantment: Exile target creature that's attacking you or a planeswalker you control.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Sun Droplet',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "Whenever you're dealt damage, put that many charge counters on this artifact.\nAt the beginning of each upkeep, you may remove a charge counter from this artifact. If you do, you gain 1 life.",
+    expect: { producers: ['lifegain'], payoffs: [] },
+  },
+  {
+    name: 'Three Visits',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      'Search your library for a Forest card, put it onto the battlefield, then shuffle.',
+    expect: { producers: ['landfall'], payoffs: [] },
+  },
+  {
+    name: "Trostani, Selesnya's Voice",
+    type_line: 'Legendary Creature \u2014 Dryad',
+    keywords: ['Populate'],
+    oracle_text:
+      "Whenever another creature you control enters, you gain life equal to that creature's toughness.\n{1}{G}{W}, {T}: Populate. (Create a token that's a copy of a creature token you control.)",
+    expect: { producers: ['lifegain'], payoffs: ['blink', 'tokens'] },
   },
 ];

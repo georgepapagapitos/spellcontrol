@@ -135,8 +135,13 @@ export function tokenCreation(oracle: string): TokenCreation {
     // Copy tokens — "create a token that's a copy of …" (Kiki-Jiki, Helm of the
     // Host, Rite of Replication) carry no P/T or "creature token" wording but are
     // go-wide creature producers. The opponent-subject guard above still applies
-    // (Fractured Identity's "each player other than its controller creates").
-    if (/tokens? that(?:'s| are)(?: a)? cop/.test(after)) {
+    // (Fractured Identity's "each player other than its controller creates"). A
+    // copy of an ARTIFACT (Osgir, Saheeli's Artistry) is NOT a creature — the
+    // artifacts axis handles those — so don't tag a creature token for it.
+    if (
+      /tokens? that(?:'s| are)(?: a)? cop/.test(after) &&
+      !/cop(?:y|ies) of (?:target |that |the )?(?:a )?(?:nonland permanent|artifact)/.test(after)
+    ) {
       creaturesForYou = true;
       kinds.add('creature');
     }
@@ -295,7 +300,13 @@ export interface MillSignals {
 // stay with the graveyard axis. Excludes nothing by `you` here because the
 // clause loop checks opponent subjects first and self-mill second.
 const OPPONENT_MILL =
-  /\b(?:target opponent|each opponent|target player|that player|an opponent|opponents|enchanted player)\b[^.]*\bmills?\b/;
+  /\b(?:target opponent|each opponent|target player|that player|an opponent|opponents|enchanted player|defending player)\b[^.]*\bmills?\b/;
+// Pre-"mill"-keyword templating: "<opponent> … puts those cards into their
+// graveyard" (Mind Funeral, Mind Grind, Consuming Aberration). Paired in the loop
+// with a reveal/library check (order-independent) so it can't catch
+// discard-to-graveyard, which references the hand, not the library.
+const OPPONENT_REVEAL_MILL =
+  /\b(?:target opponent|each opponent|target player|that player|defending player|they)\b[^.]*\bputs?\b[^.]*into (?:their|his or her) graveyard/;
 const MILL_DOUBLER = /mill (?:twice that many|that many cards plus)|they mill twice that many/;
 
 /**
@@ -310,7 +321,10 @@ export function millSignals(oracle: string): MillSignals {
   let opponentMill = false;
   const doubler = MILL_DOUBLER.test(oracle);
   for (const clause of splitClauses(oracle)) {
-    if (OPPONENT_MILL.test(clause)) {
+    if (
+      OPPONENT_MILL.test(clause) ||
+      (OPPONENT_REVEAL_MILL.test(clause) && /reveal|library/.test(clause))
+    ) {
       opponentMill = true;
       continue;
     }
