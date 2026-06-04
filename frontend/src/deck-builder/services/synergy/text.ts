@@ -158,8 +158,17 @@ export interface SacrificeSignals {
   rewards: boolean;
 }
 
-const SAC_OUTLET_RE =
-  /sacrifice (?:a|an|another|one or more|two|three|x) (?:other )?(?:creatures?|permanents?|artifacts?|tokens?)/;
+// Common creature TYPES that appear in tribal "Sacrifice a <Type>" / "<Type> you
+// control dies" templating. Not the full 280-type list — just the ones that show
+// up on real aristocrats/tribal cards (Skirk Prospector, Slimefoot). Word
+// boundaries below keep "cat"/"bear"/"plant" from matching "category" etc.
+const CREATURE_TYPE =
+  'goblin|elf|zombie|saproling|soldier|vampire|spirit|human|wizard|warrior|cleric|rogue|knight|beast|cat|dog|dragon|angel|demon|dwarf|merfolk|faerie|elemental|snake|insect|rat|bird|wolf|bear|treefolk|thopter|construct|golem|myr|sliver|pirate|ninja|samurai|monk|shaman|druid|giant|hydra|plant|fungus|skeleton|horror|servo|spider|squirrel|wall|cleric|rebel|ally';
+const CREATURE_TYPE_RE = new RegExp(`\\b(?:${CREATURE_TYPE})s?\\b`);
+
+const SAC_OUTLET_RE = new RegExp(
+  `sacrifice (?:a|an|another|one or more|two|three|x) (?:other )?(?:creatures?|permanents?|artifacts?|tokens?|${CREATURE_TYPE})`
+);
 // "Whenever you/a player/another … sacrifices" — a sacrifice payoff. Deliberately
 // NOT the bare "whenever an opponent sacrifices" (Tergrid), which is a punisher
 // keyed on opponents, not your aristocrats engine.
@@ -306,7 +315,15 @@ const OPPONENT_MILL =
 // with a reveal/library check (order-independent) so it can't catch
 // discard-to-graveyard, which references the hand, not the library.
 const OPPONENT_REVEAL_MILL =
-  /\b(?:target opponent|each opponent|target player|that player|defending player|they)\b[^.]*\bputs?\b[^.]*into (?:their|his or her) graveyard/;
+  /\b(?:target opponent|each opponent|target player|that player|defending player|they)\b[^.]*\bputs?\b[^.]*into (?:their|that player's|his or her) graveyard/;
+// Oracle-level (cross-sentence) fallback for the same reveal-mill, where the
+// subject and the "put into their graveyard" land in different sentences and the
+// latter is passive (Trepanation Blade: "… defending player reveals … library …
+// The revealed cards are put into that player's graveyard"). Requires "library" +
+// an opponent-owned graveyard so it can't catch self-mill or discard.
+const OPPONENT_SUBJECT_RE =
+  /\b(?:target opponent|each opponent|target player|that player|defending player)\b/;
+const PUT_INTO_OPP_GRAVEYARD = /put[^.]*into (?:their|that player's|his or her) graveyard/;
 const MILL_DOUBLER = /mill (?:twice that many|that many cards plus)|they mill twice that many/;
 
 /**
@@ -334,6 +351,14 @@ export function millSignals(oracle: string): MillSignals {
     if (/\byou (?:may )?mill\b/.test(clause) || /\bmill (?:\w+ )?cards?\b/.test(clause))
       selfMill = true;
   }
+  // Cross-sentence reveal-mill (Trepanation Blade) the per-clause pass can't see.
+  if (
+    !opponentMill &&
+    OPPONENT_SUBJECT_RE.test(oracle) &&
+    /library/.test(oracle) &&
+    PUT_INTO_OPP_GRAVEYARD.test(oracle)
+  )
+    opponentMill = true;
   return { selfMill, opponentMill, doubler };
 }
 
@@ -348,7 +373,9 @@ export function millSignals(oracle: string): MillSignals {
  */
 export function paysOffCreatureDeath(oracle: string): boolean {
   for (const clause of splitClauses(oracle)) {
-    if (!/\bdies\b/.test(clause) || !/\bcreature/.test(clause)) continue;
+    if (!/\bdies\b/.test(clause)) continue;
+    // "a creature … dies" or a tribal-typed death ("a Saproling you control dies").
+    if (!/\bcreature/.test(clause) && !CREATURE_TYPE_RE.test(clause)) continue;
     if (!/\bwhenever\b/.test(clause)) continue;
     const opponentOnly =
       /creatures? an opponent controls? dies|creatures? your opponents control[^.]*dies/.test(

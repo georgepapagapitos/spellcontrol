@@ -4,7 +4,7 @@
  * and the off-meta suggestions. Holds names + primitives only (no ScryfallCards)
  * so it can live on the deck in IndexedDB without bloating it.
  */
-import type { DeckSynergy } from './deckSynergy';
+import type { DeckSynergy, LopsidedAxis } from './deckSynergy';
 import { suggestOffMeta, type SynergyCandidate, type SynergySuggestion } from './suggest';
 import type { AxisKey } from './axes';
 
@@ -20,6 +20,9 @@ export interface SynergyAnalysis {
   headline: string;
   /** Lopsided-engine notes, e.g. "Tokens: 9 producers but no payoff…". */
   warnings: string[];
+  /** Axis-keyed form of `warnings` so the UI can link each to its fills.
+   *  Optional for back-compat with `synergyAnalysis` persisted before this field. */
+  lopsided?: LopsidedAxis[];
   /** Busiest axes with counts (for a compact balance readout). */
   axes: SynergyAxisView[];
   /** Off-meta cards that fill the deck's engine gaps, each with a reason. */
@@ -38,6 +41,7 @@ export function buildSynergyAnalysis(
   return {
     headline: deck.headline,
     warnings: deck.warnings,
+    lopsided: deck.lopsided,
     axes: deck.axes.slice(0, MAX_AXES_SHOWN).map((a) => ({
       axis: a.axis,
       label: a.label,

@@ -365,6 +365,7 @@ export function DeckEditorPage() {
       deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
       oneAwayCombos: comboData.data?.oneAway,
       ownedNames,
+      lopsided: deck.synergyAnalysis?.lopsided,
     });
   }, [deck, comboData.data, ownedNames]);
 
