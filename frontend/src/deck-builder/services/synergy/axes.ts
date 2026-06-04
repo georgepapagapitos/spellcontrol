@@ -13,6 +13,7 @@ import {
   hasCreatureAnthem,
   scalesWithCreatures,
   isTokenDoubler,
+  discardSignals,
 } from './text';
 
 export type AxisKey =
@@ -30,7 +31,10 @@ export type AxisKey =
   | 'tribal'
   | 'blink'
   | 'vehicles'
-  | 'grouphug';
+  | 'grouphug'
+  | 'energy'
+  | 'auras'
+  | 'discard';
 
 export interface SynergyAxis {
   key: AxisKey;
@@ -425,6 +429,79 @@ const grouphug: SynergyAxis = {
   },
 };
 
+// ── Energy ───────────────────────────────────────────────────────────────────
+// Energy is a hidden resource tracked only by the {E} symbol — the parenthetical
+// "(two energy counters)" gloss is reminder text and gets stripped, so the word
+// "energy" never survives normalization. Match the symbol, not the word. The
+// producer banks {E} ("you get {E}{E}"); the payoff spends it ("Pay {E}{E}", and
+// the open-ended "pay any amount of {E}"). Many energy cards do both.
+const energy: SynergyAxis = {
+  key: 'energy',
+  label: 'Energy',
+  producer(card) {
+    return /you get (?:\{e\})+/.test(card.oracle) ? 'generates energy' : null;
+  },
+  payoff(card) {
+    return /pay (?:any amount of |[a-z]+ )?\{e\}/.test(card.oracle) ? 'spends energy' : null;
+  },
+};
+
+// ── Auras / enchant-creature (Voltron) ────────────────────────────────────────
+// Unlike Equipment, Auras are heterogeneous — removal (Pacifism), reanimation
+// (Animate Dead) and ramp Auras share the type but aren't an engine. So the
+// producer is NOT "is an Aura"; it's the *buff* Aura ("enchanted creature gets
+// +…") plus Aura cost-reducers and tutors. Payoffs care about your Auras —
+// cast-triggers, Auras-you-control, per-Aura scaling, and mass-attach (Bruna).
+const AURA_BUFF = /enchanted (?:creature|permanent) gets \+/;
+
+const auras: SynergyAxis = {
+  key: 'auras',
+  label: 'Auras / enchant-creature',
+  producer(card) {
+    if (card.typeLine.includes('aura') && AURA_BUFF.test(card.oracle))
+      return 'Voltron aura (buffs the enchanted creature)';
+    if (/aura (?:spells?|cards?) you cast cost/.test(card.oracle)) return 'reduces Aura cost';
+    if (
+      /search your library for an aura card/.test(card.oracle) ||
+      /return[^.]*aura cards?/.test(card.oracle)
+    )
+      return 'tutors Auras';
+    return null;
+  },
+  payoff(card) {
+    if (/whenever you cast (?:an? )?aura/.test(card.oracle)) return 'pays off casting Auras';
+    if (/auras? you control/.test(card.oracle)) return 'triggers on your Auras';
+    if (/for each aura/.test(card.oracle)) return 'scales with your Auras';
+    if (/attach (?:to it )?(?:any number of )?auras?\b/.test(card.oracle))
+      return 'attaches your Auras';
+    return null;
+  },
+};
+
+// ── Discard / madness ─────────────────────────────────────────────────────────
+// "Discard matters" spans self-discard (loot/rummage → madness, reanimator fuel)
+// and forced opponent discard (hand attack → Megrim/Tergrid punishers). The
+// producer makes discards happen; the payoff rewards one. Subject + trigger
+// detection lives in `discardSignals` so "Whenever you discard …" (a payoff) is
+// never mistaken for "Discard a card" (a producer). Madness is a keyword payoff.
+const discard: SynergyAxis = {
+  key: 'discard',
+  label: 'Discard / madness',
+  producer(card) {
+    const d = discardSignals(card.oracle);
+    if (d.forced) return 'forces discards (hand attack)';
+    if (d.causes) return 'discards cards (loot/rummage)';
+    return null;
+  },
+  payoff(card) {
+    if (has(card, 'madness') || /\bmadness\b/.test(card.oracle)) return 'madness';
+    const d = discardSignals(card.oracle);
+    if (d.rewardsOpponents) return 'punishes opponents discarding';
+    if (d.rewards) return 'rewards your discards';
+    return null;
+  },
+};
+
 export const AXES: SynergyAxis[] = [
   tokens,
   counters,
@@ -441,4 +518,7 @@ export const AXES: SynergyAxis[] = [
   blink,
   vehicles,
   grouphug,
+  energy,
+  auras,
+  discard,
 ];
