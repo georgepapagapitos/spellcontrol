@@ -3196,26 +3196,12 @@ hr {
   outline: none;
 }
 
-.import-routing-row--static {
-  cursor: default;
-  color: var(--text2);
-}
-
-.import-routing-row--static:hover {
-  background: none;
-}
-
 .import-routing-pip {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
   border: 0.5px solid var(--pip-border);
-}
-
-.import-routing-pip--uncat {
-  background: transparent;
-  border: 0.5px dashed var(--text3);
 }
 
 .import-routing-name {
