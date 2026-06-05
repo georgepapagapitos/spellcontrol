@@ -26,7 +26,13 @@ import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { resolveDeckRows } from './deck-import';
 import { ImportTooLargeError, MAX_QTY_PER_ROW, MAX_TOTAL_CARDS } from './import-limits';
-import { searchProducts, getProductDeck } from './products';
+import {
+  searchProducts,
+  getProductDeck,
+  getCachedCommanderSummary,
+  setCachedCommanderSummary,
+  type ProductCommanderSummary,
+} from './products';
 import { productToDeckSections, productToPhysicalRows, countPhysicalCards } from './product-map';
 import { mergeCard } from './merge-card';
 import type { DeckImportResponse, EnrichedCard, ScryfallCard, UploadResponse } from './types';
@@ -298,6 +304,51 @@ app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Res
     }
     logger.error('[products] resolve failed:', err);
     res.status(502).json({ error: 'Failed to resolve product decklist.' });
+  }
+});
+
+/**
+ * Compact commander preview for a product — name + color identity + small image
+ * — for lazy enrichment of the product search rows (T17). Resolves only the
+ * commander (not the whole deck), and caches the tiny result long-lived so a
+ * scroll/re-search is instant. Returns `{ commander: null }` for products with
+ * no commander zone (non-commander products).
+ */
+app.get('/api/products/:fileName/summary', productLimiter, async (req: Request, res: Response) => {
+  try {
+    const fileName = String(req.params.fileName ?? '');
+    const cached = getCachedCommanderSummary(fileName);
+    if (cached !== undefined) {
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.json({ commander: cached });
+    }
+
+    const deckFile = await getProductDeck(fileName);
+    if (!deckFile) {
+      return res.status(404).json({ error: 'Product not found.' });
+    }
+
+    const { commanderRows } = productToDeckSections(deckFile);
+    let summary: ProductCommanderSummary | null = null;
+    if (commanderRows.length > 0) {
+      const resolved = await resolveCards([commanderRows[0]], cache);
+      const card = resolved.resolved[0];
+      if (card) {
+        summary = {
+          name: card.name,
+          colorIdentity: card.color_identity ?? [],
+          // Full small card image — rendered as a card-shaped row thumbnail,
+          // matching the deck list. Fall back to the front face for DFC commanders.
+          image: card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small ?? null,
+        };
+      }
+    }
+    setCachedCommanderSummary(fileName, summary);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.json({ commander: summary });
+  } catch (err) {
+    logger.error('[products] summary failed:', err);
+    res.status(502).json({ error: 'Failed to resolve product summary.' });
   }
 });
 

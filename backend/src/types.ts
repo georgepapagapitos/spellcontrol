@@ -41,6 +41,7 @@ export interface ScryfallCard {
     small?: string;
     normal?: string;
     large?: string;
+    art_crop?: string;
   };
   /**
    * Scryfall's market-price snapshot. Strings (or null) keyed by finish.
@@ -64,6 +65,7 @@ export interface ScryfallCard {
       small?: string;
       normal?: string;
       large?: string;
+      art_crop?: string;
     };
   }>;
 }

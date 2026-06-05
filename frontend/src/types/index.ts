@@ -153,6 +153,14 @@ export interface ProductSummary {
   releaseDate: string;
 }
 
+/** Compact commander preview for lazy enrichment of product search rows (T17). */
+export interface ProductCommanderSummary {
+  name: string;
+  colorIdentity: string[];
+  /** Full small card image URL — rendered as a card-shaped row thumbnail. */
+  image: string | null;
+}
+
 /**
  * One physical card in a product, with per-copy quantity + finish + zone — for
  * stamping owned copies and showing a per-zone breakdown.

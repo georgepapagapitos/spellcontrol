@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ProductPhysicalCard } from '../types';
-import { physicalCardsToUploadResponse, zoneBreakdown, zoneLabel } from './product-import';
+import {
+  groupPhysicalByZone,
+  physicalCardsToUploadResponse,
+  zoneBreakdown,
+  zoneLabel,
+} from './product-import';
 
 function card(name: string, id: string): ScryfallCard {
   return { id, name } as unknown as ScryfallCard;
@@ -50,6 +55,23 @@ describe('zoneBreakdown', () => {
     expect(breakdown.find((b) => b.zone === 'mainBoard')?.count).toBe(23); // Sol Ring + 22 Mountain
     expect(breakdown.find((b) => b.zone === 'displayCommander')?.label).toBe('Display commander');
     expect(breakdown.find((b) => b.zone === 'tokens')?.count).toBe(2);
+  });
+});
+
+describe('groupPhysicalByZone', () => {
+  it('groups cards by zone in deck-first order with copy counts and the cards', () => {
+    const groups = groupPhysicalByZone(physical);
+    expect(groups.map((g) => g.zone)).toEqual([
+      'commander',
+      'mainBoard',
+      'displayCommander',
+      'tokens',
+    ]);
+    const deck = groups.find((g) => g.zone === 'mainBoard')!;
+    expect(deck.label).toBe('Deck');
+    expect(deck.count).toBe(23); // Sol Ring + 22 Mountain
+    expect(deck.cards.map((c) => c.card.name)).toEqual(['Sol Ring', 'Mountain']);
+    expect(groups.find((g) => g.zone === 'displayCommander')?.cards).toHaveLength(1);
   });
 });
 

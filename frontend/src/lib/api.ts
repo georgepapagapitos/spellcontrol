@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type {
   DeckImportResponse,
+  ProductCommanderSummary,
   ProductResolveResponse,
   ProductSummary,
   UploadResponse,
@@ -237,6 +238,21 @@ export async function fetchProduct(fileName: string): Promise<ProductResolveResp
     method: 'GET',
   });
   return handleResponse<ProductResolveResponse>(response);
+}
+
+/**
+ * Compact commander preview (name + colors + small image) for a product, used to
+ * lazily enrich search rows. Resolves only the commander, not the whole deck.
+ * Returns null for products with no commander.
+ */
+export async function fetchProductCommanderSummary(
+  fileName: string
+): Promise<ProductCommanderSummary | null> {
+  const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}/summary`, {
+    method: 'GET',
+  });
+  const data = await handleResponse<{ commander: ProductCommanderSummary | null }>(response);
+  return data.commander;
 }
 
 /** Import a deck from a file upload. Returns ScryfallCard objects grouped by section. */

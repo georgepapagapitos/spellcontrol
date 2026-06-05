@@ -1,18 +1,174 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Layers, Package } from 'lucide-react';
-import { searchProducts, fetchProduct } from '../lib/api';
+import { searchProducts, fetchProduct, fetchProductCommanderSummary, useSetMap } from '../lib/api';
 import { useBuildDeckFromImport } from '../lib/build-deck-from-import';
 import { useCollectionStore } from '../store/collection';
 import {
   PRODUCT_IMPORT_LABEL,
+  groupPhysicalByZone,
   physicalCardsToUploadResponse,
-  zoneBreakdown,
 } from '../lib/product-import';
+import { createLimiter } from '../lib/concurrency-limit';
+import { useCardCarousel, type CarouselEntry } from './deck/useCardCarousel';
+import { ManaCost } from './ManaCost';
+import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '@/deck-builder/types';
-import type { ProductResolveResponse, ProductSummary } from '../types';
+import type {
+  ProductCommanderSummary,
+  ProductPhysicalCard,
+  ProductResolveResponse,
+  ProductSummary,
+} from '../types';
 import './ProductSearchPanel.css';
+
+/** Carousel entries for a product's full physical contents (one swipeable card per copy-set). */
+function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[] {
+  return physicalCards.map((pc) => ({
+    name: pc.card.name,
+    label: pc.quantity > 1 ? `${pc.quantity} copies` : '1 copy',
+    card: pc.card,
+  }));
+}
+
+// Lazy per-row commander enrichment: cap concurrent /summary fetches so scrolling
+// a long list doesn't fire dozens at once, and remember results across re-renders
+// / scrolls (the backend caches too; this avoids even the round-trip).
+const summaryLimiter = createLimiter(4);
+const summaryCache = new Map<string, ProductCommanderSummary | null>();
+
+/** Color-identity → mana-cost string for {@link ManaCost}; `{C}` for colorless. */
+function colorIdentityCost(summary: ProductCommanderSummary | null | undefined): string {
+  if (!summary) return '';
+  return summary.colorIdentity.length > 0
+    ? summary.colorIdentity.map((c) => `{${c}}`).join('')
+    : '{C}';
+}
+
+const COLOR_NAMES: Record<string, string> = {
+  W: 'White',
+  U: 'Blue',
+  B: 'Black',
+  R: 'Red',
+  G: 'Green',
+};
+
+/** Screen-reader label for a commander's colors (the mana glyphs are decorative). */
+function colorIdentityLabel(summary: ProductCommanderSummary): string {
+  if (summary.colorIdentity.length === 0) return 'Colorless';
+  return `Colors: ${summary.colorIdentity.map((c) => COLOR_NAMES[c] ?? c).join(', ')}`;
+}
+
+interface ResultRowProps {
+  product: ProductSummary;
+  set: { name: string; iconSvgUri: string } | undefined;
+  disabled: boolean;
+  onOpen: (p: ProductSummary) => void;
+}
+
+/**
+ * One product search row. For Commander products it lazily fetches a compact
+ * commander preview (art thumbnail + color pips) once the row scrolls into view,
+ * throttled via the shared limiter. Falls back to the set symbol while loading
+ * or for products without a commander.
+ */
+function ProductResultRow({ product, set, disabled, onOpen }: ResultRowProps) {
+  // Commander + Brawl products have a commander whose colors/art we can preview.
+  const wantSummary = /commander|brawl/i.test(product.type);
+  const [summary, setSummary] = useState<ProductCommanderSummary | null | undefined>(() =>
+    summaryCache.get(product.fileName)
+  );
+  const liRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    if (!wantSummary || summary !== undefined) return;
+    const el = liRef.current;
+    if (!el) return;
+    let done = false;
+    const load = () => {
+      if (done) return;
+      done = true;
+      void summaryLimiter(() => fetchProductCommanderSummary(product.fileName))
+        .then((s) => {
+          summaryCache.set(product.fileName, s);
+          setSummary(s);
+        })
+        .catch(() => {
+          // Treat a failed enrichment as "no commander" — the row still works.
+          summaryCache.set(product.fileName, null);
+          setSummary(null);
+        });
+    };
+    // Fetch when the row nears the viewport; degrade to immediate fetch where
+    // IntersectionObserver is unavailable.
+    if (typeof IntersectionObserver === 'undefined') {
+      load();
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect();
+          load();
+        }
+      },
+      { rootMargin: '150px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [product.fileName, wantSummary, summary]);
+
+  const art = summary?.image ?? null;
+  const cost = colorIdentityCost(summary);
+
+  return (
+    <li ref={liRef}>
+      <button
+        type="button"
+        className="product-result-row"
+        onClick={() => onOpen(product)}
+        disabled={disabled}
+      >
+        <span className="product-result-lead">
+          {art ? (
+            <img
+              className="product-result-thumb"
+              src={art}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              draggable={false}
+            />
+          ) : set?.iconSvgUri ? (
+            <img className="product-result-seticon" src={set.iconSvgUri} alt="" aria-hidden />
+          ) : (
+            <span className="product-result-seticon-empty" aria-hidden>
+              {product.code}
+            </span>
+          )}
+        </span>
+        <span className="product-result-text">
+          <span className="product-result-name">{product.name}</span>
+          <span className="product-result-meta">
+            {product.type}
+            {set ? ` · ${set.name}` : ` · ${product.code}`}
+            {product.releaseDate ? ` · ${product.releaseDate.slice(0, 4)}` : ''}
+          </span>
+        </span>
+        {cost && summary && (
+          <span
+            className="product-result-colors"
+            role="img"
+            aria-label={colorIdentityLabel(summary)}
+          >
+            <ManaCost cost={cost} />
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
 
 interface Props {
   /** Close the surrounding sheet (used after navigating to a created deck). */
@@ -25,7 +181,7 @@ const TYPE_FILTERS: { value: string; label: string }[] = [
   { value: 'Planeswalker Deck', label: 'Planeswalker' },
   { value: 'Challenger Deck', label: 'Challenger' },
   { value: 'Duel Deck', label: 'Duel Deck' },
-  { value: '', label: 'All products' },
+  { value: '', label: 'All types' },
 ];
 
 const FORMAT_KEYS = Object.keys(DECK_FORMAT_CONFIGS);
@@ -46,6 +202,8 @@ export function ProductSearchPanel({ onClose }: Props) {
   const navigate = useNavigate();
   const buildDeckFromResult = useBuildDeckFromImport();
   const importCards = useCollectionStore((s) => s.importCards);
+  const carousel = useCardCarousel('product');
+  const setMap = useSetMap();
 
   const [query, setQuery] = useState('');
   const [type, setType] = useState(TYPE_FILTERS[0].value);
@@ -94,7 +252,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       const resolved = await fetchProduct(p.fileName);
       setSelected(resolved);
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Could not load this product.');
+      setProductError(e instanceof Error ? e.message : 'Could not load this precon.');
     } finally {
       setLoadingProduct(false);
     }
@@ -144,23 +302,24 @@ export function ProductSearchPanel({ onClose }: Props) {
       await addToCollection(resp);
       addAsDeck(resp); // navigates + closes
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Could not add this product.');
+      setProductError(e instanceof Error ? e.message : 'Could not add this precon.');
       setBusy(false);
     }
   };
 
   // ---- Detail view ----------------------------------------------------------
   if (selected) {
-    const breakdown = zoneBreakdown(selected.physicalCards);
+    const groups = groupPhysicalByZone(selected.physicalCards);
+    const entries = physicalToEntries(selected.physicalCards);
     const unresolved = selected.unresolvedNames.length;
     return (
-      <div className="product-panel">
+      <div className="add-card-search-panel">
         <button type="button" className="product-back" onClick={() => setSelected(null)}>
           <ChevronLeft width={16} height={16} aria-hidden />
           <span>Back to search</span>
         </button>
 
-        <div className="product-detail">
+        <div className="add-card-sheet-body product-detail">
           <h3 className="product-detail-name">{selected.product.name}</h3>
           <p className="product-detail-meta">
             {selected.product.type}
@@ -172,13 +331,37 @@ export function ProductSearchPanel({ onClose }: Props) {
           <p className="product-detail-count">
             {selected.physicalCardCount.toLocaleString()} physical cards
           </p>
-          <ul className="product-breakdown">
-            {breakdown.map((b) => (
-              <li key={b.zone}>
-                <span className="product-breakdown-count">{b.count}</span> {b.label}
-              </li>
-            ))}
-          </ul>
+
+          {/* Cards grouped by zone so the extras (display commanders, tokens)
+              are visible at a glance; tap any card → shared preview carousel. */}
+          {groups.map((g) => (
+            <section key={g.zone} className="product-zone">
+              <h4 className="product-zone-title">
+                {g.label} <span className="product-zone-count">({g.count})</span>
+              </h4>
+              <ul className="product-card-grid" aria-label={g.label}>
+                {g.cards.map((pc, i) => (
+                  <li key={`${pc.card.id}-${i}`} className="product-card-cell">
+                    <button
+                      type="button"
+                      className="product-card-btn"
+                      aria-label={`Preview ${pc.card.name}`}
+                      onClick={() => void carousel.open(entries, pc.card.name)}
+                    >
+                      <img
+                        className="product-card-img"
+                        src={getCardImageUrl(pc.card, 'normal')}
+                        alt={pc.card.name}
+                        loading="lazy"
+                        draggable={false}
+                      />
+                      {pc.quantity > 1 && <span className="product-card-qty">{pc.quantity}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
 
           {unresolved > 0 && (
             <p className="product-detail-warn">
@@ -224,21 +407,22 @@ export function ProductSearchPanel({ onClose }: Props) {
             display commanders &amp; tokens) as owned copies.
           </p>
         </div>
+        {carousel.preview}
       </div>
     );
   }
 
   // ---- Search / list view ---------------------------------------------------
   return (
-    <div className="product-panel">
-      <div className="product-search-controls">
+    <div className="add-card-search-panel">
+      <div className="add-card-search-input-wrap">
         <input
           type="search"
           className="card-picker-search"
-          placeholder="Search products — e.g. “Fae Dominion”, “Goblin”"
+          placeholder="Search precons — e.g. “Fae Dominion”, “Goblin”"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search products"
+          aria-label="Search precons"
         />
         <div className="product-type-filters" role="group" aria-label="Product type">
           {TYPE_FILTERS.map((t) => (
@@ -255,8 +439,8 @@ export function ProductSearchPanel({ onClose }: Props) {
         </div>
       </div>
 
-      <div className="product-results">
-        {loadingProduct && <p className="card-picker-empty">Loading product…</p>}
+      <div className="add-card-sheet-body">
+        {loadingProduct && <p className="card-picker-empty">Loading precon…</p>}
         {!loadingProduct && loadingList && <p className="card-picker-empty">Searching…</p>}
         {productError && !loadingProduct && (
           <p className="card-picker-empty add-card-sheet-error">{productError}</p>
@@ -264,26 +448,19 @@ export function ProductSearchPanel({ onClose }: Props) {
         {listError && <p className="card-picker-empty add-card-sheet-error">{listError}</p>}
         {!loadingList && !listError && results.length === 0 && (
           <p className="card-picker-empty">
-            No matching products. Newly released products may not be catalogued yet.
+            No matching precons. Newly released precons may not be catalogued yet.
           </p>
         )}
         {!loadingList && results.length > 0 && (
           <ul className="product-result-list">
             {results.map((p) => (
-              <li key={p.fileName}>
-                <button
-                  type="button"
-                  className="product-result-row"
-                  onClick={() => void openProduct(p)}
-                  disabled={loadingProduct}
-                >
-                  <span className="product-result-name">{p.name}</span>
-                  <span className="product-result-meta">
-                    {p.type}
-                    {p.releaseDate ? ` · ${p.releaseDate.slice(0, 4)}` : ''}
-                  </span>
-                </button>
-              </li>
+              <ProductResultRow
+                key={p.fileName}
+                product={p}
+                set={setMap?.[p.code.toUpperCase()]}
+                disabled={loadingProduct}
+                onOpen={(prod) => void openProduct(prod)}
+              />
             ))}
           </ul>
         )}

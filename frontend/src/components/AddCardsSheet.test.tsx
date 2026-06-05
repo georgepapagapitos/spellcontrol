@@ -95,12 +95,10 @@ describe('AddCardsSheet', () => {
     expect(uploadPanel?.hasAttribute('hidden')).toBe(false);
   });
 
-  it('switches to the Products tab and reveals the product panel', () => {
+  it('switches to the Precons tab and reveals the product panel', () => {
     render(<AddCardsSheet onClose={() => {}} />);
-    fireEvent.click(screen.getByRole('tab', { name: /Products/ }));
-    expect(screen.getByRole('tab', { name: /Products/ }).getAttribute('aria-selected')).toBe(
-      'true'
-    );
+    fireEvent.click(screen.getByRole('tab', { name: /Precons/ }));
+    expect(screen.getByRole('tab', { name: /Precons/ }).getAttribute('aria-selected')).toBe('true');
     const panel = screen.getByTestId('product-panel').closest('[role="tabpanel"]');
     expect(panel?.hasAttribute('hidden')).toBe(false);
   });
