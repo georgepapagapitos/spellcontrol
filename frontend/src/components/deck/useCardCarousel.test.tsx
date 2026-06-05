@@ -1,24 +1,31 @@
 // @vitest-environment happy-dom
-import { act, render, renderHook } from '@testing-library/react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCollectionStore } from '@/store/collection';
+import { useToastsStore } from '@/store/toasts';
+import { getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard, Finish } from '@/types';
 
-// The hook resolves name-only entries through the scryfall client; mock it so the
-// test stays offline and deterministic.
+// Name-only entries enrich in the background through the scryfall client; mock it
+// so the test stays offline and deterministic.
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardByName: vi.fn(),
+  getCardByNameResilient: vi.fn(),
 }));
 
-// Capture the cards CardPreview is handed so we can assert the finish the hook
-// resolved without depending on the real (DOM-heavy) preview component.
+const mockResolve = vi.mocked(getCardByNameResilient);
+
+// Capture the cards/index CardPreview is handed so we can assert what the hook
+// produced without depending on the real (DOM-heavy) preview component.
 const previewCards = vi.fn<(cards: EnrichedCard[]) => void>();
+const previewIndex = vi.fn<(index: number) => void>();
 vi.mock('@/components/CardPreview', () => ({
-  CardPreview: ({ cards }: { cards: EnrichedCard[] }) => {
+  CardPreview: ({ cards, index }: { cards: EnrichedCard[]; index: number }) => {
     previewCards(cards);
+    previewIndex(index);
     return null;
   },
 }));
@@ -42,21 +49,27 @@ function owned(name: string, oracleId: string, finish: Finish): EnrichedCard {
 
 beforeEach(() => {
   useCollectionStore.setState({ cards: [] });
+  useToastsStore.getState().clear();
   previewCards.mockClear();
+  previewIndex.mockClear();
+  mockResolve.mockReset();
 });
 
 afterEach(() => {
   vi.clearAllMocks();
   useCollectionStore.setState({ cards: [] });
+  useToastsStore.getState().clear();
 });
 
-async function openAndCapture(entries: CarouselEntry[], tapped: string): Promise<EnrichedCard> {
+/** Open with the given entries and return the (synchronously enriched) tapped
+ *  card CardPreview was handed. Used by the shimmer tests, which pass full
+ *  `card`s so resolution is synchronous. */
+function openAndCapture(entries: CarouselEntry[], tapped: string): EnrichedCard {
   const { result } = renderHook(() => useCardCarousel('Test Binder'));
-  await act(async () => {
-    await result.current.open(entries, tapped);
+  act(() => {
+    result.current.open(entries, tapped);
   });
-  // Actually mount the preview element so the mocked CardPreview runs and
-  // captures the `cards` prop the hook resolved.
+  // Mount the preview so the mocked CardPreview runs and captures the cards.
   expect(result.current.preview).not.toBeNull();
   render(result.current.preview);
   const lastCall = previewCards.mock.calls.at(-1);
@@ -68,9 +81,9 @@ async function openAndCapture(entries: CarouselEntry[], tapped: string): Promise
 }
 
 describe('useCardCarousel ownership shimmer', () => {
-  it('resolves an owned-foil card with the foil finish', async () => {
+  it('resolves an owned-foil card with the foil finish', () => {
     useCollectionStore.setState({ cards: [owned('Sol Ring', 'oracle-sol', 'foil')] });
-    const card = await openAndCapture(
+    const card = openAndCapture(
       [{ name: 'Sol Ring', label: '1 copy', card: scry('Sol Ring', 'oracle-sol') }],
       'Sol Ring'
     );
@@ -78,30 +91,30 @@ describe('useCardCarousel ownership shimmer', () => {
     expect(card.foil).toBe(true);
   });
 
-  it('prefers foil over etched when both are owned', async () => {
+  it('prefers foil over etched when both are owned', () => {
     useCollectionStore.setState({
       cards: [owned('Sol Ring', 'oracle-sol', 'etched'), owned('Sol Ring', 'oracle-sol', 'foil')],
     });
-    const card = await openAndCapture(
+    const card = openAndCapture(
       [{ name: 'Sol Ring', label: '2 copies', card: scry('Sol Ring', 'oracle-sol') }],
       'Sol Ring'
     );
     expect(card.finish).toBe('foil');
   });
 
-  it('uses etched when only an etched copy is owned', async () => {
+  it('uses etched when only an etched copy is owned', () => {
     useCollectionStore.setState({ cards: [owned('Sol Ring', 'oracle-sol', 'etched')] });
-    const card = await openAndCapture(
+    const card = openAndCapture(
       [{ name: 'Sol Ring', label: '1 copy', card: scry('Sol Ring', 'oracle-sol') }],
       'Sol Ring'
     );
     expect(card.finish).toBe('etched');
   });
 
-  it('keeps an unowned card nonfoil', async () => {
+  it('keeps an unowned card nonfoil', () => {
     // Collection has a different card → no oracleId match → no shimmer.
     useCollectionStore.setState({ cards: [owned('Counterspell', 'oracle-cs', 'foil')] });
-    const card = await openAndCapture(
+    const card = openAndCapture(
       [{ name: 'Sol Ring', label: '1 copy', card: scry('Sol Ring', 'oracle-sol') }],
       'Sol Ring'
     );
@@ -109,16 +122,16 @@ describe('useCardCarousel ownership shimmer', () => {
     expect(card.foil).toBe(false);
   });
 
-  it('stays nonfoil when only a nonfoil copy is owned', async () => {
+  it('stays nonfoil when only a nonfoil copy is owned', () => {
     useCollectionStore.setState({ cards: [owned('Sol Ring', 'oracle-sol', 'nonfoil')] });
-    const card = await openAndCapture(
+    const card = openAndCapture(
       [{ name: 'Sol Ring', label: '1 copy', card: scry('Sol Ring', 'oracle-sol') }],
       'Sol Ring'
     );
     expect(card.finish).toBe('nonfoil');
   });
 
-  it('falls back to name match when the resolved card has no oracleId', async () => {
+  it('falls back to name match when the resolved card has no oracleId', () => {
     // Resolved card has no oracleId (legacy/edge), so matching must fall back to
     // the card name. The owned foil copy still shimmers.
     const noOracleScry = {
@@ -128,10 +141,62 @@ describe('useCardCarousel ownership shimmer', () => {
     useCollectionStore.setState({
       cards: [scryfallToEnrichedCard(noOracleScry, 'foil')],
     });
-    const card = await openAndCapture(
+    const card = openAndCapture(
       [{ name: 'Sol Ring', label: '1 copy', card: noOracleScry }],
       'Sol Ring'
     );
     expect(card.finish).toBe('foil');
+  });
+});
+
+describe('useCardCarousel instant open', () => {
+  it('opens immediately with every entry as a slot, in lane order, at the tapped index', () => {
+    const { result } = renderHook(() => useCardCarousel('Test Binder'));
+    act(() => {
+      result.current.open(
+        [
+          { name: 'Sol Ring', label: 'a' },
+          { name: 'Counterspell', label: 'b' },
+          { name: 'Llanowar Elves', label: 'c' },
+        ],
+        'Counterspell'
+      );
+    });
+    render(result.current.preview);
+    const cards = previewCards.mock.calls.at(-1)![0];
+    // Whole lane present + swipeable up front (name-only placeholders), in order…
+    expect(cards.map((c) => c.name)).toEqual(['Sol Ring', 'Counterspell', 'Llanowar Elves']);
+    // …with art sourced from the CDN image URL (no rate-limited JSON call needed)…
+    expect(cards[0].imageNormal).toMatch(/format=image/);
+    // …and the carousel lands on the tapped card, not index 0.
+    expect(previewIndex.mock.calls.at(-1)![0]).toBe(1);
+  });
+
+  it('enriches the focused name-only card in the background via the resilient resolver', async () => {
+    mockResolve.mockResolvedValue(scry('Sol Ring', 'oracle-sol'));
+    const { result } = renderHook(() => useCardCarousel('Test Binder'));
+    act(() => {
+      result.current.open([{ name: 'Sol Ring', label: 'In 80% of decks' }], 'Sol Ring');
+    });
+    // Opens instantly with a placeholder, then pulls full data for what's in view.
+    await waitFor(() => expect(mockResolve).toHaveBeenCalledWith('Sol Ring'));
+  });
+});
+
+describe('useCardCarousel resilience', () => {
+  it('still opens with placeholder art when enrichment fails — never a dead end', () => {
+    // Even when the resolver can't enrich (offline incomplete + live miss), the
+    // card still shows from its name-derived image. No silent dead-end, no toast.
+    mockResolve.mockResolvedValue(null);
+    const { result } = renderHook(() => useCardCarousel('Test Binder'));
+    act(() => {
+      result.current.open([{ name: 'Sol Ring', label: 'x' }], 'Sol Ring');
+    });
+    render(result.current.preview);
+    const cards = previewCards.mock.calls.at(-1)![0];
+    expect(cards).toHaveLength(1);
+    expect(cards[0].name).toBe('Sol Ring');
+    expect(cards[0].imageNormal).toMatch(/format=image/);
+    expect(useToastsStore.getState().toasts).toHaveLength(0);
   });
 });

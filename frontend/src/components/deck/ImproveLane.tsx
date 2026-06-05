@@ -164,14 +164,10 @@ export function ImproveLane({
   return (
     <section className="improve-lane" aria-label="Improve the deck" {...hoverPeek.listHandlers}>
       <div className="improve-lane-controls">
-        <button
-          type="button"
-          className={`improve-filter${ownedOnly ? ' is-active' : ''}`}
-          aria-pressed={ownedOnly}
-          onClick={toggleOwned}
-        >
-          Owned only
-        </button>
+        <label className="field-checkbox improve-owned-toggle">
+          <input type="checkbox" checked={ownedOnly} onChange={toggleOwned} />
+          <span>Owned only</span>
+        </label>
         <span className="improve-lane-count">
           {shown.length} {shown.length === 1 ? 'card' : 'cards'}
         </span>

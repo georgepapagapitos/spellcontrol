@@ -171,9 +171,6 @@
 }
 
 .deck-card-row-incl {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -182,19 +179,11 @@
   font-style: italic;
 }
 
-.deck-card-row-incl-bar {
-  display: inline-block;
-  width: 3rem;
-  height: 0.35rem;
-  border-radius: 999px;
-  background: var(--surface);
-  overflow: hidden;
-}
-
-.deck-card-row-incl-fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
+/* The inclusion % is tinted red→amber→green (inline style) by how staple the
+   card is — the at-a-glance signal that used to live in a separate, unlabeled
+   bar floating beside the Add button. */
+.deck-card-row-incl-pct {
+  font-weight: 600;
 }
 
 .deck-card-row-syn {
@@ -207,16 +196,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.deck-card-row-verdict {
+/* Plain-English "why" line (e.g. "EDHREC staple", or a Bracket Fit "Replaces X
+   — completes a combo…" swap). Replaces the old verdict chip: the action button
+   and the section header already say add/cut/swap, so only the reason stays.
+   Clamped to a few lines so a long explanation can't blow the row up in a narrow
+   column — the full text is still in the carousel/preview. */
+.deck-card-row-reason {
   margin-top: 0.05rem;
   min-width: 0;
-}
-
-/* Clamp the reason to a few lines so a long explanation (e.g. a Bracket Fit
-   "Replaces X — completes a combo…" swap) can't blow the row up to a dozen
-   lines in a narrow column — it stays a uniform, scannable card with an
-   ellipsis; the full text is still in the carousel/preview. */
-.deck-card-row-verdict .verdict-reason {
+  font-size: var(--text-xs);
+  color: var(--text2);
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
