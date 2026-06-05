@@ -18,7 +18,7 @@ vi.mock('@/lib/offline', () => ({
   offlineSearchCards: vi.fn(),
 }));
 
-import { isPlayableCard, getCardById, getOwnedPrinting } from './client';
+import { isPlayableCard, getCardById, getOwnedPrinting, getCardByNameResilient } from './client';
 
 function makeCard(overrides: Partial<ScryfallCard>): ScryfallCard {
   return {
@@ -172,5 +172,78 @@ describe('getOwnedPrinting', () => {
     expect(result.id).toBe('my-foil-muldrotha');
     // Never hit the network in offline mode.
     expect(offlineLib.getCardByName).toHaveBeenCalledWith('Muldrotha, the Gravetide');
+  });
+});
+
+describe('getCardByNameResilient', () => {
+  beforeEach(() => {
+    gate.offline = false;
+    offlineLib.getCardByName.mockReset();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('offline hit: returns the offline card with no network call', async () => {
+    gate.offline = true;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    offlineLib.getCardByName.mockResolvedValue(
+      makeCard({ name: 'Resilient Offline Hit', layout: 'normal' })
+    );
+
+    const result = await getCardByNameResilient('Resilient Offline Hit');
+
+    expect(result?.name).toBe('Resilient Offline Hit');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('offline miss → falls back to a live fetch when online', async () => {
+    gate.offline = true;
+    offlineLib.getCardByName.mockResolvedValue(undefined); // name not in the offline store
+    const live = makeCard({ name: 'Resilient Live Fallback', layout: 'normal' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => live }));
+
+    const result = await getCardByNameResilient('Resilient Live Fallback');
+
+    expect(result?.name).toBe('Resilient Live Fallback');
+  });
+
+  it('offline stall → times out and falls back to live (no infinite hang)', async () => {
+    gate.offline = true;
+    // Offline read never settles — simulates the IDB write-lock stall while the
+    // bulk cache ingests. Must NOT hang; the cap should kick it to live.
+    offlineLib.getCardByName.mockReturnValue(new Promise(() => {}));
+    const live = makeCard({ name: 'Resilient Stall Fallback', layout: 'normal' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => live }));
+
+    // Tiny timeout so the test is fast.
+    const result = await getCardByNameResilient('Resilient Stall Fallback', true, 20);
+
+    expect(result?.name).toBe('Resilient Stall Fallback');
+  });
+
+  it('returns null (never throws) when both offline and live miss', async () => {
+    gate.offline = true;
+    offlineLib.getCardByName.mockResolvedValue(undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
+    );
+
+    await expect(getCardByNameResilient('Resilient Total Miss')).resolves.toBeNull();
+  });
+
+  it('live-primary (offline inactive): a miss is terminal — no pointless second attempt', async () => {
+    gate.offline = false;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getCardByNameResilient('Resilient Live Miss');
+
+    expect(result).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

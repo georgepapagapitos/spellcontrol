@@ -1320,3 +1320,58 @@ export function getCardRepository(): CardRepository {
   wrappedLive ??= withPlayableFilter(liveCardRepository);
   return wrappedLive;
 }
+
+/** Cap an offline IDB read: while the bulk cache is mid-ingest the store is
+ *  write-locked and a read can *stall* (not throw) for a long time, which would
+ *  hang any awaiter (e.g. the carousel's resolve → an infinite spinner). Past
+ *  this many ms we abandon the offline read and fall through to the live path. */
+const OFFLINE_READ_TIMEOUT_MS = 3000;
+
+/** Reject `p` if it hasn't settled within `ms` — used to bound a possibly-stalled
+ *  offline read so resolution can fall back to live instead of hanging forever. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('offline-read-timeout')), ms)),
+  ]);
+}
+
+/**
+ * Resolve a card by name offline-first, with a live fallback — and never throw.
+ *
+ * The offline oracle store can be *incomplete* (first-run bulk download still in
+ * flight) or simply not carry a given name (the slim payload keeps one printing
+ * per oracle), in which case the offline path throws — OR, while the bulk cache
+ * is ingesting, an offline read can *stall* under the write lock. Both cases are
+ * handled: the offline read is time-capped, and on miss/throw/timeout — when the
+ * device is online — we retry the lookup against the live Scryfall API. This keeps
+ * name-only consumers (chiefly the card-preview carousel, which re-resolves thin
+ * EDHREC/synergy rows by name) from dead-ending or hanging on a card the offline
+ * store can't (yet) resolve. Returns null only when both paths miss, so callers
+ * can surface one "couldn't load" affordance instead of catching throws.
+ *
+ * When offline mode is inactive the primary path already IS live, so a miss is
+ * terminal (no pointless second live call, no timeout needed).
+ */
+export async function getCardByNameResilient(
+  name: string,
+  exact = true,
+  offlineTimeoutMs = OFFLINE_READ_TIMEOUT_MS
+): Promise<ScryfallCard | null> {
+  const offline = offlineActive();
+  try {
+    const primary = getCardRepository().getCardByName(name, exact);
+    return await (offline ? withTimeout(primary, offlineTimeoutMs) : primary);
+  } catch {
+    const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+    if (offline && online) {
+      try {
+        wrappedLive ??= withPlayableFilter(liveCardRepository);
+        return await wrappedLive.getCardByName(name, exact);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}

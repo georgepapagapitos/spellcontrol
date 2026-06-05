@@ -1,7 +1,6 @@
 import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
-import { VerdictBadge, type Verdict } from './VerdictBadge';
 import type { Change } from '@/lib/deck-change';
 
 /** Scryfall named-card image endpoint — a CDN-cached redirect, no JS API call.
@@ -15,13 +14,6 @@ function inclusionColor(pct: number): string {
   const hue = Math.max(0, Math.min(120, (pct / 100) * 120));
   return `hsl(${hue} 60% 45%)`;
 }
-
-/** type → the canonical verdict word/tone. */
-const VERDICT_FOR_TYPE: Record<Change['type'], Verdict> = {
-  add: 'add',
-  cut: 'cut',
-  swap: 'substitute',
-};
 
 /** type → the action button's leading icon + default verb (icon size 14, per
  *  STYLE_GUIDE action-button anatomy). An explicit `actLabel` still wins. */
@@ -89,17 +81,17 @@ export function DeckCardRow({
     </button>
   );
 
-  // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick.
+  // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick. The
+  // percentage itself is tinted red→amber→green by how staple the card is, so the
+  // "how-staple" signal lives in the number instead of a separate unlabeled bar.
   const inclusionNode =
     typeof inclusion === 'number' ? (
       <span className="deck-card-row-incl">
-        In {Math.round(inclusion)}% of {commanderName ? `${commanderName} ` : ''}decks
-        <span className="deck-card-row-incl-bar" aria-hidden>
-          <span
-            className="deck-card-row-incl-fill"
-            style={{ width: `${Math.min(100, inclusion)}%`, background: inclusionColor(inclusion) }}
-          />
-        </span>
+        In{' '}
+        <span className="deck-card-row-incl-pct" style={{ color: inclusionColor(inclusion) }}>
+          {Math.round(inclusion)}%
+        </span>{' '}
+        of {commanderName ? `${commanderName} ` : ''}decks
       </span>
     ) : (
       <span className="deck-card-row-incl is-offmeta">Off-meta</span>
@@ -164,11 +156,7 @@ export function DeckCardRow({
             </span>
           )}
         </span>
-        <VerdictBadge
-          verdict={VERDICT_FOR_TYPE[change.type]}
-          reason={reason}
-          className="deck-card-row-verdict"
-        />
+        {reason && <span className="deck-card-row-reason">{reason}</span>}
       </div>
 
       {onAct && (

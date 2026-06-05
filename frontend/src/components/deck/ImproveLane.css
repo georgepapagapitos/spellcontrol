@@ -15,33 +15,20 @@
   gap: 0.5rem;
 }
 
-/* Owned-only toggle — a filter pill (999px, labels state), accent when active.
-   Mirrors .deck-combos-filter-pill so filters read as one family. */
-.improve-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  border: 0.5px solid var(--border);
-  background: transparent;
-  color: var(--text2);
-  font-size: var(--text-xs);
+/* Owned-only toggle — the app's shared `.field-checkbox` (accent-filled box +
+   checkmark when on), so its on/off state is unmistakable and consistent with
+   every other filter checkbox. "Rectangles act, pills label" (STYLE_GUIDE): a
+   toggle is an action, so it's a checkbox, not the old faint pill. This rule
+   only tunes the label for the compact controls row. */
+.improve-owned-toggle {
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition:
-    background 0.12s ease,
-    color 0.12s ease;
-}
-
-.improve-filter.is-active {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
+  user-select: none;
 }
 
 @media (pointer: coarse) {
-  .improve-filter {
+  .improve-owned-toggle {
     min-height: 36px;
   }
 }

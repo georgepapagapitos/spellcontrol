@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { useCallback, useRef, useState } from 'react';
+import { getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { useCollectionStore } from '@/store/collection';
 import type { EnrichedCard, Finish } from '@/types';
@@ -26,6 +26,47 @@ function ownedShimmerFinish(card: EnrichedCard): Finish {
     if (c.finish === 'etched') best = 'etched';
   }
   return best;
+}
+
+/** A fully-resolved Scryfall card → EnrichedCard, with the owned foil/etched
+ *  shimmer applied. classifyFoil (in CardPreview) keys off finish + promoTypes;
+ *  passing the owned finish to scryfallToEnrichedCard sets both `finish` and the
+ *  derived `foil` flag the foil overlay reads. */
+function enrichScry(scry: ScryfallCard): EnrichedCard {
+  const base = scryfallToEnrichedCard(scry);
+  const finish = ownedShimmerFinish(base);
+  return finish === 'nonfoil' ? base : scryfallToEnrichedCard(scry, finish);
+}
+
+/** Scryfall's named-card *image* endpoint — a CDN-cached redirect to the card's
+ *  art, NO rate-limited JSON call. Lets a name-only entry render its image
+ *  instantly (the same source the deck-row thumbnails use), so the carousel is
+ *  swipeable before any card data is fetched. */
+function namedImageUrl(name: string, version: 'normal' | 'large'): string {
+  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=${version}`;
+}
+
+/** A minimal EnrichedCard that renders a card's art from its name alone — no
+ *  network/JSON lookup. The carousel opens with these so every slot is present
+ *  and swipeable immediately; richer data (price/role/foil/back-face) is filled
+ *  in lazily by {@link useCardCarousel}'s windowed enrichment. */
+function placeholderCard(name: string, key: string): EnrichedCard {
+  return {
+    copyId: key,
+    name,
+    setCode: '',
+    setName: '',
+    collectorNumber: '',
+    rarity: '',
+    scryfallId: '',
+    purchasePrice: 0,
+    sourceCategory: '',
+    sourceFormat: '',
+    finish: 'nonfoil',
+    foil: false,
+    imageNormal: namedImageUrl(name, 'normal'),
+    imageLarge: namedImageUrl(name, 'large'),
+  };
 }
 
 /** A card to show in the carousel: its name plus a short context label rendered
@@ -58,60 +99,104 @@ export function tallyToEntries(tally: CardTally[]): CarouselEntry[] {
 }
 
 export interface CardCarousel {
-  /** Resolve `entries` to cards and open the preview at `tappedName`. */
-  open: (entries: CarouselEntry[], tappedName: string) => Promise<void>;
+  /** Open the preview at `tappedName`, with every entry immediately swipeable. */
+  open: (entries: CarouselEntry[], tappedName: string) => void;
   /** The CardPreview element to drop into the tree (null while closed). */
   preview: JSX.Element | null;
 }
 
+/** How many cards on each side of the focused card to eagerly enrich. Small so
+ *  swiping stays ahead of the (rate-limited) JSON API without fetching the lane. */
+const ENRICH_RADIUS = 2;
+
 /**
  * Shared "tap a card reference → open the CardPreview carousel" behavior for the
- * deck-analysis panels. Entries that carry a `card` render instantly; those with
- * only a name are fetched from Scryfall (in parallel) and converted to
- * EnrichedCard. Any that fail to resolve are skipped so the carousel never shows
- * a broken slot. One source of truth for the pattern that used to be copy-pasted
- * into each deck-analysis panel.
+ * deck-analysis panels.
+ *
+ * Opens **instantly**: every entry becomes a slide up front — entries that carry
+ * a `card` are fully enriched synchronously; name-only entries render from a
+ * name-derived image URL (the CDN redirect, no rate-limited JSON call). So the
+ * whole lane is swipeable the moment you tap, instead of waiting on ~N serial
+ * Scryfall lookups. Richer data (price, role, foil, DFC back-face) is then filled
+ * in lazily for a small window around whatever card you're viewing, so we never
+ * fire the entire lane at the rate-limited API. One source of truth for the
+ * pattern that used to be copy-pasted into each deck-analysis panel.
  */
 export function useCardCarousel(binderName: string): CardCarousel {
   const [cards, setCards] = useState<EnrichedCard[] | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
+  // Bumped on every open() and on close so a still-in-flight enrichment can't
+  // write into a carousel the user already closed or re-opened.
+  const openSeq = useRef(0);
+  const entriesRef = useRef<CarouselEntry[]>([]);
+  // Indices already enriched (or claimed in-flight) — so we never double-fetch.
+  const enrichedRef = useRef<Set<number>>(new Set());
 
-  const open = useCallback(async (entries: CarouselEntry[], tappedName: string) => {
-    // Resolve in parallel: provided `card`s need no network; name-only entries
-    // each fetch once. Preserve entry order so the carousel matches the list.
-    const results = await Promise.all(
-      entries.map(async (entry) => {
-        try {
-          const scry = entry.card ?? (await getCardByName(entry.name));
-          if (!scry) return null;
-          // Shimmer the card in the carousel only when the player owns a
-          // foil/etched copy. classifyFoil (in CardPreview) keys off finish +
-          // promoTypes; passing the owned finish to scryfallToEnrichedCard sets
-          // both `finish` and the derived `foil` flag the foil overlay reads.
-          const base = scryfallToEnrichedCard(scry);
-          const finish = ownedShimmerFinish(base);
-          return {
-            card: finish === 'nonfoil' ? base : scryfallToEnrichedCard(scry, finish),
-            label: entry.label,
-          };
-        } catch {
-          return null; // skip — leaves the slot out of the carousel
-        }
-      })
-    );
-    const resolved: EnrichedCard[] = [];
-    const resolvedLabels: string[] = [];
-    for (const r of results) {
-      if (!r) continue;
-      resolved.push(r.card);
-      resolvedLabels.push(r.label);
+  // Enrich a small window around `center` for cards that opened as name-only
+  // placeholders: swaps in price/role/foil/oracle + DFC back-face. Bounded to
+  // what's in view so a 180-card lane never floods the rate-limited JSON API.
+  const enrichAround = useCallback(async (center: number) => {
+    const seq = openSeq.current;
+    const entries = entriesRef.current;
+    const targets: number[] = [];
+    for (let d = 0; d <= ENRICH_RADIUS; d++) {
+      for (const i of d === 0 ? [center] : [center + d, center - d]) {
+        if (i >= 0 && i < entries.length && !enrichedRef.current.has(i)) targets.push(i);
+      }
     }
-    if (resolved.length === 0) return;
-    const idx = resolved.findIndex((c) => c.name.toLowerCase() === tappedName.toLowerCase());
-    setCards(resolved);
-    setLabels(resolvedLabels);
-    setIndex(idx >= 0 ? idx : 0);
+    for (const i of targets) {
+      enrichedRef.current.add(i); // claim up front so re-entry doesn't double-fetch
+      const scry = await getCardByNameResilient(entries[i].name);
+      if (seq !== openSeq.current) return; // carousel closed / re-opened meanwhile
+      if (!scry) {
+        enrichedRef.current.delete(i); // allow a later retry; placeholder stays usable
+        continue;
+      }
+      const enriched = enrichScry(scry);
+      setCards((prev) => (prev ? prev.map((c, j) => (j === i ? enriched : c)) : prev));
+    }
+  }, []);
+
+  const open = useCallback(
+    (entries: CarouselEntry[], tappedName: string) => {
+      if (entries.length === 0) return;
+      openSeq.current++;
+      entriesRef.current = entries;
+      const enriched = new Set<number>();
+      const slides = entries.map((e, i) => {
+        if (e.card) {
+          enriched.add(i); // already in hand — no fetch needed
+          return enrichScry(e.card);
+        }
+        return placeholderCard(e.name, `carousel:${i}:${e.name}`);
+      });
+      enrichedRef.current = enriched;
+      const tappedIdx = Math.max(
+        0,
+        entries.findIndex((e) => e.name.toLowerCase() === tappedName.toLowerCase())
+      );
+      // Open with every slot present (art streams from the CDN per-card, each
+      // with its own skeleton) so the carousel is swipeable immediately.
+      setCards(slides);
+      setLabels(entries.map((e) => e.label));
+      setIndex(tappedIdx);
+      void enrichAround(tappedIdx);
+    },
+    [enrichAround]
+  );
+
+  const handleIndexChange = useCallback(
+    (i: number) => {
+      setIndex(i);
+      void enrichAround(i); // pull richer data for the newly-focused window
+    },
+    [enrichAround]
+  );
+
+  const close = useCallback(() => {
+    openSeq.current++; // stop in-flight enrichment from touching a closed carousel
+    setCards(null);
   }, []);
 
   const preview =
@@ -130,8 +215,8 @@ export function useCardCarousel(binderName: string): CardCarousel {
         sectionLabels={labels}
         pageNumbers={cards.map(() => 0)}
         totalPages={1}
-        onIndexChange={setIndex}
-        onClose={() => setCards(null)}
+        onIndexChange={handleIndexChange}
+        onClose={close}
       />
     ) : null;
 

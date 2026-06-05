@@ -16,16 +16,23 @@ function add(over: Partial<Change> = {}): Change {
 }
 
 describe('DeckCardRow', () => {
-  it('renders the name, verdict word, and reason', () => {
+  it('renders the name and reason, without a redundant verdict chip', () => {
     render(<DeckCardRow change={add()} />);
     expect(screen.getByText('Sol Ring')).toBeTruthy();
-    expect(screen.getByText('Add')).toBeTruthy();
     expect(screen.getByText('fast mana')).toBeTruthy();
+    // The verdict chip is gone — the action button / section header carry the verb.
+    expect(screen.queryByText('Add')).toBeNull();
   });
 
-  it('shows the inclusion read-out when inclusion is a number', () => {
-    render(<DeckCardRow change={add({ inclusion: 87 })} commanderName="Atraxa" />);
-    expect(screen.getByText(/In 87% of Atraxa decks/)).toBeTruthy();
+  it('shows the inclusion read-out (with a tinted %) when inclusion is a number', () => {
+    const { container } = render(
+      <DeckCardRow change={add({ inclusion: 87 })} commanderName="Atraxa" />
+    );
+    expect(
+      container.querySelector('.deck-card-row-incl')?.textContent?.replace(/\s+/g, ' ').trim()
+    ).toBe('In 87% of Atraxa decks');
+    // The percentage itself is the tinted signal (replaces the old separate bar).
+    expect(container.querySelector('.deck-card-row-incl-pct')?.textContent).toBe('87%');
   });
 
   it('renders "Off-meta" when inclusion is undefined', () => {

@@ -117,7 +117,7 @@ describe('ImproveLane', () => {
 
   it('Owned only filters to owned candidates and injects owned substitutes', () => {
     renderLane();
-    fireEvent.click(screen.getByRole('button', { name: 'Owned only' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Owned only' }));
     // Owned add survives, unowned drops, and the owned substitute appears.
     expect(screen.getByText('Cultivate')).toBeTruthy();
     expect(screen.queryByText('Farseek')).toBeNull();
@@ -146,7 +146,7 @@ describe('ImproveLane', () => {
 
   it('shows an empty hint when Owned only has no matches', () => {
     renderLane({ substitutes: [], gaps: [gaps[1]] }); // only unowned Farseek
-    fireEvent.click(screen.getByRole('button', { name: 'Owned only' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Owned only' }));
     expect(screen.getByText(/No owned improvements/)).toBeTruthy();
   });
 });
