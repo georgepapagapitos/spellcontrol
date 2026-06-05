@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
 import { importDeckText, importDeckFile } from '../../lib/api';
-import { useDecksStore, newDeckCard } from '../../store/decks';
-import { useCollectionStore } from '../../store/collection';
-import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from '../../lib/allocations';
+import { useDecksStore } from '../../store/decks';
+import { buildAllocationMap, type AllocationInfo } from '../../lib/allocations';
+import { useBuildDeckFromImport } from '../../lib/build-deck-from-import';
 import { CommanderSearch } from './CommanderSearch';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
@@ -155,8 +155,7 @@ const PASTE_PLACEHOLDERS: Record<DeckFormat, string> = {
 export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' }: Props) {
   const navigate = useNavigate();
   const decks = useDecksStore((s) => s.decks);
-  const createDeck = useDecksStore((s) => s.createDeck);
-  const collectionCards = useCollectionStore((s) => s.cards);
+  const buildDeckFromResult = useBuildDeckFromImport();
 
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(initialFormat);
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
@@ -197,98 +196,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const formatMismatch = detectedFormat !== null && detectedFormat !== selectedFormat;
 
   /**
-   * Allocates each card to an owned physical copy, mutating the shared `claimed`
-   * map so multiple decks created together can't both grab the same copy.
-   */
-  const allocateCardsWith = useCallback(
-    (cardList: ScryfallCard[], claimed: Map<string, AllocationInfo>) =>
-      cardList.map((card) => {
-        const pick = pickCollectionCopy(card.name, collectionCards, claimed, card.id);
-        if (pick) {
-          claimed.set(pick.copyId, {
-            deckId: '__pending__',
-            deckName: '__pending__',
-            deckColor: '',
-            cardName: card.name,
-          });
-        }
-        return newDeckCard(card, pick?.copyId ?? null);
-      }),
-    [collectionCards]
-  );
-
-  /**
-   * Creates a deck from a resolved import response and returns its id. Pass a
-   * shared `claimed` map when creating several decks at once so physical copy
-   * allocations don't collide; omit it for one-off imports.
-   */
-  const buildDeckFromResult = useCallback(
-    (
-      result: DeckImportResponse,
-      commander: ScryfallCard | null,
-      name: string,
-      format: DeckFormat,
-      claimed?: Map<string, AllocationInfo>,
-      partner: ScryfallCard | null = null
-    ): string => {
-      const claim = claimed ?? new Map<string, AllocationInfo>(buildAllocationMap(decks));
-      if (commander) {
-        // Both commanders are kept out of the 99; a paired partner that was
-        // sitting in the imported list moves into the command zone.
-        const mainCards = result.cards.filter(
-          (c) => c.name !== commander.name && (!partner || c.name !== partner.name)
-        );
-        const cards = allocateCardsWith(mainCards, claim);
-        const commanderPick = pickCollectionCopy(
-          commander.name,
-          collectionCards,
-          claim,
-          commander.id
-        );
-        if (commanderPick) {
-          claim.set(commanderPick.copyId, {
-            deckId: '__pending__',
-            deckName: '__pending__',
-            deckColor: '',
-            cardName: commander.name,
-          });
-        }
-        const partnerPick = partner
-          ? pickCollectionCopy(partner.name, collectionCards, claim, partner.id)
-          : null;
-        if (partner && partnerPick) {
-          claim.set(partnerPick.copyId, {
-            deckId: '__pending__',
-            deckName: '__pending__',
-            deckColor: '',
-            cardName: partner.name,
-          });
-        }
-        return createDeck({
-          name: name.trim() || undefined,
-          format,
-          source: 'manual',
-          commander,
-          commanderAllocatedCopyId: commanderPick?.copyId ?? null,
-          partnerCommander: partner,
-          partnerCommanderAllocatedCopyId: partnerPick?.copyId ?? null,
-          cards,
-        });
-      }
-      const cards = allocateCardsWith(result.cards, claim);
-      return createDeck({
-        name: name.trim() || undefined,
-        format,
-        source: 'manual',
-        commander: null,
-        cards,
-        sideboard: [],
-      });
-    },
-    [allocateCardsWith, collectionCards, decks, createDeck]
-  );
-
-  /**
    * Picks the commander for a result given a target format. Returns
    * `needsChoice` when the format wants a commander but we can't pick one
    * unambiguously (multiple or zero valid candidates).
@@ -318,7 +225,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       name: string,
       partner: ScryfallCard | null = null
     ) => {
-      const id = buildDeckFromResult(result, commander, name, selectedFormat, undefined, partner);
+      const id = buildDeckFromResult(result, commander, name, selectedFormat, { partner });
       onClose();
       navigate(`/decks/${id}`);
     },
@@ -524,7 +431,12 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       if (!d.result) continue;
       const useCommander = DECK_FORMAT_CONFIGS[d.format].hasCommander ? d.commander : null;
       const usePartner = useCommander ? d.partner : null;
-      ids.push(buildDeckFromResult(d.result, useCommander, d.name, d.format, claimed, usePartner));
+      ids.push(
+        buildDeckFromResult(d.result, useCommander, d.name, d.format, {
+          claimed,
+          partner: usePartner,
+        })
+      );
     }
     onClose();
     navigate(ids.length === 1 ? `/decks/${ids[0]}` : '/decks');

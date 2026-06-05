@@ -1,11 +1,52 @@
 import type { ImportRow } from './parsers/types';
 import type { ScryfallCard } from './types';
+import type { ScryfallCache } from './cache';
+import { resolveCards } from './scryfall';
+import { expandByQuantity } from './import-limits';
 
 export interface DeckSections {
   commander: ScryfallCard | null;
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
   unresolvedNames: string[];
+}
+
+/**
+ * Resolves a deck's already-sectioned rows (commander / companion / deck) into
+ * the {@link DeckSections} response shape. Shared by the text `/api/import-deck`
+ * endpoint and the MTGJSON product path, which both build the same section row
+ * arrays and need identical resolution semantics.
+ *
+ * Two-pass resolution: first try with each row's full info (scryfallId, or
+ * name+set+collector). For any row that didn't resolve AND originally had a
+ * collectorNumber, retry without it — some exports use collector numbers
+ * Scryfall doesn't recognize for the exact printing, so falling back to
+ * name+set still produces a card.
+ */
+export async function resolveDeckRows(
+  commanderRows: ImportRow[],
+  companionRows: ImportRow[],
+  deckRows: ImportRow[],
+  cache: ScryfallCache
+): Promise<DeckSections> {
+  const allRows = [...commanderRows, ...companionRows, ...deckRows];
+  const expanded = expandByQuantity(allRows);
+  const firstPass = await resolveCards(expanded, cache);
+  const resolved = firstPass.resolved;
+
+  const retryIdxs: number[] = [];
+  resolved.forEach((card, i) => {
+    if (!card && expanded[i].collectorNumber) retryIdxs.push(i);
+  });
+  if (retryIdxs.length > 0) {
+    const retryRows = retryIdxs.map((i) => ({ ...expanded[i], collectorNumber: undefined }));
+    const retry = await resolveCards(retryRows, cache);
+    retryIdxs.forEach((origIdx, j) => {
+      if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
+    });
+  }
+
+  return sliceResolvedDeckImport(commanderRows, companionRows, deckRows, resolved);
 }
 
 function rowQty(row: ImportRow): number {

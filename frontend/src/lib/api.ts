@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { DeckImportResponse, UploadResponse } from '../types';
+import type {
+  DeckImportResponse,
+  ProductResolveResponse,
+  ProductSummary,
+  UploadResponse,
+} from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { handleResponse } from './fetch-utils';
 import { apiUrl } from './api-base';
@@ -211,6 +216,27 @@ export async function importDeckText(text: string): Promise<DeckImportResponse> 
     body: JSON.stringify({ text }),
   });
   return handleResponse<DeckImportResponse>(response);
+}
+
+/**
+ * Searches the MTGJSON product catalog (T17). `type` filters by MTGJSON product
+ * type (e.g. "Commander Deck"). Returns lightweight summaries for the picker.
+ */
+export async function searchProducts(query: string, type?: string): Promise<ProductSummary[]> {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (type) params.set('type', type);
+  const response = await fetchWithTimeout(`/api/products?${params.toString()}`, { method: 'GET' });
+  const data = await handleResponse<{ products: ProductSummary[] }>(response);
+  return data.products;
+}
+
+/** Resolves a single product's full decklist (playable deck + physical extras). */
+export async function fetchProduct(fileName: string): Promise<ProductResolveResponse> {
+  const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}`, {
+    method: 'GET',
+  });
+  return handleResponse<ProductResolveResponse>(response);
 }
 
 /** Import a deck from a file upload. Returns ScryfallCard objects grouped by section. */
