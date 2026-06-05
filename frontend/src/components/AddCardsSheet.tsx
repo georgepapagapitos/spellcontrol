@@ -1,4 +1,4 @@
-import { Camera, Search, Upload, X } from 'lucide-react';
+import { Camera, Package, Search, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCanScan } from '../lib/use-can-scan';
@@ -6,10 +6,11 @@ import { importScannedCards } from '../lib/scan-import';
 import { useCollectionStore } from '../store/collection';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { UploadPanel } from './UploadPanel';
+import { ProductSearchPanel } from './ProductSearchPanel';
 
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
-type Tab = 'search' | 'upload' | 'scan';
+type Tab = 'search' | 'upload' | 'product' | 'scan';
 
 interface Props {
   onClose: () => void;
@@ -101,6 +102,12 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
       available: true,
     },
     {
+      id: 'product',
+      label: 'Products',
+      icon: <Package width={14} height={14} aria-hidden />,
+      available: true,
+    },
+    {
       id: 'scan',
       label: 'Scan',
       icon: <Camera width={14} height={14} aria-hidden />,
@@ -167,6 +174,16 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
             className="add-cards-panel add-cards-panel-upload"
           >
             <UploadPanel hideScanButton />
+          </div>
+
+          <div
+            role="tabpanel"
+            id="add-cards-panel-product"
+            aria-labelledby="add-cards-tab-product"
+            hidden={activeTab !== 'product'}
+            className="add-cards-panel add-cards-panel-product"
+          >
+            <ProductSearchPanel onClose={onClose} />
           </div>
 
           {canScan && (

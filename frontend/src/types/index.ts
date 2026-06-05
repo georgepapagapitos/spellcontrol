@@ -144,6 +144,39 @@ export interface DeckImportResponse {
   cardCount: number;
 }
 
+/** A known MTG product (preconstructed deck, etc.) from the MTGJSON catalog (T17). */
+export interface ProductSummary {
+  fileName: string;
+  code: string;
+  name: string;
+  type: string;
+  releaseDate: string;
+}
+
+/**
+ * One physical card in a product, with per-copy quantity + finish + zone — for
+ * stamping owned copies and showing a per-zone breakdown.
+ */
+export interface ProductPhysicalCard {
+  card: import('@/deck-builder/types').ScryfallCard;
+  quantity: number;
+  finish: 'nonfoil' | 'foil' | 'etched';
+  /** Originating MTGJSON zone (commander, mainBoard, displayCommander, tokens, …). */
+  zone: string;
+}
+
+/** Resolved contents of a single product: the playable deck + every physical card. */
+export interface ProductResolveResponse {
+  product: ProductSummary;
+  /** The playable singleton deck (commander + 99) — for "add as a deck". */
+  deck: DeckImportResponse;
+  /** Every physical card in the box, finish-accurate — for "add to the collection". */
+  physicalCards: ProductPhysicalCard[];
+  unresolvedNames: string[];
+  /** True physical card count across every zone (playable + extras). */
+  physicalCardCount: number;
+}
+
 export type SortField =
   | 'none'
   | 'color'
