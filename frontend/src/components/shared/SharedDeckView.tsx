@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
+import { normalizeForSearch } from '../../lib/normalize-search';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
@@ -97,8 +98,8 @@ export function SharedDeckView({ data }: Props) {
     return Array.from(stacks.values());
   }, [data.sideboard]);
 
-  const q = search.trim().toLowerCase();
-  const matches = (pc: PublicCard) => (q ? pc.name.toLowerCase().includes(q) : true);
+  const q = normalizeForSearch(search);
+  const matches = (pc: PublicCard) => (q ? normalizeForSearch(pc.name).includes(q) : true);
 
   const mainboardCount =
     data.cards.length + (data.commander ? 1 : 0) + (data.partnerCommander ? 1 : 0);

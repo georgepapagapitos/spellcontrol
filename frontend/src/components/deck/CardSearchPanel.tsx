@@ -5,6 +5,7 @@ import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
+import { normalizeForSearch } from '../../lib/normalize-search';
 import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '../../lib/api';
 import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
@@ -396,7 +397,7 @@ function CollectionResults({
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const nq = normalizeForSearch(query);
     const seenNames = new Set<string>();
     const out: EnrichedCard[] = [];
     for (const c of collection) {
@@ -404,7 +405,7 @@ function CollectionResults({
       if (!ci.every((k) => colorIdentity.includes(k))) continue;
       const legality = c.legalities?.commander;
       if (legality && legality !== 'legal' && legality !== 'restricted') continue;
-      if (q && !c.name.toLowerCase().includes(q)) continue;
+      if (nq && !normalizeForSearch(c.name).includes(nq)) continue;
 
       // User-authored chip-expression filters from the filter dialog.
       // Color filter additionally narrows the commander-CI-constrained
