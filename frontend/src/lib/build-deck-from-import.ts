@@ -126,9 +126,7 @@ export function buildDeckInputFromImport(
  * lives in exactly one place. Returns the new deck id.
  */
 export function useBuildDeckFromImport() {
-  const decks = useDecksStore((s) => s.decks);
   const createDeck = useDecksStore((s) => s.createDeck);
-  const collectionCards = useCollectionStore((s) => s.cards);
 
   return useCallback(
     (
@@ -137,10 +135,17 @@ export function useBuildDeckFromImport() {
       name: string,
       format: DeckFormat,
       opts: BuildDeckOptions = {}
-    ): string =>
-      createDeck(
+    ): string => {
+      // Read collection + decks FRESH at call time, not a render-captured
+      // snapshot. The "add to collection AND as a deck" flow imports the cards
+      // into the collection first; a stale snapshot would allocate against the
+      // pre-add collection and mark every card unowned (T17 bug).
+      const decks = useDecksStore.getState().decks;
+      const collectionCards = useCollectionStore.getState().cards;
+      return createDeck(
         buildDeckInputFromImport(result, commander, name, format, { decks, collectionCards }, opts)
-      ),
-    [collectionCards, decks, createDeck]
+      );
+    },
+    [createDeck]
   );
 }
