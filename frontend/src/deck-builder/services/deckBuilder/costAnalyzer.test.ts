@@ -5,8 +5,10 @@ import {
   autoCheckToTarget,
   buildCostPlan,
   classifyConfidence,
+  filterCostPlanByOwnership,
   parsePrice,
   pickCheapestAlternative,
+  type CostPlan,
   type CostSwapRow,
 } from './costAnalyzer';
 
@@ -230,5 +232,95 @@ describe('buildCostPlan', () => {
     const plan = buildCostPlan(cards, 'Cmdr', undefined, recommendations);
     // "Cheap Ramp" is in the deck, so it can't be offered as a swap target.
     expect(plan.spellRows.find((r) => r.currentName === 'Expensive Ramp')).toBeUndefined();
+  });
+});
+
+// ── filterCostPlanByOwnership (E23) ──────────────────────────────────────
+
+function swapRow(over: Partial<CostSwapRow> & { currentName: string }): CostSwapRow {
+  return {
+    id: over.currentName,
+    currentPrice: 10,
+    currentInclusion: 50,
+    suggestionName: `${over.currentName} (budget)`,
+    suggestionPrice: 2,
+    suggestionInclusion: 45,
+    savings: 8,
+    confidence: 'drop-in',
+    category: 'spell',
+    ...over,
+  };
+}
+
+function plan(over: Partial<CostPlan> = {}): CostPlan {
+  return {
+    currentTotal: 100,
+    minTotal: 0,
+    spellRows: [],
+    landRows: [],
+    protectedCount: 0,
+    ...over,
+  };
+}
+
+describe('filterCostPlanByOwnership', () => {
+  it('drops rows for owned-and-available cards and keeps the rest', () => {
+    const owned = new Set(['Owned Staple']);
+    const p = plan({
+      currentTotal: 30,
+      spellRows: [
+        swapRow({ currentName: 'Owned Staple', currentPrice: 12, savings: 9 }),
+        swapRow({ currentName: 'Unowned Pricey', currentPrice: 10, savings: 7 }),
+      ],
+      landRows: [swapRow({ currentName: 'Owned Staple', category: 'land', savings: 5 })],
+    });
+
+    const out = filterCostPlanByOwnership(p, (name) => owned.has(name));
+
+    expect(out.spellRows.map((r) => r.currentName)).toEqual(['Unowned Pricey']);
+    expect(out.landRows).toHaveLength(0);
+    expect(out.ownedSkippedCount).toBe(2);
+  });
+
+  it('recomputes minTotal against only the surviving savings', () => {
+    const owned = new Set(['Owned Staple']);
+    const p = plan({
+      currentTotal: 30,
+      minTotal: 16, // stale value from the unfiltered plan (savings 9 + 5 = 14)
+      spellRows: [
+        swapRow({ currentName: 'Owned Staple', savings: 9 }),
+        swapRow({ currentName: 'Unowned Pricey', savings: 5 }),
+      ],
+    });
+
+    const out = filterCostPlanByOwnership(p, (name) => owned.has(name));
+
+    // currentTotal 30 - surviving savings 5 = 25 (not 16).
+    expect(out.minTotal).toBeCloseTo(25, 5);
+  });
+
+  it('keeps rows for un-owned and claimed-elsewhere cards (nothing owned-available)', () => {
+    const p = plan({
+      spellRows: [swapRow({ currentName: 'Unowned' }), swapRow({ currentName: 'In Other Deck' })],
+    });
+
+    const out = filterCostPlanByOwnership(p, () => false);
+
+    expect(out.spellRows).toHaveLength(2);
+    // Untouched plans are returned by identity so React memoization doesn't churn.
+    expect(out).toBe(p);
+    expect(out.ownedSkippedCount).toBeUndefined();
+  });
+
+  it('accumulates onto a prior ownedSkippedCount', () => {
+    const owned = new Set(['A']);
+    const p = plan({
+      ownedSkippedCount: 1,
+      spellRows: [swapRow({ currentName: 'A' }), swapRow({ currentName: 'B' })],
+    });
+
+    const out = filterCostPlanByOwnership(p, (name) => owned.has(name));
+
+    expect(out.ownedSkippedCount).toBe(2);
   });
 });
