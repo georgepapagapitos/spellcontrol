@@ -25,7 +25,12 @@ describe('resolveDeckRows', () => {
       resolved: [card('Zada'), card('Sol Ring'), card('Mountain')],
       unresolvedNames: [],
     });
-    const sections = await resolveDeckRows([row('Zada')], [], [row('Sol Ring'), row('Mountain')], fakeCache);
+    const sections = await resolveDeckRows(
+      [row('Zada')],
+      [],
+      [row('Sol Ring'), row('Mountain')],
+      fakeCache
+    );
     expect(sections.commander?.name).toBe('Zada');
     expect(sections.cards.map((c) => c.name)).toEqual(['Sol Ring', 'Mountain']);
     expect(resolveCards).toHaveBeenCalledTimes(1);
@@ -37,7 +42,12 @@ describe('resolveDeckRows', () => {
     // Second pass (without collectorNumber): it resolves.
     resolveCards.mockResolvedValueOnce({ resolved: [card('Plains')], unresolvedNames: [] });
 
-    const sections = await resolveDeckRows([], [], [row('Plains', { collectorNumber: '999' })], fakeCache);
+    const sections = await resolveDeckRows(
+      [],
+      [],
+      [row('Plains', { collectorNumber: '999' })],
+      fakeCache
+    );
     expect(sections.cards.map((c) => c.name)).toEqual(['Plains']);
     expect(resolveCards).toHaveBeenCalledTimes(2);
     // The retry row had its collectorNumber stripped.
