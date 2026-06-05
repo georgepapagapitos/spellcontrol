@@ -21,6 +21,7 @@ import { PowerHero } from '../components/deck/PowerHero';
 import { ImproveLane } from '../components/deck/ImproveLane';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { CostPanel } from '../components/deck/CostPanel';
+import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { BracketFitLane } from '../components/deck/BracketFitLane';
 import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
@@ -303,6 +304,20 @@ export function DeckEditorPage() {
       return 'unowned';
     },
     [ownershipByName]
+  );
+
+  // Ownership-aware trim-cost plan (E23). Suppress cheaper-swap rows for cards the
+  // user already owns and can field in this deck — you've already paid, so there's
+  // no spend to trim. Only un-owned ('unowned') or all-copies-claimed-elsewhere
+  // ('in-other-deck') cards keep a row. Live: re-derives from `ownershipFor` so
+  // buying/selling/reallocating a copy updates the list without a re-analysis.
+  const rawCostPlan = deck?.costPlan;
+  const effectiveCostPlan = useMemo(
+    () =>
+      rawCostPlan
+        ? filterCostPlanByOwnership(rawCostPlan, (name) => ownershipFor(name) === 'owned')
+        : null,
+    [rawCostPlan, ownershipFor]
   );
 
   // Free (unallocated) owned copies of a card name — drives the "N free" badge on
@@ -1392,10 +1407,10 @@ export function DeckEditorPage() {
             }
             costSlot={
               formatConfig?.hasCommander &&
-              deck.costPlan &&
-              (deck.costPlan.spellRows.length > 0 || deck.costPlan.landRows.length > 0) ? (
+              effectiveCostPlan &&
+              (effectiveCostPlan.spellRows.length > 0 || effectiveCostPlan.landRows.length > 0) ? (
                 <CostPanel
-                  plan={deck.costPlan}
+                  plan={effectiveCostPlan}
                   onApply={handleApplyCostSwaps}
                   applying={applyingCost}
                 />
