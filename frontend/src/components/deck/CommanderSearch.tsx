@@ -12,6 +12,7 @@ import {
 } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
+import { normalizeForSearch } from '../../lib/normalize-search';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
 
@@ -200,17 +201,19 @@ export function CommanderSearch({ value, onSelect }: Props) {
         return;
       }
       if (ownedOnly) {
-        const ql = q.toLowerCase();
+        const nq = normalizeForSearch(q);
         // Rank hits so the closest match leads: exact name, then prefix, then
-        // any substring; ties broken alphabetically.
+        // any substring; ties broken alphabetically. Ranking folds punctuation
+        // the same way the filter does so "mr house" still ranks "Mr. House"
+        // as an exact hit.
         const rank = (name: string): number => {
-          const n = name.toLowerCase();
-          if (n === ql) return 0;
-          if (n.startsWith(ql)) return 1;
+          const n = normalizeForSearch(name);
+          if (n === nq) return 0;
+          if (n.startsWith(nq)) return 1;
           return 2;
         };
         const matched = collectionLegends
-          .filter((c) => c.name.toLowerCase().includes(ql))
+          .filter((c) => normalizeForSearch(c.name).includes(nq))
           .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
         // Resolve full ScryfallCards lazily — we don't need them in the list,
         // just for the final selection. Show owned legends as a name+type list.

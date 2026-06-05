@@ -3,31 +3,38 @@ import { materializeBinders } from './materialize';
 
 /**
  * Where the cards from a particular import ended up after rule routing.
- * `binderId` is null for the uncategorized bucket.
+ * Only real binder destinations are reported — the uncategorized remainder is
+ * deliberately not surfaced (see `summarizeImportRouting`).
  */
 export interface ImportRoutingEntry {
-  binderId: string | null;
+  binderId: string;
   binderName: string;
   binderColor?: string;
   count: number;
 }
 
 export interface ImportRoutingSummary {
-  /** Per-destination breakdown, sorted by count desc (uncategorized always
-   *  appears last regardless of count so it doesn't drown out the binders). */
+  /** Per-binder breakdown, sorted by count desc. Cards that matched no binder
+   *  (the "Uncategorized" remainder) are intentionally omitted — falling
+   *  through to Uncategorized just means "still in your collection, unrouted",
+   *  which isn't worth surfacing as a where-did-my-cards-go destination (E11). */
   entries: ImportRoutingEntry[];
-  /** Total cards from the import that we could place. Same as
+  /** Total cards from the import that landed in a binder. Same as
    *  `entries.reduce(+ count)` — surfaced separately so callers don't need
-   *  to recompute it. */
+   *  to recompute it. Excludes the uncategorized remainder. */
   totalRouted: number;
 }
 
-const UNCATEGORIZED_NAME = 'Uncategorized';
-
 /**
  * Bucket every card stamped with one of `importIds` into the binder its rules
- * routed it to (or "Uncategorized" if nothing matched). The user just hit
- * "Import" — they want a one-glance answer to "where did my cards go?"
+ * routed it to. The user just hit "Import" — they want a one-glance answer to
+ * "where did my cards go?"
+ *
+ * Cards that matched no binder fall through to the Uncategorized remainder and
+ * are NOT reported (E11): "uncategorized" is just "still in the collection,
+ * unrouted", a no-op default not worth surfacing. When nothing matched a real
+ * binder the summary is empty and the caller hides the panel entirely (the
+ * import success banner already confirms the import landed).
  *
  * We materialize the *current* binder layout once and walk the per-binder
  * card lists, so the result agrees with what the user will see when they
@@ -47,58 +54,37 @@ export function summarizeImportRouting(
   // or sorts here — only which cards landed where — but we still go through
   // the official path so quirks like deck-allocation hiding and printing
   // promotion stay consistent with the user-visible layout.
-  const { binders, uncategorized } = materializeBinders(cards, binderDefs, {
+  const { binders } = materializeBinders(cards, binderDefs, {
     globalPocketSize: 9,
     search: '',
   });
 
-  const counts = new Map<string | null, number>();
-  const meta = new Map<string, { name: string; color?: string }>();
-
+  const entries: ImportRoutingEntry[] = [];
   for (const b of binders) {
-    meta.set(b.def.id, { name: b.def.name, color: b.def.color });
     let n = 0;
     for (const section of b.sections) {
       for (const c of section.cards) {
         if (c.importId && importIds.has(c.importId)) n++;
       }
     }
-    if (n > 0) counts.set(b.def.id, n);
-  }
-
-  let uncatCount = 0;
-  for (const section of uncategorized.sections) {
-    for (const c of section.cards) {
-      if (c.importId && importIds.has(c.importId)) uncatCount++;
-    }
-  }
-  if (uncatCount > 0) counts.set(null, uncatCount);
-
-  const binderEntries: ImportRoutingEntry[] = [];
-  let uncatEntry: ImportRoutingEntry | null = null;
-  for (const [id, count] of counts) {
-    if (id === null) {
-      uncatEntry = { binderId: null, binderName: UNCATEGORIZED_NAME, count };
-    } else {
-      const m = meta.get(id);
-      binderEntries.push({
-        binderId: id,
-        binderName: m?.name ?? id,
-        binderColor: m?.color,
-        count,
+    if (n > 0) {
+      entries.push({
+        binderId: b.def.id,
+        binderName: b.def.name,
+        binderColor: b.def.color,
+        count: n,
       });
     }
   }
 
-  // Binders sort by count desc, name asc on ties. Uncategorized always trails
-  // the binder rows since it's the "fell through" pile, not a destination
-  // the user picked.
-  binderEntries.sort((a, b) => {
+  // Binders sort by count desc, name asc on ties. The uncategorized remainder
+  // isn't collected at all — it's the "fell through, still in the collection"
+  // pile, not a destination worth reporting.
+  entries.sort((a, b) => {
     if (a.count !== b.count) return b.count - a.count;
     return a.binderName.localeCompare(b.binderName);
   });
 
-  const entries = uncatEntry ? [...binderEntries, uncatEntry] : binderEntries;
   const totalRouted = entries.reduce((s, e) => s + e.count, 0);
   return { entries, totalRouted };
 }

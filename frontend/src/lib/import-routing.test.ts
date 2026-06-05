@@ -82,9 +82,11 @@ describe('summarizeImportRouting', () => {
 
     const result = summarizeImportRouting(new Set(['imp-1']), cards, [expensiveBinder, rareBinder]);
 
-    expect(result.totalRouted).toBe(3);
+    // The uncategorized card (importedUncat) is NOT reported (E11): only the two
+    // cards that matched a real binder count toward totalRouted.
+    expect(result.totalRouted).toBe(2);
     const byBinder = Object.fromEntries(result.entries.map((e) => [e.binderName, e.count]));
-    expect(byBinder).toEqual({ Expensive: 1, Rares: 1, Uncategorized: 1 });
+    expect(byBinder).toEqual({ Expensive: 1, Rares: 1 });
   });
 
   it('ignores cards from imports not in the importIds set', () => {
@@ -99,7 +101,7 @@ describe('summarizeImportRouting', () => {
     expect(result.entries[0].count).toBe(1);
   });
 
-  it('sorts binder entries by count desc, with Uncategorized last', () => {
+  it('sorts binder entries by count desc and omits the uncategorized remainder', () => {
     const a = makeBinder({ id: 'a', name: 'Alpha', position: 0, filter: { priceMin: 100 } });
     const b = makeBinder({ id: 'b', name: 'Bravo', position: 1, filter: { priceMin: 5 } });
 
@@ -110,14 +112,16 @@ describe('summarizeImportRouting', () => {
       makeCard({ importId: 'imp-1', purchasePrice: 10 }),
       makeCard({ importId: 'imp-1', purchasePrice: 10 }),
       makeCard({ importId: 'imp-1', purchasePrice: 10 }),
-      // 2 cards uncategorized (price 1 each)
+      // 2 cards uncategorized (price 1 each) — not reported
       makeCard({ importId: 'imp-1', purchasePrice: 1 }),
       makeCard({ importId: 'imp-1', purchasePrice: 1 }),
     ];
 
     const result = summarizeImportRouting(new Set(['imp-1']), cards, [a, b]);
-    expect(result.entries.map((e) => e.binderName)).toEqual(['Bravo', 'Alpha', 'Uncategorized']);
-    expect(result.entries.map((e) => e.count)).toEqual([3, 1, 2]);
+    expect(result.entries.map((e) => e.binderName)).toEqual(['Bravo', 'Alpha']);
+    expect(result.entries.map((e) => e.count)).toEqual([3, 1]);
+    // The 2 uncategorized cards are excluded from the routed total.
+    expect(result.totalRouted).toBe(4);
   });
 
   it('omits binders that received no cards from the import', () => {
@@ -129,10 +133,25 @@ describe('summarizeImportRouting', () => {
     expect(result.entries.map((e) => e.binderName)).toEqual(['Alpha']);
   });
 
-  it('returns a single Uncategorized entry when no binders exist', () => {
+  it('returns no entries when nothing matches a real binder (E11 — uncategorized is not surfaced)', () => {
     const cards = [makeCard({ importId: 'imp-1' }), makeCard({ importId: 'imp-1' })];
     const result = summarizeImportRouting(new Set(['imp-1']), cards, []);
-    expect(result.entries).toEqual([{ binderId: null, binderName: 'Uncategorized', count: 2 }]);
-    expect(result.totalRouted).toBe(2);
+    expect(result.entries).toEqual([]);
+    expect(result.totalRouted).toBe(0);
+  });
+
+  it('omits the uncategorized remainder even when some cards do match a binder', () => {
+    const priceyBinder = makeBinder({ id: 'pricey', name: 'Pricey', filter: { priceMin: 5 } });
+    const matched = makeCard({ importId: 'imp-1', purchasePrice: 10 });
+    const fellThrough = makeCard({ importId: 'imp-1', purchasePrice: 1 });
+
+    const result = summarizeImportRouting(
+      new Set(['imp-1']),
+      [matched, fellThrough],
+      [priceyBinder]
+    );
+    expect(result.entries.map((e) => e.binderName)).toEqual(['Pricey']);
+    expect(result.entries.every((e) => typeof e.binderId === 'string')).toBe(true);
+    expect(result.totalRouted).toBe(1);
   });
 });

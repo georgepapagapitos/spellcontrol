@@ -24,9 +24,11 @@ import { resolveCards, fetchCardsByIds, fetchPrintings, getCardById } from './sc
 import { runScryfallBulkIngest } from './scryfall-bulk';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
-import { sliceResolvedDeckImport } from './deck-import';
+import { resolveDeckRows } from './deck-import';
+import { ImportTooLargeError, MAX_QTY_PER_ROW, MAX_TOTAL_CARDS } from './import-limits';
+import { searchProducts, getProductDeck } from './products';
+import { productToDeckSections, productToPhysicalRows, countPhysicalCards } from './product-map';
 import { mergeCard } from './merge-card';
-import type { ImportRow } from './parsers/types';
 import type { DeckImportResponse, EnrichedCard, ScryfallCard, UploadResponse } from './types';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3737;
@@ -106,6 +108,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // enough to throttle abusive single-IP scripting.
 const importLimiter = rateLimit({ windowMs: 60_000, max: 60 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
+const productLimiter = rateLimit({ windowMs: 60_000, max: 60 });
 
 // Kept ABOVE the sync snapshot cap (MAX_SNAPSHOT_BYTES, 64MB) so an oversize
 // collection is rejected by the sync route with a friendly, actionable message
@@ -203,6 +206,98 @@ app.get('/api/sets', async (_req: Request, res: Response) => {
   } catch (err) {
     logger.error('[sets] fetch failed:', err);
     res.status(502).json({ error: 'Failed to fetch set list from Scryfall.' });
+  }
+});
+
+/**
+ * Searches the MTGJSON preconstructed-product catalog (T17). `q` matches product
+ * names; `type` is a comma-separated MTGJSON type filter (e.g. "Commander Deck").
+ */
+app.get('/api/products', productLimiter, async (req: Request, res: Response) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const typeParam = req.query.type;
+    const types =
+      typeof typeParam === 'string' && typeParam.trim()
+        ? typeParam.split(',').map((t) => t.trim())
+        : undefined;
+    const products = await searchProducts(q, { types });
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ products });
+  } catch (err) {
+    logger.error('[products] search failed:', err);
+    res.status(502).json({ error: 'Failed to fetch product list from MTGJSON.' });
+  }
+});
+
+/**
+ * Resolves a single product's decklist into the import shape. Returns the
+ * playable deck (commander + 99, ready for the deck-import flow) plus `extras`
+ * — the physical cards that ship in the box but aren't part of the 100
+ * (display/etched commanders, tokens, sideboard) — for the collection-add path.
+ */
+app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Response) => {
+  try {
+    const fileName = String(req.params.fileName ?? '');
+    const deckFile = await getProductDeck(fileName);
+    if (!deckFile) {
+      return res
+        .status(404)
+        .json({ error: 'Product not found. Newly released products may not be catalogued yet.' });
+    }
+
+    // Playable deck (commander + 99) for "add as a deck".
+    const { commanderRows, companionRows, deckRows } = productToDeckSections(deckFile);
+    const sections = await resolveDeckRows(commanderRows, companionRows, deckRows, cache);
+
+    const deck: DeckImportResponse = {
+      commander: sections.commander,
+      companion: sections.companion,
+      cards: sections.cards,
+      unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
+      // Precons carry a commander zone → default the import dialog to Commander.
+      detectedFormat: commanderRows.length > 0 ? 'commander' : '',
+      cardCount:
+        sections.cards.length + (sections.commander ? 1 : 0) + (sections.companion ? 1 : 0),
+    };
+
+    // Every physical card across every zone (finish-accurate) for "add to the
+    // collection" — includes the display/etched commanders + tokens the deck omits.
+    const physicalRows = productToPhysicalRows(deckFile);
+    const physicalResolved = await resolveCards(physicalRows, cache);
+    const physicalCards = physicalRows
+      .map((row, i) => {
+        const card = physicalResolved.resolved[i];
+        if (!card) return null;
+        return {
+          card,
+          quantity: Math.max(1, row.quantity || 1),
+          finish: row.finish ?? 'nonfoil',
+          zone: row.sourceCategory ?? 'mainBoard',
+        };
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null);
+
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({
+      product: {
+        fileName,
+        code: deckFile.code,
+        name: deckFile.name,
+        type: deckFile.type,
+        releaseDate: deckFile.releaseDate ?? '',
+      },
+      deck,
+      physicalCards,
+      unresolvedNames: dedupePreservingOrder(physicalResolved.unresolvedNames),
+      physicalCardCount: countPhysicalCards(deckFile),
+    });
+  } catch (err) {
+    if (err instanceof ImportTooLargeError) {
+      return res.status(413).json({ error: err.message });
+    }
+    logger.error('[products] resolve failed:', err);
+    res.status(502).json({ error: 'Failed to resolve product decklist.' });
   }
 });
 
@@ -325,31 +420,9 @@ app.post(
 
       // Resolve each expanded row independently so distinct printings of the
       // same name (e.g. Plains FDN #272 vs FDN #282) stay distinct in the deck.
-      // The previous implementation collapsed by (name, setCode), losing
-      // printing precision on basic lands and any same-set multi-printing card.
-      //
-      // Two-pass resolution: first try with all the row's info (scryfallId or
-      // name+set+collector). For any row that didn't resolve AND originally had
-      // a collectorNumber, retry without it — some deck-builder exports use
-      // collector numbers Scryfall doesn't recognize for the exact printing the
-      // user owns; falling back to name+set lets us still produce a card.
-      const allRows = [...commanderRows, ...companionRows, ...deckRows];
-      const expanded = expandByQuantity(allRows);
-      const firstPass = await resolveCards(expanded, cache);
-      const resolved = firstPass.resolved;
-
-      const retryIdxs: number[] = [];
-      resolved.forEach((card, i) => {
-        if (!card && expanded[i].collectorNumber) retryIdxs.push(i);
-      });
-      if (retryIdxs.length > 0) {
-        const retryRows = retryIdxs.map((i) => ({ ...expanded[i], collectorNumber: undefined }));
-        const retry = await resolveCards(retryRows, cache);
-        retryIdxs.forEach((origIdx, j) => {
-          if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
-        });
-      }
-      const sections = sliceResolvedDeckImport(commanderRows, companionRows, deckRows, resolved);
+      // Two-pass resolution (collectorNumber fallback) lives in resolveDeckRows,
+      // shared with the MTGJSON product import path.
+      const sections = await resolveDeckRows(commanderRows, companionRows, deckRows, cache);
 
       const response: DeckImportResponse = {
         commander: sections.commander,
@@ -532,44 +605,6 @@ async function readImportText(req: Request): Promise<string | null> {
     return req.body.text;
   }
   return null;
-}
-
-/**
- * Caps for the import expansion step. Parsers `parseInt()` the quantity field
- * with no upper bound, so a tiny payload (`Sol Ring,2000000000`) would
- * otherwise expand into a multi-billion-element array and OOM the container —
- * a content-level amplification bomb that no byte-size limit can catch.
- *
- * MAX_QTY_PER_ROW: nobody legitimately owns >2000 copies of one card (a
- * playset is 4; even bulk basics top out in the hundreds).
- * MAX_TOTAL_CARDS: ~90k unique printings exist in all of Magic; the largest
- * realistic single collection is well under 200k physical cards.
- */
-const MAX_QTY_PER_ROW = 2000;
-const MAX_TOTAL_CARDS = 200_000;
-
-export class ImportTooLargeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ImportTooLargeError';
-  }
-}
-
-function expandByQuantity(rows: ImportRow[]): ImportRow[] {
-  const expanded: ImportRow[] = [];
-  for (const row of rows) {
-    const qty = Math.min(MAX_QTY_PER_ROW, Math.max(1, row.quantity || 1));
-    for (let i = 0; i < qty; i++) {
-      if (expanded.length >= MAX_TOTAL_CARDS) {
-        throw new ImportTooLargeError(
-          `Import exceeds the ${MAX_TOTAL_CARDS.toLocaleString()}-card limit. ` +
-            `Split it into smaller files.`
-        );
-      }
-      expanded.push(row);
-    }
-  }
-  return expanded;
 }
 
 function dedupePreservingOrder<T>(arr: T[]): T[] {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { normalizeForSearch } from '@/lib/normalize-search';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 
 interface Props {
@@ -40,9 +41,9 @@ export function ZoneViewerModal({
   const visible = useMemo(() => {
     let pool = cards;
     if (topN != null) pool = ordered ? cards.slice(0, topN) : cards.slice(-topN);
-    const q = filter.trim().toLowerCase();
-    if (!q) return pool;
-    return pool.filter((c) => c.name.toLowerCase().includes(q));
+    const nq = normalizeForSearch(filter);
+    if (!nq) return pool;
+    return pool.filter((c) => normalizeForSearch(c.name).includes(nq));
   }, [cards, filter, topN, ordered]);
 
   const titleLabel = topN != null ? `Top ${topN} of ${zone}` : zone;
