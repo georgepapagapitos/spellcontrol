@@ -10231,15 +10231,18 @@ hr {
 }
 
 .add-cards-panel-search,
-.add-cards-panel-upload {
+.add-cards-panel-upload,
+.add-cards-panel-product {
   padding: 1rem 1.5rem 1.25rem;
 }
 
-.add-cards-panel-search .add-card-search-input-wrap {
+.add-cards-panel-search .add-card-search-input-wrap,
+.add-cards-panel-product .add-card-search-input-wrap {
   padding-bottom: 0.5rem;
 }
 
-.add-cards-panel-search .add-card-sheet-body {
+.add-cards-panel-search .add-card-sheet-body,
+.add-cards-panel-product .add-card-sheet-body {
   padding: 0;
 }
 

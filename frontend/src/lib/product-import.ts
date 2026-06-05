@@ -46,9 +46,34 @@ const ZONE_LABELS: Record<string, string> = {
   schemes: 'Schemes',
 };
 
+/** Display order for zones — the playable deck first, then physical extras. */
+const ZONE_ORDER = [
+  'commander',
+  'mainBoard',
+  'displayCommander',
+  'sideBoard',
+  'tokens',
+  'planes',
+  'schemes',
+];
+
 /** Human label for an MTGJSON zone (falls back to the raw zone name). */
 export function zoneLabel(zone: string): string {
   return ZONE_LABELS[zone] ?? zone;
+}
+
+/** Zones present in `physicalCards`, in display order (known zones first). */
+function orderedZones(physicalCards: ProductPhysicalCard[]): string[] {
+  const present = new Set(physicalCards.map((pc) => pc.zone));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const zone of [...ZONE_ORDER, ...present]) {
+    if (present.has(zone) && !seen.has(zone)) {
+      seen.add(zone);
+      out.push(zone);
+    }
+  }
+  return out;
 }
 
 /**
@@ -57,25 +82,44 @@ export function zoneLabel(zone: string): string {
  * reconcile against the physical box.
  */
 export function zoneBreakdown(physicalCards: ProductPhysicalCard[]): ZoneBreakdown[] {
-  const order = [
-    'commander',
-    'mainBoard',
-    'displayCommander',
-    'sideBoard',
-    'tokens',
-    'planes',
-    'schemes',
-  ];
   const counts = new Map<string, number>();
   for (const pc of physicalCards) {
     counts.set(pc.zone, (counts.get(pc.zone) ?? 0) + Math.max(1, pc.quantity));
   }
-  const seen = new Set<string>();
-  const out: ZoneBreakdown[] = [];
-  for (const zone of [...order, ...counts.keys()]) {
-    if (seen.has(zone) || !counts.has(zone)) continue;
-    seen.add(zone);
-    out.push({ zone, label: zoneLabel(zone), count: counts.get(zone)! });
+  return orderedZones(physicalCards).map((zone) => ({
+    zone,
+    label: zoneLabel(zone),
+    count: counts.get(zone)!,
+  }));
+}
+
+/** A product's physical cards grouped by zone, in display order, with counts. */
+export interface ProductZoneGroup {
+  zone: string;
+  label: string;
+  count: number;
+  cards: ProductPhysicalCard[];
+}
+
+/**
+ * Groups a product's physical cards by zone for the inline card grid — deck
+ * first, then display commanders / tokens / etc. Card order within a zone is
+ * preserved. `count` is the copy total (basics etc. carry quantity > 1).
+ */
+export function groupPhysicalByZone(physicalCards: ProductPhysicalCard[]): ProductZoneGroup[] {
+  const byZone = new Map<string, ProductPhysicalCard[]>();
+  for (const pc of physicalCards) {
+    const list = byZone.get(pc.zone) ?? [];
+    list.push(pc);
+    byZone.set(pc.zone, list);
   }
-  return out;
+  return orderedZones(physicalCards).map((zone) => {
+    const cards = byZone.get(zone)!;
+    return {
+      zone,
+      label: zoneLabel(zone),
+      count: cards.reduce((n, pc) => n + Math.max(1, pc.quantity), 0),
+      cards,
+    };
+  });
 }

@@ -47,6 +47,31 @@ interface DeckFileResponse {
   data: MtgjsonDeckFile;
 }
 
+/** Compact commander preview for a product, for lazy enrichment of search rows (T17). */
+export interface ProductCommanderSummary {
+  name: string;
+  colorIdentity: string[];
+  /** Full small card image URL — rendered as a card-shaped row thumbnail. */
+  image: string | null;
+}
+
+// Tiny, long-lived: one entry per product the user has previewed. `null` means
+// resolved-but-no-commander (non-commander product) — distinct from "not cached".
+const commanderSummaryCache = new Map<string, ProductCommanderSummary | null>();
+
+export function getCachedCommanderSummary(
+  fileName: string
+): ProductCommanderSummary | null | undefined {
+  return commanderSummaryCache.has(fileName) ? commanderSummaryCache.get(fileName) : undefined;
+}
+
+export function setCachedCommanderSummary(
+  fileName: string,
+  summary: ProductCommanderSummary | null
+): void {
+  commanderSummaryCache.set(fileName, summary);
+}
+
 // --- DeckList index (TTL singleton + in-flight dedupe, mirrors sets.ts) -------
 
 let indexCache: { at: number; entries: DeckListEntry[] } | null = null;
@@ -200,4 +225,5 @@ export function __resetProductCaches(): void {
   indexInFlight = null;
   deckCache.clear();
   deckInFlight.clear();
+  commanderSummaryCache.clear();
 }

@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   List as ListIconLucide,
   MoreVertical,
+  Package,
   Plus,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -12,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
+import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
@@ -258,6 +260,7 @@ export function DecksIndexPage() {
   }, [decks, sortField, sortDir, debouncedSearch, formatFilter, sourceFilter, colorFilter]);
 
   const [showImport, setShowImport] = useState(false);
+  const [showProductSearch, setShowProductSearch] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
   const [shareDeck, setShareDeck] = useState<Deck | null>(null);
@@ -315,6 +318,15 @@ export function DecksIndexPage() {
           >
             <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span>Import deck</span>
+          </button>
+          <button
+            type="button"
+            className="pill-btn"
+            aria-haspopup="dialog"
+            onClick={() => setShowProductSearch(true)}
+          >
+            <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <span>Add precon</span>
           </button>
           <Link to="/decks/new" className="pill-btn pill-btn-primary">
             <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
@@ -384,6 +396,7 @@ export function DecksIndexPage() {
       )}
 
       {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
+      {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}
 
       {pendingDelete && (
         <ConfirmDialog

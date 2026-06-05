@@ -80,6 +80,20 @@ describe('searchProducts', () => {
   });
 });
 
+describe('commander summary cache', () => {
+  it('distinguishes uncached (undefined) from resolved-no-commander (null)', async () => {
+    const { getCachedCommanderSummary, setCachedCommanderSummary } = await freshModule();
+    expect(getCachedCommanderSummary('Unknown_X')).toBeUndefined();
+
+    setCachedCommanderSummary('NonCommander_Y', null);
+    expect(getCachedCommanderSummary('NonCommander_Y')).toBeNull();
+
+    const summary = { name: 'Zada, Hedron Grinder', colorIdentity: ['R'], image: 'z.png' };
+    setCachedCommanderSummary('GoblinStorm_SLD', summary);
+    expect(getCachedCommanderSummary('GoblinStorm_SLD')).toEqual(summary);
+  });
+});
+
 describe('getProductDeck', () => {
   it('returns null for a fileName not in the index (path-traversal guard)', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(indexResponse());
