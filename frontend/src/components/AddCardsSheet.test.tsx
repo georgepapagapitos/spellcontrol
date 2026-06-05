@@ -17,6 +17,10 @@ vi.mock('./UploadPanel', () => ({
   ),
 }));
 
+vi.mock('./ProductSearchPanel', () => ({
+  ProductSearchPanel: () => <div data-testid="product-panel">products</div>,
+}));
+
 vi.mock('./CardScanner', () => ({
   CardScanner: ({
     onConfirm,
@@ -89,6 +93,16 @@ describe('AddCardsSheet', () => {
     );
     const uploadPanel = screen.getByTestId('upload-panel').closest('[role="tabpanel"]');
     expect(uploadPanel?.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('switches to the Products tab and reveals the product panel', () => {
+    render(<AddCardsSheet onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: /Products/ }));
+    expect(screen.getByRole('tab', { name: /Products/ }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    const panel = screen.getByTestId('product-panel').closest('[role="tabpanel"]');
+    expect(panel?.hasAttribute('hidden')).toBe(false);
   });
 
   it('passes hideScanButton to UploadPanel so the Scan tab is the only entry point', () => {

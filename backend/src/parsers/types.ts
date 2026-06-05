@@ -55,7 +55,9 @@ export type ImportFormat =
   | 'deckbox'
   | 'generic-csv'
   | 'mtga'
-  | 'plain';
+  | 'plain'
+  /** Cards materialized from an MTGJSON preconstructed-product decklist (T17). */
+  | 'mtgjson';
 
 export interface ParseResult {
   rows: ImportRow[];

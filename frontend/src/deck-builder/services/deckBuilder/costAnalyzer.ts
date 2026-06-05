@@ -37,6 +37,12 @@ export interface CostPlan {
   spellRows: CostSwapRow[];
   landRows: CostSwapRow[];
   protectedCount: number; // commander/must-include/basic/no-price cards skipped
+  /**
+   * Rows dropped by `filterCostPlanByOwnership` because the user already owns a
+   * usable copy (E23) — no purchase cost to trim. Optional/additive: absent on a
+   * freshly-built plan, set once ownership filtering is applied at display time.
+   */
+  ownedSkippedCount?: number;
 }
 
 export interface BuildCostPlanOptions {
@@ -280,4 +286,46 @@ export function buildCostPlan(
   sortRows(landRows);
 
   return { currentTotal, minTotal, spellRows, landRows, protectedCount };
+}
+
+/**
+ * Drop trim-cost suggestions for cards the user already owns and can field in
+ * this deck (E23). Replacing a card you've already paid for with a cheaper one
+ * saves nothing real — there's no spend to trim. Only un-owned cards (a genuine
+ * purchase) or owned-but-claimed-elsewhere copies (you can't use them in *this*
+ * deck without buying another) keep their cheaper-swap row.
+ *
+ * Applied at display time against the *live* collection + allocation state
+ * rather than baked into the persisted plan, so the trim list reflects what the
+ * user owns right now — buying/selling/reallocating a copy updates it without
+ * waiting on a deck-edit-triggered re-analysis.
+ *
+ * Pure: returns a new plan with the suppressed rows removed, `minTotal`
+ * recomputed against the surviving savings, and the suppressed count recorded in
+ * `ownedSkippedCount`. `currentTotal` and `protectedCount` are unchanged — the
+ * owned cards still sit in the deck and still cost what they cost.
+ *
+ * @param isOwnedAndAvailable predicate: true when the user owns a copy of
+ *   `currentName` that's usable in this deck (free/unallocated or already bound
+ *   here). Mirror the editor's `ownershipFor(name) === 'owned'`.
+ */
+export function filterCostPlanByOwnership(
+  plan: CostPlan,
+  isOwnedAndAvailable: (currentName: string) => boolean
+): CostPlan {
+  const keep = (r: CostSwapRow) => !isOwnedAndAvailable(r.currentName);
+  const spellRows = plan.spellRows.filter(keep);
+  const landRows = plan.landRows.filter(keep);
+  const suppressed =
+    plan.spellRows.length - spellRows.length + (plan.landRows.length - landRows.length);
+  if (suppressed === 0) return plan;
+
+  const savings = [...spellRows, ...landRows].reduce((s, r) => s + r.savings, 0);
+  return {
+    ...plan,
+    spellRows,
+    landRows,
+    minTotal: Math.max(0, plan.currentTotal - savings),
+    ownedSkippedCount: (plan.ownedSkippedCount ?? 0) + suppressed,
+  };
 }

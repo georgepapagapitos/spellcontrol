@@ -166,3 +166,45 @@ export interface UploadResponse {
   /** Which parser handled the input. */
   detectedFormat: string;
 }
+
+/** A known MTG product (preconstructed deck, etc.) from the MTGJSON catalog (T17). */
+export interface ProductSummary {
+  fileName: string;
+  code: string;
+  name: string;
+  type: string;
+  releaseDate: string;
+}
+
+/**
+ * One physical card in a product, with the per-copy quantity + finish + zone so
+ * the collection-add path can stamp the correct number of owned copies with the
+ * right printing/treatment, and the UI can show a per-zone breakdown.
+ */
+export interface ProductPhysicalCard {
+  card: ScryfallCard;
+  quantity: number;
+  finish: 'nonfoil' | 'foil' | 'etched';
+  /** Originating MTGJSON zone (commander, mainBoard, displayCommander, tokens, …). */
+  zone: string;
+}
+
+/** Resolved contents of a single product: the playable deck + every physical card. */
+export interface ProductResolveResponse {
+  product: ProductSummary;
+  /** The playable singleton deck (commander + 99) — for "add as a deck". */
+  deck: DeckImportResponse;
+  /**
+   * EVERY physical card in the box across every zone (deck cards + display
+   * commanders + tokens + …), finish-accurate — for "add to the collection".
+   */
+  physicalCards: ProductPhysicalCard[];
+  /** Names of cards that couldn't be resolved to Scryfall data. */
+  unresolvedNames: string[];
+  /**
+   * True physical card count across every zone MTGJSON lists, counted from the
+   * raw decklist so it includes cards that failed to resolve. Surfaced so the
+   * user can reconcile against the physical box.
+   */
+  physicalCardCount: number;
+}

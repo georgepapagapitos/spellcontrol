@@ -166,6 +166,12 @@ export interface Deck {
   /** Mean EDHREC salt score across non-land cards. Snapshotted at generation. */
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
+  /**
+   * Provenance for decks materialized from a known MTG product (T17) — e.g. a
+   * preconstructed Commander deck imported by search. Absent for hand-built or
+   * generated decks. `source` stays `'manual'`; this is an additive tag.
+   */
+  sourceProduct?: { code: string; fileName: string; name: string };
   /** User-chosen accent color (hex). Defaults to a random preset on create. */
   color: string;
   createdAt: number;
@@ -214,6 +220,7 @@ interface DecksState {
     gradeBracketSignature?: string;
     averageSalt?: number;
     saltiestCards?: Array<{ name: string; salt: number }>;
+    sourceProduct?: { code: string; fileName: string; name: string };
   }): string;
 
   updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>): void;
@@ -293,6 +300,7 @@ export const useDecksStore = create<DecksState>()(
           gradeBracketSignature: input.gradeBracketSignature,
           averageSalt: input.averageSalt,
           saltiestCards: input.saltiestCards,
+          sourceProduct: input.sourceProduct,
           color: input.color ?? pickRandomPresetColor(),
           createdAt: now,
           updatedAt: now,

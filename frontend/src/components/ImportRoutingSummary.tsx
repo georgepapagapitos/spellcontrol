@@ -9,14 +9,15 @@ interface Props {
 
 /**
  * Renders right after a successful import to answer "where did my cards go?"
- * — one row per destination binder, plus the Uncategorized bucket if any
- * cards fell through. Each binder row is a navigation link that opens the
- * binder with that tab active. Uncategorized is not clickable since there
- * is no deep-link to the collection-level Uncategorized filter.
+ * — one row per destination binder. Each row is a navigation link that opens
+ * the binder with that tab active.
  *
- * Hidden entirely when the summary is empty (e.g. binder-mode imports that
- * pin every card to a single new binder — the existing success banner
- * already calls that out).
+ * Cards that matched no binder (the Uncategorized remainder) are intentionally
+ * not shown — falling through just means "still in your collection, unrouted",
+ * a no-op default not worth surfacing (E11). So the panel is hidden entirely
+ * when nothing matched a real binder (or for binder-mode imports that pin every
+ * card to a single new binder) — the existing success banner already confirms
+ * the import landed.
  */
 export function ImportRoutingSummary({ summary, onDismiss }: Props) {
   const navigate = useNavigate();
@@ -43,37 +44,25 @@ export function ImportRoutingSummary({ summary, onDismiss }: Props) {
         </button>
       </div>
       <ul className="import-routing-list">
-        {summary.entries.map((entry) =>
-          entry.binderId ? (
-            <li key={entry.binderId}>
-              <button
-                type="button"
-                className="import-routing-row"
-                onClick={() => handleOpen(entry.binderId!)}
-              >
-                <span
-                  className="import-routing-pip"
-                  style={{ background: entry.binderColor ?? 'var(--text3)' }}
-                  aria-hidden="true"
-                />
-                <span className="import-routing-name">{entry.binderName}</span>
-                <span className="import-routing-count">
-                  {entry.count} card{entry.count === 1 ? '' : 's'}
-                </span>
-              </button>
-            </li>
-          ) : (
-            <li key="uncategorized">
-              <div className="import-routing-row import-routing-row--static">
-                <span className="import-routing-pip import-routing-pip--uncat" aria-hidden="true" />
-                <span className="import-routing-name">{entry.binderName}</span>
-                <span className="import-routing-count">
-                  {entry.count} card{entry.count === 1 ? '' : 's'}
-                </span>
-              </div>
-            </li>
-          )
-        )}
+        {summary.entries.map((entry) => (
+          <li key={entry.binderId}>
+            <button
+              type="button"
+              className="import-routing-row"
+              onClick={() => handleOpen(entry.binderId)}
+            >
+              <span
+                className="import-routing-pip"
+                style={{ background: entry.binderColor ?? 'var(--text3)' }}
+                aria-hidden="true"
+              />
+              <span className="import-routing-name">{entry.binderName}</span>
+              <span className="import-routing-count">
+                {entry.count} card{entry.count === 1 ? '' : 's'}
+              </span>
+            </button>
+          </li>
+        ))}
       </ul>
     </div>
   );
