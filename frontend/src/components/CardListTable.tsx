@@ -10,6 +10,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
+import { normalizeForSearch } from '../lib/normalize-search';
 import type {
   ChipExpression,
   EnrichedCard,
@@ -478,9 +479,9 @@ export function CardListTable({
   const compiledCondition = useMemo(() => compileExpression(conditionExpr), [conditionExpr]);
 
   const filtered = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
+    const nq = normalizeForSearch(debouncedSearch);
     return rows.filter((r) => {
-      if (q && !r.card.name.toLowerCase().includes(q)) return false;
+      if (nq && !normalizeForSearch(r.card.name).includes(nq)) return false;
       if (compiledBinder) {
         const bname = r.binderName ?? '__uncategorized';
         if (!exactMatchesExpression(bname, compiledBinder)) return false;

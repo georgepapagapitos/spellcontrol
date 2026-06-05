@@ -1,4 +1,5 @@
 import type { PublicCard } from './shared-types';
+import { normalizeForSearch } from './normalize-search';
 
 /**
  * Pure helpers for the shared-view components. PublicCard is a per-physical-
@@ -89,9 +90,9 @@ export function sortGrouped(
 }
 
 export function filterBySearch(grouped: GroupedCard[], query: string): GroupedCard[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return grouped;
-  return grouped.filter((g) => g.card.name.toLowerCase().includes(q));
+  const nq = normalizeForSearch(query);
+  if (!nq) return grouped;
+  return grouped.filter((g) => normalizeForSearch(g.card.name).includes(nq));
 }
 
 /**
