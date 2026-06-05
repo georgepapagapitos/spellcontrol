@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PublicList, PublicListEntry } from '../../lib/shared-types';
+import { normalizeForSearch } from '../../lib/normalize-search';
 import { SearchPill } from '../SearchPill';
 
 interface Props {
@@ -16,9 +17,10 @@ export function SharedListView({ data }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return data.entries;
+    const nq = normalizeForSearch(search);
+    if (!nq) return data.entries;
     return data.entries.filter(
-      (e) => e.name.toLowerCase().includes(q) || (e.note ?? '').toLowerCase().includes(q)
+      (e) => normalizeForSearch(e.name).includes(nq) || (e.note ?? '').toLowerCase().includes(q)
     );
   }, [data.entries, search]);
 

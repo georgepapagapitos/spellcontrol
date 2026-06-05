@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PublicBinder, PublicCard } from '../../lib/shared-types';
+import { normalizeForSearch } from '../../lib/normalize-search';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
@@ -18,11 +19,14 @@ export function SharedBinderView({ data }: Props) {
   const [search, setSearch] = useState('');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
-  const q = search.trim().toLowerCase();
+  const q = normalizeForSearch(search);
   const sections = useMemo(() => {
     if (!q) return data.sections;
     return data.sections
-      .map((s) => ({ ...s, cards: s.cards.filter((c) => c.name.toLowerCase().includes(q)) }))
+      .map((s) => ({
+        ...s,
+        cards: s.cards.filter((c) => normalizeForSearch(c.name).includes(q)),
+      }))
       .filter((s) => s.cards.length > 0);
   }, [data.sections, q]);
 
