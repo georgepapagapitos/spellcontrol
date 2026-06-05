@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Layers, Package } from 'lucide-react';
+import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3 } from 'lucide-react';
+import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
 import { searchProducts, fetchProduct, fetchProductCommanderSummary, useSetMap } from '../lib/api';
 import { useBuildDeckFromImport } from '../lib/build-deck-from-import';
 import { useCollectionStore } from '../store/collection';
@@ -31,6 +32,25 @@ function physicalToEntries(physicalCards: ProductPhysicalCard[]): CarouselEntry[
     card: pc.card,
   }));
 }
+
+/** Card-list layout for the precon detail — grid of art, roomy list, or dense list. */
+type PreconLayout = 'grid' | 'list' | 'compact';
+const LAYOUT_KEY = 'sc-precon-layout';
+
+function readLayout(): PreconLayout {
+  try {
+    const v = localStorage.getItem(LAYOUT_KEY);
+    return v === 'list' || v === 'compact' ? v : 'grid';
+  } catch {
+    return 'grid';
+  }
+}
+
+const LAYOUT_OPTIONS: ViewModeOption<PreconLayout>[] = [
+  { value: 'grid', label: 'Grid', icon: <LayoutGrid width={14} height={14} aria-hidden /> },
+  { value: 'list', label: 'List', icon: <Rows3 width={14} height={14} aria-hidden /> },
+  { value: 'compact', label: 'Compact', icon: <AlignJustify width={14} height={14} aria-hidden /> },
+];
 
 // Lazy per-row commander enrichment: cap concurrent /summary fetches so scrolling
 // a long list doesn't fire dozens at once, and remember results across re-renders
@@ -217,7 +237,17 @@ export function ProductSearchPanel({ onClose }: Props) {
 
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [layout, setLayout] = useState<PreconLayout>(readLayout);
   const debounceRef = useRef<number | null>(null);
+
+  const chooseLayout = (next: PreconLayout) => {
+    setLayout(next);
+    try {
+      localStorage.setItem(LAYOUT_KEY, next);
+    } catch {
+      // non-fatal — preference just won't persist this session
+    }
+  };
 
   // Debounced product search. An empty query lists the newest products of the
   // chosen type so the tab is browsable, not just searchable.
@@ -312,54 +342,99 @@ export function ProductSearchPanel({ onClose }: Props) {
     const groups = groupPhysicalByZone(selected.physicalCards);
     const entries = physicalToEntries(selected.physicalCards);
     const unresolved = selected.unresolvedNames.length;
+    const renderZoneCards = (g: (typeof groups)[number]) => {
+      if (layout === 'grid') {
+        return (
+          <ul className="product-card-grid" aria-label={g.label}>
+            {g.cards.map((pc, i) => (
+              <li key={`${pc.card.id}-${i}`} className="product-card-cell">
+                <button
+                  type="button"
+                  className="product-card-btn"
+                  aria-label={`Preview ${pc.card.name}`}
+                  onClick={() => void carousel.open(entries, pc.card.name)}
+                >
+                  <img
+                    className="product-card-img"
+                    src={getCardImageUrl(pc.card, 'normal')}
+                    alt={pc.card.name}
+                    loading="lazy"
+                    draggable={false}
+                  />
+                  {pc.quantity > 1 && <span className="product-card-qty">{pc.quantity}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      // list + compact share the row markup; compact just tightens via a modifier.
+      return (
+        <ul
+          className={`product-card-list${layout === 'compact' ? ' is-compact' : ''}`}
+          aria-label={g.label}
+        >
+          {g.cards.map((pc, i) => (
+            <li key={`${pc.card.id}-${i}`}>
+              <button
+                type="button"
+                className="product-card-row"
+                aria-label={`Preview ${pc.card.name}`}
+                onClick={() => void carousel.open(entries, pc.card.name)}
+              >
+                <img
+                  className="product-card-rowthumb"
+                  src={getCardImageUrl(pc.card, 'small')}
+                  alt=""
+                  aria-hidden
+                  loading="lazy"
+                  draggable={false}
+                />
+                <span className="product-card-rowname">{pc.card.name}</span>
+                {pc.quantity > 1 && <span className="product-card-rowqty">×{pc.quantity}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      );
+    };
+
     return (
       <div className="add-card-search-panel">
-        <button type="button" className="product-back" onClick={() => setSelected(null)}>
-          <ChevronLeft width={16} height={16} aria-hidden />
-          <span>Back to search</span>
-        </button>
-
-        <div className="add-card-sheet-body product-detail">
+        {/* Pinned head: back, identity, and the card-layout toggle. */}
+        <div className="product-detail-head">
+          <button type="button" className="product-back" onClick={() => setSelected(null)}>
+            <ChevronLeft width={16} height={16} aria-hidden />
+            <span>Back to search</span>
+          </button>
           <h3 className="product-detail-name">{selected.product.name}</h3>
-          <p className="product-detail-meta">
-            {selected.product.type}
-            {selected.product.releaseDate
-              ? ` · ${selected.product.releaseDate.slice(0, 4)}`
-              : ''} · {selected.product.code}
-          </p>
+          <div className="product-detail-subhead">
+            <p className="product-detail-meta">
+              {selected.product.type}
+              {selected.product.releaseDate
+                ? ` · ${selected.product.releaseDate.slice(0, 4)}`
+                : ''}{' '}
+              · {selected.physicalCardCount.toLocaleString()} cards
+            </p>
+            <ViewModeToggle
+              value={layout}
+              onChange={chooseLayout}
+              options={LAYOUT_OPTIONS}
+              ariaLabel="Card layout"
+            />
+          </div>
+        </div>
 
-          <p className="product-detail-count">
-            {selected.physicalCardCount.toLocaleString()} physical cards
-          </p>
-
-          {/* Cards grouped by zone so the extras (display commanders, tokens)
-              are visible at a glance; tap any card → shared preview carousel. */}
+        {/* Scrollable cards — the single scroll region; head + actions stay pinned.
+            Grouped by zone so the extras (display commanders, tokens) are visible
+            at a glance; tap any card → shared preview carousel. */}
+        <div className="add-card-sheet-body product-detail-cards">
           {groups.map((g) => (
             <section key={g.zone} className="product-zone">
               <h4 className="product-zone-title">
                 {g.label} <span className="product-zone-count">({g.count})</span>
               </h4>
-              <ul className="product-card-grid" aria-label={g.label}>
-                {g.cards.map((pc, i) => (
-                  <li key={`${pc.card.id}-${i}`} className="product-card-cell">
-                    <button
-                      type="button"
-                      className="product-card-btn"
-                      aria-label={`Preview ${pc.card.name}`}
-                      onClick={() => void carousel.open(entries, pc.card.name)}
-                    >
-                      <img
-                        className="product-card-img"
-                        src={getCardImageUrl(pc.card, 'normal')}
-                        alt={pc.card.name}
-                        loading="lazy"
-                        draggable={false}
-                      />
-                      {pc.quantity > 1 && <span className="product-card-qty">{pc.quantity}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {renderZoneCards(g)}
             </section>
           ))}
 
@@ -369,10 +444,12 @@ export function ProductSearchPanel({ onClose }: Props) {
               will be skipped. Check the contents against the physical box.
             </p>
           )}
+        </div>
 
+        {/* Pinned action footer. */}
+        <div className="product-detail-foot">
           {banner && <div className="success-banner product-banner">{banner}</div>}
           {productError && <div className="error-banner product-banner">{productError}</div>}
-
           <div className="product-actions">
             <button
               type="button"
@@ -401,11 +478,6 @@ export function ProductSearchPanel({ onClose }: Props) {
               <span>Add both</span>
             </button>
           </div>
-          <p className="product-detail-hint">
-            “Add as deck” builds the playable {selected.deck.cardCount}-card deck and pulls matching
-            cards from your collection. “Add to collection” stamps every physical card (including
-            display commanders &amp; tokens) as owned copies.
-          </p>
         </div>
         {carousel.preview}
       </div>

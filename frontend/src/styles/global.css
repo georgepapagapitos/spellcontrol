@@ -10230,6 +10230,17 @@ hr {
   display: none;
 }
 
+/* The search/precon panel fills its tab and delegates scrolling to its own
+   .add-card-sheet-body, so the input/header stay pinned and only the results
+   scroll — without this the modal-body AND the inner body both scrolled (the
+   "dual scroll" in the Add-cards sheet). */
+.add-card-search-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .add-cards-panel-search,
 .add-cards-panel-upload,
 .add-cards-panel-product {
