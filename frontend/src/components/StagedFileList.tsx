@@ -25,7 +25,7 @@ export function StagedFileList({
     <div className="staged-files">
       <div className="staged-files-head">
         <strong>
-          {files.length} of {max} file{files.length === 1 ? '' : 's'} staged
+          {files.length} of {max} file{max === 1 ? '' : 's'} staged
         </strong>
         <button type="button" className="btn-link" onClick={onClear} disabled={disabled}>
           Clear

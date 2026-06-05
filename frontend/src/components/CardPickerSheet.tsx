@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../lib/use-escape-key';
+import { normalizeForSearch } from '../lib/normalize-search';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -27,10 +28,11 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const nq = normalizeForSearch(query);
     const results = q
       ? allCards.filter(
           (c) =>
-            c.name.toLowerCase().includes(q) ||
+            normalizeForSearch(c.name).includes(nq) ||
             c.setCode.toLowerCase().includes(q) ||
             c.collectorNumber.toLowerCase().includes(q)
         )
