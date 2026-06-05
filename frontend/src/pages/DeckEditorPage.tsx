@@ -34,6 +34,7 @@ import {
   type NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { fromGapCard, sortOwnedFirst, type LaneId, type ChangeOwnership } from '@/lib/deck-change';
+import { rankReplacementCuts } from '@/lib/intelligent-cuts';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
 import { classifyCandidate } from '../lib/deck-analysis';
@@ -160,6 +161,14 @@ export function DeckEditorPage() {
   // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
   // and a post-cut refill nudge (the card just cut + its role).
   const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  // Resolved ScryfallCard for `pendingAdd`, so the replace-when-full ranker can
+  // judge relatedness by card type + mana cost (not just name-based role). Tagged
+  // with `forName` so a stale resolve from a previous prompt is ignored; null
+  // until it resolves, and the ranker degrades to role-only relatedness meanwhile.
+  const [pendingAddCard, setPendingAddCard] = useState<{
+    forName: string;
+    card: ScryfallCard;
+  } | null>(null);
   const [refillAfterCut, setRefillAfterCut] = useState<{
     name: string;
     role: string | null;
@@ -182,6 +191,19 @@ export function DeckEditorPage() {
   );
   // Chip / keyboard deep-links target a specific analysis view.
   const openAnalysisTab = useCallback((tab: AnalysisTabId) => openView(tab), [openView]);
+
+  // Resolve the pending-add card so the replace-when-full ranker can use its type
+  // + CMC for relatedness. Guarded against races (a newer pendingAdd wins).
+  useEffect(() => {
+    if (!pendingAdd) return;
+    let stale = false;
+    void getCardByName(pendingAdd).then((scry) => {
+      if (!stale && scry) setPendingAddCard({ forName: pendingAdd, card: scry });
+    });
+    return () => {
+      stale = true;
+    };
+  }, [pendingAdd]);
 
   // The Combos panel lives inside the Power bento; switching to Power lands on
   // the top of the bento, not the panel. A next-best-move with focus 'combos'
@@ -660,16 +682,17 @@ export function DeckEditorPage() {
     await addResolvedCard(name);
   };
 
-  // Replace-when-full options: cards to cut, suggested role-matched first (same
-  // role as the card being added → keeps the curve balanced), then the
-  // optimizer's weak/excess removals; `all` is every deck card for "pick another".
-  // Plain consts (not hooks) — computed below the early-return guard, only
-  // meaningful while a prompt is open.
+  // Replace-when-full options (E20 intelligent cuts): rank cuts by how
+  // *related/replaceable* they are vs the card being added (shared role, same
+  // type, similar CMC) and surface the optimizer's real per-card reason instead
+  // of a flat "weak slot". `all` is every deck card for "pick another". Plain
+  // consts (not hooks) — computed below the early-return guard, only meaningful
+  // while a prompt is open. `anyRelated` drives honest copy: when no cut actually
+  // relates to the add, the prompt says "make room" rather than implying a swap.
   const replaceOptions =
     !pendingAdd || !deck
       ? null
       : (() => {
-          const newRole = classifyCandidate(pendingAdd);
           const labelFor = (name: string): string | undefined => {
             const r = classifyCandidate(name);
             return r ? ROLE_LABEL[r] : undefined;
@@ -684,24 +707,22 @@ export function DeckEditorPage() {
             hint,
             onPick: () => void handleReplaceWhenFull(c.slotId),
           });
-          const roleMatched = newRole
-            ? deck.cards.filter((c) => classifyCandidate(c.card.name) === newRole)
-            : [];
-          const matchedSlots = new Set(roleMatched.map((c) => c.slotId));
-          const weakNames = new Set(
-            (deck.optimizeSwaps?.removals ?? []).map((r) => r.name.toLowerCase())
-          );
-          const weak = deck.cards.filter(
-            (c) => weakNames.has(c.card.name.toLowerCase()) && !matchedSlots.has(c.slotId)
-          );
-          const suggested = [
-            ...roleMatched.map((c) => toOpt(c, 'same role')),
-            ...weak.map((c) => toOpt(c, 'weak slot')),
-          ].slice(0, 8);
+          // Stub when the add card hasn't resolved yet (or the resolve is for a
+          // previous prompt) — name-based role still works.
+          const resolvedAdd = pendingAddCard?.forName === pendingAdd ? pendingAddCard.card : null;
+          const addCard: ScryfallCard =
+            resolvedAdd ?? ({ name: pendingAdd, type_line: '', cmc: 0 } as ScryfallCard);
+          const ranked = rankReplacementCuts({
+            addCard,
+            deckCards: deck.cards,
+            removals: deck.optimizeSwaps?.removals,
+          });
+          const suggested = ranked.map((r) => toOpt({ slotId: r.slotId, card: r.card }, r.reason));
+          const anyRelated = ranked.some((r) => r.related);
           const all = [...deck.cards]
             .sort((a, b) => a.card.name.localeCompare(b.card.name))
             .map((c) => toOpt(c));
-          return { suggested, all };
+          return { suggested, all, anyRelated };
         })();
 
   // Refill-after-cut options: same-role staples the deck is missing (owned-first
@@ -1660,7 +1681,11 @@ export function DeckEditorPage() {
       {pendingAdd && replaceOptions && deck && (
         <DeckSizePrompt
           title={`Deck is full (${deck.cards.length}/${mainboardLimit})`}
-          subtitle={`Replace a card with ${pendingAdd}?`}
+          subtitle={
+            replaceOptions.anyRelated
+              ? `Replace a card with ${pendingAdd}?`
+              : `Make room for ${pendingAdd} — cut a weak card?`
+          }
           actionVerb="Replace"
           options={replaceOptions.suggested}
           moreOptions={replaceOptions.all}
