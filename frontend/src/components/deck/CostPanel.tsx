@@ -1,5 +1,5 @@
 import './CostPanel.css';
-import { useCallback, useMemo, useState, type MouseEvent } from 'react';
+import { type JSX, useCallback, useMemo, useState, type MouseEvent } from 'react';
 import { Check } from 'lucide-react';
 import {
   autoCheckToTarget,

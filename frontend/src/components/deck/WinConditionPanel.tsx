@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './WinConditionPanel.css';
 import { AlertTriangle, Trophy } from 'lucide-react';
 import type {

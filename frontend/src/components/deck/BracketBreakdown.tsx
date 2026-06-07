@@ -1,5 +1,5 @@
 import './BracketBreakdown.css';
-import type { ReactNode } from 'react';
+import type { JSX, ReactNode } from 'react';
 import { InfoTip } from '../InfoTip';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';

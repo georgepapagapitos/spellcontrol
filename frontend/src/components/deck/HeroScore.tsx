@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './HeroScore.css';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 

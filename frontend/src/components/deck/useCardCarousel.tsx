@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { type JSX, useCallback, useRef, useState } from 'react';
 import { getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { useCollectionStore } from '@/store/collection';

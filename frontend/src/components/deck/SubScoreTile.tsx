@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './SubScoreTile.css';
 import type { SubScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
 

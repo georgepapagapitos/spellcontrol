@@ -3137,7 +3137,7 @@ function DeckAnalysisView({
   // map exhaustive over LaneId; the Tune-tab deep-link below never targets it
   // (its slot isn't mounted on Tune), so it stays inert until a future hero link.
   const bracketFitLaneRef = useRef<CollapsibleLaneHandle>(null);
-  const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle>>>(
+  const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle | null>>>(
     () => ({
       'fill-gaps': improveLaneRef,
       upgrade: improveLaneRef,

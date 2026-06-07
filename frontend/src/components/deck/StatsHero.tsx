@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './StatsHero.css';
 import type { SubScoreKey, PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {

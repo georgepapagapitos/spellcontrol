@@ -1,5 +1,5 @@
 import './ImproveLane.css';
-import { useMemo, useState, type ReactNode } from 'react';
+import { type JSX, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';

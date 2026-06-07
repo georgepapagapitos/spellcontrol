@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './OwnershipBadge.css';
 import { CheckCircle2, Circle } from 'lucide-react';
 
