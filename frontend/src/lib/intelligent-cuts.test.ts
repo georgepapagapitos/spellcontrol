@@ -147,4 +147,101 @@ describe('rankReplacementCuts', () => {
     const cuts = rankReplacementCuts({ addCard: add, deckCards: cards, removals: [], limit: 5 });
     expect(cuts).toHaveLength(5);
   });
+
+  it('relates cards by synergy axis even with no shared tagger role or type', () => {
+    // Both make creature tokens, but differ in tagger role AND card type — the old
+    // role/type-only ranker would NOT have related them. Axis overlap should.
+    const tokenAdd = card('Goblin Caller', {
+      deckRole: 'cardDraw',
+      type_line: 'Creature',
+      cmc: 2,
+      oracle_text: 'Create a 1/1 red Goblin creature token.',
+    });
+    const tokenEngine = card('Endless Muster', {
+      deckRole: 'ramp',
+      type_line: 'Enchantment',
+      cmc: 3,
+      oracle_text: 'At the beginning of your end step, create a 1/1 white Soldier creature token.',
+    });
+    const unrelated = card('Quiet Plains', { deckRole: 'beater', type_line: 'Land', cmc: 0 });
+    const cuts = rankReplacementCuts({
+      addCard: tokenAdd,
+      deckCards: [slot(unrelated), slot(tokenEngine)],
+      removals: [],
+    });
+    expect(cuts.map((c) => c.card.name)).toEqual(['Endless Muster']);
+    expect(cuts[0].related).toBe(true);
+    expect(cuts[0].reason).toBe('Overlapping Tokens');
+  });
+
+  // A deck genuinely invested in the tokens axis (3 producers + 2 payoffs = 5).
+  const tokenDeck: CutCandidate[] = [
+    slot(
+      card('Maker A', {
+        deckRole: 'a',
+        type_line: 'Creature',
+        oracle_text: 'Create a 1/1 white Soldier creature token.',
+      })
+    ),
+    slot(
+      card('Maker B', {
+        deckRole: 'b',
+        type_line: 'Creature',
+        oracle_text: 'Create a 1/1 green Saproling creature token.',
+      })
+    ),
+    slot(
+      card('Maker C', {
+        deckRole: 'c',
+        type_line: 'Creature',
+        oracle_text: 'Create a 1/1 red Goblin creature token.',
+      })
+    ),
+    slot(
+      card('Anthem Lord', {
+        deckRole: 'd',
+        type_line: 'Creature',
+        oracle_text: 'Creatures you control get +1/+1.',
+      })
+    ),
+    slot(
+      card('Watcher', {
+        deckRole: 'e',
+        type_line: 'Creature',
+        oracle_text: 'Whenever another creature you control enters, draw a card.',
+      })
+    ),
+  ];
+
+  it('never suggests cutting a load-bearing engine card for an unrelated add', () => {
+    const plain = card('Plain Bear', { deckRole: 'plain', type_line: 'Creature', cmc: 2 });
+    const vanillaAdd = card('Hill Giant', { deckRole: 'newbie', type_line: 'Creature', cmc: 4 });
+    const cuts = rankReplacementCuts({
+      addCard: vanillaAdd,
+      deckCards: [...tokenDeck, slot(plain)],
+      removals: [],
+    });
+    const names = cuts.map((c) => c.card.name);
+    // Every token card is same-type (Creature) so would be a tier-3 suggestion —
+    // but they hold up the invested tokens engine, so the guard drops them.
+    expect(names).toContain('Plain Bear');
+    expect(names).not.toContain('Maker A');
+    expect(names).not.toContain('Anthem Lord');
+  });
+
+  it('allows cutting a load-bearing card when the add reinforces that same engine', () => {
+    const tokenAdd = card('Krenko Heir', {
+      deckRole: 'z',
+      type_line: 'Creature',
+      cmc: 2,
+      oracle_text: 'Create a 1/1 red Goblin creature token.',
+    });
+    const cuts = rankReplacementCuts({
+      addCard: tokenAdd,
+      deckCards: tokenDeck,
+      removals: [],
+    });
+    // A token producer can be swapped for another token producer — same axis side.
+    expect(cuts.map((c) => c.card.name)).toContain('Maker A');
+  });
 });
