@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { type JSX, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { LayoutGrid, Rows3 } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';

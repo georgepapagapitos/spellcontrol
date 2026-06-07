@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './ValidationChecklist.css';
 import type {
   CheckStatus,

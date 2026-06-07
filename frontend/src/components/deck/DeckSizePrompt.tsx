@@ -1,5 +1,5 @@
 import './DeckSizePrompt.css';
-import { useState } from 'react';
+import { type JSX, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 

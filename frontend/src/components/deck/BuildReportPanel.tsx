@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './BuildReportPanel.css';
 import type { BuildReport, DeckDataSource } from '@/deck-builder/types';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';

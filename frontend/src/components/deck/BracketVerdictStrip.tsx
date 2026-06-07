@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './BracketVerdictStrip.css';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 

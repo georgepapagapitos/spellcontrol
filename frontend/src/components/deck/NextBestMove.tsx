@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './NextBestMove.css';
 import { ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import type { NextBestMove } from '@/deck-builder/services/deckBuilder/nextBestMove';

@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './PowerHero.css';
 import { AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';

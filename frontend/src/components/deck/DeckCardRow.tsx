@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';

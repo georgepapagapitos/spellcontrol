@@ -1,5 +1,5 @@
 import './EnginePanel.css';
-import { useMemo } from 'react';
+import { type JSX, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/synergy/analysis';

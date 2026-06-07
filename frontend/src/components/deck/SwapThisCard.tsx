@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './SwapThisCard.css';
 import { DeckCardRow } from './DeckCardRow';
 import type { Change } from '@/lib/deck-change';

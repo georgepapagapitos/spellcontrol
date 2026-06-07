@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type JSX, useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
 import { DeckColorBalance } from './DeckColorBalance';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';

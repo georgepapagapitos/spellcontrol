@@ -1,5 +1,5 @@
 import './InfoTip.css';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { type JSX, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
 

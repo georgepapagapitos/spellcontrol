@@ -1,3 +1,4 @@
+import type { JSX } from 'react';
 import './SimilarCardsStrip.css';
 import { DeckCardRow } from './DeckCardRow';
 import { useSimilarCards } from './useSimilarCards';

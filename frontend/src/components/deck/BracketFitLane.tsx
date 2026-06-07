@@ -1,5 +1,5 @@
 import './BracketFitLane.css';
-import { forwardRef, useMemo, useState } from 'react';
+import { type JSX, forwardRef, useMemo, useState } from 'react';
 import { Target, AlertTriangle } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
