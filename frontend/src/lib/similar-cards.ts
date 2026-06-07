@@ -22,9 +22,9 @@
  * candidate's live ownership/inclusion, and both cards' tagger roles are all
  * supplied by the caller. Lives in `src/lib/**` so it's coverage-gated.
  */
-import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
+import { axisKeys, axisJaccard, sharedAxisNames } from './axis-overlap';
 import type { ChangeOwnership } from './deck-change';
 
 /** The focused card the suggestions are "like". */
@@ -108,24 +108,6 @@ export function primaryType(typeLine: string | undefined): string {
   return '';
 }
 
-/** The set of `axis:side` keys a card produces or pays off. */
-function axisKeys(card: ScryfallCard): Set<string> {
-  const synergy = classifyCard(card);
-  const keys = new Set<string>();
-  for (const p of synergy.producers) keys.add(`${p.axis}:producer`);
-  for (const o of synergy.payoffs) keys.add(`${o.axis}:payoff`);
-  return keys;
-}
-
-/** Bare axis names shared between two axis-key sets (deduped, for the "why"). */
-function sharedAxisNames(a: Set<string>, b: Set<string>): string[] {
-  const out = new Set<string>();
-  for (const key of a) {
-    if (b.has(key)) out.add(key.split(':')[0]);
-  }
-  return [...out];
-}
-
 /** CMC-delta → contribution (closer curve = more alike). */
 function cmcContribution(a: number | undefined, b: number | undefined): number {
   if (a == null || b == null) return 0;
@@ -148,14 +130,8 @@ export function scoreSimilarity(
   const candAxes = axisKeys(candidate.card);
 
   // Layer 1 — synergy-axis Jaccard.
-  let axisScore = 0;
   const shared = sharedAxisNames(targetAxes, candAxes);
-  if (targetAxes.size > 0 || candAxes.size > 0) {
-    let inter = 0;
-    for (const k of targetAxes) if (candAxes.has(k)) inter += 1;
-    const union = targetAxes.size + candAxes.size - inter;
-    axisScore = union > 0 ? (inter / union) * W_AXIS : 0;
-  }
+  const axisScore = axisJaccard(targetAxes, candAxes) * W_AXIS;
 
   // Layer 2 — tagger role match.
   const roleScore = target.role && candidate.role && target.role === candidate.role ? W_ROLE : 0;

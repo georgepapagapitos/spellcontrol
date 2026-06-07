@@ -5,16 +5,29 @@
  * something to keep it legal. The old prompt offered a flat "weak slot" list —
  * the globally-weakest cards, unrelated to what you're adding (adding Young
  * Pyromancer offered Roaming Throne). This ranks cuts by how *related/replaceable*
- * they are to the card being added (shared role, same card type, similar mana
- * cost) while reusing the optimizer's real per-card cut reason instead of the
- * generic "weak slot" label.
+ * they are to the card being added, across four signals:
  *
- * Pure & isomorphic-ish: only depends on the tagger/scryfall name+card helpers.
+ *   - **Synergy-axis overlap** (the dominant signal) — the 23-axis oracle-text
+ *     classifier. A token-maker relates to other token-makers even when the
+ *     coarse 4-role tagger gives them no role. This is what makes the cut feel
+ *     "related" rather than "globally weakest".
+ *   - **Shared tagger role** (ramp / removal / boardwipe / cardDraw).
+ *   - **Same primary card type** (creature ↔ creature).
+ *   - **Similar mana cost / color overlap** — weak tiebreaks.
+ *
+ * It reuses the optimizer's real per-card cut reason (`optimizeSwaps.removals`)
+ * instead of "weak slot", and **never suggests cutting a card that's load-bearing
+ * for an engine the deck is invested in** unless the card being added reinforces
+ * that same engine (a true like-for-like swap).
+ *
+ * Pure & isomorphic-ish: only depends on the tagger/scryfall/synergy helpers.
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
+import { axisKeys, axisJaccard, sharedAxisNames, axisLabel } from './axis-overlap';
 
 export interface CutCandidate {
   slotId: string;
@@ -39,8 +52,20 @@ export interface RankReplacementCutsParams {
   deckCards: CutCandidate[];
   /** Optimizer removal suggestions for this deck (`deck.optimizeSwaps?.removals`). */
   removals?: OptimizeCard[];
+  /**
+   * The deck's synergy engine analysis, for the load-bearing cut guard. Optional:
+   * when omitted it's derived from `deckCards` (cheap, pure). Pass a precomputed
+   * one to avoid re-classifying every card on a hot path.
+   */
+  deckSynergy?: DeckSynergy;
   /** Max suggestions to return (default 8). */
   limit?: number;
+}
+
+/** Do two cards share at least one color identity? (Colorless shares with no one.) */
+function colorsOverlap(a: ScryfallCard, b: ScryfallCard): boolean {
+  const bColors = new Set(b.color_identity ?? []);
+  return (a.color_identity ?? []).some((c) => bColors.has(c));
 }
 
 /** Leading card type ("Creature", "Instant", …), stripped of "Legendary" and
@@ -74,12 +99,14 @@ function inclusionOf(card: ScryfallCard, removal: OptimizeCard | undefined): num
  *  2. Optimizer-flagged, not related            — a genuine weak slot (real reason).
  *  3. Related but not flagged                   — relevant, though a fine card.
  * Unflagged + unrelated cards are dropped here; the caller's "pick another card"
- * list still exposes every card.
+ * list still exposes every card. A card that's load-bearing for an engine the
+ * deck is invested in is never suggested unless the add reinforces that engine.
  */
 export function rankReplacementCuts({
   addCard,
   deckCards,
   removals = [],
+  deckSynergy,
   limit = 8,
 }: RankReplacementCutsParams): RankedCut[] {
   const removalByName = new Map<string, OptimizeCard>();
@@ -88,6 +115,11 @@ export function rankReplacementCuts({
   const addRole = roleOf(addCard);
   const addType = primaryTypeOf(addCard);
   const addCmc = addCard.cmc ?? 0;
+  const addAxes = axisKeys(addCard);
+  // Derive the engine analysis once if the caller didn't supply it.
+  const deckSyn = deckSynergy ?? analyzeDeckSynergy(deckCards.map((d) => d.card));
+  const investedAxes = new Set<string>(deckSyn.invested);
+  const hasEngine = investedAxes.size > 0;
 
   type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
   const scored: Scored[] = [];
@@ -98,11 +130,33 @@ export function rankReplacementCuts({
     const removal = removalByName.get(card.name.toLowerCase());
     const cuttable = !!removal;
 
+    const cardAxes = axisKeys(card);
+    const shared = sharedAxisNames(addAxes, cardAxes);
+    const sameAxis = shared.length > 0;
+    const axisOverlap = axisJaccard(addAxes, cardAxes); // 0–1
+
     const sameRole = !!addRole && roleOf(card) === addRole;
     const sameType = !!addType && primaryTypeOf(card) === addType;
     const cmcClose = Math.abs((card.cmc ?? 0) - addCmc) <= 1;
-    const related = sameRole || sameType;
-    const relScore = (sameRole ? 4 : 0) + (sameType ? 2 : 0) + (cmcClose ? 1 : 0);
+    const colorClose = colorsOverlap(addCard, card);
+    const related = sameAxis || sameRole || sameType;
+
+    // Cut guard: don't propose trimming a card holding up one of the deck's
+    // invested engines — unless the card being added plays that same engine, in
+    // which case it's a legitimate like-for-like swap. (Reuses cardAxes rather
+    // than re-classifying via isLoadBearing.)
+    const loadBearing =
+      hasEngine && [...cardAxes].some((k) => investedAxes.has(k.slice(0, k.indexOf(':'))));
+    if (loadBearing && !sameAxis) continue;
+
+    // Axis overlap is the dominant relatedness signal (up to 6), then role, type,
+    // color, cost. Mirrors the synergy-first weighting of the similar-cards scorer.
+    const relScore =
+      axisOverlap * 6 +
+      (sameRole ? 4 : 0) +
+      (sameType ? 2 : 0) +
+      (colorClose ? 0.5 : 0) +
+      (cmcClose ? 1 : 0);
 
     let tier: number;
     if (cuttable && related) tier = 1;
@@ -112,7 +166,13 @@ export function rankReplacementCuts({
 
     const reason =
       removal?.reason ??
-      (sameRole ? 'Overlapping role' : sameType ? 'Overlapping type' : 'Similar cost');
+      (sameAxis
+        ? `Overlapping ${axisLabel(shared[0])}`
+        : sameRole
+          ? 'Overlapping role'
+          : sameType
+            ? 'Overlapping type'
+            : 'Similar cost');
 
     scored.push({
       slotId,
