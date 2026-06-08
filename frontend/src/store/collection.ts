@@ -26,6 +26,12 @@ import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
+import {
+  captureCollectionSnapshot,
+  snapshotHasContent,
+  type CollectionSnapshot,
+} from '../lib/collection-snapshot';
+import { toast } from './toasts';
 
 function newBinderId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -141,6 +147,13 @@ interface CollectionState {
   // Backup actions
   buildBackupSnapshot: () => Backup;
   restoreFromBackup: (backup: Backup) => Promise<void>;
+  /**
+   * Restore a {@link CollectionSnapshot} captured before a destructive op
+   * (clear / delete-import / replace-import). Sets the collection slice back and
+   * lets deck allocations + binder refs self-heal from the restored cards, then
+   * persists. Backs the "Undo" toast those ops surface.
+   */
+  restoreCollectionSnapshot: (snap: CollectionSnapshot) => Promise<void>;
 
   // Binder card customization actions
   /** Add a card to a binder's pinned list. No-op if already pinned. Returns true if added. */
@@ -329,6 +342,13 @@ export const useCollectionStore = create<CollectionState>()(
         const stamped = response.cards.map((c) => ({ ...c, importId }));
         const collectionMode = mode === 'binder' ? 'merge' : mode;
         const newCards = collectionMode === 'merge' ? mergeCards(existing, stamped) : stamped;
+        // A 'replace' import over a non-empty collection silently discards the
+        // prior cards/history — snapshot it so we can offer an Undo. (First
+        // imports and merges add rather than destroy, so they need none.)
+        const replacedSnapshot =
+          collectionMode === 'replace' && existing.length > 0
+            ? captureCollectionSnapshot(get())
+            : null;
         const entry: ImportHistoryEntry = {
           id: importId,
           name: fileName,
@@ -405,15 +425,26 @@ export const useCollectionStore = create<CollectionState>()(
               'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
           });
         }
+        if (replacedSnapshot) {
+          toast.show({
+            message: 'Collection replaced on import',
+            actionLabel: 'Undo',
+            onAction: () => {
+              void get().restoreCollectionSnapshot(replacedSnapshot);
+            },
+          });
+        }
         return importId;
       },
 
       deleteImports: async (ids) => {
         if (ids.length === 0) return;
+        const snap = captureCollectionSnapshot(get());
         const idSet = new Set(ids);
         const s = get();
         const remainingCards = s.cards.filter((c) => !c.importId || !idSet.has(c.importId));
         const remainingHistory = s.importHistory.filter((h) => !idSet.has(h.id));
+        const removedCount = s.cards.length - remainingCards.length;
         set({
           cards: remainingCards,
           importHistory: remainingHistory,
@@ -441,6 +472,15 @@ export const useCollectionStore = create<CollectionState>()(
           }
         } catch (err) {
           logger.warn('[store] Failed to persist after deleteImports:', err);
+        }
+        if (removedCount > 0) {
+          toast.show({
+            message: `Removed ${removedCount} card${removedCount === 1 ? '' : 's'}`,
+            actionLabel: 'Undo',
+            onAction: () => {
+              void get().restoreCollectionSnapshot(snap);
+            },
+          });
         }
       },
 
@@ -567,6 +607,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       clearCards: async () => {
+        const snap = captureCollectionSnapshot(get());
         const prevCards = get().cards;
         set({
           cards: [],
@@ -588,6 +629,16 @@ export const useCollectionStore = create<CollectionState>()(
           await clearCollection();
         } catch (err) {
           logger.warn('[store] Failed to clear cache:', err);
+        }
+        // Offer one-shot undo of this hard-to-reverse wipe.
+        if (snapshotHasContent(snap)) {
+          toast.show({
+            message: 'Collection cleared',
+            actionLabel: 'Undo',
+            onAction: () => {
+              void get().restoreCollectionSnapshot(snap);
+            },
+          });
         }
       },
 
@@ -651,6 +702,41 @@ export const useCollectionStore = create<CollectionState>()(
           } catch (err) {
             logger.warn('[store] Failed to clear cache during restore:', err);
           }
+        }
+      },
+
+      restoreCollectionSnapshot: async (snap) => {
+        const prevCards = get().cards;
+        set({
+          cards: snap.cards,
+          fileName: snap.fileName,
+          scryfallHits: snap.scryfallHits,
+          scryfallMisses: snap.scryfallMisses,
+          unresolvedNames: snap.unresolvedNames,
+          detectedFormat: snap.detectedFormat,
+          uploadedAt: snap.uploadedAt,
+          importHistory: snap.importHistory,
+          lists: snap.lists,
+          error: null,
+        });
+        // Deck allocations and binder pins re-derive deterministically from the
+        // restored cards (binders keep their durable key shadow), so restoring
+        // just the collection slice reproduces the prior deck/binder state —
+        // same self-healing path as importCards / restoreFromBackup.
+        remapDeckAllocations(snap.cards);
+        remapBinderRefs(prevCards, snap.cards);
+        try {
+          if (
+            snap.cards.length === 0 &&
+            snap.importHistory.length === 0 &&
+            snap.lists.length === 0
+          ) {
+            await clearCollection();
+          } else {
+            await saveCollection(buildStored({ ...get() }));
+          }
+        } catch (err) {
+          logger.warn('[store] Failed to persist restored collection:', err);
         }
       },
 
