@@ -8,11 +8,12 @@ import {
   fromOptimizeCard,
   fromSubstituteRow,
   fromBracketFitMove,
+  fromSwap,
   mergeImprove,
   parsePrice,
 } from './deck-change';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
-import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
@@ -352,5 +353,57 @@ describe('parsePrice re-export', () => {
   it('returns null for non-finite input', () => {
     expect(parsePrice('—')).toBeNull();
     expect(parsePrice(null)).toBeNull();
+  });
+});
+
+describe('fromSwap', () => {
+  const inCard = {
+    id: 'in',
+    oracle_id: 'o-in',
+    name: 'Rhystic Study',
+    cmc: 3,
+    type_line: 'Enchantment',
+    color_identity: ['U'],
+    image_uris: { normal: 'https://img/rhystic-normal', small: 'https://img/rhystic-small' },
+  } as ScryfallCard;
+
+  it('renders the incoming card as primary and the cut card as the offender', () => {
+    const c = fromSwap({
+      inCard,
+      outName: 'Mind Stone',
+      reason: 'Overlapping Card Advantage',
+      ownership: 'owned',
+      inclusion: 62,
+      role: 'cardDraw',
+      roleLabel: 'Card Advantage',
+    });
+    expect(c.type).toBe('swap');
+    expect(c.name).toBe('Rhystic Study'); // primary card = coming IN
+    expect(c.inName).toBe('Mind Stone'); // offender = being CUT
+    expect(c.card).toBe(inCard);
+    expect(c.id).toBe('swap:Mind Stone->Rhystic Study');
+    expect(c.lane).toBe('similar'); // default lane
+    expect(c.ownership).toBe('owned');
+    expect(c.inclusion).toBe(62);
+    expect(c.reason).toBe('Overlapping Card Advantage');
+    expect(c.imageUrl).toBe('https://img/rhystic-normal');
+    expect(c.cmc).toBe(3);
+    expect(c.typeLine).toBe('Enchantment');
+  });
+
+  it('falls back to the small image and honors a custom lane', () => {
+    const noNormal = {
+      ...inCard,
+      image_uris: { small: 'https://img/only-small' },
+    } as ScryfallCard;
+    const c = fromSwap({
+      inCard: noNormal,
+      outName: 'Old Card',
+      reason: 'r',
+      lane: 'upgrade',
+    });
+    expect(c.imageUrl).toBe('https://img/only-small');
+    expect(c.lane).toBe('upgrade');
+    expect(c.ownership).toBeUndefined();
   });
 });

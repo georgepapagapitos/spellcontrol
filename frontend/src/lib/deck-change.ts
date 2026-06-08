@@ -361,3 +361,58 @@ export function fromBracketFitMove(move: BracketFitMove, ownership?: ChangeOwner
     imageUrl: move.imageUrl,
   };
 }
+
+export interface SwapChangeInput {
+  /** The resolved card coming IN (the audition pick). */
+  inCard: ScryfallCard;
+  /** The in-deck card being CUT to make room. */
+  outName: string;
+  /** Data-grounded "why this swap" (e.g. the ranked cut's reason). */
+  reason: string;
+  /** Live ownership of the incoming card (re-derived by the caller, never cached). */
+  ownership?: ChangeOwnership;
+  /** Owning lane — defaults to `similar` (the audition/swap-in surface). */
+  lane?: LaneId;
+  /** EDHREC inclusion % of the incoming card, if known. */
+  inclusion?: number;
+  /** Functional role of the incoming card (key + display label). */
+  role?: string;
+  roleLabel?: string;
+}
+
+/**
+ * Build a `type:'swap'` Change for a general add↔cut pair (the E20 audition: "add
+ * X, cut Y as one move"). Mirrors the swap shape `fromBracketFitMove` uses and
+ * `<DeckCardRow>` renders: `name`/`card` describe the card coming IN (the primary
+ * card — its art, role, inclusion, ownership), and `inName` is the card being CUT
+ * (the dimmed offender art on the left). The page reads `inName` to find the slot
+ * to remove, then adds `name`. Keeps the pairing explicit in the data model
+ * instead of buried in a callback closure.
+ */
+export function fromSwap({
+  inCard,
+  outName,
+  reason,
+  ownership,
+  lane = 'similar',
+  inclusion,
+  role,
+  roleLabel,
+}: SwapChangeInput): Change {
+  return {
+    id: `swap:${outName}->${inCard.name}`,
+    type: 'swap',
+    lane,
+    name: inCard.name,
+    card: inCard,
+    inName: outName,
+    reason,
+    ownership,
+    inclusion,
+    role,
+    roleLabel,
+    cmc: inCard.cmc,
+    typeLine: inCard.type_line,
+    imageUrl: inCard.image_uris?.normal ?? inCard.image_uris?.small,
+  };
+}
