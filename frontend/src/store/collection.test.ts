@@ -16,6 +16,7 @@ vi.mock('../lib/local-cards', async (importActual) => {
 
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
+import { useToastsStore } from './toasts';
 import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 
@@ -735,5 +736,201 @@ describe('UI / config setters', () => {
     expect(s.search).toBe('bolt');
     expect(s.isLoading).toBe(true);
     expect(s.error).toBe('boom');
+  });
+});
+
+describe('destructive-op undo', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  const undoToast = () => useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
+
+  beforeEach(() => {
+    useToastsStore.setState({ toasts: [] });
+  });
+
+  describe('clearCards', () => {
+    it('offers an Undo toast that restores cards, history and metadata', async () => {
+      useCollectionStore.setState({
+        cards: [
+          enriched({ copyId: 'a', scryfallId: 'sfA', importId: 'imp1' }),
+          enriched({ copyId: 'b', scryfallId: 'sfB', importId: 'imp1' }),
+        ],
+        importHistory: [{ id: 'imp1', name: 'box.csv', count: 2, format: 'manabox', addedAt: 7 }],
+        fileName: 'box.csv',
+        scryfallHits: 2,
+        detectedFormat: 'manabox',
+        uploadedAt: 7,
+      });
+
+      await useCollectionStore.getState().clearCards();
+
+      // Cleared in memory…
+      expect(useCollectionStore.getState().cards).toEqual([]);
+      expect(useCollectionStore.getState().importHistory).toEqual([]);
+      // …and an Undo affordance was surfaced.
+      const t = undoToast();
+      expect(t?.message).toBe('Collection cleared');
+
+      t!.onAction!();
+      await flush();
+
+      const s = useCollectionStore.getState();
+      expect(s.cards.map((c) => c.copyId).sort()).toEqual(['a', 'b']);
+      expect(s.importHistory).toEqual([
+        { id: 'imp1', name: 'box.csv', count: 2, format: 'manabox', addedAt: 7 },
+      ]);
+      expect(s.fileName).toBe('box.csv');
+      expect(s.scryfallHits).toBe(2);
+      expect(s.detectedFormat).toBe('manabox');
+      expect(s.uploadedAt).toBe(7);
+      // Restore persisted the rehydrated collection.
+      expect(saveCollection).toHaveBeenCalled();
+    });
+
+    it('does not offer Undo when the collection was already empty', async () => {
+      useCollectionStore.setState({ ...RESET });
+      await useCollectionStore.getState().clearCards();
+      expect(undoToast()).toBeUndefined();
+    });
+
+    it('re-derives deck allocations from the restored cards on undo', async () => {
+      const restored = [enriched({ copyId: 'a', scryfallId: 'sfA', importId: 'imp1' })];
+      useCollectionStore.setState({
+        cards: restored,
+        importHistory: [{ id: 'imp1', name: 'm', count: 1, format: '', addedAt: 1 }],
+      });
+      await useCollectionStore.getState().clearCards();
+
+      const remapAllocations = vi.fn();
+      useDecksStore.setState({
+        decks: [{ id: 'd1' } as never],
+        hydrated: true,
+        remapAllocations,
+      } as never);
+
+      undoToast()!.onAction!();
+      await flush();
+
+      // The cross-entity self-heal: the decks store is asked to re-derive its
+      // allocations against the exact cards we restored.
+      expect(remapAllocations).toHaveBeenCalledTimes(1);
+      expect(remapAllocations.mock.calls[0][0].map((c: { copyId: string }) => c.copyId)).toEqual([
+        'a',
+      ]);
+    });
+  });
+
+  describe('deleteImports', () => {
+    it('offers an Undo toast counting removed cards and restores them', async () => {
+      useCollectionStore.setState({
+        cards: [
+          enriched({ copyId: 'a', scryfallId: 'sfA', importId: 'imp1' }),
+          enriched({ copyId: 'b', scryfallId: 'sfB', importId: 'imp1' }),
+          enriched({ copyId: 'keep', scryfallId: 'sfK', importId: 'imp2' }),
+        ],
+        importHistory: [
+          { id: 'imp1', name: 'one', count: 2, format: '', addedAt: 1 },
+          { id: 'imp2', name: 'two', count: 1, format: '', addedAt: 2 },
+        ],
+      });
+
+      await useCollectionStore.getState().deleteImports(['imp1']);
+
+      expect(useCollectionStore.getState().cards.map((c) => c.copyId)).toEqual(['keep']);
+      const t = undoToast();
+      expect(t?.message).toBe('Removed 2 cards');
+
+      t!.onAction!();
+      await flush();
+
+      expect(
+        useCollectionStore
+          .getState()
+          .cards.map((c) => c.copyId)
+          .sort()
+      ).toEqual(['a', 'b', 'keep']);
+      expect(useCollectionStore.getState().importHistory.map((h) => h.id)).toEqual([
+        'imp1',
+        'imp2',
+      ]);
+    });
+
+    it('singularizes the message for a one-card import', async () => {
+      useCollectionStore.setState({
+        cards: [enriched({ copyId: 'a', scryfallId: 'sfA', importId: 'imp1' })],
+        importHistory: [{ id: 'imp1', name: 'one', count: 1, format: '', addedAt: 1 }],
+      });
+      await useCollectionStore.getState().deleteImports(['imp1']);
+      expect(undoToast()?.message).toBe('Removed 1 card');
+    });
+
+    it('offers no Undo when nothing matched the ids', async () => {
+      useCollectionStore.setState({
+        cards: [enriched({ copyId: 'a', scryfallId: 'sfA', importId: 'imp1' })],
+        importHistory: [{ id: 'imp1', name: 'one', count: 1, format: '', addedAt: 1 }],
+      });
+      await useCollectionStore.getState().deleteImports(['nope']);
+      expect(undoToast()).toBeUndefined();
+    });
+  });
+
+  describe('importCards replace mode', () => {
+    it('offers Undo when replacing a non-empty collection and restores the prior cards', async () => {
+      const prior = enriched({ copyId: 'old', scryfallId: 'sfOld', importId: 'impOld' });
+      useCollectionStore.setState({
+        cards: [prior],
+        importHistory: [{ id: 'impOld', name: 'old.csv', count: 1, format: '', addedAt: 1 }],
+        fileName: 'old.csv',
+      });
+
+      const incoming = enriched({ copyId: 'new', scryfallId: 'sfNew' });
+      await useCollectionStore
+        .getState()
+        .importCards(uploadResponse([incoming]), 'new.csv', 'replace');
+
+      expect(useCollectionStore.getState().cards.map((c) => c.copyId)).toEqual(['new']);
+      const t = undoToast();
+      expect(t?.message).toBe('Collection replaced on import');
+
+      t!.onAction!();
+      await flush();
+
+      const s = useCollectionStore.getState();
+      expect(s.cards.map((c) => c.copyId)).toEqual(['old']);
+      expect(s.fileName).toBe('old.csv');
+      expect(s.importHistory.map((h) => h.id)).toEqual(['impOld']);
+    });
+
+    it('offers no Undo for the first import into an empty collection', async () => {
+      useCollectionStore.setState({ ...RESET });
+      await useCollectionStore
+        .getState()
+        .importCards(
+          uploadResponse([enriched({ copyId: 'x', scryfallId: 'sfX' })]),
+          'f.csv',
+          'replace'
+        );
+      expect(undoToast()).toBeUndefined();
+    });
+
+    it('offers no Undo for a merge import (additive, not destructive)', async () => {
+      useCollectionStore.setState({
+        cards: [enriched({ copyId: 'old', scryfallId: 'sfOld', importId: 'impOld' })],
+        importHistory: [{ id: 'impOld', name: 'old.csv', count: 1, format: '', addedAt: 1 }],
+      });
+      await useCollectionStore
+        .getState()
+        .importCards(
+          uploadResponse([enriched({ copyId: 'add', scryfallId: 'sfAdd' })]),
+          'add.csv',
+          'merge'
+        );
+      expect(undoToast()).toBeUndefined();
+      expect(
+        useCollectionStore
+          .getState()
+          .cards.map((c) => c.copyId)
+          .sort()
+      ).toEqual(['add', 'old']);
+    });
   });
 });
