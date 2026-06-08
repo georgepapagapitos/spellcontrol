@@ -121,7 +121,7 @@ function readStoredGridSize(): GridSize {
   }
   return '1x';
 }
-type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc' | 'release';
+type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc' | 'release' | 'added';
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
@@ -145,6 +145,7 @@ const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'des
   { key: 'rarity', label: 'Rarity', defaultDir: 'asc' },
   { key: 'set', label: 'Set', defaultDir: 'asc' },
   { key: 'release', label: 'Release date', defaultDir: 'desc' },
+  { key: 'added', label: 'Date added', defaultDir: 'desc' },
 ];
 
 const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
@@ -155,6 +156,7 @@ const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
   qty: 'quantity',
   cmc: 'cmc',
   release: 'setReleaseDate',
+  added: 'dateAdded',
 };
 
 const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FIELDS.reduce(
@@ -189,6 +191,8 @@ export function CardListTable({
   const [scryfallOpen, setScryfallOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // Import history powers the "Date added" sort (timestamp keyed by importId).
+  const importHistory = useCollectionStore((s) => s.importHistory);
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -566,7 +570,10 @@ export function CardListTable({
     // "quantity" sort uses the displayed (rolled-up or per-copy) qty.
     const qtyByPrintingKey = new Map<string, number>();
     for (const r of filtered) qtyByPrintingKey.set(printingKey(r.card), r.qty);
-    const ctx: SortContext = { setMap, qtyByPrintingKey };
+    // Import timestamp per importId, for the "Date added" sort (whole-import
+    // granularity; cards predating the importId field sort as oldest).
+    const addedAtByImportId = new Map(importHistory.map((e) => [e.id, e.addedAt]));
+    const ctx: SortContext = { setMap, qtyByPrintingKey, addedAtByImportId };
     const sortedCards = sortCards(
       filtered.map((r) => r.card),
       [{ field, dir }],
@@ -574,7 +581,7 @@ export function CardListTable({
     );
     const byCopyId = new Map(filtered.map((r) => [r.card.copyId, r]));
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
-  }, [filtered, sortKey, sortDir, setMap]);
+  }, [filtered, sortKey, sortDir, setMap, importHistory]);
 
   // Stable parallel arrays for the card preview carousel. Built inline in JSX,
   // these would get a fresh identity on every render — and since each swipe

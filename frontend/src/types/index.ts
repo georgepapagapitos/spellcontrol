@@ -199,7 +199,10 @@ export type SortField =
   | 'collectorNumber'
   | 'quantity'
   | 'treatment'
-  | 'finish';
+  | 'finish'
+  // Collection-only import-date sort (see binder-routing SortField); kept in sync
+  // with the canonical union in `@spellcontrol/binder-routing`.
+  | 'dateAdded';
 
 export type SortDir = 'asc' | 'desc';
 

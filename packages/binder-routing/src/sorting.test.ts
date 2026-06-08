@@ -145,6 +145,34 @@ describe('cardSortValue', () => {
     expect(sorted.map((c) => c.setCode)).toEqual(['BLB', 'FIN', 'ECL']);
   });
 
+  it('dateAdded: returns the import addedAt for the card import', () => {
+    const card = makeCard({ importId: 'imp-1' });
+    const ctx = { addedAtByImportId: new Map([['imp-1', 1700000000000]]) };
+    expect(cardSortValue(card, 'dateAdded', ctx)).toBe(1700000000000);
+  });
+
+  it('dateAdded: unknown/legacy cards (no importId or unmapped id) sort as oldest (0)', () => {
+    const ctx = { addedAtByImportId: new Map([['imp-1', 1700000000000]]) };
+    expect(cardSortValue(makeCard({ importId: undefined }), 'dateAdded', ctx)).toBe(0);
+    expect(cardSortValue(makeCard({ importId: 'gone' }), 'dateAdded', ctx)).toBe(0);
+    // No context at all (e.g. a binder view) → 0 for everyone, a stable no-op.
+    expect(cardSortValue(makeCard({ importId: 'imp-1' }), 'dateAdded')).toBe(0);
+  });
+
+  it('dateAdded: sorts newest-first under desc, pinning undated cards last', () => {
+    const old = makeCard({ name: 'Old', importId: 'imp-old' });
+    const recent = makeCard({ name: 'Recent', importId: 'imp-new' });
+    const legacy = makeCard({ name: 'Legacy', importId: undefined });
+    const ctx = {
+      addedAtByImportId: new Map([
+        ['imp-old', 1000],
+        ['imp-new', 2000],
+      ]),
+    };
+    const sorted = sortCards([old, legacy, recent], [{ field: 'dateAdded', dir: 'desc' }], ctx);
+    expect(sorted.map((c) => c.name)).toEqual(['Recent', 'Old', 'Legacy']);
+  });
+
   it('price: returns raw price (direction handled by sortCards)', () => {
     expect(cardSortValue(multiCreature, 'price')).toBe(15);
     expect(cardSortValue(redInstant, 'price')).toBe(2);
