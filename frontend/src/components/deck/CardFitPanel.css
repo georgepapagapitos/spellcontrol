@@ -1,0 +1,94 @@
+/* CardFitPanel — E20 audition / what-if fit preview. Reuses the house
+   .card-picker-* overlay (bottom sheet on mobile, centered ≥600px); this file
+   styles the title block, the signal rows, the cut list head, and the footer.
+   Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
+
+.card-fit-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-md, 1rem);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.card-fit-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--text2);
+}
+
+/* Engine / curve / role / color read-out — a compact label→value list. */
+.card-fit-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-fit-signal {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--surface2);
+  border: 0.5px solid var(--border);
+  border-left-width: 2px;
+  border-left-color: var(--border);
+  border-radius: var(--radius);
+}
+
+/* Verdict tone accents the left edge: good = engine fit, mixed = off-plan. */
+.card-fit-signal.is-good {
+  border-left-color: var(--success, hsl(140 50% 45%));
+}
+
+.card-fit-signal.is-mixed {
+  border-left-color: var(--warn, hsl(38 90% 50%));
+}
+
+.card-fit-signal-label {
+  flex: 0 0 3.2rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text3);
+}
+
+.card-fit-signal-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.card-fit-cuts {
+  margin-top: 0.25rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-fit-cuts-head {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text2);
+}
+
+.card-fit-cuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0 0 0.25rem;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.card-fit-footer {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}

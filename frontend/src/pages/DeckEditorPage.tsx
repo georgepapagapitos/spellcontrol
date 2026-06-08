@@ -35,6 +35,8 @@ import {
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import { fromGapCard, sortOwnedFirst, type LaneId, type ChangeOwnership } from '@/lib/deck-change';
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
+import { computeAddFit } from '@/lib/card-fit';
+import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
 import { classifyCandidate } from '../lib/deck-analysis';
@@ -176,6 +178,9 @@ export function DeckEditorPage() {
   // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
   // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
+  // E20 audition / what-if: a resolved card the user is "previewing the fit" of
+  // (from a card-search row) before committing. Drives the CardFitPanel overlay.
+  const [auditionCard, setAuditionCard] = useState<ScryfallCard | null>(null);
   // Bracket Fit swaps gate the row by the CUT card's name (the page-side swap
   // state is slot-keyed, which BracketFitLane can't see). Tracked separately so a
   // swap-in-flight disables only its own row.
@@ -724,6 +729,19 @@ export function DeckEditorPage() {
             .map((c) => toOpt(c));
           return { suggested, all, anyRelated };
         })();
+
+  // E20 audition fit report — engine/curve/role/color + ranked cuts for the card
+  // the user is previewing. Computed only while the panel is open (a plain const,
+  // like replaceOptions — past the early-return guard so `deck` is defined).
+  const auditionReport =
+    auditionCard && deck
+      ? computeAddFit({
+          addCard: auditionCard,
+          deckCards: deck.cards,
+          removals: deck.optimizeSwaps?.removals,
+          commanderColorIdentity,
+        })
+      : null;
 
   // Refill-after-cut options: same-role staples the deck is missing (owned-first
   // hint), to bring the deck back to its legal count.
@@ -1573,14 +1591,42 @@ export function DeckEditorPage() {
               onAdd={({ card, allocatedCopyId }) => {
                 if (addZone === 'side') {
                   addSideboardCard(deck.id, card, allocatedCopyId);
-                } else {
-                  addCard(deck.id, card, allocatedCopyId);
+                  return;
                 }
+                // A full Commander deck would overfill — open the intelligent
+                // replace-when-full prompt instead of silently going to 101.
+                if (deckIsFull) {
+                  setShowAddPanel(false);
+                  setPendingAdd(card.name);
+                  return;
+                }
+                addCard(deck.id, card, allocatedCopyId);
               }}
+              onPreviewFit={(card) => setAuditionCard(card)}
               onClose={() => setShowAddPanel(false)}
             />
           </div>
         </div>
+      )}
+
+      {auditionCard && auditionReport && deck && (
+        <CardFitPanel
+          addCard={auditionCard}
+          report={auditionReport}
+          commanderName={deck.commander?.name}
+          busySlotId={swappingSlot}
+          onSwapCut={(cut) =>
+            void handleSwapInDeck(cut.slotId, cut.card.name, auditionCard.name, () =>
+              setAuditionCard(null)
+            )
+          }
+          onAddAnyway={() => {
+            const name = auditionCard.name;
+            setAuditionCard(null);
+            void handleAddEngineCard(name);
+          }}
+          onClose={() => setAuditionCard(null)}
+        />
       )}
 
       {confirmDelete && (
