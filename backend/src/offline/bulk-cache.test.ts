@@ -55,10 +55,18 @@ function mockScryfallFetch(cards: Record<string, unknown>[] = [DEFAULT_BULK_CARD
 
 describe('bulk-cache scheduling', () => {
   const originalDisabled = process.env.OFFLINE_BULK_DISABLED;
+  const originalOfflineDir = process.env.OFFLINE_DATA_DIR;
+  let tmpDir: string;
 
   beforeEach(async () => {
     await __resetOracleBulkForTesting();
     delete process.env.OFFLINE_BULK_DISABLED;
+    // Sandbox the persist target — these tests build with a MOCKED 1-card fetch,
+    // and without this they'd write that mock over the real dev/prod offline
+    // bundle (default dir is dirname(DB_PATH) = backend/data/). That clobbered a
+    // real bundle once.
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bulk-cache-sched-'));
+    process.env.OFFLINE_DATA_DIR = tmpDir;
   });
 
   afterEach(async () => {
@@ -69,6 +77,12 @@ describe('bulk-cache scheduling', () => {
     } else {
       process.env.OFFLINE_BULK_DISABLED = originalDisabled;
     }
+    if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
+    else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
+    // Let any fire-and-forget persistToDisk drain before removing the dir, so a
+    // late write can't recreate it.
+    await new Promise((r) => setTimeout(r, 60));
+    await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
   it('does not arm the daily refresh timer until the bulk is built', () => {
@@ -132,6 +146,8 @@ describe('bulk-cache disk persistence', () => {
     } else {
       process.env.DB_PATH = originalDbPath;
     }
+    // Drain any fire-and-forget persistToDisk before removing the dir.
+    await new Promise((r) => setTimeout(r, 60));
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -207,6 +223,8 @@ describe('bulk-cache slimCard filtering', () => {
     await __resetOracleBulkForTesting();
     if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
     else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
+    // Drain any fire-and-forget persistToDisk before removing the dir.
+    await new Promise((r) => setTimeout(r, 60));
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
   });
 

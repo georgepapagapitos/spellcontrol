@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { Express } from 'express';
 import { createTestEnv } from '../test-helpers';
 import { __resetOracleBulkForTesting, refreshOracleBulk } from '../offline/bulk-cache';
@@ -7,11 +10,19 @@ import { __resetCombosBulkForTesting } from '../offline/combos-export';
 
 let app: Express;
 let cleanup: () => Promise<void>;
+let tmpDir: string;
+const originalOfflineDir = process.env.OFFLINE_DATA_DIR;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
   cleanup = env.cleanup;
+
+  // Sandbox the persist target — these tests build with a MOCKED 1-card fetch,
+  // and the bundle persists to disk; without this it'd write that mock over the
+  // real dev/prod offline bundle (default dir is dirname(DB_PATH)).
+  tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'offline-route-test-'));
+  process.env.OFFLINE_DATA_DIR = tmpDir;
 
   // Stub the Scryfall bulk index + download so the route tests don't hit
   // the live API. Returns a single-card bulk so the slim projection has
@@ -68,6 +79,11 @@ beforeAll(async () => {
 afterAll(async () => {
   vi.restoreAllMocks();
   if (cleanup) await cleanup();
+  if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
+  else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
+  // Drain any fire-and-forget persistToDisk before removing the dir.
+  await new Promise((r) => setTimeout(r, 60));
+  await fs.promises.rm(tmpDir, { recursive: true, force: true });
 });
 
 describe('GET /api/offline/manifest', () => {

@@ -105,8 +105,10 @@ interface BulkIndexResponse {
 }
 
 async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }> {
+  // Scryfall requires a descriptive User-Agent — requests without one now get a
+  // 400 (matches the header the per-import resolver in scryfall.ts already sends).
   const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
   });
   if (!res.ok) {
     throw new Error(`Scryfall bulk index returned ${res.status}`);
@@ -207,7 +209,7 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
 async function buildPayload(): Promise<BulkPayload> {
   const { url, updatedAt } = await fetchOracleBulkUrl();
   logger.info('[offline] downloading Scryfall oracle bulk from', url);
-  const dlRes = await fetch(url);
+  const dlRes = await fetch(url, { headers: { 'User-Agent': 'spellcontrol/1.0' } });
   if (!dlRes.ok || !dlRes.body) {
     throw new Error(`Scryfall oracle bulk download returned ${dlRes.status}`);
   }
@@ -250,7 +252,10 @@ async function buildPayload(): Promise<BulkPayload> {
     gzipped: gz,
   };
 
-  void persistToDisk(payload).catch((err) => {
+  // Capture the target dir NOW (build time), not inside the deferred persist —
+  // see persistToDisk's note on the fire-and-forget race.
+  const persistDir = offlineDataDir();
+  void persistToDisk(payload, persistDir).catch((err) => {
     logger.warn('[offline] failed to persist bulk to disk:', err);
   });
 
@@ -273,12 +278,15 @@ function offlineDataDir(): string {
   return path.join(__dirname, '..', '..', 'data');
 }
 
+const ORACLE_GZ_FILE = 'offline-oracle.json.gz';
+const ORACLE_META_FILE = 'offline-oracle.meta.json';
+
 function diskPath(): string {
-  return path.join(offlineDataDir(), 'offline-oracle.json.gz');
+  return path.join(offlineDataDir(), ORACLE_GZ_FILE);
 }
 
 function diskMetaPath(): string {
-  return path.join(offlineDataDir(), 'offline-oracle.meta.json');
+  return path.join(offlineDataDir(), ORACLE_META_FILE);
 }
 
 interface PersistedMeta {
@@ -290,10 +298,13 @@ interface PersistedMeta {
   builderVersion?: number;
 }
 
-async function persistToDisk(payload: BulkPayload): Promise<void> {
-  const dir = path.dirname(diskPath());
+// `dir` is captured by the caller at build time, NOT re-derived from the env
+// here. persistToDisk is fire-and-forget, so reading offlineDataDir() at write
+// time would race against a later env change (in tests, that wrote a mock bundle
+// over the real one). Pinning the dir up front makes the write deterministic.
+async function persistToDisk(payload: BulkPayload, dir: string): Promise<void> {
   await fs.promises.mkdir(dir, { recursive: true });
-  await fs.promises.writeFile(diskPath(), payload.gzipped);
+  await fs.promises.writeFile(path.join(dir, ORACLE_GZ_FILE), payload.gzipped);
   const meta: PersistedMeta = {
     version: payload.version,
     cardCount: payload.cardCount,
@@ -302,7 +313,7 @@ async function persistToDisk(payload: BulkPayload): Promise<void> {
     updatedAt: payload.updatedAt,
     builderVersion: BUILDER_VERSION,
   };
-  await fs.promises.writeFile(diskMetaPath(), JSON.stringify(meta));
+  await fs.promises.writeFile(path.join(dir, ORACLE_META_FILE), JSON.stringify(meta));
 }
 
 async function loadFromDisk(): Promise<BulkPayload | null> {
