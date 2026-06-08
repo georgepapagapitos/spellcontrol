@@ -45,6 +45,7 @@ import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/cl
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
+import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -120,35 +121,25 @@ export function DeckEditorPage() {
   const redoEditLabel = useDeckHistoryStore((s) => (id ? s.redoLabel(id) : null));
 
   // Keyboard undo/redo for the editor: Cmd/Ctrl+Z undo, Shift+Z or Ctrl+Y redo.
-  // Skip while a text field is focused so native text-editing undo still works.
-  useEffect(() => {
-    if (!id) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      const key = e.key.toLowerCase();
-      const isUndo = key === 'z' && !e.shiftKey;
-      const isRedo = (key === 'z' && e.shiftKey) || (key === 'y' && e.ctrlKey && !e.metaKey);
-      if (!isUndo && !isRedo) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      const h = useDeckHistoryStore.getState();
-      if (isRedo) {
-        const label = h.redoLabel(id);
-        if (h.redo(id)) {
-          e.preventDefault();
-          if (label) pushToast({ message: `Redone: ${label}`, tone: 'info', durationMs: 2500 });
-        }
-      } else {
-        const label = h.undoLabel(id);
-        if (h.undo(id)) {
-          e.preventDefault();
-          if (label) pushToast({ message: `Undone: ${label}`, tone: 'info', durationMs: 2500 });
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+  // The hook owns the key contract and the text-field skip; we just wire the
+  // history store + success toast (read the label BEFORE mutating the stack).
+  const onKeyboardUndo = useCallback(() => {
+    if (!id) return false;
+    const h = useDeckHistoryStore.getState();
+    const label = h.undoLabel(id);
+    if (!h.undo(id)) return false;
+    if (label) pushToast({ message: `Undone: ${label}`, tone: 'info', durationMs: 2500 });
+    return true;
   }, [id, pushToast]);
+  const onKeyboardRedo = useCallback(() => {
+    if (!id) return false;
+    const h = useDeckHistoryStore.getState();
+    const label = h.redoLabel(id);
+    if (!h.redo(id)) return false;
+    if (label) pushToast({ message: `Redone: ${label}`, tone: 'info', durationMs: 2500 });
+    return true;
+  }, [id, pushToast]);
+  useUndoRedoKeyboard({ enabled: !!id, onUndo: onKeyboardUndo, onRedo: onKeyboardRedo });
 
   const collectionById = useCollectionByCopyId();
   const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(
