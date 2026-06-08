@@ -126,6 +126,23 @@ export function GameBoard({
     haptics.tap();
   }, [game, dispatch]);
 
+  // Keyboard undo (Cmd/Ctrl+Z) — mirrors the undo button; no redo on the play
+  // board. Skipped while typing in a text-entry surface, and only fires when
+  // undo is actually available (same `undoLabel` gate that renders the button).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+      if (!undoLabel) return;
+      e.preventDefault();
+      onUndo();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onUndo, undoLabel]);
+
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
   useEffect(() => {
     const prev = document.body.style.overflow;

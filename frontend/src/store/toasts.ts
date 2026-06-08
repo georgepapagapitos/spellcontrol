@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { addToast } from '../lib/toast-stack';
 
 export type ToastTone = 'info' | 'success' | 'warn' | 'error';
 
@@ -13,6 +14,10 @@ export interface Toast {
   /** Auto-dismiss duration in ms. 0 means stay until dismissed. */
   durationMs: number;
   createdAt: number;
+  /** How many identical toasts have coalesced into this one (>=2 once coalesced; absent means 1). */
+  repeat?: number;
+  /** Timestamp of the last coalesce bump — used to restart the auto-dismiss timer. */
+  bumpedAt?: number;
 }
 
 interface ToastsState {
@@ -48,7 +53,10 @@ export const useToastsStore = create<ToastsState>((set) => ({
       durationMs,
       createdAt: Date.now(),
     };
-    set((s) => ({ toasts: [...s.toasts, toast] }));
+    // addToast coalesces identical plain toasts and caps the list length.
+    set((s) => ({ toasts: addToast(s.toasts, toast) }));
+    // Returns the freshly-minted id even when coalesced (the coalesced toast
+    // keeps its original id, but callers only use this for an optional dismiss).
     return id;
   },
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),

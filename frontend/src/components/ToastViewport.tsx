@@ -21,7 +21,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     if (toast.durationMs <= 0) return;
     const timer = window.setTimeout(onDismiss, toast.durationMs);
     return () => window.clearTimeout(timer);
-  }, [toast.durationMs, onDismiss]);
+    // bumpedAt restarts the countdown whenever an identical toast coalesces in.
+  }, [toast.durationMs, toast.bumpedAt, onDismiss]);
 
   const handleAction = () => {
     toast.onAction?.();
@@ -31,6 +32,11 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   return (
     <li className={`toast toast-${toast.tone}`} role="status">
       <span className="toast-message">{toast.message}</span>
+      {toast.repeat && toast.repeat > 1 && (
+        <span className="toast-repeat" aria-label={`${toast.repeat} times`}>
+          ×{toast.repeat}
+        </span>
+      )}
       {toast.actionLabel && toast.onAction && (
         <button type="button" className="toast-action" onClick={handleAction}>
           {toast.actionLabel}
