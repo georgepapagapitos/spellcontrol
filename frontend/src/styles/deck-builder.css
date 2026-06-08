@@ -4323,6 +4323,29 @@ input.toolbar-search-input {
   font-weight: 600;
 }
 
+/* "Fit?" — audition a card's fit before adding (E20). A quiet inline text button
+   in the row's meta line, so it never disturbs the +/name/mana grid above it. */
+.card-search-fit {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card-search-fit:hover {
+  text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .card-search-fit {
+    /* A larger tap target on touch without changing the inline text flow. */
+    padding: 0.1rem 0.2rem;
+  }
+}
+
 .card-search-row.is-off-color .card-search-name {
   color: var(--text2);
 }

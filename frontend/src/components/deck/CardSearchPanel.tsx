@@ -51,6 +51,9 @@ interface Props {
    */
   existingCardCounts: Map<string, number>;
   onAdd: (choice: AddCardChoice) => void;
+  /** Audition a card's fit before adding (E20). Opens the fit-preview panel with
+   *  the resolved card. Omit to hide the per-row "Fit?" affordance. */
+  onPreviewFit?: (card: ScryfallCard) => void;
   /** Called when the user dismisses the panel via Escape. */
   onClose?: () => void;
 }
@@ -72,7 +75,7 @@ const COLOR_FILTERS: Array<{ key: string; label: string }> = [
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
 export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function CardSearchPanel(
-  { deckId, commanderColorIdentity, existingCardCounts, onAdd, onClose },
+  { deckId, commanderColorIdentity, existingCardCounts, onAdd, onPreviewFit, onClose },
   ref
 ) {
   const [mode, setMode] = useState<Mode>('collection');
@@ -297,6 +300,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           activeIndex={activeIndex}
           onActiveChange={setActiveIndex}
           onAdd={onAdd}
+          onPreviewFit={onPreviewFit}
           onAnnounce={handleAnnounce}
           publishVisible={(cards, addAt) => {
             visibleResultsRef.current = cards;
@@ -324,6 +328,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           activeIndex={activeIndex}
           onActiveChange={setActiveIndex}
           onAdd={onAdd}
+          onPreviewFit={onPreviewFit}
           onAnnounce={handleAnnounce}
           publishVisible={(cards, addAt) => {
             visibleResultsRef.current = cards;
@@ -348,6 +353,7 @@ interface ResultsProps {
   activeIndex: number;
   onActiveChange: (i: number) => void;
   onAdd: (choice: AddCardChoice) => void;
+  onPreviewFit?: (card: ScryfallCard) => void;
   onAnnounce: (msg: string) => void;
   publishVisible: (cards: ScryfallCard[], addAt: (index: number) => Promise<void> | void) => void;
 }
@@ -378,6 +384,7 @@ function CollectionResults({
   activeIndex,
   onActiveChange,
   onAdd,
+  onPreviewFit,
   onAnnounce,
   publishVisible,
   compiledSupertype,
@@ -471,6 +478,15 @@ function CollectionResults({
     onAnnounce(`Added ${c.name}`);
   };
 
+  // Collection rows carry only thin metadata, so resolve the full card before
+  // handing it to the fit-preview (it needs oracle text for synergy axes).
+  const previewFitAt = async (index: number) => {
+    const c = filtered[index];
+    if (!c || !onPreviewFit) return;
+    const full = await getCardByName(c.name).catch(() => null);
+    if (full) onPreviewFit(full);
+  };
+
   // Publish visible results so the parent's Enter handler can add the
   // currently-active row. We can't drive the parent input from here directly,
   // so we hand it a closure.
@@ -528,6 +544,20 @@ function CollectionResults({
                   <span className="card-search-indeck">in deck × {inDeck}</span>
                 </>
               )}
+              {onPreviewFit && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="card-search-fit"
+                    aria-label={`Preview how ${c.name} fits`}
+                    title="Preview fit before adding"
+                    onClick={() => void previewFitAt(i)}
+                  >
+                    Fit?
+                  </button>
+                </>
+              )}
             </span>
           </li>
         );
@@ -545,6 +575,7 @@ function ScryfallResults({
   activeIndex,
   onActiveChange,
   onAdd,
+  onPreviewFit,
   onAnnounce,
   publishVisible,
 }: ResultsProps) {
@@ -679,6 +710,20 @@ function ScryfallResults({
                 <>
                   {' · '}
                   <span className="card-search-indeck">in deck × {inDeck}</span>
+                </>
+              )}
+              {onPreviewFit && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="card-search-fit"
+                    aria-label={`Preview how ${c.name} fits`}
+                    title="Preview fit before adding"
+                    onClick={() => onPreviewFit(c)}
+                  >
+                    Fit?
+                  </button>
                 </>
               )}
             </span>
