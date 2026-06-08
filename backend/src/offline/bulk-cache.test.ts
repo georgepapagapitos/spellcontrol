@@ -249,6 +249,35 @@ describe('bulk-cache slimCard filtering', () => {
     expect(slims[0].rarity).toBe('rare');
   });
 
+  it('distills token producers from all_parts, dropping non-token relations', async () => {
+    mockScryfallFetch([
+      {
+        ...DEFAULT_BULK_CARD,
+        id: 's-krenko',
+        oracle_id: 'o-krenko',
+        name: 'Krenko, Mob Boss',
+        all_parts: [
+          // The card itself — a combo_piece, must be dropped.
+          { component: 'combo_piece', name: 'Krenko, Mob Boss', type_line: 'Legendary Creature' },
+          { component: 'token', name: 'Goblin', type_line: 'Token Creature — Goblin' },
+          // Duplicate token entry — must be deduped.
+          { component: 'token', name: 'Goblin', type_line: 'Token Creature — Goblin' },
+        ],
+      },
+      // A card with no all_parts at all — tokens must stay absent.
+      { ...DEFAULT_BULK_CARD, id: 's-plain', oracle_id: 'o-plain', name: 'Plain Card' },
+    ]);
+    const bulk = await getOracleBulk();
+    const slims = JSON.parse(gunzipSync(bulk.gzipped).toString('utf8')) as Array<{
+      name: string;
+      tokens?: Array<{ name: string; typeLine?: string }>;
+    }>;
+    const krenko = slims.find((c) => c.name === 'Krenko, Mob Boss');
+    const plain = slims.find((c) => c.name === 'Plain Card');
+    expect(krenko?.tokens).toEqual([{ name: 'Goblin', typeLine: 'Token Creature — Goblin' }]);
+    expect(plain?.tokens).toBeUndefined();
+  });
+
   it('excludes memorabilia set_type (oversized / championship printings)', async () => {
     mockScryfallFetch([
       { ...DEFAULT_BULK_CARD, id: 's-real', oracle_id: 'o-real', name: 'Real Card' },

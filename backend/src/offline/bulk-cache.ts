@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import streamArray from 'stream-json/streamers/stream-array.js';
-import type { SlimCard } from './types';
+import type { SlimCard, SlimTokenRef } from './types';
 
 /**
  * Superset of the backend's ScryfallCard type — Scryfall's oracle_cards bulk
@@ -48,6 +48,8 @@ interface ScryfallBulkCard {
     usd_foil?: string | null;
     usd_etched?: string | null;
   };
+  /** Related-card relationships — tokens, meld parts, combo pieces, etc. */
+  all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
 }
 
 const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
@@ -60,8 +62,10 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  * discards a payload built by an older builder and forces a fresh build.
  *   2 — exclude non-playable layouts (art_series/token/...) + memorabilia.
  *   3 — carry `rarity` so consumers don't default everything to common.
+ *   4 — carry `tokens` (a card's creatable tokens, from all_parts) for the
+ *       deck token checklist.
  */
-const BUILDER_VERSION = 3;
+const BUILDER_VERSION = 4;
 
 /**
  * Persisted gzipped slim oracle bulk. We compute it once a day from Scryfall's
@@ -129,6 +133,26 @@ const NON_PLAYABLE_LAYOUTS = new Set([
   'vanguard',
 ]);
 
+/**
+ * Distill a card's token output from Scryfall's `all_parts` array: keep only the
+ * `component === 'token'` entries (tokens + emblems), dedupe by name+type, and
+ * drop everything else (the card itself, meld/combo parts). Returns undefined
+ * when the card makes no tokens so the field stays absent in the slim payload.
+ */
+function tokensFromParts(parts: ScryfallBulkCard['all_parts']): SlimTokenRef[] | undefined {
+  if (!parts || parts.length === 0) return undefined;
+  const seen = new Set<string>();
+  const out: SlimTokenRef[] = [];
+  for (const p of parts) {
+    if (p.component !== 'token' || !p.name) continue;
+    const key = `${p.name} ${p.type_line ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p.type_line ? { name: p.name, typeLine: p.type_line } : { name: p.name });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function slimCard(card: ScryfallBulkCard): SlimCard | null {
   if (!card.oracle_id || !card.name) return null;
   // Skip non-paper digital-only cards and Alchemy duplicates we never want offline.
@@ -176,6 +200,7 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
     })),
     usdPrice: card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched ?? undefined,
     isGameChanger: undefined, // populated post-build from is:gamechanger search if/when needed
+    tokens: tokensFromParts(card.all_parts),
   };
 }
 

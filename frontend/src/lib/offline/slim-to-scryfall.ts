@@ -54,6 +54,7 @@ export function slimToScryfall(s: SlimCard): ScryfallCard {
     },
   };
   if (s.isGameChanger) card.isGameChanger = true;
+  if (s.tokens && s.tokens.length > 0) card.tokens = s.tokens;
   return card;
 }
 

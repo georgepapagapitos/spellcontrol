@@ -15,6 +15,15 @@ export interface SlimCardFace {
   imageLarge?: string;
 }
 
+/**
+ * A token/emblem a card creates, from Scryfall's `all_parts`. Mirrors the
+ * backend `SlimTokenRef`. Only the name + type line — enough for a checklist.
+ */
+export interface SlimTokenRef {
+  name: string;
+  typeLine?: string;
+}
+
 export interface SlimCard {
   oracleId: string;
   scryfallId: string;
@@ -41,6 +50,8 @@ export interface SlimCard {
   faces?: SlimCardFace[];
   usdPrice?: string;
   isGameChanger?: boolean;
+  /** Tokens/emblems this card creates (from Scryfall `all_parts`). Omitted when none. */
+  tokens?: SlimTokenRef[];
 }
 
 export interface OfflineManifest {

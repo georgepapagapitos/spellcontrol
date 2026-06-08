@@ -1,3 +1,14 @@
+/**
+ * A token (or emblem) a card can create, derived from Scryfall's `all_parts`
+ * relationship array. Carried through the offline slim payload so the deck
+ * Stats tab can build a physical-token prep checklist. Just the name + the
+ * Scryfall token type line.
+ */
+export interface CardToken {
+  name: string;
+  typeLine?: string;
+}
+
 // Scryfall Card type
 export interface ScryfallCard {
   id: string;
@@ -61,6 +72,7 @@ export interface ScryfallCard {
   border_color?: string;
   promo_types?: string[];
   games?: string[]; // Platforms: "paper", "arena", "mtgo"
+  tokens?: CardToken[]; // Tokens/emblems this card creates (from Scryfall all_parts)
   // Added during deck generation
   isGameChanger?: boolean;
   isThemeSynergyCard?: boolean; // true if from EDHREC highsynergycards/topcards/gamechangers

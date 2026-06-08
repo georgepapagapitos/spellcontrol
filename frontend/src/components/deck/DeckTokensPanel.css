@@ -1,0 +1,91 @@
+.deck-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck-tokens-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.deck-tokens-heading {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-tokens-total {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-tokens-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.deck-tokens-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.deck-tokens-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.deck-tokens-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.deck-tokens-row-count {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-tokens-row-kind {
+  font-size: var(--text-xs);
+  color: var(--text2);
+}
+
+.deck-tokens-row-producers {
+  font-size: var(--text-xs);
+  color: var(--text3);
+  line-height: 1.35;
+}
+
+@media (max-width: 600px) {
+  .deck-tokens {
+    gap: 0.5rem;
+  }
+
+  .deck-tokens-rows {
+    gap: 0.5rem;
+  }
+}
