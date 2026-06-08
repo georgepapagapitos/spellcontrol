@@ -166,8 +166,9 @@ describe('useCardCarousel instant open', () => {
     const cards = previewCards.mock.calls.at(-1)![0];
     // Whole lane present + swipeable up front (name-only placeholders), in order…
     expect(cards.map((c) => c.name)).toEqual(['Sol Ring', 'Counterspell', 'Llanowar Elves']);
-    // …with art sourced from the CDN image URL (no rate-limited JSON call needed)…
-    expect(cards[0].imageNormal).toMatch(/format=image/);
+    // …opening art-less (no bare img against the rate-limited API host — CDN art
+    // streams in via windowed enrichment instead)…
+    expect(cards[0].imageNormal).toBeUndefined();
     // …and the carousel lands on the tapped card, not index 0.
     expect(previewIndex.mock.calls.at(-1)![0]).toBe(1);
   });
@@ -184,9 +185,10 @@ describe('useCardCarousel instant open', () => {
 });
 
 describe('useCardCarousel resilience', () => {
-  it('still opens with placeholder art when enrichment fails — never a dead end', () => {
+  it('still opens with a usable placeholder when enrichment fails — never a dead end', () => {
     // Even when the resolver can't enrich (offline incomplete + live miss), the
-    // card still shows from its name-derived image. No silent dead-end, no toast.
+    // card still opens as a named, swipeable slot (art-less, no rate-limited img).
+    // No silent dead-end, no toast.
     mockResolve.mockResolvedValue(null);
     const { result } = renderHook(() => useCardCarousel('Test Binder'));
     act(() => {
@@ -196,7 +198,7 @@ describe('useCardCarousel resilience', () => {
     const cards = previewCards.mock.calls.at(-1)![0];
     expect(cards).toHaveLength(1);
     expect(cards[0].name).toBe('Sol Ring');
-    expect(cards[0].imageNormal).toMatch(/format=image/);
+    expect(cards[0].imageNormal).toBeUndefined();
     expect(useToastsStore.getState().toasts).toHaveLength(0);
   });
 });

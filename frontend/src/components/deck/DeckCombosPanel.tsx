@@ -1,4 +1,5 @@
 import {
+  type JSX,
   forwardRef,
   useCallback,
   useEffect,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { useCardThumb } from '../../lib/card-thumbs';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
@@ -518,14 +520,32 @@ interface CardImageIndex {
   byName: Map<string, string>;
 }
 
-/** Resolve a combo card's thumbnail image. Prefers locally-cached images
- *  from the collection or deck; falls back to Scryfall's named-card image
- *  endpoint which returns a CDN-cached redirect — no JS API call needed. */
-function resolveComboCardImage(oracleId: string, cardName: string, index: CardImageIndex): string {
-  return (
-    index.byOracle.get(oracleId) ??
-    index.byName.get(cardName.toLowerCase()) ??
-    `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}&format=image&version=normal`
+/** A locally-cached combo-card image (collection/deck), if we already have one.
+ *  Anything not cached resolves its CDN art by name in {@link ComboCardArt} —
+ *  never a bare img against the rate-limited API host. */
+function resolveComboCardImage(
+  oracleId: string,
+  cardName: string,
+  index: CardImageIndex
+): string | undefined {
+  return index.byOracle.get(oracleId) ?? index.byName.get(cardName.toLowerCase());
+}
+
+/** Combo-card art: a local cache hit, else the CDN image resolved by name
+ *  (cached + batched), else a placeholder while it loads / on a miss. */
+function ComboCardArt({
+  localUrl,
+  cardName,
+}: {
+  localUrl: string | undefined;
+  cardName: string;
+}): JSX.Element {
+  const resolved = useCardThumb(localUrl ? undefined : cardName);
+  const url = localUrl ?? resolved;
+  return url ? (
+    <img src={url} alt={cardName} loading="lazy" decoding="async" />
+  ) : (
+    <span className="deck-combos-card-art-fallback" aria-hidden />
   );
 }
 
@@ -598,7 +618,7 @@ function ComboRow({
           const isMissing = c.oracleId === missingOracleId;
           const isOwned = isMissing && ownedOracleIds.has(c.oracleId);
           const tileClass = isMissing ? (isOwned ? ' missing owned' : ' missing') : '';
-          const imageUrl = resolveComboCardImage(c.oracleId, c.cardName, cardImageIndex);
+          const localUrl = resolveComboCardImage(c.oracleId, c.cardName, cardImageIndex);
           return (
             <li key={c.oracleId} className={`deck-combos-card-tile${tileClass}`}>
               {/* Plus separator between cards. Visual rather than semantic
@@ -614,11 +634,7 @@ function ComboRow({
                 onClick={() => onCardTap(i)}
                 aria-label={`Preview ${c.cardName}`}
               >
-                {imageUrl ? (
-                  <img src={imageUrl} alt={c.cardName} loading="lazy" decoding="async" />
-                ) : (
-                  <span className="deck-combos-card-art-fallback" aria-hidden />
-                )}
+                <ComboCardArt localUrl={localUrl} cardName={c.cardName} />
                 {isMissing && (
                   <span
                     className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}

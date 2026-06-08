@@ -38,18 +38,12 @@ function enrichScry(scry: ScryfallCard): EnrichedCard {
   return finish === 'nonfoil' ? base : scryfallToEnrichedCard(scry, finish);
 }
 
-/** Scryfall's named-card *image* endpoint — a CDN-cached redirect to the card's
- *  art, NO rate-limited JSON call. Lets a name-only entry render its image
- *  instantly (the same source the deck-row thumbnails use), so the carousel is
- *  swipeable before any card data is fetched. */
-function namedImageUrl(name: string, version: 'normal' | 'large'): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=${version}`;
-}
-
-/** A minimal EnrichedCard that renders a card's art from its name alone — no
- *  network/JSON lookup. The carousel opens with these so every slot is present
- *  and swipeable immediately; richer data (price/role/foil/back-face) is filled
- *  in lazily by {@link useCardCarousel}'s windowed enrichment. */
+/** A minimal EnrichedCard for a name-only entry — present and swipeable
+ *  immediately, but with NO art yet (a bare img against the rate-limited API
+ *  host would 429 a whole lane on open). Its CDN art + richer data (price/role/
+ *  foil/back-face) stream in via {@link useCardCarousel}'s windowed enrichment,
+ *  which resolves through the cached/offline resolver — so the visible window
+ *  fills near-instantly without ever bursting the API. */
 function placeholderCard(name: string, key: string): EnrichedCard {
   return {
     copyId: key,
@@ -64,8 +58,6 @@ function placeholderCard(name: string, key: string): EnrichedCard {
     sourceFormat: '',
     finish: 'nonfoil',
     foil: false,
-    imageNormal: namedImageUrl(name, 'normal'),
-    imageLarge: namedImageUrl(name, 'large'),
   };
 }
 
@@ -114,13 +106,13 @@ const ENRICH_RADIUS = 2;
  * deck-analysis panels.
  *
  * Opens **instantly**: every entry becomes a slide up front — entries that carry
- * a `card` are fully enriched synchronously; name-only entries render from a
- * name-derived image URL (the CDN redirect, no rate-limited JSON call). So the
- * whole lane is swipeable the moment you tap, instead of waiting on ~N serial
- * Scryfall lookups. Richer data (price, role, foil, DFC back-face) is then filled
- * in lazily for a small window around whatever card you're viewing, so we never
- * fire the entire lane at the rate-limited API. One source of truth for the
- * pattern that used to be copy-pasted into each deck-analysis panel.
+ * a `card` are fully enriched synchronously; name-only entries open as art-less
+ * placeholders. CDN art + richer data (price, role, foil, DFC back-face) then
+ * stream in lazily for a small window around whatever card you're viewing,
+ * resolved through the cached/offline resolver — so the visible window fills
+ * near-instantly and we never burst the rate-limited API with a whole lane of
+ * image requests. One source of truth for the pattern that used to be
+ * copy-pasted into each deck-analysis panel.
  */
 export function useCardCarousel(binderName: string): CardCarousel {
   const [cards, setCards] = useState<EnrichedCard[] | null>(null);

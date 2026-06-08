@@ -94,6 +94,36 @@
   object-position: center top;
 }
 
+/* Skeleton shown in the art box while a name-only row resolves its CDN image —
+   keeps the row's layout stable (no shift) and reads as "loading" not "broken". */
+.deck-card-row-art-ph {
+  display: block;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: inherit;
+  background: var(--surface2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .deck-card-row-art-ph {
+    background: linear-gradient(
+      100deg,
+      var(--surface2) 30%,
+      var(--surface3, var(--surface1)) 50%,
+      var(--surface2) 70%
+    );
+    background-size: 200% 100%;
+    animation: deck-card-row-shimmer 1.2s ease-in-out infinite;
+  }
+}
+@keyframes deck-card-row-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 /* Game-changer flag — bracket-relevant high-power. A body chip beside the name
    (not an art overlay, which was illegible on the small thumb and worse on dense
    native viewports); a warn-tone pill that reads the same in every theme/size,
