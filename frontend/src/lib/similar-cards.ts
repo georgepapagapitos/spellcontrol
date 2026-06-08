@@ -25,6 +25,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import { axisKeys, axisJaccard, sharedAxisNames } from './axis-overlap';
+import { withinColorIdentity } from './card-matching';
 import type { ChangeOwnership } from './deck-change';
 
 /** The focused card the suggestions are "like". */
@@ -156,15 +157,6 @@ function ownershipRank(o: ChangeOwnership): number {
   return 2;
 }
 
-/** True when `candidate`'s color identity is legal under `identity`. */
-function withinIdentity(candidate: ScryfallCard, identity: string[]): boolean {
-  const allowed = new Set(identity);
-  for (const c of candidate.color_identity ?? []) {
-    if (!allowed.has(c)) return false;
-  }
-  return true;
-}
-
 /**
  * Rank a pool of candidates by similarity to `target`. Drops the target itself,
  * off-identity cards (when `opts.identity` is given), and anything below the
@@ -186,7 +178,11 @@ export function computeSimilarCards(
     const name = cand.card.name;
     const key = name.toLowerCase();
     if (key === targetName || seen.has(key)) continue;
-    if (opts.identity && opts.identity.length > 0 && !withinIdentity(cand.card, opts.identity)) {
+    if (
+      opts.identity &&
+      opts.identity.length > 0 &&
+      !withinColorIdentity(cand.card, opts.identity)
+    ) {
       continue;
     }
     const { score, sharedAxes } = scoreSimilarity(target, cand);

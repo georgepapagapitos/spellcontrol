@@ -15,16 +15,11 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { axisLabel } from './axis-overlap';
-import {
-  rankReplacementCuts,
-  primaryTypeOf,
-  type CutCandidate,
-  type RankedCut,
-} from './intelligent-cuts';
+import { roleOf, primaryTypeOf, withinColorIdentity } from './card-matching';
+import { rankReplacementCuts, type CutCandidate, type RankedCut } from './intelligent-cuts';
 
 export interface AxisHit {
   axis: string;
@@ -69,8 +64,6 @@ const ROLE_LABELS: Record<string, string> = {
   boardwipe: 'Board Wipes',
   cardDraw: 'Card Advantage',
 };
-
-const roleOf = (card: ScryfallCard): string | null => card.deckRole ?? getCardRole(card.name);
 
 /**
  * Compute the audition fit report for `addCard` against the deck. The synergy
@@ -136,7 +129,7 @@ export function computeAddFit({
   const ci = addCard.color_identity ?? [];
   const colorless = ci.length === 0;
   const withinIdentity =
-    !commanderColorIdentity || ci.every((c) => commanderColorIdentity.includes(c));
+    !commanderColorIdentity || withinColorIdentity(addCard, commanderColorIdentity);
 
   const rankedCuts = rankReplacementCuts({
     addCard,

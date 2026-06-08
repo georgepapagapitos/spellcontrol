@@ -24,10 +24,13 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { axisKeys, axisJaccard, sharedAxisNames, axisLabel } from './axis-overlap';
+import { roleOf, primaryTypeOf, colorsOverlap } from './card-matching';
+
+// Re-exported so existing import sites (`card-fit`, tests) stay stable now that the
+// canonical definition lives in `card-matching`.
+export { primaryTypeOf };
 
 export interface CutCandidate {
   slotId: string;
@@ -61,27 +64,6 @@ export interface RankReplacementCutsParams {
   /** Max suggestions to return (default 8). */
   limit?: number;
 }
-
-/** Do two cards share at least one color identity? (Colorless shares with no one.) */
-function colorsOverlap(a: ScryfallCard, b: ScryfallCard): boolean {
-  const bColors = new Set(b.color_identity ?? []);
-  return (a.color_identity ?? []).some((c) => bColors.has(c));
-}
-
-/** Leading card type ("Creature", "Instant", …), stripped of "Legendary" and
- *  any subtype after the em-dash. Mirrors deckAnalyzer's primaryType derivation. */
-export function primaryTypeOf(card: ScryfallCard): string {
-  const words = getFrontFaceTypeLine(card)
-    .split('—')[0]
-    .replace(/Legendary\s+/i, '')
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && w !== 'Basic' && w !== 'Snow');
-  // Last word of the supertype run is the core type ("Artifact Creature" → "Creature").
-  return words[words.length - 1] ?? '';
-}
-
-const roleOf = (card: ScryfallCard): string | null => card.deckRole ?? getCardRole(card.name);
 
 /** EDHREC-style inclusion proxy (0–100, higher = more played) for sort tiebreaks.
  *  Prefers the optimizer's inclusion, falls back to the analyzer's rank formula. */
