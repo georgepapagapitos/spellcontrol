@@ -2996,6 +2996,29 @@ input.toolbar-search-input {
   gap: 0.4rem;
 }
 
+/* Icon-only undo/redo: square the action button so it doesn't carry text
+   padding, and dim it when there's nothing to undo/redo. */
+.deck-editor-icon-btn {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+.deck-editor-icon-btn:disabled,
+.deck-editor-icon-pill:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Mobile undo/redo: round icon buttons matching the ⋮ overflow shape. */
+.deck-editor-icon-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+}
+
 /* ── Deck editor overflow (mobile) ─────────────────────────────────────── */
 .deck-editor-overflow {
   position: relative;

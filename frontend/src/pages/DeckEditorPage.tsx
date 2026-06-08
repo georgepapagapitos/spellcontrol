@@ -1,7 +1,8 @@
-import { Copy, MoreVertical, Plus, Trash2, X } from 'lucide-react';
+import { Copy, MoreVertical, Plus, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
+import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
 import {
   DeckDisplay,
@@ -101,7 +102,53 @@ export function DeckEditorPage() {
   const collectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
+  const swapCard = useDecksStore((s) => s.swapCard);
   const pushToast = useToastsStore((s) => s.push);
+
+  // Undo/redo history (deck-scoped). `recordEdit` brackets a synchronous block;
+  // `beginEdit`/`commitEdit` bracket an async one (resolve a card, then mutate)
+  // so multi-mutation actions collapse to a single undo entry. The can*/label
+  // selectors re-render the toolbar as the stack changes.
+  const recordEdit = useDeckHistoryStore((s) => s.record);
+  const beginEdit = useDeckHistoryStore((s) => s.begin);
+  const commitEdit = useDeckHistoryStore((s) => s.commit);
+  const undoEdit = useDeckHistoryStore((s) => s.undo);
+  const redoEdit = useDeckHistoryStore((s) => s.redo);
+  const canUndoEdit = useDeckHistoryStore((s) => (id ? s.canUndo(id) : false));
+  const canRedoEdit = useDeckHistoryStore((s) => (id ? s.canRedo(id) : false));
+  const undoEditLabel = useDeckHistoryStore((s) => (id ? s.undoLabel(id) : null));
+  const redoEditLabel = useDeckHistoryStore((s) => (id ? s.redoLabel(id) : null));
+
+  // Keyboard undo/redo for the editor: Cmd/Ctrl+Z undo, Shift+Z or Ctrl+Y redo.
+  // Skip while a text field is focused so native text-editing undo still works.
+  useEffect(() => {
+    if (!id) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      const isUndo = key === 'z' && !e.shiftKey;
+      const isRedo = (key === 'z' && e.shiftKey) || (key === 'y' && e.ctrlKey && !e.metaKey);
+      if (!isUndo && !isRedo) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const h = useDeckHistoryStore.getState();
+      if (isRedo) {
+        const label = h.redoLabel(id);
+        if (h.redo(id)) {
+          e.preventDefault();
+          if (label) pushToast({ message: `Redone: ${label}`, tone: 'info', durationMs: 2500 });
+        }
+      } else {
+        const label = h.undoLabel(id);
+        if (h.undo(id)) {
+          e.preventDefault();
+          if (label) pushToast({ message: `Undone: ${label}`, tone: 'info', durationMs: 2500 });
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [id, pushToast]);
 
   const collectionById = useCollectionByCopyId();
   const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(
@@ -594,12 +641,12 @@ export function DeckEditorPage() {
   const handleRemoveCard = (slotId: string) => {
     const slot = deck.cards.find((c) => c.slotId === slotId);
     if (!slot) return;
-    removeCard(deck.id, slotId);
+    recordEdit(deck.id, `remove ${slot.card.name}`, () => removeCard(deck.id, slotId));
     pushToast({
       message: `Removed ${slot.card.name}`,
       tone: 'info',
       actionLabel: 'Undo',
-      onAction: () => addCard(deck.id, slot.card, slot.allocatedCopyId),
+      onAction: () => undoEdit(deck.id),
     });
   };
 
@@ -618,10 +665,12 @@ export function DeckEditorPage() {
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       const claim = pickCollectionCopy(cardName, collectionCards, allocations, scry.id);
       if (zone === 'sideboard') {
-        addSideboardCard(deck.id, scry, claim?.copyId ?? null);
+        recordEdit(deck.id, `add ${cardName} to sideboard`, () =>
+          addSideboardCard(deck.id, scry, claim?.copyId ?? null)
+        );
         pushToast({ message: `Added ${cardName} to sideboard`, tone: 'success' });
       } else {
-        addCard(deck.id, scry, claim?.copyId ?? null);
+        recordEdit(deck.id, `add ${cardName}`, () => addCard(deck.id, scry, claim?.copyId ?? null));
         pushToast({ message: `Added ${cardName}`, tone: 'success' });
       }
     } catch {
@@ -656,7 +705,7 @@ export function DeckEditorPage() {
     const slotId = deck.cards.find((c) => c.card.name.toLowerCase() === key)?.slotId;
     if (!slotId) return;
     const wasFull = deck.cards.length >= mainboardLimit;
-    removeCard(deck.id, slotId);
+    recordEdit(deck.id, `cut ${cardName}`, () => removeCard(deck.id, slotId));
     pushToast({ message: `Cut ${cardName}`, tone: 'success' });
     if (isCommander && wasFull) {
       setRefillAfterCut({ name: cardName, role: classifyCandidate(cardName) ?? null });
@@ -669,8 +718,31 @@ export function DeckEditorPage() {
     if (!deck || !pendingAdd) return;
     const name = pendingAdd;
     setPendingAdd(null);
-    removeCard(deck.id, cutSlotId);
-    await addResolvedCard(name);
+    const cutName = deck.cards.find((c) => c.slotId === cutSlotId)?.card.name;
+    setAddingEngineNames((prev) => new Set(prev).add(name));
+    try {
+      const scry = await getCardByName(name);
+      if (!scry) {
+        pushToast({ message: `Couldn't add ${name}`, tone: 'error' });
+        return;
+      }
+      const before = beginEdit(deck.id);
+      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const claim = pickCollectionCopy(name, collectionCards, allocations, scry.id);
+      // Atomic 1-for-1: never passes through a transient over/under-size state.
+      swapCard(deck.id, cutSlotId, scry, claim?.copyId ?? null);
+      if (before)
+        commitEdit(deck.id, cutName ? `replace ${cutName} → ${name}` : `add ${name}`, before);
+      pushToast({ message: `Added ${name}`, tone: 'success' });
+    } catch {
+      pushToast({ message: `Couldn't add ${name}`, tone: 'error' });
+    } finally {
+      setAddingEngineNames((prev) => {
+        const next = new Set(prev);
+        next.delete(name);
+        return next;
+      });
+    }
   };
 
   // Full-deck escape hatches: stash the card off-mainboard, or add over-limit.
@@ -785,10 +857,12 @@ export function DeckEditorPage() {
         pushToast({ message: `Couldn't find ${newName}`, tone: 'error' });
         return;
       }
-      removeCard(deck.id, slotId);
+      const before = beginEdit(deck.id);
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       const claim = pickCollectionCopy(newName, collectionCards, allocations, scry.id);
-      addCard(deck.id, scry, claim?.copyId ?? null);
+      // Atomic swap: one state update, so no transient "card removed" deck row.
+      swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
+      if (before) commitEdit(deck.id, `swap ${oldName} → ${newName}`, before);
       pushToast({ message: `Swapped ${oldName} → ${newName}`, tone: 'success' });
       close();
     } catch {
@@ -861,6 +935,9 @@ export function DeckEditorPage() {
         arr.push(c.slotId);
         slotsByName.set(k, arr);
       }
+      // Bracket the whole batch as one undo entry (begin before the loop,
+      // commit once after) — Cmd+Z reverts the entire budget plan at once.
+      const before = beginEdit(deck.id);
       let done = 0;
       for (const { removeName, addName } of swaps) {
         const slotId = slotsByName.get(removeName.toLowerCase())?.shift();
@@ -868,15 +945,15 @@ export function DeckEditorPage() {
         try {
           const scry = await getCardByName(addName);
           if (!scry) continue;
-          removeCard(deck.id, slotId);
           const allocations = buildAllocationMap(useDecksStore.getState().decks);
           const claim = pickCollectionCopy(addName, collectionCards, allocations, scry.id);
-          addCard(deck.id, scry, claim?.copyId ?? null);
+          swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
           done += 1;
         } catch {
           /* skip cards that won't resolve — leave the original in place */
         }
       }
+      if (before) commitEdit(deck.id, `apply ${done} budget swap${done === 1 ? '' : 's'}`, before);
       pushToast({
         message: `Applied ${done} budget swap${done === 1 ? '' : 's'}`,
         tone: 'success',
@@ -889,21 +966,29 @@ export function DeckEditorPage() {
   const handleRemoveSideboardCard = (slotId: string) => {
     const slot = deck.sideboard.find((c) => c.slotId === slotId);
     if (!slot) return;
-    removeSideboardCard(deck.id, slotId);
+    recordEdit(deck.id, `remove ${slot.card.name} from sideboard`, () =>
+      removeSideboardCard(deck.id, slotId)
+    );
     pushToast({
       message: `Removed ${slot.card.name} from sideboard`,
       tone: 'info',
       actionLabel: 'Undo',
-      onAction: () => addSideboardCard(deck.id, slot.card, slot.allocatedCopyId),
+      onAction: () => undoEdit(deck.id),
     });
   };
 
   const handleMoveToSideboard = (slotId: string) => {
-    moveBetweenZones(deck.id, slotId, 'main');
+    const name = deck.cards.find((c) => c.slotId === slotId)?.card.name ?? 'card';
+    recordEdit(deck.id, `move ${name} to sideboard`, () =>
+      moveBetweenZones(deck.id, slotId, 'main')
+    );
   };
 
   const handleMoveToMainboard = (slotId: string) => {
-    moveBetweenZones(deck.id, slotId, 'side');
+    const name = deck.sideboard.find((c) => c.slotId === slotId)?.card.name ?? 'card';
+    recordEdit(deck.id, `move ${name} to mainboard`, () =>
+      moveBetweenZones(deck.id, slotId, 'side')
+    );
   };
 
   const handleMakeCommanderClick = (slotId: string, card: ScryfallCard) => {
@@ -919,9 +1004,11 @@ export function DeckEditorPage() {
     };
     // No current commander → just set it directly, no dialog needed.
     if (!deck.commander) {
-      if (target.zone === 'main') removeCard(deck.id, slotId);
-      else removeSideboardCard(deck.id, slotId);
-      setCommander(deck.id, card, target.allocatedCopyId);
+      recordEdit(deck.id, `make ${card.name} commander`, () => {
+        if (target.zone === 'main') removeCard(deck.id, slotId);
+        else removeSideboardCard(deck.id, slotId);
+        setCommander(deck.id, card, target.allocatedCopyId);
+      });
       pushToast({ message: `${card.name} is now the commander`, tone: 'success' });
       return;
     }
@@ -935,13 +1022,15 @@ export function DeckEditorPage() {
     const oldAllocated = deck.commanderAllocatedCopyId;
     setMakeCommanderTarget(null);
 
-    if (target.zone === 'main') removeCard(deck.id, target.slotId);
-    else removeSideboardCard(deck.id, target.slotId);
+    recordEdit(deck.id, `make ${target.card.name} commander`, () => {
+      if (target.zone === 'main') removeCard(deck.id, target.slotId);
+      else removeSideboardCard(deck.id, target.slotId);
 
-    if (keepOldInDeck && oldCommander) {
-      addCard(deck.id, oldCommander, oldAllocated);
-    }
-    setCommander(deck.id, target.card, target.allocatedCopyId);
+      if (keepOldInDeck && oldCommander) {
+        addCard(deck.id, oldCommander, oldAllocated);
+      }
+      setCommander(deck.id, target.card, target.allocatedCopyId);
+    });
     pushToast({
       message: `${target.card.name} is now the commander${
         keepOldInDeck && oldCommander ? ` · ${oldCommander.name} moved to the deck` : ''
@@ -972,9 +1061,11 @@ export function DeckEditorPage() {
     };
     // No current partner → pull the card out of the deck and pair it directly.
     if (!deck.partnerCommander) {
-      if (target.zone === 'main') removeCard(deck.id, slotId);
-      else removeSideboardCard(deck.id, slotId);
-      setPartnerCommander(deck.id, card, target.allocatedCopyId);
+      recordEdit(deck.id, `make ${card.name} partner`, () => {
+        if (target.zone === 'main') removeCard(deck.id, slotId);
+        else removeSideboardCard(deck.id, slotId);
+        setPartnerCommander(deck.id, card, target.allocatedCopyId);
+      });
       pushToast({ message: `${card.name} is now the partner commander`, tone: 'success' });
       return;
     }
@@ -988,13 +1079,15 @@ export function DeckEditorPage() {
     const oldAllocated = deck.partnerCommanderAllocatedCopyId;
     setMakePartnerTarget(null);
 
-    if (target.zone === 'main') removeCard(deck.id, target.slotId);
-    else removeSideboardCard(deck.id, target.slotId);
+    recordEdit(deck.id, `make ${target.card.name} partner`, () => {
+      if (target.zone === 'main') removeCard(deck.id, target.slotId);
+      else removeSideboardCard(deck.id, target.slotId);
 
-    if (keepOldInDeck && oldPartner) {
-      addCard(deck.id, oldPartner, oldAllocated);
-    }
-    setPartnerCommander(deck.id, target.card, target.allocatedCopyId);
+      if (keepOldInDeck && oldPartner) {
+        addCard(deck.id, oldPartner, oldAllocated);
+      }
+      setPartnerCommander(deck.id, target.card, target.allocatedCopyId);
+    });
     pushToast({
       message: `${target.card.name} is now the partner commander${
         keepOldInDeck && oldPartner ? ` · ${oldPartner.name} moved to the deck` : ''
@@ -1009,7 +1102,7 @@ export function DeckEditorPage() {
   // Passing null clears the partner.
   const handleSelectPartnerFromPicker = (card: ScryfallCard | null) => {
     if (!card) {
-      setPartnerCommander(deck.id, null, null);
+      recordEdit(deck.id, 'remove partner', () => setPartnerCommander(deck.id, null, null));
       pushToast({ message: 'Partner commander removed', tone: 'success' });
       return;
     }
@@ -1019,14 +1112,18 @@ export function DeckEditorPage() {
     let allocated: string | null;
     if (slot) {
       allocated = slot.allocatedCopyId ?? null;
-      if (mainSlot) removeCard(deck.id, slot.slotId);
-      else removeSideboardCard(deck.id, slot.slotId);
     } else {
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       allocated =
         pickCollectionCopy(card.name, collectionCards, allocations, card.id)?.copyId ?? null;
     }
-    setPartnerCommander(deck.id, card, allocated);
+    recordEdit(deck.id, `make ${card.name} partner`, () => {
+      if (slot) {
+        if (mainSlot) removeCard(deck.id, slot.slotId);
+        else removeSideboardCard(deck.id, slot.slotId);
+      }
+      setPartnerCommander(deck.id, card, allocated);
+    });
     setShowPartnerPicker(false);
     pushToast({ message: `${card.name} is now the partner commander`, tone: 'success' });
   };
@@ -1042,27 +1139,35 @@ export function DeckEditorPage() {
     if (delta === 0) return;
     if (delta > 0) {
       // Reuse the live allocations between iterations so two adds don't
-      // try to claim the same collection copy.
-      const allocations = buildAllocationMap(useDecksStore.getState().decks);
-      for (let i = 0; i < delta; i++) {
-        const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
-        const allocatedId = claim?.copyId ?? null;
-        if (allocatedId) {
-          allocations.set(allocatedId, {
-            deckId: deck.id,
-            deckName: deck.name,
-            deckColor: deck.color,
-            cardName: card.name,
-          });
+      // try to claim the same collection copy. The whole batch is one undo entry.
+      const label = delta === 1 ? `add ${card.name}` : `add ${delta} × ${card.name}`;
+      recordEdit(deck.id, label, () => {
+        const allocations = buildAllocationMap(useDecksStore.getState().decks);
+        for (let i = 0; i < delta; i++) {
+          const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
+          const allocatedId = claim?.copyId ?? null;
+          if (allocatedId) {
+            allocations.set(allocatedId, {
+              deckId: deck.id,
+              deckName: deck.name,
+              deckColor: deck.color,
+              cardName: card.name,
+            });
+          }
+          addCard(deck.id, card, allocatedId);
         }
-        addCard(deck.id, card, allocatedId);
-      }
+      });
       return;
     }
-    // delta < 0 → drop the most-recent N slots; remember them so undo can
-    // recreate the same allocations in one go.
+    // delta < 0 → drop the most-recent N slots as one undo entry.
     const dropping = current.slice(delta); // last |delta| items
-    for (const slot of [...dropping].reverse()) removeCard(deck.id, slot.slotId);
+    recordEdit(
+      deck.id,
+      dropping.length === 1 ? `remove ${card.name}` : `remove ${dropping.length} × ${card.name}`,
+      () => {
+        for (const slot of [...dropping].reverse()) removeCard(deck.id, slot.slotId);
+      }
+    );
     pushToast({
       message:
         dropping.length === 1
@@ -1070,9 +1175,7 @@ export function DeckEditorPage() {
           : `Removed ${dropping.length} × ${card.name}`,
       tone: 'info',
       actionLabel: 'Undo',
-      onAction: () => {
-        for (const slot of dropping) addCard(deck.id, slot.card, slot.allocatedCopyId);
-      },
+      onAction: () => undoEdit(deck.id),
     });
   };
 
@@ -1084,9 +1187,11 @@ export function DeckEditorPage() {
     if (!editingSlot || !deck) return;
     const newCard = selection.card;
     const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
-    for (const slot of slotsForName) {
-      updateCardPrinting(deck.id, slot.slotId, newCard);
-    }
+    recordEdit(deck.id, `change printing of ${newCard.name}`, () => {
+      for (const slot of slotsForName) {
+        updateCardPrinting(deck.id, slot.slotId, newCard);
+      }
+    });
     setEditingSlot(null);
     pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'info' });
   };
@@ -1227,6 +1332,26 @@ export function DeckEditorPage() {
         <div className="deck-editor-actions">
           <button
             type="button"
+            className="btn deck-editor-action-btn deck-editor-icon-btn"
+            onClick={() => undoEdit(deck.id)}
+            disabled={!canUndoEdit}
+            title={canUndoEdit ? `Undo: ${undoEditLabel} (Ctrl/Cmd+Z)` : 'Nothing to undo'}
+            aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
+          >
+            <Undo2 width={14} height={14} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="btn deck-editor-action-btn deck-editor-icon-btn"
+            onClick={() => redoEdit(deck.id)}
+            disabled={!canRedoEdit}
+            title={canRedoEdit ? `Redo: ${redoEditLabel} (Ctrl/Cmd+Shift+Z)` : 'Nothing to redo'}
+            aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
+          >
+            <Redo2 width={14} height={14} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
             className="btn deck-editor-action-btn"
             onClick={handleToggleAddPanel}
             aria-expanded={showAddPanel}
@@ -1260,6 +1385,24 @@ export function DeckEditorPage() {
           </button>
         </div>
         <div className="deck-editor-mobile-actions">
+          <button
+            type="button"
+            className="pill-btn deck-editor-icon-pill"
+            onClick={() => undoEdit(deck.id)}
+            disabled={!canUndoEdit}
+            aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
+          >
+            <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="pill-btn deck-editor-icon-pill"
+            onClick={() => redoEdit(deck.id)}
+            disabled={!canRedoEdit}
+            aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
+          >
+            <Redo2 width={16} height={16} strokeWidth={2} aria-hidden />
+          </button>
           <button
             type="button"
             className="pill-btn deck-editor-add-pill"

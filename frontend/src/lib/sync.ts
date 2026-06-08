@@ -538,6 +538,24 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
   for (const [kind, rows] of upsertsByKind) await estore.putMany(kind, rows);
   for (const [kind, ids] of deletionsByKind) await estore.deleteMany(kind, ids);
 
+  // A deck row changed on the server (another device edited it) → this device's
+  // undo/redo snapshots for that deck are now stale; replaying them would clobber
+  // the remote edit (LWW). Drop those stacks. Dynamic import avoids a load-order
+  // cycle (deck-history → decks store → sync). Only runs when a delta actually
+  // delivered deck rows, so idle focus-pulls don't nuke history.
+  const changedDeckIds = new Set<string>([
+    ...(upsertsByKind.get('deck')?.map((r) => r.id) ?? []),
+    ...(deletionsByKind.get('deck') ?? []),
+  ]);
+  if (changedDeckIds.size > 0) {
+    try {
+      const { deckHistory } = await import('../store/deck-history');
+      deckHistory.invalidate(changedDeckIds);
+    } catch {
+      /* history is a UX nicety; never let it break sync */
+    }
+  }
+
   if (!suspendStoreHydration) {
     await rehydrateStoresFromIdb();
   }
@@ -741,6 +759,8 @@ async function resetInMemoryStores(): Promise<void> {
   const { useCollectionStore } = await import('../store/collection');
   const { useDecksStore } = await import('../store/decks');
   const { usePlayStore } = await import('../store/play');
+  const { deckHistory } = await import('../store/deck-history');
+  deckHistory.clear();
   applyingServer = true;
   try {
     useCollectionStore.setState({

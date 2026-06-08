@@ -235,6 +235,28 @@ interface DecksState {
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
 
+  /**
+   * Atomic mainboard swap: remove the slot `outSlotId` and add `inCard` in a
+   * single state update (one `set()` → one persisted row), so the deck never
+   * passes through a transient "card removed" state that a debounced push or a
+   * peer-tab pull could observe mid-swap. Returns the new slot's id. No-op
+   * (returns '') if the deck or the out-slot is gone.
+   */
+  swapCard(
+    deckId: string,
+    outSlotId: string,
+    inCard: ScryfallCard,
+    allocatedCopyId?: string | null
+  ): string;
+
+  /**
+   * Replace a deck wholesale with a prior snapshot. Used only by the undo/redo
+   * history (`store/deck-history.ts`) to restore a before/after snapshot — the
+   * resulting upsert wins under last-write-wins, which is how an undo's
+   * compensating mutation rides the normal sync queue. No-op if the id is gone.
+   */
+  replaceDeck(deckId: string, deck: Deck): void;
+
   addSideboardCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeSideboardCard(deckId: string, slotId: string): void;
   moveBetweenZones(deckId: string, slotId: string, from: 'main' | 'side'): void;
@@ -388,6 +410,31 @@ export const useDecksStore = create<DecksState>()(
                 })
               : d
           ),
+        })),
+
+      swapCard: (deckId, outSlotId, inCard, allocatedCopyId = null) => {
+        const slotId = newId('slot');
+        let applied = false;
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            if (!d.cards.some((c) => c.slotId === outSlotId)) return d;
+            applied = true;
+            return touch({
+              ...d,
+              cards: [
+                ...d.cards.filter((c) => c.slotId !== outSlotId),
+                { slotId, card: inCard, allocatedCopyId, addedAt: Date.now() },
+              ],
+            });
+          }),
+        }));
+        return applied ? slotId : '';
+      },
+
+      replaceDeck: (deckId, deck) =>
+        set((s) => ({
+          decks: s.decks.map((d) => (d.id === deckId ? touch({ ...deck, id: d.id }) : d)),
         })),
 
       addSideboardCard: (deckId, card, allocatedCopyId = null) => {

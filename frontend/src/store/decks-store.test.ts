@@ -206,6 +206,74 @@ describe('useDecksStore — card mutations', () => {
   });
 });
 
+describe('useDecksStore — swapCard (atomic)', () => {
+  let id: string;
+  beforeEach(() => {
+    id = store().createDeck({ source: 'manual', commander: null });
+  });
+
+  it('removes the out-slot and adds the in-card in one update, returning the new id', () => {
+    const outSlot = store().addCard(id, sfCard('Lightning Bolt'), 'copy-old');
+    store().addCard(id, sfCard('Mountain'));
+    const newSlot = store().swapCard(id, outSlot, sfCard('Young Pyromancer'), 'copy-new');
+    const names = store().decks[0].cards.map((c) => c.card.name);
+    expect(names).toContain('Young Pyromancer');
+    expect(names).not.toContain('Lightning Bolt');
+    expect(names).toContain('Mountain'); // untouched
+    const added = store().decks[0].cards.find((c) => c.slotId === newSlot)!;
+    expect(added.card.name).toBe('Young Pyromancer');
+    expect(added.allocatedCopyId).toBe('copy-new');
+    expect(added.addedAt).toBeGreaterThan(0);
+  });
+
+  it('keeps the deck card-count stable across the swap (no transient state)', () => {
+    const outSlot = store().addCard(id, sfCard('A'));
+    store().addCard(id, sfCard('B'));
+    expect(store().decks[0].cards).toHaveLength(2);
+    store().swapCard(id, outSlot, sfCard('C'));
+    expect(store().decks[0].cards).toHaveLength(2);
+  });
+
+  it('is a no-op (returns empty id) when the out-slot is missing', () => {
+    store().addCard(id, sfCard('A'));
+    const result = store().swapCard(id, 'missing-slot', sfCard('C'));
+    expect(result).toBe('');
+    expect(store().decks[0].cards.map((c) => c.card.name)).toEqual(['A']);
+  });
+
+  it('is a no-op for an unknown deck', () => {
+    const result = store().swapCard('nope', 'slot', sfCard('C'));
+    expect(result).toBe('');
+  });
+});
+
+describe('useDecksStore — replaceDeck (undo/redo restore)', () => {
+  it('restores a prior snapshot wholesale while preserving the live id', () => {
+    const id = store().createDeck({ name: 'Original', source: 'manual', commander: null });
+    store().addCard(id, sfCard('Sol Ring'));
+    const before = structuredClone(store().decks[0]);
+
+    // Mutate away from the snapshot.
+    store().addCard(id, sfCard('Mana Crypt'));
+    store().renameDeck(id, 'Changed');
+    expect(store().decks[0].cards).toHaveLength(2);
+
+    // Restore the snapshot.
+    store().replaceDeck(id, before);
+    const d = store().decks[0];
+    expect(d.id).toBe(id);
+    expect(d.name).toBe('Original');
+    expect(d.cards.map((c) => c.card.name)).toEqual(['Sol Ring']);
+  });
+
+  it('is a no-op for an unknown deck id', () => {
+    store().createDeck({ name: 'Keep', source: 'manual', commander: null });
+    const ghost = structuredClone(store().decks[0]);
+    store().replaceDeck('not-here', { ...ghost, id: 'not-here', name: 'Ghost' });
+    expect(store().decks.map((d) => d.name)).toEqual(['Keep']);
+  });
+});
+
 describe('useDecksStore — sideboard and zones', () => {
   let id: string;
   beforeEach(() => {
