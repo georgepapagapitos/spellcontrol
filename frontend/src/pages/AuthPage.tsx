@@ -5,6 +5,7 @@ import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
 import { fetchProviders, googleSignInUrl } from '../lib/auth-api';
 import { isNativePlatform } from '../lib/platform';
+import { preventFocusSteal } from '../lib/keyboard';
 import { markEverVisited } from '../lib/first-run';
 
 type Mode = 'login' | 'register';
@@ -204,6 +205,7 @@ export default function AuthPage() {
               <button
                 type="button"
                 className="auth-reveal"
+                onMouseDown={preventFocusSteal}
                 onClick={() => setShowPassword((v) => !v)}
                 aria-pressed={showPassword}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -253,6 +255,7 @@ export default function AuthPage() {
                 <button
                   type="button"
                   className="auth-reveal"
+                  onMouseDown={preventFocusSteal}
                   onClick={() => setShowConfirm((v) => !v)}
                   aria-pressed={showConfirm}
                   aria-label={showConfirm ? 'Hide password' : 'Show password'}

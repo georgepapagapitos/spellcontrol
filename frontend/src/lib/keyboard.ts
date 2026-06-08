@@ -127,6 +127,19 @@ export function initKeyboardLayer(): void {
   }
 }
 
+/**
+ * `onMouseDown`/`onPointerDown` handler for a control that sits beside a focused
+ * text field but must NOT steal focus from it — e.g. a show/hide-password eye
+ * toggle. Pressing such a button normally blurs the input, and on native
+ * (Capacitor) a blur dismisses the on-screen keyboard, so the user loses the
+ * keyboard every time they peek at their password. Preventing the default on the
+ * press stops the focus shift; the button's `onClick` still fires, so the toggle
+ * itself is unaffected.
+ */
+export function preventFocusSteal(e: { preventDefault: () => void }): void {
+  e.preventDefault();
+}
+
 function subscribe(fn: () => void): () => void {
   subscribers.add(fn);
   return () => {
