@@ -3,11 +3,17 @@ import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import type { Change } from '@/lib/deck-change';
+import { useCardThumb } from '@/lib/card-thumbs';
 
-/** Scryfall named-card image endpoint — a CDN-cached redirect, no JS API call.
- *  Used when the thin EDHREC/synergy row didn't carry an `imageUrl`. */
-function fallbackThumb(name: string): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`;
+/** Card art, or a placeholder while it resolves (thin EDHREC/synergy rows arrive
+ *  name-only and resolve their CDN art lazily — never a bare img against the
+ *  rate-limited API host). */
+function Thumb({ url }: { url: string | undefined }): JSX.Element {
+  return url ? (
+    <img src={url} alt="" loading="lazy" />
+  ) : (
+    <span className="deck-card-row-art-ph" aria-hidden />
+  );
 }
 
 /** Inclusion-% → a red→amber→green hue, so a glance reads "how-staple is this". */
@@ -59,7 +65,10 @@ export function DeckCardRow({
   peekName,
 }: DeckCardRowProps): JSX.Element {
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice } = change;
-  const thumb = change.imageUrl || fallbackThumb(name);
+  // Prefer an imageUrl already carried by the Change; otherwise resolve the
+  // card's CDN art by name (cached + batched), never the rate-limited API host.
+  const resolved = useCardThumb(change.imageUrl ? undefined : name);
+  const thumb = change.imageUrl || resolved;
   const preview = onPreview ? () => onPreview(change) : undefined;
   const previewOut = onPreviewOut ? () => onPreviewOut(change) : undefined;
   const ActIcon = ACT_ICON[change.type];
@@ -68,6 +77,7 @@ export function DeckCardRow({
   // being CUT. Show the offender's art (dimmed) → arrow → the incoming card, so
   // the trade reads visually instead of only living in the reason text.
   const outName = change.type === 'swap' ? change.inName : undefined;
+  const outThumb = useCardThumb(outName);
 
   const inThumb = (
     <button
@@ -78,7 +88,7 @@ export function DeckCardRow({
       disabled={!preview}
       aria-label={preview ? `Preview ${name}` : `${name} art`}
     >
-      <img src={thumb} alt="" loading="lazy" />
+      <Thumb url={thumb} />
     </button>
   );
 
@@ -117,7 +127,7 @@ export function DeckCardRow({
             }
             title={`Cut ${outName}`}
           >
-            <img src={fallbackThumb(outName)} alt="" loading="lazy" />
+            <Thumb url={outThumb} />
           </button>
           <ArrowRight className="deck-card-row-swap-arrow" aria-hidden />
           {inThumb}

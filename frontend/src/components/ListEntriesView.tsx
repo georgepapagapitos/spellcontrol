@@ -7,6 +7,7 @@ import type { ListDef, ListEntry } from '../types';
 import { useCollectionStore } from '../store/collection';
 import { ownedCountForEntry } from '../lib/lists';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { useCardThumb } from '../lib/card-thumbs';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 
 interface Props {
@@ -15,6 +16,17 @@ interface Props {
 
 const RESULT_LIMIT = 40;
 const SEARCH_PAGE = 8;
+
+/** List-entry thumbnail: the card's CDN art resolved by name (cached + batched),
+ *  or a placeholder while it loads / on a miss — never the rate-limited API host. */
+function ListEntryThumb({ name }: { name: string }) {
+  const url = useCardThumb(name, 'small');
+  return url ? (
+    <img src={url} alt="" loading="lazy" className="collection-list-thumb" />
+  ) : (
+    <div className="collection-list-thumb collection-list-thumb-placeholder" aria-hidden />
+  );
+}
 
 function cardThumb(card: ScryfallCard): string | undefined {
   return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
@@ -220,19 +232,7 @@ export function ListEntriesView({ list }: Props) {
             const owned = ownedCountForEntry(entry, cards);
             return (
               <div key={entry.id} className="collection-list-row list-entry-row" role="row">
-                {entry.scryfallId ? (
-                  <img
-                    src={`https://api.scryfall.com/cards/${entry.scryfallId}?format=image&version=small`}
-                    alt=""
-                    loading="lazy"
-                    className="collection-list-thumb"
-                  />
-                ) : (
-                  <div
-                    className="collection-list-thumb collection-list-thumb-placeholder"
-                    aria-hidden
-                  />
-                )}
+                <ListEntryThumb name={entry.name} />
                 <div className="collection-list-main">
                   <div className="collection-list-name">
                     {entry.name}

@@ -7,16 +7,11 @@ import { VerdictBadge } from './VerdictBadge';
 import { CollapsibleLane, type CollapsibleLaneHandle } from './CollapsibleLane';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useCardCarousel } from './useCardCarousel';
+import { useCardThumb } from '@/lib/card-thumbs';
 import { fromBracketFitMove, type Change, type ChangeOwnership } from '@/lib/deck-change';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
 
 const OWNED_ONLY_KEY = 'spellcontrol-bracket-fit-owned-only';
-
-/** Full-size card art for the desktop hover-peek — the Scryfall named-image CDN
- *  redirect (no JS API call), so the peek is crisp regardless of a row's thumb. */
-function peekImage(name: string): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`;
-}
 
 function readOwnedOnly(): boolean {
   try {
@@ -78,6 +73,8 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
     // Cursor-anchored hover-peek (the shared default) — consistent with the deck
     // list and the Improve lane. No-op on touch/native (capability-gated).
     const hoverPeek = useDeckHoverPeek();
+    // Full-size peek art resolved off the CDN by name (cached + batched).
+    const peekUrl = useCardThumb(hoverPeek.peek?.name, 'normal');
     const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
 
     const isUpshift = plan.direction === 'too-weak';
@@ -280,9 +277,9 @@ export const BracketFitLane = forwardRef<CollapsibleLaneHandle, BracketFitLanePr
             )
           )}
 
-          {hoverPeek.peek && (
+          {hoverPeek.peek && peekUrl && (
             <DeckHoverPeek
-              imageUrl={peekImage(hoverPeek.peek.name)}
+              imageUrl={peekUrl}
               left={hoverPeek.peek.left}
               top={hoverPeek.peek.top}
               width={hoverPeek.peek.width}

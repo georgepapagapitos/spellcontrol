@@ -5,6 +5,7 @@ import { OwnershipBadge } from './OwnershipBadge';
 import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/synergy/analysis';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import { useCardCarousel } from './useCardCarousel';
+import { useCardThumb } from '@/lib/card-thumbs';
 
 export interface EnginePanelProps {
   analysis: SynergyAnalysis;
@@ -22,10 +23,6 @@ export interface EnginePanelProps {
    * "add a card" prescription stays in one place.
    */
   showSuggestions?: boolean;
-}
-
-function scryThumb(name: string): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`;
 }
 
 /** A producer↔payoff balance bar for one axis. */
@@ -66,6 +63,9 @@ function SuggestionTile({
   onPreview: () => void;
 }): JSX.Element {
   const sideWord = suggestion.side === 'payoff' ? 'payoff' : 'producer';
+  // Resolve the suggestion's CDN art by name (cached + batched); the art box
+  // shows its own placeholder background until it lands.
+  const thumb = useCardThumb(suggestion.cardName);
   return (
     <li className="engine-suggestion">
       <button
@@ -74,17 +74,7 @@ function SuggestionTile({
         onClick={onPreview}
         aria-label={`Preview ${suggestion.cardName}`}
       >
-        <img
-          src={scryThumb(suggestion.cardName)}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            // Scryfall 404 / rate-limit / offline (native WebView): drop the
-            // broken-image glyph and let the art box show its placeholder.
-            e.currentTarget.style.display = 'none';
-          }}
-        />
+        {thumb && <img src={thumb} alt="" loading="lazy" decoding="async" />}
       </button>
       <button
         type="button"

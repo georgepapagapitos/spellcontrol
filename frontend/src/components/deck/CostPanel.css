@@ -184,6 +184,11 @@
   display: block;
 }
 
+/* Skeleton while the CDN art resolves — same footprint, no layout shift. */
+.cost-thumb-ph {
+  background: var(--surface2);
+}
+
 .cost-card-text {
   display: flex;
   flex-direction: column;

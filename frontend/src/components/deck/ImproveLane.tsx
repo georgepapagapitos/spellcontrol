@@ -5,6 +5,7 @@ import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useCardCarousel } from './useCardCarousel';
+import { useCardThumb } from '@/lib/card-thumbs';
 import {
   fromGapCard,
   fromOptimizeCard,
@@ -20,12 +21,6 @@ import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest'
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 
 const OWNED_ONLY_KEY = 'spellcontrol-improve-owned-only';
-
-/** Full-size card art for the desktop hover-peek — the Scryfall named-image CDN
- *  redirect (no JS API call), so the peek is crisp regardless of a row's thumb. */
-function peekImage(name: string): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(name)}&format=image&version=normal`;
-}
 
 function readOwnedOnly(): boolean {
   try {
@@ -96,6 +91,9 @@ export function ImproveLane({
   // still uses tap→carousel (capability-gated). Dismisses when the pointer leaves
   // a thumbnail (the only `data-peek-name` element on a row).
   const hoverPeek = useDeckHoverPeek();
+  // Full-size peek art resolved off the CDN by name (cached + batched), never the
+  // rate-limited API image host.
+  const peekUrl = useCardThumb(hoverPeek.peek?.name, 'normal');
 
   // Every prescriptive add-source → a normalized Change with live ownership,
   // then merged (dedupe by name, keep the higher-signal row) + owned-first.
@@ -203,9 +201,9 @@ export function ImproveLane({
         </details>
       )}
 
-      {hoverPeek.peek && (
+      {hoverPeek.peek && peekUrl && (
         <DeckHoverPeek
-          imageUrl={peekImage(hoverPeek.peek.name)}
+          imageUrl={peekUrl}
           left={hoverPeek.peek.left}
           top={hoverPeek.peek.top}
           width={hoverPeek.peek.width}

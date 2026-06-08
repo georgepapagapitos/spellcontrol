@@ -28,6 +28,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { useCardThumb } from '../../lib/card-thumbs';
 import type { EnrichedCard } from '../../types';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
@@ -573,15 +574,14 @@ function SuggestionsSection({
    *  EDHREC's own image_uris, then a Scryfall named-card image endpoint
    *  which returns a CDN-cached redirect with no JS API call. */
   const resolveThumb = useCallback(
-    (card: EDHRECCard): string => {
+    (card: EDHRECCard): string | undefined => {
       const nameKey = card.name.toLowerCase();
       const local = cardImageIndex.byName.get(nameKey);
       if (local) return local;
-      const edhrec = card.image_uris?.[0]?.normal;
-      if (edhrec) return edhrec;
-      return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
-        card.name
-      )}&format=image&version=normal`;
+      // EDHREC art is already a CDN URL; for anything else, return undefined and
+      // let SuggestionRow resolve the CDN image by name (never the rate-limited
+      // API host).
+      return card.image_uris?.[0]?.normal;
     },
     [cardImageIndex]
   );
@@ -812,13 +812,16 @@ function SuggestionRow({
   onPreview,
 }: {
   entry: SuggestionEntry;
-  imageUrl: string;
+  imageUrl?: string;
   isAdding: boolean;
   onAdd: () => void;
   onPreview: () => void;
 }) {
   const { card, role, ownership } = entry;
   const ownershipBadge = renderOwnershipBadge(ownership);
+  // Resolve the CDN art by name (cached + batched) when no URL was passed in.
+  const resolved = useCardThumb(imageUrl ? undefined : card.name);
+  const thumb = imageUrl ?? resolved;
   return (
     <li className="deck-analysis-suggest-row">
       <button
@@ -827,7 +830,7 @@ function SuggestionRow({
         onClick={onPreview}
         aria-label={`Preview ${card.name}`}
       >
-        <img src={imageUrl} alt={card.name} loading="lazy" decoding="async" />
+        {thumb && <img src={thumb} alt={card.name} loading="lazy" decoding="async" />}
       </button>
       <button
         type="button"

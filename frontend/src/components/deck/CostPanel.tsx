@@ -9,6 +9,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { useCardCarousel } from './useCardCarousel';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
+import { useCardThumb } from '@/lib/card-thumbs';
 
 export interface CostPanelProps {
   plan: CostPlan;
@@ -40,11 +41,13 @@ function fmt(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
 
-/** Same fallback chain as DeckAnalysisPanel.resolveThumb: provided URL → Scryfall named-image endpoint. */
-function namedImage(name: string): string {
-  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(
-    name
-  )}&format=image&version=small`;
+/** Card thumb, or a skeleton while the CDN art resolves (no rate-limited img). */
+function CostThumb({ url }: { url: string | undefined }): JSX.Element {
+  return url ? (
+    <img className="cost-thumb" src={url} alt="" loading="lazy" decoding="async" />
+  ) : (
+    <span className="cost-thumb cost-thumb-ph" aria-hidden />
+  );
 }
 
 function SwapRow({
@@ -65,6 +68,10 @@ function SwapRow({
     row.suggestionInclusion
   )}%`;
   const aria = `Swap ${row.currentName} for ${row.suggestionName}, save ${fmt(row.savings)}`;
+  // Resolve CDN art by name (cached + batched) when the row didn't carry a URL.
+  const resolvedCurrent = useCardThumb(row.currentImageUrl ? undefined : row.currentName, 'small');
+  const currentThumb = row.currentImageUrl ?? resolvedCurrent;
+  const suggestionThumb = useCardThumb(row.suggestionName, 'small');
   // Tap a card to preview it (and swipe to its swap partner) without toggling
   // the checkbox.
   const previewClick = (name: string) => (e: MouseEvent) => {
@@ -91,18 +98,7 @@ function SwapRow({
           onClick={previewClick(row.currentName)}
           aria-label={`Preview ${row.currentName}`}
         >
-          <img
-            className="cost-thumb"
-            src={row.currentImageUrl ?? namedImage(row.currentName)}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              const img = e.currentTarget;
-              const fb = namedImage(row.currentName);
-              if (img.src !== fb) img.src = fb;
-            }}
-          />
+          <CostThumb url={currentThumb} />
           <span className="cost-card-text">
             <span className="cost-card-name">{row.currentName}</span>
             <span className="cost-card-price">{fmt(row.currentPrice)}</span>
@@ -119,13 +115,7 @@ function SwapRow({
           onClick={previewClick(row.suggestionName)}
           aria-label={`Preview ${row.suggestionName}`}
         >
-          <img
-            className="cost-thumb"
-            src={namedImage(row.suggestionName)}
-            alt=""
-            loading="lazy"
-            decoding="async"
-          />
+          <CostThumb url={suggestionThumb} />
           <span className="cost-card-text">
             <span className="cost-card-name">{row.suggestionName}</span>
             <span className="cost-card-price">{fmt(row.suggestionPrice)}</span>
