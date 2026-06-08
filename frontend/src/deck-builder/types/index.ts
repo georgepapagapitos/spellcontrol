@@ -72,7 +72,13 @@ export interface ScryfallCard {
   border_color?: string;
   promo_types?: string[];
   games?: string[]; // Platforms: "paper", "arena", "mtgo"
-  tokens?: CardToken[]; // Tokens/emblems this card creates (from Scryfall all_parts)
+  /**
+   * Scryfall's related-card array (tokens, meld parts, combo pieces). Present on
+   * cards resolved from the live Scryfall API (web). The offline slim bundle
+   * drops it in favor of the pre-distilled `tokens` field below.
+   */
+  all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
+  tokens?: CardToken[]; // Tokens/emblems this card creates, pre-distilled (offline bundle)
   // Added during deck generation
   isGameChanger?: boolean;
   isThemeSynergyCard?: boolean; // true if from EDHREC highsynergycards/topcards/gamechangers

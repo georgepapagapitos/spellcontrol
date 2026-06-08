@@ -84,6 +84,39 @@ describe('aggregateDeckTokens', () => {
     expect(result).toEqual([{ name: 'Clue', typeLine: undefined, producers: ['Mystery Maker'] }]);
   });
 
+  it('derives tokens from all_parts (live/web cards) when no `tokens` field', () => {
+    const krenko = {
+      name: 'Krenko, Mob Boss',
+      all_parts: [
+        { component: 'combo_piece', name: 'Krenko, Mob Boss', type_line: 'Legendary Creature' },
+        { component: 'token', name: 'Goblin', type_line: 'Token Creature — Goblin' },
+      ],
+    } as unknown as ScryfallCard;
+    expect(aggregateDeckTokens([krenko])).toEqual([
+      { name: 'Goblin', typeLine: 'Token Creature — Goblin', producers: ['Krenko, Mob Boss'] },
+    ]);
+  });
+
+  it('prefers the pre-distilled `tokens` field over all_parts', () => {
+    const card = {
+      name: 'Dual Source',
+      tokens: [TREASURE],
+      all_parts: [{ component: 'token', name: 'Goblin', type_line: 'Token Creature — Goblin' }],
+    } as unknown as ScryfallCard;
+    expect(aggregateDeckTokens([card]).map((t) => t.name)).toEqual(['Treasure']);
+  });
+
+  it('merges an all_parts producer with a tokens producer for the same token', () => {
+    const live = {
+      name: 'Dockside Extortionist',
+      all_parts: [{ component: 'token', name: 'Treasure', type_line: 'Token Artifact — Treasure' }],
+    } as unknown as ScryfallCard;
+    const offline = card('Smothering Tithe', [TREASURE]);
+    const result = aggregateDeckTokens([live, offline]);
+    expect(result).toHaveLength(1);
+    expect(result[0].producers).toEqual(['Dockside Extortionist', 'Smothering Tithe']);
+  });
+
   it('trims whitespace in names and skips empty token/producer names', () => {
     const result = aggregateDeckTokens([
       card('  Spacey Card  ', [{ name: '  Soldier  ', typeLine: '  Token Creature — Soldier  ' }]),

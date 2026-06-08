@@ -1,4 +1,4 @@
-import type { ScryfallCard } from '@/deck-builder/types';
+import type { CardToken, ScryfallCard } from '@/deck-builder/types';
 
 /** One row in a deck's token-prep checklist. */
 export interface DeckToken {
@@ -17,6 +17,26 @@ export interface DeckToken {
 const norm = (s: string): string => s.trim();
 
 /**
+ * The tokens a card creates, from whichever source the card carries:
+ *   - `tokens`: pre-distilled on the offline slim bundle (native).
+ *   - `all_parts`: raw Scryfall relationships on a live-resolved card (web) —
+ *     we keep only the `component === 'token'` entries here.
+ * Prefer the pre-distilled field; fall back to all_parts.
+ */
+function cardTokens(card: ScryfallCard): CardToken[] {
+  if (card.tokens && card.tokens.length > 0) return card.tokens;
+  if (card.all_parts && card.all_parts.length > 0) {
+    const out: CardToken[] = [];
+    for (const p of card.all_parts) {
+      if (p.component !== 'token' || !p.name) continue;
+      out.push(p.type_line ? { name: p.name, typeLine: p.type_line } : { name: p.name });
+    }
+    return out;
+  }
+  return [];
+}
+
+/**
  * Build a deduped checklist of every token (and emblem) a deck can create, so
  * the user can prep the physical tokens before a game.
  *
@@ -33,8 +53,8 @@ export function aggregateDeckTokens(cards: ScryfallCard[]): DeckToken[] {
   const groups = new Map<string, { name: string; typeLine?: string; producers: Set<string> }>();
 
   for (const card of cards) {
-    const tokens = card.tokens;
-    if (!tokens || tokens.length === 0) continue;
+    const tokens = cardTokens(card);
+    if (tokens.length === 0) continue;
     const producer = norm(card.name);
     if (!producer) continue;
 
