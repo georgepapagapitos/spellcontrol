@@ -9,6 +9,11 @@ export interface SortContext {
   /** Per-field custom value orderings. Each entry is the canonical-key list in
    *  user-preferred order. Missing fields fall back to the built-in default. */
   valueOrders?: Partial<Record<SortField, string[]>>;
+  /** Import timestamp (ms) keyed by importId, for the `dateAdded` sort. The
+   *  collection supplies this from its import history; cards without a matching
+   *  importId sort as oldest (0). Absent in binder views, where `dateAdded` is
+   *  not offered. */
+  addedAtByImportId?: Map<string, number>;
 }
 
 export const SORT_FIELDS: { value: SortField; label: string; defaultDir: SortDir }[] = [
@@ -236,6 +241,10 @@ export function cardSortValue(
       return treatmentRank(card, ctx);
     case 'finish':
       return finishRank(card, ctx);
+    case 'dateAdded':
+      // Whole-import granularity: every card from one import shares its addedAt.
+      // Unknown/legacy cards (no importId, or an id not in the map) sort as oldest.
+      return ctx?.addedAtByImportId?.get(card.importId ?? '') ?? 0;
     default:
       return 0;
   }

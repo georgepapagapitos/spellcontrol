@@ -75,7 +75,12 @@ export type SortField =
   | 'collectorNumber'
   | 'quantity'
   | 'treatment'
-  | 'finish';
+  | 'finish'
+  // Collection-only: import date, derived at sort-time from a card's importId via
+  // SortContext.addedAtByImportId. Intentionally NOT in SORT_FIELDS — it has no
+  // value in binder views (which don't supply that context), so it stays out of
+  // the binder sort picker and is offered only by the collection sort UI.
+  | 'dateAdded';
 
 export type SortDir = 'asc' | 'desc';
 
