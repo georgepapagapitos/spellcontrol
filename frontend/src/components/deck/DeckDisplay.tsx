@@ -66,7 +66,7 @@ import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { DeckTokensPanel } from './DeckTokensPanel';
-import { aggregateDeckTokens } from '@/lib/deck-tokens';
+import { useDeckTokens } from './use-deck-tokens';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
@@ -3120,9 +3120,9 @@ function DeckAnalysisView({
   );
 
   // Every token (and emblem) the deck can physically produce, deduped across the
-  // list — a prep checklist for the table. Tokens ride on each card from
-  // Scryfall's all_parts (threaded through the offline payload).
-  const deckTokens = useMemo(() => aggregateDeckTokens(allCards), [allCards]);
+  // list — a prep checklist for the table. Deck cards are persisted slimmed
+  // (no all_parts), so this re-resolves the names to recover token data.
+  const deckTokens = useDeckTokens(allCards);
 
   const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
