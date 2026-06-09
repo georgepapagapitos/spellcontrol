@@ -10,14 +10,23 @@ import {
   fetchAllCommanderNames,
   fetchCommandersIncludingColors,
   fetchCommanderData,
+  fetchPlaystyleCommanders,
 } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { computeReadiness, type ReadinessScore } from '../../lib/commander-readiness';
+import {
+  PLAYSTYLES,
+  classifyCommanderPlaystyles,
+  classifyOwnedCommanderPlaystyles,
+  type Playstyle,
+} from '../../lib/commander-playstyle-index';
 import { CommanderReadiness } from './CommanderReadiness';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
+import { Tabs } from '../Tabs';
+import { InfoTip } from '../InfoTip';
 
 interface Props {
   value: ScryfallCard | null;
@@ -72,6 +81,68 @@ const COLOR_COMBO: Record<string, string> = {
 
 const OWNED_ONLY_KEY = 'commander-search-owned-only';
 const COLOR_FILTER_KEY = 'commander-search-color-filter';
+const SEARCH_MODE_KEY = 'commander-search-mode';
+
+type SearchMode = 'name' | 'playstyle';
+
+/**
+ * The WUBRG + Colorless pip filter, shared by the by-name suggestions and the
+ * by-playstyle browser so both read and write the same `colorFilter`. Colorless
+ * is mutually exclusive with the five colors (a colorless commander has no color
+ * identity).
+ */
+function ColorPips({
+  colorFilter,
+  setColorFilter,
+}: {
+  colorFilter: Set<string>;
+  setColorFilter: (update: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
+}) {
+  return (
+    <div className="commander-color-filter" role="group" aria-label="Filter by color identity">
+      {COLORS.map((c) => {
+        const active = colorFilter.has(c);
+        return (
+          <button
+            key={c}
+            type="button"
+            className={`commander-color-pip${active ? ' active' : ''}`}
+            aria-pressed={active}
+            aria-label={COLOR_LABEL[c]}
+            title={COLOR_LABEL[c]}
+            onClick={() =>
+              setColorFilter((prev) => {
+                const next = new Set(prev);
+                if (next.has(c)) {
+                  next.delete(c);
+                } else {
+                  next.add(c);
+                  if (c === 'C') {
+                    for (const other of next) if (other !== 'C') next.delete(other);
+                  } else {
+                    next.delete('C');
+                  }
+                }
+                return next;
+              })
+            }
+          >
+            <i className={`ms ms-${c.toLowerCase()} ms-cost`} aria-hidden />
+          </button>
+        );
+      })}
+      {colorFilter.size > 0 && (
+        <button
+          type="button"
+          className="commander-color-clear"
+          onClick={() => setColorFilter(new Set())}
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
 
 function getColorFilterLabel(colors: Set<string>): string {
   if (colors.size === 0) return 'Top';
@@ -386,6 +457,111 @@ export function CommanderSearch({ value, onSelect }: Props) {
     };
   }, [visibleTop, ensureReadiness]);
 
+  // ── By-playstyle discovery ────────────────────────────────────────────
+  // A second facet alongside name search: pick a playstyle (aristocrats,
+  // tokens, voltron, …) and browse the commanders that do it best.
+  const [searchMode, setSearchMode] = useState<SearchMode>(() => {
+    try {
+      return localStorage.getItem(SEARCH_MODE_KEY) === 'playstyle' ? 'playstyle' : 'name';
+    } catch {
+      return 'name';
+    }
+  });
+  const changeMode = (mode: SearchMode) => {
+    setSearchMode(mode);
+    try {
+      localStorage.setItem(SEARCH_MODE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  };
+  const [playstyle, setPlaystyle] = useState<Playstyle | null>(null);
+  const [playstyleCommanders, setPlaystyleCommanders] = useState<EDHRECTopCommander[]>([]);
+  const [playstyleLoading, setPlaystyleLoading] = useState(false);
+
+  // Local playstyle classification of the user's own legendary creatures — pure,
+  // instant, offline. Owned-mode browsing reads this instead of EDHREC so it can
+  // surface owned commanders that aren't in EDHREC's top-N for a tag.
+  const ownedByPlaystyle = useMemo(() => {
+    const map = new Map<string, EnrichedCard[]>();
+    for (const legend of collectionLegends) {
+      for (const { playstyle: ps } of classifyOwnedCommanderPlaystyles(legend)) {
+        const bucket = map.get(ps.id);
+        if (bucket) bucket.push(legend);
+        else map.set(ps.id, [legend]);
+      }
+    }
+    return map;
+  }, [collectionLegends]);
+
+  // Aspirational browse: fetch EDHREC's top commanders for the chosen playstyle.
+  // Owned mode skips the network entirely (uses the local index above).
+  useEffect(() => {
+    if (searchMode !== 'playstyle' || !playstyle || ownedOnly) return;
+    let cancelled = false;
+    const slug = playstyle.edhrecSlug;
+    void (async () => {
+      setPlaystyleLoading(true);
+      setPlaystyleCommanders([]);
+      try {
+        const list = await fetchPlaystyleCommanders(slug);
+        if (!cancelled) setPlaystyleCommanders(list);
+      } catch {
+        if (!cancelled) setPlaystyleCommanders([]);
+      } finally {
+        if (!cancelled) setPlaystyleLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchMode, playstyle, ownedOnly]);
+
+  // Commanders shown for the chosen playstyle, narrowed by the color pips.
+  // Within-identity match: a color filter shows commanders castable in those
+  // colors (a mono-black commander still shows under a B/G filter).
+  const playstyleResults = useMemo(() => {
+    if (searchMode !== 'playstyle' || !playstyle) return [];
+    const matchesColor = (ci: string[]): boolean => {
+      if (colorFilter.size === 0) return true;
+      const ident = ci.length > 0 ? ci : ['C'];
+      return ident.every((color) => colorFilter.has(color));
+    };
+    if (ownedOnly) {
+      return (ownedByPlaystyle.get(playstyle.id) ?? [])
+        .filter((c) => matchesColor(c.colorIdentity ?? []))
+        .map((c) => ({
+          name: c.name,
+          colors: c.colorIdentity && c.colorIdentity.length > 0 ? c.colorIdentity : ['C'],
+          key: c.scryfallId ?? c.name,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return playstyleCommanders
+      .filter((c) => !c.name.includes('//') && matchesColor(c.colorIdentity))
+      .map((c) => ({
+        name: c.name,
+        colors: c.colorIdentity.length > 0 ? c.colorIdentity : ['C'],
+        key: c.sanitized || c.name,
+      }));
+  }, [searchMode, playstyle, ownedOnly, ownedByPlaystyle, playstyleCommanders, colorFilter]);
+
+  // Eager-load readiness for the visible playstyle commanders (bounded set),
+  // mirroring the recommended-pills behavior so the % shows without hovering.
+  useEffect(() => {
+    if (searchMode !== 'playstyle' || playstyleResults.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const c of playstyleResults.slice(0, 12)) {
+        if (cancelled) return;
+        await ensureReadiness(c.name);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchMode, playstyleResults, ensureReadiness]);
+
   // ── Selection handlers ────────────────────────────────────────────────
   const selectCard = (card: ScryfallCard) => {
     onSelect(card);
@@ -510,6 +686,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
     const power = value.power ?? front?.power;
     const toughness = value.toughness ?? front?.toughness;
     const loyalty = value.loyalty;
+    // Detected playstyles (top 3) — an explainable "how this deck wins" read,
+    // and a bridge to the By-playstyle browser.
+    const playstyleMatches = classifyCommanderPlaystyles(value).slice(0, 3);
     return (
       <div className="commander-pick">
         <img
@@ -547,6 +726,22 @@ export function CommanderSearch({ value, onSelect }: Props) {
             <div className="commander-pick-oracle">
               {oracleText.split('\n').map((line, i) => (
                 <p key={i}>{line}</p>
+              ))}
+            </div>
+          )}
+          {playstyleMatches.length > 0 && (
+            <div className="commander-pick-playstyles">
+              <span className="commander-pick-playstyles-label">
+                Plays like
+                <InfoTip
+                  label="Plays like"
+                  text="Playstyles detected from this commander's rules text — a quick read on how the deck wants to win. Switch to the “By playstyle” tab to find more commanders like this."
+                />
+              </span>
+              {playstyleMatches.map((m) => (
+                <span key={m.playstyle.id} className="commander-pick-playstyle-tag">
+                  {m.playstyle.label}
+                </span>
               ))}
             </div>
           )}
@@ -621,18 +816,32 @@ export function CommanderSearch({ value, onSelect }: Props) {
 
   return (
     <div className="commander-search">
-      <input
-        type="text"
-        className="commander-search-input"
-        role="combobox"
-        aria-expanded={queried}
-        aria-controls={listboxId}
-        aria-autocomplete="list"
-        placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label={ownedOnly ? 'Search your commanders' : 'Search for a commander'}
+      <Tabs
+        ariaLabel="Commander search mode"
+        variant="fitted"
+        className="commander-search-modes"
+        value={searchMode}
+        onChange={changeMode}
+        tabs={[
+          { id: 'name', label: 'By name', controls: 'commander-search-panel' },
+          { id: 'playstyle', label: 'By playstyle', controls: 'commander-search-panel' },
+        ]}
       />
+
+      {searchMode === 'name' && (
+        <input
+          type="text"
+          className="commander-search-input"
+          role="combobox"
+          aria-expanded={queried}
+          aria-controls={listboxId}
+          aria-autocomplete="list"
+          placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label={ownedOnly ? 'Search your commanders' : 'Search for a commander'}
+        />
+      )}
 
       {/* Owned-only toggle — only visible if the collection has any legends. */}
       {(collectionLegends.length > 0 || ownedOnly) && (
@@ -676,8 +885,79 @@ export function CommanderSearch({ value, onSelect }: Props) {
       {/* Results panel: search results when a query is active, EDHREC
           suggestions otherwise. Sizes to its content (capped, then scrolls)
           and only grows downward, so the input above never moves. */}
-      <div className="commander-search-panel">
-        {queried ? (
+      <div
+        className="commander-search-panel"
+        id="commander-search-panel"
+        role="tabpanel"
+        aria-labelledby={`sc-tab-${searchMode}`}
+      >
+        {searchMode === 'playstyle' ? (
+          <div className="commander-playstyle-browse">
+            <div className="commander-playstyle-chips" role="group" aria-label="Choose a playstyle">
+              {PLAYSTYLES.map((p) => {
+                const active = playstyle?.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`commander-playstyle-chip${active ? ' active' : ''}`}
+                    aria-pressed={active}
+                    title={p.blurb}
+                    onClick={() => setPlaystyle(active ? null : p)}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {playstyle ? (
+              <>
+                <p className="commander-suggestions-label">{playstyle.blurb}</p>
+                <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
+                {!ownedOnly && playstyleLoading ? (
+                  <p className="commander-suggestions-empty">Loading commanders…</p>
+                ) : playstyleResults.length === 0 ? (
+                  <p className="commander-suggestions-empty">
+                    {ownedOnly
+                      ? 'None of your commanders fit that playstyle yet.'
+                      : 'No commanders found for that playstyle.'}
+                  </p>
+                ) : (
+                  <ul className="commander-suggestion-chips">
+                    {playstyleResults.slice(0, 24).map((c) => (
+                      <li key={c.key}>
+                        <button
+                          type="button"
+                          className="commander-suggestion-chip"
+                          onClick={() =>
+                            void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
+                          }
+                          onMouseEnter={() => void ensureReadiness(c.name)}
+                          onFocus={() => void ensureReadiness(c.name)}
+                          disabled={searchLoading}
+                        >
+                          <span className="commander-suggestion-pips" aria-hidden>
+                            {c.colors.map((color) => (
+                              <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                            ))}
+                          </span>
+                          <span>{c.name}</span>
+                          <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <p className="commander-suggestions-hint">
+                Pick a playstyle to see the commanders that do it best
+                {ownedOnly ? ' from your collection' : ' on EDHREC'}.
+              </p>
+            )}
+          </div>
+        ) : queried ? (
           hasResults ? (
             resultItems
           ) : searchLoading ? (
@@ -691,54 +971,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
               {getColorFilterLabel(colorFilter)} commanders on EDHREC
               {ownedOnly ? ' (yours)' : ''}:
             </p>
-            <div
-              className="commander-color-filter"
-              role="group"
-              aria-label="Filter by color identity"
-            >
-              {COLORS.map((c) => {
-                const active = colorFilter.has(c);
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`commander-color-pip${active ? ' active' : ''}`}
-                    aria-pressed={active}
-                    aria-label={COLOR_LABEL[c]}
-                    title={COLOR_LABEL[c]}
-                    onClick={() =>
-                      setColorFilter((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(c)) {
-                          next.delete(c);
-                        } else {
-                          next.add(c);
-                          // Colorless and the WUBRG colors are mutually exclusive —
-                          // a colorless commander has no color identity.
-                          if (c === 'C') {
-                            for (const other of next) if (other !== 'C') next.delete(other);
-                          } else {
-                            next.delete('C');
-                          }
-                        }
-                        return next;
-                      })
-                    }
-                  >
-                    <i className={`ms ms-${c.toLowerCase()} ms-cost`} aria-hidden />
-                  </button>
-                );
-              })}
-              {colorFilter.size > 0 && (
-                <button
-                  type="button"
-                  className="commander-color-clear"
-                  onClick={() => setColorFilter(new Set())}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+            <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
 
             {topLoading ? (
               <p className="commander-suggestions-empty">Loading…</p>

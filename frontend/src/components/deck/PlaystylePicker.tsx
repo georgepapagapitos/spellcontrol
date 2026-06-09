@@ -3,17 +3,11 @@ import { fetchPlaystyleCommanders } from '@/deck-builder/services/edhrec/client'
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
+import { PLAYSTYLES, type Playstyle } from '../../lib/commander-playstyle-index';
 import type { EnrichedCard } from '../../types';
 
 interface Props {
   onSelectCommander: (card: ScryfallCard) => void;
-}
-
-interface PlayStyle {
-  label: string;
-  /** EDHREC tag slug (verified to resolve at /pages/tags/{slug}.json). */
-  slug: string;
-  blurb: string;
 }
 
 // Shared with CommanderSearch so "use my collection" stays one preference
@@ -25,50 +19,8 @@ function isLegendaryCreature(card: EnrichedCard): boolean {
   return tl.includes('legendary') && tl.includes('creature');
 }
 
-// Curated, broadly-distinct play styles. Each slug is a real EDHREC tag.
-const PLAY_STYLES: PlayStyle[] = [
-  {
-    label: 'Aristocrats',
-    slug: 'aristocrats',
-    blurb: 'Sacrifice creatures for value and drain the table.',
-  },
-  {
-    label: 'Tokens (go wide)',
-    slug: 'tokens',
-    blurb: 'Flood the board with tokens, then pump and swing.',
-  },
-  {
-    label: 'Voltron',
-    slug: 'voltron',
-    blurb: 'Suit up one threat with equipment/auras and connect.',
-  },
-  {
-    label: 'Spellslinger',
-    slug: 'spellslinger',
-    blurb: 'Chain instants and sorceries for payoffs.',
-  },
-  { label: 'Control', slug: 'control', blurb: 'Counter, remove, and grind the game out.' },
-  { label: 'Combo', slug: 'combo', blurb: 'Assemble a two- or three-card win.' },
-  { label: 'Reanimator', slug: 'reanimator', blurb: 'Cheat big things out of the graveyard.' },
-  { label: 'Landfall', slug: 'landfall', blurb: 'Ramp extra lands for snowballing triggers.' },
-  { label: 'Artifacts', slug: 'artifacts', blurb: 'Go wide on artifacts and treasures.' },
-  { label: 'Enchantress', slug: 'enchantress', blurb: 'Draw and snowball off enchantments.' },
-  {
-    label: '+1/+1 Counters',
-    slug: 'proliferate',
-    blurb: 'Grow creatures with counters and proliferate.',
-  },
-  { label: 'Lifegain', slug: 'lifegain', blurb: 'Gain life and turn it into a win condition.' },
-  {
-    label: 'Blink',
-    slug: 'blink',
-    blurb: 'Flicker creatures to abuse enter-the-battlefield effects.',
-  },
-  { label: 'Superfriends', slug: 'planeswalkers', blurb: 'Stick planeswalkers and protect them.' },
-];
-
 export function PlaystylePicker({ onSelectCommander }: Props) {
-  const [style, setStyle] = useState<PlayStyle | null>(null);
+  const [style, setStyle] = useState<Playstyle | null>(null);
   const [commanders, setCommanders] = useState<EDHRECTopCommander[]>([]);
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -109,7 +61,7 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
       setError(null);
       setCommanders([]);
       try {
-        const list = await fetchPlaystyleCommanders(activeStyle.slug);
+        const list = await fetchPlaystyleCommanders(activeStyle.edhrecSlug);
         if (cancelled) return;
         if (list.length === 0) setError('No commanders found for that play style.');
         setCommanders(list);
@@ -181,13 +133,8 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
         </p>
         {ownedToggle}
         <div className="playstyle-grid">
-          {PLAY_STYLES.map((s) => (
-            <button
-              key={s.slug}
-              type="button"
-              className="playstyle-card"
-              onClick={() => setStyle(s)}
-            >
+          {PLAYSTYLES.map((s) => (
+            <button key={s.id} type="button" className="playstyle-card" onClick={() => setStyle(s)}>
               <span className="playstyle-card-label">{s.label}</span>
               <span className="playstyle-card-blurb">{s.blurb}</span>
             </button>
