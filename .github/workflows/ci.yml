@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs on the same PR when new commits are pushed — rapid
+# re-pushes otherwise run every stacked CI to completion and waste Actions
+# minutes. main is never cancelled (each push gets its own group via run_id):
+# its CI success gates the Fly deploy chain, so we never want a main run killed.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -13,6 +21,9 @@ jobs:
   game-core:
     name: game-core — typecheck & test
     runs-on: ubuntu-latest
+    # Cap runaway jobs (GitHub's default is 6h) so a hung install/test can't
+    # silently drain the Actions budget. This job normally finishes in ~2 min.
+    timeout-minutes: 10
 
     defaults:
       run:
@@ -42,6 +53,7 @@ jobs:
   binder-routing:
     name: binder-routing — typecheck & test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     defaults:
       run:
@@ -71,6 +83,7 @@ jobs:
   frontend:
     name: Frontend — typecheck & test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     defaults:
       run:
@@ -115,6 +128,7 @@ jobs:
   backend:
     name: Backend — typecheck & test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
