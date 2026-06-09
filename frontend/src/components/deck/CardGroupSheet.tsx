@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
+import { CardThumb } from '../CardThumb';
 import type { CardTally } from './useCardCarousel';
 import './CardGroupSheet.css';
 
@@ -170,11 +171,10 @@ export function CardGroupSheet({
                   aria-label={`Inspect ${t.name}${t.count > 1 ? ` (${t.count} copies)` : ''}`}
                 >
                   {t.card ? (
-                    <img
+                    <CardThumb
                       className="card-group-img"
                       src={getCardImageUrl(t.card, 'normal')}
                       alt={t.name}
-                      loading="lazy"
                     />
                   ) : (
                     <span className="card-group-img card-group-img-fallback">{t.name}</span>
@@ -196,11 +196,11 @@ export function CardGroupSheet({
                   aria-label={`Inspect ${t.name}${t.count > 1 ? ` (${t.count} copies)` : ''}`}
                 >
                   {t.card ? (
-                    <img
+                    <CardThumb
                       className="card-group-row-thumb"
                       src={getCardImageUrl(t.card, 'small')}
-                      alt=""
-                      loading="lazy"
+                      alt={t.name}
+                      decorative
                     />
                   ) : (
                     <span className="card-group-row-thumb" aria-hidden="true" />

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlignJustify, ChevronLeft, Layers, LayoutGrid, Package, Rows3 } from 'lucide-react';
 import { ViewModeToggle, type ViewModeOption } from './ViewModeToggle';
+import { CardThumb } from './CardThumb';
 import { searchProducts, fetchProduct, fetchProductCommanderSummary, useSetMap } from '../lib/api';
 import { useBuildDeckFromImport } from '../lib/build-deck-from-import';
 import { useCollectionStore } from '../store/collection';
@@ -354,12 +355,10 @@ export function ProductSearchPanel({ onClose }: Props) {
                   aria-label={`Preview ${pc.card.name}`}
                   onClick={() => void carousel.open(entries, pc.card.name)}
                 >
-                  <img
+                  <CardThumb
                     className="product-card-img"
                     src={getCardImageUrl(pc.card, 'normal')}
                     alt={pc.card.name}
-                    loading="lazy"
-                    draggable={false}
                   />
                   {pc.quantity > 1 && <span className="product-card-qty">{pc.quantity}</span>}
                 </button>
@@ -382,13 +381,11 @@ export function ProductSearchPanel({ onClose }: Props) {
                 aria-label={`Preview ${pc.card.name}`}
                 onClick={() => void carousel.open(entries, pc.card.name)}
               >
-                <img
+                <CardThumb
                   className="product-card-rowthumb"
                   src={getCardImageUrl(pc.card, 'small')}
-                  alt=""
-                  aria-hidden
-                  loading="lazy"
-                  draggable={false}
+                  alt={pc.card.name}
+                  decorative
                 />
                 <span className="product-card-rowname">{pc.card.name}</span>
                 {pc.quantity > 1 && <span className="product-card-rowqty">×{pc.quantity}</span>}
