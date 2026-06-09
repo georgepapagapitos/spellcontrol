@@ -13,6 +13,7 @@ import { SortPopover } from './SortPopover';
 import { PageGrid } from './PageGrid';
 import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
+import { ColorPip } from './shared/ManaSymbol';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { BinderPagePreview } from './BinderPagePreview';
 import { BinderDriftBanner } from './BinderDriftBanner';
@@ -477,25 +478,6 @@ function SectionList({
 
 // Build a parallel array mapping each card in `section.cards` to the page
 // number it lives on. Used by both previews to show "p.N" alongside a card.
-/** Map a color section key (W/U/B/R/G/M/C/L/?) to its mana-font class. */
-function colorKeyToMs(key: string): string {
-  switch (key) {
-    case 'W':
-    case 'U':
-    case 'B':
-    case 'R':
-    case 'G':
-      return `ms-${key.toLowerCase()}`;
-    case 'M':
-      return 'ms-multicolor';
-    case 'C':
-    case 'L':
-      return 'ms-c';
-    default:
-      return 'ms-c';
-  }
-}
-
 function pageNumbersForSection(section: BinderSection): number[] {
   const cardToPage = new Map<EnrichedCard, number>();
   section.pages.forEach((page) => {
@@ -559,12 +541,7 @@ const SectionBlock = memo(function SectionBlock({
         <span className="section-chevron" aria-hidden="true">
           ▾
         </span>
-        {section.pip && (
-          <i
-            className={`ms ${colorKeyToMs(section.key)} ms-cost color-pip-mana color-pip-mana--lg`}
-            aria-hidden
-          />
-        )}
+        {section.pip && <ColorPip color={section.key} pip="lg" />}
         <span className="section-title">{section.label}</span>
         <span className="section-meta">
           {section.cards.length} cards · {section.pages.length} page

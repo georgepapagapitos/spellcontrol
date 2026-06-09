@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { DeckFormat } from '@/deck-builder/types';
 import type { DeckSource } from '../store/decks';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
+import { ColorPip } from './shared/ManaSymbol';
 
 const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -171,10 +172,7 @@ export function DeckFiltersPopover({
                     aria-pressed={active}
                     title={c.label}
                   >
-                    <i
-                      className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
-                      aria-hidden
-                    />
+                    <ColorPip color={c.key} pip="lg" />
                   </button>
                 );
               })}

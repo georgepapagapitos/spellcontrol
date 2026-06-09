@@ -9,6 +9,7 @@ import {
   type SortDir,
 } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
+import { ColorPip } from './ManaSymbol';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
 
@@ -117,10 +118,7 @@ export function SharedCollectionView({ data }: Props) {
                 aria-label={c.label}
                 title={c.label}
               >
-                <i
-                  className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
-                  aria-hidden
-                />
+                <ColorPip color={c.key} pip="lg" />
               </button>
             );
           })}

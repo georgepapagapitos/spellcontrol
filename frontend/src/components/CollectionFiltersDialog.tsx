@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import type { SetMap } from '../lib/api';
 import { SetFilterPicker } from './SetFilterPicker';
+import { ColorPip } from './shared/ManaSymbol';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 
@@ -397,10 +398,7 @@ function DialogBody({
                     aria-pressed={active}
                     title={c.label}
                   >
-                    <i
-                      className={`ms ms-${c.key.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
-                      aria-hidden
-                    />
+                    <ColorPip color={c.key} pip="lg" />
                   </button>
                 );
               })}

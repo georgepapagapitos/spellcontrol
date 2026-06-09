@@ -25,6 +25,7 @@ import {
 import { CommanderReadiness } from './CommanderReadiness';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
+import { ColorPip } from '../shared/ManaSymbol';
 import { Tabs } from '../Tabs';
 import { InfoTip } from '../InfoTip';
 
@@ -132,7 +133,7 @@ function ColorPips({
               })
             }
           >
-            <i className={`ms ms-${c.toLowerCase()} ms-cost`} aria-hidden />
+            <ColorPip color={c} pip={false} />
           </button>
         );
       })}
@@ -961,7 +962,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
                           >
                             <span className="commander-suggestion-pips" aria-hidden>
                               {c.colors.map((color) => (
-                                <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                                <ColorPip key={color} color={color} pip={false} />
                               ))}
                             </span>
                             <span>{c.name}</span>
@@ -1031,7 +1032,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
                       >
                         <span className="commander-suggestion-pips" aria-hidden>
                           {colors.map((color) => (
-                            <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                            <ColorPip key={color} color={color} pip={false} />
                           ))}
                         </span>
                         <span>{c.name}</span>

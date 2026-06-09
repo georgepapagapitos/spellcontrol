@@ -5,6 +5,7 @@ import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { PLAYSTYLES, type Playstyle } from '../../lib/commander-playstyle-index';
 import type { EnrichedCard } from '../../types';
+import { ColorPip } from '../shared/ManaSymbol';
 
 interface Props {
   onSelectCommander: (card: ScryfallCard) => void;
@@ -177,7 +178,7 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
                 >
                   <span className="commander-suggestion-pips" aria-hidden>
                     {colors.map((color) => (
-                      <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                      <ColorPip key={color} color={color} pip={false} />
                     ))}
                   </span>
                   <span>{resolving === c.name ? 'Loading…' : c.name}</span>
