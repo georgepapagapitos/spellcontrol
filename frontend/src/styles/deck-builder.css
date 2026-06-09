@@ -2970,6 +2970,13 @@ input.toolbar-search-input {
   border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
+  /* Truncate within the header's title column so a long name can't spill over
+     the adjacent action cluster (undo/redo/⋮) on narrow viewports. */
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deck-editor-name:hover {
