@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { SectionMeta } from '@spellcontrol/binder-routing';
-import { groupRowsIntoSections } from './group-sections';
+import { buildGridLayout, groupRowsIntoSections, type SectionHeader } from './group-sections';
 
 interface TestRow {
   id: string;
@@ -84,5 +84,69 @@ describe('groupRowsIntoSections', () => {
     const snapshot = rows.map((r) => r.id);
     groupRowsIntoSections(rows, meta);
     expect(rows.map((r) => r.id)).toEqual(snapshot);
+  });
+});
+
+const hdr = (key: string, count: number): SectionHeader => ({
+  meta: { key, label: key, order: 0 },
+  count,
+});
+
+describe('buildGridLayout', () => {
+  it('chunks ungrouped cards into rows of gridCols', () => {
+    const layout = buildGridLayout(5, 2, null);
+    expect(layout).toEqual([
+      { kind: 'cards', start: 0, end: 2 },
+      { kind: 'cards', start: 2, end: 4 },
+      { kind: 'cards', start: 4, end: 5 },
+    ]);
+  });
+
+  it('opens each section with a header, then chunks that section into gridCols rows', () => {
+    // 5 rows: section A = indices 0..2, section B = indices 3..4; gridCols 2.
+    const headers = new Map<number, SectionHeader>([
+      [0, hdr('A', 3)],
+      [3, hdr('B', 2)],
+    ]);
+    const layout = buildGridLayout(5, 2, headers);
+    expect(layout).toEqual([
+      { kind: 'header', meta: { key: 'A', label: 'A', order: 0 }, count: 3 },
+      { kind: 'cards', start: 0, end: 2 },
+      { kind: 'cards', start: 2, end: 3 },
+      { kind: 'header', meta: { key: 'B', label: 'B', order: 0 }, count: 2 },
+      { kind: 'cards', start: 3, end: 5 },
+    ]);
+  });
+
+  it('fills the last partial row with the trailing item when ungrouped', () => {
+    // 3 cards + 1 trailing (Scryfall trigger), gridCols 2 → trigger fills row 2.
+    const layout = buildGridLayout(3, 2, null, 1);
+    expect(layout).toEqual([
+      { kind: 'cards', start: 0, end: 2 },
+      { kind: 'cards', start: 2, end: 4 }, // index 3 == the trigger
+    ]);
+  });
+
+  it('puts the trailing item on its own row after all sections when grouped', () => {
+    const headers = new Map<number, SectionHeader>([[0, hdr('A', 2)]]);
+    const layout = buildGridLayout(2, 3, headers, 1);
+    expect(layout).toEqual([
+      { kind: 'header', meta: { key: 'A', label: 'A', order: 0 }, count: 2 },
+      { kind: 'cards', start: 0, end: 2 },
+      { kind: 'cards', start: 2, end: 3 }, // trailing trigger
+    ]);
+  });
+
+  it('treats gridCols < 1 as a single column', () => {
+    const layout = buildGridLayout(2, 0, null);
+    expect(layout).toEqual([
+      { kind: 'cards', start: 0, end: 1 },
+      { kind: 'cards', start: 1, end: 2 },
+    ]);
+  });
+
+  it('returns an empty layout for zero rows and no trailing item', () => {
+    expect(buildGridLayout(0, 4, null)).toEqual([]);
+    expect(buildGridLayout(0, 4, new Map())).toEqual([]);
   });
 });

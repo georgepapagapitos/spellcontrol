@@ -51,3 +51,55 @@ export function groupRowsIntoSections<T>(
 
   return { rows: tagged.map((t) => t.row), headers };
 }
+
+/**
+ * One row of the grouped grid: either a full-width section header or a run of
+ * up to `gridCols` card indices. `cards` rows carry `[start, end)` indices into
+ * the flat grouped row list (see `displayRows` in CardListTable).
+ */
+export type GridLayoutRow =
+  | { kind: 'header'; meta: SectionHeader['meta']; count: number }
+  | { kind: 'cards'; start: number; end: number };
+
+/**
+ * Flatten `rowCount` cards (already grouped/ordered) into the heterogeneous row
+ * list a virtualized grid renders: a full-width header opens each section, then
+ * that section's cards chunk into rows of `gridCols`.
+ *
+ * `trailingItems` (0 or 1 in practice) appends extra non-card slots — the
+ * collection grid's Scryfall "add" trigger — after the last card. Ungrouped, it
+ * fills the final partial card row (matching the pre-grouping layout); grouped,
+ * it lands on its own trailing row after every section.
+ *
+ * Pure so the grid virtualizer's row count + per-row height estimate can be
+ * derived without React and unit-tested directly.
+ */
+export function buildGridLayout(
+  rowCount: number,
+  gridCols: number,
+  sectionHeaders: Map<number, SectionHeader> | null,
+  trailingItems = 0
+): GridLayoutRow[] {
+  const cols = Math.max(1, gridCols);
+  const out: GridLayoutRow[] = [];
+  const chunk = (from: number, to: number) => {
+    for (let i = from; i < to; i += cols) {
+      out.push({ kind: 'cards', start: i, end: Math.min(i + cols, to) });
+    }
+  };
+
+  if (!sectionHeaders || sectionHeaders.size === 0) {
+    chunk(0, rowCount + trailingItems);
+    return out;
+  }
+
+  const boundaries = [...sectionHeaders.keys()].sort((a, b) => a - b);
+  boundaries.forEach((startIdx, bi) => {
+    const endIdx = bi + 1 < boundaries.length ? boundaries[bi + 1] : rowCount;
+    const header = sectionHeaders.get(startIdx);
+    if (header) out.push({ kind: 'header', meta: header.meta, count: header.count });
+    chunk(startIdx, endIdx);
+  });
+  if (trailingItems > 0) chunk(rowCount, rowCount + trailingItems);
+  return out;
+}
