@@ -11,6 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
 import { normalizeForSearch } from '../lib/normalize-search';
+import { FoilBadge } from './FoilBadge';
 import type {
   ChipExpression,
   EnrichedCard,
@@ -1303,7 +1304,7 @@ export function CardListTable({
                   <div className="collection-list-main">
                     <div className="collection-list-name">
                       {r.card.name}
-                      {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                      {r.card.foil && <FoilBadge card={r.card} showLabel />}
                       <DeckBadge allocations={allocationsFor(r.card)} />
                       <BinderBadge binders={r.binders} />
                     </div>

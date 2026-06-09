@@ -4,6 +4,7 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../lib/use-escape-key';
 import { normalizeForSearch } from '../lib/normalize-search';
 import type { EnrichedCard } from '../types';
+import { FoilBadge } from './FoilBadge';
 
 interface Props {
   binderId: string;
@@ -94,7 +95,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
                 <span className="card-picker-name">{card.name}</span>
                 <span className="card-picker-meta">
                   {card.setCode.toUpperCase()} #{card.collectorNumber}
-                  {card.foil ? <span className="card-picker-foil"> foil</span> : null}
+                  {card.foil ? <FoilBadge card={card} /> : null}
                 </span>
                 {isAdded ? (
                   <span className="card-picker-added" aria-label="Already added">

@@ -349,32 +349,6 @@
   }
 }
 
-/* List view has no card image to host the shimmer, so an owned foil/etched
-   copy is flagged with a small iridescent pip next to the card name. It reuses
-   the same per-finish --foil-rainbow palettes (.foil-* set the gradient) and
-   the shared drift animation so the finish reads consistently across views. */
-.deck-row-foil {
-  display: inline-block;
-  flex: none;
-  width: 0.6rem;
-  height: 0.6rem;
-  margin-left: 0.4rem;
-  border-radius: 50%;
-  vertical-align: middle;
-  background-image: var(
-    --foil-rainbow,
-    repeating-linear-gradient(110deg, #c929f1, #0dbde9, #21e985, #eedf10, #f80e35, #c929f1)
-  );
-  background-size: 320% 320%;
-  animation: foil-drift 6s ease-in-out infinite alternate;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.55),
-    0 0 4px rgba(255, 255, 255, 0.35);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .deck-row-foil {
-    animation: none;
-    background-position: 50% 50%;
-  }
-}
+/* The list-view foil pip moved to the shared `.foil-badge` component
+   (components/FoilBadge.css); it reuses the same `.foil-*` --foil-rainbow
+   palettes + `foil-drift` defined above. */

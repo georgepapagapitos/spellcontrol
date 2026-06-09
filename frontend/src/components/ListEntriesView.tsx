@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ListDef, ListEntry } from '../types';
+import { FoilBadge } from './FoilBadge';
 import { useCollectionStore } from '../store/collection';
 import { ownedCountForEntry } from '../lib/lists';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
@@ -237,7 +238,7 @@ export function ListEntriesView({ list }: Props) {
                   <div className="collection-list-name">
                     {entry.name}
                     {entry.finish !== 'nonfoil' && (
-                      <span className="card-list-foil-tag">{entry.finish}</span>
+                      <FoilBadge card={{ foil: true, finishes: [entry.finish] }} showLabel />
                     )}
                     {owned > 0 && (
                       <span className="list-entry-owned" title={`You own ${owned} of this card`}>

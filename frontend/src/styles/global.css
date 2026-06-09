@@ -8014,21 +8014,6 @@ hr {
   border-color: var(--accent-hover);
 }
 
-/* Set code + collector number (used in list view) */
-.card-list-foil-tag {
-  display: inline-block;
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.35rem;
-  font-size: var(--text-xs);
-  background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
-  color: #1a2438;
-  border-radius: 999px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  vertical-align: 1px;
-}
-
 .card-list-set-code {
   display: inline-block;
   padding: 0.1rem 0.4rem;
@@ -8586,7 +8571,7 @@ hr {
   flex-shrink: 0;
 }
 
-.collection-list.is-compact .card-list-foil-tag,
+.collection-list.is-compact .foil-badge-pill,
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
 .collection-list.is-compact .card-list-set-code,
@@ -8602,14 +8587,10 @@ hr {
 }
 
 @media (min-width: 1024px) {
-  .collection-list.is-compact .card-list-foil-tag,
+  .collection-list.is-compact .foil-badge-pill,
   .collection-list.is-compact .card-list-deck-badge,
   .collection-list.is-compact .card-list-binder-badge {
     display: inline-flex;
-  }
-
-  .collection-list.is-compact .card-list-foil-tag {
-    display: inline-block;
   }
 }
 
@@ -9999,10 +9980,6 @@ hr {
   font-size: var(--text-xs);
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.card-picker-foil {
-  color: var(--accent);
 }
 
 .card-picker-added {

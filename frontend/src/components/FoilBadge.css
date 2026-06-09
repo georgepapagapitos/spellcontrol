@@ -1,0 +1,50 @@
+/* The canonical foil pip. Tint comes from the shared `.foil-{style}` palettes
+   (holographic.css sets `--foil-rainbow`); the `foil-drift` keyframe is shared
+   too. Formerly `.deck-row-foil`, now generalized for every dense surface. */
+.foil-badge {
+  display: inline-block;
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  vertical-align: middle;
+  background-image: var(
+    --foil-rainbow,
+    repeating-linear-gradient(110deg, #c929f1, #0dbde9, #21e985, #eedf10, #f80e35, #c929f1)
+  );
+  background-size: 320% 320%;
+  animation: foil-drift 6s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.55),
+    0 0 4px rgba(255, 255, 255, 0.35);
+}
+
+/* Standalone pip nudged off the preceding text. */
+.collection-list-name > .foil-badge,
+.card-picker-meta > .foil-badge {
+  margin-left: 0.4rem;
+}
+
+/* Labeled variant — pip + finish name, for roomy list rows. */
+.foil-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.foil-badge-text {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foil-badge {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
