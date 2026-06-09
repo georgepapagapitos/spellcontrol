@@ -3,6 +3,7 @@ import {
   Check,
   CheckSquare,
   LayoutGrid,
+  Layers,
   List as ListIconLucide,
   Plus,
   Search,
@@ -42,6 +43,8 @@ import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { classifyFoil } from '../lib/foil-style';
 import { sortCards, printingKey, type SortContext } from '../lib/sorting';
+import { getSectionMeta } from '@spellcontrol/binder-routing';
+import { groupRowsIntoSections, type SectionHeader } from '../lib/group-sections';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
@@ -168,6 +171,32 @@ const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FI
   {} as Record<SortKey, (typeof SORT_FIELDS)[number]>
 );
 
+// "Group by" sections the visible rows under per-attribute headers, reusing the
+// binder-routing sectioning engine (getSectionMeta) so the buckets/labels/order
+// match how binders already section the same cards. PR-1 covers list/compact;
+// grid section headers are a follow-up, so the control is hidden in grid view.
+type GroupKey = 'none' | 'color' | 'type' | 'cmc' | 'rarity' | 'set';
+
+const GROUP_FIELDS: Array<{ key: GroupKey; label: string }> = [
+  { key: 'none', label: 'No grouping' },
+  { key: 'color', label: 'Color' },
+  { key: 'type', label: 'Type' },
+  { key: 'cmc', label: 'Mana value' },
+  { key: 'rarity', label: 'Rarity' },
+  { key: 'set', label: 'Set' },
+];
+
+// Map each group choice to the binder-routing SortField getSectionMeta keys off.
+// "set" uses setReleaseDate (not setName) so sections order chronologically;
+// setName returns order:0 for every set, leaving the order to alphabetical-by-key.
+const GROUP_KEY_TO_FIELD: Record<Exclude<GroupKey, 'none'>, SortField> = {
+  color: 'color',
+  type: 'type',
+  cmc: 'cmc',
+  rarity: 'rarity',
+  set: 'setReleaseDate',
+};
+
 function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: boolean): number {
   const p = card.prices;
   if (!p) return 0;
@@ -192,6 +221,7 @@ export function CardListTable({
   const [scryfallOpen, setScryfallOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [groupKey, setGroupKey] = useState<GroupKey>('none');
   // Import history powers the "Date added" sort (timestamp keyed by importId).
   const importHistory = useCollectionStore((s) => s.importHistory);
   const toggleSort = (key: SortKey) => {
@@ -584,18 +614,37 @@ export function CardListTable({
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
   }, [filtered, sortKey, sortDir, setMap, importHistory]);
 
+  // "Group by" re-buckets the already-sorted rows under per-attribute section
+  // headers. We stable-group `sorted` (within-group order = the user's sort) so
+  // grouping composes with sorting. Grid section headers are a follow-up (PR-2),
+  // so grouping is a no-op in grid view — `displayRows` stays `sorted` there and
+  // `sectionHeaders` is null. Everything downstream (the carousel, the Scryfall
+  // trigger index, the virtualizers) indexes off `displayRows`, never `sorted`.
+  const groupField: SortField | null =
+    groupKey !== 'none' && view !== 'grid' ? GROUP_KEY_TO_FIELD[groupKey] : null;
+  const { displayRows, sectionHeaders } = useMemo<{
+    displayRows: Row[];
+    sectionHeaders: Map<number, SectionHeader> | null;
+  }>(() => {
+    if (!groupField) return { displayRows: sorted, sectionHeaders: null };
+    const { rows: grouped, headers } = groupRowsIntoSections(sorted, (r) =>
+      getSectionMeta(r.card, groupField, { setMap })
+    );
+    return { displayRows: grouped, sectionHeaders: headers };
+  }, [sorted, groupField, setMap]);
+
   // Stable parallel arrays for the card preview carousel. Built inline in JSX,
   // these would get a fresh identity on every render — and since each swipe
   // re-renders this component (via onIndexChange → setPreviewIndex), that
   // churned CardPreview's IntersectionObserver (deps: [cards]) on every swipe,
-  // re-observing every slide. Memoizing on `sorted` keeps the reference stable,
-  // matching how BinderView feeds its memoized flat arrays.
-  const previewCards = useMemo(() => sorted.map((r) => r.card), [sorted]);
+  // re-observing every slide. Memoizing on `displayRows` keeps the reference
+  // stable, matching how BinderView feeds its memoized flat arrays.
+  const previewCards = useMemo(() => displayRows.map((r) => r.card), [displayRows]);
   const previewSectionLabels = useMemo(
-    () => sorted.map((r) => (r.binders.length === 0 ? 'Uncategorized' : '')),
-    [sorted]
+    () => displayRows.map((r) => (r.binders.length === 0 ? 'Uncategorized' : '')),
+    [displayRows]
   );
-  const previewPageNumbers = useMemo(() => sorted.map(() => 0), [sorted]);
+  const previewPageNumbers = useMemo(() => displayRows.map(() => 0), [displayRows]);
 
   // "Select all" is scoped to the rows currently shown (post-search/filter),
   // not the whole collection — selecting things you can't see would be a
@@ -610,7 +659,7 @@ export function CardListTable({
   }, [sorted]);
 
   // Scroll to top when filters, sort, or view mode change.
-  const resetKey = `${debouncedSearch}|${sortKey}|${sortDir}|${view}`;
+  const resetKey = `${debouncedSearch}|${sortKey}|${sortDir}|${groupKey}|${view}`;
   const prevResetKey = useRef(resetKey);
   useEffect(() => {
     if (prevResetKey.current !== resetKey) {
@@ -644,8 +693,8 @@ export function CardListTable({
   // panel is open it's redundant, so hide it and let the results take its
   // place (the grid/list reflows as if the trigger were never there).
   const showScryfallTrigger = showScryfall && !scryfallOpen;
-  const triggerIndex = sorted.length;
-  const gridItemCount = sorted.length + (showScryfallTrigger ? 1 : 0);
+  const triggerIndex = displayRows.length;
+  const gridItemCount = displayRows.length + (showScryfallTrigger ? 1 : 0);
   const gridRowCount = view === 'grid' ? Math.ceil(gridItemCount / gridCols) : 0;
   const GRID_GAP = 10;
 
@@ -683,7 +732,7 @@ export function CardListTable({
   }, [scrollEl, view, gridCols, sorted.length]);
 
   const listVirtualizer = useVirtualizer({
-    count: view !== 'grid' ? sorted.length : 0,
+    count: view !== 'grid' ? displayRows.length : 0,
     getScrollElement: () => scrollEl,
     estimateSize: () => (view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST),
     overscan: 20,
@@ -981,6 +1030,15 @@ export function CardListTable({
               <span>{selectMode ? 'Done' : 'Select'}</span>
             </button>
           )}
+          {view !== 'grid' && (
+            <SelectMenu<GroupKey>
+              ariaLabel="Group by"
+              value={groupKey}
+              options={GROUP_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+              onChange={setGroupKey}
+              leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
+            />
+          )}
           <SelectMenu
             ariaLabel="Sort"
             value={sortKey}
@@ -1172,8 +1230,8 @@ export function CardListTable({
                       </button>
                     );
                   }
-                  if (idx >= sorted.length) return null;
-                  const r = sorted[idx];
+                  if (idx >= displayRows.length) return null;
+                  const r = displayRows[idx];
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   const selected = selectedRowKeys.has(r.key);
@@ -1248,9 +1306,14 @@ export function CardListTable({
           }}
         >
           {listVirtualizer.getVirtualItems().map((virtualRow) => {
-            const r = sorted[virtualRow.index];
+            const r = displayRows[virtualRow.index];
             const colorKey = getColorKey(r.card);
             const selected = selectedRowKeys.has(r.key);
+            // When grouping is active, the first row of each section carries its
+            // header *inside* the measured cell, so the virtualizer's dynamic
+            // measureElement folds the header height into the row offset (no
+            // drift) without needing a separate virtual item.
+            const header = sectionHeaders?.get(virtualRow.index);
             return (
               <div
                 key={virtualRow.key}
@@ -1264,9 +1327,25 @@ export function CardListTable({
                   transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 }}
               >
+                {header && (
+                  <div className="collection-list-section-header" role="heading" aria-level={3}>
+                    {header.meta.pip && (
+                      <span
+                        className="collection-list-section-pip"
+                        style={{
+                          background: header.meta.pip.background,
+                          borderColor: header.meta.pip.border,
+                        }}
+                        aria-hidden
+                      />
+                    )}
+                    <span className="collection-list-section-label">{header.meta.label}</span>
+                    <span className="collection-list-section-count">{header.count}</span>
+                  </div>
+                )}
                 <div
                   className={`collection-list-row${
-                    virtualRow.index === sorted.length - 1 ? ' is-last-row' : ''
+                    virtualRow.index === displayRows.length - 1 ? ' is-last-row' : ''
                   }${selectMode ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}`}
                   role="row"
                   tabIndex={0}
