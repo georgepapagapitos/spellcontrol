@@ -1417,9 +1417,15 @@ export function DeckDisplay({
   }, [visibleGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Hover-peek for the list view — cursor-anchored, any hover-capable viewport
-  // (the shared default; consistent with the Improve lane). No-op on touch/native.
-  const hoverPeek = useDeckHoverPeek();
+  // Hover-peek for the list view — ROW-anchored (parks the card beside the row,
+  // centered, stable) rather than cursor-anchored. The cursor mode followed the
+  // mouse and floated the card over the row's ⋮ kebab; the row placement is
+  // `row.right + gap` (or flips left), so it never covers the row's controls and
+  // never tracks the pointer. Gated to the tablet boundary (≥600px): tablet+
+  // gets the peek (it parks in the gutter on wide screens, to the row's left on
+  // tablet — clear of the kebab either way), phones (<600px) skip it and use the
+  // row's own thumbnail + click→carousel. No-op on touch/native regardless.
+  const hoverPeek = useDeckHoverPeek({ anchor: 'row', minViewport: 600 });
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
     const i = flat.indexByName.get(rowName);
