@@ -83,6 +83,11 @@ const OWNED_ONLY_KEY = 'commander-search-owned-only';
 const COLOR_FILTER_KEY = 'commander-search-color-filter';
 const SEARCH_MODE_KEY = 'commander-search-mode';
 
+// How many playstyle commanders to show before the "Show more" expander. Keeps
+// the browse panel short enough to grow inline (no nested scrollbar) until the
+// user opts into the full list.
+const PLAYSTYLE_PREVIEW_COUNT = 10;
+
 type SearchMode = 'name' | 'playstyle';
 
 /**
@@ -478,6 +483,17 @@ export function CommanderSearch({ value, onSelect }: Props) {
   const [playstyle, setPlaystyle] = useState<Playstyle | null>(null);
   const [playstyleCommanders, setPlaystyleCommanders] = useState<EDHRECTopCommander[]>([]);
   const [playstyleLoading, setPlaystyleLoading] = useState(false);
+  // Browse list is collapsed to PLAYSTYLE_PREVIEW_COUNT until "Show more"; reset
+  // to collapsed whenever the result set's identity changes. Render-phase reset
+  // (the React-recommended pattern, same as `prevOwnedOnly` below) rather than a
+  // setState-in-effect, which would cascade renders.
+  const [showAllPlaystyle, setShowAllPlaystyle] = useState(false);
+  const playstyleResultKey = `${playstyle?.id ?? ''}|${ownedOnly}|${[...colorFilter].sort().join('')}`;
+  const [prevPlaystyleResultKey, setPrevPlaystyleResultKey] = useState(playstyleResultKey);
+  if (prevPlaystyleResultKey !== playstyleResultKey) {
+    setPrevPlaystyleResultKey(playstyleResultKey);
+    setShowAllPlaystyle(false);
+  }
 
   // Local playstyle classification of the user's own legendary creatures — pure,
   // instant, offline. Owned-mode browsing reads this instead of EDHREC so it can
@@ -886,7 +902,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
           suggestions otherwise. Sizes to its content (capped, then scrolls)
           and only grows downward, so the input above never moves. */}
       <div
-        className="commander-search-panel"
+        className={`commander-search-panel${
+          searchMode === 'playstyle' ? ' commander-search-panel--browse' : ''
+        }`}
         id="commander-search-panel"
         role="tabpanel"
         aria-labelledby={`sc-tab-${searchMode}`}
@@ -924,30 +942,44 @@ export function CommanderSearch({ value, onSelect }: Props) {
                       : 'No commanders found for that playstyle.'}
                   </p>
                 ) : (
-                  <ul className="commander-suggestion-chips">
-                    {playstyleResults.slice(0, 24).map((c) => (
-                      <li key={c.key}>
-                        <button
-                          type="button"
-                          className="commander-suggestion-chip"
-                          onClick={() =>
-                            void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
-                          }
-                          onMouseEnter={() => void ensureReadiness(c.name)}
-                          onFocus={() => void ensureReadiness(c.name)}
-                          disabled={searchLoading}
-                        >
-                          <span className="commander-suggestion-pips" aria-hidden>
-                            {c.colors.map((color) => (
-                              <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
-                            ))}
-                          </span>
-                          <span>{c.name}</span>
-                          <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="commander-suggestion-chips">
+                      {(showAllPlaystyle
+                        ? playstyleResults
+                        : playstyleResults.slice(0, PLAYSTYLE_PREVIEW_COUNT)
+                      ).map((c) => (
+                        <li key={c.key}>
+                          <button
+                            type="button"
+                            className="commander-suggestion-chip"
+                            onClick={() =>
+                              void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
+                            }
+                            onMouseEnter={() => void ensureReadiness(c.name)}
+                            onFocus={() => void ensureReadiness(c.name)}
+                            disabled={searchLoading}
+                          >
+                            <span className="commander-suggestion-pips" aria-hidden>
+                              {c.colors.map((color) => (
+                                <i key={color} className={`ms ms-${color.toLowerCase()} ms-cost`} />
+                              ))}
+                            </span>
+                            <span>{c.name}</span>
+                            <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {playstyleResults.length > PLAYSTYLE_PREVIEW_COUNT && (
+                      <button
+                        type="button"
+                        className="commander-playstyle-more"
+                        onClick={() => setShowAllPlaystyle((v) => !v)}
+                      >
+                        {showAllPlaystyle ? 'Show fewer' : `Show all ${playstyleResults.length}`}
+                      </button>
+                    )}
+                  </>
                 )}
               </>
             ) : (
