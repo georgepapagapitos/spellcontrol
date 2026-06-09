@@ -1,55 +1,77 @@
-/* The panel reuses the shared .deck-stats-panel chrome; these rules own the
-   collapsible header, the chip wrap, and the on-demand detail. */
-
-.deck-tokens-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.deck-tokens-sheet {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  padding: 1.25rem;
+  max-width: 460px;
   width: 100%;
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: none;
-  font: inherit;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  align-self: flex-start;
+  max-height: 100%;
+  overflow: hidden;
 }
 
-.deck-tokens-header > svg {
-  flex: 0 0 auto;
+.deck-tokens-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.deck-tokens-sheet-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.deck-tokens-sheet-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.deck-tokens-sheet-sub {
+  margin: 0;
+  font-size: var(--text-xs);
   color: var(--text3);
 }
 
-.deck-tokens-header:focus-visible {
+.deck-tokens-sheet-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.25rem 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text3);
+  cursor: pointer;
+}
+
+.deck-tokens-sheet-close:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.deck-tokens-sheet-close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.deck-tokens-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.deck-tokens-count {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text3);
-  font-variant-numeric: tabular-nums;
-}
-
-.deck-tokens-body {
-  margin-top: 0.6rem;
+.deck-tokens-sheet-body {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.7rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .deck-tokens-chips {
@@ -67,7 +89,7 @@
   gap: 0.35rem;
   max-width: 100%;
   margin: 0;
-  padding: 0.25rem 0.6rem;
+  padding: 0.3rem 0.65rem;
   background: var(--surface2);
   border: 1px solid transparent;
   border-radius: 999px;
@@ -110,7 +132,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  padding: 0.5rem 0.6rem;
+  padding: 0.6rem 0.7rem;
   background: var(--surface2);
   border-radius: var(--radius);
 }
@@ -129,10 +151,4 @@
 .deck-tokens-detail-label {
   color: var(--text2);
   font-weight: 600;
-}
-
-@media (max-width: 600px) {
-  .deck-tokens-body {
-    gap: 0.45rem;
-  }
 }

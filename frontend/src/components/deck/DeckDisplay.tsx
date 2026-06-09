@@ -65,8 +65,6 @@ import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
-import { DeckTokensPanel } from './DeckTokensPanel';
-import { useDeckTokens } from './use-deck-tokens';
 import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
@@ -3119,11 +3117,6 @@ function DeckAnalysisView({
     [allCards, commanderIdentity, effectiveRoleCounts, roleTargets, manaData.averageCmc]
   );
 
-  // Every token (and emblem) the deck can physically produce, deduped across the
-  // list — a prep checklist for the table. Deck cards are persisted slimmed
-  // (no all_parts), so this re-resolves the names to recover token data.
-  const deckTokens = useDeckTokens(allCards);
-
   const effectiveBracketValue = bracketOverride ?? bracketEstimation?.bracket;
   const bracketOverridden = bracketOverride != null;
   // The parent `.deck-display` is the tabpanel for the active view; this just
@@ -3205,13 +3198,6 @@ function DeckAnalysisView({
               />
             </Panel>
           </div>
-          {/* Tokens this deck makes — physical-token prep checklist. Self-contained
-              collapsible panel (spans full width); only shown when the deck makes tokens. */}
-          {deckTokens.length > 0 && (
-            <div className="deck-stats-pair">
-              <DeckTokensPanel tokens={deckTokens} />
-            </div>
-          )}
           {/* Validation — pass/fail deck-health gate, pairs with Build health. */}
           <div className="deck-stats-pair">
             {validation.checks.length > 0 && (
