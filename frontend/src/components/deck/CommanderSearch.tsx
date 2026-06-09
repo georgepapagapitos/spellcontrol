@@ -1,4 +1,4 @@
-import { Shuffle } from 'lucide-react';
+import { Loader2, Shuffle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   searchCommanders,
@@ -93,9 +93,32 @@ function pickRandom<T>(arr: T[]): T | null {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/** Compact readiness % for a result row — shown only once resolved + available. */
-function ReadinessChip({ score }: { score: ReadinessScore | undefined }) {
-  if (!score || !score.available) return null;
+/**
+ * Compact readiness indicator for a result row / pill:
+ *   undefined  → nothing (not requested yet)
+ *   'loading'  → spinner (fetch in flight)
+ *   unavailable→ muted "—" (EDHREC has no staple data — NOT the same as 0% owned)
+ *   available  → "{percent}%"
+ */
+function ReadinessChip({ score }: { score: ReadinessScore | 'loading' | undefined }) {
+  if (score === undefined) return null;
+  if (score === 'loading') {
+    return (
+      <span className="commander-search-item-readiness is-loading" aria-label="Loading readiness">
+        <Loader2 className="commander-readiness-spin" width={11} height={11} aria-hidden />
+      </span>
+    );
+  }
+  if (!score.available) {
+    return (
+      <span
+        className="commander-search-item-readiness is-muted"
+        title="Readiness unavailable — no EDHREC staple data for this commander"
+      >
+        —
+      </span>
+    );
+  }
   return (
     <span className="commander-search-item-readiness" title={score.explainerLine}>
       {score.percent}%
@@ -140,7 +163,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // Collection readiness per commander, fetched lazily when a result is
   // highlighted (hover/focus) or selected — so typing never triggers a burst of
   // throttled EDHREC requests. Keyed by lowercased name; deduped via refs.
-  const [readiness, setReadiness] = useState<Map<string, ReadinessScore>>(new Map());
+  const [readiness, setReadiness] = useState<Map<string, ReadinessScore | 'loading'>>(new Map());
   const readinessInflight = useRef<Set<string>>(new Set());
   const readinessDone = useRef<Set<string>>(new Set());
   const ensureReadiness = useCallback(
@@ -148,6 +171,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
       const key = name.toLowerCase();
       if (readinessDone.current.has(key) || readinessInflight.current.has(key)) return;
       readinessInflight.current.add(key);
+      setReadiness((prev) => new Map(prev).set(key, 'loading'));
       try {
         const data = await fetchCommanderData(name);
         const score = computeReadiness(data.cardlists.allNonLand, ownedCardNames, name);
@@ -171,6 +195,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
       await ensureReadiness(value.name);
     })();
   }, [value, ensureReadiness]);
+  const selectedReadiness = value ? readiness.get(value.name.toLowerCase()) : undefined;
 
   const [ownedOnly, setOwnedOnly] = useState<boolean>(() => {
     try {
@@ -343,6 +368,24 @@ export function CommanderSearch({ value, onSelect }: Props) {
     return [...owned, ...filler];
   }, [topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
 
+  // Eager-load readiness for the recommended pills — a small, bounded set (≤12)
+  // shown without typing, so a sequential throttled fetch is affordable and the
+  // pills show a spinner → % instead of staying blank until hovered. (Search
+  // *results* stay lazy-on-hover, since those churn per keystroke.)
+  useEffect(() => {
+    if (visibleTop.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const c of visibleTop.slice(0, 12)) {
+        if (cancelled) return;
+        await ensureReadiness(c.name);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleTop, ensureReadiness]);
+
   // ── Selection handlers ────────────────────────────────────────────────
   const selectCard = (card: ScryfallCard) => {
     onSelect(card);
@@ -508,7 +551,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
             </div>
           )}
           <div className="commander-pick-readiness">
-            <CommanderReadiness score={readiness.get(value.name.toLowerCase())} />
+            <CommanderReadiness
+              score={selectedReadiness === 'loading' ? undefined : selectedReadiness}
+            />
           </div>
         </div>
         <button
