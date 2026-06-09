@@ -1,5 +1,5 @@
-import { Shuffle } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Shuffle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   searchCommanders,
   getCardByName,
@@ -9,10 +9,13 @@ import {
   fetchTopCommanders,
   fetchAllCommanderNames,
   fetchCommandersIncludingColors,
+  fetchCommanderData,
 } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { normalizeForSearch } from '../../lib/normalize-search';
+import { computeReadiness, type ReadinessScore } from '../../lib/commander-readiness';
+import { CommanderReadiness } from './CommanderReadiness';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
 
@@ -90,6 +93,39 @@ function pickRandom<T>(arr: T[]): T | null {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+/**
+ * Compact readiness indicator for a result row / pill:
+ *   undefined  → nothing (not requested yet)
+ *   'loading'  → spinner (fetch in flight)
+ *   unavailable→ muted "—" (EDHREC has no staple data — NOT the same as 0% owned)
+ *   available  → "{percent}%"
+ */
+function ReadinessChip({ score }: { score: ReadinessScore | 'loading' | undefined }) {
+  if (score === undefined) return null;
+  if (score === 'loading') {
+    return (
+      <span className="commander-search-item-readiness is-loading" aria-label="Loading readiness">
+        <Loader2 className="commander-readiness-spin" width={11} height={11} aria-hidden />
+      </span>
+    );
+  }
+  if (!score.available) {
+    return (
+      <span
+        className="commander-search-item-readiness is-muted"
+        title="Readiness unavailable — no EDHREC staple data for this commander"
+      >
+        —
+      </span>
+    );
+  }
+  return (
+    <span className="commander-search-item-readiness" title={score.explainerLine}>
+      {score.percent}%
+    </span>
+  );
+}
+
 export function CommanderSearch({ value, onSelect }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ScryfallCard[]>([]);
@@ -117,6 +153,49 @@ export function CommanderSearch({ value, onSelect }: Props) {
     () => new Set(collectionLegends.map((c) => c.name)),
     [collectionLegends]
   );
+  // All owned card names (lowercased) — readiness measures a commander's staples
+  // against the *whole* collection, not just its legends.
+  const ownedCardNames = useMemo(
+    () => new Set(collectionCards.map((c) => c.name.toLowerCase())),
+    [collectionCards]
+  );
+
+  // Collection readiness per commander, fetched lazily when a result is
+  // highlighted (hover/focus) or selected — so typing never triggers a burst of
+  // throttled EDHREC requests. Keyed by lowercased name; deduped via refs.
+  const [readiness, setReadiness] = useState<Map<string, ReadinessScore | 'loading'>>(new Map());
+  const readinessInflight = useRef<Set<string>>(new Set());
+  const readinessDone = useRef<Set<string>>(new Set());
+  const ensureReadiness = useCallback(
+    async (name: string): Promise<void> => {
+      const key = name.toLowerCase();
+      if (readinessDone.current.has(key) || readinessInflight.current.has(key)) return;
+      readinessInflight.current.add(key);
+      setReadiness((prev) => new Map(prev).set(key, 'loading'));
+      try {
+        const data = await fetchCommanderData(name);
+        const score = computeReadiness(data.cardlists.allNonLand, ownedCardNames, name);
+        readinessDone.current.add(key);
+        setReadiness((prev) => new Map(prev).set(key, score));
+      } catch {
+        readinessDone.current.add(key);
+        setReadiness((prev) => new Map(prev).set(key, computeReadiness([], ownedCardNames, name)));
+      } finally {
+        readinessInflight.current.delete(key);
+      }
+    },
+    [ownedCardNames]
+  );
+
+  // Resolve readiness for the selected commander (covers prefilled selections);
+  // a prior hover usually cached it already, so this is instant.
+  useEffect(() => {
+    if (!value) return;
+    void (async () => {
+      await ensureReadiness(value.name);
+    })();
+  }, [value, ensureReadiness]);
+  const selectedReadiness = value ? readiness.get(value.name.toLowerCase()) : undefined;
 
   const [ownedOnly, setOwnedOnly] = useState<boolean>(() => {
     try {
@@ -289,6 +368,24 @@ export function CommanderSearch({ value, onSelect }: Props) {
     return [...owned, ...filler];
   }, [topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
 
+  // Eager-load readiness for the recommended pills — a small, bounded set (≤12)
+  // shown without typing, so a sequential throttled fetch is affordable and the
+  // pills show a spinner → % instead of staying blank until hovered. (Search
+  // *results* stay lazy-on-hover, since those churn per keystroke.)
+  useEffect(() => {
+    if (visibleTop.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      for (const c of visibleTop.slice(0, 12)) {
+        if (cancelled) return;
+        await ensureReadiness(c.name);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleTop, ensureReadiness]);
+
   // ── Selection handlers ────────────────────────────────────────────────
   const selectCard = (card: ScryfallCard) => {
     onSelect(card);
@@ -453,6 +550,11 @@ export function CommanderSearch({ value, onSelect }: Props) {
               ))}
             </div>
           )}
+          <div className="commander-pick-readiness">
+            <CommanderReadiness
+              score={selectedReadiness === 'loading' ? undefined : selectedReadiness}
+            />
+          </div>
         </div>
         <button
           type="button"
@@ -482,8 +584,13 @@ export function CommanderSearch({ value, onSelect }: Props) {
               type="button"
               className="commander-search-item"
               onClick={() => selectCard(card)}
+              onMouseEnter={() => void ensureReadiness(card.name)}
+              onFocus={() => void ensureReadiness(card.name)}
             >
-              <span className="commander-search-item-name">{card.name}</span>
+              <span className="commander-search-item-line">
+                <span className="commander-search-item-name">{card.name}</span>
+                <ReadinessChip score={readiness.get(card.name.toLowerCase())} />
+              </span>
               <span className="commander-search-item-type">{card.type_line}</span>
             </button>
           </li>
@@ -495,8 +602,13 @@ export function CommanderSearch({ value, onSelect }: Props) {
               type="button"
               className="commander-search-item"
               onClick={() => void selectOwnedCard(card)}
+              onMouseEnter={() => void ensureReadiness(card.name)}
+              onFocus={() => void ensureReadiness(card.name)}
             >
-              <span className="commander-search-item-name">{card.name}</span>
+              <span className="commander-search-item-line">
+                <span className="commander-search-item-name">{card.name}</span>
+                <ReadinessChip score={readiness.get(card.name.toLowerCase())} />
+              </span>
               <span className="commander-search-item-type">
                 {card.typeLine ?? 'Legendary Creature'}
               </span>
@@ -551,6 +663,14 @@ export function CommanderSearch({ value, onSelect }: Props) {
             )}
           </span>
         </label>
+      )}
+
+      {/* Readiness legend — explains the % chip and that it loads on hover. */}
+      {collectionCards.length > 0 && (
+        <p className="commander-readiness-hint">
+          The <strong>%</strong> beside a commander is how many of its staple cards you already own
+          — hover a commander to load it.
+        </p>
       )}
 
       {/* Results panel: search results when a query is active, EDHREC
@@ -640,6 +760,8 @@ export function CommanderSearch({ value, onSelect }: Props) {
                         onClick={() =>
                           void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
                         }
+                        onMouseEnter={() => void ensureReadiness(c.name)}
+                        onFocus={() => void ensureReadiness(c.name)}
                         disabled={searchLoading}
                       >
                         <span className="commander-suggestion-pips" aria-hidden>
@@ -648,6 +770,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
                           ))}
                         </span>
                         <span>{c.name}</span>
+                        <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
                       </button>
                     </li>
                   );
