@@ -63,6 +63,43 @@ sans-bold heading reads as off-family.
   (roving tabindex, arrow-key nav, `role=tablist`/`tab`/`tabpanel`). Don't
   hand-roll a tab strip.
 
+## Toolbars & action rows (responsive)
+
+Horizontal strips of buttons/controls in a header are the app's most repeated
+overflow bug: each time a new control is added, the row outgrows a phone and the
+last item clips. There are **two kinds of strip**, each with one rule — and one
+hard constraint they share.
+
+**Hard constraint (both kinds):** a strip that can ever exceed the viewport must
+**never** be `flex-shrink: 0` + no-wrap. That combination is exactly what clips
+at 320px. If it can't shrink, it must wrap or collapse.
+
+1. **Action rows** — a primary call-to-action plus secondary actions (the page
+   heroes: Decks / Collection / Binders).
+   - Keep the **primary CTA labelled and always visible.**
+   - Collapse the **secondary actions into a `⋮` overflow at `≤600px`** using the
+     shared `components/OverflowMenu.tsx` (kebab + popover, outside-click/Esc
+     close; opens from its own wrapper — for **virtualized rows** use
+     `CardRowMenu` instead, which portals out of the clipping row). The Decks
+     hero is the reference: New deck stays a labelled pill, Import deck + Add
+     precon move into the kebab on phones.
+   - Don't "solve" crowding by going **icon-only on ambiguous glyphs** — a box
+     for "Add precon" isn't legible without its label. Icon-only is only for
+     universal glyphs (search, close, settings).
+
+2. **Control rows** — pickers with no single primary action (Sort / Group /
+   Filter / view-mode toggles; e.g. `.card-list-summary-actions`, the binder
+   sort bar).
+   - These **wrap** (`flex-wrap: wrap`) and may shrink — overflowing controls
+     flow to a second line, never clip. Adding one more picker (this rule was
+     written after "Group by" overflowed the collection toolbar) must stay safe
+     by construction.
+   - Keep each control compact: a `SelectMenu` shows its **current value** (icon
+     + value), not a redundant static label.
+
+Verify both at the **320px floor** in the Responsive section — that's where the
+clip shows up first.
+
 ## Overlays
 
 - On-demand panels that shouldn't live inline (Add cards, Test hand) use the

@@ -7946,13 +7946,17 @@ hr {
   margin-bottom: 0.6rem;
 }
 
-/* Sort + view toggle sit together on the right side of the summary line,
-   adjacent to the rows they affect. */
+/* Group + Sort + view toggle sit together on the right side of the summary
+   line, adjacent to the rows they affect. This is a *control row* (pickers, no
+   single primary), so it WRAPS rather than clips — adding another control (e.g.
+   "Group by") must never push the row past the viewport on a phone. See the
+   "Toolbars & action rows" rule in STYLE_GUIDE.md. */
 .card-list-summary-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.4rem;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* Bulk-select action bar — appears above the list only while one or more
