@@ -12,6 +12,23 @@
   color: var(--text3);
 }
 
+/* ── Legend ─────────────────────────────────────────────────────────── */
+/* A single muted caption + info icon explaining the grade badges and the
+   "X% → Y%" play-rate numbers, so the dense rows stay icon-free. */
+.cost-guide {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: -0.25rem;
+}
+
+.cost-guide-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+}
+
 /* ── Budget control ─────────────────────────────────────────────────── */
 .cost-budget {
   display: flex;
