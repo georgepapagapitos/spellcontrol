@@ -22,10 +22,16 @@ name: Scanner Ingest
 
 on:
   schedule:
-    # 04:00 UTC daily — well after Scryfall's daily bulk regeneration
-    # (which finishes around 10:00 UTC; pick a slot that catches the
-    # most recent dump but doesn't conflict with the combo ingest).
-    - cron: '0 4 * * *'
+    # 04:00 UTC every Monday. The scanner's reference data only changes when
+    # new MTG printings exist (a set / Commander deck / Secret Lair drop —
+    # roughly monthly), so a nightly recompute of the entire embedding corpus
+    # was almost pure waste and the dominant consumer of our private-repo
+    # Actions quota. Weekly keeps the scanner at most ~7 days behind a brand-
+    # new set; fire `workflow_dispatch` manually the day a big set drops to
+    # refresh on demand without waiting. 04:00 UTC is well after Scryfall's
+    # daily bulk regeneration (~10:00 UTC the prior day) and clear of the
+    # combo ingest.
+    - cron: '0 4 * * 1'
   workflow_dispatch:
     inputs:
       limit:
