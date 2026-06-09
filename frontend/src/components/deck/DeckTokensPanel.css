@@ -1,91 +1,138 @@
-.deck-tokens {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
+/* The panel reuses the shared .deck-stats-panel chrome; these rules own the
+   collapsible header, the chip wrap, and the on-demand detail. */
 
-.deck-tokens-head {
+.deck-tokens-header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
 }
 
-.deck-tokens-heading {
-  margin: 0;
+.deck-tokens-header > svg {
+  flex: 0 0 auto;
+  color: var(--text3);
+}
+
+.deck-tokens-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-tokens-title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.deck-tokens-total {
+.deck-tokens-count {
+  flex: 0 0 auto;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text3);
   font-variant-numeric: tabular-nums;
 }
 
-.deck-tokens-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.deck-tokens-body {
+  margin-top: 0.6rem;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
 }
 
-.deck-tokens-row {
+.deck-tokens-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.deck-tokens-row-head {
-  display: flex;
+.deck-tokens-chip {
+  display: inline-flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.35rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  background: var(--surface2);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
 }
 
-.deck-tokens-row-name {
+.deck-tokens-chip:hover {
+  border-color: var(--border);
+}
+
+.deck-tokens-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-tokens-chip--open {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.deck-tokens-chip-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text);
 }
 
-.deck-tokens-row-count {
+.deck-tokens-chip-count {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text);
+  font-size: var(--text-xs);
+  color: var(--text3);
   font-variant-numeric: tabular-nums;
 }
 
-.deck-tokens-row-kind {
+.deck-tokens-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--surface2);
+  border-radius: var(--radius);
+}
+
+.deck-tokens-detail-type {
   font-size: var(--text-xs);
   color: var(--text2);
 }
 
-.deck-tokens-row-producers {
+.deck-tokens-detail-producers {
   font-size: var(--text-xs);
   color: var(--text3);
-  line-height: 1.35;
+  line-height: 1.4;
+}
+
+.deck-tokens-detail-label {
+  color: var(--text2);
+  font-weight: 600;
 }
 
 @media (max-width: 600px) {
-  .deck-tokens {
-    gap: 0.5rem;
-  }
-
-  .deck-tokens-rows {
-    gap: 0.5rem;
+  .deck-tokens-body {
+    gap: 0.45rem;
   }
 }

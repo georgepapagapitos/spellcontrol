@@ -3205,13 +3205,11 @@ function DeckAnalysisView({
               />
             </Panel>
           </div>
-          {/* Tokens this deck makes — physical-token prep checklist. Lone panel
-              (spans full width); only shown when the deck actually makes tokens. */}
+          {/* Tokens this deck makes — physical-token prep checklist. Self-contained
+              collapsible panel (spans full width); only shown when the deck makes tokens. */}
           {deckTokens.length > 0 && (
             <div className="deck-stats-pair">
-              <Panel title="Tokens">
-                <DeckTokensPanel tokens={deckTokens} />
-              </Panel>
+              <DeckTokensPanel tokens={deckTokens} />
             </div>
           )}
           {/* Validation — pass/fail deck-health gate, pairs with Build health. */}
