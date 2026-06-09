@@ -5,6 +5,7 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useAllocations } from '../lib/allocations';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { useEscapeKey } from '../lib/use-escape-key';
+import { FoilBadge } from './FoilBadge';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -86,7 +87,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
           <p className="add-to-binder-label">{headerLabel}</p>
           <p className="add-to-binder-card-name">
             {card.name}
-            {card.foil ? <span className="card-picker-foil"> foil</span> : null}
+            {card.foil ? <FoilBadge card={card} /> : null}
           </p>
         </div>
 

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
+import { FoilBadge } from './FoilBadge';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
@@ -375,7 +376,7 @@ export function BinderListView({
                       <div className="collection-list-main">
                         <div className="collection-list-name">
                           {r.card.name}
-                          {r.card.foil && <span className="card-list-foil-tag">foil</span>}
+                          {r.card.foil && <FoilBadge card={r.card} showLabel />}
                           <DeckBadge allocations={allocationsFor(r.card)} />
                         </div>
                         <div className="collection-list-meta">

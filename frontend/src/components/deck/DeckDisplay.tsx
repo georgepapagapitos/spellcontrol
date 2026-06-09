@@ -42,6 +42,7 @@ import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
+import { FoilBadge } from '../FoilBadge';
 import {
   buildAllocationMap,
   classifyAllocation,
@@ -501,18 +502,6 @@ function FoilShimmer() {
       <div className="card-preview-foil-shine" aria-hidden="true" />
       <div className="card-preview-foil-glare" aria-hidden="true" />
     </>
-  );
-}
-
-/** Small iridescent pip for the list view, where rows have no card image to
- *  carry the shimmer. The palette class tints it per finish; CSS animates a
- *  slow drift mirroring the grid/preview shine. */
-function FoilPip({ row }: { row: Row }) {
-  const style = classifyFoil(row);
-  if (style === 'none') return null;
-  const label = row.finish === 'etched' ? 'Etched foil' : 'Foil';
-  return (
-    <span className={`deck-row-foil foil-${style}`} role="img" aria-label={label} title={label} />
   );
 }
 
@@ -2870,7 +2859,7 @@ function DeckCardRow({
         )}
         {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
         <AllocationChip row={row} />
-        {row.foil && <FoilPip row={row} />}
+        {row.foil && <FoilBadge card={row} />}
         {synergyReasons && synergyReasons.length > 0 && (
           <span
             className="deck-row-synergy"

@@ -6,7 +6,7 @@ import type { EnrichedCard } from '../types';
  * (confetti, raised, step-and-repeat) fold into the closest visual cousin
  * rather than each getting their own one-off treatment.
  */
-type FoilStyle =
+export type FoilStyle =
   | 'none'
   | 'regular'
   | 'etched'
