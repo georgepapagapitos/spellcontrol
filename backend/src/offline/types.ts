@@ -18,6 +18,16 @@ export interface SlimCardFace {
   imageLarge?: string;
 }
 
+/**
+ * A token (or emblem) a card can create, distilled from Scryfall's `all_parts`
+ * relationship array (only the `component === 'token'` entries). Just the name
+ * and Scryfall type line — enough for a physical-token prep checklist.
+ */
+export interface SlimTokenRef {
+  name: string;
+  typeLine?: string;
+}
+
 export interface SlimCard {
   oracleId: string;
   scryfallId: string;
@@ -44,6 +54,8 @@ export interface SlimCard {
   faces?: SlimCardFace[];
   usdPrice?: string;
   isGameChanger?: boolean;
+  /** Tokens/emblems this card creates (from Scryfall `all_parts`). Omitted when none. */
+  tokens?: SlimTokenRef[];
 }
 
 export interface OfflineManifest {

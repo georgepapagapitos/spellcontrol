@@ -65,7 +65,11 @@ const NON_PLAYABLE_LAYOUTS = new Set([
 ]);
 
 async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string }> {
-  const res = await fetch(SCRYFALL_BULK_INDEX_URL, { headers: { Accept: 'application/json' } });
+  // Scryfall requires a descriptive User-Agent — requests without one now get a
+  // 400 (matches the header the per-import resolver in scryfall.ts already sends).
+  const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
+    headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+  });
   if (!res.ok) throw new Error(`Scryfall bulk index returned ${res.status}`);
   const body = (await res.json()) as BulkIndexResponse;
   const entry = body.data.find((e) => e.type === 'default_cards');
@@ -82,7 +86,7 @@ async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string 
 export async function* streamDefaultCards(): AsyncGenerator<BulkCard> {
   const { url } = await fetchDefaultCardsUrl();
   logger.info('[scryfall-bulk] downloading default_cards from', url);
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: { 'User-Agent': 'spellcontrol/1.0' } });
   if (!res.ok || !res.body) {
     throw new Error(`Scryfall default_cards download returned ${res.status}`);
   }

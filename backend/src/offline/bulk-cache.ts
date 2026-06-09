@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import streamArray from 'stream-json/streamers/stream-array.js';
-import type { SlimCard } from './types';
+import type { SlimCard, SlimTokenRef } from './types';
 
 /**
  * Superset of the backend's ScryfallCard type — Scryfall's oracle_cards bulk
@@ -48,6 +48,8 @@ interface ScryfallBulkCard {
     usd_foil?: string | null;
     usd_etched?: string | null;
   };
+  /** Related-card relationships — tokens, meld parts, combo pieces, etc. */
+  all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
 }
 
 const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
@@ -60,8 +62,10 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  * discards a payload built by an older builder and forces a fresh build.
  *   2 — exclude non-playable layouts (art_series/token/...) + memorabilia.
  *   3 — carry `rarity` so consumers don't default everything to common.
+ *   4 — carry `tokens` (a card's creatable tokens, from all_parts) for the
+ *       deck token checklist.
  */
-const BUILDER_VERSION = 3;
+const BUILDER_VERSION = 4;
 
 /**
  * Persisted gzipped slim oracle bulk. We compute it once a day from Scryfall's
@@ -101,8 +105,10 @@ interface BulkIndexResponse {
 }
 
 async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }> {
+  // Scryfall requires a descriptive User-Agent — requests without one now get a
+  // 400 (matches the header the per-import resolver in scryfall.ts already sends).
   const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
   });
   if (!res.ok) {
     throw new Error(`Scryfall bulk index returned ${res.status}`);
@@ -128,6 +134,26 @@ const NON_PLAYABLE_LAYOUTS = new Set([
   'planar',
   'vanguard',
 ]);
+
+/**
+ * Distill a card's token output from Scryfall's `all_parts` array: keep only the
+ * `component === 'token'` entries (tokens + emblems), dedupe by name+type, and
+ * drop everything else (the card itself, meld/combo parts). Returns undefined
+ * when the card makes no tokens so the field stays absent in the slim payload.
+ */
+function tokensFromParts(parts: ScryfallBulkCard['all_parts']): SlimTokenRef[] | undefined {
+  if (!parts || parts.length === 0) return undefined;
+  const seen = new Set<string>();
+  const out: SlimTokenRef[] = [];
+  for (const p of parts) {
+    if (p.component !== 'token' || !p.name) continue;
+    const key = `${p.name} ${p.type_line ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p.type_line ? { name: p.name, typeLine: p.type_line } : { name: p.name });
+  }
+  return out.length > 0 ? out : undefined;
+}
 
 function slimCard(card: ScryfallBulkCard): SlimCard | null {
   if (!card.oracle_id || !card.name) return null;
@@ -176,13 +202,14 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
     })),
     usdPrice: card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched ?? undefined,
     isGameChanger: undefined, // populated post-build from is:gamechanger search if/when needed
+    tokens: tokensFromParts(card.all_parts),
   };
 }
 
 async function buildPayload(): Promise<BulkPayload> {
   const { url, updatedAt } = await fetchOracleBulkUrl();
   logger.info('[offline] downloading Scryfall oracle bulk from', url);
-  const dlRes = await fetch(url);
+  const dlRes = await fetch(url, { headers: { 'User-Agent': 'spellcontrol/1.0' } });
   if (!dlRes.ok || !dlRes.body) {
     throw new Error(`Scryfall oracle bulk download returned ${dlRes.status}`);
   }
@@ -225,7 +252,10 @@ async function buildPayload(): Promise<BulkPayload> {
     gzipped: gz,
   };
 
-  void persistToDisk(payload).catch((err) => {
+  // Capture the target dir NOW (build time), not inside the deferred persist —
+  // see persistToDisk's note on the fire-and-forget race.
+  const persistDir = offlineDataDir();
+  void persistToDisk(payload, persistDir).catch((err) => {
     logger.warn('[offline] failed to persist bulk to disk:', err);
   });
 
@@ -248,12 +278,15 @@ function offlineDataDir(): string {
   return path.join(__dirname, '..', '..', 'data');
 }
 
+const ORACLE_GZ_FILE = 'offline-oracle.json.gz';
+const ORACLE_META_FILE = 'offline-oracle.meta.json';
+
 function diskPath(): string {
-  return path.join(offlineDataDir(), 'offline-oracle.json.gz');
+  return path.join(offlineDataDir(), ORACLE_GZ_FILE);
 }
 
 function diskMetaPath(): string {
-  return path.join(offlineDataDir(), 'offline-oracle.meta.json');
+  return path.join(offlineDataDir(), ORACLE_META_FILE);
 }
 
 interface PersistedMeta {
@@ -265,10 +298,13 @@ interface PersistedMeta {
   builderVersion?: number;
 }
 
-async function persistToDisk(payload: BulkPayload): Promise<void> {
-  const dir = path.dirname(diskPath());
+// `dir` is captured by the caller at build time, NOT re-derived from the env
+// here. persistToDisk is fire-and-forget, so reading offlineDataDir() at write
+// time would race against a later env change (in tests, that wrote a mock bundle
+// over the real one). Pinning the dir up front makes the write deterministic.
+async function persistToDisk(payload: BulkPayload, dir: string): Promise<void> {
   await fs.promises.mkdir(dir, { recursive: true });
-  await fs.promises.writeFile(diskPath(), payload.gzipped);
+  await fs.promises.writeFile(path.join(dir, ORACLE_GZ_FILE), payload.gzipped);
   const meta: PersistedMeta = {
     version: payload.version,
     cardCount: payload.cardCount,
@@ -277,7 +313,7 @@ async function persistToDisk(payload: BulkPayload): Promise<void> {
     updatedAt: payload.updatedAt,
     builderVersion: BUILDER_VERSION,
   };
-  await fs.promises.writeFile(diskMetaPath(), JSON.stringify(meta));
+  await fs.promises.writeFile(path.join(dir, ORACLE_META_FILE), JSON.stringify(meta));
 }
 
 async function loadFromDisk(): Promise<BulkPayload | null> {

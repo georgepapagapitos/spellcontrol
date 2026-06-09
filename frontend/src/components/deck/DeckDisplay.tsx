@@ -1393,33 +1393,46 @@ export function DeckDisplay({
     const labels: string[] = [];
     const rows: Row[] = [];
     const indexByName = new Map<string, number>();
-    for (const g of visibleGroups) {
-      for (const row of g.rows) {
-        indexByName.set(row.name, enrichedCards.length);
-        rows.push(row);
-        enrichedCards.push(
-          scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack, {
-            foil: row.foil,
-            finish: row.finish,
-            finishes: row.finishes,
-            promoTypes: row.promoTypes,
-            frameEffects: row.frameEffects,
-            setCode: row.setCode,
-            setName: row.setName,
-            collectorNumber: row.collectorNumber,
-            rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
-          })
-        );
-        labels.push(g.title);
+    // Mainboard first, then sideboard — so the carousel + hover-peek resolve
+    // sideboard cards too (same inspect path as the mainboard). A name only in
+    // the sideboard maps to its sideboard entry; a name in both keeps the
+    // mainboard one (first wins).
+    const pushGroups = (groups: typeof visibleGroups) => {
+      for (const g of groups) {
+        for (const row of g.rows) {
+          if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
+          rows.push(row);
+          enrichedCards.push(
+            scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack, {
+              foil: row.foil,
+              finish: row.finish,
+              finishes: row.finishes,
+              promoTypes: row.promoTypes,
+              frameEffects: row.frameEffects,
+              setCode: row.setCode,
+              setName: row.setName,
+              collectorNumber: row.collectorNumber,
+              rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
+            })
+          );
+          labels.push(g.title);
+        }
       }
-    }
+    };
+    pushGroups(visibleGroups);
+    pushGroups(visibleSideboardGroups);
     return { cards: enrichedCards, labels, rows, indexByName };
-  }, [visibleGroups, rarityCorrections]);
+  }, [visibleGroups, visibleSideboardGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // Hover-peek for the list view — cursor-anchored, any hover-capable viewport
-  // (the shared default; consistent with the Improve lane). No-op on touch/native.
-  const hoverPeek = useDeckHoverPeek();
+  // Hover-peek for the list view — ROW-anchored (parks the card beside the row,
+  // centered, stable) rather than cursor-anchored, so it never tracks the mouse
+  // or floats over the row's ⋮ kebab. Gated to ≥1024px: the list is a dense CSS
+  // multi-column flow, so only wide desktop has room beside it for a legible
+  // (~200px) card without overlapping the columns. Tablet/phone (<1024px) skip
+  // the peek and use the row's own thumbnail + click→carousel. No-op on
+  // touch/native regardless.
+  const hoverPeek = useDeckHoverPeek({ anchor: 'row', minViewport: 1024 });
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
     const i = flat.indexByName.get(rowName);

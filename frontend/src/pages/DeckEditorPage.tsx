@@ -1,4 +1,4 @@
-import { Copy, MoreVertical, Plus, Redo2, Trash2, Undo2, X } from 'lucide-react';
+import { Coins, Copy, MoreVertical, Plus, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Link, Navigate } from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
@@ -18,6 +18,8 @@ import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { NextBestMove } from '../components/deck/NextBestMove';
+import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
+import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
 import { ImproveLane } from '../components/deck/ImproveLane';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
@@ -324,6 +326,20 @@ export function DeckEditorPage() {
     for (const c of deck.sideboard) if (c.card.oracle_id) ids.add(c.card.oracle_id);
     return Array.from(ids);
   }, [deck]);
+
+  // Tokens this deck can make — a pre-game prep checklist surfaced on demand from
+  // the deck-action row (not Stats; it's prep, not analysis). The hook re-resolves
+  // names to recover token data the slimmed persisted cards drop.
+  const deckScryCards = useMemo(() => {
+    if (!deck) return [];
+    const list: ScryfallCard[] = [];
+    if (deck.commander) list.push(deck.commander);
+    if (deck.partnerCommander) list.push(deck.partnerCommander);
+    for (const c of deck.cards) list.push(c.card);
+    return list;
+  }, [deck]);
+  const deckTokens = useDeckTokens(deckScryCards);
+  const [tokensOpen, setTokensOpen] = useState(false);
 
   const ownedOracleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1362,6 +1378,18 @@ export function DeckEditorPage() {
           >
             Playtest
           </button>
+          {deckTokens.length > 0 && (
+            <button
+              type="button"
+              className="btn deck-editor-action-btn"
+              onClick={() => setTokensOpen(true)}
+              title="Tokens this deck makes — prep them before you play"
+            >
+              <Coins width={14} height={14} strokeWidth={2} aria-hidden />
+              Tokens
+              <span className="deck-editor-action-badge">{deckTokens.length}</span>
+            </button>
+          )}
           <button type="button" className="btn deck-editor-action-btn" onClick={handleDuplicate}>
             <Copy width={14} height={14} strokeWidth={2} aria-hidden />
             Duplicate
@@ -1376,24 +1404,9 @@ export function DeckEditorPage() {
           </button>
         </div>
         <div className="deck-editor-mobile-actions">
-          <button
-            type="button"
-            className="pill-btn deck-editor-icon-pill"
-            onClick={() => undoEdit(deck.id)}
-            disabled={!canUndoEdit}
-            aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
-          >
-            <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="pill-btn deck-editor-icon-pill"
-            onClick={() => redoEdit(deck.id)}
-            disabled={!canRedoEdit}
-            aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
-          >
-            <Redo2 width={16} height={16} strokeWidth={2} aria-hidden />
-          </button>
+          {/* Undo/redo aren't pills here — a bare icon gives no hint of *what*
+              it'd undo. Quick undo is the contextual edit toast ("Removed X ·
+              Undo"); multi-step undo/redo live in the ⋮ menu, labelled. */}
           <button
             type="button"
             className="pill-btn deck-editor-add-pill"
@@ -1409,6 +1422,11 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
+            onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+            onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
+            onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
+            undoLabel={undoEditLabel}
+            redoLabel={redoEditLabel}
           />
         </div>
       </header>
@@ -1773,6 +1791,7 @@ export function DeckEditorPage() {
           onCancel={() => setConfirmDelete(false)}
         />
       )}
+      {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
 
       {editingSlot && (
         <CardEditDialog
@@ -1901,11 +1920,24 @@ function DeckEditorOverflowMenu({
   onDelete,
   onExport,
   onPlaytest,
+  onTokens,
+  onUndo,
+  onRedo,
+  undoLabel,
+  redoLabel,
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
   onPlaytest: () => void;
+  /** Present only when the deck makes tokens. */
+  onTokens?: () => void;
+  /** Present only when there's an edit to undo; carries the action label. */
+  onUndo?: () => void;
+  /** Present only when there's an edit to redo; carries the action label. */
+  onRedo?: () => void;
+  undoLabel?: string | null;
+  redoLabel?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -1941,6 +1973,35 @@ function DeckEditorOverflowMenu({
       {open && (
         <>
           <div className="deck-editor-overflow-panel" role="menu">
+            {onUndo && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onUndo();
+                }}
+              >
+                Undo{undoLabel ? ` ${undoLabel}` : ''}
+              </button>
+            )}
+            {onRedo && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onRedo();
+                }}
+              >
+                Redo{redoLabel ? ` ${redoLabel}` : ''}
+              </button>
+            )}
+            {(onUndo || onRedo) && (
+              <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+            )}
             <button
               type="button"
               role="menuitem"
@@ -1952,6 +2013,19 @@ function DeckEditorOverflowMenu({
             >
               Playtest
             </button>
+            {onTokens && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onTokens();
+                }}
+              >
+                Tokens to prep
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"
