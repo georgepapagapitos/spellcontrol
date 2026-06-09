@@ -41,6 +41,29 @@ describe('CostPanel', () => {
     expect(screen.getByLabelText('Lands')).toBeTruthy();
   });
 
+  it('exposes a consolidated explainer for the grades and play-rate numbers', () => {
+    render(<CostPanel plan={plan} onApply={() => {}} />);
+    // The single legend info affordance, not a per-row icon.
+    const tip = screen.getByRole('button', { name: /how to read these swaps/i });
+    fireEvent.focus(tip);
+    const bubble = screen.getByRole('tooltip');
+    // All three confidence grades are explained in one place.
+    expect(within(bubble).getByText('Drop-in')).toBeTruthy();
+    expect(within(bubble).getByText('Sidegrade')).toBeTruthy();
+    expect(within(bubble).getByText('Budget')).toBeTruthy();
+    // And the "X% → Y%" numbers are spelled out as EDHREC play-rate.
+    expect(within(bubble).getByText(/EDHREC\s+play-rate/i)).toBeTruthy();
+  });
+
+  it("labels each row's play-rate delta with a direction-aware tooltip", () => {
+    render(<CostPanel plan={plan} onApply={() => {}} />);
+    // Default row: current 60% → suggestion 50% (a drop), so no "upgrade" hint.
+    const downRow = screen.getAllByTitle(
+      /EDHREC play-rate: in 60% of decks → 50% \(less played\)/i
+    );
+    expect(downRow.length).toBeGreaterThan(0);
+  });
+
   it('shows the empty state when there are no rows', () => {
     render(
       <CostPanel

@@ -1,5 +1,5 @@
 import './CostPanel.css';
-import { type JSX, useCallback, useMemo, useState, type MouseEvent } from 'react';
+import { type JSX, type ReactNode, useCallback, useMemo, useState, type MouseEvent } from 'react';
 import { Check } from 'lucide-react';
 import {
   autoCheckToTarget,
@@ -9,6 +9,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { useCardCarousel } from './useCardCarousel';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
+import { InfoTip } from '../InfoTip';
 import { useCardThumb } from '@/lib/card-thumbs';
 
 export interface CostPanelProps {
@@ -37,6 +38,31 @@ const CONFIDENCE_TONE: Record<CostConfidence, VerdictTone> = {
   budget: 'warn',
 };
 
+/* One consolidated explainer for the whole panel — the grade badges AND the
+   "X% → Y%" numbers — so the rows don't each need their own info icon (which
+   reads as clutter, the same call BracketBreakdown's SOFT_SCORE_TIP makes). */
+const SWAP_GUIDE_TIP: ReactNode = (
+  <>
+    <p className="info-tip-lead">
+      Each row trades a card for a cheaper role-equivalent. Two cues tell you how close the
+      replacement is:
+    </p>
+    <ul className="info-tip-list">
+      <li>
+        <strong>The grade</strong> — <strong>Drop-in</strong>: same mana cost and played about as
+        often, so it plays nearly identically. <strong>Sidegrade</strong>: a real, comparable card
+        but meaningfully less common. <strong>Budget</strong>: a bigger drop in popularity — a
+        money-saving compromise.
+      </li>
+      <li>
+        <strong>X% → Y%</strong> — how often each card is played in decks that can run it (EDHREC
+        play-rate), from the card you'd cut to its replacement. A higher second number means the
+        swap is actually an upgrade, not a downgrade.
+      </li>
+    </ul>
+  </>
+);
+
 function fmt(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
@@ -64,9 +90,14 @@ function SwapRow({
   onPreview: (name: string) => void;
   disabled?: boolean;
 }) {
-  const inclusionDelta = `${Math.round(row.currentInclusion)}% → ${Math.round(
-    row.suggestionInclusion
-  )}%`;
+  const curInc = Math.round(row.currentInclusion);
+  const sugInc = Math.round(row.suggestionInclusion);
+  const inclusionDelta = `${curInc}% → ${sugInc}%`;
+  // Per-row native tooltip spells out what the bare numbers mean + their direction,
+  // backstopping the panel-level SWAP_GUIDE_TIP for a quick hover.
+  const inclusionTitle = `EDHREC play-rate: in ${curInc}% of decks → ${sugInc}%${
+    sugInc > curInc ? ' (more played — an upgrade)' : sugInc < curInc ? ' (less played)' : ''
+  }`;
   const aria = `Swap ${row.currentName} for ${row.suggestionName}, save ${fmt(row.savings)}`;
   // Resolve CDN art by name (cached + batched) when the row didn't carry a URL.
   const resolvedCurrent = useCardThumb(row.currentImageUrl ? undefined : row.currentName, 'small');
@@ -128,7 +159,9 @@ function SwapRow({
             tone={CONFIDENCE_TONE[row.confidence]}
             label={CONFIDENCE_LABEL[row.confidence]}
           />
-          <span className="cost-inclusion">{inclusionDelta}</span>
+          <span className="cost-inclusion" title={inclusionTitle}>
+            {inclusionDelta}
+          </span>
         </span>
       </label>
     </li>
@@ -272,6 +305,11 @@ export function CostPanel({ plan, onApply, applying = false }: CostPanelProps): 
         >
           Auto-select to target
         </button>
+      </div>
+
+      <div className="cost-guide">
+        <span className="cost-guide-label">How to read these swaps</span>
+        <InfoTip label="how to read these swaps" text={SWAP_GUIDE_TIP} wide />
       </div>
 
       <div className="cost-sections">
