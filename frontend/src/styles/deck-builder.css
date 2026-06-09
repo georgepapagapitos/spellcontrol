@@ -467,6 +467,30 @@
   color: var(--text3);
 }
 
+/* Browse mode grows inline with the page instead of scrolling inside the capped
+   dropdown box — no scroll container nested in the page scroll. The "Show more"
+   expander keeps the initial height short. */
+.commander-search-panel--browse {
+  max-height: none;
+  overflow: visible;
+}
+
+.commander-playstyle-more {
+  align-self: center;
+  margin-top: 0.2rem;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+}
+
+.commander-playstyle-more:hover {
+  text-decoration: underline;
+}
+
 /* Mana-color filter row — circular pips that toggle on click. */
 .commander-color-filter {
   display: flex;
