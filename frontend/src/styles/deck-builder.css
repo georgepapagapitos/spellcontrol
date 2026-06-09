@@ -168,6 +168,34 @@
   color: var(--text3);
 }
 
+/* "Plays like" detected-playstyle tags on the selected-commander pick card. */
+.commander-pick-playstyles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.commander-pick-playstyles-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text3);
+}
+
+.commander-pick-playstyle-tag {
+  padding: 0.1rem 0.5rem;
+  font-size: var(--text-xs);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  border: 0.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  white-space: nowrap;
+}
+
 /* Readiness bar inside the selected-commander pick card. */
 .commander-pick-readiness {
   margin-top: 0.6rem;
@@ -372,6 +400,68 @@
 }
 
 .commander-suggestions-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text3);
+}
+
+/* ── By-playstyle facet ──────────────────────────────────────────────
+   The Name | Playstyle mode switcher and the playstyle browser that the
+   "By playstyle" tab reveals. Reuses the suggestion-chip vocabulary so the
+   commander results read identically across both facets. */
+.commander-search-modes {
+  margin-bottom: 0.75rem;
+}
+
+.commander-playstyle-browse {
+  padding: 0.85rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  text-align: center;
+}
+
+.commander-playstyle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.commander-playstyle-chip {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.commander-playstyle-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.commander-playstyle-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.commander-playstyle-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 4px var(--surface);
+}
+
+.commander-suggestions-hint {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text3);
