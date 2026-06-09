@@ -24,6 +24,7 @@ import { CardImageFrame } from './CardImageFrame';
 import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
+import { useMaxBoundaryScroll } from '../lib/use-max-boundary-scroll';
 import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
@@ -280,6 +281,11 @@ export function CardPreview({
     // stable for the life of the carousel — only `cards` identity matters.
     [cards]
   );
+
+  // Clamp the native scroll so a momentum fling can't rubber-band past the
+  // first/last card (CSS overscroll-behavior alone doesn't fully cover the
+  // Capacitor WebView — see the hook).
+  useMaxBoundaryScroll(trackRef);
 
   // Sync parent → carousel if the parent index changes externally.
   useEffect(() => {
