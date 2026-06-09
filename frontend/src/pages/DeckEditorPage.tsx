@@ -1404,24 +1404,9 @@ export function DeckEditorPage() {
           </button>
         </div>
         <div className="deck-editor-mobile-actions">
-          <button
-            type="button"
-            className="pill-btn deck-editor-icon-pill"
-            onClick={() => undoEdit(deck.id)}
-            disabled={!canUndoEdit}
-            aria-label={canUndoEdit ? `Undo ${undoEditLabel}` : 'Nothing to undo'}
-          >
-            <Undo2 width={16} height={16} strokeWidth={2} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="pill-btn deck-editor-icon-pill"
-            onClick={() => redoEdit(deck.id)}
-            disabled={!canRedoEdit}
-            aria-label={canRedoEdit ? `Redo ${redoEditLabel}` : 'Nothing to redo'}
-          >
-            <Redo2 width={16} height={16} strokeWidth={2} aria-hidden />
-          </button>
+          {/* Undo/redo aren't pills here — a bare icon gives no hint of *what*
+              it'd undo. Quick undo is the contextual edit toast ("Removed X ·
+              Undo"); multi-step undo/redo live in the ⋮ menu, labelled. */}
           <button
             type="button"
             className="pill-btn deck-editor-add-pill"
@@ -1438,6 +1423,10 @@ export function DeckEditorPage() {
             onExport={() => setExportOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+            onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
+            onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
+            undoLabel={undoEditLabel}
+            redoLabel={redoEditLabel}
           />
         </div>
       </header>
@@ -1932,6 +1921,10 @@ function DeckEditorOverflowMenu({
   onExport,
   onPlaytest,
   onTokens,
+  onUndo,
+  onRedo,
+  undoLabel,
+  redoLabel,
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
@@ -1939,6 +1932,12 @@ function DeckEditorOverflowMenu({
   onPlaytest: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
+  /** Present only when there's an edit to undo; carries the action label. */
+  onUndo?: () => void;
+  /** Present only when there's an edit to redo; carries the action label. */
+  onRedo?: () => void;
+  undoLabel?: string | null;
+  redoLabel?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -1974,6 +1973,35 @@ function DeckEditorOverflowMenu({
       {open && (
         <>
           <div className="deck-editor-overflow-panel" role="menu">
+            {onUndo && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onUndo();
+                }}
+              >
+                Undo{undoLabel ? ` ${undoLabel}` : ''}
+              </button>
+            )}
+            {onRedo && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onRedo();
+                }}
+              >
+                Redo{redoLabel ? ` ${redoLabel}` : ''}
+              </button>
+            )}
+            {(onUndo || onRedo) && (
+              <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+            )}
             <button
               type="button"
               role="menuitem"

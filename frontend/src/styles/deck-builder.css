@@ -3105,6 +3105,9 @@ input.toolbar-search-input {
      view-tabs (--z-popover) it drops over, below sheets/modals. */
   z-index: var(--z-menu);
   min-width: 12rem;
+  /* Cap so a labelled "Undo remove <long card name>" row can't run off-screen;
+     the row wraps instead (see overflow-wrap on the item). */
+  max-width: min(20rem, calc(100vw - 1.5rem));
   background: var(--surface);
   border: 0.5px solid var(--border2);
   border-radius: var(--radius);
@@ -3113,6 +3116,13 @@ input.toolbar-search-input {
   flex-direction: column;
   padding: 0.25rem;
   gap: 1px;
+}
+
+/* Hairline between the undo/redo rows and the rest of the deck actions. */
+.deck-editor-overflow-divider {
+  height: 1px;
+  margin: 0.25rem 0.3rem;
+  background: var(--border);
 }
 
 .deck-editor-overflow-item {
@@ -3129,6 +3139,10 @@ input.toolbar-search-input {
   padding: 0.5rem 0.6rem;
   border-radius: 6px;
   cursor: pointer;
+  /* Long undo/redo labels (a card name) wrap inside the row rather than
+     widening the menu or clipping. */
+  overflow-wrap: anywhere;
+  line-height: 1.3;
 }
 
 /* Shared menu-item hover used by every 3-dot popover in the app —
