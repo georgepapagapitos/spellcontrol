@@ -8375,6 +8375,40 @@ hr {
   background: var(--surface2);
 }
 
+/* "Group by" section header, rendered inside the first row's measured cell so
+   the virtualizer folds its height into the row offset (see CardListTable). */
+.collection-list-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text2);
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.collection-list-section-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.collection-list-section-label {
+  text-transform: uppercase;
+}
+
+.collection-list-section-count {
+  margin-left: auto;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text3);
+}
+
 .collection-list-row {
   display: flex;
   align-items: center;
