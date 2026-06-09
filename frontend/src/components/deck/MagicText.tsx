@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
 
+import { symbolToClass } from '@/lib/mana-symbols';
+
 interface Props {
   text: string;
   className?: string;
@@ -53,10 +55,4 @@ function parseMagicText(text: string): TextPart[] {
     parts.push({ kind: 'text', value: text.slice(lastIdx) });
   }
   return parts;
-}
-
-function symbolToClass(sym: string): string {
-  const lower = sym.toLowerCase().replace(/\//g, '');
-  const isHybrid = sym.includes('/');
-  return `ms ms-${lower} ms-cost${isHybrid ? ' ms-split' : ''}`;
 }

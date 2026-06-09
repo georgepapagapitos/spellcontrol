@@ -1,3 +1,5 @@
+import { symbolToClass } from '@/lib/mana-symbols';
+
 interface Props {
   cost: string | undefined;
   className?: string;
@@ -32,17 +34,4 @@ function parseSymbols(face: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(face))) out.push(m[1]);
   return out;
-}
-
-/**
- * Maps Scryfall symbol payloads to mana-font classes.
- *   "W" → "ms ms-w ms-cost"
- *   "2/W" → "ms ms-2w ms-split ms-cost"
- *   "T" (tap) → "ms ms-tap ms-cost"
- *   "X" → "ms ms-x ms-cost"
- */
-function symbolToClass(sym: string): string {
-  const lower = sym.toLowerCase().replace(/\//g, '');
-  const isHybrid = sym.includes('/');
-  return `ms ms-${lower} ms-cost${isHybrid ? ' ms-split' : ''}`;
 }

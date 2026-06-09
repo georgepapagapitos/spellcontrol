@@ -17,6 +17,7 @@ import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
+import { ColorPip } from '../components/shared/ManaSymbol';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
@@ -504,10 +505,7 @@ export function DecksIndexPage() {
                       {colorIdentity.length > 0 && (
                         <span className="decks-index-card-banner-pips">
                           {colorIdentity.map((c) => (
-                            <i
-                              key={c}
-                              className={`ms ms-${c.toLowerCase()} ms-cost color-pip-mana color-pip-mana--lg`}
-                            />
+                            <ColorPip key={c} color={c} pip="lg" />
                           ))}
                         </span>
                       )}
@@ -539,11 +537,7 @@ export function DecksIndexPage() {
                       {colorIdentity.length > 0 && (
                         <span className="decks-index-card-pips" aria-label="Color identity">
                           {colorIdentity.map((c) => (
-                            <i
-                              key={c}
-                              className={`ms ms-${c.toLowerCase()} ms-cost color-pip-mana`}
-                              aria-hidden
-                            />
+                            <ColorPip key={c} color={c} />
                           ))}
                         </span>
                       )}

@@ -34,6 +34,8 @@ import {
 import type { DeckCard } from '../../store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
+import { ManaSymbol } from '../shared/ManaSymbol';
+import { typeIcon } from '../../lib/card-types';
 import { Modal } from '../Modal';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
@@ -138,17 +140,6 @@ function tallyNames(
     .map(([name, { count, card }]) => ({ name, count, card }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
-
-const TYPE_ICON: Record<TypeGroup, string> = {
-  Land: 'ms-land',
-  Creature: 'ms-creature',
-  Planeswalker: 'ms-planeswalker',
-  Battle: 'ms-battle',
-  Sorcery: 'ms-sorcery',
-  Instant: 'ms-instant',
-  Artifact: 'ms-artifact',
-  Enchantment: 'ms-enchantment',
-};
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 type CurrencyCode = 'USD' | 'EUR';
@@ -1003,13 +994,13 @@ export function DeckDisplay({
     if (commanderRows.length > 0) {
       ordered.push({
         title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
-        icon: 'ms-commander',
+        icon: 'commander',
         rows: commanderRows,
       });
     }
     for (const t of DISPLAY_ORDER) {
       const r = buckets.get(t);
-      if (r && r.length > 0) ordered.push({ title: t, icon: TYPE_ICON[t], rows: r });
+      if (r && r.length > 0) ordered.push({ title: t, icon: typeIcon(t.toLowerCase()), rows: r });
     }
     return ordered;
   }, [cards, commanderRows, collectionByCopyId, crossDeck]);
@@ -1028,7 +1019,7 @@ export function DeckDisplay({
     const ordered: { title: string; icon: string; rows: Row[] }[] = [];
     for (const t of DISPLAY_ORDER) {
       const r = buckets.get(t);
-      if (r && r.length > 0) ordered.push({ title: t, icon: TYPE_ICON[t], rows: r });
+      if (r && r.length > 0) ordered.push({ title: t, icon: typeIcon(t.toLowerCase()), rows: r });
     }
     return ordered;
   }, [sideboard, collectionByCopyId, crossDeck]);
@@ -1579,7 +1570,7 @@ export function DeckDisplay({
                       <CategorySection
                         key={g.title}
                         title={g.title}
-                        iconClass={g.icon}
+                        icon={g.icon}
                         rows={g.rows}
                         currency={currency}
                         showPrefs={showPrefs}
@@ -1621,7 +1612,7 @@ export function DeckDisplay({
                           <CategorySection
                             key={`sb-${g.title}`}
                             title={g.title}
-                            iconClass={g.icon}
+                            icon={g.icon}
                             rows={g.rows}
                             currency={currency}
                             showPrefs={showPrefs}
@@ -2474,7 +2465,7 @@ function DeckCardGrid({
           <section key={g.title} className="deck-grid-section">
             <header className="deck-section-header">
               <span className="deck-section-icon">
-                <i className={`ms ${g.icon}`} aria-hidden />
+                <ManaSymbol symbol={g.icon} />
               </span>
               <h3 className="deck-section-title">
                 {g.title} <span className="deck-section-count">({count})</span>
@@ -2612,7 +2603,7 @@ function PartnerHeaderButton({
 // ── Category section ──────────────────────────────────────────────────────
 function CategorySection({
   title,
-  iconClass,
+  icon,
   rows,
   currency,
   showPrefs,
@@ -2632,7 +2623,7 @@ function CategorySection({
   cardInclusionMap,
 }: {
   title: string;
-  iconClass: string;
+  icon: string;
   rows: Row[];
   currency: CurrencyCode;
   showPrefs: ShowPrefs;
@@ -2660,7 +2651,7 @@ function CategorySection({
     <section className="deck-section">
       <header className="deck-section-header">
         <span className="deck-section-icon">
-          <i className={`ms ${iconClass}`} aria-hidden />
+          <ManaSymbol symbol={icon} />
         </span>
         <h3 className="deck-section-title">
           {title} <span className="deck-section-count">({count})</span>

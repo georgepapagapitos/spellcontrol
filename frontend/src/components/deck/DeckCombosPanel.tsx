@@ -24,6 +24,7 @@ import {
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { ColorPip } from '../shared/ManaSymbol';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
@@ -812,7 +813,7 @@ const COLOR_ORDER = ['w', 'u', 'b', 'r', 'g'] as const;
 function ColorIdentityPips({ identity }: { identity: string }) {
   const colors = identity ? COLOR_ORDER.filter((c) => identity.includes(c)) : [];
   if (colors.length === 0) {
-    return <i className="ms ms-c ms-cost deck-combos-pip" aria-label="Colorless" />;
+    return <ColorPip color="C" pip={false} className="deck-combos-pip" label="Colorless" />;
   }
   return (
     <span
@@ -820,7 +821,7 @@ function ColorIdentityPips({ identity }: { identity: string }) {
       aria-label={`Color identity: ${colors.join('').toUpperCase()}`}
     >
       {colors.map((c) => (
-        <i key={c} className={`ms ms-${c} ms-cost deck-combos-pip`} aria-hidden />
+        <ColorPip key={c} color={c} pip={false} className="deck-combos-pip" />
       ))}
     </span>
   );

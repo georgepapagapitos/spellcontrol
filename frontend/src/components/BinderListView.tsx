@@ -6,6 +6,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
+import { ColorPip } from './shared/ManaSymbol';
 import { useCollectionStore } from '../store/collection';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { SortPopover } from './SortPopover';
@@ -320,12 +321,7 @@ export function BinderListView({
               <span className="section-chevron" aria-hidden="true">
                 ▾
               </span>
-              {section.pip && (
-                <i
-                  className={`ms ${colorKeyToMs(section.key)} ms-cost color-pip-mana color-pip-mana--lg`}
-                  aria-hidden
-                />
-              )}
+              {section.pip && <ColorPip color={section.key} pip="lg" />}
               <span className="section-title">{section.label}</span>
               <span className="section-meta">
                 {totalQty} {totalQty === 1 ? 'card' : 'cards'}
@@ -466,22 +462,4 @@ export function BinderListView({
       )}
     </>
   );
-}
-
-function colorKeyToMs(key: string): string {
-  switch (key) {
-    case 'W':
-    case 'U':
-    case 'B':
-    case 'R':
-    case 'G':
-      return `ms-${key.toLowerCase()}`;
-    case 'M':
-      return 'ms-multicolor';
-    case 'C':
-    case 'L':
-      return 'ms-c';
-    default:
-      return 'ms-c';
-  }
 }
