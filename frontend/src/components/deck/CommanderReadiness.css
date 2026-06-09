@@ -49,6 +49,13 @@
   color: var(--text3);
 }
 
+/* The inline ⓘ is inline-flex (baseline-aligned by default → rides low next to
+   the text). Center it on the text line. */
+.cmdr-readiness-explainer .info-tip {
+  vertical-align: middle;
+  margin-left: 0.15rem;
+}
+
 .cmdr-readiness-unavailable {
   margin: 0;
   font-size: var(--text-xs);
