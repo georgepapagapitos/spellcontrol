@@ -1,22 +1,18 @@
-.deck-tokens-sheet {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-modal);
-  padding: 1.25rem;
-  max-width: 460px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  align-self: flex-start;
-  max-height: 100%;
-  overflow: hidden;
+/* Layers on the shared `.card-picker-root` / `.card-picker-sheet` shell
+   (bottom sheet on mobile → centered modal ≥1024px). These rules only add the
+   backdrop dim and the token-specific content (header / chips / detail). */
+
+.deck-tokens-root {
+  background: var(--overlay);
 }
 
+/* The shared sheet has no horizontal padding; pad the content instead so the
+   base's safe-area `padding-bottom` is preserved. */
 .deck-tokens-sheet-head {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
+  padding: 0.25rem 1.1rem 0;
 }
 
 .deck-tokens-sheet-titles {
@@ -47,7 +43,7 @@
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  margin: -0.25rem -0.25rem 0 0;
+  margin: -0.15rem -0.4rem 0 0;
   padding: 0;
   background: none;
   border: none;
@@ -70,6 +66,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  padding: 0.85rem 1.1rem 1rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
