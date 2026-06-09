@@ -4055,7 +4055,8 @@ hr {
 .auto-link-banner {
   position: sticky;
   top: 0;
-  z-index: 50;
+  /* Sticky page chrome — use the scale, not a raw 50. See STYLE_GUIDE. */
+  z-index: var(--z-popover);
   padding: 0.75rem 1rem;
   background: var(--accent-light, var(--surface2));
   border-bottom: 1px solid var(--accent, var(--border));
@@ -7017,7 +7018,10 @@ hr {
   gap: 0.25rem;
   position: sticky;
   top: 0;
-  z-index: var(--z-panel);
+  /* Sticky section-nav chrome → --z-popover, below the fixed app frame
+     (.site-header is --z-panel) and any hero-opened menu (--z-menu), above
+     scrolling content. See STYLE_GUIDE "Z-index / layering". */
+  z-index: var(--z-popover);
   height: var(--hub-tabs-sticky-h);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 1rem;
   padding: 0 var(--page-gutter, 1rem);
@@ -7424,7 +7428,9 @@ hr {
      breakpoint. The base `top` is 0; under the Collection hub the rule
      below offsets it so it pins beneath the sticky hub-tabs strip. */
   top: 0;
-  z-index: var(--z-panel);
+  /* Sticky page chrome → --z-popover (same tier as .collection-hub-tabs it
+     pins beneath); below the app frame + hero menus. See STYLE_GUIDE. */
+  z-index: var(--z-popover);
   background: var(--bg);
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.75rem;
@@ -11231,7 +11237,8 @@ i.ms.card-list-type {
 .scanner-root {
   position: fixed;
   inset: 0;
-  z-index: 1100;
+  /* Full-screen capture overlay — above the modal stack. Token, not raw 1100. */
+  z-index: var(--z-overlay);
   background: #000;
   color: #fff;
   /* The scanner is an always-dark overlay regardless of the app's light/dark

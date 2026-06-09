@@ -2672,7 +2672,11 @@ input.toolbar-search-input {
      it, so the scrollport top is already under the header — pin at 0,
      not the header height (see .collection-toolbar-row). */
   top: 0;
-  z-index: var(--z-panel);
+  /* Sticky chrome = content scaffolding: above scrolling content (cards +
+     their --z-dropdown row menus) but BELOW menus opened from the hero above
+     it, so a ⋮ overflow (--z-menu) floats on top instead of behind. Mirrors
+     `.deck-editor-view-tabs`. See STYLE_GUIDE "Z-index / layering". */
+  z-index: var(--z-popover);
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
@@ -6877,6 +6881,13 @@ input.deck-row-qty-input.deck-row-qty-missing {
 .overflow-menu-popover {
   left: 0;
   right: auto;
+  /* A transient menu must outrank the sticky chrome it opens over (STYLE_GUIDE
+     "Z-index / layering"). The hero's ⋮ opens down over the sticky
+     `.decks-index-search-row` (capped at --z-popover), so this sits one tier
+     up at --z-menu — same pairing as the deck editor's tabs/overflow. The
+     shared `.deck-row-menu-popover` base is --z-dropdown (fine in unclipped
+     rows); we lift only this hero instance. */
+  z-index: var(--z-menu);
 }
 
 /* The ⋮ overflow only appears on phones; desktop/tablet show the full pills. */
@@ -7113,7 +7124,11 @@ input.deck-row-qty-input.deck-row-qty-missing {
      it, so the scrollport top is already under the header — pin at 0,
      not the header height (see .collection-toolbar-row). */
   top: 0;
-  z-index: var(--z-panel);
+  /* Sticky chrome = content scaffolding: above scrolling content (cards +
+     their --z-dropdown row menus) but BELOW menus opened from the hero above
+     it, so a ⋮ overflow (--z-menu) floats on top instead of behind. Mirrors
+     `.deck-editor-view-tabs`. See STYLE_GUIDE "Z-index / layering". */
+  z-index: var(--z-popover);
   background: var(--bg);
   margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
   padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;

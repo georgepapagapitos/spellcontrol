@@ -141,13 +141,31 @@ tooltip; reuse this so they behave identically everywhere.
   `--z-dropdown` (50) · `--z-popover` (60) · `--z-menu` (80) · `--z-panel` (100)
   · `--z-sheet-bg`/`--z-sheet-fg` (110/111) · `--z-suggest` (200) · `--z-modal`
   (1000) · `--z-overlay` (1100) · `--z-tooltip` (9999).
-- **A transient menu/popover must outrank the sticky chrome it opens over.** A
-  sticky section-nav strip is _content scaffolding_, so cap it at `--z-popover`
-  (just above scrolling content) — not `--z-panel` — so a menu (`--z-menu`)
-  opened from a header above it floats on top instead of dropping behind. (This
-  is why the deck editor's `.deck-editor-view-tabs` is `--z-popover` and the ⋮
-  `.deck-editor-overflow-panel` is `--z-menu`.)
-- Sheets/modals (`--z-sheet-*`, `--z-modal`, `--z-overlay`) always sit above both.
+- **Never guess a z-index. Pick the token by _role_, using this layering
+  contract (low → high):**
+  1. `--z-dropdown` (50) — menus/popovers anchored to **scrolling content**
+     (virtualized card rows, in-list ⋮ menus). They ride under sticky chrome by
+     design.
+  2. `--z-popover` (60) — **sticky page chrome**: search rows, section-nav
+     strips, sort bars. Content scaffolding that pins above scrolling content.
+     **Cap sticky chrome here — never `--z-panel`.**
+  3. `--z-menu` (80) — menus/popovers opened from a **header/hero that sits
+     above sticky chrome** (e.g. a ⋮ overflow in the page hero). One tier above
+     the sticky row so it floats over it instead of dropping behind.
+  4. `--z-panel` (100) and up — fixed app frame (tab bar), sheets (`--z-sheet-*`),
+     modals/overlays (`--z-modal`/`--z-overlay`), tooltips (`--z-tooltip`). These
+     always sit above all of the above.
+- **The recurring bug:** a sticky search/nav row at `--z-panel` swallows any menu
+  opened from the hero above it. Two fixes are wrong (`calc(--z-panel + 1)` on the
+  menu) and one is right (drop the sticky row to `--z-popover`, put the menu at
+  `--z-menu`). Precedents that get it right: the deck editor's
+  `.deck-editor-view-tabs` (`--z-popover`) + `.deck-editor-overflow-panel`
+  (`--z-menu`); the decks/binders `…-index-search-row` (`--z-popover`) +
+  `.overflow-menu-popover` (`--z-menu`).
+- **Rule of thumb:** if A must paint over B, A's token must be strictly greater
+  than B's — and B is whatever A physically overlaps, _not_ what's near it in the
+  DOM. A sticky element creates its own stacking context, so its token wins
+  against later siblings regardless of source order.
 
 ## Color & spacing
 
