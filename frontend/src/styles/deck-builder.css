@@ -17,6 +17,12 @@
   margin-top: 0.25rem;
 }
 
+/* Inline link in prose: drop the horizontal padding so it doesn't stack on
+   top of the sentence's word-space and create a visible gap before the link. */
+.deck-builder-subtitle .btn-link {
+  padding-inline: 0;
+}
+
 .deck-builder-section {
   background: var(--surface);
   border: 0.5px solid var(--border);
