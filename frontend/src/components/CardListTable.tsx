@@ -44,7 +44,12 @@ import { useDebouncedValue } from '../lib/use-debounced-value';
 import { classifyFoil } from '../lib/foil-style';
 import { sortCards, printingKey, type SortContext } from '../lib/sorting';
 import { getSectionMeta } from '@spellcontrol/binder-routing';
-import { groupRowsIntoSections, type SectionHeader } from '../lib/group-sections';
+import {
+  groupRowsIntoSections,
+  buildGridLayout,
+  type SectionHeader,
+  type GridLayoutRow,
+} from '../lib/group-sections';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
@@ -129,6 +134,9 @@ type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc' | 'release' |
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
+// Fixed height of a full-width "Group by" section header row in grid view.
+// Keep in sync with .collection-grid-section-header in global.css.
+const GRID_SECTION_HEADER_H = 40;
 
 const COLOR_FILTERS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -173,8 +181,8 @@ const SORT_FIELD_BY_KEY: Record<SortKey, (typeof SORT_FIELDS)[number]> = SORT_FI
 
 // "Group by" sections the visible rows under per-attribute headers, reusing the
 // binder-routing sectioning engine (getSectionMeta) so the buckets/labels/order
-// match how binders already section the same cards. PR-1 covers list/compact;
-// grid section headers are a follow-up, so the control is hidden in grid view.
+// match how binders already section the same cards. Applies to all three views
+// (list/compact inline headers; grid full-width header rows via buildGridLayout).
 type GroupKey = 'none' | 'color' | 'type' | 'cmc' | 'rarity' | 'set';
 
 const GROUP_FIELDS: Array<{ key: GroupKey; label: string }> = [
@@ -616,12 +624,12 @@ export function CardListTable({
 
   // "Group by" re-buckets the already-sorted rows under per-attribute section
   // headers. We stable-group `sorted` (within-group order = the user's sort) so
-  // grouping composes with sorting. Grid section headers are a follow-up (PR-2),
-  // so grouping is a no-op in grid view — `displayRows` stays `sorted` there and
-  // `sectionHeaders` is null. Everything downstream (the carousel, the Scryfall
-  // trigger index, the virtualizers) indexes off `displayRows`, never `sorted`.
-  const groupField: SortField | null =
-    groupKey !== 'none' && view !== 'grid' ? GROUP_KEY_TO_FIELD[groupKey] : null;
+  // grouping composes with sorting. Applies to all three views — list/compact
+  // render headers inline in the boundary row's measured cell, grid renders them
+  // as full-width rows via `gridLayout` below. Everything downstream (the
+  // carousel, the Scryfall trigger index, the virtualizers) indexes off
+  // `displayRows`, never `sorted`.
+  const groupField: SortField | null = groupKey !== 'none' ? GROUP_KEY_TO_FIELD[groupKey] : null;
   const { displayRows, sectionHeaders } = useMemo<{
     displayRows: Row[];
     sectionHeaders: Map<number, SectionHeader> | null;
@@ -694,9 +702,17 @@ export function CardListTable({
   // place (the grid/list reflows as if the trigger were never there).
   const showScryfallTrigger = showScryfall && !scryfallOpen;
   const triggerIndex = displayRows.length;
-  const gridItemCount = displayRows.length + (showScryfallTrigger ? 1 : 0);
-  const gridRowCount = view === 'grid' ? Math.ceil(gridItemCount / gridCols) : 0;
   const GRID_GAP = 10;
+
+  // Heterogeneous grid row list: full-width section headers interleaved with
+  // chunked card rows. The Scryfall "add" trigger rides as one trailing item.
+  const gridLayout = useMemo<GridLayoutRow[]>(
+    () =>
+      view === 'grid'
+        ? buildGridLayout(displayRows.length, gridCols, sectionHeaders, showScryfallTrigger ? 1 : 0)
+        : [],
+    [view, displayRows.length, gridCols, sectionHeaders, showScryfallTrigger]
+  );
 
   // When the query is cleared (or drops below the 2-char threshold), leave
   // search mode so the next real query starts from the trigger box again
@@ -705,12 +721,19 @@ export function CardListTable({
     if (!showScryfall) setScryfallOpen(false);
   }, [showScryfall]);
 
-  const estimateGridRowHeight = useCallback(() => {
-    if (!gridContainerRef.current) return 250;
-    const w = gridContainerRef.current.clientWidth;
-    const colWidth = (w - GRID_GAP * (gridCols - 1)) / gridCols;
-    return colWidth * (680 / 488) + GRID_GAP;
-  }, [gridCols]);
+  // Per-index height estimate: section headers are a fixed short row, card rows
+  // derive from the live column width (exact aspect ratio), so the grid stays
+  // measureElement-free — the estimate is the truth and offsets never drift.
+  const estimateGridRowHeight = useCallback(
+    (index: number) => {
+      if (gridLayout[index]?.kind === 'header') return GRID_SECTION_HEADER_H;
+      if (!gridContainerRef.current) return 250;
+      const w = gridContainerRef.current.clientWidth;
+      const colWidth = (w - GRID_GAP * (gridCols - 1)) / gridCols;
+      return colWidth * (680 / 488) + GRID_GAP;
+    },
+    [gridCols, gridLayout]
+  );
 
   useLayoutEffect(() => {
     if (!scrollEl) return;
@@ -740,7 +763,7 @@ export function CardListTable({
   });
 
   const gridVirtualizer = useVirtualizer({
-    count: gridRowCount,
+    count: gridLayout.length,
     getScrollElement: () => scrollEl,
     estimateSize: estimateGridRowHeight,
     overscan: 8,
@@ -1030,15 +1053,13 @@ export function CardListTable({
               <span>{selectMode ? 'Done' : 'Select'}</span>
             </button>
           )}
-          {view !== 'grid' && (
-            <SelectMenu<GroupKey>
-              ariaLabel="Group by"
-              value={groupKey}
-              options={GROUP_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
-              onChange={setGroupKey}
-              leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
-            />
-          )}
+          <SelectMenu<GroupKey>
+            ariaLabel="Group by"
+            value={groupKey}
+            options={GROUP_FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+            onChange={setGroupKey}
+            leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
+          />
           <SelectMenu
             ariaLabel="Sort"
             value={sortKey}
@@ -1194,7 +1215,39 @@ export function CardListTable({
           }}
         >
           {gridVirtualizer.getVirtualItems().map((virtualRow) => {
-            const startIdx = virtualRow.index * gridCols;
+            const layoutRow = gridLayout[virtualRow.index];
+            if (!layoutRow) return null;
+            if (layoutRow.kind === 'header') {
+              return (
+                <div
+                  key={virtualRow.key}
+                  className="collection-grid-section-header"
+                  role="heading"
+                  aria-level={3}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: GRID_SECTION_HEADER_H,
+                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                  }}
+                >
+                  {layoutRow.meta.pip && (
+                    <span
+                      className="collection-list-section-pip"
+                      style={{
+                        background: layoutRow.meta.pip.background,
+                        borderColor: layoutRow.meta.pip.border,
+                      }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className="collection-list-section-label">{layoutRow.meta.label}</span>
+                  <span className="collection-list-section-count">{layoutRow.count}</span>
+                </div>
+              );
+            }
             return (
               <div
                 key={virtualRow.key}
@@ -1210,8 +1263,8 @@ export function CardListTable({
                   gap: `${GRID_GAP}px`,
                 }}
               >
-                {Array.from({ length: gridCols }, (_, colIdx) => {
-                  const idx = startIdx + colIdx;
+                {Array.from({ length: layoutRow.end - layoutRow.start }, (_, colIdx) => {
+                  const idx = layoutRow.start + colIdx;
                   if (idx === triggerIndex && showScryfallTrigger) {
                     return (
                       <button
