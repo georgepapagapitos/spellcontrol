@@ -8147,6 +8147,19 @@ i.ms.card-list-type {
   font-size: var(--text-base);
 }
 
+/* mana-font centers ms-cost glyphs via line-height, which leaves the generic
+   numeral glyphs (ms-1, ms-2, … ms-x) sitting slightly high in their circle —
+   their vertical metrics differ from the colored mana symbols, so a {1}{W}
+   cost shows the "1" off-center next to a centered W. Flex-center the
+   single-glyph cost symbols (the same fix the color-pip pips already use).
+   Split/hybrid symbols render two half-glyphs via ::before + ::after, so they
+   stay on mana-font's default layout. */
+.mana-cost .ms-cost:not(.ms-split) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Shared mana-cost treatment for list rows — the deck list and the
    collection list both render mana as a dedicated, right-aligned cell that
    sits vertically centred in the row. Pass this class to <ManaCost> at both
