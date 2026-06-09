@@ -1217,16 +1217,17 @@ export function DeckEditorPage() {
     addedAt: c.addedAt,
   }));
 
-  // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Tune
-  // (power + improve). Stats always shows; Tune shows for commander formats
-  // (bracket + combos) or any non-empty deck (roles + suggestions). The live
+  // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
+  // Tune. Stats always shows for every format.
   const hasCommanderFormat = !!formatConfig?.hasCommander;
   // Bracket is glanceable info — it rides the hero meta line now (the old
   // feature-strip chip is gone); the Tune view still owns the override UI.
   const bracketValue = effectiveBracket(deck);
-  // Power + Tune share the same gate: any non-empty deck (or a commander
-  // format, which can have power signals before cards are added).
-  const showAnalysisExtras = hasCommanderFormat || deck.cards.length > 0;
+  // Power + Tune are Commander-only: their analysis (bracket fit, EDHREC-driven
+  // Improve, command-zone-aware stats) doesn't apply to 60-card formats, where
+  // it read as misleading. Gate them to commander formats (E2/T19) — a commander
+  // format still shows them before cards are added, for its early power signals.
+  const showAnalysisExtras = hasCommanderFormat;
   // The Tune tab carries no count badge — a bare number there read as a
   // mystery (it was the in-deck combo count); the combo count is shown,
   // clearly labelled, on the "In deck" sub-tab of the embedded Combos panel.
