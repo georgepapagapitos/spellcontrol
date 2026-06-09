@@ -20,6 +20,7 @@ import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import type { Deck, DeckSource } from '../store/decks';
@@ -310,9 +311,12 @@ export function DecksIndexPage() {
           </p>
         </div>
         <div className="decks-index-actions">
+          {/* Import + Add precon are secondary: full pills on desktop/tablet,
+              collapsed into the ⋮ kebab on phones so the primary "New deck"
+              CTA never gets crowded off the row. */}
           <button
             type="button"
-            className="pill-btn"
+            className="pill-btn decks-index-action-secondary"
             aria-haspopup="dialog"
             onClick={() => setShowImport(true)}
           >
@@ -321,13 +325,22 @@ export function DecksIndexPage() {
           </button>
           <button
             type="button"
-            className="pill-btn"
+            className="pill-btn decks-index-action-secondary"
             aria-haspopup="dialog"
             onClick={() => setShowProductSearch(true)}
           >
             <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span>Add precon</span>
           </button>
+          <OverflowMenu
+            className="decks-index-actions-overflow"
+            triggerClassName="pill-btn decks-index-actions-kebab"
+            ariaLabel="More deck actions"
+            items={[
+              { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
+              { label: 'Add precon', icon: Package, onClick: () => setShowProductSearch(true) },
+            ]}
+          />
           <Link to="/decks/new" className="pill-btn pill-btn-primary">
             <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span>New deck</span>

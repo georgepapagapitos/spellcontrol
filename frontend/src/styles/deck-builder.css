@@ -6866,6 +6866,34 @@ input.deck-row-qty-input.deck-row-qty-missing {
   align-items: center;
 }
 
+/* Generic kebab wrapper — anchors the popover (which is position:absolute). */
+.overflow-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The kebab is the left-most action, so open the menu rightward (the shared
+   .deck-row-menu-popover defaults to right:0, which would run off-screen). */
+.overflow-menu-popover {
+  left: 0;
+  right: auto;
+}
+
+/* The ⋮ overflow only appears on phones; desktop/tablet show the full pills. */
+.decks-index-actions-overflow {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .decks-index-action-secondary {
+    display: none;
+  }
+  .decks-index-actions-overflow {
+    display: inline-flex;
+    flex: 0 0 auto; /* stay compact; let the primary CTA take the rest of the row */
+  }
+}
+
 /* ── Format badge ─────────────────────────────────────────────────── */
 .deck-format-badge {
   display: inline-block;
