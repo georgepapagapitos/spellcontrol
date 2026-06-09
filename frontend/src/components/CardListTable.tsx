@@ -53,7 +53,8 @@ import {
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
-import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
+import { getCardType, parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
+import { TypeIcon } from './shared/ManaSymbol';
 import {
   compileExpression,
   effectiveTreatments,
@@ -215,6 +216,19 @@ function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: bool
     if (Number.isFinite(n) && n > 0) return n;
   }
   return 0;
+}
+
+/**
+ * At-a-glance primary-type indicator for a collection row's meta line — a
+ * single mana-font type glyph (creature / instant / land / …), the most
+ * space-efficient signal, so it survives the 32px compact row and the
+ * narrowest phones where the SET/#CN tokens drop. The readable type name
+ * rides as the accessible label + tooltip, not on screen.
+ */
+function CardTypeGlyph({ typeLine }: { typeLine: string | undefined }) {
+  const t = getCardType({ typeLine } as Parameters<typeof getCardType>[0]);
+  const label = t.charAt(0).toUpperCase() + t.slice(1);
+  return <TypeIcon type={t} label={label} className="card-list-type" />;
 }
 
 export function CardListTable({
@@ -1441,6 +1455,7 @@ export function CardListTable({
                       <BinderBadge binders={r.binders} />
                     </div>
                     <div className="collection-list-meta">
+                      <CardTypeGlyph typeLine={r.card.typeLine} />
                       <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
                       <span className="card-list-cn">#{r.card.collectorNumber}</span>
                     </div>

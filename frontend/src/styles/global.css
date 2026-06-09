@@ -8037,6 +8037,18 @@ hr {
   color: var(--text3);
 }
 
+/* Primary card-type glyph in a collection list/compact row's meta line
+   (E30). A single mana-font type icon (creature / instant / land / …) — the
+   most space-efficient at-a-glance type signal, so it stays visible even on
+   the 32px compact row and narrow phones where the SET/#CN tokens drop. The
+   readable type name rides as the accessible label + tooltip. */
+i.ms.card-list-type {
+  flex-shrink: 0;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--text3);
+}
+
 /* Page-number chip — shown on binder list rows so the user can find a
    card in physical storage without leaving the list. */
 .card-list-page {
