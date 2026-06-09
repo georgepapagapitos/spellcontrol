@@ -620,6 +620,14 @@ export function CommanderSearch({ value, onSelect }: Props) {
         </label>
       )}
 
+      {/* Readiness legend — explains the % chip and that it loads on hover. */}
+      {collectionCards.length > 0 && (
+        <p className="commander-readiness-hint">
+          The <strong>%</strong> beside a commander is how many of its staple cards you already own
+          — hover a commander to load it.
+        </p>
+      )}
+
       {/* Results panel: search results when a query is active, EDHREC
           suggestions otherwise. Sizes to its content (capped, then scrolls)
           and only grows downward, so the input above never moves. */}
@@ -707,6 +715,8 @@ export function CommanderSearch({ value, onSelect }: Props) {
                         onClick={() =>
                           void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
                         }
+                        onMouseEnter={() => void ensureReadiness(c.name)}
+                        onFocus={() => void ensureReadiness(c.name)}
                         disabled={searchLoading}
                       >
                         <span className="commander-suggestion-pips" aria-hidden>
@@ -715,6 +725,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
                           ))}
                         </span>
                         <span>{c.name}</span>
+                        <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
                       </button>
                     </li>
                   );

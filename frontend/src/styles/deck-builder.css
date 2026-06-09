@@ -107,6 +107,17 @@
 .commander-search-item-name {
   font-size: var(--text-base);
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Legend explaining the readiness % chip. */
+.commander-readiness-hint {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text3);
 }
 
 .commander-search-item-readiness {
