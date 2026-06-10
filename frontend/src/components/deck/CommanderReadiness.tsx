@@ -1,6 +1,43 @@
 import './CommanderReadiness.css';
+import { Loader2 } from 'lucide-react';
 import { InfoTip } from '../InfoTip';
 import type { ReadinessScore } from '../../lib/commander-readiness';
+
+/**
+ * Compact readiness indicator for a result row / card:
+ *   undefined  → nothing (not requested yet)
+ *   'loading'  → spinner (fetch in flight)
+ *   unavailable→ muted "—" (EDHREC has no staple data — NOT the same as 0% owned)
+ *   available  → "{percent}%"
+ *
+ * Shared by CommanderSearch and CommanderResultCard. Styles live in
+ * deck-builder.css (`.commander-search-item-readiness`).
+ */
+export function ReadinessChip({ score }: { score: ReadinessScore | 'loading' | undefined }) {
+  if (score === undefined) return null;
+  if (score === 'loading') {
+    return (
+      <span className="commander-search-item-readiness is-loading" aria-label="Loading readiness">
+        <Loader2 className="commander-readiness-spin" width={11} height={11} aria-hidden />
+      </span>
+    );
+  }
+  if (!score.available) {
+    return (
+      <span
+        className="commander-search-item-readiness is-muted"
+        title="Readiness unavailable — no EDHREC staple data for this commander"
+      >
+        —
+      </span>
+    );
+  }
+  return (
+    <span className="commander-search-item-readiness" title={score.explainerLine}>
+      {score.percent}%
+    </span>
+  );
+}
 
 /**
  * Collection-readiness readout for a commander: an explainable bar answering

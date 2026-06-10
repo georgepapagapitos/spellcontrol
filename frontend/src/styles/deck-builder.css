@@ -162,6 +162,115 @@
   color: var(--text-muted);
 }
 
+/* Commander result grid — the shared presentation for every commander list
+   (by-name search, by-playstyle browser, top-EDHREC suggestions, guided
+   build). Reflows from one column on phones / native to multiple columns as
+   width allows; each card pairs a card-shaped art thumbnail with the name,
+   color pips, optional type line and the readiness %. */
+.commander-result-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.5rem;
+}
+
+.commander-result-grid > li {
+  min-width: 0;
+}
+
+.commander-result-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.commander-result-card:hover:not(:disabled),
+.commander-result-card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.commander-result-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.commander-result-art {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 3.6rem;
+  border-radius: calc(var(--radius) * 0.6);
+  overflow: hidden;
+  background: var(--surface);
+  display: block;
+}
+
+.commander-result-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Bias the crop to the top so the card art + title show, not the text box. */
+  object-position: center top;
+  display: block;
+}
+
+.commander-result-art-skeleton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+
+.commander-result-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.commander-result-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.commander-result-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commander-result-pips {
+  display: inline-flex;
+  gap: 0.12rem;
+}
+
+.commander-result-type {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* "Plays like" detected-playstyle tags on the selected-commander pick card. */
 .commander-pick-playstyles {
   display: flex;
@@ -415,46 +524,6 @@
   text-align: center;
 }
 
-.commander-playstyle-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
-}
-
-.commander-playstyle-chip {
-  font-family: inherit;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 0.35rem 0.8rem;
-  cursor: pointer;
-  transition:
-    border-color var(--motion-fast) ease,
-    background var(--motion-fast) ease,
-    color var(--motion-fast) ease;
-}
-
-.commander-playstyle-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.commander-playstyle-chip.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-
-.commander-playstyle-chip:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 0 4px var(--surface);
-}
-
 .commander-suggestions-hint {
   margin: 0;
   font-size: var(--text-sm);
@@ -554,17 +623,7 @@
   color: var(--text-primary);
 }
 
-/* Pill chips listing the actual top commanders. */
-.commander-suggestion-chips {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
-}
-
+/* Pill chip — now only the "Random" surprise-me button. */
 .commander-suggestion-chip {
   display: inline-flex;
   align-items: center;
@@ -594,17 +653,6 @@
 .commander-suggestion-chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.commander-suggestion-pips {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-}
-
-.commander-suggestion-pips .ms {
-  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
-  font-size: 0.95em;
 }
 
 /* Surprise-me button row. */
@@ -8110,6 +8158,11 @@ input.deck-row-qty-input.deck-row-qty-missing {
 
 .playstyle-card:hover {
   border-color: var(--accent);
+}
+
+.playstyle-card.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
 }
 
 .playstyle-card-label {
