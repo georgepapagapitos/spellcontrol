@@ -70,9 +70,10 @@ interface Props {
  * front of one player at a time.
  *
  * Interaction model is touch-first: tap the left half of a panel to decrement
- * life, the right half to increment. Press and hold to repeat. Big visible
- * ±5 buttons stay on the edges as a discoverable backup. Commander damage
- * lives in a slide-down drawer so it doesn't crowd the resting view.
+ * life, the right half to increment (top/bottom when tapOrientation is
+ * vertical). Press and hold to repeat. Visible ±1 step buttons sit on the
+ * edges as a discoverable backup. Commander damage lives in a slide-down
+ * drawer so it doesn't crowd the resting view.
  */
 export function GameBoard({
   game,
