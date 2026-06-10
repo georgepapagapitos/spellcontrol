@@ -541,10 +541,10 @@ export function DeckEditorPage() {
     });
   }, [deck, ownedNames, collectionCards, commanderColorIdentity]);
 
-  // `/` opens the search panel; `c` reveals the combos panel (the panel is
-  // always rendered in the aside; `c` just expands + scrolls + focuses it).
-  // Skipped while the user is typing into another input/textarea so the keys
-  // still type literally inside a rename/search box.
+  // `/` opens the search panel; `c` jumps to the Power tab and reveals the
+  // combos panel; `a` opens the Tune tab (suggestions). Skipped while the user
+  // is typing into another input/textarea so the keys still type literally
+  // inside a rename/search box.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -557,7 +557,10 @@ export function DeckEditorPage() {
         window.requestAnimationFrame(() => searchPanelRef.current?.focusInput());
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault();
-        openAnalysisTab('tune'); // Combos live under the Tune tab.
+        // Combos render under the Power tab. Switch there, then reveal the
+        // panel on the next frame (it only mounts once Power is active).
+        openAnalysisTab('power');
+        window.requestAnimationFrame(handleViewCombos);
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         openAnalysisTab('tune'); // Suggestions live under the Tune tab.
@@ -565,7 +568,7 @@ export function DeckEditorPage() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [openAnalysisTab]);
+  }, [openAnalysisTab, handleViewCombos]);
 
   // Esc closes the Test hand sheet (the card-picker overlay has no built-in
   // dismiss key — only backdrop tap / the close button).
@@ -578,14 +581,14 @@ export function DeckEditorPage() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showTestHand]);
 
-  // Hero totals — mirrors the values surfaced in the Statistics panel
-  // header so the desktop hero reads as a quick at-a-glance summary
-  // before the user scrolls into the deck composition. Sideboard counts
-  // toward the totals; commanders are added on top since they're not
-  // part of `deck.cards`. Computed BEFORE the missing-deck early
-  // return so the hook order stays stable across renders.
+  // Hero totals — a quick at-a-glance summary above the deck composition.
+  // The count/value reflect the *mainboard deck only* (commanders + main
+  // cards), matching the legality banner's notion of the deck; the sideboard
+  // ("maybe" cards) is surfaced separately so the hero doesn't claim "104
+  // cards" on a 100-card deck. Computed BEFORE the missing-deck early return
+  // so the hook order stays stable across renders.
   const heroTotals = useMemo(() => {
-    if (!deck) return { count: 0, value: 0 };
+    if (!deck) return { count: 0, value: 0, sideboard: 0 };
     const sumPrice = (cards: ScryfallCard[]) =>
       cards.reduce((sum, c) => {
         const raw = getCardPrice(c, 'USD');
@@ -596,9 +599,8 @@ export function DeckEditorPage() {
     if (deck.commander) commanders.push(deck.commander);
     if (deck.partnerCommander) commanders.push(deck.partnerCommander);
     const mainCards = deck.cards.map((c) => c.card);
-    const sideCards = deck.sideboard.map((c) => c.card);
-    const allCards = [...commanders, ...mainCards, ...sideCards];
-    return { count: allCards.length, value: sumPrice(allCards) };
+    const main = [...commanders, ...mainCards];
+    return { count: main.length, value: sumPrice(main), sideboard: deck.sideboard.length };
   }, [deck]);
 
   if (!id) return <Navigate to="/decks" replace />;
@@ -1330,6 +1332,7 @@ export function DeckEditorPage() {
               {' · '}
               {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} · $
               {heroTotals.value.toFixed(2)}
+              {heroTotals.sideboard > 0 && ` · +${heroTotals.sideboard} maybe`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
             {bracketValue != null && (
@@ -1696,6 +1699,50 @@ export function DeckEditorPage() {
             </div>
             <div className="deck-test-hand-sheet-body">
               <DeckTestHandPanel embedded deckId={deck.id} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add cards on a Commander deck with no commander yet: card suggestions
+          and color-identity filtering both key off the commander, so we can't
+          meaningfully add to the mainboard. Show an interstitial that points at
+          the commander picker instead of silently no-opping. */}
+      {showAddPanel && formatConfig?.hasCommander && !deck.commander && (
+        <div
+          className="card-picker-root"
+          role="presentation"
+          onClick={() => setShowAddPanel(false)}
+        >
+          <div
+            className="card-picker-sheet deck-add-needs-commander"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Pick a commander first"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-picker-handle" aria-hidden />
+            <div className="deck-add-needs-commander-body">
+              <p className="deck-add-needs-commander-title">Pick a commander first</p>
+              <p className="deck-add-needs-commander-hint">
+                This is a Commander deck. Choose a commander before adding cards so suggestions and
+                color identity stay in sync.
+              </p>
+              <div className="deck-add-needs-commander-actions">
+                <button type="button" className="btn" onClick={() => setShowAddPanel(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowAddPanel(false);
+                    openView('deck');
+                  }}
+                >
+                  Choose commander
+                </button>
+              </div>
             </div>
           </div>
         </div>
