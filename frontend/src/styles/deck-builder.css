@@ -4372,6 +4372,35 @@ input.toolbar-search-input {
   max-height: none;
 }
 
+/* "Pick a commander first" interstitial — shown when Add cards is opened on a
+   Commander deck that has no commander yet. Sizes to its content (not the tall
+   search sheet). */
+.deck-add-needs-commander-body {
+  padding: 0.5rem 1.25rem 1.5rem;
+  text-align: center;
+}
+
+.deck-add-needs-commander-title {
+  margin: 0.5rem 0 0.4rem;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.deck-add-needs-commander-hint {
+  margin: 0 auto 1.1rem;
+  max-width: 30rem;
+  font-size: var(--text-sm);
+  color: var(--text2);
+  line-height: 1.5;
+}
+
+.deck-add-needs-commander-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
 /* Test-hand sheet: the shared card-picker sheet hosts the embedded
    DeckTestHandPanel. A pinned header (title + close) sits above a scrolling
    body. Content-sized on mobile (capped by the sheet's base max-height); a
