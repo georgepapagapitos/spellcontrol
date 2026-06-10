@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -166,7 +166,7 @@ describe('ScannerQueueSheet', () => {
     expect(onChangePrinting).toHaveBeenCalledWith('oracle-bolt', altPrint);
   });
 
-  it('clear-all and continue-scanning fire their callbacks', () => {
+  it('clear-all confirms before firing, and continue-scanning fires immediately', async () => {
     const onClearAll = vi.fn();
     const onClose = vi.fn();
     render(
@@ -182,8 +182,13 @@ describe('ScannerQueueSheet', () => {
         onAddCard={vi.fn()}
       />
     );
+    // Clear all now opens a confirmation dialog rather than wiping immediately.
     fireEvent.click(screen.getByText('Clear all'));
-    expect(onClearAll).toHaveBeenCalled();
+    expect(onClearAll).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog', { name: 'Clear scanned cards?' });
+    fireEvent.click(within(dialog).getByText('Clear all'));
+    // handleClearAll awaits the confirm promise, so onClearAll fires a tick later.
+    await waitFor(() => expect(onClearAll).toHaveBeenCalled());
     fireEvent.click(screen.getByText('Continue scanning'));
     expect(onClose).toHaveBeenCalled();
   });

@@ -336,15 +336,26 @@ function PlayerPanel({
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
-      // Coordinates are in panel-local screen space — but the panel may be
-      // rotated 180°. CSS transforms don't affect getBoundingClientRect's
-      // axis-aligned box, so for a 180° rotation we flip the offset so the
-      // chip lands under the user's actual finger.
-      let x = ((clientX - rect.left) / rect.width) * 100;
-      let y = ((clientY - rect.top) / rect.height) * 100;
-      if (rotation === 180) {
-        x = 100 - x;
-        y = 100 - y;
+      // `rect` is the panel's axis-aligned screen box; CSS rotation isn't
+      // reflected in it. Map the hit (as a fraction of that box) back into the
+      // panel's own un-rotated coordinate space so the chip lands under the
+      // finger on every seat rotation (the default 4p layout uses 90°/270°
+      // side seats, not just the 180° top seat). Inverse of a center-origin
+      // clockwise CSS rotate. 90/270 swap the box dimensions, which the
+      // fraction math absorbs since we work in percentages.
+      const sx = ((clientX - rect.left) / rect.width) * 100;
+      const sy = ((clientY - rect.top) / rect.height) * 100;
+      let x = sx;
+      let y = sy;
+      if (rotation === 90) {
+        x = sy;
+        y = 100 - sx;
+      } else if (rotation === 180) {
+        x = 100 - sx;
+        y = 100 - sy;
+      } else if (rotation === 270) {
+        x = 100 - sy;
+        y = sx;
       }
       lastPointerRef.current = { x, y };
     },
@@ -468,7 +479,19 @@ function PlayerPanel({
 
         <div className="player-panel-content" aria-hidden="false">
           <div className="player-panel-corner is-tl">
-            <div className="player-panel-name" title={player.name}>
+            {/* A button (not a label) so a tap on the name opens the seat menu
+                instead of falling through to the −1 tap zone beneath it. */}
+            <button
+              type="button"
+              className="player-panel-name"
+              title={player.name}
+              aria-label={`${player.name} — seat menu`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSeatMenuOpen((v) => !v);
+              }}
+            >
               {player.isHost && (
                 <span className="player-panel-host" aria-label="host">
                   ★
@@ -476,7 +499,7 @@ function PlayerPanel({
               )}
               <span className="player-panel-name-text">{player.name}</span>
               {!player.connected && <span className="player-panel-offline">offline</span>}
-            </div>
+            </button>
             {(player.deckName || player.commander) && (
               <div
                 className="player-panel-subtitle"

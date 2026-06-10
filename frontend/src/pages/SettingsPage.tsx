@@ -24,6 +24,7 @@ import { OfflineModeSettings } from '../components/OfflineModeSettings';
 import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
+import { getPendingCount } from '../lib/sync';
 
 export function SettingsPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -52,6 +53,12 @@ export function SettingsPage() {
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [resetCacheBusy, setResetCacheBusy] = useState(false);
+  // Sign-out confirmation. `signOutPending` snapshots the unsynced-change count
+  // at the moment the dialog opens so the copy can warn about data loss.
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [signOutPending, setSignOutPending] = useState(0);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+  const [resetCacheOpen, setResetCacheOpen] = useState(false);
 
   // Sign-in methods state — what's linked, plus the in-flight states for the
   // link-Google and unlink-Google flows.
@@ -198,11 +205,23 @@ export function SettingsPage() {
     toast.show({ message: 'Backup downloaded.', tone: 'success' });
   }
 
+  function openSignOut() {
+    // Snapshot the unsynced-change count now so the dialog copy is accurate.
+    setSignOutPending(getPendingCount());
+    setSignOutOpen(true);
+  }
+
   async function handleLogout() {
-    await logout();
-    // Send the now-guest user to the sign-in screen. It's dismissable
-    // ("Continue without an account"), so this is a convenience, not a wall.
-    navigate('/auth');
+    setSignOutBusy(true);
+    try {
+      await logout();
+      // Send the now-guest user to the sign-in screen. It's dismissable
+      // ("Continue without an account"), so this is a convenience, not a wall.
+      navigate('/auth');
+    } finally {
+      setSignOutBusy(false);
+      setSignOutOpen(false);
+    }
   }
 
   async function handleConfirmDelete() {
@@ -228,10 +247,7 @@ export function SettingsPage() {
   }
 
   async function handleResetAppCache() {
-    const ok = window.confirm(
-      'Reset the cached app version and reload? Your decks, collection, and binders are kept.'
-    );
-    if (!ok) return;
+    setResetCacheOpen(false);
     setResetCacheBusy(true);
     try {
       await resetAppCacheAndReload();
@@ -280,11 +296,7 @@ export function SettingsPage() {
                     <div className="settings-row-label">Signed in as</div>
                     <div className="settings-row-value">{username}</div>
                   </div>
-                  <button
-                    type="button"
-                    className="pill-btn pill-btn-danger"
-                    onClick={() => void handleLogout()}
-                  >
+                  <button type="button" className="pill-btn pill-btn-danger" onClick={openSignOut}>
                     Sign out
                   </button>
                 </div>
@@ -369,6 +381,35 @@ export function SettingsPage() {
           danger
           onConfirm={() => void handleUnlinkGoogle()}
           onCancel={() => setUnlinkOpen(false)}
+        />
+      )}
+
+      {signOutOpen && (
+        <ConfirmDialog
+          title="Sign out?"
+          body={
+            signOutPending > 0
+              ? `You have ${signOutPending} unsynced ${
+                  signOutPending === 1 ? 'change' : 'changes'
+                } that haven't reached the server yet. Signing out removes all data from this device — those changes will be lost. Sign out anyway?`
+              : `Your data is synced to ${
+                  username ? `@${username}` : 'your account'
+                } and will be restored when you sign back in. It will be removed from this device.`
+          }
+          confirmLabel={signOutBusy ? 'Signing out…' : 'Sign out'}
+          danger={signOutPending > 0}
+          onConfirm={() => void handleLogout()}
+          onCancel={() => setSignOutOpen(false)}
+        />
+      )}
+
+      {resetCacheOpen && (
+        <ConfirmDialog
+          title="Reset app cache?"
+          body="Clears the cached app bundles and reloads to fetch the latest version. Your decks, collection, and binders are kept."
+          confirmLabel="Reset cache"
+          onConfirm={() => void handleResetAppCache()}
+          onCancel={() => setResetCacheOpen(false)}
         />
       )}
 
@@ -503,14 +544,14 @@ export function SettingsPage() {
             <div className="settings-row-text">
               <div className="settings-row-value">Reset app cache</div>
               <div className="settings-row-hint">
-                Clears the cached HTML / JS / CSS bundles and unregisters the offline service
-                worker, then reloads. Your decks, collection, and binders are not affected.
+                Clears the cached HTML / JS / CSS bundles, then reloads to fetch the latest from the
+                server. Your decks, collection, and binders are not affected.
               </div>
             </div>
             <button
               type="button"
               className="pill-btn"
-              onClick={() => void handleResetAppCache()}
+              onClick={() => setResetCacheOpen(true)}
               disabled={resetCacheBusy}
             >
               {resetCacheBusy ? 'Resetting…' : 'Reset cache'}

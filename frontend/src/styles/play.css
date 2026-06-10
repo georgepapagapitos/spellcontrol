@@ -972,6 +972,13 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .player-panel-name {
+  /* Button reset — it's a <button> (taps open the seat menu) styled as a label. */
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
   font-size: var(--text-sm);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.96);
