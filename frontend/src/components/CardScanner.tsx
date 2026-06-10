@@ -15,6 +15,7 @@ import { CameraPreview } from '@capacitor-community/camera-preview';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { isNativePlatform } from '../lib/platform';
 import {
   FINISH_LABELS,
@@ -973,7 +974,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           aria-live="polite"
           aria-label={`Running total ${totalPrice.toFixed(2)} dollars`}
         >
-          ${totalPrice.toFixed(2)}
+          {formatMoney(totalPrice)}
         </div>
       )}
 
@@ -1082,7 +1083,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             const finishes = availableFinishes(lastScan.card.finishes);
             const canToggleFinish = finishes.length > 1;
             const unit = finishUnitPrice(lastScan.card.prices, finish);
-            const usd = unit != null ? `$${unit.toFixed(2)}` : null;
+            const usd = unit != null ? formatMoney(unit) : null;
             return (
               <>
                 <button

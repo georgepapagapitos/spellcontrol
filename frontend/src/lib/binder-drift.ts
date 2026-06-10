@@ -1,5 +1,6 @@
 import type { BinderDef, BinderReviewSnapshot, EnrichedCard, MaterializedBinder } from '../types';
 import { printingFinishKey } from './collection-mutations';
+import { formatMoney } from './format-money';
 import type { ImportHistoryEntry } from './local-cards';
 
 /**
@@ -289,7 +290,9 @@ export function formatDriftReason(reason: DriftReason): string {
 }
 
 function formatPrice(p: number): string {
-  return p === 0 ? '$0' : `$${p.toFixed(2)}`;
+  // Zero keeps its terse historical form ("$0") — drift lines compare two
+  // observed prices, so a bare $0 reads as "had/has no price" at a glance.
+  return p === 0 ? '$0' : formatMoney(p);
 }
 
 /** Convenience used by the banner: does this binder have anything to show? */

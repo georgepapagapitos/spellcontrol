@@ -11,6 +11,7 @@ import { useCardCarousel } from './useCardCarousel';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
 import { useCardThumb } from '@/lib/card-thumbs';
+import { formatMoney as fmt } from '@/lib/format-money';
 
 export interface CostPanelProps {
   plan: CostPlan;
@@ -62,10 +63,6 @@ const SWAP_GUIDE_TIP: ReactNode = (
     </ul>
   </>
 );
-
-function fmt(amount: number): string {
-  return `$${amount.toFixed(2)}`;
-}
 
 /** Card thumb, or a skeleton while the CDN art resolves (no rate-limited img). */
 function CostThumb({ url }: { url: string | undefined }): JSX.Element {

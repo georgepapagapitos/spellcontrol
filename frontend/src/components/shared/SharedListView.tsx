@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { PublicList, PublicListEntry } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
+import { formatMoney } from '../../lib/format-money';
 import { SearchPill } from '../SearchPill';
 
 interface Props {
@@ -149,7 +150,7 @@ function ListRow({ entry: e }: { entry: PublicListEntry }) {
         {e.setCode.toUpperCase()} {e.collectorNumber}
       </td>
       <td>{e.finish}</td>
-      <td>{e.targetPrice != null ? `$${e.targetPrice.toFixed(2)}` : ''}</td>
+      <td>{e.targetPrice != null ? formatMoney(e.targetPrice) : ''}</td>
       <td>{e.note ?? ''}</td>
     </tr>
   );

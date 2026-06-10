@@ -6,6 +6,7 @@ import { isLand } from '../lib/colors';
 import { truncateLongWords } from '../lib/slot-text';
 import { CardPreviewContext } from './CardPreviewContext';
 import { getSetMap, type SetMap } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { useAllocations } from '../lib/allocations';
 
 interface Props {
@@ -228,7 +229,8 @@ export function CardSlot({ card, showImage }: Props) {
               {card.rarity}
             </span>
             {card.foil && <span className="tooltip-foil">foil</span>}
-            {' · '}${card.purchasePrice.toFixed(2)}
+            {' · '}
+            {formatMoney(card.purchasePrice)}
           </div>
           {(card.setName || card.setCode) && (
             <div className="tooltip-set">

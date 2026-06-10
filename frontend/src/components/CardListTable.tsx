@@ -12,6 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
 import { normalizeForSearch } from '../lib/normalize-search';
+import { formatMoney } from '../lib/format-money';
 import { FoilBadge } from './FoilBadge';
 import type {
   ChipExpression,
@@ -1478,7 +1479,7 @@ export function CardListTable({
                     />
                     <div className="collection-list-qty">×{r.qty}</div>
                     <div className="collection-list-price">
-                      ${(r.card.purchasePrice * r.qty).toFixed(2)}
+                      {formatMoney(r.card.purchasePrice * r.qty)}
                     </div>
                   </div>
                 </div>

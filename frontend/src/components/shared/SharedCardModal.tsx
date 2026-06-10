@@ -1,5 +1,6 @@
 import { Modal } from '../Modal';
 import type { PublicCard } from '../../lib/shared-types';
+import { formatMoney } from '../../lib/format-money';
 
 interface Props {
   card: PublicCard;
@@ -50,7 +51,7 @@ export function SharedCardModal({ card, onClose }: Props) {
         {card.purchasePrice > 0 && (
           <>
             <dt>Price</dt>
-            <dd>${card.purchasePrice.toFixed(2)}</dd>
+            <dd>{formatMoney(card.purchasePrice)}</dd>
           </>
         )}
       </dl>

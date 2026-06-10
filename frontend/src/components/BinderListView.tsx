@@ -9,6 +9,7 @@ import { ManaCost } from './ManaCost';
 import { ColorPip } from './shared/ManaSymbol';
 import { useCollectionStore } from '../store/collection';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
+import { formatMoney } from '../lib/format-money';
 import { SortPopover } from './SortPopover';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
@@ -398,7 +399,7 @@ export function BinderListView({
                         />
                         {r.qty > 1 && <div className="collection-list-qty">×{r.qty}</div>}
                         <div className="collection-list-price">
-                          ${(r.card.purchasePrice * r.qty).toFixed(2)}
+                          {formatMoney(r.card.purchasePrice * r.qty)}
                         </div>
                       </div>
                     </div>

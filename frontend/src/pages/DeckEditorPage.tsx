@@ -12,6 +12,7 @@ import {
 } from '../components/deck/DeckDisplay';
 import { Tabs } from '../components/Tabs';
 import { materializeBinders } from '../lib/materialize';
+import { formatMoney } from '../lib/format-money';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
@@ -1330,8 +1331,8 @@ export function DeckEditorPage() {
                 .deck-hero-totals to keep the meta line short there. */}
             <span className="deck-hero-totals">
               {' · '}
-              {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} · $
-              {heroTotals.value.toFixed(2)}
+              {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} ·{' '}
+              {formatMoney(heroTotals.value)}
               {heroTotals.sideboard > 0 && ` · +${heroTotals.sideboard} maybe`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}

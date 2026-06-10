@@ -4,6 +4,7 @@ import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { AddCardsSheet } from '../components/AddCardsSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
@@ -25,6 +26,16 @@ export function CollectionPage() {
     () => cards.reduce((sum, c) => sum + c.purchasePrice, 0),
     [cards]
   );
+
+  // Newest price stamp across the collection — the "Prices as of" honesty
+  // line. Derived once per cards-array identity, not per render.
+  const pricesAsOf = useMemo(() => {
+    let newest = 0;
+    for (const c of cards) {
+      if (c.pricedAt != null && c.pricedAt > newest) newest = c.pricedAt;
+    }
+    return newest > 0 ? newest : null;
+  }, [cards]);
 
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
@@ -72,7 +83,8 @@ export function CollectionPage() {
               <p className="binder-hero-meta collection-hero-meta">
                 <span aria-label="Collection totals">
                   {collectionCardCount.toLocaleString()}{' '}
-                  {collectionCardCount === 1 ? 'card' : 'cards'} · ${collectionValue.toFixed(0)}
+                  {collectionCardCount === 1 ? 'card' : 'cards'} ·{' '}
+                  {formatMoney(collectionValue, { wholeDollars: true })}
                 </span>
                 {!isEmpty && (
                   <>
@@ -90,6 +102,16 @@ export function CollectionPage() {
                   </>
                 )}
               </p>
+              {pricesAsOf != null && (
+                <p className="binder-hero-meta collection-hero-priced-at">
+                  Prices as of{' '}
+                  {new Date(pricesAsOf).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </p>
+              )}
             </div>
             <div className="collection-hero-actions">
               <button
