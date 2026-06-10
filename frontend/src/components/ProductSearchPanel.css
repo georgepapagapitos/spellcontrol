@@ -274,7 +274,7 @@
    reports hover:hover, so gate it (see project_native_grid_overflow_and_hover_gate). */
 @media (hover: hover) and (pointer: fine) {
   .product-card-btn {
-    transition: transform 0.12s ease;
+    transition: transform var(--motion-fast) ease;
   }
 
   .product-card-btn:hover {

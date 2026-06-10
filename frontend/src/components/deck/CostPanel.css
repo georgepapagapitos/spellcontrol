@@ -132,7 +132,7 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-left: 3px solid var(--border);
-  transition: opacity 0.2s ease;
+  transition: opacity var(--motion-base) ease;
 }
 
 /* Left bar tracks the row's verdict tone (see CONFIDENCE_TONE in CostPanel.tsx):

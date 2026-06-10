@@ -96,7 +96,7 @@
   font-family: inherit;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .bracket-breakdown-chip-btn:hover {

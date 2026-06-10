@@ -270,7 +270,7 @@ body:has(.playtest-page) .modal-backdrop {
   flex-shrink: 0;
   cursor: grab;
   background: var(--surface-raised);
-  transition: transform 120ms ease;
+  transition: transform var(--motion-fast) ease;
   user-select: none;
   /* Let dnd-kit's pointer sensor own the touch gesture — without this the
      browser hijacks the press for scrolling and the drag never starts on
@@ -425,9 +425,9 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-xs);
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .playtest-zone-card__action:hover,
@@ -470,8 +470,8 @@ body:has(.playtest-page) .modal-backdrop {
   cursor: pointer;
   font-size: var(--text-xs);
   transition:
-    border-color 120ms ease,
-    color 120ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .playtest-token-presets button:hover,
@@ -534,7 +534,7 @@ body:has(.playtest-page) .modal-backdrop {
   border-radius: var(--radius);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .playtest-ctx-action:hover,
@@ -583,9 +583,9 @@ body:has(.playtest-page) .modal-backdrop {
   border-radius: var(--radius);
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .playtest-ctx-counter button:hover,
@@ -941,7 +941,7 @@ body:has(.playtest-page) .modal-backdrop {
   background: var(--surface-raised);
   cursor: default;
   overflow: hidden;
-  transition: transform 120ms ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .playtest-opening-card:first-child {

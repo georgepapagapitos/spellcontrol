@@ -22,7 +22,7 @@
   /* Kill inline baseline space so the glyph sits dead-center against adjacent
      text rather than riding low on the line box. */
   line-height: 0;
-  transition: color 0.12s ease;
+  transition: color var(--motion-fast) ease;
 }
 
 .info-tip-btn svg {

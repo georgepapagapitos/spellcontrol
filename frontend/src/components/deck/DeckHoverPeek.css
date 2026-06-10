@@ -25,7 +25,7 @@
      (list view carries no art, so the first hover is an uncached fetch). */
   background: rgba(20, 20, 24, 0.6);
   pointer-events: none;
-  animation: deck-hover-peek-in 0.12s ease-out;
+  animation: deck-hover-peek-in var(--motion-fast) ease-out;
 }
 
 @keyframes deck-hover-peek-in {

@@ -64,7 +64,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) ease;
   /* No grey box-flash on touch — the resulting scroll/reveal is the feedback. */
   -webkit-tap-highlight-color: transparent;
 }
@@ -216,13 +216,7 @@
   flex: 0 0 auto;
   width: 0.85rem;
   height: 0.85rem;
-  animation: power-hero-spin 0.8s linear infinite;
-}
-
-@keyframes power-hero-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

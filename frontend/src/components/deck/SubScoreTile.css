@@ -45,8 +45,8 @@
 .sub-score-tile.is-interactive {
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .sub-score-tile.is-interactive:hover {

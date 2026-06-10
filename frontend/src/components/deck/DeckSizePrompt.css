@@ -86,7 +86,7 @@
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .deck-size-prompt-act:hover:not(:disabled) {

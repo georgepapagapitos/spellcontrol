@@ -148,8 +148,8 @@
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background 120ms ease,
-    border-color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
 .next-best-move-nav:hover {
@@ -170,13 +170,7 @@
 .next-best-move-spinner {
   width: 0.85rem;
   height: 0.85rem;
-  animation: next-best-move-spin 0.8s linear infinite;
-}
-
-@keyframes next-best-move-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
