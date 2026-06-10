@@ -1170,7 +1170,7 @@ export function CardListTable({
         </div>
       )}
 
-      {previewIndex !== null && sorted[previewIndex] && (
+      {previewIndex !== null && displayRows[previewIndex] && (
         <CardPreview
           source="collection"
           cards={previewCards}
@@ -1179,9 +1179,9 @@ export function CardListTable({
           sectionLabels={previewSectionLabels}
           pageNumbers={previewPageNumbers}
           totalPages={0}
-          getStackBinders={(i) => sorted[i]?.binders ?? []}
-          getStackAllocations={(i) => (sorted[i] ? allocationsFor(sorted[i].card) : [])}
-          getStackQty={(i) => sorted[i]?.qty ?? 1}
+          getStackBinders={(i) => displayRows[i]?.binders ?? []}
+          getStackAllocations={(i) => (displayRows[i] ? allocationsFor(displayRows[i].card) : [])}
+          getStackQty={(i) => displayRows[i]?.qty ?? 1}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
@@ -1557,6 +1557,13 @@ export function CardListTable({
       {bulkMoveOpen && (
         <BulkMoveToBinderSheet
           copyIds={selectedCopyIds()}
+          currentBinderByCopyId={
+            new Map(
+              selectedCopyIds()
+                .map((id) => [id, cardToBinder.get(id)?.id] as const)
+                .filter((e): e is [string, string] => e[1] !== undefined)
+            )
+          }
           onClose={() => {
             setBulkMoveOpen(false);
             clearSelection();

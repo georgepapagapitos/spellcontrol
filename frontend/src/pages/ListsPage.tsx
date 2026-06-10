@@ -5,6 +5,7 @@ import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
 import { ListEntriesView } from '../components/ListEntriesView';
 import { ShareDialog } from '../components/ShareDialog';
+import { NameInputDialog } from '../components/NameInputDialog';
 
 export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
@@ -15,6 +16,10 @@ export function ListsPage() {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
   const [shareList, setShareList] = useState<{ id: string; name: string } | null>(null);
+  // Drives the create/rename name dialogs. `rename` carries the target list.
+  const [nameDialog, setNameDialog] = useState<
+    { mode: 'create' } | { mode: 'rename'; id: string; current: string } | null
+  >(null);
 
   const sorted = useMemo(() => [...lists].sort((a, b) => a.order - b.order), [lists]);
   const activeList = useMemo(
@@ -22,16 +27,20 @@ export function ListsPage() {
     [lists, routeId]
   );
 
-  const handleCreate = () => {
-    const name = window.prompt('New list name')?.trim();
-    if (!name) return;
-    const id = createList(name);
-    navigate(`/collection/lists/${id}`);
-  };
+  const handleCreate = () => setNameDialog({ mode: 'create' });
 
-  const handleRename = (id: string, current: string) => {
-    const next = window.prompt('Rename list', current);
-    if (next != null && next.trim()) renameList(id, next);
+  const handleRename = (id: string, current: string) =>
+    setNameDialog({ mode: 'rename', id, current });
+
+  const submitName = (name: string) => {
+    if (!nameDialog) return;
+    if (nameDialog.mode === 'create') {
+      const id = createList(name);
+      navigate(`/collection/lists/${id}`);
+    } else {
+      renameList(nameDialog.id, name);
+    }
+    setNameDialog(null);
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -145,6 +154,17 @@ export function ListsPage() {
           resourceId={shareList.id}
           resourceLabel={shareList.name}
           onClose={() => setShareList(null)}
+        />
+      )}
+      {nameDialog && (
+        <NameInputDialog
+          title={nameDialog.mode === 'create' ? 'New list' : 'Rename list'}
+          label="List name"
+          placeholder="e.g. Wishlist, Trade pile"
+          initialValue={nameDialog.mode === 'rename' ? nameDialog.current : ''}
+          confirmLabel={nameDialog.mode === 'create' ? 'Create list' : 'Rename'}
+          onSubmit={submitName}
+          onCancel={() => setNameDialog(null)}
         />
       )}
     </div>
