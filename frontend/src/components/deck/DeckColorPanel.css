@@ -28,12 +28,12 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .deck-color-empty {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Distribution donut + legend ─────────────────────────────────────── */
@@ -56,7 +56,7 @@
   flex-direction: column;
   gap: 0.2rem;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   flex: 1;
   min-width: 0;
   /* Containment: cap the legend so the row's 1fr name column can't shove the
@@ -104,7 +104,7 @@ button.deck-color-donut-legend-row:focus-visible {
    is invisible on touch. Mirrors .deck-color-balance-chevron in the sibling
    mana-base list; only rendered on interactive rows. */
 .deck-color-donut-chevron {
-  color: var(--text3);
+  color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: 1;
   transition: transform 0.15s ease;
@@ -130,7 +130,7 @@ button.deck-color-donut-legend-row:focus-visible .deck-color-donut-chevron {
 }
 
 .deck-color-donut-pct {
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }

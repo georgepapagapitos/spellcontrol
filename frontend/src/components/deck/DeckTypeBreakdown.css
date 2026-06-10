@@ -16,7 +16,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -24,14 +24,14 @@
 .deck-type-breakdown-total {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .deck-type-breakdown-empty {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .deck-type-breakdown-rows {
@@ -79,7 +79,7 @@
 }
 
 .deck-type-breakdown-row-chevron {
-  color: var(--text3);
+  color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: 1;
 }
@@ -97,7 +97,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .deck-type-breakdown-row-meta {
@@ -112,18 +112,18 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .deck-type-breakdown-row-pct {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .deck-type-breakdown-row-track {
   height: 0.35rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border-radius: 999px;
   overflow: hidden;
 }

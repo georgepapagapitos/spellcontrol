@@ -15,7 +15,7 @@
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .similar-cards-group {
@@ -29,7 +29,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .similar-cards-list {
@@ -44,5 +44,5 @@
 .similar-cards-loading {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }

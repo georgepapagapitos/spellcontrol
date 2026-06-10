@@ -46,7 +46,7 @@ button is an \*\*accent-fill rect with a leading lucide icon at `width/height={1
   `.cost-apply` all match it. Don't ship a hover-only-accent or icon-less variant —
   on touch there's no hover, so a muted base reads as a different (secondary)
   control. A genuine **secondary\*\* action (e.g. Cost's "Auto-select to target")
-  may stay outline (`var(--surface2)` bg + border), but that's the only tier-2.
+  may stay outline (`var(--surface-raised)` bg + border), but that's the only tier-2.
 
 **Collapsible/section titles use `var(--font-serif)`, uppercase,
 `letter-spacing`** — the `.deck-combos-title` family. Any new lane/group heading
@@ -169,8 +169,8 @@ tooltip; reuse this so they behave identically everywhere.
 
 ## Color & spacing
 
-- **Always theme variables**, never hard-coded colors: `--surface`, `--surface2`,
-  `--text`, `--text2`, `--text3`, `--border`, `--border2`, `--accent`,
+- **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,
+  `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--border-strong`, `--accent`,
   `--accent-light`, `--on-accent`, etc. This is what makes light/dark themes work.
 - **No raw `px`/`rem` font sizes** — use the `--text-*` scale (`--text-xs`,
   `--text-sm`, `--text-base`, …). stylelint enforces this on `src/**/*.css`.
@@ -242,7 +242,7 @@ tokens from `global.css` — reuse them, never new hues):
 | `substitute` | Substitute | blue    | `--info`      | lateral owned swap              |
 | `budget`     | Budget     | gold    | `--warn-text` | a real tradeoff / power loss    |
 | `owned`      | Owned      | accent  | `--accent`    | already in your collection      |
-| `hold`       | Hold       | neutral | `--text3`     | flagged but intentionally kept  |
+| `hold`       | Hold       | neutral | `--text-muted`     | flagged but intentionally kept  |
 
 The **tone semantics** are the load-bearing part: green = safe/gain · blue =
 lateral · gold = tradeoff/caution · red = remove · accent = ownership · neutral =

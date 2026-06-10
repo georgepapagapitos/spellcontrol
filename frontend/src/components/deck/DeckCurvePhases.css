@@ -23,7 +23,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -31,7 +31,7 @@
 .deck-curve-phases-avg {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -41,7 +41,7 @@
   align-items: center;
   gap: 0.15rem;
   padding: 0.2rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: 999px;
 }
@@ -54,7 +54,7 @@
   font: inherit;
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text3);
+  color: var(--text-muted);
   padding: 0.3rem 0.7rem;
   border-radius: 999px;
   transition:
@@ -64,12 +64,12 @@
 }
 
 .deck-curve-phases-toggle-btn:hover {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .deck-curve-phases-toggle-btn[aria-pressed='true'] {
   background: var(--surface);
-  color: var(--text);
+  color: var(--text-primary);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
@@ -113,7 +113,7 @@
 
 .deck-curve-phases-bar-count {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -216,7 +216,7 @@
 
 .deck-curve-phases-bar-label {
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -236,7 +236,7 @@
   gap: 0.35rem;
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .deck-curve-phases-legend-swatch {
@@ -262,7 +262,7 @@
   align-items: center;
   gap: 0.15rem;
   padding: 0.45rem 0.35rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
 }
@@ -297,14 +297,14 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .deck-curve-phases-phase-count {
   font-family: var(--font-mono);
   font-size: var(--text-md);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -335,7 +335,7 @@
 .deck-curve-phases-empty {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   text-align: center;
 }
 

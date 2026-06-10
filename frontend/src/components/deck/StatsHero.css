@@ -10,7 +10,7 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: clamp(0.85rem, 2cqi, 1.25rem);
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
 }
@@ -46,7 +46,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Functional verdict ── */
@@ -86,7 +86,7 @@
 .stats-hero-ratio {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -94,7 +94,7 @@
   margin: 0;
   font-size: var(--text-xs);
   line-height: 1.45;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Build health ── */
@@ -105,31 +105,31 @@
   gap: 0.35rem;
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .stats-hero-band-num {
   font-size: var(--text-xl);
   font-weight: 700;
   line-height: 1;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .stats-hero-limited {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .stats-hero-headline {
   margin: 0;
   font-size: var(--text-sm);
   line-height: 1.4;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .stats-hero-softspot {
   margin: 0;
   font-size: var(--text-xs);
   line-height: 1.45;
-  color: var(--text3);
+  color: var(--text-muted);
 }

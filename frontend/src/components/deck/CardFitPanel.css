@@ -8,13 +8,13 @@
   font-family: var(--font-serif);
   font-size: var(--text-md, 1rem);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .card-fit-subtitle {
   margin: 0.15rem 0 0;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 /* Engine / curve / role / color read-out — a compact label→value list. */
@@ -32,7 +32,7 @@
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.4rem 0.55rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-left-width: 2px;
   border-left-color: var(--border);
@@ -54,14 +54,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .card-fit-signal-value {
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .card-fit-cuts {
@@ -75,7 +75,7 @@
   margin: 0 0 0.35rem;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .card-fit-cuts-list {

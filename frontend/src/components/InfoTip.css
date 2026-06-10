@@ -17,7 +17,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--text3);
+  color: var(--text-muted);
   cursor: pointer;
   /* Kill inline baseline space so the glyph sits dead-center against adjacent
      text rather than riding low on the line box. */
@@ -51,7 +51,7 @@
   line-height: 1.45;
   letter-spacing: normal;
   text-transform: none;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .info-tip-bubble--wide {

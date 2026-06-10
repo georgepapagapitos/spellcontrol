@@ -7,13 +7,13 @@
 .build-report-line {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
 .build-report-line strong {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .build-report-bracket {
@@ -22,11 +22,11 @@
 
 .build-report-source {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .build-report-muted {
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .build-report-gaps {
@@ -41,7 +41,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .build-report-gaps-list {
@@ -55,11 +55,11 @@
 
 .build-report-gap {
   padding: 0.1rem 0.45rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: 999px;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .build-report-gap-count {
@@ -69,12 +69,12 @@
 }
 
 .build-report-gap-label {
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 /* Muted target so the emphasized count reads as "have", target as the goal. */
 .build-report-gap-target {
-  color: var(--text3);
+  color: var(--text-muted);
   font-weight: 400;
 }
 

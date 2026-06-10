@@ -11,7 +11,7 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: clamp(0.85rem, 2cqi, 1.25rem);
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
 }
@@ -33,7 +33,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .next-best-move-list {
@@ -52,7 +52,7 @@
   align-items: flex-start;
   gap: 0.65rem;
   padding: 0.55rem 0.6rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
 }
@@ -121,14 +121,14 @@
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   line-height: 1.3;
 }
 
 .next-best-move-detail {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   line-height: 1.45;
 }
 
@@ -140,7 +140,7 @@
   align-self: center;
   padding: 0.4rem 0.6rem;
   background: transparent;
-  border: 0.5px solid var(--border2, var(--border));
+  border: 0.5px solid var(--border-strong, var(--border));
   border-radius: var(--radius);
   color: var(--accent);
   font-size: var(--text-xs);
@@ -202,7 +202,7 @@
 .next-best-move-clear-text {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 /* ── Mobile: the nav becomes a full-width CTA stacked under the body text.

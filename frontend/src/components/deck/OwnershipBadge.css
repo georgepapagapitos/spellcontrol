@@ -31,6 +31,6 @@
 /* Not owned — muted/neutral, never alarming (it's the default state for a
    suggestion, not an error). */
 .ownership-badge.is-unowned {
-  color: var(--text3);
+  color: var(--text-muted);
   border-color: var(--border);
 }

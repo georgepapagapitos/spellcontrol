@@ -657,7 +657,7 @@ export function BinderEditor() {
                           aria-label="Capacity in cards"
                           style={{ width: 100 }}
                         />
-                        <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                           cards · ≈{' '}
                           <strong>{Math.ceil(fixedCapacity / pocketSize).toLocaleString()}</strong>{' '}
                           {Math.ceil(fixedCapacity / pocketSize) === 1 ? 'page' : 'pages'}
@@ -1536,7 +1536,9 @@ function FilterGroupFields({
             }
             style={{ width: 90 }}
           />
-          <span style={{ color: 'var(--text3)', fontSize: '0.85rem' }}>most popular EDH cards</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            most popular EDH cards
+          </span>
         </div>
       </div>
     </>
@@ -1727,7 +1729,7 @@ function NumberRangeInput({
         }
         style={{ width: 90 }}
       />
-      <span style={{ color: 'var(--text3)', fontSize: '0.8rem' }}>to</span>
+      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
       <input
         type="number"
         value={max ?? ''}

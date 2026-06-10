@@ -8,7 +8,7 @@
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .engine-empty {
@@ -16,7 +16,7 @@
   padding: 1.25rem 1rem;
   text-align: center;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Per-axis producer↔payoff balance ───────────────────────────────────── */
@@ -40,12 +40,12 @@
 .engine-axis-label {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .engine-axis-counts {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -63,7 +63,7 @@
   margin-top: 0.2rem;
   border-radius: 999px;
   overflow: hidden;
-  background: var(--surface2, var(--surface));
+  background: var(--surface-raised, var(--surface));
 }
 
 .engine-axis-bar-prod {
@@ -105,7 +105,7 @@
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .engine-suggestion-group-label {
@@ -115,7 +115,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .engine-suggestion-list {
@@ -146,7 +146,7 @@
   /* Placeholder shown when the thumbnail can't load (offline / 404) so the
      box reads as intentional rather than a broken-image glyph. */
   aspect-ratio: 5 / 7;
-  background: var(--surface2, var(--surface));
+  background: var(--surface-raised, var(--surface));
   /* Tappable → opens the card-detail carousel. Button reset. */
   padding: 0;
   border: none;
@@ -185,7 +185,7 @@
 .engine-suggestion-name {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   /* Wrap to 2 lines instead of hard-truncating — on a 320px phone the full
      card name stays readable without relying on a (touch-dead) title tooltip. */
   display: -webkit-box;
@@ -198,7 +198,7 @@
 
 .engine-suggestion-reason {
   font-size: var(--text-xs);
-  color: var(--text2, var(--text));
+  color: var(--text-secondary, var(--text-primary));
   overflow-wrap: anywhere;
 }
 
@@ -208,7 +208,7 @@
   align-items: center;
   gap: 0.3rem;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
