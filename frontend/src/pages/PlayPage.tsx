@@ -79,6 +79,14 @@ export function PlayPage() {
 
   const [pendingEnd, setPendingEnd] = useState<'local' | 'online' | null>(null);
   const [pendingDiscard, setPendingDiscard] = useState(false);
+  // Starting a new local game while one is active overwrites it; hold the setup
+  // here and confirm first instead of silently discarding the in-progress game.
+  const [pendingStart, setPendingStart] = useState<LocalGameSetup | null>(null);
+
+  const handleStartLocal = (setup: LocalGameSetup) => {
+    if (local) setPendingStart(setup);
+    else startLocal(setup);
+  };
 
   return (
     <div className="play-page">
@@ -138,11 +146,7 @@ export function PlayPage() {
                   onDiscard={() => setPendingDiscard(true)}
                 />
               )}
-              <LocalSetup
-                decks={decks}
-                onStart={(setup) => startLocal(setup)}
-                hasActive={!!local}
-              />
+              <LocalSetup decks={decks} onStart={handleStartLocal} hasActive={!!local} />
             </>
           )}
         </>
@@ -242,6 +246,20 @@ export function PlayPage() {
             setPendingDiscard(false);
           }}
           onCancel={() => setPendingDiscard(false)}
+        />
+      )}
+
+      {pendingStart && (
+        <ConfirmDialog
+          title="Start a new game?"
+          body="You have a game in progress. Starting a new one discards it without saving to history."
+          confirmLabel="Start new game"
+          danger
+          onConfirm={() => {
+            startLocal(pendingStart);
+            setPendingStart(null);
+          }}
+          onCancel={() => setPendingStart(null)}
         />
       )}
     </div>

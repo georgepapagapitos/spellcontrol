@@ -11,6 +11,7 @@ import {
   nextFinish,
 } from '../lib/scanner-feedback';
 import { logger } from '@/lib/logger';
+import { useConfirm } from '../lib/use-confirm';
 
 export interface ScannedEntry {
   /** Stable row id = oracle_id + finish (see useScanQueue's entryKey), so a
@@ -77,6 +78,19 @@ export function ScannerQueueSheet({
   initialPickerFor,
 }: Props) {
   const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
+  const { confirm, dialog: confirmDialog } = useConfirm();
+
+  const handleClearAll = useCallback(async () => {
+    const ok = await confirm({
+      title: 'Clear scanned cards?',
+      body: `This removes all ${totalCount} scanned ${
+        totalCount === 1 ? 'card' : 'cards'
+      } from this scanning session. They won't be added to your collection.`,
+      confirmLabel: 'Clear all',
+      danger: true,
+    });
+    if (ok) onClearAll();
+  }, [confirm, onClearAll, totalCount]);
 
   // In-sheet Scryfall search ("add a card you don't have in hand"). Debounced,
   // tap-to-add; mirrors the collection's AddCardSearchPanel but routes adds
@@ -419,7 +433,7 @@ export function ScannerQueueSheet({
 
         {entries.length > 0 && (
           <footer className="scanner-sheet-footer">
-            <button type="button" className="btn" onClick={onClearAll}>
+            <button type="button" className="btn" onClick={() => void handleClearAll()}>
               <Trash2 width={14} height={14} strokeWidth={1.8} />
               <span>Clear all</span>
             </button>
@@ -432,6 +446,7 @@ export function ScannerQueueSheet({
           </footer>
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }
