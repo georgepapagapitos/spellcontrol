@@ -7,7 +7,7 @@
 .hero-score {
   /* Per-band color the ring + value text resolve against. */
   --hero-score-color: var(--accent);
-  --hero-score-track: var(--surface2);
+  --hero-score-track: var(--surface-raised);
   /* 0-100, set inline; the ring sweep is derived from it. */
   --hero-score-pct: 0;
 
@@ -76,7 +76,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 /* ── Copy ── */
@@ -92,14 +92,14 @@
   font-family: var(--font-serif);
   font-size: var(--text-lg);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
   line-height: 1.2;
 }
 
 .hero-score-byline {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
   line-height: 1.45;
 }
 
@@ -109,7 +109,7 @@
   gap: 0.4rem;
   margin: 0.15rem 0 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .hero-score-limited-dot {

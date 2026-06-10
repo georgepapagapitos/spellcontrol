@@ -47,13 +47,13 @@
 }
 
 .verdict-chip.is-neutral {
-  color: var(--text3);
+  color: var(--text-muted);
   border-color: var(--border);
 }
 
 .verdict-reason {
   min-width: 0;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   line-height: 1.4;
 }

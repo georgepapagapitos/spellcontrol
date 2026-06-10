@@ -9,7 +9,7 @@
   padding: 1.5rem 1rem;
   text-align: center;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Legend ─────────────────────────────────────────────────────────── */
@@ -26,7 +26,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Budget control ─────────────────────────────────────────────────── */
@@ -51,7 +51,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .cost-budget-input {
@@ -60,8 +60,8 @@
   padding: 0.4rem 0.6rem;
   border-radius: var(--radius);
   border: 0.5px solid var(--border);
-  background: var(--surface2);
-  color: var(--text);
+  background: var(--surface-raised);
+  color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
@@ -72,8 +72,8 @@
   padding: 0.45rem 0.9rem;
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface2);
-  color: var(--text2);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
@@ -109,11 +109,11 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .cost-section-count {
-  color: var(--text3);
+  color: var(--text-muted);
   font-weight: 400;
 }
 
@@ -203,7 +203,7 @@
 
 /* Skeleton while the CDN art resolves — same footprint, no layout shift. */
 .cost-thumb-ph {
-  background: var(--surface2);
+  background: var(--surface-raised);
 }
 
 .cost-card-text {
@@ -215,7 +215,7 @@
 .cost-card-name {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -223,13 +223,13 @@
 
 .cost-card-price {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .cost-arrow {
   flex: 0 0 auto;
-  color: var(--text3);
+  color: var(--text-muted);
   font-size: var(--text-sm);
 }
 
@@ -254,7 +254,7 @@
 
 .cost-inclusion {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -269,7 +269,7 @@
   gap: 0.6rem 0.85rem;
   padding: 0.6rem 0.75rem;
   border-radius: var(--radius);
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
 }
 
@@ -292,7 +292,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .cost-total dd {
@@ -300,7 +300,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-base);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 

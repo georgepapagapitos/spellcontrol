@@ -9,7 +9,7 @@
   font-family: var(--font-serif);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -17,7 +17,7 @@
 .deck-color-balance-empty {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .deck-color-balance-rows {
@@ -34,7 +34,7 @@
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.5rem 0.6rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
 }
@@ -80,7 +80,7 @@
 }
 
 .deck-color-balance-chevron {
-  color: var(--text3);
+  color: var(--text-muted);
   font-size: var(--text-sm);
   line-height: 1;
 }
@@ -99,7 +99,7 @@
   gap: 0.4rem;
   min-width: 0;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .deck-color-balance-pip {
@@ -160,7 +160,7 @@
 
 .deck-color-balance-meter-label {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -179,7 +179,7 @@
 }
 
 .deck-color-balance-fill-demand {
-  background: var(--text3);
+  background: var(--text-muted);
 }
 
 .deck-color-balance-fill-sources {
@@ -193,7 +193,7 @@
 .deck-color-balance-meter-value {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }

@@ -5,7 +5,7 @@
    (.card-preview-panel hardcodes background rgba(15,15,18,.92) + #fff text and
    styles its own text with literal rgba(255,255,255,…), not theme tokens). So
    this block is styled light-on-dark with explicit values too — using theme
-   tokens like --text/--surface here would render dark-on-dark in light mode.
+   tokens like --text-primary/--surface here would render dark-on-dark in light mode.
 
    The block stays compact (a one-line summary + warnings + synergy reasons);
    the panel is a fixed-height, always-scrollable surface, so this block never

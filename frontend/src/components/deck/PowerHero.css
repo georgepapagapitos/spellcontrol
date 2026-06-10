@@ -10,7 +10,7 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: clamp(0.85rem, 2cqi, 1.25rem);
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
 }
@@ -42,7 +42,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Tap-to-reveal summary lines ──
@@ -81,11 +81,11 @@
    — the scroll/reveal is the feedback. */
 @media (hover: hover) and (pointer: fine) {
   .power-hero-link:hover {
-    background: color-mix(in srgb, var(--text) 6%, transparent);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
   }
 
   .power-hero-link:active {
-    background: color-mix(in srgb, var(--text) 9%, transparent);
+    background: color-mix(in srgb, var(--text-primary) 9%, transparent);
   }
 }
 
@@ -109,14 +109,14 @@
   gap: 0.35rem;
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .power-hero-bracket-num {
   font-size: var(--text-xl);
   font-weight: 700;
   line-height: 1;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .power-hero-tag {
@@ -135,7 +135,7 @@
   margin: 0;
   font-size: var(--text-xs);
   line-height: 1.45;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ── Gameplan ── */
@@ -150,7 +150,7 @@
   font-size: var(--text-lg);
   font-weight: 600;
   line-height: 1.2;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 /* Verdict line: "Balanced engine · 20 enablers, 9 payoffs" (or "Lopsided · …"
@@ -162,16 +162,16 @@
   gap: 0.3rem;
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .power-hero-engine-counts {
-  color: var(--text2);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .power-hero-engine-sep {
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .power-hero-balanced {
@@ -195,7 +195,7 @@
 .power-hero-muted {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .power-hero-combos {
@@ -204,12 +204,12 @@
   gap: 0.35rem;
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .power-hero-combos.is-loading {
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .power-hero-spinner {
@@ -238,7 +238,7 @@
   gap: 0.3rem;
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .power-hero-wincon--warn {

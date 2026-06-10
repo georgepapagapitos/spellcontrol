@@ -37,7 +37,7 @@
 
 /* Partial tiles are de-emphasized: muted accent + dimmed text, no band hue. */
 .sub-score-tile.is-partial {
-  --sub-score-color: var(--border2, var(--border));
+  --sub-score-color: var(--border-strong, var(--border));
   opacity: 0.72;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .sub-score-tile.is-interactive:hover {
-  background: var(--surface2);
+  background: var(--surface-raised);
 }
 
 .sub-score-tile.is-interactive:focus-visible {
@@ -72,7 +72,7 @@
   white-space: nowrap;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .sub-score-tile-value {
@@ -86,7 +86,7 @@
 }
 
 .sub-score-tile.is-partial .sub-score-tile-value {
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .sub-score-tile-band {
@@ -94,13 +94,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .sub-score-tile-surface {
   margin: 0.1rem 0 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   line-height: 1.45;
 }
 

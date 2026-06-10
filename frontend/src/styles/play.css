@@ -33,7 +33,7 @@
 .play-tab {
   border: none;
   background: transparent;
-  color: var(--text2);
+  color: var(--text-secondary);
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
   font-size: var(--text-sm);
@@ -105,7 +105,7 @@
 .play-setup-help {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .play-setup-grid {
@@ -122,7 +122,7 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
   /* Same reason as above — fields are grid items; allow them to shrink so
      their contents (especially <select>) can shrink below their natural
      width instead of pushing the panel sideways. */
@@ -136,11 +136,11 @@
 /* Text-like inputs fill their cell; checkboxes / radios stay
    their natural size and live in the flex-row layout next to the label. */
 .play-field input:not([type='checkbox']):not([type='radio']) {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.5rem 0.6rem;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: var(--text-base);
   width: 100%;
   min-width: 0;
@@ -184,7 +184,7 @@
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -200,7 +200,7 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text3);
+  color: var(--text-muted);
   padding: 0 0.4rem;
 }
 
@@ -237,7 +237,7 @@
 .play-field-inline > span {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -245,7 +245,7 @@
 .play-stepper {
   display: inline-flex;
   align-items: center;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: 999px;
   padding: 0.2rem;
@@ -260,7 +260,7 @@
   height: 2.5rem;
   border: none;
   background: transparent;
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 50%;
   font-size: var(--text-md);
   font-weight: 700;
@@ -294,7 +294,7 @@
   font-size: var(--text-md);
   min-width: 2.4rem;
   text-align: center;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 /* Rule toggle: full-width pill with label + hint + on/off state */
@@ -310,11 +310,11 @@
   grid-template-rows: auto auto;
   column-gap: 0.75rem;
   row-gap: 0.15rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 0.65rem 0.85rem;
-  color: var(--text);
+  color: var(--text-primary);
   text-align: left;
   cursor: pointer;
   transition:
@@ -324,7 +324,7 @@
 }
 
 .play-rule-pill:hover {
-  border-color: var(--border2);
+  border-color: var(--border-strong);
 }
 
 .play-rule-pill.is-on {
@@ -340,7 +340,7 @@
 
 .play-rule-pill-hint {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   grid-column: 1;
   line-height: 1.3;
 }
@@ -356,7 +356,7 @@
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--border);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .play-rule-pill.is-on .play-rule-pill-state {
@@ -383,7 +383,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text3);
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -391,11 +391,11 @@
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: var(--text-xs);
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.1rem 0.55rem;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .play-setup-roster-list {
@@ -412,7 +412,7 @@
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 0.5rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.45rem 0.55rem 0.45rem 0.7rem;
@@ -431,7 +431,7 @@
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -472,12 +472,12 @@
 
 .play-setup-seat-deck-add {
   background: transparent;
-  border: 1px dashed var(--border2);
+  border: 1px dashed var(--border-strong);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -498,7 +498,7 @@
 .play-setup-seat-deck-clear {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text3);
+  color: var(--text-muted);
   width: 1.7rem;
   height: 1.7rem;
   border-radius: 50%;
@@ -524,12 +524,12 @@
 .play-setup-roster-add {
   align-self: flex-start;
   background: transparent;
-  border: 1px dashed var(--border2);
+  border: 1px dashed var(--border-strong);
   border-radius: 999px;
   padding: 0.45rem 1rem;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
   cursor: pointer;
   transition:
     background 120ms ease,
@@ -547,7 +547,7 @@
 
 .play-online-modes {
   display: inline-flex;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: 999px;
   padding: 0.2rem;
@@ -558,7 +558,7 @@
 .play-online-mode {
   border: none;
   background: transparent;
-  color: var(--text2);
+  color: var(--text-secondary);
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
   font-size: var(--text-sm);
@@ -632,18 +632,18 @@
 
 .play-resume-banner-label {
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .play-resume-banner-status {
   font-weight: 400;
-  color: var(--text2);
+  color: var(--text-secondary);
   text-transform: capitalize;
 }
 
 .play-resume-banner-players {
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -668,12 +668,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.4rem 0.8rem;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -1650,7 +1650,7 @@ body:has(.game-board) .modal-backdrop {
   width: 100%;
   max-height: 88dvh;
   overflow-y: auto;
-  color: var(--text);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   padding-bottom: var(--safe-bottom);
@@ -1687,7 +1687,7 @@ body:has(.game-board) .modal-backdrop {
   width: 36px;
   height: 4px;
   border-radius: 999px;
-  background: var(--border2);
+  background: var(--border-strong);
   opacity: 0.6;
   margin: 0.55rem auto 0;
   flex-shrink: 0;
@@ -1719,7 +1719,7 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-md);
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--text);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1729,14 +1729,14 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text3);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
 .game-menu-close {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text2);
+  color: var(--text-secondary);
   font-size: var(--text-md);
   width: 2rem;
   height: 2rem;
@@ -1812,9 +1812,9 @@ body:has(.game-board) .modal-backdrop {
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: capitalize;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text2);
+  color: var(--text-secondary);
   border-radius: 999px;
   padding: 0.2rem 0.6rem;
 }
@@ -1839,11 +1839,11 @@ body:has(.game-board) .modal-backdrop {
   justify-content: space-between;
   gap: 0.35rem;
   padding: 0.45rem 0.55rem 0.45rem 0.7rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
   min-width: 0;
 }
 
@@ -1858,7 +1858,7 @@ body:has(.game-board) .modal-backdrop {
 .game-menu-roster-remove {
   background: transparent;
   border: 1px solid var(--border);
-  color: var(--text3);
+  color: var(--text-muted);
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 50%;
@@ -1891,9 +1891,9 @@ body:has(.game-board) .modal-backdrop {
   justify-content: center;
   padding: 0.45rem 0.7rem;
   background: transparent;
-  border: 1px dashed var(--border2);
+  border: 1px dashed var(--border-strong);
   border-radius: 10px;
-  color: var(--text2);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
@@ -1913,7 +1913,7 @@ body:has(.game-board) .modal-backdrop {
   display: block;
   margin-top: 0.4rem;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -1940,9 +1940,9 @@ body:has(.game-board) .modal-backdrop {
   border-radius: 999px;
   font-size: var(--text-sm);
   font-weight: 600;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -2006,12 +2006,12 @@ body:has(.game-board) .modal-backdrop {
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .game-history-count {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2020,7 +2020,7 @@ body:has(.game-board) .modal-backdrop {
   gap: 0.25rem;
   margin: 0.5rem 0 0.5rem;
   padding: 0.2rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
 }
@@ -2030,7 +2030,7 @@ body:has(.game-board) .modal-backdrop {
   appearance: none;
   background: transparent;
   border: none;
-  color: var(--text2);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   padding: 0.35rem 0.5rem;
   border-radius: 0.35rem;
@@ -2041,7 +2041,7 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .game-history-tab:hover {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .game-history-tab.is-active {
@@ -2052,7 +2052,7 @@ body:has(.game-board) .modal-backdrop {
 .game-history-empty {
   margin: 0.5rem 0;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
   text-align: center;
 }
 
@@ -2073,7 +2073,7 @@ body:has(.game-board) .modal-backdrop {
   align-items: flex-start;
   gap: 0.5rem;
   padding: 0.25rem 0.1rem;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .timeline-dot {
@@ -2082,7 +2082,7 @@ body:has(.game-board) .modal-backdrop {
   height: 0.55rem;
   margin-top: 0.4rem;
   border-radius: 999px;
-  background: var(--border2, var(--border));
+  background: var(--border-strong, var(--border));
 }
 
 .timeline-body {
@@ -2103,15 +2103,15 @@ body:has(.game-board) .modal-backdrop {
 
 .timeline-name {
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .timeline-action {
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .timeline-source {
-  color: var(--text3);
+  color: var(--text-muted);
   font-size: var(--text-xs);
 }
 
@@ -2125,8 +2125,8 @@ body:has(.game-board) .modal-backdrop {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: var(--text-xs);
-  background: var(--surface2);
-  color: var(--text2);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
   border: 1px solid var(--border);
 }
 
@@ -2143,13 +2143,13 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .timeline-time {
-  color: var(--text3);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
 
 .timeline-count {
-  color: var(--text3);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
@@ -2158,14 +2158,14 @@ body:has(.game-board) .modal-backdrop {
 .timeline-row.kind-start,
 .timeline-row.kind-end,
 .timeline-row.kind-reset {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .timeline-row.kind-start .timeline-action,
 .timeline-row.kind-end .timeline-action,
 .timeline-row.kind-reset .timeline-action {
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .timeline-row.kind-eliminate .timeline-action {
@@ -2183,7 +2183,7 @@ body:has(.game-board) .modal-backdrop {
 .life-chart-svg {
   width: 100%;
   height: 140px;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 0.25rem;
@@ -2215,7 +2215,7 @@ body:has(.game-board) .modal-backdrop {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--text2);
+  color: var(--text-secondary);
   min-width: 0;
 }
 
@@ -2236,7 +2236,7 @@ body:has(.game-board) .modal-backdrop {
 .life-chart-legend-value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 /* ── Color palettes per player ─────────────────────────────────────────── */
@@ -2364,7 +2364,7 @@ body:has(.game-board) .modal-backdrop {
 
 .play-records-table th {
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2380,7 +2380,7 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .play-history-item {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.6rem 0.75rem;
@@ -2396,12 +2396,12 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .play-history-format {
   background: var(--accent-light);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 999px;
   padding: 0.1rem 0.5rem;
   text-transform: capitalize;
@@ -2421,19 +2421,19 @@ body:has(.game-board) .modal-backdrop {
 .play-history-remove {
   background: transparent;
   border: none;
-  color: var(--text3);
+  color: var(--text-muted);
   font-size: var(--text-md);
   cursor: pointer;
 }
 
 .play-history-winner {
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .play-history-duration {
-  color: var(--text3);
+  color: var(--text-muted);
   font-weight: 400;
 }
 
@@ -2445,7 +2445,7 @@ body:has(.game-board) .modal-backdrop {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.25rem 0.75rem;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .play-history-players li.is-winner {
@@ -2455,17 +2455,17 @@ body:has(.game-board) .modal-backdrop {
 
 .play-history-player-name {
   margin-right: 0.4rem;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .play-history-player-deck {
-  color: var(--text3);
+  color: var(--text-muted);
   margin-right: 0.4rem;
   font-style: italic;
 }
 
 .play-history-player-life {
-  color: var(--text3);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
@@ -2705,9 +2705,9 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .life-keypad-close {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text2);
+  color: var(--text-secondary);
   border-radius: 50%;
   width: 2.75rem;
   height: 2.75rem;
@@ -2756,9 +2756,9 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .life-keypad-btn {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 0;
   min-height: 0;
@@ -2789,7 +2789,7 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .life-keypad-btn.is-action {
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .life-keypad-confirm {
@@ -2835,7 +2835,7 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .layout-option {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.6rem;
@@ -2851,7 +2851,7 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .layout-option:hover {
-  border-color: var(--border2);
+  border-color: var(--border-strong);
 }
 
 .layout-option.is-selected {
@@ -2891,7 +2891,7 @@ body:has(.game-board) .modal-backdrop {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--text2);
+  background: var(--text-secondary);
   border: 2px solid var(--bg);
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -3177,7 +3177,7 @@ body:has(.game-board) .modal-backdrop {
 .game-tools-title {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text2);
+  color: var(--text-secondary);
   margin: 0 0 0.55rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -3190,7 +3190,7 @@ body:has(.game-board) .modal-backdrop {
   min-height: 4.5rem;
   margin-bottom: 0.7rem;
   border-radius: 12px;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
 }
 
@@ -3237,14 +3237,14 @@ body:has(.game-board) .modal-backdrop {
 
 .game-tools-result-sub {
   font-size: var(--text-xs, 0.72rem);
-  color: var(--text2);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
 
 .game-tools-result-hint {
   font-size: var(--text-sm);
-  color: var(--text3, var(--text2));
+  color: var(--text-muted, var(--text-secondary));
 }
 
 .game-tools-actions,
@@ -3261,9 +3261,9 @@ body:has(.game-board) .modal-backdrop {
 .game-tools-btn,
 .game-tools-die {
   flex: 1 1 auto;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 0.6rem 0.5rem;
   font-size: var(--text-sm);
@@ -3307,14 +3307,14 @@ body:has(.game-board) .modal-backdrop {
   gap: 0.2rem;
   flex: 1 1 auto;
   font-size: var(--text-xs, 0.72rem);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .game-tools-custom-field input {
   width: 100%;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 8px;
   padding: 0.45rem 0.5rem;
   font-family: var(--font-mono);
@@ -3324,7 +3324,7 @@ body:has(.game-board) .modal-backdrop {
 .game-tools-custom-x {
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text2);
+  color: var(--text-secondary);
   padding-bottom: 0.55rem;
 }
 
@@ -3339,9 +3339,9 @@ body:has(.game-board) .modal-backdrop {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 10px;
   padding: 0.7rem 0.9rem;
   font-size: var(--text-sm);
@@ -3361,7 +3361,7 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-xs, 0.72rem);
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .game-menu-setting.is-on .game-menu-setting-state {
@@ -3426,9 +3426,9 @@ body:has(.game-board) .modal-backdrop {
   align-items: center;
   justify-content: center;
   padding: 0.5rem 0;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text2);
+  color: var(--text-secondary);
   border-radius: 8px;
   cursor: pointer;
   transition:
@@ -3438,8 +3438,8 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .seat-menu-facing-btn:hover {
-  color: var(--text);
-  border-color: var(--border2);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .seat-menu-facing-btn.is-selected {
@@ -3457,14 +3457,14 @@ body:has(.game-board) .modal-backdrop {
 
 .layout-option-custom-glyph {
   font-size: clamp(1.3rem, 5vmin, 1.7rem);
-  color: var(--text2);
+  color: var(--text-secondary);
   line-height: 1;
 }
 
 .layout-option-custom-label {
   font-size: var(--text-xs, 0.72rem);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .layout-option-custom.is-selected .layout-option-custom-label {
@@ -3488,7 +3488,7 @@ body:has(.game-board) .modal-backdrop {
 
 .cle {
   background: var(--surface);
-  color: var(--text);
+  color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-modal);
@@ -3514,9 +3514,9 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .cle-close {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text2);
+  color: var(--text-secondary);
   border-radius: 50%;
   width: 1.9rem;
   height: 1.9rem;
@@ -3532,7 +3532,7 @@ body:has(.game-board) .modal-backdrop {
 
 .cle-label {
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .cle-grid {
@@ -3548,10 +3548,10 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .cle-cell {
-  border: 1px dashed var(--border2);
+  border: 1px dashed var(--border-strong);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
-  color: var(--text3, var(--text2));
+  color: var(--text-muted, var(--text-secondary));
   font-size: clamp(1rem, 4vmin, 1.3rem);
   cursor: pointer;
   min-height: 44px;
@@ -3630,9 +3630,9 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .cle-tray-chip {
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 999px;
   padding: 0.35rem 0.8rem;
   font-size: var(--text-sm);
@@ -3651,7 +3651,7 @@ body:has(.game-board) .modal-backdrop {
   flex-direction: column;
   gap: 0.4rem;
   padding: 0.6rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: 10px;
 }
@@ -3675,7 +3675,7 @@ body:has(.game-board) .modal-backdrop {
   gap: 0.3rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--text-primary);
   border-radius: 8px;
   padding: 0.45rem 0.6rem;
   font-size: var(--text-xs, 0.72rem);
@@ -3703,7 +3703,7 @@ body:has(.game-board) .modal-backdrop {
 
 .cle-status {
   font-size: var(--text-xs, 0.72rem);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .cle-foot-actions {
@@ -3832,13 +3832,13 @@ body:has(.game-board) .modal-backdrop {
 .pp-counters-title {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text2, rgba(255, 255, 255, 0.7));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
 }
 
 .pp-counters-close {
-  background: var(--surface2, rgba(255, 255, 255, 0.06));
+  background: var(--surface-raised, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
-  color: var(--text2, rgba(255, 255, 255, 0.7));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
   border-radius: 50%;
   width: 1.6rem;
   height: 1.6rem;

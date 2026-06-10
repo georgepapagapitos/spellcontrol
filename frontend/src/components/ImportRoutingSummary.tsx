@@ -53,7 +53,7 @@ export function ImportRoutingSummary({ summary, onDismiss }: Props) {
             >
               <span
                 className="import-routing-pip"
-                style={{ background: entry.binderColor ?? 'var(--text3)' }}
+                style={{ background: entry.binderColor ?? 'var(--text-muted)' }}
                 aria-hidden="true"
               />
               <span className="import-routing-name">{entry.binderName}</span>

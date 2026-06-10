@@ -8,7 +8,7 @@
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .win-con-headline--warn {
@@ -25,7 +25,7 @@
 .win-con-empty {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -61,7 +61,7 @@
 .win-con-label {
   font-size: var(--text-sm);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .win-con-tag {
@@ -77,7 +77,7 @@
 .win-con-summary {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text2, var(--text));
+  color: var(--text-secondary, var(--text-primary));
   line-height: 1.5;
 }
 
@@ -94,8 +94,8 @@
 
 .win-con-evidence-item {
   font-size: var(--text-xs);
-  color: var(--text3);
-  background: var(--surface2, var(--surface));
+  color: var(--text-muted);
+  background: var(--surface-raised, var(--surface));
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 0.25rem);
   padding: 0.15em 0.5em;
@@ -113,5 +113,5 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text3);
+  color: var(--text-muted);
 }

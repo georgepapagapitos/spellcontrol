@@ -14,7 +14,7 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
-  color: var(--text2);
+  color: var(--text-secondary);
   font-size: var(--text-xs);
   cursor: pointer;
   transition:
@@ -62,7 +62,7 @@
 
 .product-result-row:hover:not(:disabled) {
   border-color: var(--accent);
-  background: var(--surface2);
+  background: var(--surface-raised);
 }
 
 .product-result-row:disabled {
@@ -84,7 +84,7 @@
   justify-content: center;
   border-radius: calc(var(--radius) * 0.6);
   overflow: hidden;
-  background: var(--surface2);
+  background: var(--surface-raised);
 }
 
 /* Full commander card image (lazy-loaded) fills the card slot. */
@@ -105,7 +105,7 @@
 .product-result-seticon-empty {
   font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--text3);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -129,7 +129,7 @@
 .product-result-name {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -137,7 +137,7 @@
 
 .product-result-meta {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* ---- Detail view ---- */
@@ -150,7 +150,7 @@
   padding: 0.25rem 0.25rem 0.25rem 0;
   border: none;
   background: none;
-  color: var(--text2);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   cursor: pointer;
 }
@@ -180,14 +180,14 @@
 .product-detail-name {
   margin: 0;
   font-size: var(--text-lg);
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .product-detail-meta {
   margin: 0;
   min-width: 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* The one scroll region. min-height:0 lets it shrink so overflow scrolls
@@ -218,13 +218,13 @@
   margin: 0 0 0.4rem;
   font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--text2);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
 .product-zone-count {
-  color: var(--text3);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -267,7 +267,7 @@
   aspect-ratio: 5 / 7;
   object-fit: cover;
   border-radius: var(--radius);
-  background: var(--surface2);
+  background: var(--surface-raised);
 }
 
 /* Hover lift only on real hover-capable pointers — Samsung touch falsely
@@ -329,7 +329,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .product-card-row:hover {
-    background: var(--surface2);
+    background: var(--surface-raised);
   }
 }
 
@@ -344,14 +344,14 @@
   aspect-ratio: 488 / 680;
   object-fit: cover;
   border-radius: calc(var(--radius) * 0.5);
-  background: var(--surface2);
+  background: var(--surface-raised);
 }
 
 .product-card-rowname {
   flex: 1;
   min-width: 0;
   font-size: var(--text-sm);
-  color: var(--text);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -361,7 +361,7 @@
   flex: 0 0 auto;
   font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 /* Compact — denser rows with a smaller thumb. */

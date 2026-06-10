@@ -8,13 +8,13 @@
   font-family: var(--font-serif);
   font-size: var(--text-md, 1rem);
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .deck-size-prompt-subtitle {
   margin: 0.15rem 0 0;
   font-size: var(--text-sm);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .deck-size-prompt-list {
@@ -32,7 +32,7 @@
   align-items: center;
   gap: 0.6rem;
   padding: 0.45rem 0.55rem;
-  background: var(--surface2);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
 }
@@ -48,7 +48,7 @@
 .deck-size-prompt-name {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -67,12 +67,12 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   font-size: var(--text-xs);
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .deck-size-prompt-hint {
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* Per-row action — accent fill (matches the house action-button anatomy). */
@@ -107,7 +107,7 @@
 .deck-size-prompt-empty {
   margin: 0.25rem 0;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* "Pick another card…" reveal — a quiet text button above the footer. */

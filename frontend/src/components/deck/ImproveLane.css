@@ -36,7 +36,7 @@
 .improve-lane-count {
   margin-left: auto;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -52,7 +52,7 @@
 .improve-lane-empty {
   margin: 0.25rem 0;
   font-size: var(--text-sm);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* Collapsible sub-sections (cuts, EDHREC browser) — a lightweight disclosure
@@ -73,7 +73,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text2);
+  color: var(--text-secondary);
 }
 
 .improve-lane-section > summary::-webkit-details-marker {
@@ -83,7 +83,7 @@
 /* Chevron rotates when the section is open. */
 .improve-lane-section > summary > svg {
   transition: transform 0.15s ease;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .improve-lane-section[open] > summary > svg {

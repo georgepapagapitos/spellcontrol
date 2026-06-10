@@ -19,13 +19,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 .cmdr-readiness-pct {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -46,7 +46,7 @@
 .cmdr-readiness-explainer {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* The inline ⓘ is inline-flex (baseline-aligned by default → rides low next to
@@ -59,7 +59,7 @@
 .cmdr-readiness-unavailable {
   margin: 0;
   font-size: var(--text-xs);
-  color: var(--text3);
+  color: var(--text-muted);
 }
 
 /* Loading skeleton while the staple list streams in. */
