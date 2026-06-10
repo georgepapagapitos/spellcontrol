@@ -267,8 +267,8 @@
   line-height: 1;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .play-stepper-btn:hover:not(:disabled),
@@ -318,9 +318,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .play-rule-pill:hover {
@@ -481,9 +481,9 @@
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .play-setup-seat-deck-add:hover,
@@ -509,9 +509,9 @@
   cursor: pointer;
   flex-shrink: 0;
   transition:
-    background 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
 .play-setup-seat-remove:hover,
@@ -532,9 +532,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .play-setup-roster-add:hover,
@@ -785,7 +785,7 @@ body:has(.game-board) .modal-backdrop {
      rotation would animate while a panel that just changes grid cell
      would snap (CSS grid placement isn't transitionable), giving an
      inconsistent half-animated switch. Snap all panels together. */
-  transition: filter 200ms ease;
+  transition: filter var(--motion-base) ease;
 }
 
 /* Sideways rotation (90° / 270°) — the panel is rendered with its
@@ -1060,7 +1060,7 @@ body:has(.game-board) .modal-backdrop {
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) ease;
 }
 
 /* Per-player seat menu sits in the bottom-right corner of each panel (in
@@ -1256,8 +1256,8 @@ body:has(.game-board) .modal-backdrop {
   letter-spacing: -0.04em;
   flex: 0 0 auto;
   transition:
-    color 120ms ease,
-    background 120ms ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
     transform 80ms ease;
 }
 
@@ -1393,7 +1393,7 @@ body:has(.game-board) .modal-backdrop {
     color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
   );
   clip-path: circle(150% at 88% 88%);
-  animation: pp-seat-open 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation: pp-seat-open 220ms var(--ease-out-soft);
 }
 
 @keyframes pp-seat-open {
@@ -1655,7 +1655,7 @@ body:has(.game-board) .modal-backdrop {
   flex-direction: column;
   padding-bottom: var(--safe-bottom);
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
-  animation: pp-sheet-up 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation: pp-sheet-up 220ms var(--ease-out-soft);
 }
 
 @media (min-width: 600px) {
@@ -1665,7 +1665,7 @@ body:has(.game-board) .modal-backdrop {
     width: min(32rem, 100%);
     max-height: 82dvh;
     box-shadow: var(--shadow-modal);
-    animation: pp-scale-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    animation: pp-scale-in 180ms var(--ease-out-soft);
   }
 }
 
@@ -1747,9 +1747,9 @@ body:has(.game-board) .modal-backdrop {
   flex-shrink: 0;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
 .game-menu-close:hover {
@@ -1869,9 +1869,9 @@ body:has(.game-board) .modal-backdrop {
   cursor: pointer;
   flex-shrink: 0;
   transition:
-    background 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
 .game-menu-roster-remove:hover:not(:disabled) {
@@ -1898,9 +1898,9 @@ body:has(.game-board) .modal-backdrop {
   font-weight: 600;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .game-menu-roster-add:hover {
@@ -1946,9 +1946,9 @@ body:has(.game-board) .modal-backdrop {
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
     transform 80ms ease;
 }
 
@@ -2036,8 +2036,8 @@ body:has(.game-board) .modal-backdrop {
   border-radius: 0.35rem;
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    color 120ms ease;
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .game-history-tab:hover {
@@ -2547,7 +2547,7 @@ body:has(.game-board) .modal-backdrop {
   transition:
     filter 380ms ease,
     opacity 380ms ease,
-    transform 200ms ease;
+    transform var(--motion-base) ease;
 }
 
 /* Lethal flash — applied for ~320ms when life crosses any lethal threshold
@@ -2560,7 +2560,7 @@ body:has(.game-board) .modal-backdrop {
   background: rgba(220, 38, 38, 0.45);
   pointer-events: none;
   z-index: 3;
-  animation: pp-lethal-flash 320ms ease-out forwards;
+  animation: pp-lethal-flash var(--motion-gentle) ease-out forwards;
 }
 
 @keyframes pp-lethal-flash {
@@ -2657,7 +2657,7 @@ body:has(.game-board) .modal-backdrop {
     color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
   );
   clip-path: circle(150% at 50% 50%);
-  animation: pp-keypad-open 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation: pp-keypad-open var(--motion-base) var(--ease-out-soft);
 }
 
 @keyframes pp-keypad-open {
@@ -2715,9 +2715,9 @@ body:has(.game-board) .modal-backdrop {
   line-height: 1;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    color 120ms ease,
-    border-color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
 .life-keypad-close:hover,
@@ -2771,9 +2771,9 @@ body:has(.game-board) .modal-backdrop {
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .life-keypad-btn:hover,
@@ -2802,7 +2802,7 @@ body:has(.game-board) .modal-backdrop {
   font-weight: 600;
   cursor: pointer;
   flex: 0 0 auto;
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .life-keypad-confirm:hover {
@@ -2844,10 +2844,10 @@ body:has(.game-board) .modal-backdrop {
   align-items: center;
   justify-content: center;
   transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 .layout-option:hover {
@@ -3104,7 +3104,7 @@ body:has(.game-board) .modal-backdrop {
     inset 0 0 40px color-mix(in srgb, var(--win-accent, #ffe07a) 22%, transparent);
   color: #fff;
   text-align: center;
-  animation: win-card-in 420ms cubic-bezier(0.2, 0.9, 0.25, 1.4);
+  animation: win-card-in 420ms var(--ease-pop);
 }
 
 @keyframes win-card-in {
@@ -3166,7 +3166,7 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .win-celebration-dismiss:hover {
@@ -3202,7 +3202,7 @@ body:has(.game-board) .modal-backdrop {
 }
 
 .game-tools-result.is-pop {
-  animation: game-tools-pop 320ms cubic-bezier(0.2, 0.9, 0.25, 1.4);
+  animation: game-tools-pop var(--motion-gentle) var(--ease-pop);
 }
 
 @keyframes game-tools-pop {
@@ -3271,9 +3271,9 @@ body:has(.game-board) .modal-backdrop {
   cursor: pointer;
   touch-action: manipulation;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .game-tools-die {
@@ -3348,8 +3348,8 @@ body:has(.game-board) .modal-backdrop {
   font-weight: 600;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .game-menu-setting.is-on {
@@ -3378,7 +3378,7 @@ body:has(.game-board) .modal-backdrop {
   font-size: var(--text-xs, 0.72rem);
   font-weight: 700;
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: background var(--motion-fast) ease;
 }
 
 .play-history-rematch:hover {
@@ -3432,9 +3432,9 @@ body:has(.game-board) .modal-backdrop {
   border-radius: 8px;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .seat-menu-facing-btn:hover {
@@ -3556,8 +3556,8 @@ body:has(.game-board) .modal-backdrop {
   cursor: pointer;
   min-height: 44px;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .cle-cell.is-armed {
@@ -3750,8 +3750,8 @@ body:has(.game-board) .modal-backdrop {
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
     transform 80ms ease;
 }
 
@@ -3799,7 +3799,7 @@ body:has(.game-board) .modal-backdrop {
   );
   /* Reveal grows out of the bottom-left corner where the chips sit. */
   clip-path: circle(140% at 12% 88%);
-  animation: pp-counters-open 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation: pp-counters-open 220ms var(--ease-out-soft);
 }
 
 @keyframes pp-counters-open {

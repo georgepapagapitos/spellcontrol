@@ -167,6 +167,52 @@ tooltip; reuse this so they behave identically everywhere.
   DOM. A sticky element creates its own stacking context, so its token wins
   against later siblings regardless of source order.
 
+## Motion
+
+Transform/opacity only — never animate layout properties. Every entry
+animation has a symmetric exit. Motion expresses causality (where did it
+come from / where did it go), not decoration.
+
+### Tokens (global.css)
+
+| Token             | Value                             | Use                                  |
+| ----------------- | --------------------------------- | ------------------------------------ |
+| `--motion-fast`   | 120ms                             | hovers, presses, popover enter       |
+| `--motion-base`   | 200ms                             | fades, drawer exits, toast leave     |
+| `--motion-gentle` | 320ms                             | sheet exits, emphasis one-shots      |
+| `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only)  |
+| `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move      |
+| `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel           |
+| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, celebration only|
+| `linear`          |                                   | spinners, progress, confetti         |
+
+Don't invent a new bezier — if none of these reads right, that's a
+STYLE_GUIDE discussion, not an inline constant.
+
+### Canonical patterns
+
+1. **Bottom sheet / preview drawer** — rise `--motion-drawer` `--ease-drawer`,
+   fall ~340ms; ALL dismiss paths route through `useSheetExit`; swipe handoff
+   continues from the release offset. Backdrop fades, never slides.
+2. **Side drawer** (stats) — slide 220ms `--ease-out-soft` in, 180ms out.
+3. **Modal / dialog** — backdrop fade 160ms; panel scale 0.96→1 + fade 180ms;
+   exit 120ms. Use the shared `Modal`; never a bespoke entrance.
+4. **Popover / menu / tooltip** — enter `--motion-fast` fade + scale(0.98) +
+   2px rise, transform-origin at the trigger; exit may be instant.
+5. **Toast** — enter slide-in 160ms; leave fade+drop `--motion-base`;
+   survivors glide to their new slot (transform transition, never a reflow snap).
+6. **Feedback micro** — press = scale(0.97) `--motion-fast`; value change =
+   `--ease-pop` one-shot ≤320ms; skeleton shimmer 1.4s; spinner 0.8s linear
+   (use the shared `spin` / `skeleton-shimmer` keyframes — don't redeclare).
+
+### Reduced motion
+
+Every keyframe gets a `prefers-reduced-motion: reduce` gate (the global
+0.001ms kill is a backstop, not the mechanism — infinite loops must set
+`animation: none` explicitly). Any JS that waits on `animationend` must
+check `matchMedia` and complete immediately under reduce (see
+`use-sheet-exit.ts` for the reference implementation).
+
 ## Color & spacing
 
 - **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,

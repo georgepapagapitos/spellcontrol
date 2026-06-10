@@ -148,13 +148,7 @@
 }
 
 .commander-readiness-spin {
-  animation: commander-readiness-spin 0.8s linear infinite;
-}
-
-@keyframes commander-readiness-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin 0.8s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -438,9 +432,9 @@
   padding: 0.35rem 0.8rem;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .commander-playstyle-chip:hover {
@@ -515,9 +509,9 @@
      a pip should feel like turning it on. */
   opacity: 0.55;
   transition:
-    opacity 120ms ease,
-    transform 120ms ease,
-    box-shadow 120ms ease;
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
 }
 
 .commander-color-pip .ms {
@@ -584,9 +578,9 @@
   padding: 0.35rem 0.75rem;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .commander-suggestion-chip:hover:not(:disabled),
@@ -825,8 +819,8 @@
   font-family: inherit;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .bracket-pill:hover,
@@ -949,8 +943,8 @@
   height: 2.1rem;
   white-space: nowrap;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .toolbar-pill:hover,
@@ -1228,8 +1222,8 @@ input.toolbar-search-input {
   border-radius: 999px;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .toolbar-viewmode-btn:hover,
@@ -1511,9 +1505,9 @@ input.toolbar-search-input {
   cursor: pointer;
   text-align: left;
   transition:
-    background 0.12s,
-    color 0.12s,
-    border-color 0.12s;
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 
 .deck-display-scryfall-trigger:hover,
@@ -2188,7 +2182,7 @@ input.toolbar-search-input {
   text-align: left;
   cursor: pointer;
   border-radius: var(--radius-sm, 6px);
-  transition: color 0.12s ease;
+  transition: color var(--motion-fast) ease;
 }
 
 .deck-stat-btn:hover .deck-stat-value,
@@ -2456,7 +2450,7 @@ input.toolbar-search-input {
 .deck-mana-prod-bar-fill {
   height: 100%;
   border-radius: 2px;
-  transition: width 200ms ease;
+  transition: width var(--motion-base) ease;
 }
 
 /* Roles */
@@ -2887,7 +2881,7 @@ input.toolbar-search-input {
   border-left: 3px solid var(--deck-color, var(--accent));
   border-radius: var(--radius-lg);
   overflow: visible;
-  transition: border-color 120ms ease;
+  transition: border-color var(--motion-fast) ease;
 }
 
 /* On hover, every side of the border tints to the deck's chosen color so
@@ -2991,8 +2985,8 @@ input.toolbar-search-input {
   color: var(--text-muted);
   cursor: pointer;
   transition:
-    background 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .decks-index-card-menu-btn:hover,
@@ -3645,7 +3639,7 @@ input.toolbar-search-input {
 
 .deck-customizer-group-toggle svg {
   color: var(--text-muted);
-  transition: transform 120ms ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .deck-customizer-group-collapsible.open .deck-customizer-group-toggle svg {
@@ -3677,8 +3671,8 @@ input.toolbar-search-input {
   border-radius: var(--radius);
   cursor: pointer;
   transition:
-    color 120ms ease,
-    background 120ms ease;
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .deck-customizer-group-reset:hover,
@@ -3809,7 +3803,7 @@ input.toolbar-search-input {
   border: 2px solid var(--accent);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  transition: transform 120ms ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .deck-customizer-range::-webkit-slider-thumb:hover,
@@ -3909,9 +3903,9 @@ input.toolbar-search-input {
   color: var(--text-primary);
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
   text-align: center;
   min-height: 3rem;
 }
@@ -4004,9 +3998,9 @@ input.toolbar-search-input {
   padding: 0.4rem 0.3rem;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
   min-width: 0;
 }
 
@@ -4218,8 +4212,8 @@ input.toolbar-search-input {
   color: var(--text-muted);
   cursor: pointer;
   transition:
-    color 120ms ease,
-    background 120ms ease;
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .export-dialog-close:hover,
@@ -4871,9 +4865,9 @@ input.toolbar-search-input {
   font-weight: 500;
   cursor: pointer;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
   min-height: 2.25rem;
 }
 
@@ -5164,7 +5158,7 @@ input.toolbar-search-input {
   border-radius: 999px;
   border: 1.5px solid var(--border-strong);
   border-top-color: var(--accent);
-  animation: deck-combos-spin 0.7s linear infinite;
+  animation: spin 0.8s linear infinite;
   /* Slot is ALWAYS rendered (visibility toggled, not display) so the
      trailing wrapper's width never changes between loading and idle.
      Without this the summary column shrinks by the spinner's width every
@@ -5177,9 +5171,9 @@ input.toolbar-search-input {
   animation: none;
 }
 
-@keyframes deck-combos-spin {
-  to {
-    transform: rotate(360deg);
+@media (prefers-reduced-motion: reduce) {
+  .deck-combos-spinner {
+    animation: none;
   }
 }
 
@@ -5478,8 +5472,8 @@ input.toolbar-search-input {
   background: var(--bg);
   border: 0.5px solid var(--border);
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .deck-combos-row:hover {
@@ -5739,9 +5733,9 @@ input.toolbar-search-input {
   align-items: center;
   gap: 0.3rem;
   transition:
-    background 0.12s,
-    color 0.12s,
-    border-color 0.12s;
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 
 .deck-combos-filter-pill:hover {
@@ -6001,9 +5995,9 @@ input.toolbar-search-input {
   color: var(--text-secondary);
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .deck-combos-add:hover {
@@ -6061,8 +6055,8 @@ input.toolbar-search-input {
   border-radius: var(--radius);
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease;
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .deck-row-qty-edit:focus-visible {
@@ -6961,7 +6955,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
      and serif caps have most of their visual mass above the baseline. Nudge
      up so the triangle feels aligned with the cap-height of the name. */
   transform: translateY(-0.05em);
-  transition: opacity 120ms ease;
+  transition: opacity var(--motion-fast) ease;
 }
 
 .decks-index-card-issues:hover {
@@ -7080,9 +7074,9 @@ input.deck-row-qty-input.deck-row-qty-missing {
   color: var(--text-secondary);
   cursor: pointer;
   transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
 }
 
 .format-pill:hover,
@@ -7266,7 +7260,7 @@ input.deck-row-qty-input.deck-row-qty-missing {
   border: 1px solid var(--border);
   border-left: 4px solid var(--binder-color, var(--accent));
   border-radius: var(--radius-lg);
-  transition: border-color 120ms ease;
+  transition: border-color var(--motion-fast) ease;
 }
 
 /* Lift the card above its siblings while its 3-dot popover is open so

@@ -47,7 +47,7 @@
     var(--hero-score-color) calc(var(--hero-score-pct) * 1%),
     var(--hero-score-track) 0
   );
-  transition: background 600ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: background 600ms var(--ease-drawer);
 }
 
 .hero-score-ring-hole {

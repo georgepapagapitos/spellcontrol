@@ -73,16 +73,7 @@
     var(--surface) 70%
   );
   background-size: 200% 100%;
-  animation: cmdr-readiness-shimmer 1.3s ease-in-out infinite;
-}
-
-@keyframes cmdr-readiness-shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
