@@ -1,35 +1,61 @@
 import { Check } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../lib/use-escape-key';
 
 interface Props {
-  /** Physical copyIds to pin into the chosen binder. */
+  /** Physical copyIds to move into the chosen binder. */
   copyIds: string[];
+  /**
+   * Maps each copyId to the binder it currently lives in (primary assignment),
+   * mirroring the single-card move path. Copies present here are *moved* (excluded
+   * /unpinned from their current binder before being pinned to the target); copies
+   * absent here have no current home and are simply added.
+   */
+  currentBinderByCopyId?: Map<string, string>;
   onClose: () => void;
 }
 
-export function BulkMoveToBinderSheet({ copyIds, onClose }: Props) {
+export function BulkMoveToBinderSheet({ copyIds, currentBinderByCopyId, onClose }: Props) {
   const binders = useCollectionStore((s) => s.binders);
   const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
-  const [addedTo, setAddedTo] = useState<string | null>(null);
+  const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
+  const [doneTo, setDoneTo] = useState<string | null>(null);
 
   useLockBodyScroll();
   useEscapeKey(onClose);
 
   // Auto-close after showing confirmation feedback.
   useEffect(() => {
-    if (!addedTo) return;
+    if (!doneTo) return;
     const t = setTimeout(onClose, 900);
     return () => clearTimeout(t);
-  }, [addedTo, onClose]);
+  }, [doneTo, onClose]);
 
   const sorted = [...binders].sort((a, b) => a.position - b.position);
 
+  // If any selected copy currently lives in a binder, this is a move (those get
+  // pulled out of their current binder first); otherwise it's a plain add.
+  const isMove = useMemo(
+    () => copyIds.some((id) => currentBinderByCopyId?.has(id)),
+    [copyIds, currentBinderByCopyId]
+  );
+
   const handlePick = (binderId: string) => {
-    for (const id of copyIds) pinCardToBinder(binderId, id);
-    setAddedTo(binderId);
+    for (const copyId of copyIds) {
+      const currentId = currentBinderByCopyId?.get(copyId);
+      // Mirror the single-card path: a true move first removes the copy from its
+      // current binder. If it isn't pinned there it landed via rule routing, so
+      // we exclude (true) rather than unpin (false).
+      if (currentId && currentId !== binderId) {
+        const current = binders.find((b) => b.id === currentId);
+        const wasPinned = !!current?.pinnedCopyIds?.includes(copyId);
+        removeCardFromBinder(currentId, copyId, !wasPinned);
+      }
+      pinCardToBinder(binderId, copyId);
+    }
+    setDoneTo(binderId);
   };
 
   const count = copyIds.length;
@@ -47,12 +73,12 @@ export function BulkMoveToBinderSheet({ copyIds, onClose }: Props) {
         className="card-picker-sheet"
         role="dialog"
         aria-modal="true"
-        aria-label="Add to binder"
+        aria-label={isMove ? 'Move to binder' : 'Add to binder'}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
-          <p className="add-to-binder-label">Adding</p>
+          <p className="add-to-binder-label">{isMove ? 'Moving' : 'Adding'}</p>
           <p className="add-to-binder-card-name">
             {count} {count === 1 ? 'card' : 'cards'}
           </p>
@@ -65,8 +91,9 @@ export function BulkMoveToBinderSheet({ copyIds, onClose }: Props) {
         ) : (
           <ul className="card-picker-list" role="list">
             {sorted.map((binder) => {
-              const isAdded = addedTo === binder.id;
+              const isDone = doneTo === binder.id;
               const isManual = binder.mode === 'manual';
+              const actionWord = isMove ? 'Move' : 'Add';
               return (
                 <li key={binder.id} className="add-to-binder-row">
                   <span
@@ -78,7 +105,7 @@ export function BulkMoveToBinderSheet({ copyIds, onClose }: Props) {
                     {binder.name}
                     {isManual && <span className="add-to-binder-mode-hint">Manual</span>}
                   </span>
-                  {isAdded ? (
+                  {isDone ? (
                     <span className="add-to-binder-added" aria-live="polite">
                       <Check
                         width={12}
@@ -91,17 +118,17 @@ export function BulkMoveToBinderSheet({ copyIds, onClose }: Props) {
                           marginRight: '0.2rem',
                         }}
                       />{' '}
-                      Added
+                      {isMove ? 'Moved' : 'Added'}
                     </span>
                   ) : (
                     <button
                       type="button"
                       className="btn add-to-binder-btn"
                       onClick={() => handlePick(binder.id)}
-                      aria-label={`Add ${count} ${count === 1 ? 'card' : 'cards'} to ${binder.name}`}
-                      disabled={!!addedTo}
+                      aria-label={`${actionWord} ${count} ${count === 1 ? 'card' : 'cards'} to ${binder.name}`}
+                      disabled={!!doneTo}
                     >
-                      Add
+                      {actionWord}
                     </button>
                   )}
                 </li>
@@ -111,7 +138,7 @@ export function BulkMoveToBinderSheet({ copyIds, onClose }: Props) {
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose}>
             Cancel
           </button>
         </div>

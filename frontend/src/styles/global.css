@@ -4051,6 +4051,39 @@ hr {
   justify-content: flex-end;
 }
 
+/* ── Name-input dialog (shared NameInputDialog) ────────────────────────── */
+.name-input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.name-input-form .choice-dialog-actions {
+  gap: 0.5rem;
+}
+
+.name-input-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text3);
+  font-weight: 600;
+}
+
+.name-input-field {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.name-input-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ── Auto-link confirmation banner ─────────────────────────────────────── */
 .auto-link-banner {
   position: sticky;
