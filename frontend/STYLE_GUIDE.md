@@ -17,23 +17,25 @@ as real constraints anyway.
 
 ## Shape language — corners
 
-**Rectangles act, pills label.** Two tiers, no third:
+**Page-hero CTAs are pills; below the hero, rectangles act and pills label.**
 
-| Use                         | Radius                             | For                                                                                                                                                  |
-| --------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Action buttons**          | `var(--radius)` (8px) rounded-rect | Anything you click to _do_ something: header actions, toolbar buttons, dialog/sheet buttons, Draw/Deal/Simulate, Add cards (desktop **and** mobile). |
-| **Cards / panels / sheets** | `var(--radius-lg)` (12px)          | Container surfaces.                                                                                                                                  |
-| **Pills**                   | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                                                     |
+| Use                         | Radius                             | For                                                                                                                   |
+| --------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Page-hero CTAs**          | `999px` pill (`.pill-btn`)         | Actions in a page hero (the `.binder-hero` row): Add cards, New deck, Share, Import deck… The deliberate hero signature. |
+| **Action buttons**          | `var(--radius)` (8px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                              |
+| **Cards / panels / sheets** | `var(--radius-lg)` (12px)          | Container surfaces.                                                                                                   |
+| **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                      |
 
-**The one pill-button exception:** a genuinely **circular icon-only** button
-(equal width/height, no text) may use `999px` — e.g. the `⋮` overflow button, the
-round `+` add button. A button with a text label is never a pill.
+**Hero CTAs are the one labelled-pill tier.** Outside a page hero, the only
+pill-shaped button is a genuinely **circular icon-only** one (equal
+width/height, no text) — e.g. the `⋮` overflow button, the round `+` add
+button. Any other labelled button below the hero is a rect, never a pill.
 
 Anti-patterns this rule kills:
 
 - The same action rendered as two shapes across breakpoints (e.g. a pill on
   mobile, a rect on desktop).
-- A text action button styled as a pill so it reads like a tag.
+- A non-hero text button styled as a pill — it reads as a tag.
 
 **Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
 button is an \*\*accent-fill rect with a leading lucide icon at `width/height={14}`

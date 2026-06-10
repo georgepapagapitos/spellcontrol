@@ -838,42 +838,6 @@ body:has(.game-board) .modal-backdrop {
   cursor: default;
 }
 
-/* When an empty cell hosts the global menu button, give it a chip in the
-   center with the menu icon + label so the affordance is unmistakable.
-   Hover affordances make it discoverable on desktop. */
-.player-panel.is-empty.is-menu {
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: inherit;
-}
-
-.empty-panel-menu-chip {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.7rem 1rem;
-  border-radius: var(--radius, 8px);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: var(--text-sm);
-  letter-spacing: 0.02em;
-}
-
-.player-panel.is-empty.is-menu:hover .empty-panel-menu-chip {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.empty-panel-menu-label {
-  font-weight: 600;
-}
-
 .player-panel-content {
   position: relative;
   z-index: 2;
@@ -1537,14 +1501,8 @@ body:has(.game-board) .modal-backdrop {
   margin-top: 0.1rem;
 }
 
-/* ── Game menu button (fallback for layouts without an empty cell) ────── */
+/* ── Game menu button ─────────────────────────────────────────────────── */
 
-/* When the active layout exposes an empty grid cell (5p layouts), the
-   global menu lives inside that cell via .player-panel.is-empty.is-menu.
-   For 2p/3p/4p/6p layouts every cell is occupied — this floating button
-   handles those cases. It sits in the safe-area corner outside the panel
-   grid (the .game-board has 8px padding around the grid), so it doesn't
-   overlap any panel content. */
 .game-board-menu-btn {
   /* Positioned at the seam of the active layout (lifecounter-style
      hub). The renderer sets --seam-top-pct and --seam-left-pct from
@@ -1590,9 +1548,8 @@ body:has(.game-board) .modal-backdrop {
   transform: translate(-50%, -50%) scale(0.94);
 }
 
-/* The previous "empty cell hosts the menu" affordance is gone — the hub
-   floats at the row seam. Strip the chip styling so empty cells just
-   read as quiet placeholders. */
+/* Empty cells are quiet placeholders — never interactive (the global menu
+   hub floats at the row seam instead). */
 .player-panel.is-empty {
   pointer-events: none;
 }
