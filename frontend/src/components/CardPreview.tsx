@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { CardImageFrame } from './CardImageFrame';
 import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -620,7 +621,8 @@ export function CardPreview({
                 {current.rarity}
               </span>
               {current.foil && <span className="card-preview-foil">foil</span>}
-              {' · '}${current.purchasePrice.toFixed(2)}
+              {' · '}
+              {formatMoney(current.purchasePrice)}
               {(() => {
                 const qty = getStackQty?.(selected) ?? 1;
                 return qty > 1 ? (

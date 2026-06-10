@@ -7492,6 +7492,14 @@ hr {
   font-variant-numeric: tabular-nums;
 }
 
+/* Quiet honesty line under the totals — when the collection's prices were
+   last sourced from Scryfall. Inherits the mono/muted hero-meta treatment;
+   just a step smaller so it reads as a footnote, not a second stat. */
+.collection-hero-priced-at {
+  font-size: var(--text-xs);
+  margin-top: 0.15rem;
+}
+
 /* Subtle text link styled to sit inline with the totals meta — same
    feel as the dotted-underline binder/deck context links in the card
    preview, but with the small BarChart3 icon to signal that it opens

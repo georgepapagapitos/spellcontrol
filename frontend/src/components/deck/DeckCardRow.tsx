@@ -4,6 +4,7 @@ import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import type { Change } from '@/lib/deck-change';
 import { useCardThumb } from '@/lib/card-thumbs';
+import { formatMoney } from '@/lib/format-money';
 
 /** Card art, or a placeholder while it resolves (thin EDHREC/synergy rows arrive
  *  name-only and resolve their CDN art lazily — never a bare img against the
@@ -163,7 +164,8 @@ export function DeckCardRow({
           )}
           {typeof deltaPrice === 'number' && (
             <span className="deck-card-row-price">
-              {deltaPrice >= 0 ? '+' : '−'}${Math.abs(deltaPrice).toFixed(2)}
+              {deltaPrice >= 0 ? '+' : '−'}
+              {formatMoney(Math.abs(deltaPrice))}
             </span>
           )}
         </span>

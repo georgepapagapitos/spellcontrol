@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useAllocations } from '../lib/allocations';
 import { materializeBinders } from '../lib/materialize';
+import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -367,7 +368,7 @@ export function BindersIndexPage() {
                     </span>
                     {b.totalValue > 0 && (
                       <span className="binders-index-card-value">
-                        ${Math.round(b.totalValue).toLocaleString()}
+                        {formatMoney(b.totalValue, { wholeDollars: true })}
                       </span>
                     )}
                     {b.def.fixedCapacity != null && (

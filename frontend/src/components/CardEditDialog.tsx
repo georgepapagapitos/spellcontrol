@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { Modal } from './Modal';
 
 type Finish = 'nonfoil' | 'foil' | 'etched';
@@ -30,10 +31,6 @@ function priceForFinish(card: ScryfallCard, finish: Finish): number {
   if (!p) return 0;
   const raw = finish === 'foil' ? p.usd_foil : finish === 'etched' ? p.usd_etched : p.usd;
   return raw ? Number(raw) || 0 : 0;
-}
-
-function formatPrice(n: number): string {
-  return n > 0 ? `$${n.toFixed(2)}` : '—';
 }
 
 interface SetGroup {
@@ -200,7 +197,9 @@ export function CardEditDialog({
                     {selectedCard.set.toUpperCase()} #{selectedCard.collector_number}
                   </span>
                   <span className="card-edit-preview-price">
-                    {formatPrice(priceForFinish(selectedCard, selectedFinish))}
+                    {formatMoney(priceForFinish(selectedCard, selectedFinish), {
+                      zeroAsDash: true,
+                    })}
                   </span>
                 </div>
               )}
@@ -323,7 +322,9 @@ export function CardEditDialog({
                             ))}
                           </span>
                           <span className="card-edit-printing-rarity">{card.rarity}</span>
-                          <span className="card-edit-printing-price">{formatPrice(price)}</span>
+                          <span className="card-edit-printing-price">
+                            {formatMoney(price, { zeroAsDash: true })}
+                          </span>
                           {card.id === currentScryfallId && (
                             <span className="card-edit-current-badge">current</span>
                           )}

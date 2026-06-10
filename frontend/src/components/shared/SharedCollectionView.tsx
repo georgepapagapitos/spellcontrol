@@ -12,6 +12,7 @@ import { SharedCardTile } from './SharedCardTile';
 import { ColorPip } from './ManaSymbol';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
+import { formatMoney } from '../../lib/format-money';
 
 interface Props {
   data: PublicCollection;
@@ -69,8 +70,8 @@ export function SharedCollectionView({ data }: Props) {
         <p className="shared-view-owner">Shared by @{data.ownerUsername}</p>
         <h1 className="shared-view-title">Collection</h1>
         <p className="shared-view-subtitle">
-          {totalCards.toLocaleString()} {totalCards === 1 ? 'card' : 'cards'} · $
-          {totalValue.toFixed(0)}
+          {totalCards.toLocaleString()} {totalCards === 1 ? 'card' : 'cards'} ·{' '}
+          {formatMoney(totalValue, { wholeDollars: true })}
         </p>
       </header>
 

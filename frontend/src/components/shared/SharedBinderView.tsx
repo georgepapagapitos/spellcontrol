@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { PublicBinder, PublicCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
+import { formatMoney } from '../../lib/format-money';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
@@ -37,7 +38,7 @@ export function SharedBinderView({ data }: Props) {
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {data.totalCards.toLocaleString()} cards
-          {data.totalValue > 0 ? ` · ~$${Math.round(data.totalValue).toLocaleString()}` : ''}
+          {data.totalValue > 0 ? ` · ~${formatMoney(data.totalValue, { wholeDollars: true })}` : ''}
         </p>
       </header>
 

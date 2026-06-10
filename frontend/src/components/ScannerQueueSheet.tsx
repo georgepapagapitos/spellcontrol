@@ -3,6 +3,7 @@ import { Check, ChevronDown, Minus, Plus, Search, Trash2, X } from 'lucide-react
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { fetchPrintings } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import {
   FINISH_LABELS,
@@ -260,7 +261,7 @@ export function ScannerQueueSheet({
                 const img = c.image_uris?.small || c.card_faces?.[0]?.image_uris?.small;
                 const added = addedIds.has(c.id);
                 const usd = c.prices?.usd
-                  ? ` · $${Number.parseFloat(c.prices.usd).toFixed(2)}`
+                  ? ` · ${formatMoney(Number.parseFloat(c.prices.usd))}`
                   : '';
                 return (
                   <button
@@ -323,7 +324,7 @@ export function ScannerQueueSheet({
                       <div className="scanner-sheet-row-meta">
                         {entry.card.set.toUpperCase()} · {entry.card.collector_number ?? '—'}
                         {unit != null ? (
-                          <span className="scanner-sheet-row-price">${unit.toFixed(2)}</span>
+                          <span className="scanner-sheet-row-price">{formatMoney(unit)}</span>
                         ) : null}
                       </div>
                       <div className="scanner-sheet-row-controls">

@@ -36,6 +36,7 @@ import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scry
 import { ManaCost } from '../ManaCost';
 import { ManaSymbol } from '../shared/ManaSymbol';
 import { typeIcon } from '../../lib/card-types';
+import { formatMoney } from '../../lib/format-money';
 import { Modal } from '../Modal';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
@@ -148,11 +149,6 @@ function priceOf(card: ScryfallCard, currency: CurrencyCode): number {
   const raw = getCardPrice(card, currency);
   const n = raw ? Number(raw) : NaN;
   return Number.isFinite(n) ? n : 0;
-}
-
-function fmtMoney(value: number, currency: CurrencyCode): string {
-  const symbol = currency === 'EUR' ? '€' : '$';
-  return `${symbol}${value.toFixed(2)}`;
 }
 
 // Role-badge data + decoding (ROLE_BADGE_BY_TONE, getRoleBadge,
@@ -1179,7 +1175,7 @@ export function DeckDisplay({
       .sort((a, b) => priceOf(b.card, currency) - priceOf(a.card, currency))
       .map((t) => ({
         name: t.name,
-        label: fmtMoney(priceOf(t.card, currency), currency),
+        label: formatMoney(priceOf(t.card, currency), { currency }),
         card: t.card,
       }));
   }, [allCards, currency]);
@@ -1496,12 +1492,12 @@ export function DeckDisplay({
                   onClick={() => void statCarousel.open(valueEntries, valueEntries[0]?.name ?? '')}
                   aria-label="Show the deck's cards sorted by price, most valuable first"
                 >
-                  <span className="deck-stat-value">{fmtMoney(totalPrice, currency)}</span>
+                  <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
                   <span className="deck-stat-label">value</span>
                 </button>
               ) : (
                 <span className="deck-stat">
-                  <span className="deck-stat-value">{fmtMoney(totalPrice, currency)}</span>
+                  <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
                   <span className="deck-stat-label">value</span>
                 </span>
               )}
@@ -1534,14 +1530,14 @@ export function DeckDisplay({
                   >
                     <span className="deck-stat-value">{missing.count}</span>
                     <span className="deck-stat-label">
-                      missing ({fmtMoney(missing.price, currency)})
+                      missing ({formatMoney(missing.price, { currency })})
                     </span>
                   </button>
                 ) : (
                   <span className="deck-stat deck-stat-missing">
                     <span className="deck-stat-value">{missing.count}</span>
                     <span className="deck-stat-label">
-                      missing ({fmtMoney(missing.price, currency)})
+                      missing ({formatMoney(missing.price, { currency })})
                     </span>
                   </span>
                 ))}
@@ -2657,7 +2653,7 @@ function CategorySection({
           {title} <span className="deck-section-count">({count})</span>
         </h3>
         {showPrefs.price && (
-          <span className="deck-section-subtotal">{fmtMoney(subtotal, currency)}</span>
+          <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
         )}
         {headerAction}
       </header>
@@ -2995,7 +2991,9 @@ function DeckCardRow({
           </div>
         )}
       </div>
-      {showPrefs.price && <span className="deck-row-price">{fmtMoney(row.price, currency)}</span>}
+      {showPrefs.price && (
+        <span className="deck-row-price">{formatMoney(row.price, { currency })}</span>
+      )}
     </li>
   );
 }

@@ -2,6 +2,7 @@ import { Check, ChevronDown, ChevronRight, Layers, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { fetchPrintings } from '../lib/api';
+import { formatMoney } from '../lib/format-money';
 import { ManaCost } from './ManaCost';
 import { CardPreview } from './CardPreview';
 import { useCollectionStore } from '../store/collection';
@@ -30,10 +31,6 @@ function priceForFinish(card: ScryfallCard, finish: Finish): number {
   if (!p) return 0;
   const raw = finish === 'foil' ? p.usd_foil : finish === 'etched' ? p.usd_etched : p.usd;
   return raw ? Number(raw) || 0 : 0;
-}
-
-function fmtPrice(n: number): string {
-  return n > 0 ? `$${n.toFixed(2)}` : '—';
 }
 
 function cardThumb(card: ScryfallCard): string | undefined {
@@ -393,7 +390,9 @@ function PrintingPicker({
                     </span>
                     <span className="inline-card-search-printing-set-name">{p.set_name}</span>
                     <span className="inline-card-search-printing-price">
-                      {fmtPrice(priceForFinish(p, 'nonfoil') || priceForFinish(p, 'foil'))}
+                      {formatMoney(priceForFinish(p, 'nonfoil') || priceForFinish(p, 'foil'), {
+                        zeroAsDash: true,
+                      })}
                     </span>
                   </button>
                 </li>
@@ -433,7 +432,7 @@ function PrintingPicker({
               >
                 Add {selected.set.toUpperCase()} #{selected.collector_number} ·{' '}
                 {FINISH_LABEL[effectiveFinish]} ·{' '}
-                {fmtPrice(priceForFinish(selected, effectiveFinish))}
+                {formatMoney(priceForFinish(selected, effectiveFinish), { zeroAsDash: true })}
               </button>
             </div>
           )}

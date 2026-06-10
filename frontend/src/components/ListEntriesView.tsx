@@ -7,6 +7,7 @@ import type { ListDef, ListEntry } from '../types';
 import { FoilBadge } from './FoilBadge';
 import { useCollectionStore } from '../store/collection';
 import { ownedCountForEntry } from '../lib/lists';
+import { formatMoney } from '../lib/format-money';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCardThumb } from '../lib/card-thumbs';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
@@ -332,7 +333,7 @@ export function ListEntriesView({ list }: Props) {
                 <div className="collection-list-right list-entry-actions">
                   {entry.targetPrice != null && entry.targetPrice > 0 && (
                     <div className="collection-list-price">
-                      target ${entry.targetPrice.toFixed(2)}
+                      target {formatMoney(entry.targetPrice)}
                     </div>
                   )}
                   <button type="button" className="btn-link" onClick={() => setEditing(entry)}>
