@@ -5880,23 +5880,25 @@ hr {
   background: transparent;
   position: relative;
   perspective: 1400px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   transform: scale(var(--slide-scale, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transform-origin: center;
   transform-style: preserve-3d;
   will-change: transform;
-  transition:
-    transform 240ms ease,
-    box-shadow 240ms ease;
+  transition: transform 240ms ease;
 }
 
 /* The flipper handles the 180° rotateY for back-face cards. It's nested
    inside the frame so it composes cleanly with the frame's tilt transform
-   without fighting it. */
+   without fighting it. The drop shadow lives HERE, not on the static frame:
+   the shadow must rotate (foreshorten) with the card during a flip, or a
+   full-size card-shaped shadow stays painted behind the edge-on card — a
+   ghost "static outline" mid-flip. (The faces can't carry it either: their
+   clip-path would clip the shadow away.) */
 .card-preview-flipper {
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   transform-style: preserve-3d;
   transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
