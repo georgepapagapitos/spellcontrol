@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="azorius">
+<html lang="en" data-theme="azorius" data-scheme="light">
   <head>
     <meta charset="UTF-8" />
     <!-- interactive-widget=resizes-content: when the soft keyboard shows,
@@ -24,33 +24,42 @@
       rel="stylesheet"
     />
     <script>
-      // Set data-theme synchronously so the right [data-theme] CSS rules
-      // apply on first paint. Mirrors bootstrapTheme() in store/theme.ts —
-      // keep the storage key and id list in sync if either changes.
+      // Set data-theme + data-scheme synchronously so the right [data-theme]
+      // and [data-scheme] CSS rules apply on first paint. Mirrors
+      // bootstrapTheme() in store/theme.ts — keep the storage key and the
+      // id→scheme map in sync with lib/themes.ts if either changes.
+      // First run (nothing stored) follows the OS color scheme; a stored
+      // theme always wins and we never live-switch on later OS changes.
       (function () {
-        var VALID = [
-          'azorius',
-          'boros',
-          'dimir',
-          'golgari',
-          'gruul',
-          'izzet',
-          'orzhov',
-          'rakdos',
-          'selesnya',
-          'simic',
-        ];
-        var DEFAULT = 'azorius';
-        var id = DEFAULT;
+        var SCHEMES = {
+          azorius: 'light',
+          boros: 'light',
+          dimir: 'dark',
+          golgari: 'dark',
+          gruul: 'dark',
+          izzet: 'dark',
+          orzhov: 'dark',
+          rakdos: 'dark',
+          selesnya: 'light',
+          simic: 'light',
+        };
+        var prefersDark = false;
+        try {
+          prefersDark =
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch (e) {}
+        var id = prefersDark ? 'dimir' : 'azorius';
         try {
           var raw = localStorage.getItem('spellcontrol-theme');
           if (raw) {
             var parsed = JSON.parse(raw);
             var saved = parsed && parsed.state && parsed.state.theme;
-            if (saved && VALID.indexOf(saved) !== -1) id = saved;
+            if (saved && SCHEMES.hasOwnProperty(saved)) id = saved;
           }
         } catch (e) {}
         document.documentElement.setAttribute('data-theme', id);
+        document.documentElement.setAttribute('data-scheme', SCHEMES[id]);
       })();
     </script>
   </head>

@@ -178,11 +178,12 @@
  * surfaces (pale text on dark bg); on light surfaces they read as
  * washed-out pink/gold. Override with deeper hues so warnings and
  * errors stay legible.
+ *
+ * Scoped by `data-scheme`, which the theme store sets on <html> alongside
+ * `data-theme` from each theme's `scheme` field in lib/themes.ts — a new
+ * theme needs no edits here.
  */
-[data-theme='azorius'],
-[data-theme='boros'],
-[data-theme='selesnya'],
-[data-theme='simic'] {
+[data-scheme='light'] {
   --warn-bg: #f6e8c0;
   --warn-border: #b8862a;
   --warn-text: #6a4810;
@@ -207,12 +208,7 @@
   color-scheme: light;
 }
 
-[data-theme='dimir'],
-[data-theme='golgari'],
-[data-theme='gruul'],
-[data-theme='izzet'],
-[data-theme='orzhov'],
-[data-theme='rakdos'] {
+[data-scheme='dark'] {
   /* Invert black-on-dark SVGs (e.g. set icons) so they read as light glyphs. */
   --svg-invert: 1;
 
