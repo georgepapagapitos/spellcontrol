@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { THEMES, DEFAULT_THEME, isValidTheme } from './themes';
+import { THEMES, DEFAULT_THEME, DEFAULT_DARK_THEME, isValidTheme, themeScheme } from './themes';
 
 describe('themes', () => {
   it('exposes a non-empty theme list with unique ids', () => {
@@ -18,8 +18,26 @@ describe('themes', () => {
     }
   });
 
-  it('DEFAULT_THEME is in the registry', () => {
+  it('every theme declares a light or dark scheme', () => {
+    for (const t of THEMES) {
+      expect(['light', 'dark']).toContain(t.scheme);
+    }
+  });
+
+  it('DEFAULT_THEME is in the registry and is light', () => {
     expect(THEMES.some((t) => t.id === DEFAULT_THEME)).toBe(true);
+    expect(themeScheme(DEFAULT_THEME)).toBe('light');
+  });
+
+  it('DEFAULT_DARK_THEME is in the registry and is dark', () => {
+    expect(THEMES.some((t) => t.id === DEFAULT_DARK_THEME)).toBe(true);
+    expect(themeScheme(DEFAULT_DARK_THEME)).toBe('dark');
+  });
+
+  it('themeScheme maps known ids and falls back to light for unknown ids', () => {
+    expect(themeScheme('azorius')).toBe('light');
+    expect(themeScheme('dimir')).toBe('dark');
+    expect(themeScheme('not-a-guild')).toBe('light');
   });
 
   it('isValidTheme accepts registered ids', () => {
