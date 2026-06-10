@@ -1,4 +1,4 @@
-import { Loader2, Shuffle } from 'lucide-react';
+import { Shuffle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   searchCommanders,
@@ -17,12 +17,13 @@ import { useCollectionStore } from '../../store/collection';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { computeReadiness, type ReadinessScore } from '../../lib/commander-readiness';
 import {
-  PLAYSTYLES,
   classifyCommanderPlaystyles,
   classifyOwnedCommanderPlaystyles,
   type Playstyle,
 } from '../../lib/commander-playstyle-index';
 import { CommanderReadiness } from './CommanderReadiness';
+import { PlaystyleGrid } from './PlaystyleGrid';
+import { CommanderResultCard } from './CommanderResultCard';
 import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
 import { ColorPip } from '../shared/ManaSymbol';
@@ -168,39 +169,6 @@ function isLegendaryCreature(card: EnrichedCard): boolean {
 function pickRandom<T>(arr: T[]): T | null {
   if (arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
-}
-
-/**
- * Compact readiness indicator for a result row / pill:
- *   undefined  → nothing (not requested yet)
- *   'loading'  → spinner (fetch in flight)
- *   unavailable→ muted "—" (EDHREC has no staple data — NOT the same as 0% owned)
- *   available  → "{percent}%"
- */
-function ReadinessChip({ score }: { score: ReadinessScore | 'loading' | undefined }) {
-  if (score === undefined) return null;
-  if (score === 'loading') {
-    return (
-      <span className="commander-search-item-readiness is-loading" aria-label="Loading readiness">
-        <Loader2 className="commander-readiness-spin" width={11} height={11} aria-hidden />
-      </span>
-    );
-  }
-  if (!score.available) {
-    return (
-      <span
-        className="commander-search-item-readiness is-muted"
-        title="Readiness unavailable — no EDHREC staple data for this commander"
-      >
-        —
-      </span>
-    );
-  }
-  return (
-    <span className="commander-search-item-readiness" title={score.explainerLine}>
-      {score.percent}%
-    </span>
-  );
 }
 
 export function CommanderSearch({ value, onSelect }: Props) {
@@ -787,44 +755,34 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // ── Search UI ─────────────────────────────────────────────────────────
   const listboxId = 'commander-search-listbox';
   const resultItems = (
-    <ul className="commander-search-results" role="listbox" id={listboxId}>
+    <ul className="commander-result-grid" role="listbox" id={listboxId}>
       {searchLoading && <li className="commander-search-loading">Searching…</li>}
       {!ownedOnly &&
         results.map((card) => (
           <li key={card.id}>
-            <button
-              type="button"
-              className="commander-search-item"
-              onClick={() => selectCard(card)}
-              onMouseEnter={() => void ensureReadiness(card.name)}
-              onFocus={() => void ensureReadiness(card.name)}
-            >
-              <span className="commander-search-item-line">
-                <span className="commander-search-item-name">{card.name}</span>
-                <ReadinessChip score={readiness.get(card.name.toLowerCase())} />
-              </span>
-              <span className="commander-search-item-type">{card.type_line}</span>
-            </button>
+            <CommanderResultCard
+              name={card.name}
+              imageUrl={card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small}
+              colors={card.color_identity}
+              typeLine={card.type_line}
+              readiness={readiness.get(card.name.toLowerCase())}
+              onSelect={() => selectCard(card)}
+              onPeek={() => void ensureReadiness(card.name)}
+            />
           </li>
         ))}
       {ownedOnly &&
         localResults.map((card) => (
           <li key={card.scryfallId}>
-            <button
-              type="button"
-              className="commander-search-item"
-              onClick={() => void selectOwnedCard(card)}
-              onMouseEnter={() => void ensureReadiness(card.name)}
-              onFocus={() => void ensureReadiness(card.name)}
-            >
-              <span className="commander-search-item-line">
-                <span className="commander-search-item-name">{card.name}</span>
-                <ReadinessChip score={readiness.get(card.name.toLowerCase())} />
-              </span>
-              <span className="commander-search-item-type">
-                {card.typeLine ?? 'Legendary Creature'}
-              </span>
-            </button>
+            <CommanderResultCard
+              name={card.name}
+              imageUrl={card.imageSmall}
+              colors={card.colorIdentity ?? card.colors ?? []}
+              typeLine={card.typeLine ?? 'Legendary Creature'}
+              readiness={readiness.get(card.name.toLowerCase())}
+              onSelect={() => void selectOwnedCard(card)}
+              onPeek={() => void ensureReadiness(card.name)}
+            />
           </li>
         ))}
     </ul>
@@ -912,26 +870,14 @@ export function CommanderSearch({ value, onSelect }: Props) {
       >
         {searchMode === 'playstyle' ? (
           <div className="commander-playstyle-browse">
-            <div className="commander-playstyle-chips" role="group" aria-label="Choose a playstyle">
-              {PLAYSTYLES.map((p) => {
-                const active = playstyle?.id === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={`commander-playstyle-chip${active ? ' active' : ''}`}
-                    aria-pressed={active}
-                    title={p.blurb}
-                    onClick={() => setPlaystyle(active ? null : p)}
-                  >
-                    {p.label}
-                  </button>
-                );
-              })}
-            </div>
-
             {playstyle ? (
               <>
+                <div className="playstyle-picker-bar">
+                  <button type="button" className="btn-link" onClick={() => setPlaystyle(null)}>
+                    ← All play styles
+                  </button>
+                  <span className="playstyle-picker-current">{playstyle.label}</span>
+                </div>
                 <p className="commander-suggestions-label">{playstyle.blurb}</p>
                 <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
                 {!ownedOnly && playstyleLoading ? (
@@ -944,30 +890,22 @@ export function CommanderSearch({ value, onSelect }: Props) {
                   </p>
                 ) : (
                   <>
-                    <ul className="commander-suggestion-chips">
+                    <ul className="commander-result-grid">
                       {(showAllPlaystyle
                         ? playstyleResults
                         : playstyleResults.slice(0, PLAYSTYLE_PREVIEW_COUNT)
                       ).map((c) => (
                         <li key={c.key}>
-                          <button
-                            type="button"
-                            className="commander-suggestion-chip"
-                            onClick={() =>
+                          <CommanderResultCard
+                            name={c.name}
+                            colors={c.colors}
+                            readiness={readiness.get(c.name.toLowerCase())}
+                            disabled={searchLoading}
+                            onSelect={() =>
                               void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
                             }
-                            onMouseEnter={() => void ensureReadiness(c.name)}
-                            onFocus={() => void ensureReadiness(c.name)}
-                            disabled={searchLoading}
-                          >
-                            <span className="commander-suggestion-pips" aria-hidden>
-                              {c.colors.map((color) => (
-                                <ColorPip key={color} color={color} pip={false} />
-                              ))}
-                            </span>
-                            <span>{c.name}</span>
-                            <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
-                          </button>
+                            onPeek={() => void ensureReadiness(c.name)}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -984,10 +922,13 @@ export function CommanderSearch({ value, onSelect }: Props) {
                 )}
               </>
             ) : (
-              <p className="commander-suggestions-hint">
-                Pick a playstyle to see the commanders that do it best
-                {ownedOnly ? ' from your collection' : ' on EDHREC'}.
-              </p>
+              <>
+                <p className="commander-suggestions-hint">
+                  Pick how you want to play. We’ll show the commanders that do it best
+                  {ownedOnly ? ' from your collection' : ' on EDHREC'}.
+                </p>
+                <PlaystyleGrid onSelect={setPlaystyle} />
+              </>
             )}
           </div>
         ) : queried ? (
@@ -1015,29 +956,21 @@ export function CommanderSearch({ value, onSelect }: Props) {
                   : 'No commanders found.'}
               </p>
             ) : (
-              <ul className="commander-suggestion-chips">
+              <ul className="commander-result-grid">
                 {visibleTop.slice(0, 12).map((c) => {
                   const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
                   return (
                     <li key={c.sanitized}>
-                      <button
-                        type="button"
-                        className="commander-suggestion-chip"
-                        onClick={() =>
+                      <CommanderResultCard
+                        name={c.name}
+                        colors={colors}
+                        readiness={readiness.get(c.name.toLowerCase())}
+                        disabled={searchLoading}
+                        onSelect={() =>
                           void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
                         }
-                        onMouseEnter={() => void ensureReadiness(c.name)}
-                        onFocus={() => void ensureReadiness(c.name)}
-                        disabled={searchLoading}
-                      >
-                        <span className="commander-suggestion-pips" aria-hidden>
-                          {colors.map((color) => (
-                            <ColorPip key={color} color={color} pip={false} />
-                          ))}
-                        </span>
-                        <span>{c.name}</span>
-                        <ReadinessChip score={readiness.get(c.name.toLowerCase())} />
-                      </button>
+                        onPeek={() => void ensureReadiness(c.name)}
+                      />
                     </li>
                   );
                 })}

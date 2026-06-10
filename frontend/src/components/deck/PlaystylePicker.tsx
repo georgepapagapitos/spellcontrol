@@ -3,9 +3,10 @@ import { fetchPlaystyleCommanders } from '@/deck-builder/services/edhrec/client'
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
-import { PLAYSTYLES, type Playstyle } from '../../lib/commander-playstyle-index';
+import { type Playstyle } from '../../lib/commander-playstyle-index';
 import type { EnrichedCard } from '../../types';
-import { ColorPip } from '../shared/ManaSymbol';
+import { PlaystyleGrid } from './PlaystyleGrid';
+import { CommanderResultCard } from './CommanderResultCard';
 
 interface Props {
   onSelectCommander: (card: ScryfallCard) => void;
@@ -133,14 +134,7 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
           Pick how you want to play. We’ll show the commanders that do it best on EDHREC.
         </p>
         {ownedToggle}
-        <div className="playstyle-grid">
-          {PLAYSTYLES.map((s) => (
-            <button key={s.id} type="button" className="playstyle-card" onClick={() => setStyle(s)}>
-              <span className="playstyle-card-label">{s.label}</span>
-              <span className="playstyle-card-blurb">{s.blurb}</span>
-            </button>
-          ))}
-        </div>
+        <PlaystyleGrid onSelect={setStyle} />
       </div>
     );
   }
@@ -165,24 +159,18 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
             : 'No commanders found.'}
         </p>
       ) : (
-        <ul className="commander-suggestion-chips">
+        <ul className="commander-result-grid">
           {visibleCommanders.map((c) => {
             const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
             return (
               <li key={c.sanitized || c.name}>
-                <button
-                  type="button"
-                  className="commander-suggestion-chip"
-                  onClick={() => void handlePick(c.name)}
+                <CommanderResultCard
+                  name={c.name}
+                  colors={colors}
+                  selecting={resolving === c.name}
                   disabled={resolving !== null}
-                >
-                  <span className="commander-suggestion-pips" aria-hidden>
-                    {colors.map((color) => (
-                      <ColorPip key={color} color={color} pip={false} />
-                    ))}
-                  </span>
-                  <span>{resolving === c.name ? 'Loading…' : c.name}</span>
-                </button>
+                  onSelect={() => void handlePick(c.name)}
+                />
               </li>
             );
           })}
