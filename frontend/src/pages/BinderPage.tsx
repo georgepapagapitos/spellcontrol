@@ -6,11 +6,13 @@ import {
   Pencil,
   Plus,
   Share2,
+  Trash2,
 } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { AddCardSheet } from '../components/AddCardSheet';
 import { BackLink } from '../components/BackLink';
+import { OverflowMenu } from '../components/OverflowMenu';
 
 const BinderCardEditor = lazy(() =>
   import('../components/BinderCardEditor').then((m) => ({ default: m.BinderCardEditor }))
@@ -223,45 +225,86 @@ export function BinderPage() {
             </p>
           </div>
           <div className="binder-hero-actions">
+            {/* Secondary actions: full pills on desktop/tablet,
+                collapsed into the ⋮ kebab on phones so the primary
+                "Add card" CTA never gets crowded off the row. */}
             <button
               type="button"
-              className="pill-btn"
-              aria-haspopup="dialog"
-              onClick={() => setAddCardSheetOpen(true)}
-              disabled={!activeId}
-            >
-              <Plus width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Add card</span>
-            </button>
-            <button
-              type="button"
-              className="pill-btn"
+              className="pill-btn binder-hero-action-secondary"
               aria-haspopup="dialog"
               onClick={() => setCardEditorOpen(true)}
               disabled={!activeId}
             >
               <ListChecks width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Edit cards</span>
+              <span>Manage cards</span>
             </button>
             <button
               type="button"
-              className="pill-btn"
+              className="pill-btn binder-hero-action-secondary"
               aria-haspopup="dialog"
               onClick={() => activeId && setEditingBinder(activeId)}
               disabled={!activeId}
             >
               <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Edit binder</span>
+              <span>Binder rules</span>
             </button>
             <button
               type="button"
-              className="pill-btn"
+              className="pill-btn binder-hero-action-secondary"
               aria-haspopup="dialog"
               onClick={() => setShareOpen(true)}
               disabled={!activeId}
             >
               <Share2 width={14} height={14} strokeWidth={1.6} aria-hidden />
               <span>Share</span>
+            </button>
+            <OverflowMenu
+              className="binder-hero-actions-overflow"
+              triggerClassName="pill-btn binder-hero-actions-kebab"
+              ariaLabel="More binder actions"
+              items={[
+                {
+                  label: 'Manage cards',
+                  icon: ListChecks,
+                  onClick: () => setCardEditorOpen(true),
+                },
+                {
+                  label: 'Binder rules',
+                  icon: Pencil,
+                  onClick: () => activeId && setEditingBinder(activeId),
+                },
+                {
+                  label: 'Share',
+                  icon: Share2,
+                  onClick: () => setShareOpen(true),
+                },
+                {
+                  label: 'Delete binder',
+                  icon: Trash2,
+                  danger: true,
+                  onClick: async () => {
+                    if (!active) return;
+                    const ok = await confirm({
+                      title: `Delete "${active.def.name}"?`,
+                      body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
+                      confirmLabel: 'Delete binder',
+                      danger: true,
+                    });
+                    if (ok) deleteBinder(active.def.id);
+                  },
+                },
+              ]}
+            />
+            {/* Primary CTA — always visible */}
+            <button
+              type="button"
+              className="pill-btn pill-btn-primary"
+              aria-haspopup="dialog"
+              onClick={() => setAddCardSheetOpen(true)}
+              disabled={!activeId}
+            >
+              <Plus width={14} height={14} strokeWidth={1.6} aria-hidden />
+              <span>Add card</span>
             </button>
           </div>
         </header>
@@ -278,7 +321,7 @@ export function BinderPage() {
         <div className="binder-manual-order-bar">
           <span className="sort-mode-badge">Manual order active</span>
           <span className="binder-manual-order-hint">
-            Cards are in your custom order. Open "Edit cards" → Order tab to change.
+            Cards are in your custom order. Open "Manage cards" → Order tab to change.
           </span>
         </div>
       ) : null}
@@ -335,15 +378,6 @@ export function BinderPage() {
               viewToggle={viewToggle}
               qtyByCopyId={qtyByCopyId}
               density={view === 'compact' ? 'compact' : 'detail'}
-              onDelete={async () => {
-                const ok = await confirm({
-                  title: `Delete "${active.def.name}"?`,
-                  body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
-                  confirmLabel: 'Delete binder',
-                  danger: true,
-                });
-                if (ok) deleteBinder(active.def.id);
-              }}
             />
           );
         })()

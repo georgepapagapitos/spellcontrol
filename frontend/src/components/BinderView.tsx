@@ -1,3 +1,4 @@
+import { BookOpen } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
@@ -18,8 +19,10 @@ import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { BinderPagePreview } from './BinderPagePreview';
 import { BinderDriftBanner } from './BinderDriftBanner';
 import { Legend } from './Legend';
-import { useConfirm } from '../lib/use-confirm';
 import { useAllocations } from '../lib/allocations';
+
+/** Maximum pages rendered inline per section before the "+N more" expander. */
+export const SECTION_PAGE_CAP = 3;
 
 function pickPrice(card: ScryfallCard, foil: boolean): number {
   const p = card.prices;
@@ -47,9 +50,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
-  const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
-  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
   // Collection page filter. Migrate any legacy persisted activeTab to the first
@@ -62,16 +63,6 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
 
   const active = binders.find((b) => b.def.id === activeTab);
 
-  const handleDelete = async (id: string, name: string) => {
-    const ok = await confirm({
-      title: `Delete "${name}"?`,
-      body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
-      confirmLabel: 'Delete binder',
-      danger: true,
-    });
-    if (ok) deleteBinder(id);
-  };
-
   if (!active) {
     return (
       <div className="empty-state">
@@ -82,26 +73,16 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
 
   if (active.totalCards === 0) {
     return (
-      <>
-        <div className="empty-state">
-          No cards match this binder's rules.{' '}
-          <button
-            className="btn"
-            style={{ marginLeft: 8 }}
-            onClick={() => setEditingBinder(active.def.id)}
-          >
-            Edit rules
-          </button>
-          <button
-            className="btn btn-danger"
-            style={{ marginLeft: 8 }}
-            onClick={() => handleDelete(active.def.id, active.def.name)}
-          >
-            Delete binder
-          </button>
-        </div>
-        {confirmDialog}
-      </>
+      <div className="empty-state">
+        No cards match this binder's rules.{' '}
+        <button
+          className="btn"
+          style={{ marginLeft: 8 }}
+          onClick={() => setEditingBinder(active.def.id)}
+        >
+          Binder rules
+        </button>
+      </div>
     );
   }
 
@@ -122,9 +103,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
         viewToggle={viewToggle}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}
-        onDelete={() => handleDelete(active.def.id, active.def.name)}
       />
-      {confirmDialog}
     </>
   );
 }
@@ -143,7 +122,6 @@ function SectionList({
   viewToggle,
   qtyByCopyId,
   showImages,
-  onDelete,
 }: {
   viewKey: string;
   binderName: string;
@@ -158,7 +136,6 @@ function SectionList({
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
-  onDelete?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -353,20 +330,18 @@ function SectionList({
   return (
     <>
       <div className="binder-summary" aria-live="polite">
+        {flatPages.length > 0 && (
+          <button
+            type="button"
+            className="binder-summary-browse-pages"
+            onClick={() => setPagesStartIndex(0)}
+            aria-label={`Browse pages of ${binderName}`}
+          >
+            <BookOpen width={13} height={13} strokeWidth={1.8} aria-hidden />
+            <span>Browse pages</span>
+          </button>
+        )}
         <span className="binder-summary-meta">
-          {flatPages.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="binder-summary-open"
-                onClick={() => setPagesStartIndex(0)}
-                aria-label={`Browse pages of ${binderName}`}
-              >
-                Browse pages
-              </button>
-              {' · '}
-            </>
-          )}
           <Legend context="binder" />
         </span>
         {sortEditable && (
@@ -389,11 +364,6 @@ function SectionList({
             onClick={allCollapsed ? expandAll : collapseAll}
           >
             {allCollapsed ? 'Expand all' : 'Collapse all'}
-          </button>
-        )}
-        {onDelete && (
-          <button type="button" className="btn-link binder-summary-delete" onClick={onDelete}>
-            Delete binder
           </button>
         )}
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
@@ -515,6 +485,9 @@ const SectionBlock = memo(function SectionBlock({
   onOpenCard: (card: EnrichedCard) => void;
   onOpenPages: (sectionIdx: number, localPageIndex: number) => void;
 }) {
+  // Whether the user has expanded past the SECTION_PAGE_CAP inline preview.
+  const [pagesExpanded, setPagesExpanded] = useState(false);
+
   // Bind this section's flipbook offset once. Stable identity keeps the
   // context value (and thus every CardSlot) from re-rendering on unrelated
   // BinderView state changes; combined with React.memo above, an open that
@@ -527,6 +500,9 @@ const SectionBlock = memo(function SectionBlock({
     () => ({ openCard: onOpenCard, openPages, isPreviewOpen, qtyByCopyId }),
     [onOpenCard, openPages, isPreviewOpen, qtyByCopyId]
   );
+
+  const visiblePages = pagesExpanded ? section.pages : section.pages.slice(0, SECTION_PAGE_CAP);
+  const hiddenCount = section.pages.length - SECTION_PAGE_CAP;
 
   return (
     <div className="binder-section">
@@ -551,7 +527,7 @@ const SectionBlock = memo(function SectionBlock({
       {!isCollapsed && (
         <CardPreviewContext.Provider value={ctxValue}>
           <div id={panelId} role="region" aria-labelledby={headerId} className="page-row">
-            {section.pages.map((page, idx) => (
+            {visiblePages.map((page, idx) => (
               <PageGrid
                 key={page.pageNum}
                 page={page.slots}
@@ -562,6 +538,15 @@ const SectionBlock = memo(function SectionBlock({
               />
             ))}
           </div>
+          {!pagesExpanded && hiddenCount > 0 && (
+            <button
+              type="button"
+              className="binder-section-show-more"
+              onClick={() => setPagesExpanded(true)}
+            >
+              +{hiddenCount} more page{hiddenCount !== 1 ? 's' : ''}
+            </button>
+          )}
         </CardPreviewContext.Provider>
       )}
     </div>
