@@ -25,6 +25,13 @@ interface CommonProps {
    * a single shared input that routes adds into one of several sub-rows.
    */
   hideInput?: boolean;
+  /**
+   * When set to `'OR'`, the joiner toggle is disabled (shown read-only).
+   * Use for single-valued fields (rarity, layout, border, finish,
+   * condition, binder) where AND between two values is always unsatisfiable
+   * because a card can only have one value for that field.
+   */
+  lockJoiner?: 'OR';
 }
 
 interface FreetextProps extends CommonProps {
@@ -67,7 +74,7 @@ type Props = FreetextProps | EnumProps;
  * fields) and — when migration lands — the binder rule editor.
  */
 export function ChipExpressionBuilder(props: Props) {
-  const { value, onChange, defaultJoiner = 'OR', placeholder, hideInput } = props;
+  const { value, onChange, defaultJoiner = 'OR', placeholder, hideInput, lockJoiner } = props;
   const isEnum = 'options' in props && props.options !== undefined;
   const chips = value.chips;
   const joiners = value.joiners;
@@ -123,12 +130,21 @@ export function ChipExpressionBuilder(props: Props) {
             {i > 0 && (
               <button
                 type="button"
-                className={`chip-joiner ${joiners[i - 1] === 'AND' ? 'and' : 'or'}`}
-                onClick={() => toggleJoiner(i - 1)}
-                title={`${joiners[i - 1]} — click to flip`}
-                aria-label={`Joiner ${joiners[i - 1]}; click to toggle`}
+                className={`chip-joiner ${joiners[i - 1] === 'AND' ? 'and' : 'or'}${lockJoiner === 'OR' ? ' is-locked' : ''}`}
+                onClick={lockJoiner === 'OR' ? undefined : () => toggleJoiner(i - 1)}
+                disabled={lockJoiner === 'OR'}
+                title={
+                  lockJoiner === 'OR'
+                    ? 'OR only (single-valued field)'
+                    : `${joiners[i - 1]} — click to flip`
+                }
+                aria-label={
+                  lockJoiner === 'OR'
+                    ? 'Joiner OR (locked)'
+                    : `Joiner ${joiners[i - 1]}; click to toggle`
+                }
               >
-                {joiners[i - 1] ?? 'AND'}
+                {joiners[i - 1] ?? 'OR'}
               </button>
             )}
             <span

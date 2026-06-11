@@ -20,6 +20,52 @@ import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
+/**
+ * Pair of min/max number inputs. Mirrors the pattern used in BinderEditor
+ * (not exported from there, so we keep a local copy).
+ */
+function NumberRangeInput({
+  min,
+  max,
+  step,
+  onMinChange,
+  onMaxChange,
+}: {
+  min: number | undefined;
+  max: number | undefined;
+  step: number;
+  onMinChange: (v: number | undefined) => void;
+  onMaxChange: (v: number | undefined) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <input
+        type="number"
+        value={min ?? ''}
+        step={step}
+        min={0}
+        placeholder="min"
+        onChange={(e) =>
+          onMinChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
+        }
+        style={{ width: 90 }}
+      />
+      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
+      <input
+        type="number"
+        value={max ?? ''}
+        step={step}
+        min={0}
+        placeholder="max"
+        onChange={(e) =>
+          onMaxChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
+        }
+        style={{ width: 90 }}
+      />
+    </div>
+  );
+}
+
 // Closed vocabularies for the enum chip rows. Kept local — mirroring
 // COLOR_FILTERS/RARITIES in the consuming pages — so this dialog isn't
 // load-coupled to the binder rule editor that defines the same lists.
@@ -141,6 +187,26 @@ interface Props {
   setMap?: SetMap;
 
   /**
+   * Price range filter — collection-page-only. purchasePrice === 0 means
+   * "no price recorded" and is always excluded from price-constrained results.
+   * Either bound is optional: min-only = "≥ X", max-only = "≤ X".
+   */
+  priceMin?: number;
+  setPriceMin?: (v: number | undefined) => void;
+  priceMax?: number;
+  setPriceMax?: (v: number | undefined) => void;
+
+  /**
+   * Mana value (CMC) range filter — collection-page-only. cmc === undefined
+   * means unknown and is always excluded from CMC-constrained results.
+   * Either bound is optional: min-only = "≥ X", max-only = "≤ X".
+   */
+  cmcMin?: number;
+  setCmcMin?: (v: number | undefined) => void;
+  cmcMax?: number;
+  setCmcMax?: (v: number | undefined) => void;
+
+  /**
    * "Group printings" toggle is collection-page-only — the deck editor
    * doesn't render rows per printing, so the option is meaningless and
    * the section just disappears when these are absent.
@@ -235,6 +301,14 @@ function DialogBody({
   setFilter,
   setSetFilter,
   setMap,
+  priceMin,
+  setPriceMin,
+  priceMax,
+  setPriceMax,
+  cmcMin,
+  setCmcMin,
+  cmcMax,
+  setCmcMax,
   groupPrintings,
   setGroupPrintings,
   onClose,
@@ -258,12 +332,18 @@ function DialogBody({
   // default and the section just doesn't render.
   const [draftBinder, setDraftBinder] = useState<ChipExpression>(binderExpr ?? EMPTY_EXPR);
   const [draftSet, setDraftSet] = useState<Set<string>>(() => new Set(setFilter));
+  const [draftPriceMin, setDraftPriceMin] = useState<number | undefined>(priceMin);
+  const [draftPriceMax, setDraftPriceMax] = useState<number | undefined>(priceMax);
+  const [draftCmcMin, setDraftCmcMin] = useState<number | undefined>(cmcMin);
+  const [draftCmcMax, setDraftCmcMax] = useState<number | undefined>(cmcMax);
   const [draftGroup, setDraftGroup] = useState<boolean>(groupPrintings ?? true);
 
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
   const showOptions = groupPrintings !== undefined;
   const showFinish = finishExpr !== undefined;
   const showCondition = conditionExpr !== undefined;
+  const showPrice = setPriceMin !== undefined || setPriceMax !== undefined;
+  const showCmc = setCmcMin !== undefined || setCmcMax !== undefined;
 
   const draftHasAny =
     draftSuper.chips.length > 0 ||
@@ -280,6 +360,8 @@ function DialogBody({
     (showCondition && draftCondition.chips.length > 0) ||
     (showBinder && draftBinder.chips.length > 0) ||
     draftSet.size > 0 ||
+    (showPrice && (draftPriceMin !== undefined || draftPriceMax !== undefined)) ||
+    (showCmc && (draftCmcMin !== undefined || draftCmcMax !== undefined)) ||
     (showOptions && !draftGroup);
 
   const toggleDraftColor = (c: string) => {
@@ -306,6 +388,14 @@ function DialogBody({
     if (showCondition) setConditionExpr?.(draftCondition);
     if (showBinder) setBinderExpr?.(draftBinder);
     setSetFilter(draftSet);
+    if (showPrice) {
+      setPriceMin?.(draftPriceMin);
+      setPriceMax?.(draftPriceMax);
+    }
+    if (showCmc) {
+      setCmcMin?.(draftCmcMin);
+      setCmcMax?.(draftCmcMax);
+    }
     if (showOptions) setGroupPrintings?.(draftGroup);
     onClose();
   };
@@ -325,6 +415,10 @@ function DialogBody({
     setDraftCondition(EMPTY_EXPR);
     setDraftBinder(EMPTY_EXPR);
     setDraftSet(new Set());
+    setDraftPriceMin(undefined);
+    setDraftPriceMax(undefined);
+    setDraftCmcMin(undefined);
+    setDraftCmcMax(undefined);
     setDraftGroup(true);
   };
 
@@ -403,6 +497,7 @@ function DialogBody({
               label: r.charAt(0).toUpperCase() + r.slice(1),
             }))}
             defaultJoiner="OR"
+            lockJoiner="OR"
             placeholder="Add rarity…"
           />
         </section>
@@ -442,6 +537,7 @@ function DialogBody({
             onChange={setDraftLayout}
             options={LAYOUTS}
             defaultJoiner="OR"
+            lockJoiner="OR"
             placeholder="Add layout…"
           />
         </section>
@@ -464,6 +560,7 @@ function DialogBody({
             onChange={setDraftBorder}
             options={BORDERS}
             defaultJoiner="OR"
+            lockJoiner="OR"
             placeholder="Add border…"
           />
         </section>
@@ -476,6 +573,7 @@ function DialogBody({
               onChange={setDraftFinish}
               options={FINISHES}
               defaultJoiner="OR"
+              lockJoiner="OR"
               placeholder="Add finish…"
             />
           </section>
@@ -489,6 +587,7 @@ function DialogBody({
               onChange={setDraftCondition}
               options={CONDITIONS}
               defaultJoiner="OR"
+              lockJoiner="OR"
               placeholder="Add condition…"
             />
           </section>
@@ -505,7 +604,34 @@ function DialogBody({
                 { value: '__uncategorized', label: 'Uncategorized' },
               ]}
               defaultJoiner="OR"
+              lockJoiner="OR"
               placeholder="Add binder…"
+            />
+          </section>
+        )}
+
+        {showPrice && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Price</div>
+            <NumberRangeInput
+              min={draftPriceMin}
+              max={draftPriceMax}
+              step={0.01}
+              onMinChange={setDraftPriceMin}
+              onMaxChange={setDraftPriceMax}
+            />
+          </section>
+        )}
+
+        {showCmc && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Mana value</div>
+            <NumberRangeInput
+              min={draftCmcMin}
+              max={draftCmcMax}
+              step={1}
+              onMinChange={setDraftCmcMin}
+              onMaxChange={setDraftCmcMax}
             />
           </section>
         )}
