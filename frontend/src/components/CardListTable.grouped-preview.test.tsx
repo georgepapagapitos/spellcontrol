@@ -84,9 +84,9 @@ describe('CardListTable grouped preview (UX-001 regression)', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Mana value' }));
 
     // First visible row is the cmc-1 section → Zzz (qty 7), which sits at
-    // sorted-index 1 but grouped-index 0.
-    const rows = screen.getAllByRole('row');
-    fireEvent.click(rows[0]);
+    // sorted-index 1 but grouped-index 0. (List rows are role="button" —
+    // mirroring the grid tiles — since UX-212.)
+    fireEvent.click(screen.getByRole('button', { name: /zzz/i }));
 
     expect(preview).not.toBeNull();
     expect(preview.index).toBe(0);
@@ -104,12 +104,53 @@ describe('CardListTable grouped preview (UX-001 regression)', () => {
       </MemoryRouter>
     );
 
-    // Default name-ascending order: row 0 = Aaa (qty 3).
-    const rows = screen.getAllByRole('row');
-    fireEvent.click(rows[0]);
+    // Default name-ascending order: the Aaa row sits at index 0 (qty 3).
+    fireEvent.click(screen.getByRole('button', { name: /aaa/i }));
 
     expect(preview.index).toBe(0);
     expect(preview.cards[0].name).toBe('Aaa');
     expect(preview.getStackQty(0)).toBe(3);
+  });
+});
+
+describe('CardListTable list-row activation (UX-212 role="button" fix)', () => {
+  beforeEach(() => {
+    preview = null;
+    idSeq = 0;
+    localStorage.setItem('mtg-collection-view-mode', 'list');
+  });
+
+  it('Enter on a row opens the preview, like click', () => {
+    render(
+      <MemoryRouter>
+        <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
+      </MemoryRouter>
+    );
+
+    const row = screen.getByRole('button', { name: /aaa/i });
+    fireEvent.keyDown(row, { key: 'Enter' });
+
+    expect(preview).not.toBeNull();
+    expect(preview.cards[preview.index].name).toBe('Aaa');
+  });
+
+  it('Space in select mode toggles selection (aria-pressed)', () => {
+    render(
+      <MemoryRouter>
+        <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    const row = screen.getByRole('button', { name: /aaa/i });
+    expect(row.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(row.getAttribute('aria-pressed')).toBe('true');
+    // Space selects instead of opening the preview.
+    expect(preview).toBeNull();
+
+    fireEvent.keyDown(row, { key: ' ' });
+    expect(row.getAttribute('aria-pressed')).toBe('false');
   });
 });
