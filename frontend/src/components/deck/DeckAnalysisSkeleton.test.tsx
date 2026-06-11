@@ -51,6 +51,8 @@ function renderOnView(
     improveSlot?: React.ReactNode;
     powerHeroSlot?: React.ReactNode;
     engineSlot?: React.ReactNode;
+    bracketFitSlot?: React.ReactNode;
+    costSlot?: React.ReactNode;
   }
 ) {
   return render(
@@ -91,6 +93,16 @@ describe('DeckAnalysisView skeleton (UX-310)', () => {
       expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
       // The real content should be present.
       expect(screen.getByText('Improve content')).toBeTruthy();
+    });
+
+    it('hides the skeleton when bracketFitSlot arrives (UX-313: third Tune lane)', () => {
+      // bracketFitSlot is the third Tune lane — its arrival clears the skeleton
+      // even when improveSlot and costSlot haven't arrived yet.
+      renderOnView('tune', 'pending', {
+        bracketFitSlot: <div>Bracket Fit content</div>,
+      });
+      expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
+      expect(screen.getByText('Bracket Fit content')).toBeTruthy();
     });
   });
 
