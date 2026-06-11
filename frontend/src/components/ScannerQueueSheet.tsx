@@ -13,6 +13,7 @@ import {
 } from '../lib/scanner-feedback';
 import { logger } from '@/lib/logger';
 import { useConfirm } from '../lib/use-confirm';
+import { useSheetExit } from '../lib/use-sheet-exit';
 
 export interface ScannedEntry {
   /** Stable row id = oracle_id + finish (see useScanQueue's entryKey), so a
@@ -80,6 +81,16 @@ export function ScannerQueueSheet({
 }: Props) {
   const totalCount = entries.reduce((sum, e) => sum + e.qty, 0);
   const { confirm, dialog: confirmDialog } = useConfirm();
+
+  // Symmetric exit: the panel entered with `scanner-sheet-slide` (rise +
+  // fade), so every dismiss path — backdrop, ✕, Escape, "Continue
+  // scanning" — plays `scanner-sheet-slide-out` before unmount instead of
+  // teleport-vanishing. Confirm ("Add N cards") is excluded on purpose:
+  // it closes the whole scanner overlay, not just this sheet.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    'scanner-sheet-slide-out'
+  );
 
   const handleClearAll = useCallback(async () => {
     const ok = await confirm({
@@ -200,16 +211,23 @@ export function ScannerQueueSheet({
       if (e.key !== 'Escape') return;
       if (openPickerFor) setOpenPickerFor(null);
       else if (query) setQuery('');
-      else onClose();
+      else beginClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose, openPickerFor, query]);
+  }, [beginClose, openPickerFor, query]);
 
   return (
     <div className="scanner-sheet" role="dialog" aria-modal="true" aria-label="Scanned cards">
-      <div className="scanner-sheet-backdrop" onClick={onClose} aria-hidden="true" />
-      <div className="scanner-sheet-panel">
+      <div
+        className={`scanner-sheet-backdrop${isClosing ? ' is-closing' : ''}`}
+        onClick={() => beginClose()}
+        aria-hidden="true"
+      />
+      <div
+        className={`scanner-sheet-panel${isClosing ? ' is-closing' : ''}`}
+        onAnimationEnd={onAnimationEnd}
+      >
         <header className="scanner-sheet-header">
           <div className="scanner-sheet-title">
             <span>Scanned cards</span>
@@ -218,7 +236,7 @@ export function ScannerQueueSheet({
           <button
             type="button"
             className="scanner-icon-btn"
-            onClick={onClose}
+            onClick={() => beginClose()}
             aria-label="Close scanned cards"
           >
             <X width={18} height={18} strokeWidth={1.8} />
@@ -438,7 +456,7 @@ export function ScannerQueueSheet({
               <Trash2 width={14} height={14} strokeWidth={1.8} />
               <span>Clear all</span>
             </button>
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={() => beginClose()}>
               Continue scanning
             </button>
             <button type="button" className="btn btn-primary" onClick={onConfirm}>
