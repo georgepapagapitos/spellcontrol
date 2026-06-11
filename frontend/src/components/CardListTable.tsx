@@ -1447,7 +1447,7 @@ export function CardListTable({
                   className={`collection-list-row${
                     virtualRow.index === displayRows.length - 1 ? ' is-last-row' : ''
                   }${selectMode ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}`}
-                  role="row"
+                  role="button"
                   tabIndex={0}
                   aria-pressed={selectMode ? selected : undefined}
                   onClick={() =>
