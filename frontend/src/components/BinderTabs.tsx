@@ -1,11 +1,12 @@
 import { ChevronDown, ChevronUp, Download, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import type { MaterializedBinder } from '../types';
 import { BinderExportDialog } from './BinderExportDialog';
 import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useSheetExit } from '../lib/use-sheet-exit';
 
 interface Props {
   binders: MaterializedBinder[];
@@ -164,22 +165,6 @@ function BinderOverflowMenu({
   // body scroll prevents the page underneath from scrolling on a swipe.
   useLockBodyScroll(open);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
   return (
     <div className="binder-overflow" ref={ref}>
       <button
@@ -194,66 +179,139 @@ function BinderOverflowMenu({
         <MoreHorizontal width={18} height={18} strokeWidth={2.2} aria-hidden />
       </button>
       {open && (
-        <>
-          {/* On mobile this backdrop converts the panel into a bottom
-              sheet. On desktop it's invisible and the panel renders as
-              a normal dropdown attached to the trigger. */}
-          <div className="binder-overflow-backdrop" onClick={() => setOpen(false)} aria-hidden />
-          <div className="binder-overflow-panel" role="menu">
-            <div className="binder-overflow-handle" aria-hidden />
-            <button
-              type="button"
-              role="menuitem"
-              className="binder-overflow-item"
-              disabled={!canMoveUp}
-              onClick={() => {
-                setOpen(false);
-                onMoveUp();
-              }}
-            >
-              <ChevronUp width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Move up</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="binder-overflow-item"
-              disabled={!canMoveDown}
-              onClick={() => {
-                setOpen(false);
-                onMoveDown();
-              }}
-            >
-              <ChevronDown width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Move down</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="binder-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onEdit();
-              }}
-            >
-              <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
-              <span>Edit binder</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="binder-overflow-item binder-overflow-item--danger"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-            >
-              <X width={14} height={14} strokeWidth={1.8} aria-hidden />
-              <span>Delete binder</span>
-            </button>
-          </div>
-        </>
+        <BinderOverflowPanel
+          containerRef={ref}
+          onClose={() => setOpen(false)}
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       )}
     </div>
+  );
+}
+
+/**
+ * The open menu, split out so it (and useSheetExit's one-shot closing
+ * state) unmounts with every close and mounts fresh on the next open.
+ */
+function BinderOverflowPanel({
+  containerRef,
+  onClose,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  // ≤1024px this renders as a bottom action sheet with a slide-up entry, so
+  // dismissal plays the symmetric slide-down exit via useSheetExit. On
+  // desktop it's a plain dropdown with no entry animation — exits stay
+  // instant there (symmetric with its entry), so we skip the hook's
+  // animation wait entirely.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(max-width: 1024px)').matches) beginClose();
+    else onClose();
+  }, [beginClose, onClose]);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) dismiss();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismiss();
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [containerRef, dismiss]);
+
+  const closingClass = isClosing ? ' is-closing' : '';
+
+  return (
+    <>
+      {/* On mobile this backdrop converts the panel into a bottom
+          sheet. On desktop it's invisible and the panel renders as
+          a normal dropdown attached to the trigger. */}
+      <div
+        className={`binder-overflow-backdrop${closingClass}`}
+        onClick={() => dismiss()}
+        aria-hidden
+      />
+      <div
+        className={`binder-overflow-panel${closingClass}`}
+        role="menu"
+        onAnimationEnd={onAnimationEnd}
+      >
+        <div className="binder-overflow-handle" aria-hidden />
+        <button
+          type="button"
+          role="menuitem"
+          className="binder-overflow-item"
+          disabled={!canMoveUp}
+          onClick={() => {
+            dismiss();
+            onMoveUp();
+          }}
+        >
+          <ChevronUp width={14} height={14} strokeWidth={1.6} aria-hidden />
+          <span>Move up</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="binder-overflow-item"
+          disabled={!canMoveDown}
+          onClick={() => {
+            dismiss();
+            onMoveDown();
+          }}
+        >
+          <ChevronDown width={14} height={14} strokeWidth={1.6} aria-hidden />
+          <span>Move down</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="binder-overflow-item"
+          onClick={() => {
+            dismiss();
+            onEdit();
+          }}
+        >
+          <Pencil width={14} height={14} strokeWidth={1.6} aria-hidden />
+          <span>Edit binder</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="binder-overflow-item binder-overflow-item--danger"
+          onClick={() => {
+            dismiss();
+            onDelete();
+          }}
+        >
+          <X width={14} height={14} strokeWidth={1.8} aria-hidden />
+          <span>Delete binder</span>
+        </button>
+      </div>
+    </>
   );
 }

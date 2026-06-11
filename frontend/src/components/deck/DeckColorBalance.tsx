@@ -4,6 +4,7 @@ import {
   shortfallThresholdsForCurve,
 } from '@/deck-builder/services/deckBuilder/colorShortfall';
 import type { CardTally } from './useCardCarousel';
+import { MeterBar } from '../shared/MeterBar';
 import './DeckColorBalance.css';
 
 /**
@@ -75,7 +76,6 @@ export function DeckColorBalance({
   // A row is tappable when we have its source list to open.
   const sourceCount = (color: string) => sourcesByColor?.[color]?.length ?? 0;
   const tappable = (color: string) => !!onShowSources && sourceCount(color) > 0;
-  const pct = (n: number) => (scaleMax > 0 ? (n / scaleMax) * 100 : 0);
 
   return (
     <section className="deck-color-balance" aria-label="Mana base">
@@ -109,25 +109,17 @@ export function DeckColorBalance({
 
                 <div className="deck-color-balance-meter">
                   <span className="deck-color-balance-meter-label">Demand</span>
-                  <div className="deck-color-balance-track">
-                    <div
-                      className="deck-color-balance-fill deck-color-balance-fill-demand"
-                      style={{ width: `${pct(row.demand)}%` }}
-                    />
-                  </div>
+                  <MeterBar value={row.demand} max={scaleMax} color="var(--text-muted)" />
                   <span className="deck-color-balance-meter-value">{row.demand}</span>
                 </div>
 
                 <div className="deck-color-balance-meter">
                   <span className="deck-color-balance-meter-label">Sources</span>
-                  <div className="deck-color-balance-track">
-                    <div
-                      className={`deck-color-balance-fill deck-color-balance-fill-sources${
-                        row.short ? ' deck-color-balance-fill-short' : ''
-                      }`}
-                      style={{ width: `${pct(row.production)}%` }}
-                    />
-                  </div>
+                  <MeterBar
+                    value={row.production}
+                    max={scaleMax}
+                    color={row.short ? 'var(--warn-text)' : 'var(--accent)'}
+                  />
                   <span className="deck-color-balance-meter-value">{row.production}</span>
                 </div>
               </>
@@ -177,12 +169,7 @@ export function DeckColorBalance({
                     </div>
                     <div className="deck-color-balance-meter">
                       <span className="deck-color-balance-meter-label">Sources</span>
-                      <div className="deck-color-balance-track">
-                        <div
-                          className="deck-color-balance-fill deck-color-balance-fill-sources"
-                          style={{ width: `${pct(colorlessProd)}%` }}
-                        />
-                      </div>
+                      <MeterBar value={colorlessProd} max={scaleMax} color="var(--accent)" />
                       <span className="deck-color-balance-meter-value">{colorlessProd}</span>
                     </div>
                   </>

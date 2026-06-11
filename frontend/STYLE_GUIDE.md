@@ -171,9 +171,17 @@ tooltip; reuse this so they behave identically everywhere.
 
 ## Motion
 
-Transform/opacity only — never animate layout properties. Every entry
-animation has a symmetric exit. Motion expresses causality (where did it
-come from / where did it go), not decoration.
+Transform/opacity only — never animate layout properties. Motion expresses
+causality (where did it come from / where did it go), not decoration.
+
+**Rule: every entry animation has a symmetric exit — no teleport-vanish.**
+A surface that animates in (rise/slide/pop/fade) must play the mirrored exit
+on EVERY dismiss path (backdrop, ✕, Escape, swipe, action-complete
+auto-close) before unmounting — wire it through `useSheetExit`
+(`src/lib/use-sheet-exit.ts`; pass the surface's exit keyframe name). A
+surface with no entry animation closes instantly — that IS its symmetric
+exit (e.g. the desktop dropdown/centered-panel presentations of the mobile
+sheets skip the hook).
 
 ### Tokens (global.css)
 
@@ -321,6 +329,34 @@ reserved for genuine fringe picks (<10% inclusion)** so it can never collide
 with red = remove (the Cut tone). 10–50% reads amber→yellow
 (neutral/caution); ≥50% ramps yellow→green. Don't smear red across the low-mid
 range — a 35%-inclusion card is a normal, healthy inclusion, not an alarm.
+
+## Bars & meters
+
+Every horizontal proportional bar goes through the shared
+`components/shared/MeterBar.tsx` primitives — **never hand-roll a bar track**
+(a `style={{ width: '…%' }}` fill div; a source-scan test,
+`lib/no-handrolled-bar-tracks.test.ts`, enforces this):
+
+- **`MeterBar`** — single fill: `value`/`max`, optional `color`,
+  `size` (`sm` 6px meter / `md` 12px progress), `minPct` visual floor,
+  `indeterminate` sweep.
+- **`StackedBar`** — multi-segment: `segments` (`key`/`value`/`color`/`title`),
+  optional `max` for partial-width stacks (the stack spans `sum/max` of the
+  track). Segments carry an inset hairline divider as a non-color boundary cue.
+
+The primitive owns **geometry, track, and animation**: one track
+(`var(--border)`, `999px` radius), one mount animation (fill grows from the
+left edge, `--motion-gentle` `--ease-out-soft`, reduced-motion gated), one
+width-glide for live value changes. The **palette stays with the caller** via
+`color` / per-segment colors. A `className` on the primitive may add layout
+(margin/flex) only — never re-style the track.
+
+A bar's length must be **honest** — proportional to its value on a scale shared
+with its siblings (the EnginePanel once painted every axis full-width; that's
+the failure mode this rule exists for). Accessibility: bars default to
+`aria-hidden` with the numbers as adjacent visible text; live operations opt
+into `role="progressbar"` (see `ProgressBar`). Vertical charts (curve hero,
+test-hand histogram) are charts, not meters, and stay bespoke.
 
 ## Card row information hierarchy
 

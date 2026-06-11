@@ -1,7 +1,8 @@
 import { Check } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations } from '../lib/allocations';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { useEscapeKey } from '../lib/use-escape-key';
@@ -26,14 +27,25 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const isAllocated = allocations.has(card.copyId);
 
   useLockBodyScroll();
-  useEscapeKey(onClose);
+
+  // Below 1024px this is a bottom sheet with a slide-up entry, so every
+  // dismiss path (backdrop, Escape, Cancel, the post-pick auto-close) plays
+  // the symmetric `binder-sheet-slide-out` before unmount. On desktop it's
+  // a centered panel with `animation: none` — exits stay instant there,
+  // symmetric with its entry.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
+    else beginClose();
+  }, [beginClose, onClose]);
+  useEscapeKey(dismiss);
 
   // Auto-close after showing confirmation feedback.
   useEffect(() => {
     if (!addedTo) return;
-    const t = setTimeout(onClose, 900);
+    const t = setTimeout(dismiss, 900);
     return () => clearTimeout(t);
-  }, [addedTo, onClose]);
+  }, [addedTo, dismiss]);
 
   const sorted = [...binders].sort((a, b) => a.position - b.position);
 
@@ -71,16 +83,17 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        onClose();
+        dismiss();
       }}
       role="presentation"
     >
       <div
-        className="card-picker-sheet"
+        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={dialogLabel}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
@@ -158,7 +171,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
             Cancel
           </button>
         </div>
