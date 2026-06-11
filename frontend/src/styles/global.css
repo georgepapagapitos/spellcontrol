@@ -3624,6 +3624,61 @@ hr {
      child surface should use this exact rule. */
   padding: var(--overlay-pad-top) 1rem var(--overlay-pad-bottom);
   overflow-y: auto;
+  /* Entrance — STYLE_GUIDE § Motion pattern (3): backdrop fade 160ms,
+     panel scale 0.96→1 + fade 180ms. Keyed off the structural classes so
+     every dialog (Modal-rendered or hand-rolled backdrop + [role='dialog'])
+     shares the one entrance — never add a bespoke dialog entrance. */
+  animation: fade-in 160ms var(--ease-out-soft);
+}
+
+.modal-backdrop > [role='dialog'] {
+  animation: modal-panel-in 180ms var(--ease-out-soft);
+}
+
+/* Exit — driven by Modal.tsx, which adds .is-closing and defers onClose
+   (unmount) until modal-panel-out finishes. `forwards` holds the faded-out
+   end state for the frame between animationend and the React unmount. */
+.modal-backdrop.is-closing {
+  animation: fade-out var(--motion-fast) var(--ease-out-soft) forwards;
+  /* A dismissal is in flight — nothing inside should still be clickable. */
+  pointer-events: none;
+}
+
+.modal-backdrop.is-closing > [role='dialog'] {
+  animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes modal-panel-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-backdrop > [role='dialog'],
+  .modal-backdrop.is-closing,
+  .modal-backdrop.is-closing > [role='dialog'] {
+    animation: none;
+  }
 }
 
 .modal {
@@ -7452,30 +7507,17 @@ hr {
   pointer-events: none;
 }
 
-.collection-filters-dialog-root {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Pattern A — centered-content backdrop (see .modal-backdrop). */
-  padding: max(1rem, calc(var(--safe-top) + 0.5rem)) max(1rem, var(--safe-right))
-    max(1rem, calc(var(--safe-bottom) + 0.5rem)) max(1rem, var(--safe-left));
-}
-
-.collection-filters-dialog-backdrop {
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-sheet);
-  animation: binder-sheet-fade 160ms ease-out;
-}
-
+/* Rendered through the shared Modal (backdrop, entrance/exit motion, focus
+   trap, scroll lock all come from there — the old bespoke root/backdrop/
+   pop-keyframe were retired with UX-201). Only the panel itself is styled
+   here. margin-block auto re-centers it vertically inside the top-aligned
+   .modal-backdrop, collapsing to 0 (top-aligned + scrollable) if it ever
+   outgrows the viewport. */
 .collection-filters-dialog {
-  position: relative;
   width: 100%;
   max-width: 28rem;
   max-height: min(90vh, 44rem);
+  margin-block: auto;
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: calc(var(--radius) * 2);
@@ -7483,24 +7525,6 @@ hr {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: collection-filters-dialog-pop 180ms var(--ease-out-soft);
-}
-
-@keyframes collection-filters-dialog-pop {
-  from {
-    transform: translateY(8px) scale(0.98);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collection-filters-dialog {
-    animation: none;
-  }
 }
 
 /* Scale the dialog up on roomier viewports — the type/color chip grids

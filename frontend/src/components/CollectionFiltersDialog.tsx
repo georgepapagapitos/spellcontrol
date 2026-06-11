@@ -1,5 +1,5 @@
 import { ListFilter, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type {
   BorderColor,
@@ -12,6 +12,7 @@ import type {
   Treatment,
 } from '../types';
 import type { SetMap } from '../lib/api';
+import { Modal } from './Modal';
 import { SetFilterPicker } from './SetFilterPicker';
 import { ColorPip } from './shared/ManaSymbol';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
@@ -281,21 +282,6 @@ function DialogBody({
     draftSet.size > 0 ||
     (showOptions && !draftGroup);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    // Lock background scroll so the page underneath doesn't drift while
-    // the dialog is open — touch users especially expect this.
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
-
   const toggleDraftColor = (c: string) => {
     setDraftColor((prev) => {
       const next = new Set(prev);
@@ -343,225 +329,220 @@ function DialogBody({
   };
 
   return (
-    <div className="collection-filters-dialog-root">
-      <div className="collection-filters-dialog-backdrop" onClick={onClose} aria-hidden />
-      <div
-        className="collection-filters-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Collection filters"
-      >
-        <header className="collection-filters-dialog-header">
-          <span className="collection-filters-dialog-title">Filters</span>
-          <button
-            type="button"
-            className="collection-filters-dialog-close"
-            onClick={onClose}
-            aria-label="Close filters without applying"
-            title="Close without applying"
-          >
-            <X width={20} height={20} strokeWidth={1.8} aria-hidden />
-          </button>
-        </header>
+    // The shared Modal supplies the backdrop, entrance/exit motion, focus
+    // trap, Escape handling, and body scroll lock — this component only
+    // styles the panel (UX-201 retired the bespoke root/backdrop/pop).
+    <Modal onClose={onClose} label="Collection filters" className="collection-filters-dialog">
+      <header className="collection-filters-dialog-header">
+        <span className="collection-filters-dialog-title">Filters</span>
+        <button
+          type="button"
+          className="collection-filters-dialog-close"
+          onClick={onClose}
+          aria-label="Close filters without applying"
+          title="Close without applying"
+        >
+          <X width={20} height={20} strokeWidth={1.8} aria-hidden />
+        </button>
+      </header>
 
-        <div className="collection-filters-dialog-body">
-          {/* Type line — one shared input that auto-classifies each
+      <div className="collection-filters-dialog-body">
+        {/* Type line — one shared input that auto-classifies each
               token into Supertypes / Type / Subtype, then displays
               classified chips in their respective row. Each row's
               chips are its own ChipExpression so AND/OR composes
               naturally per category. */}
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Type line</div>
-            <TypeLineExpressionBuilder
-              supertypeExpr={draftSuper}
-              setSupertypeExpr={setDraftSuper}
-              typesExpr={draftTypes}
-              setTypesExpr={setDraftTypes}
-              subtypeExpr={draftSubtype}
-              setSubtypeExpr={setDraftSubtype}
-              subtypeSuggestions={subtypeSuggestions}
-            />
-          </section>
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Type line</div>
+          <TypeLineExpressionBuilder
+            supertypeExpr={draftSuper}
+            setSupertypeExpr={setDraftSuper}
+            typesExpr={draftTypes}
+            setTypesExpr={setDraftTypes}
+            subtypeExpr={draftSubtype}
+            setSubtypeExpr={setDraftSubtype}
+            subtypeSuggestions={subtypeSuggestions}
+          />
+        </section>
 
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Color</div>
-            <div className="color-filter-row" role="group" aria-label="Filter by color">
-              {colorOptions.map((c) => {
-                const active = draftColor.has(c.key);
-                return (
-                  <button
-                    key={c.key}
-                    type="button"
-                    className={`color-filter-btn${active ? ' is-active' : ''}`}
-                    onClick={() => toggleDraftColor(c.key)}
-                    aria-label={c.label}
-                    aria-pressed={active}
-                    title={c.label}
-                  >
-                    <ColorPip color={c.key} pip="lg" />
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Color</div>
+          <div className="color-filter-row" role="group" aria-label="Filter by color">
+            {colorOptions.map((c) => {
+              const active = draftColor.has(c.key);
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`color-filter-btn${active ? ' is-active' : ''}`}
+                  onClick={() => toggleDraftColor(c.key)}
+                  aria-label={c.label}
+                  aria-pressed={active}
+                  title={c.label}
+                >
+                  <ColorPip color={c.key} pip="lg" />
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-          {/* Single-valued fields (a card has one rarity, lives in one
+        {/* Single-valued fields (a card has one rarity, lives in one
               binder). The AND/OR joiner pills still render for visual
               consistency with the type-line rows, but flipping to AND
               between two values is unsatisfiable — the evaluator just
               returns no matches, which is technically correct.
               Defaults to OR for both. */}
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Rarity</div>
-            <ChipExpressionBuilder
-              value={draftRarity}
-              onChange={setDraftRarity}
-              options={rarities.map((r) => ({
-                value: r,
-                label: r.charAt(0).toUpperCase() + r.slice(1),
-              }))}
-              defaultJoiner="OR"
-              placeholder="Add rarity…"
-            />
-          </section>
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Rarity</div>
+          <ChipExpressionBuilder
+            value={draftRarity}
+            onChange={setDraftRarity}
+            options={rarities.map((r) => ({
+              value: r,
+              label: r.charAt(0).toUpperCase() + r.slice(1),
+            }))}
+            defaultJoiner="OR"
+            placeholder="Add rarity…"
+          />
+        </section>
 
-          {/* Free-text oracle search — substring against the rules text.
+        {/* Free-text oracle search — substring against the rules text.
               Defaults to OR so "draw" / "destroy" reads as either; flip a
               joiner to AND for "draw a card" AND "{T}". */}
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Oracle text</div>
+          <ChipExpressionBuilder
+            value={draftOracle}
+            onChange={setDraftOracle}
+            suggestions={[]}
+            defaultJoiner="OR"
+            placeholder="e.g. flying, draw a card…"
+          />
+        </section>
+
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Format</div>
+          <ChipExpressionBuilder
+            value={draftLegality}
+            onChange={setDraftLegality}
+            options={FORMATS.map((f) => ({
+              value: f,
+              label: f.charAt(0).toUpperCase() + f.slice(1),
+            }))}
+            defaultJoiner="OR"
+            placeholder="Add format…"
+          />
+        </section>
+
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Layout</div>
+          <ChipExpressionBuilder
+            value={draftLayout}
+            onChange={setDraftLayout}
+            options={LAYOUTS}
+            defaultJoiner="OR"
+            placeholder="Add layout…"
+          />
+        </section>
+
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Treatment</div>
+          <ChipExpressionBuilder
+            value={draftTreatment}
+            onChange={setDraftTreatment}
+            options={TREATMENTS}
+            defaultJoiner="OR"
+            placeholder="Add treatment…"
+          />
+        </section>
+
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Border</div>
+          <ChipExpressionBuilder
+            value={draftBorder}
+            onChange={setDraftBorder}
+            options={BORDERS}
+            defaultJoiner="OR"
+            placeholder="Add border…"
+          />
+        </section>
+
+        {showFinish && (
           <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Oracle text</div>
+            <div className="collection-filters-section-label">Finish</div>
             <ChipExpressionBuilder
-              value={draftOracle}
-              onChange={setDraftOracle}
-              suggestions={[]}
+              value={draftFinish}
+              onChange={setDraftFinish}
+              options={FINISHES}
               defaultJoiner="OR"
-              placeholder="e.g. flying, draw a card…"
+              placeholder="Add finish…"
             />
           </section>
+        )}
 
+        {showCondition && (
           <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Format</div>
+            <div className="collection-filters-section-label">Condition</div>
             <ChipExpressionBuilder
-              value={draftLegality}
-              onChange={setDraftLegality}
-              options={FORMATS.map((f) => ({
-                value: f,
-                label: f.charAt(0).toUpperCase() + f.slice(1),
-              }))}
+              value={draftCondition}
+              onChange={setDraftCondition}
+              options={CONDITIONS}
               defaultJoiner="OR"
-              placeholder="Add format…"
+              placeholder="Add condition…"
             />
           </section>
+        )}
 
+        {showBinder && (
           <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Layout</div>
+            <div className="collection-filters-section-label">Binder</div>
             <ChipExpressionBuilder
-              value={draftLayout}
-              onChange={setDraftLayout}
-              options={LAYOUTS}
+              value={draftBinder}
+              onChange={setDraftBinder}
+              options={[
+                ...(binders ?? []).map((b) => ({ value: b.def.name, label: b.def.name })),
+                { value: '__uncategorized', label: 'Uncategorized' },
+              ]}
               defaultJoiner="OR"
-              placeholder="Add layout…"
+              placeholder="Add binder…"
             />
           </section>
+        )}
 
+        <section className="collection-filters-section">
+          <div className="collection-filters-section-label">Set</div>
+          <SetFilterPicker setMap={setMap} value={draftSet} onChange={setDraftSet} />
+        </section>
+
+        {showOptions && (
           <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Treatment</div>
-            <ChipExpressionBuilder
-              value={draftTreatment}
-              onChange={setDraftTreatment}
-              options={TREATMENTS}
-              defaultJoiner="OR"
-              placeholder="Add treatment…"
-            />
-          </section>
-
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Border</div>
-            <ChipExpressionBuilder
-              value={draftBorder}
-              onChange={setDraftBorder}
-              options={BORDERS}
-              defaultJoiner="OR"
-              placeholder="Add border…"
-            />
-          </section>
-
-          {showFinish && (
-            <section className="collection-filters-section">
-              <div className="collection-filters-section-label">Finish</div>
-              <ChipExpressionBuilder
-                value={draftFinish}
-                onChange={setDraftFinish}
-                options={FINISHES}
-                defaultJoiner="OR"
-                placeholder="Add finish…"
+            <div className="collection-filters-section-label">Options</div>
+            <label className="filter-popover-row">
+              <input
+                type="checkbox"
+                checked={draftGroup}
+                onChange={(e) => setDraftGroup(e.target.checked)}
               />
-            </section>
-          )}
-
-          {showCondition && (
-            <section className="collection-filters-section">
-              <div className="collection-filters-section-label">Condition</div>
-              <ChipExpressionBuilder
-                value={draftCondition}
-                onChange={setDraftCondition}
-                options={CONDITIONS}
-                defaultJoiner="OR"
-                placeholder="Add condition…"
-              />
-            </section>
-          )}
-
-          {showBinder && (
-            <section className="collection-filters-section">
-              <div className="collection-filters-section-label">Binder</div>
-              <ChipExpressionBuilder
-                value={draftBinder}
-                onChange={setDraftBinder}
-                options={[
-                  ...(binders ?? []).map((b) => ({ value: b.def.name, label: b.def.name })),
-                  { value: '__uncategorized', label: 'Uncategorized' },
-                ]}
-                defaultJoiner="OR"
-                placeholder="Add binder…"
-              />
-            </section>
-          )}
-
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Set</div>
-            <SetFilterPicker setMap={setMap} value={draftSet} onChange={setDraftSet} />
+              <span className="filter-popover-label">Group printings</span>
+            </label>
           </section>
-
-          {showOptions && (
-            <section className="collection-filters-section">
-              <div className="collection-filters-section-label">Options</div>
-              <label className="filter-popover-row">
-                <input
-                  type="checkbox"
-                  checked={draftGroup}
-                  onChange={(e) => setDraftGroup(e.target.checked)}
-                />
-                <span className="filter-popover-label">Group printings</span>
-              </label>
-            </section>
-          )}
-        </div>
-
-        <footer className="collection-filters-dialog-footer">
-          <button
-            type="button"
-            className="collection-filters-dialog-clear"
-            onClick={clearDraft}
-            disabled={!draftHasAny}
-          >
-            Clear
-          </button>
-          <button type="button" className="collection-filters-dialog-done" onClick={apply}>
-            Apply
-          </button>
-        </footer>
+        )}
       </div>
-    </div>
+
+      <footer className="collection-filters-dialog-footer">
+        <button
+          type="button"
+          className="collection-filters-dialog-clear"
+          onClick={clearDraft}
+          disabled={!draftHasAny}
+        >
+          Clear
+        </button>
+        <button type="button" className="collection-filters-dialog-done" onClick={apply}>
+          Apply
+        </button>
+      </footer>
+    </Modal>
   );
 }
