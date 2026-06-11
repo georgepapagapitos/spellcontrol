@@ -361,6 +361,10 @@ export function CardListTable({
   const [borderExpr, setBorderExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [finishExpr, setFinishExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [conditionExpr, setConditionExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [priceMin, setPriceMin] = useState<number | undefined>(undefined);
+  const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
+  const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
+  const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // Bulk selection is keyed by row.key (the grouped printing+finish key, or a
@@ -600,6 +604,14 @@ export function CardListTable({
       if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
         return false;
       if (setFilter.size > 0 && !setFilter.has((r.card.setCode || '').toUpperCase())) return false;
+      // Price filter: purchasePrice === 0 means no price recorded → skip (no match)
+      if (priceMin !== undefined && (r.card.purchasePrice <= 0 || r.card.purchasePrice < priceMin))
+        return false;
+      if (priceMax !== undefined && (r.card.purchasePrice <= 0 || r.card.purchasePrice > priceMax))
+        return false;
+      // CMC filter: cmc === undefined means unknown → skip (no match)
+      if (cmcMin !== undefined && (r.card.cmc === undefined || r.card.cmc < cmcMin)) return false;
+      if (cmcMax !== undefined && (r.card.cmc === undefined || r.card.cmc > cmcMax)) return false;
       return true;
     });
   }, [
@@ -619,6 +631,10 @@ export function CardListTable({
     compiledFinish,
     compiledCondition,
     setFilter,
+    priceMin,
+    priceMax,
+    cmcMin,
+    cmcMax,
   ]);
 
   const sorted = useMemo(() => {
@@ -1010,6 +1026,8 @@ export function CardListTable({
     (!isExpressionEmpty(conditionExpr) ? 1 : 0) +
     (!isExpressionEmpty(binderExpr) ? 1 : 0) +
     (setFilter.size > 0 ? 1 : 0) +
+    (priceMin !== undefined || priceMax !== undefined ? 1 : 0) +
+    (cmcMin !== undefined || cmcMax !== undefined ? 1 : 0) +
     (groupPrintings ? 0 : 1);
 
   // Empty chip expression reused for clearing chip-based filters.
@@ -1035,6 +1053,10 @@ export function CardListTable({
     setBinderExpr(EMPTY_EXPR);
     setSetFilter(new Set());
     setGroupPrintings(true);
+    setPriceMin(undefined);
+    setPriceMax(undefined);
+    setCmcMin(undefined);
+    setCmcMax(undefined);
   }, [EMPTY_EXPR]);
 
   // Build the active-filter chip descriptors — one per non-empty filter group.
@@ -1212,6 +1234,38 @@ export function CardListTable({
         onClear: () => setSetFilter(new Set()),
       });
     }
+    if (priceMin !== undefined || priceMax !== undefined) {
+      const label =
+        priceMin !== undefined && priceMax !== undefined
+          ? `Price: ${formatMoney(priceMin)}–${formatMoney(priceMax)}`
+          : priceMin !== undefined
+            ? `Price: ≥ ${formatMoney(priceMin)}`
+            : `Price: ≤ ${formatMoney(priceMax)}`;
+      chips.push({
+        id: 'price',
+        label,
+        onClear: () => {
+          setPriceMin(undefined);
+          setPriceMax(undefined);
+        },
+      });
+    }
+    if (cmcMin !== undefined || cmcMax !== undefined) {
+      const label =
+        cmcMin !== undefined && cmcMax !== undefined
+          ? `CMC: ${cmcMin}–${cmcMax}`
+          : cmcMin !== undefined
+            ? `CMC: ≥ ${cmcMin}`
+            : `CMC: ≤ ${cmcMax}`;
+      chips.push({
+        id: 'cmc',
+        label,
+        onClear: () => {
+          setCmcMin(undefined);
+          setCmcMax(undefined);
+        },
+      });
+    }
     if (!groupPrintings) {
       chips.push({
         id: 'groupPrintings',
@@ -1236,6 +1290,10 @@ export function CardListTable({
     conditionExpr,
     binderExpr,
     setFilter,
+    priceMin,
+    priceMax,
+    cmcMin,
+    cmcMax,
     groupPrintings,
     EMPTY_EXPR,
   ]);
@@ -1295,6 +1353,14 @@ export function CardListTable({
               setFilter={setFilter}
               setSetFilter={setSetFilter}
               setMap={setMap}
+              priceMin={priceMin}
+              setPriceMin={setPriceMin}
+              priceMax={priceMax}
+              setPriceMax={setPriceMax}
+              cmcMin={cmcMin}
+              setCmcMin={setCmcMin}
+              cmcMax={cmcMax}
+              setCmcMax={setCmcMax}
               groupPrintings={groupPrintings}
               setGroupPrintings={setGroupPrintings}
               activeCount={activeFilterCount}

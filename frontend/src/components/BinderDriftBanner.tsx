@@ -8,6 +8,29 @@ import {
   type DriftCard,
 } from '../lib/binder-drift';
 import type { MaterializedBinder } from '../types';
+import { InfoTip } from './InfoTip';
+
+const DRIFT_TIP = (
+  <>
+    <p className="info-tip-lead">
+      <strong>Drift</strong> tracks what's changed in this binder since you last physically reviewed
+      it.
+    </p>
+    <ul className="info-tip-list">
+      <li>
+        <strong>Added:</strong> cards that now match this binder's rules but weren't here before.
+      </li>
+      <li>
+        <strong>Removed:</strong> cards that no longer match (price changed, moved to another
+        binder, etc.).
+      </li>
+      <li>
+        <strong>Mark reviewed</strong> means "I've seen these changes and updated my physical
+        binder." It saves a new baseline — drift is then measured from this point forward.
+      </li>
+    </ul>
+  </>
+);
 
 interface Props {
   binder: MaterializedBinder;
@@ -79,9 +102,12 @@ export function BinderDriftBanner({ binder }: Props) {
             : {summarize(drift.added.length, drift.removed.length)}
           </span>
         </button>
-        <button type="button" className="btn-link" onClick={handleMarkReviewed}>
-          Mark reviewed
-        </button>
+        <span className="binder-drift-reviewed-wrap">
+          <button type="button" className="btn-link" onClick={handleMarkReviewed}>
+            Mark reviewed
+          </button>
+          <InfoTip label="drift and Mark reviewed" text={DRIFT_TIP} wide />
+        </span>
       </div>
       {expanded && (
         <div className="binder-drift-details">
