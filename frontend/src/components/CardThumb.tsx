@@ -37,7 +37,11 @@ export function CardThumb({
 
   return (
     <span className={`card-thumb ${className}`.trim()}>
-      {!loaded && !errored && <span className="card-thumb-skeleton" aria-hidden="true" />}
+      {/* Stays mounted under the art so the img can cross-fade over it (no
+          background flash mid-fade); `is-settled` just stops the shimmer. */}
+      {!errored && (
+        <span className={`card-thumb-skeleton${loaded ? ' is-settled' : ''}`} aria-hidden="true" />
+      )}
       {errored ? (
         (fallback ?? (
           <span className="card-thumb-fallback" aria-hidden={decorative || undefined}>
@@ -46,13 +50,20 @@ export function CardThumb({
         ))
       ) : (
         <img
-          className="card-thumb-img"
+          className={`card-thumb-img${loaded ? ' is-loaded' : ''}`}
           src={src}
           alt={decorative ? '' : alt}
           aria-hidden={decorative || undefined}
           loading={loading}
           decoding="async"
           draggable={false}
+          // Cached images may already be complete before onLoad can attach —
+          // mark them loaded during commit so the first paint is already
+          // opaque (no pointless re-fade of art the browser has in cache).
+          // Mirrors CardImageFrame's hero treatment.
+          ref={(el) => {
+            if (el?.complete && el.naturalWidth > 0) setLoaded(true);
+          }}
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
         />

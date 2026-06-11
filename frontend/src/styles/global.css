@@ -1240,10 +1240,16 @@ select {
   padding: 2px 6px;
   border-radius: var(--radius);
   text-decoration: underline;
+  transition: transform var(--motion-fast);
 }
 
 .btn-link:hover {
   background: var(--accent-light);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.btn-link:active {
+  transform: scale(0.97);
 }
 
 /* Config / sort panel */
@@ -1737,7 +1743,7 @@ input[type='search'] {
     background var(--motion-fast),
     border-color var(--motion-fast),
     color var(--motion-fast),
-    transform 0.06s;
+    transform var(--motion-fast);
 }
 
 .pill-btn:hover,
@@ -1753,8 +1759,10 @@ input[type='search'] {
   outline-offset: 2px;
 }
 
+/* Press feedback (STYLE_GUIDE § Motion pattern 6) — was translateY(1px),
+   unified on the canonical scale press so touch gets acknowledgment too. */
 .pill-btn:active {
-  transform: translateY(1px);
+  transform: scale(0.97);
 }
 
 .pill-btn:disabled {
@@ -1898,7 +1906,13 @@ input[type='search'] {
   cursor: pointer;
   transition:
     background var(--motion-fast),
-    color var(--motion-fast);
+    color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.filter-popover-btn:active {
+  transform: scale(0.97);
 }
 
 .filter-popover-btn > svg {
@@ -2081,7 +2095,13 @@ input[type='search'] {
   transition:
     background var(--motion-fast),
     color var(--motion-fast),
-    border-color var(--motion-fast);
+    border-color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.sort-popover-btn:active {
+  transform: scale(0.97);
 }
 
 .sort-popover-btn > svg {
@@ -2389,10 +2409,17 @@ input[type='text'] {
   background: var(--surface-raised);
   color: var(--text-secondary);
   white-space: nowrap;
+  transition: transform var(--motion-fast);
 }
 
 .btn:hover {
   background: var(--border);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6) — color-only buttons gave
+   zero acknowledgment on touch, where there is no hover state. */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn-primary {
@@ -4984,10 +5011,16 @@ hr {
   cursor: pointer;
   padding: 2px 6px;
   border-radius: var(--radius);
+  transition: transform var(--motion-fast);
 }
 
 .btn-link-danger:hover {
   background: var(--err-bg);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.btn-link-danger:active {
+  transform: scale(0.97);
 }
 
 .btn-add-group {
@@ -5001,11 +5034,17 @@ hr {
   cursor: pointer;
   width: 100%;
   margin-top: 0.25rem;
+  transition: transform var(--motion-fast);
 }
 
 .btn-add-group:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.btn-add-group:active {
+  transform: scale(0.97);
 }
 
 /* ── Visually-hidden utility for live regions / sr-only labels ─────────── */
@@ -7781,7 +7820,8 @@ hr {
   flex-shrink: 0;
   transition:
     border-color var(--motion-fast),
-    color var(--motion-fast);
+    color var(--motion-fast),
+    transform var(--motion-fast);
 }
 
 .collection-toolbar-stats-btn:hover,
@@ -7789,6 +7829,11 @@ hr {
   color: var(--text-primary);
   border-color: var(--accent);
   outline: none;
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.collection-toolbar-stats-btn:active {
+  transform: scale(0.97);
 }
 
 @media (max-width: 640px) {
@@ -7966,6 +8011,12 @@ hr {
 
 .color-filter-btn:hover {
   opacity: 0.85;
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6) — transform is already in
+   this class's transition list. */
+.color-filter-btn:active {
+  transform: scale(0.97);
 }
 
 .color-filter-btn.is-active {
@@ -8905,11 +8956,17 @@ i.ss.set-symbol--mythic {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: transform var(--motion-fast);
 }
 
 .pagination-btn:hover:not(:disabled) {
   background: var(--surface);
   color: var(--text-primary);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.pagination-btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .pagination-btn.is-active {
@@ -12500,4 +12557,24 @@ i.ss.set-symbol--mythic {
 .admin-delete-actions {
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* ── Reduced motion: press-feedback buttons (UX-206) ─────────────────────────
+   The press still snaps to scale(0.97) — positional feedback, not motion —
+   but nothing eases. Explicit gate per STYLE_GUIDE (the global 0.001ms kill
+   is a backstop, not the mechanism). Lives at the end of the file so it wins
+   the equal-specificity cascade against every base rule above. */
+@media (prefers-reduced-motion: reduce) {
+  .pill-btn,
+  .btn,
+  .btn-link,
+  .btn-link-danger,
+  .btn-add-group,
+  .filter-popover-btn,
+  .sort-popover-btn,
+  .collection-toolbar-stats-btn,
+  .pagination-btn,
+  .color-filter-btn {
+    transition: none;
+  }
 }

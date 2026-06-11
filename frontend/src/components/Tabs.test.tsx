@@ -86,4 +86,26 @@ describe('Tabs', () => {
     rerender(<Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={TABS} variant="scrollable" />);
     expect(container.querySelector('.sc-tabs--scrollable')).toBeTruthy();
   });
+
+  it('renders the sliding indicator only for the underline variant, hidden from AT', () => {
+    const { container, rerender } = render(
+      <Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={TABS} variant="underline" />
+    );
+    const indicator = container.querySelector('.sc-tab-indicator');
+    expect(indicator).toBeTruthy();
+    expect(indicator?.getAttribute('aria-hidden')).toBe('true');
+    rerender(<Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={TABS} variant="fitted" />);
+    expect(container.querySelector('.sc-tab-indicator')).toBeNull();
+  });
+
+  it('keeps the indicator hidden when the strip has no measurable layout', () => {
+    // happy-dom reports offsetWidth 0 — the indicator must not paint a
+    // garbage transform in that case, just stay transparent until the
+    // ResizeObserver delivers a real size.
+    const { container } = render(
+      <Tabs ariaLabel="x" value="a" onChange={() => {}} tabs={TABS} variant="underline" />
+    );
+    const indicator = container.querySelector<HTMLElement>('.sc-tab-indicator');
+    expect(indicator?.style.opacity).toBe('0');
+  });
 });

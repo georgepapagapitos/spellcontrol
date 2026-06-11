@@ -5363,6 +5363,10 @@ input.toolbar-search-input {
    the pill look in favour of a bottom-border indicator that sits on the strip's
    baseline. Scrolls horizontally on overflow (mobile). */
 .sc-tabs--underline {
+  /* Positioning context for the sliding .sc-tab-indicator (abs-pos children
+     of the scroll container live in content coordinates, so the indicator
+     scrolls with the strip). */
+  position: relative;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -5372,6 +5376,33 @@ input.toolbar-search-input {
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+}
+
+/* UX-207 — the sliding active-tab underline. One measured element that
+   TRAVELS between tabs instead of each tab fading its own border. Tabs.tsx
+   sets `transform: translateX(<offsetLeft>px) scaleX(<offsetWidth>)` against
+   the 1px base width, so only transform animates (never layout); the first
+   paint and resize re-measures are applied with the transition suppressed. */
+.sc-tab-indicator {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-tab-indicator {
+    /* Jump instantly between tabs. */
+    transition: none;
+  }
 }
 
 .sc-tabs--underline::-webkit-scrollbar {
@@ -5395,19 +5426,22 @@ input.toolbar-search-input {
    WebViews report `hover: hover` on touch, so the bare hover query isn't enough;
    pointer:fine excludes them. Mouse/trackpad get the hover cue; touch doesn't. */
 @media (hover: hover) and (pointer: fine) {
-  .sc-tabs--underline .sc-tab:hover {
+  /* :not(.active) — the active tab's line is the sliding indicator (UX-207);
+     without the guard this hover border would peek out beneath it. */
+  .sc-tabs--underline .sc-tab:hover:not(.active) {
     color: var(--text-primary);
     border-bottom-color: var(--border-strong);
   }
 }
 
-/* Override the default `.sc-tab.active` pill — underline tabs use accent text +
-   a thick accent baseline instead of a filled background. */
+/* Override the default `.sc-tab.active` pill — underline tabs use accent text;
+   the accent baseline itself is painted by the sliding .sc-tab-indicator
+   (UX-207), so the per-tab border stays transparent (it still reserves the
+   2px of height so nothing shifts). */
 .sc-tabs--underline .sc-tab.active {
   background: transparent;
   color: var(--accent);
   font-weight: 600;
-  border-bottom-color: var(--accent);
 }
 
 .sc-tabs--underline .sc-tab.active .sc-tab-count {
