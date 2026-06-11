@@ -50,8 +50,18 @@ import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
-import { buildAllocationMap, pickCollectionCopy, useCollectionByCopyId } from '../lib/allocations';
+import {
+  buildAllocationMap,
+  pickCollectionCopy,
+  findStealableCopy,
+  useCollectionByCopyId,
+  type StealableCopy,
+  type DonorOutcome,
+  type DonorZone,
+} from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { StealConfirmSheet } from '../components/deck/StealConfirmSheet';
+import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
@@ -107,6 +117,8 @@ export function DeckEditorPage() {
   const binderDefs = useCollectionStore((s) => s.binders);
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
+  const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
+  const replaceDeck = useDecksStore((s) => s.replaceDeck);
   const pushToast = useToastsStore((s) => s.push);
 
   // Undo/redo history (deck-scoped). `recordEdit` brackets a synchronous block;
@@ -216,6 +228,19 @@ export function DeckEditorPage() {
     name: string;
     role: string | null;
   } | null>(null);
+  // Physical-copy reallocation (move owned cards between decks). Each move is
+  // surfaced + confirmed explicitly — nothing moves silently. `pendingSteal`
+  // drives the StealConfirmSheet (pulling a copy in from another deck, either as
+  // a new card or onto an existing unowned slot); `moveCard` drives the
+  // MoveToDeckSheet (sending a copy out); `releaseCard` drives the release
+  // confirm (freeing a copy back to the collection).
+  const [pendingSteal, setPendingSteal] = useState<{
+    card: ScryfallCard;
+    stealable: StealableCopy;
+    recipient: { mode: 'add'; zone: 'main' | 'sideboard' } | { mode: 'bind'; slotId: string };
+  } | null>(null);
+  const [moveCard, setMoveCard] = useState<ScryfallCard | null>(null);
+  const [releaseCard, setReleaseCard] = useState<ScryfallCard | null>(null);
   // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
   // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
@@ -660,6 +685,254 @@ export function DeckEditorPage() {
     });
   };
 
+  // ── Physical-copy reallocation (move owned cards between decks) ────────────
+  // A move pulls one physical copy out of a donor deck and (optionally) into a
+  // recipient deck, with an explicit donor outcome. A cross-deck move can't be a
+  // single per-deck undo command, so it reverses via one toast "Undo" that
+  // atomically restores BOTH decks' pre-move snapshots (the blessed
+  // compensating-mutation pattern under LWW). Ctrl+Z stays in-deck-only.
+
+  // Locate the slot in the current deck to move a copy of `name` OUT of. Prefers
+  // an allocated slot (a real physical copy to move), else an unowned slot
+  // (relocating just the list entry).
+  const findDonorSlotInDeck = (
+    name: string
+  ): { zone: 'main' | 'sideboard'; slotId: string; copyId: string | null } | null => {
+    if (!deck) return null;
+    const key = name.toLowerCase();
+    const mainAlloc = deck.cards.find(
+      (c) => c.card.name.toLowerCase() === key && c.allocatedCopyId
+    );
+    if (mainAlloc)
+      return { zone: 'main', slotId: mainAlloc.slotId, copyId: mainAlloc.allocatedCopyId };
+    const sideAlloc = deck.sideboard.find(
+      (c) => c.card.name.toLowerCase() === key && c.allocatedCopyId
+    );
+    if (sideAlloc)
+      return { zone: 'sideboard', slotId: sideAlloc.slotId, copyId: sideAlloc.allocatedCopyId };
+    const main = deck.cards.find((c) => c.card.name.toLowerCase() === key);
+    if (main) return { zone: 'main', slotId: main.slotId, copyId: null };
+    const side = deck.sideboard.find((c) => c.card.name.toLowerCase() === key);
+    if (side) return { zone: 'sideboard', slotId: side.slotId, copyId: null };
+    return null;
+  };
+
+  // Apply the chosen donor outcome to the slot losing the copy. Commander/partner
+  // slots can only be freed (leave-gap) — they have no portable list slot.
+  const applyDonorOutcome = (
+    donorDeckId: string,
+    zone: DonorZone,
+    slotId: string | null,
+    donorCard: ScryfallCard,
+    outcome: DonorOutcome,
+    replacement: { name: string; card: ScryfallCard } | null
+  ): void => {
+    if (zone === 'commander') return void setCommander(donorDeckId, donorCard, null);
+    if (zone === 'partner') return void setPartnerCommander(donorDeckId, donorCard, null);
+    if (!slotId) return;
+    if (outcome === 'remove') {
+      if (zone === 'sideboard') removeSideboardCard(donorDeckId, slotId);
+      else removeCard(donorDeckId, slotId);
+      return;
+    }
+    if (outcome === 'replace' && replacement) {
+      const alloc =
+        pickCollectionCopy(
+          replacement.name,
+          collectionCards,
+          buildAllocationMap(useDecksStore.getState().decks),
+          replacement.card.id
+        )?.copyId ?? null;
+      if (zone === 'sideboard') {
+        removeSideboardCard(donorDeckId, slotId);
+        addSideboardCard(donorDeckId, replacement.card, alloc);
+      } else {
+        swapCard(donorDeckId, slotId, replacement.card, alloc);
+      }
+      return;
+    }
+    // leave-gap (default): the donor keeps the card as an unowned copy it needs.
+    if (zone === 'sideboard') {
+      // setCardAllocation only touches the mainboard; clear a sideboard slot's
+      // allocation by re-seating it unowned.
+      const slot = useDecksStore
+        .getState()
+        .decks.find((d) => d.id === donorDeckId)
+        ?.sideboard.find((c) => c.slotId === slotId);
+      removeSideboardCard(donorDeckId, slotId);
+      if (slot) addSideboardCard(donorDeckId, slot.card, null);
+    } else {
+      setCardAllocation(donorDeckId, slotId, null);
+    }
+  };
+
+  // Execute a cross-deck reallocation and offer a single toast-Undo that
+  // atomically restores both decks.
+  const executeReallocation = (opts: {
+    donorDeckId: string;
+    recipientDeckId: string;
+    recipientApply: () => void;
+    donorApply: () => void;
+    label: string;
+  }): void => {
+    const decksNow = useDecksStore.getState().decks;
+    const snapDonor = decksNow.find((d) => d.id === opts.donorDeckId) ?? null;
+    const snapRecipient =
+      opts.recipientDeckId === opts.donorDeckId
+        ? null
+        : (decksNow.find((d) => d.id === opts.recipientDeckId) ?? null);
+    opts.recipientApply();
+    opts.donorApply();
+    pushToast({
+      message: opts.label,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => {
+        if (snapDonor) replaceDeck(opts.donorDeckId, snapDonor);
+        if (snapRecipient) replaceDeck(opts.recipientDeckId, snapRecipient);
+      },
+    });
+  };
+
+  // Surface 1 / 4 commit: pull the copy into the current deck (a new slot, or
+  // onto an existing unowned slot), apply the donor outcome, toast-Undo both.
+  const handleConfirmSteal = (
+    outcome: DonorOutcome,
+    replacement: { name: string; card: ScryfallCard } | null
+  ): void => {
+    if (!deck || !pendingSteal) return;
+    const { card, stealable, recipient } = pendingSteal;
+    setPendingSteal(null);
+    const recipientApply = () => {
+      if (recipient.mode === 'add') {
+        if (recipient.zone === 'sideboard') addSideboardCard(deck.id, card, stealable.copyId);
+        else addCard(deck.id, card, stealable.copyId);
+      } else {
+        setCardAllocation(deck.id, recipient.slotId, stealable.copyId);
+      }
+    };
+    executeReallocation({
+      donorDeckId: stealable.donorDeckId,
+      recipientDeckId: deck.id,
+      recipientApply,
+      donorApply: () =>
+        applyDonorOutcome(
+          stealable.donorDeckId,
+          stealable.donorZone,
+          stealable.donorSlotId,
+          stealable.donorCard,
+          outcome,
+          replacement
+        ),
+      label: `Moved ${card.name} here from ${stealable.donorDeckName}`,
+    });
+  };
+
+  // Escape hatch from the steal sheet: add an unowned/proxy copy here, donor
+  // untouched. Only offered for the add flow (a bind slot already exists).
+  const handleAddAsProxy = (): void => {
+    if (!deck || !pendingSteal || pendingSteal.recipient.mode !== 'add') {
+      setPendingSteal(null);
+      return;
+    }
+    const { card, recipient } = pendingSteal;
+    setPendingSteal(null);
+    if (recipient.zone === 'sideboard') {
+      recordEdit(deck.id, `add ${card.name} to sideboard`, () =>
+        addSideboardCard(deck.id, card, null)
+      );
+      pushToast({ message: `Added ${card.name} to sideboard`, tone: 'success' });
+    } else {
+      recordEdit(deck.id, `add ${card.name}`, () => addCard(deck.id, card, null));
+      pushToast({ message: `Added ${card.name}`, tone: 'success' });
+    }
+  };
+
+  // Surface 2 commit (from MoveToDeckSheet): send a copy of `card` from this deck
+  // into `targetDeckId`, applying the donor outcome to THIS deck.
+  const handleMoveConfirm = (
+    card: ScryfallCard,
+    targetDeckId: string,
+    outcome: DonorOutcome,
+    replacement: { name: string; card: ScryfallCard } | null
+  ): void => {
+    if (!deck) return;
+    setMoveCard(null);
+    const slot = findDonorSlotInDeck(card.name);
+    if (!slot) return;
+    const target = decks.find((d) => d.id === targetDeckId);
+    executeReallocation({
+      donorDeckId: deck.id,
+      recipientDeckId: targetDeckId,
+      recipientApply: () => addCard(targetDeckId, card, slot.copyId),
+      donorApply: () =>
+        applyDonorOutcome(deck.id, slot.zone, slot.slotId, card, outcome, replacement),
+      label: `Moved ${card.name} → ${target?.name ?? 'deck'}`,
+    });
+  };
+
+  // Surface 3: free an owned copy back to the collection (the slot stays as a
+  // card you still need). Single-deck → normal undo + toast.
+  const handleReleaseConfirm = (): void => {
+    if (!deck || !releaseCard) return;
+    const card = releaseCard;
+    setReleaseCard(null);
+    const slot = deck.cards.find((c) => c.card.name === card.name && c.allocatedCopyId);
+    if (slot) {
+      recordEdit(deck.id, `release ${card.name}`, () =>
+        setCardAllocation(deck.id, slot.slotId, null)
+      );
+    } else if (deck.commander?.name === card.name && deck.commanderAllocatedCopyId) {
+      recordEdit(deck.id, `release ${card.name}`, () =>
+        setCommander(deck.id, deck.commander, null)
+      );
+    } else if (deck.partnerCommander?.name === card.name && deck.partnerCommanderAllocatedCopyId) {
+      recordEdit(deck.id, `release ${card.name}`, () =>
+        setPartnerCommander(deck.id, deck.partnerCommander, null)
+      );
+    } else {
+      return;
+    }
+    pushToast({
+      message: `${card.name} released — the copy is now free`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => undoEdit(deck.id),
+    });
+  };
+
+  // Surface 4: bind an owned copy onto an existing unowned mainboard slot. The
+  // menu gate is "every copy is in another deck", so this routes through the
+  // explicit steal-confirm; a free copy (if one appeared) binds directly.
+  const handleUseOwnCopy = (card: ScryfallCard): void => {
+    if (!deck) return;
+    const slot = deck.cards.find((c) => c.card.name === card.name && !c.allocatedCopyId);
+    if (!slot) return;
+    const stealable = findStealableCopy(
+      card.name,
+      collectionCards,
+      useDecksStore.getState().decks,
+      deck.id,
+      card.id
+    );
+    if (stealable) {
+      setPendingSteal({ card, stealable, recipient: { mode: 'bind', slotId: slot.slotId } });
+      return;
+    }
+    const claim = pickCollectionCopy(
+      card.name,
+      collectionCards,
+      buildAllocationMap(useDecksStore.getState().decks),
+      card.id
+    );
+    if (claim) {
+      recordEdit(deck.id, `use my ${card.name}`, () =>
+        setCardAllocation(deck.id, slot.slotId, claim.copyId)
+      );
+      pushToast({ message: `Using your copy of ${card.name}`, tone: 'success' });
+    }
+  };
+
   // Apply an Optimize plan: cut the selected removals (by name → slot) and add
   // the selected additions (resolved from Scryfall + allocated against the
   // collection). Removals run first so the freed copies can be reallocated.
@@ -674,6 +947,21 @@ export function DeckEditorPage() {
       if (!scry) return;
       const allocations = buildAllocationMap(useDecksStore.getState().decks);
       const claim = pickCollectionCopy(cardName, collectionCards, allocations, scry.id);
+      // No free copy, but the user might own one that's in another deck. Surface
+      // the move explicitly rather than silently adding an unowned/proxy slot.
+      if (!claim) {
+        const stealable = findStealableCopy(
+          cardName,
+          collectionCards,
+          useDecksStore.getState().decks,
+          deck.id,
+          scry.id
+        );
+        if (stealable) {
+          setPendingSteal({ card: scry, stealable, recipient: { mode: 'add', zone } });
+          return; // wait for the user's decision in StealConfirmSheet
+        }
+      }
       if (zone === 'sideboard') {
         recordEdit(deck.id, `add ${cardName} to sideboard`, () =>
           addSideboardCard(deck.id, scry, claim?.copyId ?? null)
@@ -1485,6 +1773,9 @@ export function DeckEditorPage() {
                 ? () => setShowPartnerPicker(true)
                 : undefined
             }
+            onMoveToAnotherDeck={decks.length > 1 ? setMoveCard : undefined}
+            onReleaseCopy={setReleaseCard}
+            onUseOwnCopy={handleUseOwnCopy}
             collectionByCopyId={collectionById}
             binderByCopyId={binderByCopyId}
             onAddFromSearch={(q) => {
@@ -1955,6 +2246,44 @@ export function DeckEditorPage() {
           options={refillOptions}
           footer={[{ label: 'Leave it', onClick: () => setRefillAfterCut(null), primary: true }]}
           onClose={() => setRefillAfterCut(null)}
+        />
+      )}
+
+      {/* Physical-copy reallocation — move owned cards between decks. */}
+      {pendingSteal && deck && (
+        <StealConfirmSheet
+          card={pendingSteal.card}
+          stealable={pendingSteal.stealable}
+          collectionCards={collectionCards}
+          ownershipFor={ownershipFor}
+          freeCountFor={freeCountFor}
+          onConfirm={handleConfirmSteal}
+          onAddAsProxy={pendingSteal.recipient.mode === 'add' ? handleAddAsProxy : undefined}
+          onCancel={() => setPendingSteal(null)}
+        />
+      )}
+
+      {moveCard && deck && (
+        <MoveToDeckSheet
+          card={moveCard}
+          currentDeck={deck}
+          collectionCards={collectionCards}
+          ownershipFor={ownershipFor}
+          freeCountFor={freeCountFor}
+          onConfirm={(targetId, outcome, replacement) =>
+            handleMoveConfirm(moveCard, targetId, outcome, replacement)
+          }
+          onCancel={() => setMoveCard(null)}
+        />
+      )}
+
+      {releaseCard && deck && (
+        <ConfirmDialog
+          title={`Release your copy of ${releaseCard.name}?`}
+          body={`The copy frees up for another deck or trade. ${releaseCard.name} stays in this deck as a card you still need.`}
+          confirmLabel="Release copy"
+          onConfirm={handleReleaseConfirm}
+          onCancel={() => setReleaseCard(null)}
         />
       )}
 

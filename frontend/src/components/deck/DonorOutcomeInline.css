@@ -1,0 +1,89 @@
+/* DonorOutcomeInline — the "what about the other deck?" chooser shared by the
+   steal-on-add and move-to-another-deck flows. Theme vars + --text-* scale only;
+   see STYLE_GUIDE.md. */
+
+.donor-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.donor-outcome-prompt,
+.donor-outcome-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.donor-outcome-note strong,
+.donor-outcome-prompt strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.donor-outcome-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.donor-outcome-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast),
+    background var(--motion-fast);
+}
+
+.donor-outcome-option.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
+}
+
+.donor-outcome-option input {
+  margin-top: 0.15rem;
+  accent-color: var(--accent);
+}
+
+.donor-outcome-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.donor-outcome-option-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.donor-outcome-option-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.donor-outcome-replace {
+  padding-top: 0.4rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.donor-outcome-replace-empty {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.donor-outcome-replace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

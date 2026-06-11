@@ -331,6 +331,26 @@ export interface DeckDisplayProps {
    *  control that opens the partner picker. Pass only when the commander can
    *  actually have a partner. */
   onEditPartner?: () => void;
+  /**
+   * When provided, eligible rows get a "Move to another deck…" option that
+   * reallocates a physical copy out of this deck. Suppressed for the partner
+   * commander row (the commander has no portable list slot). Pass only when
+   * there's at least one other deck to move into.
+   */
+  onMoveToAnotherDeck?: (card: ScryfallCard) => void;
+  /**
+   * When provided, a row holding an owned physical copy gets a "Release copy"
+   * option that frees the copy back to the collection (the slot stays in the
+   * deck as a card you still need) — for when you want the card for something
+   * else, not a deck.
+   */
+  onReleaseCopy?: (card: ScryfallCard) => void;
+  /**
+   * When provided, an unowned row whose every owned copy is in OTHER decks gets
+   * a "Use my copy" option that pulls a copy in (routes through the explicit
+   * steal-confirm flow).
+   */
+  onUseOwnCopy?: (card: ScryfallCard) => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /** Binder(s) each collection copy is filed in, keyed by copyId — drives
@@ -797,6 +817,9 @@ export function DeckDisplay({
   onMakePartner,
   canMakePartner,
   onEditPartner,
+  onMoveToAnotherDeck,
+  onReleaseCopy,
+  onUseOwnCopy,
   collectionByCopyId,
   binderByCopyId,
   exportOpen: exportOpenProp,
@@ -1584,6 +1607,9 @@ export function DeckDisplay({
                         canMakeCommander={canMakeCommander}
                         onMakePartner={onMakePartner}
                         canMakePartner={canMakePartner}
+                        onMoveToAnotherDeck={onMoveToAnotherDeck}
+                        onReleaseCopy={onReleaseCopy}
+                        onUseOwnCopy={onUseOwnCopy}
                         headerAction={
                           g.icon === 'ms-commander' && onEditPartner ? (
                             <PartnerHeaderButton
@@ -1624,6 +1650,9 @@ export function DeckDisplay({
                             canMakeCommander={canMakeCommander}
                             onMakePartner={onMakePartner}
                             canMakePartner={canMakePartner}
+                            onMoveToAnotherDeck={onMoveToAnotherDeck}
+                            onReleaseCopy={onReleaseCopy}
+                            onUseOwnCopy={onUseOwnCopy}
                             synergyByName={synergyByName}
                             cardInclusionMap={cardInclusionMap}
                           />
@@ -2623,6 +2652,9 @@ function CategorySection({
   canMakeCommander,
   onMakePartner,
   canMakePartner,
+  onMoveToAnotherDeck,
+  onReleaseCopy,
+  onUseOwnCopy,
   headerAction,
   synergyByName,
   cardInclusionMap,
@@ -2643,6 +2675,9 @@ function CategorySection({
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
   canMakePartner?: (card: ScryfallCard) => boolean;
+  onMoveToAnotherDeck?: (card: ScryfallCard) => void;
+  onReleaseCopy?: (card: ScryfallCard) => void;
+  onUseOwnCopy?: (card: ScryfallCard) => void;
   /** Optional control rendered at the end of the section header (e.g. the
    *  Commander section's "Add/Edit partner" button). */
   headerAction?: React.ReactNode;
@@ -2690,6 +2725,9 @@ function CategorySection({
             canMakeCommander={canMakeCommander}
             onMakePartner={onMakePartner}
             canMakePartner={canMakePartner}
+            onMoveToAnotherDeck={onMoveToAnotherDeck}
+            onReleaseCopy={onReleaseCopy}
+            onUseOwnCopy={onUseOwnCopy}
             synergyReasons={synergyByName?.get(row.card.name)}
             inclusionPct={cardInclusionMap?.[row.card.name]}
           />
@@ -2714,6 +2752,9 @@ function DeckCardRow({
   canMakeCommander,
   onMakePartner,
   canMakePartner,
+  onMoveToAnotherDeck,
+  onReleaseCopy,
+  onUseOwnCopy,
   synergyReasons,
   inclusionPct,
 }: {
@@ -2731,6 +2772,9 @@ function DeckCardRow({
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
   canMakePartner?: (card: ScryfallCard) => boolean;
+  onMoveToAnotherDeck?: (card: ScryfallCard) => void;
+  onReleaseCopy?: (card: ScryfallCard) => void;
+  onUseOwnCopy?: (card: ScryfallCard) => void;
   synergyReasons?: string[];
   /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
   inclusionPct?: number;
@@ -2982,6 +3026,48 @@ function DeckCardRow({
                 }}
               >
                 {moveLabel}
+              </button>
+            )}
+            {onUseOwnCopy && row.claimedElsewhereQty > 0 && row.slotIds.length > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onUseOwnCopy(row.card);
+                }}
+              >
+                Use my copy
+              </button>
+            )}
+            {onMoveToAnotherDeck && !row.isPartner && row.slotIds.length > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onMoveToAnotherDeck(row.card);
+                }}
+              >
+                Move to another deck…
+              </button>
+            )}
+            {onReleaseCopy && row.allocatedQty > 0 && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-row-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onReleaseCopy(row.card);
+                }}
+              >
+                Release copy
               </button>
             )}
             {onMakeCommander && canMakeCommander?.(row.card) && row.slotIds.length > 0 && (

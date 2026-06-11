@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import type { EnrichedCard } from '../types';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 /**
  * Basic-land names — fungible across printings. A deck slot for a Swamp
@@ -380,4 +381,127 @@ export function findSuboptimalPrintings(
     }
   }
   return out;
+}
+
+/**
+ * What to do with the donor deck's slot when a physical copy is pulled out of
+ * it into another deck. The user always picks this explicitly — nothing moves
+ * silently (see the "physical copy reallocation" feature).
+ *
+ * - `leave-gap`: the slot stays in the donor deck but becomes unowned/proxy —
+ *    the truthful physical state (that deck is now short a card). DEFAULT.
+ * - `replace`: swap the donor slot for an owned alternative (picked via the
+ *    similar-cards suggestion engine).
+ * - `remove`: drop the slot from the donor deck entirely.
+ */
+export type DonorOutcome = 'leave-gap' | 'replace' | 'remove';
+
+/** Where a physical copy currently lives inside a donor deck. */
+export type DonorZone = 'main' | 'sideboard' | 'commander' | 'partner';
+
+/**
+ * A physical copy that can be pulled out of another deck to satisfy an add in
+ * the current deck. Carries enough context to (a) confirm the move with the
+ * user and (b) apply their chosen donor outcome to the right slot.
+ */
+export interface StealableCopy {
+  copyId: string;
+  donorDeckId: string;
+  donorDeckName: string;
+  donorDeckColor: string;
+  donorZone: DonorZone;
+  /** Slot id for `main`/`sideboard` zones; `null` for commander/partner. */
+  donorSlotId: string | null;
+  /** The donor slot's card payload — for the replace-suggestion target and display. */
+  donorCard: ScryfallCard;
+}
+
+/** Same finish-then-price ranking pickCollectionCopy uses, as a comparator. */
+function compareCopyPreference(a: EnrichedCard, b: EnrichedCard): number {
+  const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
+  const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
+  const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
+  if (aRank !== bRank) return aRank - bRank;
+  return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
+}
+
+/** Find which slot in `deck` holds `copyId`, if any. */
+function locateCopyInDeck(
+  deck: Deck,
+  copyId: string
+): { zone: DonorZone; slotId: string | null; card: ScryfallCard } | null {
+  if (deck.commanderAllocatedCopyId === copyId && deck.commander) {
+    return { zone: 'commander', slotId: null, card: deck.commander };
+  }
+  if (deck.partnerCommanderAllocatedCopyId === copyId && deck.partnerCommander) {
+    return { zone: 'partner', slotId: null, card: deck.partnerCommander };
+  }
+  const main = deck.cards.find((c) => c.allocatedCopyId === copyId);
+  if (main) return { zone: 'main', slotId: main.slotId, card: main.card };
+  const side = (deck.sideboard ?? []).find((c) => c.allocatedCopyId === copyId);
+  if (side) return { zone: 'sideboard', slotId: side.slotId, card: side.card };
+  return null;
+}
+
+/**
+ * Decide whether adding `cardName` to `excludeDeckId` requires stealing a
+ * physical copy from another deck. This is the pure gate that decides whether
+ * to surface the steal-confirm UI at all — it never mutates.
+ *
+ * Returns `null` (no steal — caller should bind a free copy or add as proxy)
+ * when:
+ *  - the user owns no copies of the card,
+ *  - at least one owned copy is free (unallocated),
+ *  - every owned copy is already allocated to `excludeDeckId` itself.
+ *
+ * Otherwise returns the best copy to pull — restricted to copies held by OTHER
+ * decks and ranked with the same non-foil → cheapest preference as
+ * {@link pickCollectionCopy} (honoring `preferredScryfallId` for non-basics) —
+ * plus where it currently lives so the donor outcome can be applied.
+ */
+export function findStealableCopy(
+  cardName: string,
+  collection: EnrichedCard[],
+  decks: Deck[],
+  excludeDeckId: string,
+  preferredScryfallId?: string
+): StealableCopy | null {
+  const owned = collection.filter((c) => c.name === cardName);
+  if (owned.length === 0) return null;
+
+  const allocations = buildAllocationMap(decks);
+  // A free copy exists → no steal needed; the normal allocator handles it.
+  if (owned.some((c) => !allocations.has(c.copyId))) return null;
+
+  // Copies held by a deck OTHER than the one we're adding to.
+  let stealable = owned.filter((c) => {
+    const info = allocations.get(c.copyId);
+    return !!info && info.deckId !== excludeDeckId;
+  });
+  if (stealable.length === 0) return null;
+
+  // Honor an exact-printing preference as a hard filter (non-basics only),
+  // mirroring pickCollectionCopy; fall back to all stealable copies otherwise.
+  if (preferredScryfallId && !isBasicLandName(cardName)) {
+    const printingMatches = stealable.filter((c) => c.scryfallId === preferredScryfallId);
+    if (printingMatches.length > 0) stealable = printingMatches;
+  }
+
+  const best = [...stealable].sort(compareCopyPreference)[0];
+  const info = allocations.get(best.copyId)!;
+  const donorDeck = decks.find((d) => d.id === info.deckId);
+  const located = donorDeck ? locateCopyInDeck(donorDeck, best.copyId) : null;
+  // Defensive: the allocation map said a deck claims this copy, so the slot
+  // should always be locatable. If the deck vanished mid-flight, bail.
+  if (!donorDeck || !located) return null;
+
+  return {
+    copyId: best.copyId,
+    donorDeckId: donorDeck.id,
+    donorDeckName: donorDeck.name,
+    donorDeckColor: donorDeck.color,
+    donorZone: located.zone,
+    donorSlotId: located.slotId,
+    donorCard: located.card,
+  };
 }
