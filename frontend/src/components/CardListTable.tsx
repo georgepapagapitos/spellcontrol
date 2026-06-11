@@ -7,6 +7,7 @@ import {
   List as ListIconLucide,
   Plus,
   Search,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -1011,6 +1012,240 @@ export function CardListTable({
     (setFilter.size > 0 ? 1 : 0) +
     (groupPrintings ? 0 : 1);
 
+  // Empty chip expression reused for clearing chip-based filters.
+  // Stable reference (same shape every time) — memoized so the
+  // chips useMemo dependency doesn't trigger on every render.
+  const EMPTY_EXPR = useMemo<ChipExpression>(() => ({ chips: [], joiners: [] }), []);
+
+  // Clear all active filters and the search term at once.
+  const clearAllFilters = useCallback(() => {
+    setSearch('');
+    setColorFilter(new Set());
+    setSupertypeExpr(EMPTY_EXPR);
+    setTypesExpr(EMPTY_EXPR);
+    setSubtypeExpr(EMPTY_EXPR);
+    setRarityExpr(EMPTY_EXPR);
+    setOracleExpr(EMPTY_EXPR);
+    setLegalityExpr(EMPTY_EXPR);
+    setLayoutExpr(EMPTY_EXPR);
+    setTreatmentExpr(EMPTY_EXPR);
+    setBorderExpr(EMPTY_EXPR);
+    setFinishExpr(EMPTY_EXPR);
+    setConditionExpr(EMPTY_EXPR);
+    setBinderExpr(EMPTY_EXPR);
+    setSetFilter(new Set());
+    setGroupPrintings(true);
+  }, [EMPTY_EXPR]);
+
+  // Build the active-filter chip descriptors — one per non-empty filter group.
+  // Each chip knows how to clear its own slice so × on a chip is surgical.
+  // The chips are derived state; the single place that maps filter state →
+  // human labels avoids scattering label strings across the JSX.
+  type FilterChip = {
+    id: string;
+    label: string;
+    onClear: () => void;
+  };
+  const activeFilterChips = useMemo<FilterChip[]>(() => {
+    const chips: FilterChip[] = [];
+
+    if (search.trim()) {
+      chips.push({
+        id: 'search',
+        label: `"${search.trim()}"`,
+        onClear: () => setSearch(''),
+      });
+    }
+    if (colorFilter.size > 0) {
+      const colorMap: Record<string, string> = {
+        W: 'White',
+        U: 'Blue',
+        B: 'Black',
+        R: 'Red',
+        G: 'Green',
+        C: 'Colorless',
+      };
+      const labels = [...colorFilter].map((k) => colorMap[k] ?? k).join(', ');
+      chips.push({
+        id: 'color',
+        label: `Color: ${labels}`,
+        onClear: () => setColorFilter(new Set()),
+      });
+    }
+    if (!isExpressionEmpty(rarityExpr)) {
+      const labels = rarityExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => (c.negate ? `not ${c.value}` : c.value))
+        .join(', ');
+      chips.push({
+        id: 'rarity',
+        label: `Rarity: ${labels}`,
+        onClear: () => setRarityExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(supertypeExpr)) {
+      const labels = supertypeExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => (c.negate ? `not ${c.value}` : c.value))
+        .join(', ');
+      chips.push({
+        id: 'supertype',
+        label: `Supertype: ${labels}`,
+        onClear: () => setSupertypeExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(typesExpr)) {
+      const labels = typesExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => (c.negate ? `not ${c.value}` : c.value))
+        .join(', ');
+      chips.push({
+        id: 'type',
+        label: `Type: ${labels}`,
+        onClear: () => setTypesExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(subtypeExpr)) {
+      const labels = subtypeExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => (c.negate ? `not ${c.value}` : c.value))
+        .join(', ');
+      chips.push({
+        id: 'subtype',
+        label: `Subtype: ${labels}`,
+        onClear: () => setSubtypeExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(oracleExpr)) {
+      const labels = oracleExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => (c.negate ? `not "${c.value}"` : `"${c.value}"`))
+        .join(', ');
+      chips.push({
+        id: 'oracle',
+        label: `Text: ${labels}`,
+        onClear: () => setOracleExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(legalityExpr)) {
+      const labels = legalityExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'legality',
+        label: `Legal in: ${labels}`,
+        onClear: () => setLegalityExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(layoutExpr)) {
+      const labels = layoutExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'layout',
+        label: `Layout: ${labels}`,
+        onClear: () => setLayoutExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(treatmentExpr)) {
+      const labels = treatmentExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'treatment',
+        label: `Treatment: ${labels}`,
+        onClear: () => setTreatmentExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(borderExpr)) {
+      const labels = borderExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'border',
+        label: `Border: ${labels}`,
+        onClear: () => setBorderExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(finishExpr)) {
+      const labels = finishExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'finish',
+        label: `Finish: ${labels}`,
+        onClear: () => setFinishExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(conditionExpr)) {
+      const labels = conditionExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'condition',
+        label: `Condition: ${labels}`,
+        onClear: () => setConditionExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(binderExpr)) {
+      const labels = binderExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => c.value)
+        .join(', ');
+      chips.push({
+        id: 'binder',
+        label: `Binder: ${labels}`,
+        onClear: () => setBinderExpr(EMPTY_EXPR),
+      });
+    }
+    if (setFilter.size > 0) {
+      const labels = [...setFilter].join(', ');
+      chips.push({
+        id: 'set',
+        label: `Set: ${labels}`,
+        onClear: () => setSetFilter(new Set()),
+      });
+    }
+    if (!groupPrintings) {
+      chips.push({
+        id: 'groupPrintings',
+        label: 'All copies shown',
+        onClear: () => setGroupPrintings(true),
+      });
+    }
+    return chips;
+  }, [
+    search,
+    colorFilter,
+    rarityExpr,
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    oracleExpr,
+    legalityExpr,
+    layoutExpr,
+    treatmentExpr,
+    borderExpr,
+    finishExpr,
+    conditionExpr,
+    binderExpr,
+    setFilter,
+    groupPrintings,
+    EMPTY_EXPR,
+  ]);
+
+  // Selection copy count (for the "N rows · M copies" selection display).
+  const selectedCopiesCount = useMemo(() => {
+    if (selectedRowKeys.size === 0) return 0;
+    return sorted.filter((r) => selectedRowKeys.has(r.key)).reduce((sum, r) => sum + r.qty, 0);
+  }, [sorted, selectedRowKeys]);
+
   return (
     <div className="card-list">
       {/* Sticky search row — pinned to the top of the list scroll.
@@ -1068,8 +1303,49 @@ export function CardListTable({
         />
       </div>
 
-      <div className="card-list-summary-line">
+      {/* Active filter chips — scrolls with content (non-sticky), appears
+          between the search bar and the controls row. One chip per active
+          filter group; × on a chip clears just that slice. Only renders
+          when at least one filter or search is active. */}
+      {activeFilterChips.length > 0 && (
+        <div className="collection-filter-chips" role="group" aria-label="Active filters">
+          {activeFilterChips.map((chip) => (
+            <span key={chip.id} className="collection-filter-chip">
+              <span className="collection-filter-chip-label">{chip.label}</span>
+              <button
+                type="button"
+                className="collection-filter-chip-clear"
+                aria-label={`Remove filter: ${chip.label}`}
+                onClick={chip.onClear}
+              >
+                <X width={12} height={12} strokeWidth={2.5} aria-hidden />
+              </button>
+            </span>
+          ))}
+          {activeFilterChips.length > 1 && (
+            <button
+              type="button"
+              className="collection-filter-chips-clear-all"
+              onClick={clearAllFilters}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Sort/group/view controls — sticky beneath the search bar.
+          A control row (STYLE_GUIDE "Toolbars & action rows") → flex-wrap,
+          never clips. The --z-popover tier matches the search bar so neither
+          row "wins" against the other — they form one sticky stack. */}
+      <div className="card-list-summary-line card-list-controls-sticky">
         <div className="card-list-summary-actions">
+          {/* Result count — only when filters/search narrow the set */}
+          {(activeFilterCount > 0 || search.trim()) && sorted.length < rows.length && (
+            <span className="card-list-result-count" aria-live="polite">
+              {sorted.length.toLocaleString()} of {rows.length.toLocaleString()} cards
+            </span>
+          )}
           {sorted.length > 0 && (
             <button
               type="button"
@@ -1145,7 +1421,9 @@ export function CardListTable({
       {selectMode && (
         <div className="card-list-bulk-toolbar" role="region" aria-label="Bulk actions">
           <span className="card-list-bulk-count">
-            {selectedRowKeys.size > 0 ? `${selectedRowKeys.size} selected` : 'Select cards…'}
+            {selectedRowKeys.size > 0
+              ? `${selectedRowKeys.size} ${selectedRowKeys.size === 1 ? 'row' : 'rows'} · ${selectedCopiesCount} ${selectedCopiesCount === 1 ? 'copy' : 'copies'}`
+              : 'Select cards…'}
           </span>
           <button
             type="button"
@@ -1233,6 +1511,9 @@ export function CardListTable({
             No cards match your current filters. Try broadening your search or clearing some
             filters.
           </p>
+          <button type="button" className="btn empty-state-action" onClick={clearAllFilters}>
+            Clear filters
+          </button>
         </div>
       ) : view === 'grid' ? (
         <div
@@ -1520,7 +1801,7 @@ export function CardListTable({
                       }
                     />
                     <div className="collection-list-qty">×{r.qty}</div>
-                    <div className="collection-list-price">
+                    <div className="collection-list-price" title="Purchase cost recorded at import">
                       {formatMoney(r.card.purchasePrice * r.qty)}
                     </div>
                   </div>

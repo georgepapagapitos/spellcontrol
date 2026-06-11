@@ -1,14 +1,20 @@
 import { useMemo, useState } from 'react';
+import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicBinder, PublicCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
+import { groupCards } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
+import { SharedCardList } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
+import { ViewModeToggle } from '../ViewModeToggle';
 
 interface Props {
   data: PublicBinder;
 }
+
+type ViewKind = 'grid' | 'list';
 
 /**
  * Public read-only view of a shared binder. The backend already routed the
@@ -18,6 +24,7 @@ interface Props {
  */
 export function SharedBinderView({ data }: Props) {
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
   const q = normalizeForSearch(search);
@@ -50,6 +57,23 @@ export function SharedBinderView({ data }: Props) {
           ariaLabel="Search cards"
           className="shared-toolbar-search"
         />
+        <ViewModeToggle<ViewKind>
+          ariaLabel="Binder view mode"
+          value={view}
+          onChange={setView}
+          options={[
+            {
+              value: 'grid',
+              label: 'Grid view',
+              icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
+            {
+              value: 'list',
+              label: 'List view',
+              icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
+          ]}
+        />
       </div>
 
       {sections.length === 0 ? (
@@ -69,13 +93,17 @@ export function SharedBinderView({ data }: Props) {
               )}
               {section.label} ({section.cards.length})
             </h2>
-            <ul className="shared-card-grid shared-card-grid--small">
-              {section.cards.map((card, idx) => (
-                <li key={`${card.scryfallId}-${idx}`}>
-                  <SharedCardTile card={card} onClick={() => setPreview(card)} />
-                </li>
-              ))}
-            </ul>
+            {view === 'grid' ? (
+              <ul className="shared-card-grid shared-card-grid--small">
+                {section.cards.map((card, idx) => (
+                  <li key={`${card.scryfallId}-${idx}`}>
+                    <SharedCardTile card={card} onClick={() => setPreview(card)} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <SharedCardList items={groupCards(section.cards)} onPreview={setPreview} />
+            )}
           </section>
         ))
       )}

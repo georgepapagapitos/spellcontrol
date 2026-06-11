@@ -429,6 +429,19 @@ export interface DeckDisplayProps {
   activeView?: DeckView;
   /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
   onShowTestHand?: () => void;
+  /**
+   * UX-310: whether the async commander-deck analysis is still in-flight for
+   * the first time. When 'pending', the Tune and Power tabs render skeleton
+   * lane placeholders instead of blank space. 'ready' (default) renders
+   * normally — slots that are undefined simply don't appear.
+   */
+  analysisState?: 'pending' | 'ready';
+  /**
+   * UX-311: deep-link from a StatsHero shortfall line to the Tune lane that
+   * addresses it. The page switches to the Tune tab and expands the target
+   * lane. Only passed for commander decks that have a full analysis result.
+   */
+  onNavigateToTune?: (lane: LaneId) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -840,6 +853,8 @@ export function DeckDisplay({
   renderSimilarCards,
   activeView = 'deck',
   onShowTestHand,
+  analysisState = 'ready',
+  onNavigateToTune,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -1727,6 +1742,8 @@ export function DeckDisplay({
             tuneFocusLane={tuneFocusLane}
             onTuneFocusHandled={onTuneFocusHandled}
             commanderIdentity={commanderIdentity}
+            analysisState={analysisState}
+            onNavigateToTune={onNavigateToTune}
           />
         )}
 
@@ -3146,6 +3163,8 @@ function DeckAnalysisView({
   tuneFocusLane,
   onTuneFocusHandled,
   commanderIdentity,
+  analysisState = 'ready',
+  onNavigateToTune,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3182,6 +3201,10 @@ function DeckAnalysisView({
   onTuneFocusHandled?: () => void;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   commanderIdentity?: string[];
+  /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads. */
+  analysisState?: 'pending' | 'ready';
+  /** UX-311: deep-link from a StatsHero shortfall to the Tune lane that fixes it. */
+  onNavigateToTune?: (lane: LaneId) => void;
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -3268,7 +3291,11 @@ function DeckAnalysisView({
               answer; demotes curve/color/types/validation below. Guarded like the
               checklist itself (no checks → nothing to verdict). */}
           {validation.checks.length > 0 && (
-            <StatsHero validation={validation} planScore={planScore ?? null} />
+            <StatsHero
+              validation={validation}
+              planScore={planScore ?? null}
+              onNavigate={onNavigateToTune}
+            />
           )}
           {/* Mana curve — full-width so the stacked curve reads well. */}
           <Panel title="Mana curve" wide>
@@ -3355,6 +3382,31 @@ function DeckAnalysisView({
 
       {current === 'power' && (
         <div className="deck-bento deck-bento--power">
+          {/* UX-310: skeleton while the async analysis is still in flight. Only
+              show when analysis hasn't delivered a hero or any panel yet — an
+              incomplete result (e.g. bracket landed but engine hasn't) still
+              has real content to show. */}
+          {analysisState === 'pending' && !powerHeroSlot && !bracketEstimation && !engineSlot && (
+            <div
+              className="deck-analysis-skeleton"
+              role="status"
+              aria-label="Analyzing your deck…"
+              aria-live="polite"
+            >
+              <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
+              <div className="deck-analysis-skeleton-bar is-headline" />
+              <div className="deck-analysis-skeleton-bar is-body" />
+              <div className="deck-analysis-skeleton-bar is-body is-short" />
+              <div className="deck-analysis-skeleton-lane">
+                <div className="deck-analysis-skeleton-bar is-body" />
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
+              </div>
+              <div className="deck-analysis-skeleton-lane">
+                <div className="deck-analysis-skeleton-bar is-body" />
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
+              </div>
+            </div>
+          )}
           {powerHeroSlot}
           {/* Detailed breakdowns under the verdict hero. */}
           {/* Bracket + Roles — a compact pair (lone survivor spans full width).
@@ -3458,6 +3510,28 @@ function DeckAnalysisView({
 
       {current === 'tune' && (
         <div className="deck-bento deck-bento--tune">
+          {/* UX-310: skeleton while the async analysis is still in flight. Only
+              show when no lane content has arrived yet. */}
+          {analysisState === 'pending' && !nextBestMoveSlot && !improveSlot && !costSlot && (
+            <div
+              className="deck-analysis-skeleton"
+              role="status"
+              aria-label="Analyzing your deck…"
+              aria-live="polite"
+            >
+              <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
+              <div className="deck-analysis-skeleton-bar is-headline" />
+              <div className="deck-analysis-skeleton-bar is-body" />
+              <div className="deck-analysis-skeleton-lane">
+                <div className="deck-analysis-skeleton-bar is-body" />
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
+              </div>
+              <div className="deck-analysis-skeleton-lane">
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
+                <div className="deck-analysis-skeleton-bar is-body" />
+              </div>
+            </div>
+          )}
           {/* Verdict hero — the single highest-leverage move + the intent router
               (deep-links into the lanes below). Full-width, like the Power hero. */}
           {nextBestMoveSlot}

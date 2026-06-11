@@ -90,11 +90,80 @@
   font-variant-numeric: tabular-nums;
 }
 
-.stats-hero-shortfalls {
+/* ── Shortfall list — replaces the old shortfalls paragraph. Each item may be
+   a tappable Tune deep-link (button) or plain text (no onNavigate / hard rule).
+   Bullets stay compact; the button is a full-width tappable row so the 44px
+   touch-target rule is met on coarse pointers (pointer:coarse). */
+.stats-hero-shortfall-list {
   margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stats-hero-shortfall-item {
   font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--text-muted);
+}
+
+.stats-hero-shortfall-more {
+  color: var(--text-muted);
+}
+
+/* The deep-link button — rect (below hero, per STYLE_GUIDE), border, chevron. */
+.stats-hero-shortfall-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: left;
+  transition:
+    border-color var(--motion-fast),
+    background var(--motion-fast);
+  min-height: 28px; /* intrinsic; coarse override below ensures ≥44px */
+}
+
+/* Hover gated to true pointers — touch gets press feedback from the universal
+   :active scale instead (Samsung falsely reports hover:hover on touch). */
+@media (hover: hover) and (pointer: fine) {
+  .stats-hero-shortfall-btn:hover {
+    background: var(--surface-raised);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+}
+
+.stats-hero-shortfall-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.stats-hero-shortfall-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stats-hero-shortfall-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* 44 px touch target on coarse pointers (phones / tablets). */
+@media (pointer: coarse) {
+  .stats-hero-shortfall-btn {
+    min-height: 44px;
+    padding-block: var(--space-2);
+  }
 }
 
 /* ── Build health ── */

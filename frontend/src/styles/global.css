@@ -8074,6 +8074,126 @@ hr {
   justify-content: flex-end;
 }
 
+/* ── UX-301/306 additions ──────────────────────────────────────────────────
+   Active-filter chip row, sticky controls row, result count, and
+   selection copy count. Added for Wave-3 UX overhaul. */
+
+/* Active-filter chips — scrolls with content (non-sticky); appears between
+   the search bar and the sort/group controls. Wraps gracefully on narrow
+   viewports (≤600px hard floor). Rectangles per the STYLE_GUIDE "Shape
+   language" rule: chips here are actionable (they have a × to clear), so
+   they use var(--radius) rounded-rect, not 999px pills. */
+.collection-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.collection-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.2rem var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.collection-filter-chip-label {
+  /* Max 200px avoids a single very-long chip from dominating the row */
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-filter-chip-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--motion-fast);
+  /* 24px touch target on coarse pointers */
+  min-width: 1rem;
+  min-height: 1rem;
+}
+
+@media (pointer: coarse) {
+  .collection-filter-chip-clear {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+  }
+}
+
+.collection-filter-chip-clear:hover,
+.collection-filter-chip-clear:focus-visible {
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* "Clear all" text button — quieter than individual × buttons so it reads
+   as a secondary escape hatch, not the primary action. */
+.collection-filter-chips-clear-all {
+  background: transparent;
+  border: 0;
+  padding: 0.2rem var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: opacity var(--motion-fast);
+}
+
+.collection-filter-chips-clear-all:hover,
+.collection-filter-chips-clear-all:focus-visible {
+  opacity: 0.8;
+  outline: none;
+}
+
+/* Sticky sort/group/view controls row — pins below the search bar so
+   controls stay reachable while scrolling through thousands of rows.
+   The --collection-search-sticky-h token is the approximate rendered
+   height of .collection-toolbar-row (input row padding + pill height).
+   Under the Collection hub the offset stacks beneath --hub-tabs-sticky-h
+   as well. Same --z-popover tier as the search row above it. */
+.card-list-controls-sticky {
+  position: sticky;
+  top: var(--collection-search-sticky-h, 3.7rem);
+  z-index: var(--z-popover);
+  background: var(--bg);
+  /* Match the search row's bleed so the two bars look unified. */
+  margin-left: calc(var(--page-gutter, 1rem) * -1);
+  margin-right: calc(var(--page-gutter, 1rem) * -1);
+  padding-left: var(--page-gutter, 1rem);
+  padding-right: var(--page-gutter, 1rem);
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+
+/* Under the Collection hub tabs the sticky stack is deeper. */
+.collection-hub-tabs ~ * .card-list-controls-sticky {
+  top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h, 3.7rem));
+}
+
+/* Result count — only rendered when filters reduce the visible set. */
+.card-list-result-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  /* Space it from the controls at its right */
+  margin-right: auto;
+}
+
 /* Bulk-select action bar — appears above the list only while one or more
    rows are checked. Mirrors the summary line's compact, surface-tinted
    look so it reads as part of the same toolbar stack. */
@@ -9440,6 +9560,17 @@ i.ss.set-symbol--mythic {
 /* No tablet/mobile override needed: the header stays visible at all
    widths now (only the duplicated nav links + Settings tab are hidden
    below 1024px), so the indicator rides along unchanged. */
+
+/* Header-mounted compact indicator — wraps the pill in a router Link so
+   tapping leads to Settings. Strip link chrome; the pill itself is the
+   affordance. */
+.header-sync-indicator {
+  text-decoration: none;
+  cursor: pointer;
+}
+.header-sync-indicator:hover {
+  filter: brightness(0.92);
+}
 
 /* Settings page — full route at /settings. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */

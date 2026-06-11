@@ -1,5 +1,6 @@
 import { BarChart3, Plus, Share2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
@@ -16,7 +17,30 @@ export function CollectionPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
-  const [addCardsOpen, setAddCardsOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Deep-link: ?add=list opens the AddCardsSheet on the "Add from list" tab.
+  // Both the open-flag and the initial tab are captured at mount via the lazy
+  // useState initialiser so they remain stable even after the param is stripped
+  // from the URL (which triggers a re-render with an empty searchParams).
+  // Only 'list' is supported; unknown ?add= values open the sheet on 'search'.
+  const [addCardsOpen, setAddCardsOpen] = useState(() => searchParams.get('add') !== null);
+  const [initialTab] = useState<'upload' | 'search'>(() =>
+    searchParams.get('add') === 'list' ? 'upload' : 'search'
+  );
+
+  useEffect(() => {
+    if (searchParams.get('add') !== null) {
+      // Strip the param from the URL without adding a history entry so a
+      // refresh doesn't re-open the sheet.
+      const next = new URLSearchParams(searchParams);
+      next.delete('add');
+      setSearchParams(next, { replace: true });
+    }
+    // Run only once on mount — the param value is already captured in state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [shareOpen, setShareOpen] = useState(false);
 
   const [statsOpen, setStatsOpen] = useState(false);
@@ -84,7 +108,9 @@ export function CollectionPage() {
                 <span aria-label="Collection totals">
                   {collectionCardCount.toLocaleString()}{' '}
                   {collectionCardCount === 1 ? 'card' : 'cards'} ·{' '}
-                  {formatMoney(collectionValue, { wholeDollars: true })}
+                  <span title="Total purchase cost recorded at time of import">
+                    paid {formatMoney(collectionValue, { wholeDollars: true })}
+                  </span>
                 </span>
                 {!isEmpty && (
                   <>
@@ -154,7 +180,9 @@ export function CollectionPage() {
         </>
       )}
 
-      {addCardsOpen && <AddCardsSheet onClose={() => setAddCardsOpen(false)} />}
+      {addCardsOpen && (
+        <AddCardsSheet initialTab={initialTab} onClose={() => setAddCardsOpen(false)} />
+      )}
     </>
   );
 }
