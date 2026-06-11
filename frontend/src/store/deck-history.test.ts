@@ -1,4 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+const { hapticsMock } = vi.hoisted(() => ({
+  hapticsMock: {
+    tap: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    lethal: vi.fn(),
+    eliminate: vi.fn(),
+  },
+}));
+vi.mock('../lib/haptics', () => ({ haptics: hapticsMock }));
+
 import { useDecksStore } from './decks';
 import { useDeckHistoryStore } from './deck-history';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -14,6 +26,7 @@ const cardNames = (deckId: string) =>
 beforeEach(() => {
   useDecksStore.setState({ decks: [] });
   history().clear();
+  hapticsMock.tap.mockClear();
 });
 
 describe('deck-history store', () => {
@@ -102,6 +115,21 @@ describe('deck-history store', () => {
     expect(history().canUndo(id)).toBe(true);
     history().invalidate([id]);
     expect(history().canUndo(id)).toBe(false);
+  });
+
+  it('ticks the light haptic on a successful undo/redo, but not on a no-op', () => {
+    const id = decks().createDeck({ source: 'manual', commander: null });
+
+    // Empty stack: undo/redo refuse and must stay silent.
+    expect(history().undo(id)).toBe(false);
+    expect(history().redo(id)).toBe(false);
+    expect(hapticsMock.tap).not.toHaveBeenCalled();
+
+    history().record(id, 'add A', () => decks().addCard(id, sf('A')));
+    expect(history().undo(id)).toBe(true);
+    expect(hapticsMock.tap).toHaveBeenCalledTimes(1);
+    expect(history().redo(id)).toBe(true);
+    expect(hapticsMock.tap).toHaveBeenCalledTimes(2);
   });
 
   it('keeps per-deck stacks independent', () => {

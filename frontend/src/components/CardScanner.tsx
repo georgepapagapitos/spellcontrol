@@ -16,6 +16,7 @@ import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
+import { haptics } from '../lib/haptics';
 import { isNativePlatform } from '../lib/platform';
 import {
   FINISH_LABELS,
@@ -895,6 +896,20 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     setLastScan(null);
   }, [clearQueue]);
 
+  /**
+   * Manual search-and-tap add (the in-sheet Scryfall search). Camera accepts
+   * get their value-tiered chime+haptic above; a deliberate manual add skips
+   * the celebration but still confirms with the plain success cue so the
+   * queue landing is felt, matching the scan-accept feedback contract.
+   */
+  const handleAddManual = useCallback(
+    (card: ScryfallCard) => {
+      addManual(card);
+      haptics.success();
+    },
+    [addManual]
+  );
+
   // Camera is actually up. The corner chrome (close, total, queue/torch) only
   // makes sense over a live preview — rendering it over the black "starting"
   // screen looks like floating orphan icons, so gate it on this.
@@ -1169,7 +1184,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           onRemove={removeFromQueue}
           onClearAll={handleClearAll}
           onConfirm={handleConfirm}
-          onAddCard={addManual}
+          onAddCard={handleAddManual}
         />
       )}
     </div>
