@@ -46,6 +46,7 @@ import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import { FoilBadge } from '../FoilBadge';
+import { Legend } from '../Legend';
 import {
   buildAllocationMap,
   classifyAllocation,
@@ -2174,6 +2175,8 @@ function DeckToolbar({
             </>
           )}
         </ToolbarPopover>
+
+        <Legend context="deck" align="right" variant="pill" />
 
         <div className="toolbar-search">
           <Search

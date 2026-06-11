@@ -270,7 +270,7 @@ export function BinderListView({
               {' · '}
             </>
           )}
-          <Legend />
+          <Legend context="binder" />
         </span>
         {sortEditable && (
           <span className="binder-summary-sep" aria-hidden="true">

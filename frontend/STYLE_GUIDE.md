@@ -340,6 +340,26 @@ may be *only* reachable via hover. Every hover affordance needs a tap path;
 shows the full printing detail), which is why the row glyphs can stay compact
 and `aria-hidden`/title-labelled.
 
+**Glyph literacy.** A glyph may carry meaning **alone** only if at least one of:
+
+- **(a)** it's the game's physical-card convention — mana symbols, the set
+  symbol, its rarity tint — implicit knowledge any player picked up from the
+  cards themselves;
+- **(b)** it's paired with its word at a roomier density of the **same
+  surface** (e.g. the foil pip is icon-only in compact rows because the list
+  row spells "Etched" next to it);
+- **(c)** it's covered by the **symbol Key** on that surface
+  (`components/Legend`, the context-aware "Key" popover mounted on the
+  collection toolbar, binder summaries, and the deck toolbar).
+
+App-invented glyphs — type icons, the 2-letter role badges, the synergy `✦` —
+are conventions of this app/fan tooling that a casual player has never seen, so
+they **require (b) or (c)**. `title` tooltips are a desktop-only enhancement —
+never the sole explanation (see the Touch rule). The Key renders its samples
+with the **real components** (`TypeIcon`, `SetSymbol`, `FoilBadge`, badge
+markup) so it can't drift from the rows it explains. **Shipping a new glyph ⇒
+adding its Key entry in the same PR.**
+
 ---
 
 ## Extending this guide
