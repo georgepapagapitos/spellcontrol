@@ -7,6 +7,8 @@ import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ManaCost } from './ManaCost';
 import { ColorPip } from './shared/ManaSymbol';
+import { SetSymbol } from './shared/SetSymbol';
+import { setSymbolTitle } from '../lib/set-symbols';
 import { useCollectionStore } from '../store/collection';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { formatMoney } from '../lib/format-money';
@@ -377,6 +379,16 @@ export function BinderListView({
                           <DeckBadge allocations={allocationsFor(r.card)} />
                         </div>
                         <div className="collection-list-meta">
+                          <SetSymbol
+                            setCode={r.card.setCode}
+                            rarity={r.card.rarity}
+                            title={setSymbolTitle({
+                              setCode: r.card.setCode,
+                              setName: r.card.setName,
+                              collectorNumber: r.card.collectorNumber,
+                              rarity: r.card.rarity,
+                            })}
+                          />
                           <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
                           <span className="card-list-cn">#{r.card.collectorNumber}</span>
                           {r.pageNum > 0 && (

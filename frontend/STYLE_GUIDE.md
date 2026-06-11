@@ -311,6 +311,35 @@ The badge is **presentational only** — it holds no decision logic; callers map
 their own semantics onto the vocabulary. Adopted so far in the Substitution and
 Cost panels; Engine/Optimize/Gap are the same chips when they adopt it.
 
+## Card row information hierarchy
+
+Collection/binder rows represent a **specific printing**, not just a card name —
+the density tiers decide which fields drop, but never the printing identity.
+
+**Printing-identity floor.** Any row that represents a specific printing carries
+the **rarity-tinted set symbol** (`components/shared/SetSymbol`, keyrune glyph
+tinted via the `--rarity-*` tokens — collector-app standard: common = muted
+text, uncommon = silver, rare = gold, mythic = orange-red) at **every viewport
+width**. This is the floor that keeps two printings of the same card name from
+rendering pixel-identical (the pre-T36 compact-row bug: SET/#CN/foil all hidden
+<768px). Text tokens may drop with density; the glyph never does.
+
+**Per-density field budgets.** Each density has a fixed budget — add a field by
+trading one out, not by squeezing:
+
+| Density            | Fields                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · set glyph + set code + CN · mana · qty · value                                  |
+| **Compact** (32px) | name · type glyph · set glyph · mana · qty · value — set code + CN return ≥768px; foil/deck/binder badges return ≥1024px                |
+| **Grid** (tile)    | art + qty badge + corner deck/binder badges; a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
+
+**Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
+peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing
+may be *only* reachable via hover. Every hover affordance needs a tap path;
+**tap-opens-the-card-preview is the canonical fallback** (the preview carousel
+shows the full printing detail), which is why the row glyphs can stay compact
+and `aria-hidden`/title-labelled.
+
 ---
 
 ## Extending this guide

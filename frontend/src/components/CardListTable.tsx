@@ -32,6 +32,8 @@ import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mut
 import { useToastsStore } from '../store/toasts';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ManaCost } from './ManaCost';
+import { SetSymbol } from './shared/SetSymbol';
+import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
@@ -655,6 +657,16 @@ export function CardListTable({
     );
     return { displayRows: grouped, sectionHeaders: headers };
   }, [sorted, groupField, setMap]);
+
+  // Card names that appear as more than one printing in the current rows
+  // (rows are one-per-printing, so count > 1 = the art alone is ambiguous).
+  // Grid tiles for these names grow a small set-code chip so the user can
+  // tell the printings apart without opening the preview.
+  const duplicateNames = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of displayRows) counts.set(r.card.name, (counts.get(r.card.name) ?? 0) + 1);
+    return new Set([...counts].filter(([, n]) => n > 1).map(([name]) => name));
+  }, [displayRows]);
 
   // Stable parallel arrays for the card preview carousel. Built inline in JSX,
   // these would get a fresh identity on every render — and since each swipe
@@ -1345,13 +1357,31 @@ export function CardListTable({
                           <div className="card-preview-foil-glare" aria-hidden="true" />
                         </>
                       )}
-                      {r.qty > 1 && (
-                        <span className="collection-grid-qty">
-                          <span className="collection-grid-qty-x" aria-hidden="true">
-                            ×
-                          </span>
-                          {r.qty}
-                        </span>
+                      {(r.qty > 1 || duplicateNames.has(r.card.name)) && (
+                        <div className="collection-grid-corner">
+                          {r.qty > 1 && (
+                            <span className="collection-grid-qty">
+                              <span className="collection-grid-qty-x" aria-hidden="true">
+                                ×
+                              </span>
+                              {r.qty}
+                            </span>
+                          )}
+                          {duplicateNames.has(r.card.name) && (
+                            <span
+                              className="collection-grid-set"
+                              title={setSymbolTitle({
+                                setCode: r.card.setCode,
+                                setName:
+                                  r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
+                                collectorNumber: r.card.collectorNumber,
+                                rarity: r.card.rarity,
+                              })}
+                            >
+                              {r.card.setCode.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
                       )}
                       <div className="collection-grid-badges">
                         <DeckBadge allocations={allocationsFor(r.card)} />
@@ -1457,6 +1487,16 @@ export function CardListTable({
                     </div>
                     <div className="collection-list-meta">
                       <CardTypeGlyph typeLine={r.card.typeLine} />
+                      <SetSymbol
+                        setCode={r.card.setCode}
+                        rarity={r.card.rarity}
+                        title={setSymbolTitle({
+                          setCode: r.card.setCode,
+                          setName: r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
+                          collectorNumber: r.card.collectorNumber,
+                          rarity: r.card.rarity,
+                        })}
+                      />
                       <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
                       <span className="card-list-cn">#{r.card.collectorNumber}</span>
                     </div>

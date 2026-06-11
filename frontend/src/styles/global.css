@@ -186,6 +186,16 @@
   --rarity-land-to: #7a5024;
   --rarity-land-border: #4a2c08;
   --rarity-land-text: #2a1400;
+
+  /* Flat single-color rarity tints — for tinting a glyph (the keyrune set
+     symbol on card rows) rather than filling a chip. The colored tiers reuse
+     the canonical gradient endpoints above; common follows the theme's
+     secondary text color so an untinted glyph reads as neutral metadata in
+     both light and dark themes. */
+  --rarity-common: var(--text-secondary);
+  --rarity-uncommon: var(--rarity-uncommon-to);
+  --rarity-rare: var(--rarity-rare-to);
+  --rarity-mythic: var(--rarity-mythic-to);
 }
 
 html,
@@ -7996,6 +8006,32 @@ i.ms.card-list-type {
   color: var(--text-muted);
 }
 
+/* Rarity-tinted set symbol (keyrune, via components/shared/SetSymbol) — the
+   printing-identity glyph on collection/binder rows (T36). Tinted with the
+   flat --rarity-* tokens instead of keyrune's baked-in colors so the tints
+   track the app's rarity palette and themes. Like the type glyph above it
+   stays visible at every width — including the <768px compact rows where the
+   SET/#CN text tokens drop — so two printings of the same card name are
+   never pixel-identical. */
+i.ss.set-symbol {
+  flex-shrink: 0;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--rarity-common);
+}
+
+i.ss.set-symbol--uncommon {
+  color: var(--rarity-uncommon);
+}
+
+i.ss.set-symbol--rare {
+  color: var(--rarity-rare);
+}
+
+i.ss.set-symbol--mythic {
+  color: var(--rarity-mythic);
+}
+
 /* Page-number chip — shown on binder list rows so the user can find a
    card in physical storage without leaving the list. */
 .card-list-page {
@@ -8179,6 +8215,38 @@ i.ms.card-list-type {
   color: var(--text-secondary);
   text-align: center;
   background: var(--surface-raised);
+}
+
+/* Bottom-left corner cluster on a grid tile — the qty badge plus, when the
+   same card name appears as more than one printing in the current rows, a
+   small set-code chip that disambiguates otherwise-identical art crops
+   (T36). Mirrors .collection-grid-badges (the bottom-right cluster). */
+.collection-grid-corner {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+}
+
+.collection-grid-corner .collection-grid-qty {
+  position: static;
+}
+
+.collection-grid-set {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .collection-grid-qty {
@@ -8596,6 +8664,11 @@ i.ms.card-list-type {
   flex-shrink: 0;
 }
 
+/* Note: the rarity-tinted set glyph (.set-symbol) and the type glyph
+   (.card-list-type) are deliberately NOT in this hide list — they are the
+   printing-identity floor that keeps two printings of the same card name
+   distinguishable on the narrowest compact rows (T36). Only the wider text
+   tokens and badge pills drop below 768px. */
 .collection-list.is-compact .foil-badge-pill,
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
