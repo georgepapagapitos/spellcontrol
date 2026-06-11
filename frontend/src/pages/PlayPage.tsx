@@ -660,26 +660,16 @@ function OnlineSetup({
 
   return (
     <div className="play-setup">
-      <div className="play-online-modes" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'host'}
-          className={`play-online-mode ${mode === 'host' ? 'is-active' : ''}`}
-          onClick={() => setMode('host')}
-        >
-          Host
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'join'}
-          className={`play-online-mode ${mode === 'join' ? 'is-active' : ''}`}
-          onClick={() => setMode('join')}
-        >
-          Join
-        </button>
-      </div>
+      <Tabs<'host' | 'join'>
+        ariaLabel="Online game mode"
+        value={mode}
+        onChange={setMode}
+        variant="fitted"
+        tabs={[
+          { id: 'host', label: 'Host' },
+          { id: 'join', label: 'Join' },
+        ]}
+      />
 
       {mode === 'host' ? (
         <form

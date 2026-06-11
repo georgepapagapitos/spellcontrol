@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
+import { HeaderSyncIndicator } from './SyncIndicator';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
@@ -49,8 +50,10 @@ export function Header() {
           </NavLink>
         </nav>
         <nav className="site-nav">
-          {/* Sync status + account actions all live in Settings — one home,
-              same on every breakpoint, no header chrome to keep in sync. */}
+          {/* Non-happy sync states (offline / error / pending) surface here so
+              users see them wherever they are; the full indicator (with "Synced
+              Nm ago") lives in the Settings Account card. Silence = synced. */}
+          <HeaderSyncIndicator />
           <NavLink
             to="/settings"
             className={({ isActive }) =>

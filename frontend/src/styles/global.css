@@ -9601,6 +9601,17 @@ i.ss.set-symbol--mythic {
    widths now (only the duplicated nav links + Settings tab are hidden
    below 1024px), so the indicator rides along unchanged. */
 
+/* Header-mounted compact indicator — wraps the pill in a router Link so
+   tapping leads to Settings. Strip link chrome; the pill itself is the
+   affordance. */
+.header-sync-indicator {
+  text-decoration: none;
+  cursor: pointer;
+}
+.header-sync-indicator:hover {
+  filter: brightness(0.92);
+}
+
 /* Settings page — full route at /settings. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */
 .settings-page {

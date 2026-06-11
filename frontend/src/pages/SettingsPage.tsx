@@ -466,13 +466,14 @@ export function SettingsPage() {
         <div className="settings-card-body">
           <div className="settings-row">
             <div className="settings-row-text">
-              <div className="settings-row-value">Import cards</div>
+              <div className="settings-row-value">Add cards</div>
               <div className="settings-row-hint">
-                Add cards from ManaBox, Moxfield, Archidekt, or a CSV. Opens the Collection page.
+                Paste a list from ManaBox, Moxfield, Archidekt, or a CSV to add cards to your
+                collection.
               </div>
             </div>
-            <Link to="/collection" className="pill-btn">
-              Open importer
+            <Link to="/collection?add=list" className="pill-btn">
+              Add cards
             </Link>
           </div>
 
