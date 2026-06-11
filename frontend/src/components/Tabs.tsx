@@ -1,4 +1,4 @@
-import { useRef, type ReactNode, type Ref } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type Ref } from 'react';
 
 export interface TabItem<T extends string> {
   /** Stable id — also used to derive the tab button's DOM id. */
@@ -60,6 +60,63 @@ export function Tabs<T extends string>({
   firstTabRef,
 }: Props<T>) {
   const btnRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  // First paint positions the indicator without animating (no slide-in-from-0).
+  const hasPositionedRef = useRef(false);
+  const isUnderline = variant === 'underline';
+
+  // Stable key so the layout effect re-measures on tab add/remove without
+  // re-running on every render (consumers often pass a fresh `tabs` array).
+  const tabKey = tabs.map((t) => t.id).join(' ');
+
+  // UX-207 — sliding underline indicator. A single measured element travels
+  // between tabs (translateX + scaleX from a 1px base, so only transform
+  // animates — never layout). Re-measured on value change, tab add/remove,
+  // and any strip/active-tab resize. Reduced motion jumps instantly via the
+  // CSS gate on .sc-tab-indicator.
+  useLayoutEffect(() => {
+    if (!isUnderline) return;
+    const indicator = indicatorRef.current;
+    const list = listRef.current;
+    if (!indicator || !list) return;
+
+    const position = (animate: boolean) => {
+      const btn = list.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
+      if (!btn || btn.offsetWidth === 0) {
+        // Nothing measurable (empty tabs / display:none strip) — hide; the
+        // ResizeObserver re-fires once the strip gets real layout.
+        indicator.style.opacity = '0';
+        return;
+      }
+      const next = `translateX(${btn.offsetLeft}px) scaleX(${btn.offsetWidth})`;
+      // Unchanged target → bail. This is what keeps the ResizeObserver's
+      // initial (no-op) delivery from snapping an in-flight slide to its end.
+      if (indicator.style.transform === next && indicator.style.opacity === '1') return;
+      if (!animate) {
+        // Suppress the transition for this frame only, then restore the
+        // stylesheet value so later value-changes still slide.
+        indicator.style.transition = 'none';
+        requestAnimationFrame(() => {
+          indicator.style.transition = '';
+        });
+      }
+      indicator.style.opacity = '1';
+      indicator.style.transform = next;
+    };
+
+    position(hasPositionedRef.current);
+    hasPositionedRef.current = true;
+
+    // Container resize, label/count width changes, late font loads: re-measure
+    // and jump (resizes shouldn't slide). Guarded for DOM-less test envs.
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => position(false));
+    ro.observe(list);
+    const activeBtn = list.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]');
+    if (activeBtn) ro.observe(activeBtn);
+    return () => ro.disconnect();
+  }, [isUnderline, value, tabKey]);
 
   const focusSelect = (rawIdx: number) => {
     if (tabs.length === 0) return;
@@ -103,6 +160,7 @@ export function Tabs<T extends string>({
 
   return (
     <div
+      ref={listRef}
       className={`sc-tabs sc-tabs--${variant}${className ? ` ${className}` : ''}`}
       role="tablist"
       aria-label={ariaLabel}
@@ -140,6 +198,8 @@ export function Tabs<T extends string>({
           </button>
         );
       })}
+      {/* Decorative sliding underline — the buttons carry all the semantics. */}
+      {isUnderline && <span ref={indicatorRef} className="sc-tab-indicator" aria-hidden="true" />}
     </div>
   );
 }
