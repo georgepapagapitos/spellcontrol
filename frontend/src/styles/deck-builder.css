@@ -8359,3 +8359,82 @@ input.deck-row-qty-input.deck-row-qty-missing {
     padding: 0.1rem 0.3rem;
   }
 }
+
+/* ── Deck analysis pending skeleton (UX-310) ───────────────────────────────
+   Shown in the Tune and Power tabs while the async commander-deck analysis
+   hasn't yet produced its first result. Uses the shared skeleton-shimmer
+   keyframe from global.css — do NOT redeclare it here (motion-tokens.test.ts
+   enforces a single declaration). Reuses the lane chrome (.tune-lane) and bento
+   panel chrome (.deck-stats-panel) shapes so the skeleton silhouette matches
+   the real content layout. */
+
+.deck-analysis-skeleton {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: clamp(0.85rem, 2cqi, 1.25rem);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.deck-analysis-skeleton-eyebrow {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* A shimmering bar — reuse global skeleton-shimmer keyframe. Each bar is a
+   rounded block that pulses as a loading placeholder. Height / width hints
+   at the expected content (headline vs body text). */
+.deck-analysis-skeleton-bar {
+  height: 0.85rem;
+  border-radius: var(--radius);
+  background: linear-gradient(110deg, var(--border) 35%, var(--surface) 50%, var(--border) 65%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.deck-analysis-skeleton-bar.is-headline {
+  height: 1.3rem;
+  width: 55%;
+}
+
+.deck-analysis-skeleton-bar.is-body {
+  height: 0.75rem;
+  width: 80%;
+}
+
+.deck-analysis-skeleton-bar.is-short {
+  width: 40%;
+}
+
+.deck-analysis-skeleton-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A skeleton lane block — mimics the .tune-lane chrome. */
+.deck-analysis-skeleton-lane {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(0.75rem, 1.5cqi, 1rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-analysis-skeleton-bar {
+    animation: none;
+  }
+}

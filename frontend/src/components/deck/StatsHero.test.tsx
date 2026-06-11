@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { StatsHero, type StatsHeroProps } from './StatsHero';
 import type {
   ValidationCheck,
@@ -63,10 +63,17 @@ function renderHero(overrides: Partial<StatsHeroProps> = {}) {
   return render(<StatsHero {...base} {...overrides} />);
 }
 
-/** Match by an element's full (whitespace-collapsed) textContent. */
+/** Match by an element's full (whitespace-collapsed) textContent across common text elements. */
 function hasText(re: RegExp): boolean {
-  return Array.from(document.querySelectorAll('p, span, strong')).some((el) =>
+  return Array.from(document.querySelectorAll('p, span, strong, li')).some((el) =>
     re.test((el.textContent ?? '').replace(/\s+/g, ' ').trim())
+  );
+}
+
+/** Collect all shortfall item texts (each <li> in the shortfall list). */
+function shortfallTexts(): string[] {
+  return Array.from(document.querySelectorAll('.stats-hero-shortfall-item')).map((el) =>
+    (el.textContent ?? '').replace(/\s+/g, ' ').trim()
   );
 }
 
@@ -83,7 +90,7 @@ describe('StatsHero', () => {
     expect(hasText(/^soft spot: Curve — Rough$/)).toBe(true);
   });
 
-  it('shows "N to fix" with named shortfalls and "+k more" when over three', () => {
+  it('shows "N to fix" with named shortfalls (first 3) and "+k more" when over three', () => {
     const checks: ValidationCheck[] = [
       { id: 'size', label: 'Deck size', status: 'fail', detail: '98 / 100 cards' },
       { id: 'identity', label: 'Commander identity', status: 'fail', detail: '2 off-color cards' },
@@ -94,12 +101,12 @@ describe('StatsHero', () => {
     ];
     renderHero({ validation: makeValidation(checks) });
     expect(hasText(/^✗ ?5 to fix$/)).toBe(true);
-    // First three named, then "+2 more".
-    expect(
-      hasText(
-        /^Deck size 98 \/ 100 cards, Commander identity 2 off-color cards, Singleton 1 duplicate name \+2 more$/
-      )
-    ).toBe(true);
+    // First three items in the list, then "+2 more".
+    const items = shortfallTexts();
+    expect(items[0]).toMatch(/Deck size 98 \/ 100 cards/);
+    expect(items[1]).toMatch(/Commander identity 2 off-color cards/);
+    expect(items[2]).toMatch(/Singleton 1 duplicate name/);
+    expect(items[3]).toMatch(/\+2 more/);
   });
 
   it('shows "N to tune" when there are only soft warnings', () => {
@@ -110,7 +117,9 @@ describe('StatsHero', () => {
     ];
     renderHero({ validation: makeValidation(checks) });
     expect(hasText(/^▾ ?2 to tune$/)).toBe(true);
-    expect(hasText(/^Removal count 6 \/ 8, Curve Avg MV 3.80$/)).toBe(true);
+    const items = shortfallTexts();
+    expect(items[0]).toMatch(/Removal count 6 \/ 8/);
+    expect(items[1]).toMatch(/Curve Avg MV 3.80/);
   });
 
   it('renders only the Functional pillar when planScore is null', () => {
@@ -147,5 +156,50 @@ describe('StatsHero', () => {
     });
     renderHero({ planScore: plan });
     expect(hasText(/soft spot:/)).toBe(false);
+  });
+
+  // ── UX-311: shortfall deep-link buttons ───────────────────────────────────
+
+  it('renders tunable shortfalls as plain text when onNavigate is not provided', () => {
+    const checks: ValidationCheck[] = [
+      PASS('size'),
+      { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
+    ];
+    renderHero({ validation: makeValidation(checks) });
+    expect(screen.queryByRole('button', { name: /Ramp count/i })).toBeNull();
+    expect(shortfallTexts()[0]).toMatch(/Ramp count 4 \/ 10/);
+  });
+
+  it('renders tunable shortfalls as buttons when onNavigate is provided', () => {
+    const checks: ValidationCheck[] = [
+      PASS('size'),
+      { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
+    ];
+    renderHero({ validation: makeValidation(checks), onNavigate: vi.fn() });
+    const btn = screen.getByRole('button', { name: /Ramp count 4 \/ 10 — go to Tune/i });
+    expect(btn).toBeTruthy();
+  });
+
+  it('calls onNavigate with "fill-gaps" when a tunable shortfall button is clicked', () => {
+    const onNavigate = vi.fn();
+    const checks: ValidationCheck[] = [
+      PASS('size'),
+      { id: 'removal', label: 'Removal count', status: 'warn', detail: '6 / 8' },
+    ];
+    renderHero({ validation: makeValidation(checks), onNavigate });
+    const btn = screen.getByRole('button', { name: /Removal count/i });
+    fireEvent.click(btn);
+    expect(onNavigate).toHaveBeenCalledWith('fill-gaps');
+  });
+
+  it('hard-rule checks (size, identity, singleton) render as plain text even with onNavigate', () => {
+    const checks: ValidationCheck[] = [
+      { id: 'size', label: 'Deck size', status: 'fail', detail: '98 / 100 cards' },
+      { id: 'identity', label: 'Commander identity', status: 'fail', detail: '2 off-color' },
+      { id: 'singleton', label: 'Singleton', status: 'fail', detail: '1 duplicate' },
+    ];
+    renderHero({ validation: makeValidation(checks), onNavigate: vi.fn() });
+    // No Tune deep-link for hard-rule failures — they require card edits in the Deck view.
+    expect(screen.queryAllByRole('button', { name: /go to Tune/i })).toHaveLength(0);
   });
 });
