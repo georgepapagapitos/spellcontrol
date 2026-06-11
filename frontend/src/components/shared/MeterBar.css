@@ -1,0 +1,90 @@
+/* MeterBar / StackedBar — the one shared horizontal bar track.
+   Geometry/track/animation live here and ONLY here; fill colors arrive via
+   inline style from the call site. Site CSS may add layout (margin/flex) via
+   className, never re-style the track. */
+
+.meterbar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+/* Progress-bar weight (uploads / long operations). */
+.meterbar--md {
+  height: 12px;
+}
+
+.meterbar-fill,
+.meterbar-segments {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.meterbar-fill {
+  background: var(--accent);
+  /* Live value changes glide (progress ticks, readiness refresh). */
+  transition: width var(--motion-base) var(--ease-out-soft);
+}
+
+.meterbar-segments {
+  display: flex;
+}
+
+.meterbar-seg {
+  height: 100%;
+}
+
+/* Inset hairline between segments — a non-color boundary cue (colorblind-safe). */
+.meterbar-seg + .meterbar-seg {
+  box-shadow: inset 1px 0 0 var(--surface);
+}
+
+/* The one mount animation: the fill grows out from the left edge. */
+@media (prefers-reduced-motion: no-preference) {
+  .meterbar-fill,
+  .meterbar-segments {
+    transform-origin: left;
+    animation: meterbar-grow var(--motion-gentle) var(--ease-out-soft) both;
+  }
+}
+
+@keyframes meterbar-grow {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Indeterminate sweep (unknown progress). Declared after the mount block so
+   its animation wins at equal specificity. */
+.meterbar-fill--indeterminate {
+  width: 40%;
+  transition: none;
+  animation: meterbar-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes meterbar-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meterbar-fill {
+    transition: none;
+  }
+
+  /* Infinite loop must stop explicitly (the global kill is a backstop). */
+  .meterbar-fill--indeterminate {
+    animation: none;
+    transform: translateX(75%);
+  }
+}

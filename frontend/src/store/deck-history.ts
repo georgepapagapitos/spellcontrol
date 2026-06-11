@@ -11,6 +11,7 @@ import {
   redoLabel as redoLabelCore,
   type History,
 } from '../lib/deck-history-core';
+import { haptics } from '../lib/haptics';
 import { useDecksStore, type Deck } from './decks';
 
 /**
@@ -99,6 +100,10 @@ export const useDeckHistoryStore = create<DeckHistoryState>((set, get) => ({
     if (!r) return false;
     useDecksStore.getState().replaceDeck(deckId, r.command.before);
     set({ history: r.history });
+    // Light tick on the actual restore — this is the chokepoint for every
+    // undo entry point (toolbar, Cmd/Ctrl+Z, toast actions), so wiring here
+    // covers them all. No-op stacks return above without buzzing.
+    haptics.tap();
     return true;
   },
 
@@ -107,6 +112,7 @@ export const useDeckHistoryStore = create<DeckHistoryState>((set, get) => ({
     if (!r) return false;
     useDecksStore.getState().replaceDeck(deckId, r.command.after);
     set({ history: r.history });
+    haptics.tap();
     return true;
   },
 
