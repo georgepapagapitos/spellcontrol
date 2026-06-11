@@ -183,6 +183,8 @@ export function GameBoard({
               canLayout={canControlAll}
               opponents={game.players.filter((o) => o.seat !== p.seat)}
               undoNonce={undoNonce}
+              onUndo={onUndo}
+              undoLabel={undoLabel}
             />
           );
         })}
@@ -239,7 +241,14 @@ export function GameBoard({
         </button>
       )}
 
-      {game.status === 'finished' && game.winnerSeat != null && <WinCelebration game={game} />}
+      {game.status === 'finished' &&
+        game.winnerSeat != null &&
+        (() => {
+          const winnerSeatIdx = game.players.findIndex((p) => p.seat === game.winnerSeat);
+          const winnerSlot = winnerSeatIdx >= 0 ? board.seats[winnerSeatIdx] : null;
+          const winnerRot = isShared && winnerSlot ? winnerSlot.rot : 0;
+          return <WinCelebration game={game} rotation={winnerRot} />;
+        })()}
 
       {errorMessage && <div className="game-board-error">{errorMessage}</div>}
       {banner && <div className="game-board-banner">{banner}</div>}
@@ -274,6 +283,8 @@ function PlayerPanel({
   canLayout,
   opponents,
   undoNonce,
+  onUndo,
+  undoLabel,
 }: {
   player: GamePlayer;
   game: GameState;
@@ -286,11 +297,17 @@ function PlayerPanel({
   opponents: GamePlayer[];
   /** Increments on every undo so the panel can drop stale burst chips. */
   undoNonce: number;
+  onUndo: () => void;
+  undoLabel: string | null;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [seatMenuOpen, setSeatMenuOpen] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);
   const [lethalFlash, setLethalFlash] = useState(false);
+  const [elimBeat, setElimBeat] = useState(false);
+  // Initialize to the player's current eliminated state so a restored/resumed
+  // game that loads an already-eliminated player doesn't fire the beat on mount.
+  const prevEliminatedRef = useRef(player.eliminated);
   // Life taps are blocked while any panel overlay is open (seat menu /
   // counters drawer) — otherwise a stray tap on the panel underneath the
   // overlay would change life unexpectedly while the user is picking a
@@ -388,6 +405,18 @@ function PlayerPanel({
     game.commanderDamageEnabled,
   ]);
 
+  // Elimination beat: fires once when the player becomes eliminated.
+  useEffect(() => {
+    if (player.eliminated && !prevEliminatedRef.current) {
+      setElimBeat(true);
+      haptics.warning();
+      const t = setTimeout(() => setElimBeat(false), 2500);
+      prevEliminatedRef.current = player.eliminated;
+      return () => clearTimeout(t);
+    }
+    prevEliminatedRef.current = player.eliminated;
+  }, [player.eliminated]);
+
   const adjust = useCallback(
     (delta: number) => {
       if (disabled) return;
@@ -433,7 +462,7 @@ function PlayerPanel({
           player.eliminated ? 'is-eliminated' : ''
         } ${game.winnerSeat === player.seat ? 'is-winner' : ''} ${canEdit ? 'is-mine' : ''} ${
           lethalFlash ? 'is-lethal-flash' : ''
-        } ${isLowLife ? 'is-low-life' : ''}`}
+        } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''}`}
         // Rotation is set as a CSS variable consumed by the .player-panel
         // transform rule so it composes cleanly with any other transforms.
         // When no identity / no override applies, the inline palette vars
@@ -616,6 +645,22 @@ function PlayerPanel({
             </div>
           )}
         </div>
+
+        {elimBeat && undoLabel && (
+          <button
+            type="button"
+            className="pp-elim-undo-btn"
+            aria-label={`Undo ${undoLabel}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUndo();
+            }}
+          >
+            <Undo2 width={16} height={16} strokeWidth={2.2} aria-hidden />
+            Undo
+          </button>
+        )}
 
         {drawerOpen && (
           <CountersPopover
@@ -839,7 +884,7 @@ function CountersPopover({
             opponents.map((o) => (
               <CounterRow
                 key={o.seat}
-                label={`⚔ ${o.name}`}
+                label={`⚔ ${o.commander ?? o.name}`}
                 value={player.commanderDamage[o.seat] ?? 0}
                 disabled={disabled}
                 lethal={(player.commanderDamage[o.seat] ?? 0) >= 21}
@@ -873,6 +918,11 @@ function CounterRow({
   lethal: boolean;
   onChange: (delta: number) => void;
 }) {
+  const tapHandlers = useTapAndHold({
+    onTap: onChange,
+    onHoldTick: onChange,
+    disabled,
+  });
   return (
     <div className={`counter-row ${lethal ? 'is-lethal' : ''}`}>
       <span className="counter-row-label">{label}</span>
@@ -882,7 +932,7 @@ function CounterRow({
           className="counter-row-btn"
           aria-label={`-1 ${label}`}
           disabled={disabled}
-          onClick={() => onChange(-1)}
+          {...tapHandlers(-1)}
         >
           −
         </button>
@@ -892,7 +942,7 @@ function CounterRow({
           className="counter-row-btn"
           aria-label={`+1 ${label}`}
           disabled={disabled}
-          onClick={() => onChange(1)}
+          {...tapHandlers(1)}
         >
           +
         </button>
@@ -1892,7 +1942,7 @@ const CONFETTI_COUNT = 28;
  * only mounts it while `status === 'finished'` with a winner, and the keyed
  * remount on game id clears the dismissed state.
  */
-function WinCelebration({ game }: { game: GameState }) {
+function WinCelebration({ game, rotation = 0 }: { game: GameState; rotation?: number }) {
   const [dismissed, setDismissed] = useState(false);
   const winner = game.players.find((p) => p.seat === game.winnerSeat);
   const palette = useMemo(
@@ -1937,7 +1987,10 @@ function WinCelebration({ game }: { game: GameState }) {
       </div>
       <div
         className="win-celebration-card"
-        style={palette ? { ['--win-accent' as never]: palette.edge } : undefined}
+        style={{
+          ...(palette ? { ['--win-accent' as never]: palette.edge } : undefined),
+          transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <span className="win-celebration-trophy" aria-hidden="true">
