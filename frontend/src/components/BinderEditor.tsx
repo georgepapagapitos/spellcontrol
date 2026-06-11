@@ -16,6 +16,7 @@ import { ColorPicker } from './ColorPicker';
 import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
 import { isNativePlatform } from '../lib/platform';
 import { pickNativeFiles } from '../lib/native-file-picker';
+import { InfoTip } from './InfoTip';
 
 const BINDER_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import type {
@@ -100,6 +101,129 @@ const DEFAULT_EDHREC_TOP_N = 100;
 
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
+
+// ── Starter templates ──────────────────────────────────────────────────────
+// Pre-fill patterns for new binders. Each template supplies a BinderFilter
+// patch + a human-readable label. Templates only appear on a NEW binder's
+// FIRST rule group when that group has no rule content yet.
+interface StarterTemplate {
+  id: string;
+  label: string;
+  description: string;
+  filter: Partial<BinderFilter>;
+}
+
+const STARTER_TEMPLATES: StarterTemplate[] = [
+  {
+    id: 'value',
+    label: 'Cards worth $1+',
+    description: 'Price ≥ $1',
+    filter: { priceMin: 1 },
+  },
+  {
+    id: 'rares',
+    label: 'Rares & mythics',
+    description: 'Rarity: rare or mythic',
+    filter: {
+      rarities: {
+        chips: [
+          { value: 'rare', negate: false },
+          { value: 'mythic', negate: false },
+        ],
+        joiners: ['OR'],
+      },
+    },
+  },
+  {
+    id: 'one-color',
+    label: 'One color',
+    description: 'Single-color cards — pick your color after',
+    filter: {
+      colors: {
+        chips: [{ value: 'W', negate: false }],
+        joiners: [],
+      },
+    },
+  },
+  {
+    id: 'set',
+    label: 'A set binder',
+    description: 'All cards from a specific set — choose the set after',
+    filter: { setCodes: [] },
+  },
+];
+
+/** True when the filter has at least one active rule field. */
+function isFilterEmpty(f: BinderFilter): boolean {
+  if (f.priceMin !== undefined || f.priceMax !== undefined) return false;
+  if (f.cmcMin !== undefined || f.cmcMax !== undefined) return false;
+  if (f.manaCost?.trim()) return false;
+  if (f.nameContains?.trim()) return false;
+  if (f.commanderEligible !== undefined) return false;
+  if (f.edhrecRankMax !== undefined) return false;
+  if (f.setCodes && f.setCodes.length > 0) return false;
+  const chipFields = [
+    f.legalities,
+    f.colors,
+    f.rarities,
+    f.typeChips,
+    f.oracleChips,
+    f.finishes,
+    f.layouts,
+    f.treatments,
+    f.borderColors,
+  ] as const;
+  for (const expr of chipFields) {
+    if (expr && expr.chips.length > 0) return false;
+  }
+  return true;
+}
+
+// ── Progressive-disclosure field split ────────────────────────────────────
+// ABOVE the fold (always visible, most-reached-for fields):
+//   Type line, Color identity, Rarity, CMC (mana value), Price
+// BELOW the fold (collapsed behind "More rules" expander):
+//   Name contains, Mana cost, Commander, Sets, Finishes, Layout, Treatment,
+//   Border, EDHREC popularity, Legalities, Oracle text
+//
+// Auto-open rule: if any collapsed field carries a value, the expander must
+// start open so the user can see their active rules when editing.
+
+/** Returns true when the filter has a value in any collapsed (below-fold) field. */
+function hasCollapsedFieldValue(f: BinderFilter): boolean {
+  if (f.nameContains?.trim()) return true;
+  if (f.manaCost?.trim()) return true;
+  if (f.commanderEligible !== undefined) return true;
+  if (f.setCodes && f.setCodes.length > 0) return true;
+  if (f.edhrecRankMax !== undefined) return true;
+  if (f.finishes && f.finishes.chips.length > 0) return true;
+  if (f.layouts && f.layouts.chips.length > 0) return true;
+  if (f.treatments && f.treatments.chips.length > 0) return true;
+  if (f.borderColors && f.borderColors.chips.length > 0) return true;
+  if (f.legalities && f.legalities.chips.length > 0) return true;
+  if (f.oracleChips && f.oracleChips.chips.length > 0) return true;
+  return false;
+}
+
+// ── InfoTip copy ───────────────────────────────────────────────────────────
+// Rule-group concept tooltip (mounted once on the "Filters" section heading).
+const RULE_GROUP_TIP = (
+  <>
+    <p className="info-tip-lead">
+      A <strong>rule group</strong> is one set of AND-rules that can route cards into this binder.
+    </p>
+    <ul className="info-tip-list">
+      <li>
+        <strong>Within a group:</strong> every active rule must match — a card must satisfy Color
+        AND Rarity AND Price (AND so on).
+      </li>
+      <li>
+        <strong>Between groups:</strong> OR — a card joins if it matches <em>any</em> group. Use
+        multiple groups for binders like "Rares OR cards worth $5+."
+      </li>
+    </ul>
+  </>
+);
 
 // Default fixed capacity in cards for a given layout: 20 sheet-sides per page
 // (40 when double-sided, since each sheet stores cards on both sides).
@@ -769,8 +893,8 @@ export function BinderEditor() {
                       routingMode === 'manual' ? { opacity: 0.5, pointerEvents: 'none' } : undefined
                     }
                   >
-                    <h3>
-                      Filters{' '}
+                    <h3 className="filter-section-heading">
+                      Filters <InfoTip label="rule groups" text={RULE_GROUP_TIP} wide />
                       <span className="muted">
                         {groups.length === 1
                           ? '— a card joins this binder if it matches every filter below'
@@ -792,6 +916,7 @@ export function BinderEditor() {
                       onAdd={addGroup}
                       onDuplicate={duplicateGroup}
                       onRemove={removeGroup}
+                      isNewBinder={isNew}
                     />
                   </div>
 
@@ -1088,6 +1213,7 @@ function FilterGroupList({
   onAdd,
   onDuplicate,
   onRemove,
+  isNewBinder,
 }: {
   groups: BinderFilterGroup[];
   cards: EnrichedCard[];
@@ -1102,6 +1228,7 @@ function FilterGroupList({
   onAdd: () => void;
   onDuplicate: (idx: number) => void;
   onRemove: (idx: number) => void;
+  isNewBinder: boolean;
 }) {
   // Per-group counts are always raw rule matches; the total expands to
   // pulled-in printings when "keep all printings together" is on. See
@@ -1129,6 +1256,7 @@ function FilterGroupList({
             onSetName={(n) => onSetName(i, n)}
             onDuplicate={() => onDuplicate(i)}
             onRemove={() => onRemove(i)}
+            showTemplates={isNewBinder && i === 0 && groups.length === 1}
           />
           {i < groups.length - 1 && (
             <div className="filter-group-or" aria-hidden="true">
@@ -1181,6 +1309,7 @@ function FilterGroupCard({
   onSetName,
   onDuplicate,
   onRemove,
+  showTemplates,
 }: {
   group: BinderFilterGroup;
   index: number;
@@ -1195,6 +1324,7 @@ function FilterGroupCard({
   onSetName: (n: string) => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  showTemplates: boolean;
 }) {
   const nameRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -1207,6 +1337,10 @@ function FilterGroupCard({
   const summary = autoSummary(group.filter);
   const fallback = `Rule group ${index + 1}`;
   const displayLabel = group.name?.trim() || summary || fallback;
+
+  // Templates are only visible when there is no filter content yet.
+  const hasContent = !isFilterEmpty(group.filter);
+  const shouldShowTemplates = showTemplates && !hasContent;
 
   return (
     <fieldset className="filter-group">
@@ -1244,6 +1378,16 @@ function FilterGroupCard({
           </button>
         </span>
       </legend>
+      {shouldShowTemplates && (
+        <StarterTemplates
+          onApply={(tpl) => {
+            onPatchFilter(tpl.filter);
+            // Pre-fill the group name with the template label if the user
+            // hasn't typed anything yet.
+            if (!group.name?.trim()) onSetName(tpl.label);
+          }}
+        />
+      )}
       <FilterGroupFields
         filter={group.filter}
         onPatch={onPatchFilter}
@@ -1256,9 +1400,45 @@ function FilterGroupCard({
 }
 
 /**
- * The 16 rule-rows that make up a single filter group. Pure presentation —
- * receives `filter` and a patch callback. `idPrefix` namespaces input ids so
- * multiple groups don't collide for assistive tech.
+ * One-tap starter templates. Shown only on a new binder's first rule group
+ * when that group has no rule content. Tapping a template pre-fills the form
+ * fields (the user can still edit everything); the templates disappear once
+ * any real rule content exists.
+ */
+function StarterTemplates({ onApply }: { onApply: (tpl: StarterTemplate) => void }) {
+  return (
+    <div className="starter-templates" aria-label="Quick-start templates">
+      <span className="starter-templates-label">Start with a template:</span>
+      <div className="starter-templates-list">
+        {STARTER_TEMPLATES.map((tpl) => (
+          <button
+            key={tpl.id}
+            type="button"
+            className="starter-template-btn"
+            onClick={() => onApply(tpl)}
+            title={tpl.description}
+          >
+            {tpl.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The rule-rows that make up a single filter group, split into above-fold
+ * (always visible) and below-fold (collapsed behind "More rules" expander).
+ *
+ * Above the fold — common rules reached for most binders:
+ *   Type line, Color identity, Rarity, Mana value (CMC), Price
+ *
+ * Below the fold (collapsed by default):
+ *   Name contains, Mana cost, Commander, Sets, Finishes, Layout, Treatment,
+ *   Border, EDHREC popularity, Legalities, Oracle text
+ *
+ * Auto-open: if any below-fold field has a value (editing an existing binder),
+ * the expander starts open so active rules are never hidden.
  */
 function FilterGroupFields({
   filter,
@@ -1275,17 +1455,40 @@ function FilterGroupFields({
 }) {
   const patch = onPatch;
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
+
+  // Auto-open the expander when a collapsed field already has a value.
+  const [moreOpen, setMoreOpen] = useState(() => hasCollapsedFieldValue(filter));
+
+  // Auto-open only when a collapsed field GAINS a value (e.g. a template
+  // pre-fills Sets) — the rising edge, not every render, so the user can
+  // still collapse manually and rely on the ● badge for hidden active rules.
+  // Canonical adjust-state-during-render pattern (prev-value compare).
+  const collapsedHasValue = hasCollapsedFieldValue(filter);
+  const [prevCollapsedHasValue, setPrevCollapsedHasValue] = useState(collapsedHasValue);
+  if (collapsedHasValue !== prevCollapsedHasValue) {
+    setPrevCollapsedHasValue(collapsedHasValue);
+    if (collapsedHasValue && !moreOpen) setMoreOpen(true);
+  }
+
   return (
     <>
-      {/* Legalities */}
+      {/* ── Above the fold: Type line, Color identity, Rarity, CMC, Price ── */}
+
+      {/* Type chips */}
       <div className="rule-row">
-        <span className="rule-label">Legalities</span>
+        <span className="rule-label">
+          Type line{' '}
+          <InfoTip
+            label="type line filter"
+            text="Substring match against the type line. Each chip can be toggled between IS and IS NOT. Example: IS Creature + IS NOT Legendary excludes legendary creatures."
+          />
+        </span>
         <ChipExpressionBuilder
-          options={FORMATS.map((f) => ({ value: f, label: f }))}
-          value={filter.legalities ?? EMPTY_EXPR}
-          onChange={(next) => patch({ legalities: next })}
+          value={filter.typeChips ?? EMPTY_EXPR}
+          onChange={(next) => patch({ typeChips: next })}
+          suggestions={typeSuggestions}
           defaultJoiner="OR"
-          placeholder="Add format..."
+          placeholder="e.g. creature, angel, legendary"
         />
       </div>
 
@@ -1313,114 +1516,15 @@ function FilterGroupFields({
         />
       </div>
 
-      {/* CMC */}
+      {/* CMC (mana value) */}
       <div className="rule-row">
-        <span className="rule-label">CMC</span>
+        <span className="rule-label">Mana value (CMC)</span>
         <NumberRangeInput
           min={filter.cmcMin}
           max={filter.cmcMax}
           step={1}
           onMinChange={(v) => patch({ cmcMin: v })}
           onMaxChange={(v) => patch({ cmcMax: v })}
-        />
-      </div>
-
-      {/* Mana cost */}
-      <div className="rule-row">
-        <span
-          className="rule-label has-tooltip"
-          title="Exact mana cost match. Use Scryfall syntax with curly braces, e.g. {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
-        >
-          Mana cost <span className="tooltip-marker">ⓘ</span>
-        </span>
-        <input
-          type="text"
-          value={filter.manaCost || ''}
-          onChange={(e) => patch({ manaCost: e.target.value })}
-          placeholder="{2}{G}{W}"
-        />
-      </div>
-
-      {/* Type chips */}
-      <div className="rule-row">
-        <span
-          className="rule-label has-tooltip"
-          title="Substring match against the type line. Toggle each chip between IS and IS NOT. Example: IS Creature + IS NOT Legendary excludes legendary creatures."
-        >
-          Type line <span className="tooltip-marker">ⓘ</span>
-        </span>
-        <ChipExpressionBuilder
-          value={filter.typeChips ?? EMPTY_EXPR}
-          onChange={(next) => patch({ typeChips: next })}
-          suggestions={typeSuggestions}
-          defaultJoiner="OR"
-          placeholder="e.g. creature, angel, legendary"
-        />
-      </div>
-
-      {/* Oracle text */}
-      <div className="rule-row">
-        <span
-          className="rule-label has-tooltip"
-          title="Substring match against the oracle (rules) text. Toggle each chip between IS and IS NOT."
-        >
-          Oracle text <span className="tooltip-marker">ⓘ</span>
-        </span>
-        <ChipExpressionBuilder
-          value={filter.oracleChips ?? EMPTY_EXPR}
-          onChange={(next) => patch({ oracleChips: next })}
-          suggestions={oracleSuggestions}
-          defaultJoiner="OR"
-          placeholder="e.g. flying, draw a card"
-        />
-      </div>
-
-      {/* Commander eligibility */}
-      <div className="rule-row">
-        <span
-          className="rule-label has-tooltip"
-          title="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
-        >
-          Commander <span className="tooltip-marker">ⓘ</span>
-        </span>
-        <div className="rule-segmented" role="radiogroup" aria-label="Commander eligibility">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={filter.commanderEligible === undefined}
-            className={`rule-segmented-pill${filter.commanderEligible === undefined ? ' active' : ''}`}
-            onClick={() => patch({ commanderEligible: undefined })}
-          >
-            Any
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={filter.commanderEligible === true}
-            className={`rule-segmented-pill${filter.commanderEligible === true ? ' active' : ''}`}
-            onClick={() => patch({ commanderEligible: true })}
-          >
-            Is
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={filter.commanderEligible === false}
-            className={`rule-segmented-pill${filter.commanderEligible === false ? ' active' : ''}`}
-            onClick={() => patch({ commanderEligible: false })}
-          >
-            Is not
-          </button>
-        </div>
-      </div>
-
-      {/* Sets */}
-      <div className="rule-row">
-        <span className="rule-label">Sets</span>
-        <SetMultiSelect
-          options={ownedSets}
-          selected={filter.setCodes || []}
-          onChange={(next) => patch({ setCodes: next })}
         />
       </div>
 
@@ -1436,111 +1540,235 @@ function FilterGroupFields({
         />
       </div>
 
-      {/* Finishes */}
-      <div className="rule-row">
-        <span className="rule-label">Finishes</span>
-        <ChipExpressionBuilder
-          options={FINISHES.map((f) => ({ value: f.key, label: f.label }))}
-          value={filter.finishes ?? EMPTY_EXPR}
-          onChange={(next) => patch({ finishes: next })}
-          defaultJoiner="OR"
-          placeholder="Add finish..."
-        />
-      </div>
-
-      {/* Layout */}
-      <div className="rule-row">
-        <span className="rule-label">Layout</span>
-        <ChipExpressionBuilder
-          options={LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
-          value={filter.layouts ?? EMPTY_EXPR}
-          onChange={(next) => patch({ layouts: next })}
-          defaultJoiner="OR"
-          placeholder="Add layout..."
-        />
-      </div>
-
-      {/* Name contains */}
-      <div className="rule-row">
-        <span className="rule-label">Name contains</span>
-        <input
-          type="text"
-          value={filter.nameContains || ''}
-          onChange={(e) => patch({ nameContains: e.target.value })}
-          placeholder="e.g. dragon, sword..."
-        />
-      </div>
-
-      {/* Treatments */}
-      <div className="rule-row">
-        <span
-          className="rule-label has-tooltip"
-          title="Cosmetic treatment of the printing. Full art = full-art lands and cards. Extended art = art that extends to the card edges. Showcase = special frame variants. Etched = etched-foil printings."
+      {/* ── More rules expander ───────────────────────────────────────────── */}
+      <div className="rule-expander">
+        <button
+          type="button"
+          className="rule-expander-toggle"
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen((v) => !v)}
         >
-          Treatment <span className="tooltip-marker">ⓘ</span>
-        </span>
-        <ChipExpressionBuilder
-          options={TREATMENT_OPTIONS.map((t) => ({ value: t.key, label: t.label }))}
-          value={filter.treatments ?? EMPTY_EXPR}
-          onChange={(next) => patch({ treatments: next })}
-          defaultJoiner="OR"
-          placeholder="Add treatment..."
-        />
-      </div>
-
-      {/* Border */}
-      <div className="rule-row">
-        <span className="rule-label">Border</span>
-        <ChipExpressionBuilder
-          options={BORDER_OPTIONS.map((b) => ({ value: b.key, label: b.label }))}
-          value={filter.borderColors ?? EMPTY_EXPR}
-          onChange={(next) => patch({ borderColors: next })}
-          defaultJoiner="OR"
-          placeholder="Add border..."
-        />
-      </div>
-
-      {/* EDHREC */}
-      <div className="rule-row">
-        <span
-          className="rule-label has-tooltip"
-          title="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
-        >
-          EDHREC popularity <span className="tooltip-marker">ⓘ</span>
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <label className="field-checkbox">
-            <input
-              type="checkbox"
-              checked={edhrecEnabled}
-              onChange={(e) =>
-                patch({
-                  edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
-                })
-              }
-            />
-            Top
-          </label>
-          <input
-            type="number"
-            value={filter.edhrecRankMax ?? ''}
-            min={1}
-            max={50000}
-            step={50}
-            disabled={!edhrecEnabled}
-            placeholder={String(DEFAULT_EDHREC_TOP_N)}
-            onChange={(e) =>
-              patch({
-                edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
-              })
-            }
-            style={{ width: 90 }}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            most popular EDH cards
+          <span className="rule-expander-chevron" aria-hidden="true">
+            {moreOpen ? '▾' : '▸'}
           </span>
-        </div>
+          {moreOpen ? 'Fewer rules' : 'More rules'}
+          {!moreOpen && collapsedHasValue && (
+            <span className="rule-expander-active-badge" aria-label="some rules active">
+              ●
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* ── Below the fold ───────────────────────────────────────────────── */}
+      {moreOpen && (
+        <>
+          {/* Name contains */}
+          <div className="rule-row">
+            <span className="rule-label">Name contains</span>
+            <input
+              type="text"
+              value={filter.nameContains || ''}
+              onChange={(e) => patch({ nameContains: e.target.value })}
+              placeholder="e.g. dragon, sword..."
+            />
+          </div>
+
+          {/* Mana cost */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Mana cost{' '}
+              <InfoTip
+                label="mana cost filter"
+                text="Exact mana cost match. Use Scryfall syntax with curly braces, e.g. {2}{G}{W} or {1}{R/W}. Leave blank to ignore."
+              />
+            </span>
+            <input
+              type="text"
+              value={filter.manaCost || ''}
+              onChange={(e) => patch({ manaCost: e.target.value })}
+              placeholder="{2}{G}{W}"
+            />
+          </div>
+
+          {/* Commander eligibility */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Commander{' '}
+              <InfoTip
+                label="commander eligibility"
+                text="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
+              />
+            </span>
+            <div className="rule-segmented" role="radiogroup" aria-label="Commander eligibility">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={filter.commanderEligible === undefined}
+                className={`rule-segmented-pill${filter.commanderEligible === undefined ? ' active' : ''}`}
+                onClick={() => patch({ commanderEligible: undefined })}
+              >
+                Any
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={filter.commanderEligible === true}
+                className={`rule-segmented-pill${filter.commanderEligible === true ? ' active' : ''}`}
+                onClick={() => patch({ commanderEligible: true })}
+              >
+                Is
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={filter.commanderEligible === false}
+                className={`rule-segmented-pill${filter.commanderEligible === false ? ' active' : ''}`}
+                onClick={() => patch({ commanderEligible: false })}
+              >
+                Is not
+              </button>
+            </div>
+          </div>
+
+          {/* Sets */}
+          <div className="rule-row">
+            <span className="rule-label">Sets</span>
+            <SetMultiSelect
+              options={ownedSets}
+              selected={filter.setCodes || []}
+              onChange={(next) => patch({ setCodes: next })}
+            />
+          </div>
+
+          {/* Finishes */}
+          <div className="rule-row">
+            <span className="rule-label">Finishes</span>
+            <ChipExpressionBuilder
+              options={FINISHES.map((f) => ({ value: f.key, label: f.label }))}
+              value={filter.finishes ?? EMPTY_EXPR}
+              onChange={(next) => patch({ finishes: next })}
+              defaultJoiner="OR"
+              placeholder="Add finish..."
+            />
+          </div>
+
+          {/* Layout */}
+          <div className="rule-row">
+            <span className="rule-label">Layout</span>
+            <ChipExpressionBuilder
+              options={LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
+              value={filter.layouts ?? EMPTY_EXPR}
+              onChange={(next) => patch({ layouts: next })}
+              defaultJoiner="OR"
+              placeholder="Add layout..."
+            />
+          </div>
+
+          {/* Treatments */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Treatment{' '}
+              <InfoTip
+                label="treatment filter"
+                text="Cosmetic treatment of the printing. Full art = full-art lands and cards. Extended art = art that extends to the card edges. Showcase = special frame variants. Etched = etched-foil printings."
+              />
+            </span>
+            <ChipExpressionBuilder
+              options={TREATMENT_OPTIONS.map((t) => ({ value: t.key, label: t.label }))}
+              value={filter.treatments ?? EMPTY_EXPR}
+              onChange={(next) => patch({ treatments: next })}
+              defaultJoiner="OR"
+              placeholder="Add treatment..."
+            />
+          </div>
+
+          {/* Border */}
+          <div className="rule-row">
+            <span className="rule-label">Border</span>
+            <ChipExpressionBuilder
+              options={BORDER_OPTIONS.map((b) => ({ value: b.key, label: b.label }))}
+              value={filter.borderColors ?? EMPTY_EXPR}
+              onChange={(next) => patch({ borderColors: next })}
+              defaultJoiner="OR"
+              placeholder="Add border..."
+            />
+          </div>
+
+          {/* EDHREC */}
+          <div className="rule-row">
+            <span className="rule-label">
+              EDHREC popularity{' '}
+              <InfoTip
+                label="EDHREC popularity"
+                text="EDHREC tracks how often each card appears in EDH/Commander decks. Lower rank = more popular. Top 100 = roughly the most-played 100 cards across the format."
+              />
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <label className="field-checkbox">
+                <input
+                  type="checkbox"
+                  checked={edhrecEnabled}
+                  onChange={(e) =>
+                    patch({
+                      edhrecRankMax: e.target.checked ? DEFAULT_EDHREC_TOP_N : undefined,
+                    })
+                  }
+                />
+                Top
+              </label>
+              <input
+                type="number"
+                value={filter.edhrecRankMax ?? ''}
+                min={1}
+                max={50000}
+                step={50}
+                disabled={!edhrecEnabled}
+                placeholder={String(DEFAULT_EDHREC_TOP_N)}
+                onChange={(e) =>
+                  patch({
+                    edhrecRankMax: e.target.value === '' ? undefined : parseInt(e.target.value),
+                  })
+                }
+                style={{ width: 90 }}
+              />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                most popular EDH cards
+              </span>
+            </div>
+          </div>
+
+          {/* Legalities */}
+          <div className="rule-row">
+            <span className="rule-label">Legalities</span>
+            <ChipExpressionBuilder
+              options={FORMATS.map((f) => ({ value: f, label: f }))}
+              value={filter.legalities ?? EMPTY_EXPR}
+              onChange={(next) => patch({ legalities: next })}
+              defaultJoiner="OR"
+              placeholder="Add format..."
+            />
+          </div>
+
+          {/* Oracle text */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Oracle text{' '}
+              <InfoTip
+                label="oracle text filter"
+                text="Substring match against the oracle (rules) text. Each chip can be toggled between IS and IS NOT."
+              />
+            </span>
+            <ChipExpressionBuilder
+              value={filter.oracleChips ?? EMPTY_EXPR}
+              onChange={(next) => patch({ oracleChips: next })}
+              suggestions={oracleSuggestions}
+              defaultJoiner="OR"
+              placeholder="e.g. flying, draw a card"
+            />
+          </div>
+        </>
+      )}
     </>
   );
 }
