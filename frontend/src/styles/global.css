@@ -1564,17 +1564,6 @@ input[type='search'] {
   font-size: var(--text-sm);
 }
 
-.binder-summary-delete {
-  font-size: var(--text-sm);
-  color: var(--err-text);
-  opacity: 0.7;
-  transition: opacity var(--motion-fast);
-}
-.binder-summary-delete:hover,
-.binder-summary-delete:focus-visible {
-  opacity: 1;
-}
-
 /* The view-mode toggle anchors itself to the right of the summary
    line. When Collapse all sits beside it, only Collapse all gets the
    auto margin (otherwise both items split the slack and the buttons
@@ -1589,21 +1578,72 @@ input[type='search'] {
   margin-left: 0.6rem;
 }
 
-.binder-summary-open {
-  background: none;
+/* "Browse pages" — primary action in the binder summary bar: a compact
+   rect button (below-hero shape rule) with accent fill and an icon. */
+.binder-summary-browse-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
-  padding: 0;
-  font: inherit;
-  color: var(--accent);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
-  outline: none;
-  transition: color var(--motion-fast);
+  transition: background var(--motion-fast);
 }
 
-.binder-summary-open:hover,
-.binder-summary-open:focus-visible {
-  color: var(--accent-hover);
+.binder-summary-browse-pages:hover,
+.binder-summary-browse-pages:focus-visible {
+  background: var(--accent-hover);
   outline: none;
+}
+
+/* "+N more pages" expander at the bottom of a section's inline grid. */
+.binder-section-show-more {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.binder-section-show-more:hover,
+.binder-section-show-more:focus-visible {
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Binder hero UX-305: secondary actions collapse into ⋮ at ≤600px. */
+.binder-hero-actions-overflow {
+  display: none;
+}
+
+/* The ⋮ popover must clear the sticky toolbar below the hero. */
+.binder-hero-actions-overflow .overflow-menu-popover {
+  z-index: var(--z-menu);
+}
+
+@media (max-width: 600px) {
+  .binder-hero-action-secondary {
+    display: none;
+  }
+  .binder-hero-actions-overflow {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
 }
 
 /* Drift banner — informational tone, same accent-light palette as
