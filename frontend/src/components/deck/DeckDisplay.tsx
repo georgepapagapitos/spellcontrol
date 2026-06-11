@@ -2875,6 +2875,21 @@ function DeckCardRow({
         ) : (
           <span className="mana-cost-row" aria-hidden />
         ))}
+      {showPrefs.price &&
+        (row.price > 0 ? (
+          <span
+            className="deck-row-price"
+            title={
+              row.qty > 1 ? `${formatMoney(row.price / row.qty, { currency })} each` : undefined
+            }
+          >
+            {formatMoney(row.price, { currency })}
+          </span>
+        ) : (
+          // Unknown/zero price — keep the cell so the menu column stays
+          // aligned across rows (mirrors the empty mana-cost placeholder).
+          <span className="deck-row-price" aria-hidden />
+        ))}
       <div className="deck-row-menu" ref={menuRef}>
         <button
           type="button"
@@ -2991,9 +3006,6 @@ function DeckCardRow({
           </div>
         )}
       </div>
-      {showPrefs.price && (
-        <span className="deck-row-price">{formatMoney(row.price, { currency })}</span>
-      )}
     </li>
   );
 }
