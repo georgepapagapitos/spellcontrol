@@ -1813,9 +1813,20 @@ input.toolbar-search-input {
   }
 }
 
+/* Per-card price cell (T36) — sits right-aligned between the mana cost and
+   the ⋮ menu, muted so the name column stays the loudest thing in the row.
+   The row aggregate is shown (matches the section subtotals); per-copy price
+   lives in the title tooltip when qty > 1. min-width (not width) keeps small
+   amounts column-aligned while letting `$1,234.56` grow without bleeding
+   into the menu. Rows with an unknown price render this cell empty so the
+   menu column still lines up. */
 .deck-row-price {
-  width: 2.5rem;
+  min-width: 2.5rem;
   flex: 0 0 auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  text-align: right;
 }
 
 .deck-row:hover,
@@ -1834,13 +1845,6 @@ input.toolbar-search-input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.deck-row-price {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-xs);
-  text-align: right;
 }
 
 /* Rarity pill — single letter, MTG-canonical colors that are never themed. */
