@@ -1,0 +1,154 @@
+/* MoveToDeckSheet — pick a destination deck, then choose what happens to the
+   donor (current) deck. Reuses the shared card-picker sheet shell; this file
+   adds the header, the deck-list rows, and the outcome phase. Theme vars +
+   --text-* scale only; see STYLE_GUIDE.md. */
+
+.move-deck-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.25rem 0.25rem 0.6rem;
+}
+
+.move-deck-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.move-deck-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.move-deck-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.move-deck-sub strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.move-deck-back,
+.move-deck-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.move-deck-back:hover,
+.move-deck-close:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.move-deck-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.move-deck-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.move-deck-row-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0.5px solid var(--border);
+  border-left: 3px solid var(--deck-color, var(--accent));
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--motion-fast),
+    background var(--motion-fast);
+}
+
+.move-deck-row-btn:hover {
+  background: color-mix(in srgb, var(--deck-color, var(--accent)) 8%, var(--surface-raised));
+}
+
+.move-deck-row-art {
+  flex-shrink: 0;
+  width: 3rem;
+  height: 2.25rem;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+.move-deck-row-swatch {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  width: 3rem;
+  height: 2.25rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--deck-color, var(--accent)) 20%, var(--surface));
+}
+
+.move-deck-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.move-deck-row-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.move-deck-row-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.move-deck-body {
+  padding: 0.2rem 0.25rem 0.6rem;
+  overflow-y: auto;
+}
+
+.move-deck-actions {
+  padding: 0.6rem 0.25rem 0.25rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.move-deck-actions .btn {
+  width: 100%;
+}

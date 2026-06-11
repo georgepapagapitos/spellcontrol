@@ -5,6 +5,7 @@ import {
   pickCollectionCopy,
   classifyAllocation,
   findSuboptimalPrintings,
+  findStealableCopy,
   type AllocationInfo,
 } from './allocations';
 import type { EnrichedCard } from '../types';
@@ -439,6 +440,110 @@ describe('findSuboptimalPrintings', () => {
     const out = findSuboptimalPrintings([d], collection);
     expect(out).toHaveLength(3);
     expect(out.map((r) => r.cardName).sort()).toEqual(['Atraxa', 'Bolt', 'Thrasios']);
+  });
+});
+
+describe('findStealableCopy', () => {
+  function dc(slotId: string, name: string, allocatedCopyId: string | null): DeckCard {
+    return { slotId, card: { name } as ScryfallCard, allocatedCopyId };
+  }
+
+  it('returns null when the user owns no copies', () => {
+    const decks = [deck({ id: 'd1' })];
+    expect(findStealableCopy('Sol Ring', [], decks, 'd1')).toBeNull();
+  });
+
+  it('returns null when a free copy exists (no steal needed)', () => {
+    const decks = [deck({ id: 'd2', name: 'B', cards: [dc('s1', 'Sol Ring', 'claimed')] })];
+    const collection = [
+      card({ copyId: 'claimed', name: 'Sol Ring' }),
+      card({ copyId: 'free', name: 'Sol Ring' }),
+    ];
+    expect(findStealableCopy('Sol Ring', collection, decks, 'd1')).toBeNull();
+  });
+
+  it('returns null when every owned copy is already in the current deck', () => {
+    const decks = [deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', 'mine')] })];
+    const collection = [card({ copyId: 'mine', name: 'Sol Ring' })];
+    expect(findStealableCopy('Sol Ring', collection, decks, 'd1')).toBeNull();
+  });
+
+  it('returns the donor location when a copy is held by another deck', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({
+        id: 'd2',
+        name: 'Donor',
+        color: '#abc',
+        cards: [dc('slot-x', 'Sol Ring', 'shared')],
+      }),
+    ];
+    const collection = [card({ copyId: 'shared', name: 'Sol Ring' })];
+    const res = findStealableCopy('Sol Ring', collection, decks, 'd1');
+    expect(res).toMatchObject({
+      copyId: 'shared',
+      donorDeckId: 'd2',
+      donorDeckName: 'Donor',
+      donorDeckColor: '#abc',
+      donorZone: 'main',
+      donorSlotId: 'slot-x',
+    });
+    expect(res?.donorCard.name).toBe('Sol Ring');
+  });
+
+  it('locates a copy held as another deck commander', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({
+        id: 'd2',
+        name: 'Donor',
+        commander: { name: 'Sol Ring' } as never,
+        commanderAllocatedCopyId: 'cmd-copy',
+      }),
+    ];
+    const collection = [card({ copyId: 'cmd-copy', name: 'Sol Ring' })];
+    const res = findStealableCopy('Sol Ring', collection, decks, 'd1');
+    expect(res).toMatchObject({ donorZone: 'commander', donorSlotId: null, donorDeckId: 'd2' });
+  });
+
+  it('locates a copy held in another deck sideboard', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({ id: 'd2', name: 'Donor', sideboard: [dc('sb-1', 'Sol Ring', 'sb-copy')] }),
+    ];
+    const collection = [card({ copyId: 'sb-copy', name: 'Sol Ring' })];
+    const res = findStealableCopy('Sol Ring', collection, decks, 'd1');
+    expect(res).toMatchObject({ donorZone: 'sideboard', donorSlotId: 'sb-1' });
+  });
+
+  it('prefers a non-foil stealable copy over a foil one', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({
+        id: 'd2',
+        name: 'Donor',
+        cards: [dc('s-foil', 'Sol Ring', 'foil'), dc('s-plain', 'Sol Ring', 'plain')],
+      }),
+    ];
+    const collection = [
+      card({ copyId: 'foil', name: 'Sol Ring', foil: true, finish: 'foil' }),
+      card({ copyId: 'plain', name: 'Sol Ring', foil: false, finish: 'nonfoil' }),
+    ];
+    expect(findStealableCopy('Sol Ring', collection, decks, 'd1')?.copyId).toBe('plain');
+  });
+
+  it('ignores copies in the current deck when picking a donor', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current', cards: [dc('mine', 'Sol Ring', 'in-current')] }),
+      deck({ id: 'd2', name: 'Donor', cards: [dc('theirs', 'Sol Ring', 'in-donor')] }),
+    ];
+    const collection = [
+      card({ copyId: 'in-current', name: 'Sol Ring' }),
+      card({ copyId: 'in-donor', name: 'Sol Ring' }),
+    ];
+    const res = findStealableCopy('Sol Ring', collection, decks, 'd1');
+    expect(res?.copyId).toBe('in-donor');
+    expect(res?.donorDeckId).toBe('d2');
   });
 });
 
