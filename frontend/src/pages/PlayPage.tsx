@@ -13,6 +13,7 @@ import { GameBoard } from '../components/play/GameBoard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
+import { Tabs } from '../components/Tabs';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
 type Tab = 'local' | 'online' | 'history';
@@ -94,35 +95,38 @@ export function PlayPage() {
         <div className="play-page-hero-text">
           <h1 className="binder-hero-name">Play</h1>
         </div>
-        <nav className="play-tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={tab === 'local'}
-            className={`play-tab ${tab === 'local' ? 'is-active' : ''}`}
-            onClick={() => setTab('local')}
-          >
-            Local
-            {local && <span className="play-tab-dot" aria-label="in progress" />}
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'online'}
-            className={`play-tab ${tab === 'online' ? 'is-active' : ''}`}
-            onClick={() => setTab('online')}
-          >
-            Online
-            {online && <span className="play-tab-dot" aria-label="in progress" />}
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'history'}
-            className={`play-tab ${tab === 'history' ? 'is-active' : ''}`}
-            onClick={() => setTab('history')}
-          >
-            History
-            {history.length > 0 && <span className="play-tab-count">{history.length}</span>}
-          </button>
-        </nav>
+        <Tabs<Tab>
+          ariaLabel="Play sections"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            {
+              id: 'local',
+              label: (
+                <>
+                  Local
+                  {local && <span className="play-tab-dot" aria-hidden="true" />}
+                </>
+              ),
+              ariaLabel: local ? 'Local, game in progress' : undefined,
+            },
+            {
+              id: 'online',
+              label: (
+                <>
+                  Online
+                  {online && <span className="play-tab-dot" aria-hidden="true" />}
+                </>
+              ),
+              ariaLabel: online ? 'Online, game in progress' : undefined,
+            },
+            {
+              id: 'history',
+              label: 'History',
+              count: history.length > 0 ? history.length : null,
+            },
+          ]}
+        />
       </header>
 
       {tab === 'local' && (

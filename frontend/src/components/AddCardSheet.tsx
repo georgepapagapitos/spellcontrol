@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useSheetExit } from '../lib/use-sheet-exit';
 
 interface Props {
   /** When provided, the card is also pinned to this binder after being added to the collection. */
@@ -19,13 +20,23 @@ interface Props {
 export function AddCardSheet({ binderId, binderName, onClose }: Props) {
   useLockBodyScroll();
 
+  // Below 1024px this is a bottom sheet with a slide-up entry, so dismissal
+  // plays the symmetric `binder-sheet-slide-out` before unmount. On desktop
+  // it's a centered panel with `animation: none` — exits stay instant there,
+  // symmetric with its entry.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
+    else beginClose();
+  }, [beginClose, onClose]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') dismiss();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [dismiss]);
 
   const title = binderId ? `Add card to ${binderName ?? 'binder'}` : 'Add card to collection';
 
@@ -34,16 +45,17 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        onClose();
+        dismiss();
       }}
       role="presentation"
     >
       <div
-        className="card-picker-sheet add-card-sheet"
+        className={`card-picker-sheet add-card-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
@@ -55,10 +67,10 @@ export function AddCardSheet({ binderId, binderName, onClose }: Props) {
           )}
         </div>
 
-        <AddCardSearchPanel binderId={binderId} onEscape={onClose} />
+        <AddCardSearchPanel binderId={binderId} onEscape={dismiss} />
 
         <div className="card-picker-footer">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={() => dismiss()}>
             Done
           </button>
         </div>

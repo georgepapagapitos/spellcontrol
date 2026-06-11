@@ -1,6 +1,7 @@
 import { type JSX, useMemo, useState } from 'react';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
+import { MeterBar } from '../shared/MeterBar';
 import './DeckTypeBreakdown.css';
 
 /**
@@ -75,9 +76,7 @@ export function DeckTypeBreakdown({
                     )}
                   </span>
                 </div>
-                <div className="deck-type-breakdown-row-track">
-                  <div className="deck-type-breakdown-row-fill" style={{ width: `${row.pct}%` }} />
-                </div>
+                <MeterBar value={row.count} max={total} />
               </>
             );
             return (

@@ -166,10 +166,10 @@ describe('ScannerQueueSheet', () => {
     expect(onChangePrinting).toHaveBeenCalledWith('oracle-bolt', altPrint);
   });
 
-  it('clear-all confirms before firing, and continue-scanning fires immediately', async () => {
+  it('clear-all confirms before firing, and continue-scanning plays the exit then closes', async () => {
     const onClearAll = vi.fn();
     const onClose = vi.fn();
-    render(
+    const { container } = render(
       <ScannerQueueSheet
         entries={[makeEntry()]}
         onClose={onClose}
@@ -189,8 +189,82 @@ describe('ScannerQueueSheet', () => {
     fireEvent.click(within(dialog).getByText('Clear all'));
     // handleClearAll awaits the confirm promise, so onClearAll fires a tick later.
     await waitFor(() => expect(onClearAll).toHaveBeenCalled());
+    // Continue scanning routes through the symmetric exit: onClose only
+    // fires once the scanner-sheet-slide-out animation ends.
     fireEvent.click(screen.getByText('Continue scanning'));
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    const panel = container.querySelector('.scanner-sheet-panel') as HTMLElement;
+    expect(panel.className).toContain('is-closing');
+    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Every dismiss path goes through the symmetric exit — it flips
+  // `is-closing` on panel + backdrop and fires onClose only when the
+  // `scanner-sheet-slide-out` animation ends (not synchronously).
+  const renderForDismiss = (onClose: () => void) =>
+    render(
+      <ScannerQueueSheet
+        entries={[makeEntry()]}
+        onClose={onClose}
+        onChangePrinting={vi.fn()}
+        onChangeQty={vi.fn()}
+        onChangeFinish={vi.fn()}
+        onRemove={vi.fn()}
+        onClearAll={vi.fn()}
+        onConfirm={vi.fn()}
+        onAddCard={vi.fn()}
+      />
+    );
+
+  it('dismisses via the ✕ button (exit class → animationend → onClose)', () => {
+    const onClose = vi.fn();
+    const { container } = renderForDismiss(onClose);
+    fireEvent.click(screen.getByLabelText('Close scanned cards'));
+    expect(onClose).not.toHaveBeenCalled(); // exit animation in flight
+    const panel = container.querySelector('.scanner-sheet-panel') as HTMLElement;
+    expect(panel.className).toContain('is-closing');
+    expect(container.querySelector('.scanner-sheet-backdrop')?.className).toContain('is-closing');
+    // The entry animation ending must NOT unmount the sheet.
+    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide' });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses via the backdrop and via Escape through the same exit', () => {
+    const onClose = vi.fn();
+    const { container } = renderForDismiss(onClose);
+    fireEvent.click(container.querySelector('.scanner-sheet-backdrop') as Element);
+    fireEvent.keyDown(document, { key: 'Escape' }); // double-trigger guard
+    const panel = container.querySelector('.scanner-sheet-panel') as HTMLElement;
+    expect(panel.className).toContain('is-closing');
+    fireEvent.animationEnd(panel, { animationName: 'scanner-sheet-slide-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('reduced motion closes immediately without waiting on the exit animation', () => {
+    const spy = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes('reduce'),
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }) as unknown as MediaQueryList
+    );
+    try {
+      const onClose = vi.fn();
+      renderForDismiss(onClose);
+      fireEvent.click(screen.getByLabelText('Close scanned cards'));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('shows an Add-N-cards CTA in the footer and fires onConfirm', () => {

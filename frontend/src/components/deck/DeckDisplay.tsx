@@ -35,6 +35,7 @@ import type { DeckCard } from '../../store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { ManaSymbol } from '../shared/ManaSymbol';
+import { MeterBar } from '../shared/MeterBar';
 import { typeIcon } from '../../lib/card-types';
 import { formatMoney } from '../../lib/format-money';
 import { Modal } from '../Modal';
@@ -3553,12 +3554,7 @@ function RolesPanel({
                   )}
                 </span>
               </div>
-              <div className="deck-roles-bar">
-                <div
-                  className="deck-roles-bar-fill"
-                  style={{ width: `${(it.value / max) * 100}%`, background: it.color }}
-                />
-              </div>
+              <MeterBar className="deck-roles-bar" value={it.value} max={max} color={it.color} />
               {it.sub && <div className="deck-roles-sub">{it.sub}</div>}
             </li>
           );

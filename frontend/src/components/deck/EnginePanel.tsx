@@ -6,6 +6,7 @@ import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/s
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import { useCardCarousel } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
+import { StackedBar } from '../shared/MeterBar';
 
 export interface EnginePanelProps {
   analysis: SynergyAnalysis;
@@ -25,10 +26,13 @@ export interface EnginePanelProps {
   showSuggestions?: boolean;
 }
 
-/** A producer↔payoff balance bar for one axis. */
-function AxisBalance({ axis }: { axis: SynergyAxisView }): JSX.Element {
-  const total = axis.producers + axis.payoffs || 1;
-  const prodPct = Math.round((axis.producers / total) * 100);
+/**
+ * A producer↔payoff balance bar for one axis. Bar length is proportional to
+ * the axis's weight (its producer+payoff card count) on a scale shared across
+ * all displayed axes (`maxTotal`), so a 3-card fringe theme no longer paints
+ * the same full-width bar as the 20-card primary engine.
+ */
+function AxisBalance({ axis, maxTotal }: { axis: SynergyAxisView; maxTotal: number }): JSX.Element {
   return (
     <li className="engine-axis">
       <div className="engine-axis-head">
@@ -39,12 +43,17 @@ function AxisBalance({ axis }: { axis: SynergyAxisView }): JSX.Element {
           <span className="is-pay">{axis.payoffs} payoffs</span>
         </span>
       </div>
-      {/* Decorative — the colored counts above already convey this to AT; the
-          inter-segment divider gives a non-color cue for the producer/payoff split. */}
-      <div className="engine-axis-bar" aria-hidden={true}>
-        <span className="engine-axis-bar-prod" style={{ width: `${prodPct}%` }} />
-        <span className="engine-axis-bar-pay" style={{ width: `${100 - prodPct}%` }} />
-      </div>
+      {/* Decorative (aria-hidden via the primitive) — the colored counts above
+          already convey this to AT; the inter-segment divider gives a non-color
+          cue for the producer/payoff split. */}
+      <StackedBar
+        className="engine-axis-bar"
+        max={maxTotal}
+        segments={[
+          { key: 'producers', value: axis.producers, color: 'var(--accent)' },
+          { key: 'payoffs', value: axis.payoffs, color: 'var(--success, #2f7d4f)' },
+        ]}
+      />
     </li>
   );
 }
@@ -143,6 +152,8 @@ export function EnginePanel({
 
   // Only show axes the deck actually engages with (has at least one card).
   const axes = analysis.axes.filter((a) => a.producers + a.payoffs > 0);
+  // Shared scale for the balance bars — the busiest axis spans the full track.
+  const maxAxisTotal = axes.reduce((m, a) => Math.max(m, a.producers + a.payoffs), 0);
 
   return (
     <section className="engine-panel" aria-label="Deck engine analysis">
@@ -151,7 +162,7 @@ export function EnginePanel({
       {axes.length > 0 && (
         <ul className="engine-axes">
           {axes.map((a) => (
-            <AxisBalance key={a.axis} axis={a} />
+            <AxisBalance key={a.axis} axis={a} maxTotal={maxAxisTotal} />
           ))}
         </ul>
       )}

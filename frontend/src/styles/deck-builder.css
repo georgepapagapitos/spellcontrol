@@ -2569,17 +2569,10 @@ input.toolbar-search-input {
   color: var(--err-text);
 }
 
+/* Layout-only hook on the shared <MeterBar> (components/shared/MeterBar.tsx),
+   which owns the track geometry. */
 .deck-roles-bar {
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
   margin: 0.2rem 0 0.15rem;
-}
-
-.deck-roles-bar-fill {
-  height: 100%;
-  border-radius: 2px;
 }
 
 .deck-roles-sub {

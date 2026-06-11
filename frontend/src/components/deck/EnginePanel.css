@@ -57,23 +57,10 @@
   color: var(--success, #2f7d4f);
 }
 
+/* Layout-only hook on the shared <StackedBar> (components/shared/MeterBar.tsx),
+   which owns the track geometry + the producer/payoff divider cue. */
 .engine-axis-bar {
-  display: flex;
-  height: 0.3rem;
   margin-top: 0.2rem;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--surface-raised, var(--surface));
-}
-
-.engine-axis-bar-prod {
-  background: var(--accent);
-}
-
-.engine-axis-bar-pay {
-  background: var(--success, #2f7d4f);
-  /* Non-color cue for the producer/payoff split (colorblind-safe). */
-  box-shadow: inset 1px 0 0 var(--surface);
 }
 
 /* ── Lopsided-engine warnings ───────────────────────────────────────────── */

@@ -151,10 +151,29 @@ describe('AddCardsSheet', () => {
     expect(importCardsMock).not.toHaveBeenCalled();
   });
 
-  it('fires onClose on Escape', () => {
+  // Dismissal routes through the symmetric pop-out exit (useSheetExit):
+  // is-closing goes on the modal + backdrop, and onClose fires only when
+  // the modal-panel-out animation ends.
+  it('plays the exit animation on Escape, then fires onClose', () => {
     const onClose = vi.fn();
-    render(<AddCardsSheet onClose={onClose} />);
+    const { container } = render(<AddCardsSheet onClose={onClose} />);
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled(); // exit animation in flight
+    const modal = container.querySelector('.add-cards-modal') as HTMLElement;
+    expect(modal.className).toContain('is-closing');
+    expect(container.querySelector('.add-cards-backdrop')?.className).toContain('is-closing');
+    fireEvent.animationEnd(modal, { animationName: 'modal-panel-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses via the ✕ button and the backdrop through the same exit', () => {
+    const onClose = vi.fn();
+    const { container } = render(<AddCardsSheet onClose={onClose} />);
+    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(container.querySelector('.add-cards-backdrop') as Element); // guard: no double-close
+    const modal = container.querySelector('.add-cards-modal') as HTMLElement;
+    expect(modal.className).toContain('is-closing');
+    fireEvent.animationEnd(modal, { animationName: 'modal-panel-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

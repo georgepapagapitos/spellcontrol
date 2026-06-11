@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../lib/use-escape-key';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import { normalizeForSearch } from '../lib/normalize-search';
 import type { EnrichedCard } from '../types';
 import { FoilBadge } from './FoilBadge';
@@ -21,7 +22,18 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
   const searchRef = useRef<HTMLInputElement>(null);
 
   useLockBodyScroll();
-  useEscapeKey(onClose);
+
+  // Below 1024px this is a bottom sheet with a slide-up entry, so dismissal
+  // plays the symmetric `binder-sheet-slide-out` before unmount. On desktop
+  // it's a centered panel with `animation: none` (and a centering transform
+  // the fall keyframe would clobber) — exits stay instant there, symmetric
+  // with its entry.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
+    else beginClose();
+  }, [beginClose, onClose]);
+  useEscapeKey(dismiss);
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -62,16 +74,17 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
       className="card-picker-root"
       onClick={(e) => {
         e.stopPropagation();
-        onClose();
+        dismiss();
       }}
       role="presentation"
     >
       <div
-        className="card-picker-sheet"
+        className={`card-picker-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Add cards to binder"
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
@@ -119,7 +132,7 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
           )}
         </ul>
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
             Done
           </button>
         </div>
