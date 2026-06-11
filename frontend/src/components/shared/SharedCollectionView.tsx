@@ -8,15 +8,22 @@ import {
   type SharedSortKey,
   type SortDir,
 } from '../../lib/shared-grouping';
+import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
+import { SharedCardList } from './SharedCardList';
 import { ColorPip } from './ManaSymbol';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
+import { SelectMenu } from '../SelectMenu';
+import { SortDirArrow } from '../SortDirArrow';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { formatMoney } from '../../lib/format-money';
 
 interface Props {
   data: PublicCollection;
 }
+
+type ViewKind = 'grid' | 'list';
 
 const COLOR_CHIPS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -41,6 +48,7 @@ export function SharedCollectionView({ data }: Props) {
   const [sort, setSort] = useState<SharedSortKey>('name');
   const [dir, setDir] = useState<SortDir>('asc');
   const [colors, setColors] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
   const grouped = useMemo(() => groupCards(data.cards), [data.cards]);
@@ -64,6 +72,16 @@ export function SharedCollectionView({ data }: Props) {
     });
   };
 
+  // Mirrors the collection's SelectMenu sort behavior: re-picking the active
+  // field flips direction, picking a new field resets to ascending.
+  const toggleSort = (key: SharedSortKey) => {
+    if (key === sort) setDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSort(key);
+      setDir('asc');
+    }
+  };
+
   return (
     <main className="shared-view">
       <header className="shared-view-header">
@@ -83,29 +101,15 @@ export function SharedCollectionView({ data }: Props) {
           ariaLabel="Search cards"
           className="shared-toolbar-search"
         />
-        <label className="shared-sort-label">
-          Sort
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SharedSortKey)}
-            aria-label="Sort by"
-          >
-            {SORT_OPTIONS.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="btn shared-sort-dir"
-          onClick={() => setDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-          aria-label={`Sort direction: ${dir}ending`}
-          title={`Direction: ${dir}ending`}
-        >
-          {dir === 'asc' ? '↑' : '↓'}
-        </button>
+        <SelectMenu<SharedSortKey>
+          ariaLabel="Sort"
+          value={sort}
+          options={SORT_OPTIONS.map((s) => ({ value: s.key, label: s.label }))}
+          onChange={toggleSort}
+          closeOnSelect={false}
+          leadingIcon={<SortDirArrow dir={dir} />}
+          renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={dir} /> : null)}
+        />
         <div className="color-filter-row" role="group" aria-label="Filter by color">
           {COLOR_CHIPS.map((c) => {
             const active = colors.has(c.key);
@@ -124,13 +128,30 @@ export function SharedCollectionView({ data }: Props) {
             );
           })}
         </div>
+        <ViewModeToggle<ViewKind>
+          ariaLabel="Collection view mode"
+          value={view}
+          onChange={setView}
+          options={[
+            {
+              value: 'grid',
+              label: 'Grid view',
+              icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
+            {
+              value: 'list',
+              label: 'List view',
+              icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
+          ]}
+        />
       </div>
 
       {sorted.length === 0 ? (
         <p className="shared-empty">
           {totalCards === 0 ? 'This collection is empty.' : 'No cards match your filters.'}
         </p>
-      ) : (
+      ) : view === 'grid' ? (
         <ul className="shared-card-grid">
           {sorted.map((g) => (
             <li key={g.key}>
@@ -142,6 +163,8 @@ export function SharedCollectionView({ data }: Props) {
             </li>
           ))}
         </ul>
+      ) : (
+        <SharedCardList items={sorted} onPreview={setPreview} />
       )}
 
       {preview && <SharedCardModal card={preview} onClose={() => setPreview(null)} />}
