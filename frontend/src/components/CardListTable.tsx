@@ -35,6 +35,7 @@ import { ManaCost } from './ManaCost';
 import { SetSymbol } from './shared/SetSymbol';
 import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
+import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
@@ -1137,6 +1138,7 @@ export function CardListTable({
               },
             ]}
           />
+          <Legend context="collection" align="right" variant="pill" />
         </div>
       </div>
 
