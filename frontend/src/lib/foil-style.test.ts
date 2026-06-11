@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyFoil } from './foil-style';
+import { classifyFoil, foilFinishLabel } from './foil-style';
 import type { EnrichedCard } from '../types';
 
 function card(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -60,5 +60,20 @@ describe('classifyFoil', () => {
 
   it('promo treatments override etched finishes', () => {
     expect(classifyFoil(card({ promoTypes: ['oilslick'], finishes: ['etched'] }))).toBe('oilslick');
+  });
+});
+
+describe('foilFinishLabel', () => {
+  it('returns null for non-foil cards', () => {
+    expect(foilFinishLabel(card({ foil: false }))).toBeNull();
+  });
+
+  it('labels the generic finish "Foil"', () => {
+    expect(foilFinishLabel(card({}))).toBe('Foil');
+  });
+
+  it('labels specialty finishes specifically', () => {
+    expect(foilFinishLabel(card({ promoTypes: ['oilslick'] }))).toBe('Oil slick');
+    expect(foilFinishLabel(card({ finishes: ['etched'] }))).toBe('Etched');
   });
 });
