@@ -1,6 +1,6 @@
 import './FoilBadge.css';
 import { type JSX } from 'react';
-import { classifyFoil, type FoilClassifiable, type FoilStyle } from '@/lib/foil-style';
+import { classifyFoil, FOIL_LABEL, type FoilClassifiable } from '@/lib/foil-style';
 
 /**
  * The one canonical foil indicator — a small iridescent pip, tinted per finish
@@ -15,16 +15,6 @@ import { classifyFoil, type FoilClassifiable, type FoilStyle } from '@/lib/foil-
  * `showLabel` adds the finish name beside the pip (for roomy rows like the
  * collection list); omit it for tight metadata rows where the pip alone reads.
  */
-const FOIL_LABEL: Record<Exclude<FoilStyle, 'none'>, string> = {
-  regular: 'Foil',
-  etched: 'Etched',
-  textured: 'Textured',
-  oilslick: 'Oil slick',
-  gilded: 'Gilded',
-  halo: 'Halo',
-  fracture: 'Fracture',
-};
-
 export interface FoilBadgeProps {
   card: FoilClassifiable;
   /** Show the finish name beside the pip (roomy list rows). */

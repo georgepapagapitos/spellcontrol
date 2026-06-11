@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import 'mana-font/css/mana.min.css';
+import 'keyrune/css/keyrune.min.css';
 import './styles/global.css';
 import './styles/holographic.css';
 import './styles/themes.css';

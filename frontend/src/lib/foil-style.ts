@@ -24,6 +24,30 @@ export type FoilClassifiable = Pick<
   'foil' | 'promoTypes' | 'finishes' | 'frameEffects'
 >;
 
+/**
+ * Human label per finish style. Owned here (not in FoilBadge) so textual
+ * surfaces — the badge pill and the card-preview meta token — share one
+ * mapping and the wording never drifts.
+ */
+export const FOIL_LABEL: Record<Exclude<FoilStyle, 'none'>, string> = {
+  regular: 'Foil',
+  etched: 'Etched',
+  textured: 'Textured',
+  oilslick: 'Oil slick',
+  gilded: 'Gilded',
+  halo: 'Halo',
+  fracture: 'Fracture',
+};
+
+/**
+ * Specific finish label for a card ("Foil", "Etched", "Oil slick", …), or
+ * null when the card isn't foil.
+ */
+export function foilFinishLabel(card: FoilClassifiable): string | null {
+  const style = classifyFoil(card);
+  return style === 'none' ? null : FOIL_LABEL[style];
+}
+
 export function classifyFoil(card: FoilClassifiable): FoilStyle {
   if (!card.foil) return 'none';
   const promo = new Set(card.promoTypes ?? []);

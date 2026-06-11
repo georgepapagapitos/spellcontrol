@@ -186,6 +186,16 @@
   --rarity-land-to: #7a5024;
   --rarity-land-border: #4a2c08;
   --rarity-land-text: #2a1400;
+
+  /* Flat single-color rarity tints — for tinting a glyph (the keyrune set
+     symbol on card rows) rather than filling a chip. The colored tiers reuse
+     the canonical gradient endpoints above; common follows the theme's
+     secondary text color so an untinted glyph reads as neutral metadata in
+     both light and dark themes. */
+  --rarity-common: var(--text-secondary);
+  --rarity-uncommon: var(--rarity-uncommon-to);
+  --rarity-rare: var(--rarity-rare-to);
+  --rarity-mythic: var(--rarity-mythic-to);
 }
 
 html,
@@ -3624,6 +3634,61 @@ hr {
      child surface should use this exact rule. */
   padding: var(--overlay-pad-top) 1rem var(--overlay-pad-bottom);
   overflow-y: auto;
+  /* Entrance — STYLE_GUIDE § Motion pattern (3): backdrop fade 160ms,
+     panel scale 0.96→1 + fade 180ms. Keyed off the structural classes so
+     every dialog (Modal-rendered or hand-rolled backdrop + [role='dialog'])
+     shares the one entrance — never add a bespoke dialog entrance. */
+  animation: fade-in 160ms var(--ease-out-soft);
+}
+
+.modal-backdrop > [role='dialog'] {
+  animation: modal-panel-in 180ms var(--ease-out-soft);
+}
+
+/* Exit — driven by Modal.tsx, which adds .is-closing and defers onClose
+   (unmount) until modal-panel-out finishes. `forwards` holds the faded-out
+   end state for the frame between animationend and the React unmount. */
+.modal-backdrop.is-closing {
+  animation: fade-out var(--motion-fast) var(--ease-out-soft) forwards;
+  /* A dismissal is in flight — nothing inside should still be clickable. */
+  pointer-events: none;
+}
+
+.modal-backdrop.is-closing > [role='dialog'] {
+  animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes modal-panel-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-backdrop > [role='dialog'],
+  .modal-backdrop.is-closing,
+  .modal-backdrop.is-closing > [role='dialog'] {
+    animation: none;
+  }
 }
 
 .modal {
@@ -7452,30 +7517,17 @@ hr {
   pointer-events: none;
 }
 
-.collection-filters-dialog-root {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Pattern A — centered-content backdrop (see .modal-backdrop). */
-  padding: max(1rem, calc(var(--safe-top) + 0.5rem)) max(1rem, var(--safe-right))
-    max(1rem, calc(var(--safe-bottom) + 0.5rem)) max(1rem, var(--safe-left));
-}
-
-.collection-filters-dialog-backdrop {
-  position: absolute;
-  inset: 0;
-  background: var(--overlay-sheet);
-  animation: binder-sheet-fade 160ms ease-out;
-}
-
+/* Rendered through the shared Modal (backdrop, entrance/exit motion, focus
+   trap, scroll lock all come from there — the old bespoke root/backdrop/
+   pop-keyframe were retired with UX-201). Only the panel itself is styled
+   here. margin-block auto re-centers it vertically inside the top-aligned
+   .modal-backdrop, collapsing to 0 (top-aligned + scrollable) if it ever
+   outgrows the viewport. */
 .collection-filters-dialog {
-  position: relative;
   width: 100%;
   max-width: 28rem;
   max-height: min(90vh, 44rem);
+  margin-block: auto;
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: calc(var(--radius) * 2);
@@ -7483,24 +7535,6 @@ hr {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: collection-filters-dialog-pop 180ms var(--ease-out-soft);
-}
-
-@keyframes collection-filters-dialog-pop {
-  from {
-    transform: translateY(8px) scale(0.98);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collection-filters-dialog {
-    animation: none;
-  }
 }
 
 /* Scale the dialog up on roomier viewports — the type/color chip grids
@@ -7996,6 +8030,32 @@ i.ms.card-list-type {
   color: var(--text-muted);
 }
 
+/* Rarity-tinted set symbol (keyrune, via components/shared/SetSymbol) — the
+   printing-identity glyph on collection/binder rows (T36). Tinted with the
+   flat --rarity-* tokens instead of keyrune's baked-in colors so the tints
+   track the app's rarity palette and themes. Like the type glyph above it
+   stays visible at every width — including the <768px compact rows where the
+   SET/#CN text tokens drop — so two printings of the same card name are
+   never pixel-identical. */
+i.ss.set-symbol {
+  flex-shrink: 0;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--rarity-common);
+}
+
+i.ss.set-symbol--uncommon {
+  color: var(--rarity-uncommon);
+}
+
+i.ss.set-symbol--rare {
+  color: var(--rarity-rare);
+}
+
+i.ss.set-symbol--mythic {
+  color: var(--rarity-mythic);
+}
+
 /* Page-number chip — shown on binder list rows so the user can find a
    card in physical storage without leaving the list. */
 .card-list-page {
@@ -8179,6 +8239,38 @@ i.ms.card-list-type {
   color: var(--text-secondary);
   text-align: center;
   background: var(--surface-raised);
+}
+
+/* Bottom-left corner cluster on a grid tile — the qty badge plus, when the
+   same card name appears as more than one printing in the current rows, a
+   small set-code chip that disambiguates otherwise-identical art crops
+   (T36). Mirrors .collection-grid-badges (the bottom-right cluster). */
+.collection-grid-corner {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+}
+
+.collection-grid-corner .collection-grid-qty {
+  position: static;
+}
+
+.collection-grid-set {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .collection-grid-qty {
@@ -8596,6 +8688,11 @@ i.ms.card-list-type {
   flex-shrink: 0;
 }
 
+/* Note: the rarity-tinted set glyph (.set-symbol) and the type glyph
+   (.card-list-type) are deliberately NOT in this hide list — they are the
+   printing-identity floor that keeps two printings of the same card name
+   distinguishable on the narrowest compact rows (T36). Only the wider text
+   tokens and badge pills drop below 768px. */
 .collection-list.is-compact .foil-badge-pill,
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
