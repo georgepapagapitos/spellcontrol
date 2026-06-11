@@ -2728,6 +2728,47 @@ body:has(.game-board) .modal-backdrop {
   background: var(--accent-hover);
 }
 
+/* UX-322 — Delta-mode row: two side-by-side apply buttons (− and +). */
+.life-keypad-delta-row {
+  display: flex;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.life-keypad-confirm--delta {
+  flex: 1;
+  font-size: var(--text-sm);
+  /* Truncate if the preview label overflows a small panel */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.7rem var(--space-2);
+}
+
+/* Minus button: destructive-adjacent tone (neutral red-tinted) */
+.life-keypad-confirm--minus {
+  background: rgba(220, 38, 38, 0.75);
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-confirm--minus:hover {
+    background: rgba(220, 38, 38, 0.9);
+  }
+}
+
+/* Plus button: gain tone (green-tinted) */
+.life-keypad-confirm--plus {
+  background: rgba(34, 197, 94, 0.75);
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-confirm--plus:hover {
+    background: rgba(34, 197, 94, 0.9);
+  }
+}
+
 /* ── Pointer-capable affordances (desktop mouse, trackpads) ──
    Gated by `(hover: hover)` so touch devices don't sticky-hover after a
    tap. We intentionally omit hover effects on the tap zones and step
@@ -3797,5 +3838,57 @@ body:has(.game-board) .modal-backdrop {
   }
   .pp-counter-chip.is-lethal {
     animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UX-320 — Coarse-pointer 44 px touch-target floor (play surface)
+   Scoped to @media (pointer: coarse) so desktop density is unchanged.
+   Targets measured at < 44 px without this block:
+     counter-row-btn  1.8 rem ≈ 28.8 px
+     pp-counters-close 1.6 rem ≈ 25.6 px
+     seat-menu-close  no fixed size
+     game-menu-close  2 rem ≈ 32 px
+     pp-counter-chip  padding-only, no height
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+  /* Counter ± buttons inside the counters popover cover */
+  .counter-row-btn {
+    width: 2.75rem; /* 44 px at 16px base */
+    height: 2.75rem;
+  }
+
+  /* Close button on the counters cover */
+  .pp-counters-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Counter chips — pill shape, bump min-height so the tap area is tall enough */
+  .pp-counter-chip {
+    min-height: 2.75rem;
+    padding-inline: var(--space-3); /* widen the pill proportionally */
+  }
+
+  /* Seat-menu close button (no explicit size in base rule) */
+  .seat-menu-close {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Game-menu close button (2 rem base = 32 px) */
+  .game-menu-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Seam hub button — 2.6 rem ≈ 41.6 px below the 600 px breakpoint.
+     Centered on the seam via translate(-50%, -50%), so sizing is safe. */
+  .game-board-menu-btn {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
