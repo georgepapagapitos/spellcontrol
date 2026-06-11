@@ -173,13 +173,19 @@ export function PlayPage() {
               }}
               errorMessage={onlineError}
               banner={
-                <div className="play-code-banner">
-                  <span className="play-code-label">Join code</span>
-                  <span className="play-code-value">{online.code}</span>
-                  <span className="play-code-hint">
-                    Players go to Play → Online → Join, then enter this code.
-                  </span>
-                </div>
+                /* UX-323: only show the join-code banner while the game is still
+                   in lobby/waiting. Once the game is active or finished, the
+                   code has served its purpose and the banner occludes counter
+                   chips. The code remains visible inside the GameMenu sheet. */
+                online.status === 'lobby' ? (
+                  <div className="play-code-banner">
+                    <span className="play-code-label">Join code</span>
+                    <span className="play-code-value">{online.code}</span>
+                    <span className="play-code-hint">
+                      Players go to Play → Online → Join, then enter this code.
+                    </span>
+                  </div>
+                ) : undefined
               }
             />
           ) : isGuest ? (
