@@ -22,6 +22,7 @@ import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { CardImageFrame } from './CardImageFrame';
+import { foilFinishLabel } from '../lib/foil-style';
 import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
@@ -620,7 +621,13 @@ export function CardPreview({
               >
                 {current.rarity}
               </span>
-              {current.foil && <span className="card-preview-foil">foil</span>}
+              {(() => {
+                // One finish token, as specific as the data allows — "Etched",
+                // "Oil slick", … — falling back to plain "Foil". Labels come
+                // from the shared FoilBadge mapping so wording never drifts.
+                const finish = foilFinishLabel(current);
+                return finish ? <span className="card-preview-foil">{finish}</span> : null;
+              })()}
               {' · '}
               {formatMoney(current.purchasePrice)}
               {(() => {
@@ -681,6 +688,11 @@ export function CardPreview({
                       {' '}
                       ({current.setCode.toUpperCase()})
                     </span>
+                  ) : null}
+                  {current.collectorNumber ? (
+                    // Collector number completes the printing identity — it's
+                    // what disambiguates two otherwise-identical rows.
+                    <span className="card-preview-set-code"> · #{current.collectorNumber}</span>
                   ) : null}
                 </span>
               )}
