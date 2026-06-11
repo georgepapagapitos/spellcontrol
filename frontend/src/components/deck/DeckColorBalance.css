@@ -165,30 +165,8 @@
   letter-spacing: 0.03em;
 }
 
-.deck-color-balance-track {
-  height: 0.35rem;
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.deck-color-balance-fill {
-  height: 100%;
-  border-radius: 999px;
-}
-
-.deck-color-balance-fill-demand {
-  background: var(--text-muted);
-}
-
-.deck-color-balance-fill-sources {
-  background: var(--accent);
-}
-
-.deck-color-balance-fill-short {
-  background: var(--warn-text);
-}
+/* The demand/sources tracks are the shared <MeterBar> primitive
+   (components/shared/MeterBar.tsx); fill colors are passed per meter. */
 
 .deck-color-balance-meter-value {
   font-family: var(--font-mono);
