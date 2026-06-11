@@ -5,6 +5,7 @@ import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/brac
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCardCarousel } from './useCardCarousel';
+import { MeterBar } from '../shared/MeterBar';
 
 /** Actual deck `ScryfallCard`s by name. Passed so the card preview shows the
  *  printing in the deck instead of re-fetching the default printing by name. */
@@ -123,7 +124,6 @@ function SoftScoreRow({
   chips?: string[];
   deckCardsByName?: DeckCardMap;
 }) {
-  const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
     <div className="deck-bracket-row" role="row">
       <div className="deck-bracket-cell deck-bracket-cell-label" role="cell">
@@ -131,9 +131,7 @@ function SoftScoreRow({
         <span className="bracket-breakdown-bar-value">
           {value}/{max}
         </span>
-        <div className="bracket-breakdown-bar-track">
-          <div className="bracket-breakdown-bar-fill" style={{ width: `${pct}%` }} />
-        </div>
+        <MeterBar className="bracket-breakdown-bar" value={value} max={max} />
       </div>
       <div className="deck-bracket-cell deck-bracket-cell-detail" role="cell">
         <p className="bracket-breakdown-bar-detail">{detail}</p>

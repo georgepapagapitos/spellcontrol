@@ -7,6 +7,7 @@ import type { EnrichedCard } from '../types';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
+import { MeterBar, StackedBar } from './shared/MeterBar';
 
 const COLOR_BUCKETS: Array<{ key: string; label: string; color: string }> = [
   { key: 'W', label: 'White', color: COLOR_INFO.W.pip },
@@ -188,7 +189,6 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
               {COLOR_BUCKETS.map((b) => {
                 const count = colorCounts[b.key] ?? 0;
                 const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
-                const width = (count / denom) * 100;
                 return (
                   <li key={b.key} className="breakdown-row">
                     <div className="breakdown-row-head">
@@ -197,12 +197,7 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
                       <span className="breakdown-row-count">{count.toLocaleString()}</span>
                       <span className="breakdown-row-pct">({pct}%)</span>
                     </div>
-                    <div className="breakdown-bar">
-                      <div
-                        className="breakdown-bar-fill"
-                        style={{ width: `${width}%`, background: b.color }}
-                      />
-                    </div>
+                    <MeterBar value={count} max={denom} color={b.color} />
                   </li>
                 );
               })}
@@ -213,7 +208,6 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
             <h3 className="breakdown-title">Types</h3>
             <ul className="breakdown-list breakdown-list-types">
               {typeBreakdown.map((t) => {
-                const width = (t.total / denom) * 100;
                 return (
                   <li key={t.key} className="breakdown-row">
                     <div className="breakdown-row-head">
@@ -221,23 +215,15 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
                       <span className="breakdown-row-label">{t.label}</span>
                       <span className="breakdown-row-count">{t.total.toLocaleString()}</span>
                     </div>
-                    <div className="breakdown-bar">
-                      <div className="breakdown-bar-fill segmented" style={{ width: `${width}%` }}>
-                        {COLOR_BUCKETS.map((b) => {
-                          const seg = t.splits[b.key] ?? 0;
-                          if (seg === 0) return null;
-                          const segPct = (seg / t.total) * 100;
-                          return (
-                            <div
-                              key={b.key}
-                              className="breakdown-bar-seg"
-                              style={{ width: `${segPct}%`, background: b.color }}
-                              title={`${b.label}: ${seg}`}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <StackedBar
+                      max={denom}
+                      segments={COLOR_BUCKETS.map((b) => ({
+                        key: b.key,
+                        value: t.splits[b.key] ?? 0,
+                        color: b.color,
+                        title: `${b.label}: ${t.splits[b.key] ?? 0}`,
+                      }))}
+                    />
                   </li>
                 );
               })}
@@ -250,7 +236,6 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
               {RARITY_BUCKETS.map((b) => {
                 const count = rarityCounts[b.key] ?? 0;
                 const pct = uniqueTotal > 0 ? Math.round((count / uniqueTotal) * 100) : 0;
-                const width = (count / denom) * 100;
                 return (
                   <li key={b.key} className="breakdown-row">
                     <div className="breakdown-row-head">
@@ -262,12 +247,7 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
                       <span className="breakdown-row-count">{count.toLocaleString()}</span>
                       <span className="breakdown-row-pct">({pct}%)</span>
                     </div>
-                    <div className="breakdown-bar">
-                      <div
-                        className="breakdown-bar-fill"
-                        style={{ width: `${width}%`, background: b.color }}
-                      />
-                    </div>
+                    <MeterBar value={count} max={denom} color={b.color} />
                   </li>
                 );
               })}
