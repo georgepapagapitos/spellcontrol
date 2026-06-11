@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { DeckCardRow } from './DeckCardRow';
+import { DeckCardRow, inclusionColor } from './DeckCardRow';
 import type { Change } from '@/lib/deck-change';
 
 function add(over: Partial<Change> = {}): Change {
@@ -50,13 +50,29 @@ describe('DeckCardRow', () => {
 
   it('renders the muted "In other deck" chip for claimed-elsewhere copies', () => {
     render(<DeckCardRow change={add({ ownership: 'in-other-deck' })} />);
-    expect(screen.getByText('In other deck')).toBeTruthy();
+    const chip = screen.getByText('In other deck');
+    expect(chip).toBeTruthy();
+    // Shared VerdictBadge chip, neutral tone — not a hand-rolled pill.
+    expect(chip.classList.contains('verdict-chip')).toBe(true);
+    expect(chip.classList.contains('is-neutral')).toBe(true);
   });
 
-  it('renders the Game Changer + Synergy tags from flags', () => {
+  it('renders the Game Changer + Synergy tags as shared VerdictBadge chips', () => {
     render(<DeckCardRow change={add({ isGameChanger: true, isThemeSynergy: true })} />);
-    expect(screen.getByText('Game Changer')).toBeTruthy();
-    expect(screen.getByText('Synergy')).toBeTruthy();
+    const gc = screen.getByText('Game Changer');
+    expect(gc.classList.contains('verdict-chip')).toBe(true);
+    expect(gc.classList.contains('is-warn')).toBe(true);
+    expect(gc.getAttribute('title')).toContain('bracket-relevant');
+    const syn = screen.getByText('Synergy');
+    expect(syn.classList.contains('verdict-chip')).toBe(true);
+    expect(syn.classList.contains('is-accent')).toBe(true);
+  });
+
+  it('renders the role label as a neutral VerdictBadge chip', () => {
+    render(<DeckCardRow change={add({ roleLabel: 'Ramp' })} />);
+    const role = screen.getByText('Ramp');
+    expect(role.classList.contains('verdict-chip')).toBe(true);
+    expect(role.classList.contains('is-neutral')).toBe(true);
   });
 
   it('formats a signed acquire price', () => {
@@ -97,5 +113,39 @@ describe('DeckCardRow', () => {
   it('renders no action button when onAct is omitted', () => {
     render(<DeckCardRow change={add()} />);
     expect(screen.queryByText('Add', { selector: '.deck-card-row-act' })).toBeNull();
+  });
+});
+
+describe('inclusionColor', () => {
+  const hueOf = (color: string): number => {
+    const m = /^hsl\((\d+) 60% 45%\)$/.exec(color);
+    expect(m, `unexpected color format: ${color}`).toBeTruthy();
+    return Number(m![1]);
+  };
+
+  it('reserves red for fringe picks below 10%', () => {
+    expect(hueOf(inclusionColor(0))).toBe(0);
+    expect(hueOf(inclusionColor(5))).toBeLessThan(15);
+    expect(hueOf(inclusionColor(8))).toBeLessThan(15); // 8% IS red
+    expect(hueOf(inclusionColor(9.9))).toBeLessThan(15);
+  });
+
+  it('reads amber/neutral (not red) for low-mid percentages', () => {
+    expect(hueOf(inclusionColor(10))).toBe(35); // amber starts at 10%
+    expect(hueOf(inclusionColor(35))).toBeGreaterThanOrEqual(35); // 35% is NOT red
+    expect(hueOf(inclusionColor(35))).toBeLessThan(60); // …and not yet green
+    expect(hueOf(inclusionColor(49))).toBeLessThan(60);
+  });
+
+  it('keeps the high-% green ramp unchanged from the old scale (hue = 1.2 × pct)', () => {
+    expect(inclusionColor(50)).toBe('hsl(60 60% 45%)');
+    expect(inclusionColor(75)).toBe('hsl(90 60% 45%)');
+    expect(inclusionColor(90)).toBe('hsl(108 60% 45%)');
+    expect(inclusionColor(100)).toBe('hsl(120 60% 45%)');
+  });
+
+  it('clamps out-of-range input', () => {
+    expect(inclusionColor(-5)).toBe(inclusionColor(0));
+    expect(inclusionColor(140)).toBe(inclusionColor(100));
   });
 });

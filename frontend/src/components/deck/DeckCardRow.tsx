@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
+import { VerdictBadge } from './VerdictBadge';
 import type { Change } from '@/lib/deck-change';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { formatMoney } from '@/lib/format-money';
@@ -17,10 +18,29 @@ function Thumb({ url }: { url: string | undefined }): JSX.Element {
   );
 }
 
-/** Inclusion-% → a red→amber→green hue, so a glance reads "how-staple is this". */
-function inclusionColor(pct: number): string {
-  const hue = Math.max(0, Math.min(120, (pct / 100) * 120));
-  return `hsl(${hue} 60% 45%)`;
+/**
+ * Inclusion-% → a hue, so a glance reads "how-staple is this". Red is reserved
+ * for genuine fringe picks (<10%) — mid percentages are common, healthy
+ * inclusions and must NOT collide with red = remove (the Cut verdict tone):
+ *
+ *   <10%    → red (0–12)            fringe pick
+ *   10–50%  → amber→yellow (35–60)  ordinary inclusion, reads neutral/caution
+ *   ≥50%    → yellow→green (60–120) staple ramp (unchanged from the old scale)
+ *
+ * The 12→35 jump at 10% is deliberate: "fringe" is a discrete signal, not the
+ * bottom of a smooth gradient. Pure + exported for unit tests.
+ */
+export function inclusionColor(pct: number): string {
+  const p = Math.max(0, Math.min(100, pct));
+  let hue: number;
+  if (p < 10) {
+    hue = (p / 10) * 12;
+  } else if (p < 50) {
+    hue = 35 + ((p - 10) / 40) * 25;
+  } else {
+    hue = (p / 100) * 120;
+  }
+  return `hsl(${Math.round(hue)} 60% 45%)`;
 }
 
 /** type → the action button's leading icon + default verb (icon size 14, per
@@ -94,8 +114,9 @@ export function DeckCardRow({
   );
 
   // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick. The
-  // percentage itself is tinted red→amber→green by how staple the card is, so the
-  // "how-staple" signal lives in the number instead of a separate unlabeled bar.
+  // percentage itself is tinted by how staple the card is (red only below ~10% —
+  // see inclusionColor), so the "how-staple" signal lives in the number instead
+  // of a separate unlabeled bar.
   const inclusionNode =
     typeof inclusion === 'number' ? (
       <span className="deck-card-row-incl">
@@ -140,21 +161,26 @@ export function DeckCardRow({
       <div className="deck-card-row-body">
         <span className="deck-card-row-title">
           <span className="deck-card-row-name">{name}</span>
+          {/* Tags are shared VerdictBadge chips (tone + label, per the finer-scale
+              convention) so the row speaks the Tune-board vocabulary instead of
+              hand-rolled pills: warn = bracket-relevant caution, accent = theme
+              fit (matches the old accent tag), neutral = informational. */}
           {change.isGameChanger && (
-            <span
-              className="deck-card-row-gc-tag"
+            <VerdictBadge
+              tone="warn"
+              label="Game Changer"
               title="Game Changer — high-power, bracket-relevant"
-            >
-              Game Changer
-            </span>
+            />
           )}
-          {roleLabel && <span className="deck-card-row-role">{roleLabel}</span>}
-          {change.isThemeSynergy && <span className="deck-card-row-synergy-tag">Synergy</span>}
+          {roleLabel && <VerdictBadge tone="neutral" label={roleLabel} />}
+          {change.isThemeSynergy && <VerdictBadge tone="accent" label="Synergy" />}
           {ownership === 'owned' && <OwnershipBadge owned />}
           {ownership === 'in-other-deck' && (
-            <span className="deck-card-row-other" title="Owned, but every copy is in another deck">
-              In other deck
-            </span>
+            <VerdictBadge
+              tone="neutral"
+              label="In other deck"
+              title="Owned, but every copy is in another deck"
+            />
           )}
         </span>
         <span className="deck-card-row-meta">

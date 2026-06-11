@@ -41,6 +41,9 @@ export interface VerdictBadgeProps {
   label?: string;
   /** Optional plain-English one-liner shown beside the chip. */
   reason?: string;
+  /** Optional hover tooltip on the chip (enhancement-only — never the sole
+   *  path to the information, per the STYLE_GUIDE touch rule). */
+  title?: string;
   /** Extra class on the wrapper (layout hook for the host panel). */
   className?: string;
 }
@@ -54,6 +57,7 @@ export function VerdictBadge({
   tone,
   label,
   reason,
+  title,
   className,
 }: VerdictBadgeProps): JSX.Element {
   const preset = verdict ? VERDICT_PRESET[verdict] : undefined;
@@ -62,7 +66,9 @@ export function VerdictBadge({
 
   return (
     <span className={`verdict-badge${className ? ` ${className}` : ''}`}>
-      <span className={`verdict-chip is-${resolvedTone}`}>{word}</span>
+      <span className={`verdict-chip is-${resolvedTone}`} title={title}>
+        {word}
+      </span>
       {reason && <span className="verdict-reason">{reason}</span>}
     </span>
   );

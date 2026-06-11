@@ -308,8 +308,19 @@ row carries a left accent bar, color it to match the row's verdict tone (Cost an
 Substitution both do this) so the bar and chip agree.
 
 The badge is **presentational only** — it holds no decision logic; callers map
-their own semantics onto the vocabulary. Adopted so far in the Substitution and
-Cost panels; Engine/Optimize/Gap are the same chips when they adopt it.
+their own semantics onto the vocabulary. Adopted in the Substitution and Cost
+panels, and in the shared `DeckCardRow` (the Engine/Optimize/Gap card row),
+whose title-row tags are `tone` + `label` chips: Game Changer = `warn`, role
+label = `neutral`, Synergy = `accent` (theme fit), In other deck = `neutral`.
+A chip may carry a `title` tooltip, but per the touch rule it's
+enhancement-only — never the sole path to the information.
+
+**Inclusion-% tint: red < 10% only.** The inclusion percentage on suggestion
+rows (`inclusionColor` in `DeckCardRow.tsx`) is hue-tinted, but **red is
+reserved for genuine fringe picks (<10% inclusion)** so it can never collide
+with red = remove (the Cut tone). 10–50% reads amber→yellow
+(neutral/caution); ≥50% ramps yellow→green. Don't smear red across the low-mid
+range — a 35%-inclusion card is a normal, healthy inclusion, not an alarm.
 
 ## Card row information hierarchy
 
