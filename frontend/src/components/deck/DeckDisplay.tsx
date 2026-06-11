@@ -15,6 +15,7 @@ import {
   Pencil,
   PiggyBank,
   Search,
+  Target,
   Trash2,
   TrendingUp,
   X,
@@ -71,10 +72,8 @@ import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
-import { PlanScoreDashboard } from './PlanScoreDashboard';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
-import { ValidationChecklist } from './ValidationChecklist';
 import { StatsHero } from './StatsHero';
 import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
@@ -807,7 +806,7 @@ export function DeckDisplay({
   deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
-  deckGrade,
+  // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
   planScore,
   averageSalt,
   saltiestCards,
@@ -1539,14 +1538,6 @@ export function DeckDisplay({
                 <span className="deck-stat">
                   <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
                   <span className="deck-stat-label">value</span>
-                </span>
-              )}
-              {deckGrade && (
-                <span className="deck-stat">
-                  <span className="deck-stat-value" title={deckGrade.headline}>
-                    {deckGrade.letter}
-                  </span>
-                  <span className="deck-stat-label">grade</span>
                 </span>
               )}
               {identity && (
@@ -3250,13 +3241,11 @@ function DeckAnalysisView({
 
   // ── Tune intent lanes — imperative reveal targets for hero deep-links. ──
   // The three improve-flavored focuses (fill-gaps / upgrade / collection) all
-  // resolve to the single merged Improve lane; budget is its own lane.
+  // resolve to the single merged Improve lane; budget and bracket-fit are their own lanes.
   const improveLaneRef = useRef<CollapsibleLaneHandle>(null);
   const budgetLaneRef = useRef<CollapsibleLaneHandle>(null);
-  // Bracket Fit lives on the Power tab (inside the Bracket panel), not the Tune
-  // tab — the page builds + owns its CollapsibleLane. This ref keeps the laneRefs
-  // map exhaustive over LaneId; the Tune-tab deep-link below never targets it
-  // (its slot isn't mounted on Tune), so it stays inert until a future hero link.
+  // Bracket Fit is now a third Tune lane (UX-313: Power = diagnosis, Tune = prescription).
+  // A NBM deep-link with focus 'bracket-fit' will reveal it on the Tune tab.
   const bracketFitLaneRef = useRef<CollapsibleLaneHandle>(null);
   const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle | null>>>(
     () => ({
@@ -3322,19 +3311,6 @@ function DeckAnalysisView({
                 cardsByType={manaData.cardsByType}
               />
             </Panel>
-          </div>
-          {/* Validation — pass/fail deck-health gate, pairs with Build health. */}
-          <div className="deck-stats-pair">
-            {validation.checks.length > 0 && (
-              <Panel title="Validation">
-                <ValidationChecklist result={validation} />
-              </Panel>
-            )}
-            {planScore && (
-              <Panel title="Build health">
-                <PlanScoreDashboard plan={planScore} />
-              </Panel>
-            )}
           </div>
           {/* Saltiest — lone, spans full width. */}
           <div className="deck-stats-pair">
@@ -3409,14 +3385,10 @@ function DeckAnalysisView({
           )}
           {powerHeroSlot}
           {/* Detailed breakdowns under the verdict hero. */}
-          {/* Bracket + Roles — a compact pair (lone survivor spans full width).
-              When the prescriptive Bracket Fit lane is showing, the Bracket panel
-              is list-heavy and wants room: both panels go full-width (stacked) so
-              the lane isn't crushed into a half-width track and Roles doesn't
-              orphan an empty cell beside the tall lane. */}
+          {/* Bracket + Roles — a compact pair (lone survivor spans full width). */}
           <div className="deck-stats-pair">
             {(bracketEstimation || bracketOverride != null) && (
-              <Panel id="deck-power-bracket" title="Bracket" wide={!!bracketFitSlot}>
+              <Panel id="deck-power-bracket" title="Bracket">
                 <div className="deck-stats-bracket">
                   <strong>
                     Bracket {effectiveBracketValue} —{' '}
@@ -3436,25 +3408,23 @@ function DeckAnalysisView({
                         {bracketEstimation.hardFloors[0].reason}
                       </span>
                     )}
-                  {onSetBracketOverride && (
-                    <label className="deck-stats-bracket-override">
-                      <span>Set bracket</span>
-                      <select
-                        className="deck-stats-bracket-select"
-                        value={bracketOverride ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          onSetBracketOverride(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
-                        }}
-                      >
-                        <option value="">Auto</option>
-                        {([1, 2, 3, 4, 5] as const).map((b) => (
-                          <option key={b} value={b}>
-                            {b} — {bracketLabel(b)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                  {/* UX-313: the target-bracket control moved to the PowerHero above
+                      (the "Target: N ▾" SelectMenu). Keeping just a small note here
+                      when a manual override is active so the Bracket panel stays
+                      self-explaining without re-providing a redundant control. */}
+                  {bracketOverridden && (
+                    <p className="deck-stats-bracket-override-note">
+                      Target set in Power level above.{' '}
+                      {onSetBracketOverride && (
+                        <button
+                          type="button"
+                          className="deck-stats-bracket-clear-btn"
+                          onClick={() => onSetBracketOverride(null)}
+                        >
+                          Clear target
+                        </button>
+                      )}
+                    </p>
                   )}
                   {bracketEstimation && (
                     <BracketBreakdown
@@ -3462,15 +3432,11 @@ function DeckAnalysisView({
                       deckCardsByName={deckCardsByName}
                     />
                   )}
-                  {/* Bracket Fit coaching lane — prescriptive card moves toward
-                      the target. The page only builds it when a target is set and
-                      the plan isn't aligned; null otherwise. */}
-                  {bracketFitSlot}
                 </div>
               </Panel>
             )}
             {showRoles && (
-              <Panel title="Roles" wide={!!bracketFitSlot}>
+              <Panel title="Roles">
                 <RolesPanel
                   roleCounts={effectiveRoleCounts}
                   roleTargets={roleTargets}
@@ -3511,34 +3477,41 @@ function DeckAnalysisView({
       {current === 'tune' && (
         <div className="deck-bento deck-bento--tune">
           {/* UX-310: skeleton while the async analysis is still in flight. Only
-              show when no lane content has arrived yet. */}
-          {analysisState === 'pending' && !nextBestMoveSlot && !improveSlot && !costSlot && (
-            <div
-              className="deck-analysis-skeleton"
-              role="status"
-              aria-label="Analyzing your deck…"
-              aria-live="polite"
-            >
-              <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
-              <div className="deck-analysis-skeleton-bar is-headline" />
-              <div className="deck-analysis-skeleton-bar is-body" />
-              <div className="deck-analysis-skeleton-lane">
+              show when no lane content has arrived yet. Includes bracketFitSlot
+              (UX-313: Bracket Fit is now a third Tune lane). */}
+          {analysisState === 'pending' &&
+            !nextBestMoveSlot &&
+            !improveSlot &&
+            !costSlot &&
+            !bracketFitSlot && (
+              <div
+                className="deck-analysis-skeleton"
+                role="status"
+                aria-label="Analyzing your deck…"
+                aria-live="polite"
+              >
+                <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
+                <div className="deck-analysis-skeleton-bar is-headline" />
                 <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
+                <div className="deck-analysis-skeleton-lane">
+                  <div className="deck-analysis-skeleton-bar is-body" />
+                  <div className="deck-analysis-skeleton-bar is-body is-short" />
+                </div>
+                <div className="deck-analysis-skeleton-lane">
+                  <div className="deck-analysis-skeleton-bar is-body is-short" />
+                  <div className="deck-analysis-skeleton-bar is-body" />
+                </div>
               </div>
-              <div className="deck-analysis-skeleton-lane">
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-                <div className="deck-analysis-skeleton-bar is-body" />
-              </div>
-            </div>
-          )}
+            )}
           {/* Verdict hero — the single highest-leverage move + the intent router
               (deep-links into the lanes below). Full-width, like the Power hero. */}
           {nextBestMoveSlot}
-          {/* Two intent lanes — collapsible (hero-pointed-expand). The Improve
-              engine merges the old Fill-the-gaps / Upgrade-power / Build-from-
-              collection sources into one ranked, owned-filterable list; Trim cost
-              stays separate (its swap-to-target apply contract is distinct). */}
+          {/* Three intent lanes — collapsible (hero-pointed-expand).
+              Improve: EDHREC staples, optimizer adds, synergy picks.
+              Trim cost: cheaper role-equivalents (distinct apply contract).
+              Bracket Fit (UX-313): prescriptive card moves toward the target bracket
+              — moved here from the Power tab to restore Power = diagnosis,
+              Tune = prescription. */}
           {improveSlot && (
             <CollapsibleLane
               ref={improveLaneRef}
@@ -3565,6 +3538,18 @@ function DeckAnalysisView({
               storageKey="spellcontrol-tune-budget"
             >
               {costSlot}
+            </CollapsibleLane>
+          )}
+          {bracketFitSlot && (
+            <CollapsibleLane
+              ref={bracketFitLaneRef}
+              title="Bracket Fit"
+              icon={<Target width={16} height={16} aria-hidden />}
+              summary={<span>Card moves toward your target bracket</span>}
+              defaultCollapsed={tuneDefaultLane !== 'bracket-fit'}
+              storageKey="spellcontrol-tune-bracket-fit"
+            >
+              {bracketFitSlot}
             </CollapsibleLane>
           )}
         </div>

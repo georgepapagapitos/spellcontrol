@@ -48,18 +48,18 @@ function makeEstimation(overrides: Partial<BracketEstimation> = {}): BracketEsti
 }
 
 describe('BracketBreakdown', () => {
-  it('renders two labeled tables: hard floors and soft score', () => {
+  it('renders two labeled tables: hard floors and power signal (UX-315)', () => {
     render(<BracketBreakdown estimation={makeEstimation()} />);
 
-    // Section headers
+    // Section headers (UX-315: "Soft score" → "Power signal")
     expect(screen.getByText('Hard floors')).toBeTruthy();
-    expect(screen.getByText('Soft score')).toBeTruthy();
+    expect(screen.getByText('Power signal')).toBeTruthy();
 
     // The two tables are present and labeled.
     expect(screen.getByRole('table', { name: 'Hard floors' })).toBeTruthy();
-    expect(screen.getByRole('table', { name: 'Soft score' })).toBeTruthy();
+    expect(screen.getByRole('table', { name: 'Power signal' })).toBeTruthy();
 
-    // Column headers — Floor/Reason for hard floors, Signal/Detail for soft.
+    // Column headers — Floor/Reason for hard floors, Signal/Detail for power signal.
     expect(screen.getByRole('columnheader', { name: 'Floor' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Reason' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Signal' })).toBeTruthy();
@@ -118,14 +118,14 @@ describe('BracketBreakdown', () => {
     expect(screen.getByText(/Avg CMC 2\.80/)).toBeTruthy();
   });
 
-  it('renders the calculation summary line', () => {
+  it('renders the calculation summary line (UX-315: power signal language)', () => {
     const { container } = render(<BracketBreakdown estimation={makeEstimation()} />);
 
     // The summary is split across <strong> nodes, so assert on the
     // normalized textContent of the line element.
     const line = container.querySelector('.bracket-breakdown-summary-line');
     expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Floor Bracket 4 + soft score 78/100 → Bracket 4 (Optimized)'
+      'Floor Bracket 4 + power signal 78/100 → Bracket 4 (Optimized)'
     );
   });
 
@@ -152,8 +152,9 @@ describe('BracketBreakdown', () => {
 
     expect(screen.getByText('No hard floors — bracket set by soft score.')).toBeTruthy();
     const line = container.querySelector('.bracket-breakdown-summary-line');
+    // UX-315: summary uses "power signal" language
     expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'Floor Bracket 1 + soft score 5/100 → Bracket 1 (Exhibition)'
+      'Floor Bracket 1 + power signal 5/100 → Bracket 1 (Exhibition)'
     );
   });
 });

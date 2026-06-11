@@ -30,12 +30,12 @@ const ELEVATE_CEDH_THRESHOLD = 80;
 
 const HARD_FLOOR_TIP =
   'A hard floor is a deterministic signal — Game Changers, mass land denial, infinite combos, stax, or extra-turn cards — that forces a MINIMUM bracket. No amount of tuning can drop the deck below it; the only way down is to cut the offending cards.';
-// One consolidated explainer for the whole soft score — intro + every signal —
+// One consolidated explainer for the power signal — intro + every signal —
 // so the four rows don't each need their own info icon (which read as clutter).
 const SOFT_SCORE_TIP: ReactNode = (
   <>
     <p className="info-tip-lead">
-      The soft score (0–100) rates how tuned the deck is. It can only push the bracket{' '}
+      The power signal (0–100) rates how tuned the deck is. It can only push the bracket{' '}
       <strong>up</strong> from the hard floor — never below it. Four signals feed it:
     </p>
     <ul className="info-tip-list">
@@ -220,13 +220,13 @@ export function BracketBreakdown({
         )}
       </div>
 
-      {/* ── 2. Soft score ── the 0–100 tuning components. */}
+      {/* ── 2. Power signal ── the 0–100 tuning components. */}
       <div className="bracket-breakdown-section">
         <h4 className="bracket-breakdown-heading">
-          Soft score
-          <InfoTip label="the soft score" text={SOFT_SCORE_TIP} wide />
+          Power signal
+          <InfoTip label="the power signal" text={SOFT_SCORE_TIP} wide />
         </h4>
-        <div className="deck-bracket-table" role="table" aria-label="Soft score">
+        <div className="deck-bracket-table" role="table" aria-label="Power signal">
           <div className="deck-bracket-row deck-bracket-head" role="row">
             <span className="deck-bracket-cell deck-bracket-col-head" role="columnheader">
               Signal
@@ -289,17 +289,18 @@ export function BracketBreakdown({
       {/* ── 3. Calculation summary ── */}
       <div className="bracket-breakdown-section bracket-breakdown-summary">
         <p className="bracket-breakdown-summary-line">
-          Floor Bracket <strong>{floor}</strong> + soft score <strong>{softScore}/100</strong> →
+          Floor Bracket <strong>{floor}</strong> + power signal <strong>{softScore}/100</strong> →
           Bracket <strong>{bracket}</strong> ({label})
         </p>
         {elevatedToCedh && (
           <p className="bracket-breakdown-summary-note">
-            Soft score ≥ {ELEVATE_CEDH_THRESHOLD} with floor ≥ 4 elevated this to {bracketLabel(5)}.
+            Power signal ≥ {ELEVATE_CEDH_THRESHOLD} with floor ≥ 4 elevated this to{' '}
+            {bracketLabel(5)}.
           </p>
         )}
         {elevatedByBump && (
           <p className="bracket-breakdown-summary-note">
-            Soft score ≥ {ELEVATE_BUMP_THRESHOLD} bumped the floor from Bracket {floor} up to
+            Power signal ≥ {ELEVATE_BUMP_THRESHOLD} bumped the floor from Bracket {floor} up to
             Bracket {bracket}.
           </p>
         )}

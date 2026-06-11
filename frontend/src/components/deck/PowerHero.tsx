@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import './PowerHero.css';
 import { AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
+import { SelectMenu, type SelectOption } from '../SelectMenu';
 
 export interface PowerHeroProps {
   /** Override-aware bracket number (1–5), or null when not yet estimated. */
@@ -34,6 +35,16 @@ export interface PowerHeroProps {
   winConditionWarn?: boolean;
   /** Reveal the Win conditions panel below. When omitted, the line is static. */
   onViewWinConditions?: () => void;
+  /**
+   * UX-313: the user's pinned target bracket (1–5) or null for Auto.
+   * When provided alongside onSetBracketOverride, the PowerHero surfaces a
+   * visible "Target: N ▾" SelectMenu so the user can set/change the target
+   * without going into the Bracket panel below. The control drives the
+   * Bracket Fit lane on the Tune tab (prescriptive card moves).
+   */
+  bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /** Set/clear the manual bracket override. Only called when bracketOverride is provided. */
+  onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
 }
 
 /** A "go to detail" affordance: a typographic chevron in the surrounding font
@@ -77,6 +88,16 @@ function HeroLink({
   );
 }
 
+/** Options for the Target bracket SelectMenu. "Auto" clears the override. */
+const TARGET_OPTIONS: SelectOption<string>[] = [
+  { value: '', label: 'Auto (no target)', triggerLabel: 'Auto' },
+  { value: '1', label: '1 — Exhibition', triggerLabel: '1 · Exhibition' },
+  { value: '2', label: '2 — Core', triggerLabel: '2 · Core' },
+  { value: '3', label: '3 — Upgraded', triggerLabel: '3 · Upgraded' },
+  { value: '4', label: '4 — Optimized', triggerLabel: '4 · Optimized' },
+  { value: '5', label: '5 — cEDH', triggerLabel: '5 · cEDH' },
+];
+
 /**
  * The Power-tab verdict hero: a two-pillar summary that leads with how strong a
  * deck is (Power level, self-explained via its bracket floors) and what it does
@@ -84,6 +105,11 @@ function HeroLink({
  * when the user owns the missing piece for a one-away combo. Each pillar line
  * can deep-link (tap to reveal) the matching detail panel below; values map to
  * existing fields computed by the page.
+ *
+ * UX-313: when `onSetBracketOverride` is provided, the Power level pillar
+ * surfaces a "Target: N ▾" SelectMenu so the user can set a target bracket
+ * directly from the hero rather than hunting for the buried select in the
+ * Bracket panel below.
  */
 export function PowerHero({
   bracket,
@@ -102,12 +128,18 @@ export function PowerHero({
   winConditionSummary,
   winConditionWarn,
   onViewWinConditions,
+  bracketOverride,
+  onSetBracketOverride,
 }: PowerHeroProps): JSX.Element {
   const producers = engineProducers ?? 0;
   const payoffs = enginePayoffs ?? 0;
   const engineBalanced = producers > 0 && payoffs > 0 && !engineLopsided;
   const showReasons = !bracketOverridden && bracketReasons.length > 0;
   const showCollection = !combosLoading && comboOwnedMissing > 0;
+
+  // UX-313: "Target" control — shows when the caller provides the override callback.
+  const showTargetControl = !!onSetBracketOverride;
+  const targetValue = bracketOverride != null ? String(bracketOverride) : '';
 
   return (
     <section className="power-hero" aria-label="Deck power summary">
@@ -133,6 +165,23 @@ export function PowerHero({
           </HeroLink>
           {showReasons && (
             <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
+          )}
+          {/* UX-313: Target bracket control — visible entry point for the Bracket Fit
+              prescription lane on the Tune tab. Replaces the buried <select> in the
+              Bracket panel below as the primary target-setting affordance. */}
+          {showTargetControl && (
+            <div className="power-hero-target">
+              <SelectMenu
+                label="Target"
+                ariaLabel="Set target bracket"
+                value={targetValue}
+                options={TARGET_OPTIONS}
+                onChange={(v) => {
+                  onSetBracketOverride!(v === '' ? null : (Number(v) as 1 | 2 | 3 | 4 | 5));
+                }}
+                className="power-hero-target-menu"
+              />
+            </div>
           )}
         </div>
 
