@@ -1946,6 +1946,36 @@ input.toolbar-search-input {
   flex-direction: column;
 }
 
+/* Popover enter (STYLE_GUIDE Motion pattern 4): fade + scale(0.98) + 2px
+   rise from the trigger corner; exit stays instant. Transform/opacity only,
+   so the viewport-aware measured positioning (flip-up etc.) is untouched.
+   The default origin matches the in-flow anchoring (below the trigger,
+   right-aligned); portaled menus override it inline per their placement. */
+.deck-row-menu-popover,
+.toolbar-popover-panel {
+  animation: menu-pop-in var(--motion-fast) var(--ease-out-soft);
+  transform-origin: top right;
+}
+
+@keyframes menu-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row-menu-popover,
+  .toolbar-popover-panel {
+    animation: none;
+  }
+}
+
 .deck-row-menu-item {
   display: flex;
   align-items: center;
@@ -6956,6 +6986,8 @@ input.deck-row-qty-input.deck-row-qty-missing {
 .overflow-menu-popover {
   left: 0;
   right: auto;
+  /* Left-anchored, so the enter scale grows from the trigger's left corner. */
+  transform-origin: top left;
   /* A transient menu must outrank the sticky chrome it opens over (STYLE_GUIDE
      "Z-index / layering"). The hero's ⋮ opens down over the sticky
      `.decks-index-search-row` (capped at --z-popover), so this sits one tier

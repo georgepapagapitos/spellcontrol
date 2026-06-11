@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -59,9 +60,20 @@ export function SelectMenu<T extends string | number>({
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Listbox popup, not a menu — same keyboard contract though (arrows /
+  // Home/End / Escape-returns-focus / outside pointerdown), with initial
+  // focus landing on the currently selected option instead of the first.
+  const { closeAndReturnFocus } = useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+    itemSelector: '[role="option"]',
+    initialItemSelector: '[role="option"][aria-selected="true"]',
+  });
 
   // After the panel renders in the portal, clamp it to the viewport: flip
   // upward if it overflows the bottom, and left-anchor if it clips the left
@@ -91,38 +103,23 @@ export function SelectMenu<T extends string | number>({
     });
   }, [open]);
 
+  // Keyboard semantics + Escape + outside-pointerdown close live in
+  // useMenuKeyboard. This effect only closes the panel if the trigger scrolls
+  // out of view (e.g. modal scroll). Delayed by one frame so focus-triggered
+  // micro-scrolls from the opening click don't immediately close the panel.
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node) &&
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node)
-      )
-        setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    // Close if the trigger scrolls out of view (e.g. modal scroll).
-    // Delayed by one frame so focus-triggered micro-scrolls from the opening
-    // click don't immediately close the panel.
     const onScroll = (e: Event) => {
       const target = e.target as Node | null;
       if (target && panelRef.current && panelRef.current.contains(target)) return;
       setOpen(false);
     };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
     let scrollRaf = 0;
     scrollRaf = requestAnimationFrame(() => {
       document.addEventListener('scroll', onScroll, { capture: true, passive: true });
     });
     return () => {
       cancelAnimationFrame(scrollRaf);
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
       document.removeEventListener('scroll', onScroll, { capture: true });
     };
   }, [open]);
@@ -158,6 +155,11 @@ export function SelectMenu<T extends string | number>({
           top: panelPos.top,
           bottom: panelPos.bottom,
           zIndex: 1200,
+          // Scale the enter animation from the trigger corner: anchored-side
+          // top/bottom + left/right mirror how the panel was placed.
+          transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
+            panelPos.left !== undefined ? 'left' : 'right'
+          }`,
         }}
       >
         <ul className="toolbar-popover-list" role="listbox" aria-label={ariaLabel ?? undefined}>
@@ -172,7 +174,7 @@ export function SelectMenu<T extends string | number>({
                   className={`toolbar-popover-item${isActive ? ' active' : ''}`}
                   onClick={() => {
                     onChange(opt.value);
-                    if (closeOnSelect) setOpen(false);
+                    if (closeOnSelect) closeAndReturnFocus();
                   }}
                 >
                   {renderItemPrefix && (
@@ -191,7 +193,7 @@ export function SelectMenu<T extends string | number>({
     );
 
   return (
-    <div className={`toolbar-popover${className ? ` ${className}` : ''}`} ref={wrapperRef}>
+    <div className={`toolbar-popover${className ? ` ${className}` : ''}`}>
       <button
         ref={buttonRef}
         type="button"

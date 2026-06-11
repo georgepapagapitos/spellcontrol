@@ -1,5 +1,6 @@
 import { MoreVertical, type LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
 export interface OverflowMenuItem {
   label: string;
@@ -31,28 +32,20 @@ export function OverflowMenu({
   triggerClassName,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (wrapperRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  const { closeAndReturnFocus } = useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+  });
 
   return (
-    <div className={`overflow-menu${className ? ` ${className}` : ''}`} ref={wrapperRef}>
+    <div className={`overflow-menu${className ? ` ${className}` : ''}`}>
       <button
+        ref={buttonRef}
         type="button"
         className={triggerClassName}
         aria-label={ariaLabel}
@@ -65,7 +58,7 @@ export function OverflowMenu({
         <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
       </button>
       {open && (
-        <div className="deck-row-menu-popover overflow-menu-popover" role="menu">
+        <div ref={panelRef} className="deck-row-menu-popover overflow-menu-popover" role="menu">
           {items.map((item) => {
             const Icon = item.icon;
             return (
@@ -75,7 +68,7 @@ export function OverflowMenu({
                 role="menuitem"
                 className={`deck-row-menu-item${item.danger ? ' deck-row-menu-item--danger' : ''}`}
                 onClick={() => {
-                  setOpen(false);
+                  closeAndReturnFocus();
                   item.onClick();
                 }}
               >

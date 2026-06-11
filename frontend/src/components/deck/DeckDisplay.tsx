@@ -2354,6 +2354,11 @@ function ToolbarPopover({
           top: panelPos.top,
           bottom: panelPos.bottom,
           zIndex: 1200,
+          // Scale the enter animation from the trigger corner: anchored-side
+          // top/bottom + left/right mirror how the panel was placed.
+          transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
+            panelPos.left !== undefined ? 'left' : 'right'
+          }`,
         }}
       >
         {children(() => setOpen(false))}

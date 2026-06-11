@@ -2,6 +2,7 @@ import { MoreVertical, Notebook, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AddToBinderSheet } from './AddToBinderSheet';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -21,9 +22,15 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
   const [menuOpen, setMenuOpen] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const { closeAndReturnFocus } = useMenuKeyboard({
+    open: menuOpen,
+    onClose: () => setMenuOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+  });
 
   // The list is window-virtualized: each row is its own stacking context, so
   // an absolutely-positioned popover gets painted under later rows (clicks
@@ -50,37 +57,23 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
     });
   }, [menuOpen]);
 
+  // Keyboard semantics + Escape + outside-pointerdown close live in
+  // useMenuKeyboard. This effect only handles the scroll-close: if the row
+  // scrolls, the fixed panel would otherwise detach from its trigger.
+  // Delayed a frame so the opening click's micro-scroll doesn't immediately
+  // close it.
   useEffect(() => {
     if (!menuOpen) return;
-    const close = (e: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node) &&
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node)
-      )
-        setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    // Close if the row scrolls (the fixed panel would otherwise detach from
-    // its trigger). Delayed a frame so the opening click's micro-scroll
-    // doesn't immediately close it.
     const onScroll = (e: Event) => {
       const target = e.target as Node | null;
       if (target && panelRef.current && panelRef.current.contains(target)) return;
       setMenuOpen(false);
     };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
     const scrollRaf = requestAnimationFrame(() => {
       document.addEventListener('scroll', onScroll, { capture: true, passive: true });
     });
     return () => {
       cancelAnimationFrame(scrollRaf);
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
       document.removeEventListener('scroll', onScroll, { capture: true });
     };
   }, [menuOpen]);
@@ -115,6 +108,11 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
           bottom: panelPos.bottom,
           margin: 0,
           zIndex: 1200,
+          // Scale the enter animation from the trigger corner: anchored-side
+          // top/bottom + left/right mirror how the panel was placed.
+          transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
+            panelPos.left !== undefined ? 'left' : 'right'
+          }`,
         }}
       >
         {currentBinder && (
@@ -135,7 +133,7 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
           className="deck-row-menu-item"
           onClick={(e) => {
             e.stopPropagation();
-            setMenuOpen(false);
+            closeAndReturnFocus();
             onEditCard();
           }}
         >
@@ -148,7 +146,7 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
           className="deck-row-menu-item"
           onClick={(e) => {
             e.stopPropagation();
-            setMenuOpen(false);
+            closeAndReturnFocus();
             setBinderSheetOpen(true);
           }}
         >
@@ -162,7 +160,7 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
             className="deck-row-menu-item deck-row-menu-item--danger"
             onClick={(e) => {
               e.stopPropagation();
-              setMenuOpen(false);
+              closeAndReturnFocus();
               onDelete();
             }}
           >
@@ -176,7 +174,7 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
 
   return (
     <>
-      <div className="deck-row-menu" ref={wrapperRef}>
+      <div className="deck-row-menu">
         <button
           ref={buttonRef}
           type="button"
