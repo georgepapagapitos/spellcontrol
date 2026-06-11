@@ -2864,30 +2864,25 @@ input[type='text'] {
   color: var(--accent-hover, var(--accent));
 }
 
+/* Portaled to <body> and positioned `fixed` from the trigger rect (viewport
+   clamp + below/above flip computed in Legend.tsx — the InfoTip placement
+   pattern). Hosts like the deck bento establish container/clip contexts that
+   cut off an in-flow popover, so coordinates and width/max-height arrive as
+   inline styles; this rule is box + typography only. (Also fixed here: the
+   background referenced a nonexistent --bg1 token and silently fell back to
+   #fff in dark themes.) */
 .legend-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: var(--z-dropdown);
+  position: fixed;
+  z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 12px 14px;
-  background: var(--bg1, #fff);
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  width: max-content;
-  max-width: min(320px, calc(100vw - 2rem));
-  max-height: min(70vh, 480px);
   overflow-y: auto;
-}
-
-/* Right-aligned toolbars (collection summary actions, deck toolbar) anchor
-   the popover to the trigger's right edge so it never bleeds off-viewport. */
-.legend-popover--right {
-  left: auto;
-  right: 0;
 }
 
 .legend-section {
@@ -9676,6 +9671,17 @@ i.ss.set-symbol--mythic {
 /* No tablet/mobile override needed: the header stays visible at all
    widths now (only the duplicated nav links + Settings tab are hidden
    below 1024px), so the indicator rides along unchanged. */
+
+/* Header-mounted compact indicator — wraps the pill in a router Link so
+   tapping leads to Settings. Strip link chrome; the pill itself is the
+   affordance. */
+.header-sync-indicator {
+  text-decoration: none;
+  cursor: pointer;
+}
+.header-sync-indicator:hover {
+  filter: brightness(0.92);
+}
 
 /* Settings page — full route at /settings. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */

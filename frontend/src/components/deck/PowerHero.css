@@ -138,6 +138,21 @@
   color: var(--text-muted);
 }
 
+/* UX-313: Target bracket SelectMenu — sits below the detected bracket line in
+   the Power level pillar. The toolbar-pill style is shared with the sort/show
+   menus elsewhere; we just position it as a control row within the pillar. */
+.power-hero-target {
+  display: flex;
+  align-items: center;
+  margin-top: var(--space-1);
+}
+
+/* Keep the target menu compact so it fits in the pillar without causing a reflow. */
+.power-hero-target-menu .toolbar-pill {
+  font-size: var(--text-xs);
+  padding: 0.2rem 0.5rem;
+}
+
 /* ── Gameplan ── */
 .power-hero-engine {
   display: flex;

@@ -1863,6 +1863,9 @@ export function DeckEditorPage() {
                   winConditionSummary={buildWinConditionSummary(deck.winConditions)}
                   winConditionWarn={deck.winConditions?.noClearWinCondition}
                   onViewWinConditions={deck.winConditions ? handleViewWinConditions : undefined}
+                  // UX-313: target bracket control in the PowerHero
+                  bracketOverride={deck.bracketOverride}
+                  onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
                 />
               ) : undefined
             }

@@ -28,8 +28,15 @@ export interface NextBestMove {
 }
 
 /** Intent targets a move can deep-link to: the Power Combos panel, or one of the
- *  four Tune intent lanes (so a within-Tune move opens the right lane). */
-export type NextBestMoveFocus = 'combos' | 'fill-gaps' | 'upgrade' | 'budget' | 'collection';
+ *  Tune intent lanes (so a within-Tune move opens the right lane). Includes
+ *  'bracket-fit' for the third Tune lane (UX-313). */
+export type NextBestMoveFocus =
+  | 'combos'
+  | 'fill-gaps'
+  | 'upgrade'
+  | 'budget'
+  | 'collection'
+  | 'bracket-fit';
 
 export interface NextBestMoveInput {
   /** Live PlanScore on the deck (deck.planScore). Tier-2 + limited-data note. */

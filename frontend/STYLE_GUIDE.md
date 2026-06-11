@@ -431,6 +431,31 @@ coarse pointers (`.stats-hero-shortfall-btn` + `@media (pointer: coarse)`). The
 button is a rect below the hero (STYLE_GUIDE shape-language rule: rectangles act
 below hero), with `--border-strong` border + chevron arrow.
 
+## One scoring vocabulary (UX-315)
+
+The app's analysis surfaces speak **one vocabulary** so users learn it once:
+
+**Rule: band words are the public language; raw numbers are panel-internal.**
+
+| Tier       | Where it lives                                          | Examples                                                                |
+| ---------- | ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Band words** | Cross-panel: heroes, lane headers, stat-strip, NBM  | "Dialed in", "Needs work", "Optimized", "Exhibition"                    |
+| **Numbers**    | Inside their own panel only                         | `78/100` in BracketBreakdown's Power signal table; sub-score bars       |
+| **Bracket**    | A number but also a named tier — use "Bracket N"    | "Bracket 3 · Upgraded" in the hero; never just "3"                     |
+
+**One grading system.** A letter grade (`A`, `B+`) is a third dialect — it has been removed from the stat-strip. Don't re-introduce letter grades in cross-panel summaries. The `deckGrade` prop exists for backwards compatibility but is not rendered.
+
+**Renamed terms (settled UX-315):**
+
+| Old label     | New label        | Surface                              | Rationale                                                       |
+| ------------- | ---------------- | ------------------------------------ | --------------------------------------------------------------- |
+| Soft score    | Power signal     | BracketBreakdown panel heading + aria | "Soft score" collided with Build health vocabulary; "Power signal" is self-explaining |
+
+**Anti-patterns this rule kills:**
+- Showing a raw 0–100 number in the stat-strip or a lane header (panel-internal; use the band label)
+- A third grading scale (letter grades) appearing next to band words and bracket numbers
+- "Soft score" being confused with Build health's subscore bands
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",
