@@ -1,6 +1,7 @@
 import './CommanderReadiness.css';
 import { Loader2 } from 'lucide-react';
 import { InfoTip } from '../InfoTip';
+import { MeterBar } from '../shared/MeterBar';
 import type { ReadinessScore } from '../../lib/commander-readiness';
 
 /**
@@ -62,9 +63,7 @@ export function CommanderReadiness({ score }: { score: ReadinessScore | undefine
         <span className="cmdr-readiness-eyebrow">Collection readiness</span>
         <span className="cmdr-readiness-pct">{score.percent}%</span>
       </div>
-      <div className="cmdr-readiness-track" aria-hidden>
-        <div className="cmdr-readiness-fill" style={{ width: `${score.percent}%` }} />
-      </div>
+      <MeterBar value={score.percent} max={100} />
       <p className="cmdr-readiness-explainer">
         {score.explainerLine}
         {score.ownedSamples.length > 0 && (
