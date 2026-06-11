@@ -21,8 +21,14 @@ import { type CSSProperties, useCallback, useRef, useState } from 'react';
  * before falling. Spread the returned `exitStyle` onto the sheet element to
  * supply that var; non-drag paths (button / Escape / backdrop) pass nothing
  * and fall from 0 exactly as before.
+ *
+ * `exitAnimationName` defaults to the bottom-sheet `sheet-fall` keyframe.
+ * Surfaces whose entry isn't a bottom rise (the stats side-drawer's X slide,
+ * the scanner sheet's fade+nudge, the add-cards modal pop) pass their own
+ * symmetric exit keyframe name so `onAnimationEnd` unmounts on the right
+ * animation — everything else about the contract is identical.
  */
-export function useSheetExit(onClose: () => void) {
+export function useSheetExit(onClose: () => void, exitAnimationName = 'sheet-fall') {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
   // Ref guard so a double-trigger (e.g. Escape + backdrop in the same
@@ -56,11 +62,11 @@ export function useSheetExit(onClose: () => void) {
 
   const onAnimationEnd = useCallback(
     (e: React.AnimationEvent) => {
-      // Ignore the on-mount `sheet-rise` (and any descendant animation
-      // that bubbles up) — only the exit slide should unmount.
-      if (closingRef.current && e.animationName === 'sheet-fall') onClose();
+      // Ignore the on-mount entry animation (and any descendant animation
+      // that bubbles up) — only the exit animation should unmount.
+      if (closingRef.current && e.animationName === exitAnimationName) onClose();
     },
-    [onClose]
+    [onClose, exitAnimationName]
   );
 
   // Spread onto the sheet element. While closing, pins sheet-fall's `from`

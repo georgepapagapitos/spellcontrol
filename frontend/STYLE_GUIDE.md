@@ -171,9 +171,17 @@ tooltip; reuse this so they behave identically everywhere.
 
 ## Motion
 
-Transform/opacity only — never animate layout properties. Every entry
-animation has a symmetric exit. Motion expresses causality (where did it
-come from / where did it go), not decoration.
+Transform/opacity only — never animate layout properties. Motion expresses
+causality (where did it come from / where did it go), not decoration.
+
+**Rule: every entry animation has a symmetric exit — no teleport-vanish.**
+A surface that animates in (rise/slide/pop/fade) must play the mirrored exit
+on EVERY dismiss path (backdrop, ✕, Escape, swipe, action-complete
+auto-close) before unmounting — wire it through `useSheetExit`
+(`src/lib/use-sheet-exit.ts`; pass the surface's exit keyframe name). A
+surface with no entry animation closes instantly — that IS its symmetric
+exit (e.g. the desktop dropdown/centered-panel presentations of the mobile
+sheets skip the hook).
 
 ### Tokens (global.css)
 

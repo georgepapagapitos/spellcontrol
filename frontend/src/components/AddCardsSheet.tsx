@@ -1,6 +1,7 @@
 import { Camera, Package, Search, Upload, X } from 'lucide-react';
 import { Suspense, lazy, useEffect, useId, useState, type ReactNode } from 'react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import { useCanScan } from '../lib/use-can-scan';
 import { importScannedCards } from '../lib/scan-import';
 import { useCollectionStore } from '../store/collection';
@@ -56,13 +57,19 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
 
   useLockBodyScroll();
 
+  // Symmetric exit so every dismiss path — backdrop, ✕, Escape, a panel's
+  // own close — plays the exit before unmount instead of teleport-vanishing.
+  // The animation itself is the structural .modal-backdrop motion (the ONE
+  // dialog entrance/exit, UX-201) — we wait on its `modal-panel-out`.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'modal-panel-out');
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') beginClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [beginClose]);
 
   const handleScanConfirm = async (text: string, count: number) => {
     setScannerOpen(false);
@@ -116,17 +123,22 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
   ];
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
+    <div
+      className={`modal-backdrop add-cards-backdrop${isClosing ? ' is-closing' : ''}`}
+      onClick={() => beginClose()}
+      role="presentation"
+    >
       <div
-        className="modal add-cards-modal"
+        className={`modal add-cards-modal${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="modal-header add-cards-modal-header">
           <h2 id={labelId}>Add cards</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
+          <button className="modal-close" onClick={() => beginClose()} aria-label="Close">
             <X width={20} height={20} strokeWidth={1.8} aria-hidden />
           </button>
         </div>
@@ -163,7 +175,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
             hidden={activeTab !== 'search'}
             className="add-cards-panel add-cards-panel-search"
           >
-            <AddCardSearchPanel autoFocus={activeTab === 'search'} onEscape={onClose} />
+            <AddCardSearchPanel autoFocus={activeTab === 'search'} onEscape={beginClose} />
           </div>
 
           <div
@@ -183,7 +195,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
             hidden={activeTab !== 'product'}
             className="add-cards-panel add-cards-panel-product"
           >
-            <ProductSearchPanel onClose={onClose} />
+            <ProductSearchPanel onClose={beginClose} />
           </div>
 
           {canScan && (

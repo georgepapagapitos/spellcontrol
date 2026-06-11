@@ -507,8 +507,33 @@ select {
   }
 }
 
+/* Mirror of stats-drawer-slide for dismissal — the drawer slides back off
+   to the right instead of vanishing, so close is symmetric with open on
+   every path (backdrop / ✕ / Escape). Driven by the .is-closing class via
+   useSheetExit; exits read a touch quicker than entrances (Motion pattern 2:
+   side drawer — 220ms in, --motion-base out). */
+@keyframes stats-drawer-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.stats-drawer.is-closing {
+  animation: stats-drawer-slide-out var(--motion-base) var(--ease-out-soft) forwards;
+}
+
+.stats-drawer-backdrop.is-closing {
+  animation: fade-out var(--motion-base) ease-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .stats-drawer {
+  .stats-drawer,
+  .stats-drawer-backdrop,
+  .stats-drawer.is-closing,
+  .stats-drawer-backdrop.is-closing {
     animation: none;
   }
 }
@@ -3382,6 +3407,18 @@ hr {
     width: 18px;
     height: 18px;
   }
+
+  /* Symmetric exit for the action sheet — slide back down + fade the scrim
+     (useSheetExit's .is-closing). Desktop never gets these classes: there
+     the panel is a plain dropdown with no entry animation, so close stays
+     instant (the component skips the hook outside this breakpoint). */
+  .binder-overflow-panel.is-closing {
+    animation: binder-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
+  }
+
+  .binder-overflow-backdrop.is-closing {
+    animation: fade-out var(--motion-gentle) ease-out forwards;
+  }
 }
 
 @keyframes binder-sheet-slide {
@@ -3393,12 +3430,33 @@ hr {
   }
 }
 
+/* Mirror of binder-sheet-slide for dismissal — shared by every bottom sheet
+   that enters with binder-sheet-slide (binder overflow action sheet, the
+   card-picker family). Driven by .is-closing via useSheetExit. */
+@keyframes binder-sheet-slide-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
 @keyframes binder-sheet-fade {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .binder-overflow-panel,
+  .binder-overflow-backdrop,
+  .binder-overflow-panel.is-closing,
+  .binder-overflow-backdrop.is-closing {
+    animation: none;
   }
 }
 
@@ -10036,6 +10094,30 @@ i.ss.set-symbol--mythic {
   }
 }
 
+/* Symmetric exit for the bottom-sheet presentation (useSheetExit's
+   .is-closing) — shared by CardPickerSheet, AddCardSheet, AddToBinderSheet
+   and BulkMoveToBinderSheet, which all enter with binder-sheet-slide. */
+.card-picker-sheet.is-closing {
+  animation: binder-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
+}
+
+/* Desktop renders these as a centered panel with no entry animation (and a
+   centering transform the fall keyframe would clobber) — the components
+   never set .is-closing there, but pin it to none as a belt-and-braces
+   guard since this selector outweighs the desktop animation: none above. */
+@media (min-width: 1024px) {
+  .card-picker-sheet.is-closing {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-picker-sheet,
+  .card-picker-sheet.is-closing {
+    animation: none;
+  }
+}
+
 /* Drag-handle affordance for bottom sheets. Convention: only render this
    on sheets that can be dismissed by a gesture (tap-backdrop and/or
    swipe-down). Non-dismissable sheets (e.g. an opening-hand prompt that
@@ -10300,6 +10382,10 @@ i.ss.set-symbol--mythic {
 
 .add-cards-modal {
   max-width: 920px;
+  /* Entrance/exit come from the structural .modal-backdrop > [role='dialog']
+     rules (the ONE dialog motion, UX-201) — the component only routes its
+     dismiss paths through useSheetExit('modal-panel-out') so every close
+     plays that shared exit. No bespoke keyframes here. */
 }
 
 .add-cards-modal-header {
@@ -11891,9 +11977,31 @@ i.ss.set-symbol--mythic {
     opacity: 1;
   }
 }
+/* Mirror of scanner-sheet-slide for dismissal — the panel nudges back down
+   and fades while the scrim fades out, so close is symmetric with open on
+   every path (backdrop / ✕ / Escape / "Continue scanning"). Driven by the
+   .is-closing class via useSheetExit. */
+@keyframes scanner-sheet-slide-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+}
+.scanner-sheet-panel.is-closing {
+  animation: scanner-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
+}
+.scanner-sheet-backdrop.is-closing {
+  animation: fade-out var(--motion-gentle) ease-out forwards;
+}
 @media (prefers-reduced-motion: reduce) {
   .scanner-sheet-backdrop,
-  .scanner-sheet-panel {
+  .scanner-sheet-panel,
+  .scanner-sheet-backdrop.is-closing,
+  .scanner-sheet-panel.is-closing {
     animation: none;
   }
 }

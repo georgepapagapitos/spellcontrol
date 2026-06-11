@@ -66,6 +66,24 @@ describe('useSheetExit', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('honors a custom exit animation name', () => {
+    setReducedMotion(false);
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useSheetExit(onClose, 'stats-drawer-slide-out'));
+
+    act(() => result.current.beginClose());
+    // The default bottom-sheet keyframe no longer unmounts…
+    act(() => result.current.onAnimationEnd(fall));
+    expect(onClose).not.toHaveBeenCalled();
+    // …the surface's own exit keyframe does.
+    act(() =>
+      result.current.onAnimationEnd({
+        animationName: 'stats-drawer-slide-out',
+      } as React.AnimationEvent)
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('reduced motion closes immediately without animating', () => {
     setReducedMotion(true);
     const onClose = vi.fn();
