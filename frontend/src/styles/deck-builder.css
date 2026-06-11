@@ -6171,6 +6171,10 @@ input.deck-row-qty-input.deck-row-qty-missing {
   gap: 0.4rem;
   max-width: 28rem;
   width: 100%;
+  /* Offset parent for leaving toasts: a dismissed toast is pinned
+     absolutely at its last in-flow slot while `toast-leave` plays, so the
+     survivors reflow immediately and glide into the freed space. */
+  position: relative;
 }
 
 .toast {
@@ -6185,7 +6189,20 @@ input.deck-row-qty-input.deck-row-qty-missing {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  animation: toast-slide-in 160ms ease-out;
+  animation: toast-slide-in 160ms var(--ease-out-soft);
+  /* Restack glide: when a neighbor leaves, use-toast-exits inverts the
+     survivor's jump with an inline transform and releases it into this
+     transition, so the stack glides instead of teleporting. */
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+/* Leaving: symmetric exit — fade + drop back the way it came in.
+   `forwards` holds the final (invisible) frame for the tick between
+   animationend and React unmounting the ghost. Pointer events die with the
+   dismissal so a mid-exit toast can't be clicked. */
+.toast.is-leaving {
+  animation: toast-leave var(--motion-base) var(--ease-out-soft) forwards;
+  pointer-events: none;
 }
 
 .toast-info {
@@ -6270,9 +6287,26 @@ input.deck-row-qty-input.deck-row-qty-missing {
   }
 }
 
+@keyframes toast-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .toast {
+  /* The .toast.is-leaving selector must repeat here — it outspecifies a
+     bare `.toast` gate, which would leave the exit keyframe running.
+     use-toast-exits also checks matchMedia and unmounts dismissed toasts
+     immediately under reduce, so nothing ever waits on animationend. */
+  .toast,
+  .toast.is-leaving {
     animation: none;
+    transition: none;
   }
 }
 
