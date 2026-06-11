@@ -46,6 +46,7 @@ import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import { FoilBadge } from '../FoilBadge';
+import { Legend } from '../Legend';
 import {
   buildAllocationMap,
   classifyAllocation,
@@ -2175,6 +2176,8 @@ function DeckToolbar({
           )}
         </ToolbarPopover>
 
+        <Legend context="deck" align="right" variant="pill" />
+
         <div className="toolbar-search">
           <Search
             className="toolbar-search-icon"
@@ -2354,6 +2357,11 @@ function ToolbarPopover({
           top: panelPos.top,
           bottom: panelPos.bottom,
           zIndex: 1200,
+          // Scale the enter animation from the trigger corner: anchored-side
+          // top/bottom + left/right mirror how the panel was placed.
+          transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
+            panelPos.left !== undefined ? 'left' : 'right'
+          }`,
         }}
       >
         {children(() => setOpen(false))}

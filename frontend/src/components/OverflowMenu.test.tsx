@@ -23,7 +23,7 @@ describe('OverflowMenu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('closes on Escape and on an outside click', () => {
+  it('closes on Escape and on an outside pointerdown', () => {
     render(<OverflowMenu items={[{ label: 'Import deck', onClick: () => {} }]} />);
     const trigger = screen.getByRole('button', { name: 'More actions' });
 
@@ -34,7 +34,39 @@ describe('OverflowMenu', () => {
 
     fireEvent.click(trigger);
     expect(screen.getByRole('menu')).toBeTruthy();
-    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('moves focus to the first item on open and back to the trigger on close', () => {
+    render(
+      <OverflowMenu
+        items={[
+          { label: 'Import deck', onClick: () => {} },
+          { label: 'Add precon', onClick: () => {} },
+        ]}
+      />
+    );
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+
+    fireEvent.click(trigger);
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Import deck' }));
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Add precon' }));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('returns focus to the trigger when an item is activated', () => {
+    render(<OverflowMenu items={[{ label: 'Import deck', onClick: () => {} }]} />);
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Import deck' }));
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });

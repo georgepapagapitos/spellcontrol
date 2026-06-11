@@ -2812,7 +2812,7 @@ input[type='text'] {
   display: block;
 }
 
-/* Legend */
+/* Legend — the per-surface symbol key ("Key" popover, T36). */
 .legend-disclosure {
   display: inline-block;
   position: relative;
@@ -2840,21 +2840,73 @@ input[type='text'] {
   z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 12px 14px;
   background: var(--bg1, #fff);
   border: 0.5px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  white-space: nowrap;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 2rem));
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+}
+
+/* Right-aligned toolbars (collection summary actions, deck toolbar) anchor
+   the popover to the trigger's right edge so it never bleeds off-viewport. */
+.legend-popover--right {
+  left: auto;
+  right: 0;
+}
+
+.legend-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legend-section-title {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.legend-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Two columns for the short, numerous entries (card types, rarity tints). */
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 14px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* Fixed-width glyph column so the words align; the samples are the real row
+   components, which carry inline-context margins we neutralize here. */
+.legend-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.legend-glyph > :first-child {
+  margin-left: 0;
 }
 
 .legend-swatch {
@@ -2864,16 +2916,10 @@ input[type='text'] {
   flex-shrink: 0;
 }
 
-.legend-deck-swatch {
-  width: 17px;
-  height: 17px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+.legend-footnote {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 hr {
