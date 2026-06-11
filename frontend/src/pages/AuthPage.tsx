@@ -7,6 +7,7 @@ import { fetchProviders, googleSignInUrl } from '../lib/auth-api';
 import { isNativePlatform } from '../lib/platform';
 import { preventFocusSteal } from '../lib/keyboard';
 import { markEverVisited } from '../lib/first-run';
+import { Tabs } from '../components/Tabs';
 
 type Mode = 'login' | 'register';
 
@@ -130,26 +131,16 @@ export default function AuthPage() {
             : 'Create an account to sync across devices.'}
         </p>
 
-        <div className="auth-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'login'}
-            className={`auth-tab${mode === 'login' ? ' is-active' : ''}`}
-            onClick={() => switchMode('login')}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === 'register'}
-            className={`auth-tab${mode === 'register' ? ' is-active' : ''}`}
-            onClick={() => switchMode('register')}
-          >
-            Create account
-          </button>
-        </div>
+        <Tabs<Mode>
+          ariaLabel="Sign in or create account"
+          className="auth-tabs"
+          value={mode}
+          onChange={switchMode}
+          tabs={[
+            { id: 'login', label: 'Sign in' },
+            { id: 'register', label: 'Create account' },
+          ]}
+        />
 
         {oauthFailed ? (
           <div role="alert" className="auth-error">
