@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { ArrowRight } from 'lucide-react';
 import './StatsHero.css';
 import type { SubScoreKey, PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
@@ -6,12 +7,18 @@ import {
   type ValidationResult,
   type ValidationTone,
 } from '@/deck-builder/services/deckBuilder/validationChecklist';
+import type { LaneId } from '@/lib/deck-change';
 
 export interface StatsHeroProps {
   /** The deck-health checklist roll-up (legality + role/curve gates). */
   validation: ValidationResult;
   /** The build-quality plan score, or null when not yet analysed (non-commander/pre-analysis). */
   planScore: PlanScore | null;
+  /**
+   * Deep-link to a Tune lane from a shortfall line. When omitted, shortfalls
+   * are inert text (non-commander decks, no analysis yet).
+   */
+  onNavigate?: (lane: LaneId) => void;
 }
 
 /** Verdict glyph per tone — mirrors the checklist's status glyphs (pass/warn/fail). */
@@ -29,6 +36,19 @@ const SUBSCORE_LABEL: Record<SubScoreKey, string> = {
 const MAX_SHORTFALLS = 3;
 
 /**
+ * Map a failing/warning validation check id to the Tune lane that can fix it.
+ * Hard-rule ids (size / identity / singleton) are excluded — those require card
+ * edits in the Deck view, not the Tune suggestions lane.
+ */
+const CHECK_TO_LANE: Record<string, LaneId> = {
+  ramp: 'fill-gaps',
+  removal: 'fill-gaps',
+  cardDraw: 'fill-gaps',
+  boardwipe: 'fill-gaps',
+  curve: 'fill-gaps',
+};
+
+/**
  * The Stats-tab verdict hero: a two-pillar summary that leads with the tab's one
  * question — *is the deck functional?* The Functional pillar rolls the validation
  * checklist up into one tone-led verdict (legal + complete, with shortfalls named
@@ -37,15 +57,15 @@ const MAX_SHORTFALLS = 3;
  * every value maps to an existing field on `validation` / `planScore`. When there
  * is no plan score the Functional pillar stands alone, full-width.
  */
-export function StatsHero({ validation, planScore }: StatsHeroProps): JSX.Element {
+export function StatsHero({ validation, planScore, onNavigate }: StatsHeroProps): JSX.Element {
   const verdict = summarizeValidation(validation);
 
-  // Name up to 3 short/failed checks inline so the verdict is self-explaining.
-  const shortfalls = validation.checks
-    .filter((c) => c.status === 'warn' || c.status === 'fail')
-    .map((c) => `${c.label} ${c.detail}`);
-  const namedShortfalls = shortfalls.slice(0, MAX_SHORTFALLS);
-  const extraShortfalls = shortfalls.length - namedShortfalls.length;
+  // Failing/warning checks — each may deep-link to the Tune lane that fixes it.
+  const shortfallChecks = validation.checks.filter(
+    (c) => c.status === 'warn' || c.status === 'fail'
+  );
+  const namedChecks = shortfallChecks.slice(0, MAX_SHORTFALLS);
+  const extraShortfalls = shortfallChecks.length - namedChecks.length;
 
   // Weakest sub-score over the non-partial entries (partial ones aren't comparable).
   const softSpot = planScore ? weakestSubscore(planScore) : null;
@@ -65,11 +85,40 @@ export function StatsHero({ validation, planScore }: StatsHeroProps): JSX.Elemen
           <p className="stats-hero-ratio">
             {validation.passCount} of {validation.total} checks pass
           </p>
-          {namedShortfalls.length > 0 && (
-            <p className="stats-hero-shortfalls">
-              {namedShortfalls.join(', ')}
-              {extraShortfalls > 0 && ` +${extraShortfalls} more`}
-            </p>
+          {namedChecks.length > 0 && (
+            <ul className="stats-hero-shortfall-list" aria-label="Issues to address">
+              {namedChecks.map((check) => {
+                const lane = CHECK_TO_LANE[check.id];
+                const label = `${check.label} ${check.detail}`;
+                return (
+                  <li key={check.id} className="stats-hero-shortfall-item">
+                    {onNavigate && lane ? (
+                      <button
+                        type="button"
+                        className="stats-hero-shortfall-btn"
+                        onClick={() => onNavigate(lane)}
+                        aria-label={`${label} — go to Tune`}
+                      >
+                        <span className="stats-hero-shortfall-text">{label}</span>
+                        <ArrowRight
+                          className="stats-hero-shortfall-arrow"
+                          aria-hidden="true"
+                          width={12}
+                          height={12}
+                        />
+                      </button>
+                    ) : (
+                      <span className="stats-hero-shortfall-text">{label}</span>
+                    )}
+                  </li>
+                );
+              })}
+              {extraShortfalls > 0 && (
+                <li className="stats-hero-shortfall-item stats-hero-shortfall-more">
+                  +{extraShortfalls} more
+                </li>
+              )}
+            </ul>
           )}
         </div>
 

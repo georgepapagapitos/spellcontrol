@@ -540,6 +540,26 @@ export function DeckEditorPage() {
     return hit?.focus ?? 'fill-gaps';
   }, [nextBestMoves]);
 
+  // UX-310: whether the async commander-deck analysis is still in its first
+  // run. `gradeBracketSignature` is only set after a successful analysis
+  // completes, so its absence means no result has landed yet. Non-commander
+  // decks or decks without a commander skip analysis entirely → 'ready'.
+  const analysisState = useMemo<'pending' | 'ready'>(() => {
+    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander || !deck.commander) return 'ready';
+    return deck.gradeBracketSignature ? 'ready' : 'pending';
+  }, [deck]);
+
+  // UX-311: deep-link from a StatsHero shortfall to the Tune lane that fixes
+  // it. Switches to the Tune tab and sets the lane focus so DeckAnalysisView
+  // expands + scrolls it (the same one-shot mechanism as NextBestMove deep-links).
+  const handleNavigateToTune = useCallback(
+    (lane: LaneId) => {
+      openView('tune');
+      setTuneFocusLane(lane);
+    },
+    [openView]
+  );
+
   // Owned-substitute plan ("From your collection") — derived live from the
   // persisted gap analysis + the live collection (ownership is intentionally a
   // UI-layer concern; the analysis orchestrator stays collection-agnostic).
@@ -1805,6 +1825,12 @@ export function DeckEditorPage() {
             tuneDefaultLane={tuneDefaultLane}
             tuneFocusLane={tuneFocusLane}
             onTuneFocusHandled={clearTuneFocus}
+            analysisState={analysisState}
+            onNavigateToTune={
+              // Only wire the deep-link when analysis has run — until then the
+              // Tune lanes don't exist yet, so a deep-link would land on nothing.
+              analysisState === 'ready' ? handleNavigateToTune : undefined
+            }
             renderSwapSuggestions={renderSwapSuggestions}
             renderSimilarCards={renderSimilarCards}
             powerHeroSlot={

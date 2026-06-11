@@ -409,6 +409,28 @@ adding its Key entry in the same PR.**
 
 ---
 
+## Deck analysis tabs — first-impression states
+
+**Skeleton while analysis is pending (UX-310).** The Tune and Power tabs render
+a skeleton placeholder while the async commander-deck analysis (`useCommanderBracketAnalysis`)
+hasn't yet produced its first result. The skeleton uses the shared
+`skeleton-shimmer` keyframe from `global.css` — do NOT redeclare it (the
+`motion-tokens.test.ts` guard enforces a single declaration). The CSS class
+family is `deck-analysis-skeleton` / `deck-analysis-skeleton-bar` / etc., in
+`styles/deck-builder.css`. The skeleton disappears as soon as any lane content
+slot (`improveSlot`, `powerHeroSlot`, etc.) arrives, or once
+`analysisState === 'ready'`. The pending signal is `!deck.gradeBracketSignature`
+(set only after the first successful analysis run).
+
+**StatsHero shortfall deep-links (UX-311).** Soft-target shortfall checks in the
+StatsHero (ramp, removal, cardDraw, boardwipe, curve) render as tappable buttons
+when `onNavigate` is provided, deep-linking to the `fill-gaps` lane in the Tune
+tab. Hard-rule failures (size, identity, singleton) stay as plain text — they
+require card edits in the Deck view, not suggestions. Touch targets ≥44px on
+coarse pointers (`.stats-hero-shortfall-btn` + `@media (pointer: coarse)`). The
+button is a rect below the hero (STYLE_GUIDE shape-language rule: rectangles act
+below hero), with `--border-strong` border + chevron arrow.
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",
