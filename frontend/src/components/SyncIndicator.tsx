@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   getSyncState,
-  getLastSyncedAt,
   getPendingCount,
   isOnline,
   hasSyncError,
+  getLastSyncedAt,
   onSyncedChange,
 } from '../lib/sync';
 import { useAuth } from '../store/auth';
@@ -151,5 +152,114 @@ export function SyncIndicator() {
 
   // idle + authed, or ready but no timestamp yet — render nothing to avoid a
   // pre-first-sync flash.
+  return null;
+}
+
+/**
+ * Compact header badge — surfaces sync anxiety signals (offline / error /
+ * pending) in the site header so users see them wherever they are, not just
+ * on the Settings page.
+ *
+ * Silence = synced: when everything is fine, render NOTHING. No green
+ * checkmark noise. The full indicator (with "Synced Nm ago") remains in the
+ * Settings Account card.
+ *
+ * Signed-out / guest / unknown: also renders nothing — there is no cloud sync
+ * to report. Guests already know they're local-only from the Settings badge.
+ *
+ * Tapping leads to /settings (the full sync story + any retry actions live
+ * there). The link wraps only the compact pill so it's a contained click
+ * target — not the whole nav slot.
+ *
+ * Non-happy state precedence (same as full SyncIndicator):
+ *   Offline → Syncing → Sync failed → Saving (pending)
+ * When none of these apply: returns null (happy path, no chrome).
+ */
+export function HeaderSyncIndicator() {
+  const authStatus = useAuth((s) => s.status);
+  const [, force] = useState(0);
+
+  useEffect(() => onSyncedChange(() => force((n) => n + 1)), []);
+
+  // Tick once a minute so pending counts / labels stay fresh even without a
+  // sync event.
+  useEffect(() => {
+    const id = setInterval(() => force((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Only render for authenticated users — guests have no cloud sync to report,
+  // and unknown/loading flash is worse than silence.
+  if (authStatus !== 'authed') return null;
+
+  const online = isOnline();
+  const errored = hasSyncError();
+  const pending = getPendingCount();
+  const state = getSyncState();
+
+  // Offline — most urgent signal.
+  if (!online) {
+    const label =
+      pending > 0
+        ? `Offline — ${pending} change${pending === 1 ? '' : 's'} saved locally`
+        : 'Offline';
+    return (
+      <Link
+        to="/settings"
+        className="sync-indicator sync-indicator-offline header-sync-indicator"
+        title="Offline — changes saved on this device. Tap to open Settings."
+        aria-label={label}
+      >
+        {label}
+      </Link>
+    );
+  }
+
+  // Active sync in progress.
+  if (state === 'syncing') {
+    return (
+      <Link
+        to="/settings"
+        className="sync-indicator sync-indicator-syncing header-sync-indicator"
+        aria-label="Syncing…"
+      >
+        <span className="sync-indicator-spinner" aria-hidden="true" />
+        Syncing&hellip;
+      </Link>
+    );
+  }
+
+  // Sync errored.
+  if (errored) {
+    return (
+      <Link
+        to="/settings"
+        className="sync-indicator sync-indicator-error header-sync-indicator"
+        title="Couldn't reach the server — retrying. Tap to open Settings."
+        aria-label="Sync failed — tap to open Settings"
+      >
+        Sync failed
+      </Link>
+    );
+  }
+
+  // Pending local changes queued to push.
+  if (pending > 0) {
+    const detail = pending === 1 ? 'Saving changes…' : `Saving ${pending} changes…`;
+    return (
+      <Link
+        to="/settings"
+        className="sync-indicator sync-indicator-pending header-sync-indicator"
+        title={detail}
+        aria-label={detail}
+      >
+        <span className="sync-indicator-spinner" aria-hidden="true" />
+        Saving&hellip;
+      </Link>
+    );
+  }
+
+  // Happy path (ready + synced, or idle pre-first-sync) — render nothing.
+  // Silence = synced.
   return null;
 }

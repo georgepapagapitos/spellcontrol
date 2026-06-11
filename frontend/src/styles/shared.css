@@ -10,9 +10,16 @@
   padding: 1.5rem 1rem 4rem;
   color: var(--text-primary);
   background: var(--bg);
-  /* dvh so the page fills the viewport without the mobile address-bar gap. */
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* The shared page renders OUTSIDE the app shell (Layout is auth-gated), so
+     there is no `.app-main` scroll container here and global
+     `body { overflow: hidden }` would clip a tall collection at the viewport
+     edge. This element therefore has to be its own scroll container. dvh so it
+     fills the viewport without the mobile address-bar gap. */
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
 }
 
@@ -272,6 +279,13 @@
 
 .shared-list-sort-btn:hover {
   color: var(--accent);
+}
+
+/* Collection list view reuses .shared-list-table; rows open the card preview,
+   so flag the clickable variant for the cursor affordance (hover bg already
+   comes from the base .shared-list-table tbody tr:hover rule). */
+.shared-list-table--clickable tbody tr {
+  cursor: pointer;
 }
 
 /* ── Share dialog (link mint/copy/revoke) ────────────────────────────── */

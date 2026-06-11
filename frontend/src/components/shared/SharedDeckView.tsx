@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react';
+import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { SharedCardTile } from './SharedCardTile';
+import { SharedCardList, type SharedCardListItem } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
+import { ViewModeToggle } from '../ViewModeToggle';
 import type { PublicCard } from '../../lib/shared-types';
 
 interface Props {
   data: PublicDeck;
 }
+
+type ViewKind = 'grid' | 'list';
 
 /**
  * Coerces a deck's stored `card: ScryfallCard`-shaped value into the PublicCard
@@ -50,8 +55,18 @@ interface BucketedCard {
   quantity: number;
 }
 
+/** Map a bucket's stacked cards into the shared list-row shape. */
+function toListItems(cards: BucketedCard[]): SharedCardListItem[] {
+  return cards.map((b, idx) => ({
+    key: `${b.publicCard.scryfallId}-${b.publicCard.name}-${idx}`,
+    card: b.publicCard,
+    quantity: b.quantity,
+  }));
+}
+
 export function SharedDeckView({ data }: Props) {
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
   // Group identical card names within the mainboard (same physical printing
@@ -123,6 +138,23 @@ export function SharedDeckView({ data }: Props) {
           ariaLabel="Search cards"
           className="shared-toolbar-search"
         />
+        <ViewModeToggle<ViewKind>
+          ariaLabel="Deck view mode"
+          value={view}
+          onChange={setView}
+          options={[
+            {
+              value: 'grid',
+              label: 'Grid view',
+              icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
+            {
+              value: 'list',
+              label: 'List view',
+              icon: <ListIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+            },
+          ]}
+        />
       </div>
 
       {(commanderCard || partnerCard) && (
@@ -130,18 +162,30 @@ export function SharedDeckView({ data }: Props) {
           <h2 className="shared-deck-section-heading">
             {partnerCard ? 'Commanders' : 'Commander'}
           </h2>
-          <ul className="shared-card-grid shared-card-grid--small">
-            {commanderCard && matches(commanderCard) && (
-              <li>
-                <SharedCardTile card={commanderCard} onClick={() => setPreview(commanderCard)} />
-              </li>
-            )}
-            {partnerCard && matches(partnerCard) && (
-              <li>
-                <SharedCardTile card={partnerCard} onClick={() => setPreview(partnerCard)} />
-              </li>
-            )}
-          </ul>
+          {(() => {
+            const commanders = [commanderCard, partnerCard].filter(
+              (c): c is PublicCard => c != null && matches(c)
+            );
+            return view === 'grid' ? (
+              <ul className="shared-card-grid shared-card-grid--small">
+                {commanders.map((c, idx) => (
+                  <li key={`${c.scryfallId}-${idx}`}>
+                    <SharedCardTile card={c} onClick={() => setPreview(c)} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <SharedCardList
+                items={commanders.map((c, idx) => ({
+                  key: `${c.scryfallId}-${idx}`,
+                  card: c,
+                  quantity: 1,
+                }))}
+                onPreview={setPreview}
+                showPrice={false}
+              />
+            );
+          })()}
         </section>
       )}
 
@@ -154,17 +198,21 @@ export function SharedDeckView({ data }: Props) {
             <h2 className="shared-deck-section-heading">
               {bucket} ({count})
             </h2>
-            <ul className="shared-card-grid shared-card-grid--small">
-              {cards.map((b, idx) => (
-                <li key={idx}>
-                  <SharedCardTile
-                    card={b.publicCard}
-                    quantity={b.quantity}
-                    onClick={() => setPreview(b.publicCard)}
-                  />
-                </li>
-              ))}
-            </ul>
+            {view === 'grid' ? (
+              <ul className="shared-card-grid shared-card-grid--small">
+                {cards.map((b, idx) => (
+                  <li key={idx}>
+                    <SharedCardTile
+                      card={b.publicCard}
+                      quantity={b.quantity}
+                      onClick={() => setPreview(b.publicCard)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <SharedCardList items={toListItems(cards)} onPreview={setPreview} showPrice={false} />
+            )}
           </section>
         );
       })}
@@ -172,19 +220,28 @@ export function SharedDeckView({ data }: Props) {
       {sideboardCards.length > 0 && (
         <section className="shared-deck-section">
           <h2 className="shared-deck-section-heading">Sideboard ({data.sideboard.length})</h2>
-          <ul className="shared-card-grid shared-card-grid--small">
-            {sideboardCards
-              .filter((b) => matches(b.publicCard))
-              .map((b, idx) => (
-                <li key={idx}>
-                  <SharedCardTile
-                    card={b.publicCard}
-                    quantity={b.quantity}
-                    onClick={() => setPreview(b.publicCard)}
-                  />
-                </li>
-              ))}
-          </ul>
+          {(() => {
+            const visible = sideboardCards.filter((b) => matches(b.publicCard));
+            return view === 'grid' ? (
+              <ul className="shared-card-grid shared-card-grid--small">
+                {visible.map((b, idx) => (
+                  <li key={idx}>
+                    <SharedCardTile
+                      card={b.publicCard}
+                      quantity={b.quantity}
+                      onClick={() => setPreview(b.publicCard)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <SharedCardList
+                items={toListItems(visible)}
+                onPreview={setPreview}
+                showPrice={false}
+              />
+            );
+          })()}
         </section>
       )}
 
