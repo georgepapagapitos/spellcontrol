@@ -15,7 +15,11 @@ import {
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { normalizeForSearch } from '../../lib/normalize-search';
-import { computeReadiness, type ReadinessScore } from '../../lib/commander-readiness';
+import {
+  computeReadiness,
+  extractCommanderCandidates,
+  type ReadinessScore,
+} from '../../lib/commander-readiness';
 import {
   classifyCommanderPlaystyles,
   classifyOwnedCommanderPlaystyles,
@@ -160,12 +164,6 @@ function getColorFilterLabel(colors: Set<string>): string {
   return name ? `Top ${name}` : 'Top';
 }
 
-function isLegendaryCreature(card: EnrichedCard): boolean {
-  // Use only the front face type line so DFC backs (e.g. Battles) don't slip in.
-  const tl = (card.typeLine?.split('//')[0] ?? '').toLowerCase();
-  return tl.includes('legendary') && tl.includes('creature');
-}
-
 function pickRandom<T>(arr: T[]): T | null {
   if (arr.length === 0) return null;
   return arr[Math.floor(Math.random() * arr.length)];
@@ -184,16 +182,14 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // multiples (or across printings) appears many times. Commander selection
   // only cares about the card identity, so de-dup by name — otherwise the
   // search dropdown, Random pool and suggestion chips all show repeats.
-  const collectionLegends = useMemo(() => {
-    const seen = new Set<string>();
-    const out: EnrichedCard[] = [];
-    for (const c of collectionCards) {
-      if (!isLegendaryCreature(c) || seen.has(c.name)) continue;
-      seen.add(c.name);
-      out.push(c);
-    }
-    return out;
-  }, [collectionCards]);
+  // Uses the shared `isCommanderEligible` (via extractCommanderCandidates) so
+  // detection can't drift from binder routing — this also catches non-creature
+  // commanders ("can be your commander" planeswalkers/backgrounds) that a bare
+  // legendary-creature type-line check would miss.
+  const collectionLegends = useMemo(
+    () => extractCommanderCandidates(collectionCards),
+    [collectionCards]
+  );
   const ownedNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name)),
     [collectionLegends]
