@@ -4,7 +4,7 @@ import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { type Playstyle } from '../../lib/commander-playstyle-index';
-import type { EnrichedCard } from '../../types';
+import { extractCommanderCandidates } from '../../lib/commander-readiness';
 import { PlaystyleGrid } from './PlaystyleGrid';
 import { CommanderResultCard } from './CommanderResultCard';
 
@@ -16,11 +16,6 @@ interface Props {
 // across both the by-commander and by-play-style paths.
 const OWNED_ONLY_KEY = 'commander-search-owned-only';
 
-function isLegendaryCreature(card: EnrichedCard): boolean {
-  const tl = (card.typeLine?.split('//')[0] ?? '').toLowerCase();
-  return tl.includes('legendary') && tl.includes('creature');
-}
-
 export function PlaystylePicker({ onSelectCommander }: Props) {
   const [style, setStyle] = useState<Playstyle | null>(null);
   const [commanders, setCommanders] = useState<EDHRECTopCommander[]>([]);
@@ -29,18 +24,14 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const collectionCards = useCollectionStore((s) => s.cards);
-  // De-dup by name: the collection stores one row per physical copy, so a
-  // card owned in multiples would otherwise inflate the legend count.
-  const collectionLegends = useMemo(() => {
-    const seen = new Set<string>();
-    const out: EnrichedCard[] = [];
-    for (const c of collectionCards) {
-      if (!isLegendaryCreature(c) || seen.has(c.name)) continue;
-      seen.add(c.name);
-      out.push(c);
-    }
-    return out;
-  }, [collectionCards]);
+  // De-dup by name via the shared `isCommanderEligible` (extractCommanderCandidates):
+  // the collection stores one row per physical copy, so a card owned in multiples
+  // would otherwise inflate the legend count. Using the shared check also catches
+  // non-creature commanders ("can be your commander" planeswalkers/backgrounds).
+  const collectionLegends = useMemo(
+    () => extractCommanderCandidates(collectionCards),
+    [collectionCards]
+  );
   const ownedNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name)),
     [collectionLegends]
