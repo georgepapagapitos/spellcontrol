@@ -354,9 +354,6 @@ select {
 }
 
 @media (max-width: 1024px) {
-  .site-brand-mark {
-    display: inline;
-  }
   /* Top header is replaced by the bottom tab bar (web) or NavFab (native)
      on tablet/mobile. Sign-in entry on small screens lives behind the
      Settings tab, with a guest-mode dot on that tab to telegraph the
@@ -9216,6 +9213,17 @@ i.ss.set-symbol--mythic {
   font-size: var(--text-sm);
 }
 
+/* Honesty sentence: appears when there are local guest cards waiting to be
+   promoted. Sits between the subtitle and the mode tabs. */
+.auth-merge-notice {
+  margin: -12px 0 16px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-light);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
 /* The mode switcher is the shared <Tabs> primitive (components/Tabs.tsx,
    `fitted` variant); this hook only positions it inside the card. */
 .auth-tabs {
@@ -9615,6 +9623,34 @@ i.ss.set-symbol--mythic {
   gap: 1rem;
 }
 
+/* Brand moment: visible only when the top header is hidden (≤1024px).
+   Gives phone/native users a product-name anchor since the header is
+   display:none on small screens. Hidden on desktop where the header is shown. */
+.settings-brand-moment {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+
+.settings-brand-name {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+
+.settings-brand-tagline {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .settings-brand-moment {
+    display: flex;
+  }
+}
+
 .settings-page-hero {
   margin-bottom: 0.5rem;
 }
@@ -9696,6 +9732,13 @@ i.ss.set-symbol--mythic {
   color: var(--text-primary);
   font-size: var(--text-base);
   font-weight: 500;
+}
+
+/* Inline flex so an InfoTip icon can sit right after the label text. */
+.settings-row-value--with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .settings-row-hint {
