@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { render, screen, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SyncIndicator, formatRelativeTime } from './SyncIndicator';
+import { SyncIndicator, HeaderSyncIndicator, formatRelativeTime } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import * as sync from '../lib/sync';
 
@@ -201,5 +202,137 @@ describe('SyncIndicator', () => {
       emit();
     });
     expect(screen.getByText('Synced')).toBeTruthy();
+  });
+});
+
+// ── HeaderSyncIndicator ──────────────────────────────────────────────────────
+
+function renderHeaderIndicator() {
+  return render(
+    <MemoryRouter>
+      <HeaderSyncIndicator />
+    </MemoryRouter>
+  );
+}
+
+/** Set auth to authed and configure sensible sync defaults. Individual tests
+ *  override specific spies to drive the state they want. */
+function authedHeader() {
+  useAuth.setState({
+    user: { id: 'u', username: 'a', role: 'user' },
+    status: 'authed',
+    autoLinkedAt: null,
+  });
+  vi.spyOn(sync, 'getSyncState').mockReturnValue('ready');
+  vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(Date.now());
+  vi.spyOn(sync, 'isOnline').mockReturnValue(true);
+  vi.spyOn(sync, 'getPendingCount').mockReturnValue(0);
+  vi.spyOn(sync, 'hasSyncError').mockReturnValue(false);
+}
+
+describe('HeaderSyncIndicator', () => {
+  it('renders nothing when guest (no cloud sync to report)', () => {
+    useAuth.setState({ status: 'guest' });
+    const { container } = renderHeaderIndicator();
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing when auth status is unknown/loading', () => {
+    useAuth.setState({ status: 'unknown' });
+    const { container } = renderHeaderIndicator();
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing when authed and fully synced (silence = synced)', () => {
+    authedHeader();
+    const { container } = renderHeaderIndicator();
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing when authed + idle (pre-first-sync, avoids flash)', () => {
+    authedHeader();
+    vi.spyOn(sync, 'getSyncState').mockReturnValue('idle');
+    vi.spyOn(sync, 'getLastSyncedAt').mockReturnValue(null);
+    const { container } = renderHeaderIndicator();
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders Offline pill when disconnected', () => {
+    authedHeader();
+    vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(0);
+    renderHeaderIndicator();
+    expect(screen.getByText('Offline')).toBeTruthy();
+  });
+
+  it('renders Offline pill with pending count when disconnected with queued changes', () => {
+    authedHeader();
+    vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(3);
+    renderHeaderIndicator();
+    expect(screen.getByText(/Offline — 3 changes saved locally/)).toBeTruthy();
+  });
+
+  it('renders Syncing pill with spinner when actively syncing', () => {
+    authedHeader();
+    vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
+    const { container } = renderHeaderIndicator();
+    expect(screen.getByText(/Syncing/)).toBeTruthy();
+    expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+  });
+
+  it('renders Sync failed pill when errored', () => {
+    authedHeader();
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    renderHeaderIndicator();
+    expect(screen.getByText('Sync failed')).toBeTruthy();
+  });
+
+  it('renders Saving pill with spinner when there are pending changes', () => {
+    authedHeader();
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(2);
+    const { container } = renderHeaderIndicator();
+    expect(screen.getByText(/Saving/)).toBeTruthy();
+    expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+  });
+
+  it('Offline outranks Sync failed and Syncing', () => {
+    authedHeader();
+    vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    vi.spyOn(sync, 'getSyncState').mockReturnValue('syncing');
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    renderHeaderIndicator();
+    expect(screen.getByText('Offline')).toBeTruthy();
+    expect(screen.queryByText('Sync failed')).toBeNull();
+    expect(screen.queryByText(/Syncing/)).toBeNull();
+  });
+
+  it('Sync failed outranks Saving', () => {
+    authedHeader();
+    vi.spyOn(sync, 'hasSyncError').mockReturnValue(true);
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(5);
+    renderHeaderIndicator();
+    expect(screen.getByText('Sync failed')).toBeTruthy();
+    expect(screen.queryByText(/Saving/)).toBeNull();
+  });
+
+  it('tapping the indicator links to /settings', () => {
+    authedHeader();
+    vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    renderHeaderIndicator();
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe('/settings');
+  });
+
+  it('re-renders when the sync listener fires (offline → online + synced)', () => {
+    authedHeader();
+    const onlineSpy = vi.spyOn(sync, 'isOnline').mockReturnValue(false);
+    renderHeaderIndicator();
+    expect(screen.getByText('Offline')).toBeTruthy();
+    onlineSpy.mockReturnValue(true);
+    act(() => {
+      emit();
+    });
+    expect(screen.queryByText('Offline')).toBeNull();
   });
 });
