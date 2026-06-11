@@ -15,7 +15,7 @@ import { isNativePlatform } from './platform';
  * haptics are decoration.
  *
  * The module-level `enabled` flag is wired to a persisted user setting
- * via `setHapticsEnabled`; `useGameStore` mirrors it on hydrate.
+ * via `setHapticsEnabled`; `usePlayStore` mirrors it on hydrate.
  */
 
 let enabled = true;
@@ -46,21 +46,26 @@ function webVibrate(pattern: number | number[]): void {
 }
 
 export const haptics = {
-  /** Light tap — for routine actions (draw, undo, untap, tap-permanent). */
+  /** Light tap — for routine actions (draw, undo/redo, untap, tap-permanent). */
   tap(): void {
     if (!enabled) return;
     if (isNativePlatform()) nativeImpact(ImpactStyle.Light);
     else webVibrate(10);
   },
 
-  /** Success cue — for completed actions (card scan landed). */
+  /**
+   * Success cue — a completed action landed. Note the scanner does NOT call
+   * this for every scan: camera accepts route through `scanner-feedback.ts`'s
+   * value-tier mapping (commons get `tap`, mid-tier cards land here, jackpots
+   * get `lethal`); manual queue adds fire it directly.
+   */
   success(): void {
     if (!enabled) return;
     if (isNativePlatform()) nativeNotify(NotificationType.Success);
     else webVibrate(40);
   },
 
-  /** Warning cue — for destructive/coarse actions (mulligan, reset). */
+  /** Warning cue — for destructive/coarse actions (mulligan, reset, danger-confirm press). */
   warning(): void {
     if (!enabled) return;
     if (isNativePlatform()) nativeNotify(NotificationType.Warning);

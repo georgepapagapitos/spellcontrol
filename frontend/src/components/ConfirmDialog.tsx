@@ -1,4 +1,5 @@
 import { Modal } from './Modal';
+import { haptics } from '../lib/haptics';
 
 interface Props {
   title: string;
@@ -30,7 +31,14 @@ export function ConfirmDialog({
         <button
           type="button"
           className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
-          onClick={onConfirm}
+          onClick={() => {
+            // Destructive confirms get the warning cue at the moment of
+            // commitment, mirroring Play's semantics (mulligan buzzes on the
+            // press that destroys, not on the mere possibility). Benign
+            // confirms (danger=false) stay silent.
+            if (danger) haptics.warning();
+            onConfirm();
+          }}
           autoFocus
         >
           {confirmLabel}
