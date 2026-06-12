@@ -33,6 +33,7 @@ vi.mock('./CardPreview', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
+import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
 
 let idSeq = 0;
 function mk(o: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -63,9 +64,11 @@ function cards(n: number): EnrichedCard[] {
 // Render the table with a standard set of cards.
 function renderTable(c: EnrichedCard[]) {
   return render(
-    <MemoryRouter>
-      <CardListTable cards={c} binders={[]} />
-    </MemoryRouter>
+    <ShortcutRegistryProvider>
+      <MemoryRouter>
+        <CardListTable cards={c} binders={[]} />
+      </MemoryRouter>
+    </ShortcutRegistryProvider>
   );
 }
 

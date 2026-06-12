@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
@@ -6,11 +6,34 @@ import { NavFab } from './NavFab';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
+import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ScrollContainerContext } from '../lib/scroll-container';
 import { isNativePlatform } from '../lib/platform';
+import {
+  ShortcutRegistryProvider,
+  isTypingTarget,
+  useRegisterShortcuts,
+  useShortcutRegistry,
+} from '../lib/shortcut-registry';
 
-export function Layout() {
-  // Store hydration is owned by the sync layer (see startSync in lib/sync.ts).
+// ── Global shortcut section ───────────────────────────────────────────────────
+
+/** The app-wide shortcuts that appear in every context. */
+const GLOBAL_SHORTCUTS = [
+  { keys: ['?'], description: 'Show keyboard shortcuts' },
+  { keys: ['Esc'], description: 'Close overlays / dialogs' },
+];
+
+/**
+ * Inner shell: has access to the registry context, so it can register the
+ * Global section, wire the `?` global key, and render the overlay.
+ * Layout itself is just the provider wrapper.
+ */
+function LayoutShell() {
+  // Register the Global section (always first because it mounts first).
+  useRegisterShortcuts('Global', GLOBAL_SHORTCUTS);
+
+  const { sections, open, toggle, hide } = useShortcutRegistry();
 
   // App-shell layout: the shell is a fixed-height non-scrolling flex column
   // and <main> is the single scroll container. Nothing is position:fixed and
@@ -44,6 +67,31 @@ export function Layout() {
     el.scrollTo({ top: navType === 'POP' ? (positions.current.get(key) ?? 0) : 0 });
   }, [pathname, hash, navType, key, scrollEl]);
 
+  // `?` global listener — fires anywhere outside text inputs.
+  // Each page/component is responsible for its own shortcuts; this wires only
+  // the overlay toggle so the shortcut works from every page.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== '?') return;
+      if (isTypingTarget(e.target)) return;
+      e.preventDefault();
+      toggle();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [toggle]);
+
+  // Build the groups prop for the overlay from registered sections.
+  const overlayGroups = useMemo(
+    () =>
+      sections.map((s) => ({
+        title: s.title,
+        shortcuts: s.shortcuts,
+      })),
+    [sections]
+  );
+
   return (
     <div className="app-shell">
       <Header />
@@ -61,6 +109,15 @@ export function Layout() {
           the open web). */}
       {isNativePlatform() ? <NavFab /> : <MobileTabBar />}
       <ToastViewport />
+      {open && <KeyboardShortcutsOverlay groups={overlayGroups} onClose={hide} />}
     </div>
+  );
+}
+
+export function Layout() {
+  return (
+    <ShortcutRegistryProvider>
+      <LayoutShell />
+    </ShortcutRegistryProvider>
   );
 }

@@ -34,6 +34,7 @@ vi.mock('./CardPreview', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
+import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
 
 let idSeq = 0;
 function mk(o: Partial<EnrichedCard>): EnrichedCard {
@@ -75,9 +76,11 @@ describe('CardListTable grouped preview (UX-001 regression)', () => {
     // reverse: [Zzz, Aaa]. Distinct quantities make the row identity checkable.
     const cards = [...copies('Aaa', 5, 'sf-aaa', 3), ...copies('Zzz', 1, 'sf-zzz', 7)];
     render(
-      <MemoryRouter>
-        <CardListTable cards={cards} binders={[]} />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={cards} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Group by' }));
@@ -99,9 +102,11 @@ describe('CardListTable grouped preview (UX-001 regression)', () => {
   it('without grouping, stack data still matches the row (no regression)', () => {
     const cards = [...copies('Aaa', 5, 'sf-aaa', 3), ...copies('Zzz', 1, 'sf-zzz', 7)];
     render(
-      <MemoryRouter>
-        <CardListTable cards={cards} binders={[]} />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={cards} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     );
 
     // Default name-ascending order: the Aaa row sits at index 0 (qty 3).
@@ -122,9 +127,11 @@ describe('CardListTable list-row activation (UX-212 role="button" fix)', () => {
 
   it('Enter on a row opens the preview, like click', () => {
     render(
-      <MemoryRouter>
-        <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     );
 
     const row = screen.getByRole('button', { name: /aaa/i });
@@ -136,9 +143,11 @@ describe('CardListTable list-row activation (UX-212 role="button" fix)', () => {
 
   it('Space in select mode toggles selection (aria-pressed)', () => {
     render(
-      <MemoryRouter>
-        <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={copies('Aaa', 5, 'sf-aaa', 3)} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));
