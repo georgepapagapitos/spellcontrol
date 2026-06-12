@@ -1,6 +1,7 @@
 import { BarChart3, Plus, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAnimatedNumber } from '../lib/use-animated-number';
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
@@ -50,6 +51,18 @@ export function CollectionPage() {
     () => cards.reduce((sum, c) => sum + c.purchasePrice, 0),
     [cards]
   );
+
+  // Reveal animations for the hero stats. Card count counts up on first load;
+  // dollar value reveals (integer only, no pop animation wired up — popKey is
+  // intentionally unused here per §8.1 of the UX-411 spec).
+  const { display: displayCardCount } = useAnimatedNumber(collectionCardCount, {
+    revealMs: 600,
+    revealKey: 'collection-hero-count',
+  });
+  const { display: displayValue } = useAnimatedNumber(Math.floor(collectionValue), {
+    revealMs: 600,
+    revealKey: 'collection-hero-value',
+  });
 
   // Newest price stamp across the collection — the "Prices as of" honesty
   // line. Derived once per cards-array identity, not per render.
@@ -106,10 +119,10 @@ export function CollectionPage() {
               <h1 className="binder-hero-name">Collection</h1>
               <p className="binder-hero-meta collection-hero-meta">
                 <span aria-label="Collection totals">
-                  {collectionCardCount.toLocaleString()}{' '}
-                  {collectionCardCount === 1 ? 'card' : 'cards'} ·{' '}
+                  {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
+                  ·{' '}
                   <span title="Total purchase cost recorded at time of import">
-                    paid {formatMoney(collectionValue, { wholeDollars: true })}
+                    paid {formatMoney(displayValue, { wholeDollars: true })}
                   </span>
                 </span>
                 {!isEmpty && (

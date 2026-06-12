@@ -3,10 +3,16 @@ import './PowerHero.css';
 import { AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { bracketLabel } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { SelectMenu, type SelectOption } from '../SelectMenu';
+import { useAnimatedNumber } from '@/lib/use-animated-number';
 
 export interface PowerHeroProps {
   /** Override-aware bracket number (1–5), or null when not yet estimated. */
   bracket: number | null;
+  /**
+   * Session-scoped reveal key. When provided, plays a 0→target reveal tween
+   * the first time this key is seen. Pass null/undefined to skip the reveal.
+   */
+  revealKey?: string | null;
   /** True when the bracket is a manual override rather than the auto estimate. */
   bracketOverridden: boolean;
   /** Pre-formatted hard-floor reasons (top 3 are shown). */
@@ -130,7 +136,15 @@ export function PowerHero({
   onViewWinConditions,
   bracketOverride,
   onSetBracketOverride,
+  revealKey,
 }: PowerHeroProps): JSX.Element {
+  // Animate the bracket number (1–5). When bracket is null, hold at 0 (won't show).
+  // The bracket values are all within 5 of each other so the tween always runs.
+  const { display: bracketDisplay } = useAnimatedNumber(bracket ?? 0, {
+    revealMs: 600,
+    revealKey: bracket != null && revealKey ? `${revealKey}:power` : null,
+  });
+
   const producers = engineProducers ?? 0;
   const payoffs = enginePayoffs ?? 0;
   const engineBalanced = producers > 0 && payoffs > 0 && !engineLopsided;
@@ -154,7 +168,7 @@ export function PowerHero({
           >
             {bracket != null ? (
               <>
-                Bracket <strong className="power-hero-bracket-num">{bracket}</strong> ·{' '}
+                Bracket <strong className="power-hero-bracket-num">{bracketDisplay}</strong> ·{' '}
                 {bracketLabel(bracket)}
               </>
             ) : (

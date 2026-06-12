@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import './SubScoreTile.css';
 import type { SubScore, SubScoreKey } from '@/deck-builder/services/deckBuilder/planScore';
+import { useAnimatedNumber } from '@/lib/use-animated-number';
 
 /** Human label for each subscore key. */
 const KEY_LABELS: Record<SubScoreKey, string> = {
@@ -23,6 +24,11 @@ export interface SubScoreTileProps {
   score: SubScore;
   /** When provided the tile renders as a button (e.g. to deep-link a tab). */
   onClick?: () => void;
+  /**
+   * Session-scoped reveal key. When provided, plays a 0→target reveal tween
+   * the first time this key is seen. Pass null/undefined to skip the reveal.
+   */
+  revealKey?: string | null;
 }
 
 /**
@@ -30,12 +36,23 @@ export interface SubScoreTileProps {
  * partial), band label, and the one-line `surface` summary. Renders as a
  * <button> when `onClick` is given, else a static <div>. Purely presentational.
  */
-export function SubScoreTile({ scoreKey, score, onClick }: SubScoreTileProps): JSX.Element {
+export function SubScoreTile({
+  scoreKey,
+  score,
+  onClick,
+  revealKey,
+}: SubScoreTileProps): JSX.Element {
   const { value, surface, bandLabel, partial } = score;
   const label = KEY_LABELS[scoreKey];
   const clamped = Math.max(0, Math.min(100, Math.round(value)));
   const band = partial ? 'is-partial' : bandClass(clamped);
-  const valueText = partial ? '—' : String(clamped);
+
+  // Only animate when not partial — partial scores show '—', no count-up needed.
+  const { display: tweened } = useAnimatedNumber(partial ? 0 : clamped, {
+    revealMs: 600,
+    revealKey: partial ? null : revealKey ? `${revealKey}:sub-${scoreKey}` : null,
+  });
+  const valueText = partial ? '—' : String(tweened);
 
   const className = `sub-score-tile ${band}${onClick ? ' is-interactive' : ''}`;
 

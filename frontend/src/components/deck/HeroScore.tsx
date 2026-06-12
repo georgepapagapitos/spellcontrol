@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import './HeroScore.css';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
+import { useAnimatedNumber } from '@/lib/use-animated-number';
 
 /** Band tier for a 0-100 score → drives the ring/text color class. */
 function bandClass(value: number): string {
@@ -12,6 +13,11 @@ function bandClass(value: number): string {
 
 export interface HeroScoreProps {
   plan: PlanScore;
+  /**
+   * Session-scoped reveal key. When provided, plays a 0→target reveal tween
+   * the first time this key is seen. Pass null/undefined to skip the reveal.
+   */
+  revealKey?: string | null;
 }
 
 /**
@@ -19,10 +25,17 @@ export interface HeroScoreProps {
  * tinted by band, with the band label, headline, and byline beside it. Purely
  * presentational — all copy and numbers come from the `plan` prop.
  */
-export function HeroScore({ plan }: HeroScoreProps): JSX.Element {
+export function HeroScore({ plan, revealKey }: HeroScoreProps): JSX.Element {
   const { overall, bandLabel, headline, byline, limitedData } = plan;
   const clamped = Math.max(0, Math.min(100, Math.round(overall)));
   const band = bandClass(clamped);
+
+  // One tween drives both the ring CSS var and the numeric display.
+  // aria-label keeps the real clamped value for accessibility.
+  const { display: tweened } = useAnimatedNumber(clamped, {
+    revealMs: 600,
+    revealKey: revealKey ? `${revealKey}:hero` : null,
+  });
 
   return (
     <section
@@ -33,10 +46,10 @@ export function HeroScore({ plan }: HeroScoreProps): JSX.Element {
       <div
         className="hero-score-ring"
         aria-hidden="true"
-        style={{ ['--hero-score-pct' as string]: clamped }}
+        style={{ ['--hero-score-pct' as string]: tweened }}
       >
         <div className="hero-score-ring-hole">
-          <span className="hero-score-value">{clamped}</span>
+          <span className="hero-score-value">{tweened}</span>
           <span className="hero-score-band">{bandLabel}</span>
         </div>
       </div>

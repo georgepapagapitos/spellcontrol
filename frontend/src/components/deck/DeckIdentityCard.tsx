@@ -1,4 +1,5 @@
 import { useId, useState, lazy, Suspense, type JSX } from 'react';
+import { useAnimatedNumber } from '@/lib/use-animated-number';
 import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import './DeckIdentityCard.css';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -36,6 +37,11 @@ export interface DeckIdentityCardProps {
   bracket?: number;
   /** Analysis pending = true when !deck.gradeBracketSignature on commander decks. */
   analysisPending: boolean;
+  /**
+   * Session-scoped reveal key. When provided, plays a 0→target reveal tween
+   * the first time this key is seen. Pass null/undefined to skip the reveal.
+   */
+  revealKey?: string | null;
   validation: ValidationResult;
   planScore: PlanScore | null;
   /** manaCurve memo from DeckDisplay (Record<0..7, number>). */
@@ -251,11 +257,23 @@ export function DeckIdentityCard({
   averageCmc,
   onNavigate,
   cards = [],
+  revealKey,
 }: DeckIdentityCardProps): JSX.Element {
   // Playstyle expander: collapsed by default; lazy-mounts PlaystyleRadar on first expand
   const [playstyleOpen, setPlaystyleOpen] = useState(false);
   // Track whether it has ever been opened — once true, the Suspense boundary stays mounted
   const [playstyleEverOpened, setPlaystyleEverOpened] = useState(false);
+
+  // Animate the build health number only — everything else (bandLabel, headline,
+  // softSpot) is text and stays static. Suppressed while analysis is pending since
+  // planScore is absent then; the reveal fires once it arrives via revealKey.
+  const planScoreOverall = planScore
+    ? Math.max(0, Math.min(100, Math.round(planScore.overall)))
+    : 0;
+  const { display: planScoreDisplay } = useAnimatedNumber(planScoreOverall, {
+    revealMs: 600,
+    revealKey: revealKey ? `${revealKey}:build-health` : null,
+  });
 
   const togglePlaystyle = () => {
     if (!playstyleOpen && !playstyleEverOpened) {
@@ -478,7 +496,7 @@ export function DeckIdentityCard({
               <div className="deck-identity-card-pillar">
                 <span className="deck-identity-card-eyebrow">Build health</span>
                 <p className="deck-identity-card-band">
-                  <strong className="deck-identity-card-band-num">{planScore.overall}</strong> ·{' '}
+                  <strong className="deck-identity-card-band-num">{planScoreDisplay}</strong> ·{' '}
                   {planScore.bandLabel}
                   {planScore.limitedData && (
                     <span className="deck-identity-card-limited"> · limited data</span>

@@ -90,6 +90,7 @@ import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
+import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 const CLASSIFY_PRIORITY = [
@@ -422,6 +423,12 @@ export interface DeckDisplayProps {
    * filter chip. Only passed for commander decks that have a full analysis result.
    */
   onNavigateToTune?: (lane: LaneId) => void;
+  /**
+   * Session-scoped reveal key for score animations. When non-null, plays the
+   * 0→target reveal tween on first delivery; null/undefined suppresses the reveal.
+   * Computed by the page from deck.id + gradeBracketSignature.
+   */
+  scoreRevealKey?: string | null;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -830,6 +837,7 @@ export function DeckDisplay({
   onShowTestHand,
   analysisState = 'ready',
   onNavigateToTune,
+  scoreRevealKey,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -1711,6 +1719,7 @@ export function DeckDisplay({
             format={format}
             deckColor={color ?? 'var(--accent)'}
             identity={identity}
+            scoreRevealKey={scoreRevealKey}
           />
         )}
 
@@ -3132,6 +3141,7 @@ function DeckAnalysisView({
   format,
   deckColor,
   identity,
+  scoreRevealKey,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3163,6 +3173,8 @@ function DeckAnalysisView({
   analysisState?: 'pending' | 'ready';
   /** UX-311: deep-link from a DeckIdentityCard shortfall to the Tune lane that fixes it. */
   onNavigateToTune?: (lane: LaneId) => void;
+  /** Session-scoped reveal key for score animations. Null/undefined suppresses the reveal. */
+  scoreRevealKey?: string | null;
   /** Commander card for DeckIdentityCard art + arc. */
   commander?: ScryfallCard | null;
   /** Partner commander card for DeckIdentityCard arc. */
@@ -3215,30 +3227,38 @@ function DeckAnalysisView({
   // below stay untouched.
   const current = view;
 
+  // Panel cascade: staggered entrance when analysis first becomes ready.
+  // Keyed to scoreRevealKey so it fires once per analysis delivery (same registry
+  // as the score number reveals — remounts and tab switches don't replay).
+  const cascade = usePanelCascade(scoreRevealKey ? `${scoreRevealKey}:cascade` : null);
+
   return (
     <div className="deck-analysis-view">
       {current === 'stats' && (
         <div className="deck-bento deck-bento--stats">
           {/* Deck identity hero — leads the stats tab with the deck's visual identity,
               functional verdict, and build health. Renders always (no checks guard). */}
-          <DeckIdentityCard
-            commander={commander ?? null}
-            partnerCommander={partnerCommander}
-            deckName={deckName}
-            format={format}
-            deckColor={deckColor}
-            bracket={effectiveBracketValue}
-            analysisPending={analysisState === 'pending'}
-            validation={validation}
-            planScore={planScore ?? null}
-            manaCurve={manaData.manaCurve}
-            identity={identity}
-            averageCmc={manaData.averageCmc}
-            onNavigate={onNavigateToTune}
-            cards={allCards}
-          />
+          <div className={panelCascadeClass(0, cascade.animating) || undefined}>
+            <DeckIdentityCard
+              commander={commander ?? null}
+              partnerCommander={partnerCommander}
+              deckName={deckName}
+              format={format}
+              deckColor={deckColor}
+              bracket={effectiveBracketValue}
+              analysisPending={analysisState === 'pending'}
+              validation={validation}
+              planScore={planScore ?? null}
+              manaCurve={manaData.manaCurve}
+              identity={identity}
+              averageCmc={manaData.averageCmc}
+              onNavigate={onNavigateToTune}
+              cards={allCards}
+              revealKey={scoreRevealKey}
+            />
+          </div>
           {/* Mana curve — full-width so the stacked curve reads well. */}
-          <Panel title="Mana curve" wide>
+          <Panel title="Mana curve" wide className={panelCascadeClass(1, cascade.animating)}>
             <DeckCurvePhases
               manaCurve={manaData.manaCurve}
               curveByColor={manaData.curveByColor}
@@ -3247,7 +3267,9 @@ function DeckAnalysisView({
             />
           </Panel>
           {/* Color + Types — a compact pair (lone survivor spans full width). */}
-          <div className="deck-stats-pair">
+          <div
+            className={`deck-stats-pair${panelCascadeClass(2, cascade.animating) ? ` ${panelCascadeClass(2, cascade.animating)}` : ''}`}
+          >
             <Panel title="Color">
               <DeckColorPanel
                 colorDist={manaData.colorDist}
@@ -3264,7 +3286,9 @@ function DeckAnalysisView({
             </Panel>
           </div>
           {/* Saltiest — lone, spans full width. */}
-          <div className="deck-stats-pair">
+          <div
+            className={`deck-stats-pair${panelCascadeClass(3, cascade.animating) ? ` ${panelCascadeClass(3, cascade.animating)}` : ''}`}
+          >
             {saltiestCards && saltiestCards.length > 0 && (
               <Panel title="Saltiest cards">
                 <SaltiestPanel cards={saltiestCards} averageSalt={averageSalt} />
@@ -3273,7 +3297,7 @@ function DeckAnalysisView({
           </div>
           {/* Build report — full width, list-heavy. */}
           {buildReport && (
-            <Panel title="Build report" wide>
+            <Panel title="Build report" wide className={panelCascadeClass(4, cascade.animating)}>
               <BuildReportPanel report={buildReport} />
             </Panel>
           )}
@@ -3432,6 +3456,7 @@ function Panel({
   children,
   wide,
   id,
+  className,
 }: {
   title: string;
   children: React.ReactNode;
@@ -3440,9 +3465,14 @@ function Panel({
   wide?: boolean;
   /** Stable id so the Power hero's summary lines can scroll to this panel. */
   id?: string;
+  /** Additional CSS classes (e.g. cascade animation classes). */
+  className?: string;
 }) {
+  const cls = ['deck-stats-panel', wide ? 'deck-stats-panel--wide' : '', className ?? '']
+    .filter(Boolean)
+    .join(' ');
   return (
-    <div id={id} className={`deck-stats-panel${wide ? ' deck-stats-panel--wide' : ''}`}>
+    <div id={id} className={cls}>
       <h4 className="deck-stats-panel-title">{title}</h4>
       {children}
     </div>
