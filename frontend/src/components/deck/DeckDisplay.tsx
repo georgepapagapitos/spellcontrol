@@ -3235,6 +3235,7 @@ function DeckAnalysisView({
             identity={identity}
             averageCmc={manaData.averageCmc}
             onNavigate={onNavigateToTune}
+            cards={allCards}
           />
           {/* Mana curve — full-width so the stacked curve reads well. */}
           <Panel title="Mana curve" wide>
