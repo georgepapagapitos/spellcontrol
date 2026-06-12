@@ -645,8 +645,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       // A targeted move ("start the turn here") sets the marker directly when
       // the target seat is a live player; otherwise advance from current.
       const target =
-        action.toSeat != null &&
-        prev.players.some((p) => p.seat === action.toSeat && !p.eliminated)
+        action.toSeat != null && prev.players.some((p) => p.seat === action.toSeat && !p.eliminated)
           ? action.toSeat
           : null;
       const newActive = target ?? nextActiveSeat(prev.players, currentActive);
