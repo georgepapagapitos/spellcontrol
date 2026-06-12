@@ -31,6 +31,8 @@ function makeOnlineGame(status: 'lobby' | 'active' | 'finished'): GameState {
     poisonEnabled: false,
     layout: 'pod',
     tapOrientation: 'horizontal',
+    activeSeat: null,
+    designations: { monarch: null, initiative: null },
     players: [
       {
         id: 'p1',

@@ -10,7 +10,13 @@ import {
 } from '@dnd-kit/core';
 import { MoreHorizontal, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GameAction, GameLayout, GamePlayer, GameState } from '../../lib/game-state';
+import type {
+  DesignationKind,
+  GameAction,
+  GameLayout,
+  GamePlayer,
+  GameState,
+} from '../../lib/game-state';
 import { makePlayer } from '../../lib/game-state';
 import type { BoardLayout, EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import {
@@ -169,6 +175,10 @@ export function GameBoard({
       >
         {game.players.map((p, i) => {
           const slot = board.seats[i] ?? board.seats[board.seats.length - 1];
+          // Resolve legacy states: activeSeat / designations may be absent on
+          // old persisted games loaded before UX-324.
+          const activeSeat = game.activeSeat ?? null;
+          const designations = game.designations ?? { monarch: null, initiative: null };
           return (
             <PlayerPanel
               key={p.id}
@@ -185,6 +195,9 @@ export function GameBoard({
               undoNonce={undoNonce}
               onUndo={onUndo}
               undoLabel={undoLabel}
+              isActiveTurn={activeSeat === p.seat}
+              isMonarch={designations.monarch === p.seat}
+              isInitiative={designations.initiative === p.seat}
             />
           );
         })}
@@ -285,6 +298,9 @@ function PlayerPanel({
   undoNonce,
   onUndo,
   undoLabel,
+  isActiveTurn,
+  isMonarch,
+  isInitiative,
 }: {
   player: GamePlayer;
   game: GameState;
@@ -299,6 +315,11 @@ function PlayerPanel({
   undoNonce: number;
   onUndo: () => void;
   undoLabel: string | null;
+  /** Whether this seat is the active (current turn) seat. */
+  isActiveTurn: boolean;
+  /** Designations held by this player. */
+  isMonarch: boolean;
+  isInitiative: boolean;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [seatMenuOpen, setSeatMenuOpen] = useState(false);
@@ -462,7 +483,9 @@ function PlayerPanel({
           player.eliminated ? 'is-eliminated' : ''
         } ${game.winnerSeat === player.seat ? 'is-winner' : ''} ${canEdit ? 'is-mine' : ''} ${
           lethalFlash ? 'is-lethal-flash' : ''
-        } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''}`}
+        } ${isLowLife ? 'is-low-life' : ''} ${elimBeat ? 'is-elim-beat' : ''} ${
+          isActiveTurn ? 'is-active-turn' : ''
+        }`}
         // Rotation is set as a CSS variable consumed by the .player-panel
         // transform rule so it composes cleanly with any other transforms.
         // When no identity / no override applies, the inline palette vars
@@ -644,6 +667,24 @@ function PlayerPanel({
               )}
             </div>
           )}
+
+          {/* Designation chips — shown at top-right so they don't collide with
+              counters (bottom-left). They render inside the rotated panel so they
+              always read upright for that seat. */}
+          {(isMonarch || isInitiative) && (
+            <div className="pp-designation-chips" aria-hidden="true">
+              {isMonarch && (
+                <span className="pp-designation-chip is-monarch" aria-label="Monarch">
+                  👑
+                </span>
+              )}
+              {isInitiative && (
+                <span className="pp-designation-chip is-initiative" aria-label="Initiative">
+                  🧭
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {elimBeat && undoLabel && (
@@ -681,6 +722,9 @@ function PlayerPanel({
             canLayout={canLayout}
             dispatch={dispatch}
             onClose={() => setSeatMenuOpen(false)}
+            isActiveTurn={isActiveTurn}
+            isMonarch={isMonarch}
+            isInitiative={isInitiative}
           />
         )}
 
@@ -989,6 +1033,9 @@ function SeatMenu({
   canLayout,
   dispatch,
   onClose,
+  isActiveTurn,
+  isMonarch,
+  isInitiative,
 }: {
   player: GamePlayer;
   game: GameState;
@@ -996,6 +1043,9 @@ function SeatMenu({
   canLayout: boolean;
   dispatch: (a: GameAction) => void;
   onClose: () => void;
+  isActiveTurn: boolean;
+  isMonarch: boolean;
+  isInitiative: boolean;
 }) {
   const [setLifeVal, setSetLifeVal] = useState<string>(String(player.life));
   // Rotation is only meaningful in shared (local) play — online each device
@@ -1136,6 +1186,72 @@ function SeatMenu({
           >
             {player.eliminated ? 'Revive' : 'Concede'}
           </button>
+        )}
+
+        {/* Turn tracking — only shown while the game is active */}
+        {game.status === 'active' && !player.eliminated && (
+          <div className="seat-menu-turn-section">
+            <span className="seat-menu-label">Turn</span>
+            <button
+              type="button"
+              className={`seat-menu-action ${isActiveTurn ? 'is-active-turn' : ''}`}
+              aria-pressed={isActiveTurn}
+              onClick={() => {
+                // Active seat passes (advance); any other seat TAKES the turn
+                // directly — without toSeat the reducer would advance from the
+                // current holder instead of landing here.
+                dispatch(
+                  isActiveTurn
+                    ? { type: 'pass-turn', actorSeat: player.seat }
+                    : { type: 'pass-turn', actorSeat: player.seat, toSeat: player.seat }
+                );
+                onClose();
+              }}
+            >
+              {isActiveTurn ? '⏩ Pass turn' : '▶ Start turn here'}
+            </button>
+          </div>
+        )}
+
+        {/* Table designations — shown while game is active; any participant
+            can claim/clear them (host-or-all gate is the same as life changes).
+            Text labels carry the full meaning so no external key is needed. */}
+        {game.status === 'active' && !player.eliminated && (
+          <div className="seat-menu-designations">
+            <span className="seat-menu-label">Designations</span>
+            <button
+              type="button"
+              className={`seat-menu-action ${isMonarch ? 'is-designation-active' : ''}`}
+              aria-pressed={isMonarch}
+              onClick={() => {
+                dispatch({
+                  type: 'set-designation',
+                  designation: 'monarch' as DesignationKind,
+                  seat: isMonarch ? null : player.seat,
+                  actorSeat: player.seat,
+                });
+                onClose();
+              }}
+            >
+              {isMonarch ? '👑 Remove Monarch' : '👑 Take Monarch'}
+            </button>
+            <button
+              type="button"
+              className={`seat-menu-action ${isInitiative ? 'is-designation-active' : ''}`}
+              aria-pressed={isInitiative}
+              onClick={() => {
+                dispatch({
+                  type: 'set-designation',
+                  designation: 'initiative' as DesignationKind,
+                  seat: isInitiative ? null : player.seat,
+                  actorSeat: player.seat,
+                });
+                onClose();
+              }}
+            >
+              {isInitiative ? '🧭 Remove Initiative' : '🧭 Take Initiative'}
+            </button>
+          </div>
         )}
       </div>
     </div>
