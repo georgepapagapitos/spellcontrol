@@ -285,8 +285,12 @@ export function DeckEditorPage() {
   // so a swap-in-flight never cross-disables the Engine/Substitution Add buttons.
   const [swappingSlot, setSwappingSlot] = useState<string | null>(null);
   // E20 audition / what-if: a resolved card the user is "previewing the fit" of
-  // (from a card-search row) before committing. Drives the CardFitPanel overlay.
+  // (from a card-search row or a CoachFeed row) before committing. Drives the
+  // CardFitPanel overlay.
   const [auditionCard, setAuditionCard] = useState<ScryfallCard | null>(null);
+  // For swap-row auditions from CoachFeed: the outgoing card name to pin as the
+  // first cut suggestion in CardFitPanel. Cleared when the panel closes.
+  const [auditionPinnedCutName, setAuditionPinnedCutName] = useState<string | null>(null);
   // Bracket Fit swaps gate the row by the CUT card's name (the page-side swap
   // state is slot-keyed, which BracketFitLane can't see). Tracked separately so a
   // swap-in-flight disables only its own row.
@@ -420,6 +424,14 @@ export function DeckEditorPage() {
     for (const c of collectionCards) names.add(c.name);
     return names;
   }, [collectionCards]);
+
+  // Lowercased mainboard names — the CoachFeed's ground truth for hiding
+  // applied suggestions (and resurfacing them when an apply is undone).
+  const deckCardNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const c of deck?.cards ?? []) names.add(c.card.name.toLowerCase());
+    return names;
+  }, [deck?.cards]);
 
   // Allocation-aware ownership for a card name (mirrors DeckAnalysisPanel) so
   // every Tune surface agrees: 'owned' = a free/unallocated copy (or one already
@@ -677,6 +689,22 @@ export function DeckEditorPage() {
     const main = [...commanders, ...mainCards];
     return { count: main.length, value: sumPrice(main), sideboard: deck.sideboard.length };
   }, [deck]);
+
+  // CoachFeed "Fit?" button — open the audition for a feed row's incoming card.
+  // For swap rows, also store the outgoing card name so CardFitPanel can pin it
+  // as the first cut suggestion (pre-seeding the natural swap target).
+  // Reuses the same getCardByName + setAuditionCard flow as the card-search path.
+  // Defined BEFORE the missing-deck early return so hook order is stable.
+  const handleCoachPreviewFit = useCallback(
+    async (change: Change) => {
+      if (!deck) return;
+      const scry = await getCardByName(change.name);
+      if (!scry) return;
+      setAuditionPinnedCutName(change.type === 'swap' && change.inName ? change.inName : null);
+      setAuditionCard(scry);
+    },
+    [deck]
+  );
 
   if (!id) return <Navigate to="/decks" replace />;
   if (!deck) {
@@ -1949,8 +1977,10 @@ export function DeckEditorPage() {
                   bracketOverridePresent={deck.bracketOverride != null}
                   resolveOwnership={ownershipFor}
                   ownedNames={ownedNames}
+                  deckNames={deckCardNames}
                   onApplyMove={handleApplyCoachMove}
                   onApplyAllDropIns={handleApplyCostSwaps}
+                  onPreviewFit={(change) => void handleCoachPreviewFit(change)}
                   initialFilter={tuneFocusLane ?? undefined}
                   onFilterHandled={clearTuneFocus}
                   analysisState={analysisState}
@@ -2146,17 +2176,23 @@ export function DeckEditorPage() {
           report={auditionReport}
           commanderName={deck.commander?.name}
           busySlotId={swappingSlot}
+          pinnedCutName={auditionPinnedCutName ?? undefined}
           onSwapCut={(cut) =>
-            void handleSwapInDeck(cut.slotId, cut.card.name, auditionCard.name, () =>
-              setAuditionCard(null)
-            )
+            void handleSwapInDeck(cut.slotId, cut.card.name, auditionCard.name, () => {
+              setAuditionCard(null);
+              setAuditionPinnedCutName(null);
+            })
           }
           onAddAnyway={() => {
             const name = auditionCard.name;
             setAuditionCard(null);
+            setAuditionPinnedCutName(null);
             void handleAddEngineCard(name);
           }}
-          onClose={() => setAuditionCard(null)}
+          onClose={() => {
+            setAuditionCard(null);
+            setAuditionPinnedCutName(null);
+          }}
         />
       )}
 

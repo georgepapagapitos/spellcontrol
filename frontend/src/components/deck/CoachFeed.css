@@ -148,6 +148,37 @@
   }
 }
 
+/* ── Row-leave animation ────────────────────────────────────────────────── */
+
+/* Exit keyframe: slide left while fading out. Transform + opacity only, per
+   STYLE_GUIDE Motion. Duration = --motion-base (200ms). Survivors may reflow
+   after the leaving row is removed — a FLIP system is explicitly out of scope
+   (UX-409); the reflow is accepted here. */
+@keyframes coach-row-leave {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+}
+
+.coach-feed-row-leaving {
+  animation: coach-row-leave var(--motion-base) var(--ease-out-soft) forwards;
+  /* Keep the row's space while animating so survivors don't jump during the
+     exit — overflow:hidden clips the slide so it doesn't push siblings. */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-feed-row-leaving {
+    animation: none;
+  }
+}
+
 /* ── Row list ───────────────────────────────────────────────────────────── */
 
 .coach-feed-rows {

@@ -114,6 +114,36 @@ describe('DeckCardRow', () => {
     render(<DeckCardRow change={add()} />);
     expect(screen.queryByText('Add', { selector: '.deck-card-row-act' })).toBeNull();
   });
+
+  it('renders a secondary action button when secondaryAction is provided', () => {
+    const onClick = vi.fn();
+    render(
+      <DeckCardRow
+        change={add()}
+        secondaryAction={{ label: 'Fit?', ariaLabel: 'Will Sol Ring fit this deck?', onClick }}
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'Will Sol Ring fit this deck?' });
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toBe('Fit?');
+  });
+
+  it('fires the secondaryAction onClick when clicked', () => {
+    const onClick = vi.fn();
+    render(
+      <DeckCardRow
+        change={add()}
+        secondaryAction={{ label: 'Fit?', ariaLabel: 'Will Sol Ring fit this deck?', onClick }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Will Sol Ring fit this deck?' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render a secondary action button when secondaryAction is omitted', () => {
+    render(<DeckCardRow change={add()} />);
+    expect(screen.queryByRole('button', { name: /fit this deck/ })).toBeNull();
+  });
 });
 
 describe('inclusionColor', () => {

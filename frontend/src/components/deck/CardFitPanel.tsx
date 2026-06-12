@@ -21,6 +21,12 @@ export interface CardFitPanelProps {
   /** slotId of a swap currently in flight — disables that row. */
   busySlotId?: string | null;
   onClose: () => void;
+  /**
+   * For swap-row auditions: the outgoing card name. When present, that cut is
+   * sorted to the top of rankedCuts so the panel leads with the suggested swap
+   * target. No new computation — we just re-order the already-ranked list.
+   */
+  pinnedCutName?: string;
 }
 
 /** Join axis labels into a readable "A, B and C". */
@@ -80,6 +86,7 @@ export function CardFitPanel({
   onAddAnyway,
   busySlotId,
   onClose,
+  pinnedCutName,
 }: CardFitPanelProps): JSX.Element {
   useLockBodyScroll();
   useEscapeKey(onClose);
@@ -87,6 +94,19 @@ export function CardFitPanel({
   const verdict = engineVerdict(report);
   const { curve, role, color } = report;
   const busy = !!busySlotId;
+
+  // For swap-row auditions: sort the pinned cut (the outgoing card) to the top
+  // so the panel leads with the natural swap target. Other cuts follow as ranked.
+  const rankedCuts = pinnedCutName
+    ? [
+        ...report.rankedCuts.filter(
+          (c) => c.card.name.toLowerCase() === pinnedCutName.toLowerCase()
+        ),
+        ...report.rankedCuts.filter(
+          (c) => c.card.name.toLowerCase() !== pinnedCutName.toLowerCase()
+        ),
+      ]
+    : report.rankedCuts;
 
   return (
     <div
@@ -149,13 +169,13 @@ export function CardFitPanel({
 
         <div className="card-fit-cuts">
           <p className="card-fit-cuts-head">
-            {report.rankedCuts.length > 0
+            {rankedCuts.length > 0
               ? 'Make room — cut a related card:'
               : 'No related cut found — add it and trim later.'}
           </p>
-          {report.rankedCuts.length > 0 && (
+          {rankedCuts.length > 0 && (
             <ul className="card-fit-cuts-list" role="list">
-              {report.rankedCuts.map((cut) => (
+              {rankedCuts.map((cut) => (
                 <DeckCardRow
                   key={cut.slotId}
                   change={cutToChange(cut)}

@@ -66,6 +66,17 @@ export interface DeckCardRowProps {
   /** Marks the row for the desktop hover-peek (`useDeckHoverPeek` reads
    *  `[data-peek-name]`). Omit to opt the row out of hover-peek. */
   peekName?: string;
+  /**
+   * Optional secondary action rendered as a small outline button just before
+   * the primary action. Keep the API generic (label + onClick) — callers supply
+   * their own semantics. The button gets a minimum 36px touch target on coarse
+   * pointers and a real aria-label from `ariaLabel`.
+   */
+  secondaryAction?: {
+    label: string;
+    ariaLabel: string;
+    onClick: () => void;
+  };
 }
 
 /**
@@ -84,6 +95,7 @@ export function DeckCardRow({
   actLabel,
   acting,
   peekName,
+  secondaryAction,
 }: DeckCardRowProps): JSX.Element {
   const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice } = change;
   // Prefer an imageUrl already carried by the Change; otherwise resolve the
@@ -197,6 +209,17 @@ export function DeckCardRow({
         </span>
         {reason && <span className="deck-card-row-reason">{reason}</span>}
       </div>
+
+      {secondaryAction && (
+        <button
+          type="button"
+          className="deck-card-row-secondary-act"
+          onClick={secondaryAction.onClick}
+          aria-label={secondaryAction.ariaLabel}
+        >
+          {secondaryAction.label}
+        </button>
+      )}
 
       {onAct && (
         <button
