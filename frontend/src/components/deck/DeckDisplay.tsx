@@ -71,7 +71,7 @@ import { DeckTypeBreakdown } from './DeckTypeBreakdown';
 import { SaltiestPanel } from './SaltiestPanel';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
-import { StatsHero } from './StatsHero';
+import { DeckIdentityCard } from './DeckIdentityCard';
 import { buildValidationChecklist } from '@/deck-builder/services/deckBuilder/validationChecklist';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import {
@@ -260,6 +260,8 @@ export interface DeckDisplayProps {
   /** When set, the card-preview's "In deck" chip is suppressed for this deck. */
   deckId?: string;
   format?: DeckFormat;
+  /** Deck accent color hex (from deck.color). Used in the identity hero banner. */
+  color?: string;
   commander: ScryfallCard | null;
   partnerCommander?: ScryfallCard | null;
   /** The deck's selected themes (generated decks); refines the identity strip's
@@ -774,6 +776,7 @@ export function DeckDisplay({
   title,
   deckId,
   format = 'commander',
+  color,
   commander,
   partnerCommander,
   selectedThemes,
@@ -1702,6 +1705,12 @@ export function DeckDisplay({
             commanderIdentity={commanderIdentity}
             analysisState={analysisState}
             onNavigateToTune={onNavigateToTune}
+            commander={commander}
+            partnerCommander={partnerCommander}
+            deckName={title}
+            format={format}
+            deckColor={color ?? 'var(--accent)'}
+            identity={identity}
           />
         )}
 
@@ -3117,6 +3126,12 @@ function DeckAnalysisView({
   commanderIdentity,
   analysisState = 'ready',
   onNavigateToTune,
+  commander,
+  partnerCommander,
+  deckName,
+  format,
+  deckColor,
+  identity,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3146,8 +3161,20 @@ function DeckAnalysisView({
   commanderIdentity?: string[];
   /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads. */
   analysisState?: 'pending' | 'ready';
-  /** UX-311: deep-link from a StatsHero shortfall to the Tune lane that fixes it. */
+  /** UX-311: deep-link from a DeckIdentityCard shortfall to the Tune lane that fixes it. */
   onNavigateToTune?: (lane: LaneId) => void;
+  /** Commander card for DeckIdentityCard art + arc. */
+  commander?: ScryfallCard | null;
+  /** Partner commander card for DeckIdentityCard arc. */
+  partnerCommander?: ScryfallCard | null;
+  /** Deck name for DeckIdentityCard header. */
+  deckName: string;
+  /** Deck format label for DeckIdentityCard. */
+  format: string;
+  /** Deck color hex for DeckIdentityCard no-commander banner. */
+  deckColor: string;
+  /** Live-computed deck identity for DeckIdentityCard. */
+  identity: import('@/deck-builder/services/deckBuilder/deckIdentity').DeckIdentity | null;
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -3192,16 +3219,23 @@ function DeckAnalysisView({
     <div className="deck-analysis-view">
       {current === 'stats' && (
         <div className="deck-bento deck-bento--stats">
-          {/* Functional verdict hero — leads the tab with the "is it functional?"
-              answer; demotes curve/color/types/validation below. Guarded like the
-              checklist itself (no checks → nothing to verdict). */}
-          {validation.checks.length > 0 && (
-            <StatsHero
-              validation={validation}
-              planScore={planScore ?? null}
-              onNavigate={onNavigateToTune}
-            />
-          )}
+          {/* Deck identity hero — leads the stats tab with the deck's visual identity,
+              functional verdict, and build health. Renders always (no checks guard). */}
+          <DeckIdentityCard
+            commander={commander ?? null}
+            partnerCommander={partnerCommander}
+            deckName={deckName}
+            format={format}
+            deckColor={deckColor}
+            bracket={effectiveBracketValue}
+            analysisPending={analysisState === 'pending'}
+            validation={validation}
+            planScore={planScore ?? null}
+            manaCurve={manaData.manaCurve}
+            identity={identity}
+            averageCmc={manaData.averageCmc}
+            onNavigate={onNavigateToTune}
+          />
           {/* Mana curve — full-width so the stacked curve reads well. */}
           <Panel title="Mana curve" wide>
             <DeckCurvePhases
