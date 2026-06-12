@@ -1,0 +1,198 @@
+/* ── BuildReportSheet ──────────────────────────────────────────────────────
+   One-shot post-generation report sheet. Mobile = bottom sheet (sheet-rise /
+   sheet-fall). Desktop ≥1024px = centered modal panel (modal-panel-in /
+   modal-panel-out). Symmetric exits on ALL dismiss paths via useSheetExit.
+   Uses --z-sheet-bg / --z-sheet-fg per the z-index layering contract. */
+
+/* ── Backdrop ──────────────────────────────────────────────────────────── */
+.build-report-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  z-index: var(--z-sheet-bg);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fade-in var(--motion-base) var(--ease-out-soft) both;
+}
+
+.build-report-sheet-backdrop.is-closing {
+  animation: fade-out var(--motion-base) var(--ease-out-soft) forwards;
+}
+
+/* ── Sheet panel ───────────────────────────────────────────────────────── */
+.build-report-sheet {
+  position: relative;
+  z-index: var(--z-sheet-fg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
+}
+
+.build-report-sheet.is-closing {
+  animation: sheet-fall 0.34s var(--ease-drawer) forwards;
+}
+
+/* ── Commander art header ──────────────────────────────────────────────── */
+.build-report-sheet-header {
+  position: relative;
+  min-height: 9rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--space-4);
+  gap: var(--space-2);
+  overflow: hidden;
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  flex-shrink: 0;
+}
+
+.build-report-sheet-art {
+  position: absolute;
+  inset: 0;
+}
+
+.build-report-sheet-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+}
+
+.build-report-sheet-art-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 20%,
+    color-mix(in srgb, var(--surface-raised) 70%, transparent) 60%,
+    var(--surface-raised) 100%
+  );
+}
+
+/* ── Title row (commander name + close btn) ────────────────────────────── */
+.build-report-sheet-title-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.build-report-sheet-commander {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.build-report-sheet-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: var(--space-1);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: color var(--motion-fast);
+}
+
+.build-report-sheet-close:hover,
+.build-report-sheet-close:focus-visible {
+  color: var(--text-primary);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Heading ───────────────────────────────────────────────────────────── */
+.build-report-sheet-heading {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.build-report-sheet-subheading {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+.build-report-sheet-body {
+  padding: var(--space-4);
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+.build-report-sheet-footer {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.build-report-sheet-footer .btn {
+  min-width: 9rem;
+}
+
+/* ── Desktop: centered modal ≥1024px ───────────────────────────────────── */
+@media (min-width: 1024px) {
+  .build-report-sheet-backdrop {
+    align-items: center;
+    background: color-mix(in srgb, var(--surface) 50%, transparent);
+  }
+
+  .build-report-sheet {
+    max-width: 520px;
+    max-height: 80dvh;
+    border-radius: var(--radius-lg);
+    /* On desktop the sheet uses a centered scale+fade — no bottom-rise.
+       No exit keyframe wire here because this surface has no entry
+       animation at desktop (instantly centered), so it closes instantly. */
+    animation: modal-panel-in 180ms var(--ease-out-soft) both;
+  }
+
+  .build-report-sheet.is-closing {
+    animation: modal-panel-out var(--motion-fast) var(--ease-out-soft) forwards;
+  }
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .build-report-sheet-backdrop,
+  .build-report-sheet-backdrop.is-closing {
+    animation: none;
+  }
+
+  .build-report-sheet,
+  .build-report-sheet.is-closing {
+    animation: none;
+  }
+}

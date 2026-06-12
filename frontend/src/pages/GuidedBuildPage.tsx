@@ -2,7 +2,6 @@ import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BackLink } from '../components/BackLink';
-import { ProgressBar } from '../components/ProgressBar';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
 import { PlaystylePicker } from '../components/deck/PlaystylePicker';
@@ -10,13 +9,14 @@ import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
+import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { saveGeneratedDeck } from '../lib/save-generated-deck';
-import type { ScryfallCard, EDHRECTheme, ThemeResult } from '@/deck-builder/types';
+import type { ScryfallCard, EDHRECTheme, ThemeResult, DeckCategory } from '@/deck-builder/types';
 
 interface Step {
   title: string;
@@ -36,7 +36,7 @@ const STEPS: Step[] = [
   {
     title: 'Lock in the game plan',
     blurb:
-      'These are the themes your commander’s abilities point at. The build leans the card pool toward them, then fills in card advantage, ramp and interaction around that core.',
+      "These are the themes your commander's abilities point at. The build leans the card pool toward them, then fills in card advantage, ramp and interaction around that core.",
   },
   {
     title: 'Tune power & budget',
@@ -49,6 +49,18 @@ const STEPS: Step[] = [
       'Review the plan, then build a full 100. You can swap, cut and test-hand everything in the editor afterward.',
   },
 ];
+
+/** Human-readable label per DeckCategory for the structured Review step. */
+const CATEGORY_LABELS: Partial<Record<DeckCategory, string>> = {
+  lands: 'Lands',
+  ramp: 'Ramp',
+  cardDraw: 'Card draw',
+  singleRemoval: 'Removal',
+  boardWipes: 'Board wipes',
+  creatures: 'Creatures',
+  synergy: 'Synergy',
+  utility: 'Utility',
+};
 
 export function GuidedBuildPage() {
   const navigate = useNavigate();
@@ -74,14 +86,15 @@ export function GuidedBuildPage() {
   const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  // Scroll the progress bar into view when it appears so the native nav FAB
-  // doesn't hide it at the page bottom (mirrors the test-hand sim-report).
+
+  // Scroll the takeover into view when generation begins.
   const showProgress = progress !== null;
   useEffect(() => {
     if (!showProgress) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     progressRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
   }, [showProgress]);
+
   const [isBuilding, setIsBuilding] = useState(false);
 
   useEffect(() => {
@@ -206,7 +219,10 @@ export function GuidedBuildPage() {
         collectionCards,
         createDeck
       );
-      navigate(`/decks/${id}`);
+      // justGenerated gates the one-shot Build Report sheet — without it,
+      // every pre-existing generated deck would pop the sheet once on its
+      // next open (the seen-set only guards against repeats).
+      navigate(`/decks/${id}`, { state: { justGenerated: true } });
     } catch (e) {
       logger.error('[GuidedBuild] build failed:', e);
       setError(e instanceof Error ? e.message : 'Could not build the deck.');
@@ -233,8 +249,30 @@ export function GuidedBuildPage() {
   const isLastStep = step === STEPS.length - 1;
   const current = STEPS[step];
 
+  // Commander art for the takeover panel.
+  const commanderArtUrl =
+    commander?.image_uris?.art_crop ?? commander?.card_faces?.[0]?.image_uris?.art_crop;
+
+  // If generation is running, replace the whole page body with the takeover.
+  if (isBuilding && progress) {
+    return (
+      <div className="deck-builder-page" data-testid="guided-build-page">
+        <BackLink to="/decks/new" label="New deck" />
+        <div ref={progressRef} className="guided-takeover-wrap">
+          <GenerationTakeover
+            commanderName={commander?.name}
+            commanderImageUrl={commanderArtUrl}
+            message={progress.message}
+            percent={progress.percent}
+          />
+        </div>
+        {error && <div className="error-banner deck-builder-error">{error}</div>}
+      </div>
+    );
+  }
+
   return (
-    <div className="deck-builder-page">
+    <div className="deck-builder-page" data-testid="guided-build-page">
       <BackLink to="/decks/new" label="New deck" />
       <header className="deck-builder-header">
         <h1>Build together</h1>
@@ -327,35 +365,69 @@ export function GuidedBuildPage() {
       {step === 3 && commander && (
         <section className="deck-builder-section">
           <h2 className="deck-builder-section-title">Review</h2>
-          <ul className="guided-review">
-            <li>
-              <strong>{partnerCommander ? 'Commanders:' : 'Commander:'}</strong> {commander.name}
-              {partnerCommander ? ` + ${partnerCommander.name}` : ''}
-            </li>
-            <li>
-              <strong>Themes:</strong>{' '}
-              {selectedThemes.length > 0
-                ? selectedThemes.map((t) => t.name).join(', ')
-                : 'None — building on the commander’s core'}
-            </li>
-            <li>
-              <strong>Target bracket:</strong>{' '}
-              {customization.targetBracket === 'all'
-                ? 'Any'
-                : `Bracket ${customization.targetBracket}`}
-            </li>
-            <li>
-              <strong>Lands:</strong> {customization.landCount}
-            </li>
-            <li>
-              <strong>Collection:</strong>{' '}
-              {!customization.collectionMode
-                ? 'Any cards'
-                : customization.collectionStrategy === 'partial'
-                  ? `Prioritize mine (~${customization.collectionOwnedPercent}% owned)`
-                  : 'Only my cards'}
-            </li>
-          </ul>
+          {/* Structured summary — counts by section, key configuration picks. */}
+          <div className="guided-review-card">
+            {/* Commander(s) */}
+            <div className="guided-review-row">
+              <span className="guided-review-label">
+                {partnerCommander ? 'Commanders' : 'Commander'}
+              </span>
+              <span className="guided-review-value">
+                {commander.name}
+                {partnerCommander ? ` + ${partnerCommander.name}` : ''}
+              </span>
+            </div>
+
+            {/* Themes */}
+            <div className="guided-review-row">
+              <span className="guided-review-label">Themes</span>
+              <span className="guided-review-value">
+                {selectedThemes.length > 0
+                  ? selectedThemes.map((t) => t.name).join(', ')
+                  : 'Commander core'}
+              </span>
+            </div>
+
+            {/* Target bracket */}
+            <div className="guided-review-row">
+              <span className="guided-review-label">Bracket</span>
+              <span className="guided-review-value">
+                {customization.targetBracket === 'all'
+                  ? 'Any power level'
+                  : `Bracket ${customization.targetBracket}`}
+              </span>
+            </div>
+
+            {/* Land count */}
+            <div className="guided-review-row">
+              <span className="guided-review-label">Lands</span>
+              <span className="guided-review-value">{customization.landCount}</span>
+            </div>
+
+            {/* Collection mode */}
+            <div className="guided-review-row">
+              <span className="guided-review-label">Card pool</span>
+              <span className="guided-review-value">
+                {!customization.collectionMode
+                  ? 'Any cards'
+                  : customization.collectionStrategy === 'partial'
+                    ? `Prioritize owned (~${customization.collectionOwnedPercent}%)`
+                    : 'Only owned cards'}
+              </span>
+            </div>
+          </div>
+
+          {/* Target composition chips — what the generator will aim for */}
+          <div className="guided-review-targets">
+            <p className="guided-review-targets-label">Target composition</p>
+            <ul className="guided-review-cats">
+              {(Object.keys(CATEGORY_LABELS) as DeckCategory[]).map((cat) => (
+                <li key={cat} className="guided-review-cat-chip">
+                  <span className="guided-review-cat-name">{CATEGORY_LABELS[cat]}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       )}
 
@@ -376,7 +448,7 @@ export function GuidedBuildPage() {
               onClick={handleBuild}
               disabled={isBuilding || !commander}
             >
-              {isBuilding ? 'Building…' : 'Build my deck'}
+              Build my deck
             </button>
           ) : (
             <button
@@ -389,11 +461,6 @@ export function GuidedBuildPage() {
             </button>
           )}
         </div>
-        {progress && (
-          <div ref={progressRef} className="deck-builder-progress">
-            <ProgressBar percent={progress.percent} message={progress.message} />
-          </div>
-        )}
         {error && <div className="error-banner deck-builder-error">{error}</div>}
       </section>
     </div>
