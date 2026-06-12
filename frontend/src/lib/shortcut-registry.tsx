@@ -98,15 +98,28 @@ export function ShortcutRegistryProvider({ children }: { children: ReactNode }) 
 // ── Consumer hooks ────────────────────────────────────────────────────────────
 
 /**
+ * No-op registry returned outside a provider. The app always mounts the
+ * provider via Layout, so this only fires in tests/stories that render a
+ * page bare — registering into the void there is correct behavior, and it
+ * means new tests never have to wrap just because a page registers
+ * shortcuts (a throwing default broke unrelated suites once already).
+ */
+const NOOP_REGISTRY: RegistryContextValue = {
+  register: () => () => {},
+  sections: [],
+  open: false,
+  toggle: () => {},
+  show: () => {},
+  hide: () => {},
+};
+
+/**
  * Returns the full registry context. Used by Layout (to render the overlay
  * and wire the `?` global key) and by Footer (to open the overlay on click).
+ * Outside a provider it degrades to a no-op registry (see above).
  */
 export function useShortcutRegistry(): RegistryContextValue {
-  const ctx = useContext(RegistryContext);
-  if (!ctx) {
-    throw new Error('useShortcutRegistry must be used inside ShortcutRegistryProvider');
-  }
-  return ctx;
+  return useContext(RegistryContext) ?? NOOP_REGISTRY;
 }
 
 /**

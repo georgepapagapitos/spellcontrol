@@ -358,20 +358,38 @@ describe('footer chip', () => {
 
 // ── useShortcutRegistry outside provider ─────────────────────────────────────
 
-describe('useShortcutRegistry outside provider', () => {
-  it('throws a descriptive error', () => {
-    // Suppress the React error boundary console noise
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+const BARE_SHORTCUTS = [{ keys: ['x'], description: 'noop' }];
 
-    function BadConsumer() {
-      useShortcutRegistry();
-      return null;
+describe('useShortcutRegistry outside provider', () => {
+  it('degrades to a no-op registry (bare page renders in tests must not throw)', () => {
+    // The app always mounts the provider via Layout; outside it (tests,
+    // stories) registration is a silent no-op. A throwing default broke
+    // every suite that renders a registering page bare (bit #582's tests).
+    function BareConsumer() {
+      const reg = useShortcutRegistry();
+      // Registering must also be safe outside the provider.
+      useRegisterShortcuts('Bare', BARE_SHORTCUTS);
+      return (
+        <button
+          type="button"
+          data-testid="bare"
+          data-open={String(reg.open)}
+          data-sections={reg.sections.length}
+          onClick={() => {
+            // Every method must be a callable no-op outside the provider.
+            reg.show();
+            reg.hide();
+            reg.toggle();
+            reg.register({ title: 'X', shortcuts: [] })();
+          }}
+        />
+      );
     }
 
-    expect(() => render(<BadConsumer />)).toThrow(
-      'useShortcutRegistry must be used inside ShortcutRegistryProvider'
-    );
-
-    spy.mockRestore();
+    expect(() => render(<BareConsumer />)).not.toThrow();
+    const probe = screen.getByTestId('bare');
+    expect(probe.dataset.open).toBe('false');
+    expect(probe.dataset.sections).toBe('0');
+    expect(() => fireEvent.click(probe)).not.toThrow();
   });
 });
