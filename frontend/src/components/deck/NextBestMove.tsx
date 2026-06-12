@@ -9,7 +9,7 @@ const VIEW_LABELS: Record<DeckView, string> = {
   deck: 'Deck',
   stats: 'Stats',
   power: 'Power',
-  tune: 'Tune',
+  tune: 'Coach',
 };
 
 export interface NextBestMoveProps {

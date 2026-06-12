@@ -48,11 +48,9 @@ function renderOnView(
   activeView: 'tune' | 'power',
   analysisState: 'pending' | 'ready' = 'pending',
   extraSlots?: {
-    improveSlot?: React.ReactNode;
+    coachFeedSlot?: React.ReactNode;
     powerHeroSlot?: React.ReactNode;
     engineSlot?: React.ReactNode;
-    bracketFitSlot?: React.ReactNode;
-    costSlot?: React.ReactNode;
   }
 ) {
   return render(
@@ -86,20 +84,20 @@ describe('DeckAnalysisView skeleton (UX-310)', () => {
     });
 
     it('hides the skeleton when a lane slot is already present', () => {
-      // improveSlot arriving means partial analysis landed — skeleton should clear.
+      // coachFeedSlot arriving means analysis landed — skeleton should clear.
       renderOnView('tune', 'pending', {
-        improveSlot: <div>Improve content</div>,
+        coachFeedSlot: <div>Coach content</div>,
       });
       expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
       // The real content should be present.
-      expect(screen.getByText('Improve content')).toBeTruthy();
+      expect(screen.getByText('Coach content')).toBeTruthy();
     });
 
     it('hides the skeleton when bracketFitSlot arrives (UX-313: third Tune lane)', () => {
-      // bracketFitSlot is the third Tune lane — its arrival clears the skeleton
-      // even when improveSlot and costSlot haven't arrived yet.
+      // coachFeedSlot unifies all tune lanes (including bracket-fit) — its
+      // arrival clears the skeleton regardless of which sub-lane triggered it.
       renderOnView('tune', 'pending', {
-        bracketFitSlot: <div>Bracket Fit content</div>,
+        coachFeedSlot: <div>Bracket Fit content</div>,
       });
       expect(screen.queryByRole('status', { name: /analyzing your deck/i })).toBeNull();
       expect(screen.getByText('Bracket Fit content')).toBeTruthy();

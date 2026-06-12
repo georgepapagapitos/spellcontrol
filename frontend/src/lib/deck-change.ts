@@ -1,12 +1,13 @@
 /**
- * The canonical shared model for the Tune-tab "prescription" surfaces.
+ * The canonical shared model for the Coach-tab "prescription" surfaces.
  *
- * The Tune tab consolidates several deck-tuning surfaces (Fill the gaps /
- * Upgrade power / Fit a budget / Build from my collection) plus an in-context
- * carousel "Swap this card" view. Each surface used to render its own bespoke
- * card row; this module gives them one shared `Change` shape so a lane and the
- * card-preview can never disagree about a recommendation, and the shared
- * `<DeckCardRow>` can render any of them.
+ * The Coach tab consolidates every deck-tuning suggestion source (gap staples /
+ * upgrades / budget swaps / owned substitutes / bracket-fit moves / combo
+ * completions) into one ranked feed, plus an in-context carousel "Swap this
+ * card" view. Each source used to render its own bespoke card row; this module
+ * gives them one shared `Change` shape so the feed and the card-preview can
+ * never disagree about a recommendation, and the shared `<DeckCardRow>` can
+ * render any of them.
  *
  * `Change` is a *render* model — ownership is always re-derived live by the
  * caller (never read from a persisted `isOwned` snapshot, which goes stale), and
@@ -19,6 +20,8 @@ import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnaly
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import type { ComboMatch } from '@/types/combos';
 
 export { parsePrice };
 
@@ -30,7 +33,14 @@ export type ChangeType = 'add' | 'cut' | 'swap';
  * coaching lane (target-bracket card moves). The hero is a router, not a
  * Change-owning lane.
  */
-export type LaneId = 'fill-gaps' | 'upgrade' | 'budget' | 'collection' | 'similar' | 'bracket-fit';
+export type LaneId =
+  | 'fill-gaps'
+  | 'upgrade'
+  | 'budget'
+  | 'collection'
+  | 'similar'
+  | 'bracket-fit'
+  | 'combos';
 
 /**
  * Allocation-aware ownership, evaluated at render time:
@@ -75,6 +85,8 @@ export interface Change {
   deltaScore?: number;
   /** Signed USD delta. add = +acquire · cut = -value freed · swap = signed (negative = savings). */
   deltaPrice?: number;
+  /** Budget-swap confidence tier: how closely the suggestion matches the card being replaced. */
+  confidence?: string;
 
   // ── MTG metadata (renders the "why", drives sort + correctness) ──
   /** Functional role key: 'ramp' | 'removal' | 'boardwipe' | 'cardDraw'. */
@@ -414,5 +426,61 @@ export function fromSwap({
     cmc: inCard.cmc,
     typeLine: inCard.type_line,
     imageUrl: inCard.image_uris?.normal ?? inCard.image_uris?.small,
+  };
+}
+
+/**
+ * Adapt a {@link CostSwapRow} (budget cost-optimizer suggestion) into a budget-lane
+ * swap Change. `name` is the INCOMING cheaper card; `inName` is the OUTGOING expensive
+ * card being replaced. `deltaPrice` is negative (savings = cost reduction). Ownership
+ * is the live-resolved ownership of the INCOMING suggestion — owning the cheaper
+ * card makes the swap free, so it badges and ranks like any other owned move.
+ */
+export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): Change {
+  const reasonByConfidence: Record<string, string> = {
+    'drop-in': `Drop-in replacement, saves $${row.savings.toFixed(2)}`,
+    sidegrade: `Sidegrade, saves $${row.savings.toFixed(2)}`,
+    budget: `Budget pick, saves $${row.savings.toFixed(2)}`,
+  };
+  return {
+    id: `budget:${row.currentName}`,
+    type: 'swap',
+    lane: 'budget',
+    name: row.suggestionName,
+    inName: row.currentName,
+    reason: reasonByConfidence[row.confidence] ?? `Saves $${row.savings.toFixed(2)}`,
+    ownership,
+    deltaPrice: -row.savings,
+    confidence: row.confidence,
+    inclusion: row.suggestionInclusion,
+    cmc: row.suggestionCmc,
+  };
+}
+
+/**
+ * Adapt a one-away {@link ComboMatch} into a combos-lane add Change for the missing
+ * card. The reason names the in-deck partner(s) and the first result the combo
+ * produces, so the row communicates the payoff without opening a detail sheet.
+ * Ownership is the live-resolved ownership of the missing card — owning the last
+ * piece of a combo is the feed's strongest "free win" signal.
+ */
+export function fromComboCompletion(
+  match: ComboMatch,
+  missingCardName: string,
+  ownership?: ChangeOwnership
+): Change {
+  const partners = match.combo.cards
+    .filter((c) => c.cardName !== missingCardName)
+    .map((c) => c.cardName)
+    .join(' + ');
+  const result = match.combo.produces[0] ?? 'a combo';
+  const reason = `Completes ${partners} → ${result}`;
+  return {
+    id: `combos:${missingCardName}`,
+    type: 'add',
+    lane: 'combos',
+    name: missingCardName,
+    reason,
+    ownership,
   };
 }

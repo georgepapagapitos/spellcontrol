@@ -40,7 +40,7 @@ export interface PowerHeroProps {
    * When provided alongside onSetBracketOverride, the PowerHero surfaces a
    * visible "Target: N ▾" SelectMenu so the user can set/change the target
    * without going into the Bracket panel below. The control drives the
-   * Bracket Fit lane on the Tune tab (prescriptive card moves).
+   * Bracket filter of the Coach feed (prescriptive card moves).
    */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /** Set/clear the manual bracket override. Only called when bracketOverride is provided. */
@@ -166,9 +166,9 @@ export function PowerHero({
           {showReasons && (
             <p className="power-hero-because">because: {bracketReasons.slice(0, 3).join(', ')}</p>
           )}
-          {/* UX-313: Target bracket control — visible entry point for the Bracket Fit
-              prescription lane on the Tune tab. Replaces the buried <select> in the
-              Bracket panel below as the primary target-setting affordance. */}
+          {/* UX-313: Target bracket control — visible entry point for the Coach
+              feed's Bracket filter. Replaces the buried <select> in the Bracket
+              panel below as the primary target-setting affordance. */}
           {showTargetControl && (
             <div className="power-hero-target">
               <SelectMenu

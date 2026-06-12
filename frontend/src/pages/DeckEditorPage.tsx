@@ -25,15 +25,12 @@ import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
-import { NextBestMove } from '../components/deck/NextBestMove';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
-import { ImproveLane } from '../components/deck/ImproveLane';
+import { CoachFeed } from '../components/deck/CoachFeed';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
-import { CostPanel } from '../components/deck/CostPanel';
 import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
-import { BracketFitLane } from '../components/deck/BracketFitLane';
 import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
 import {
@@ -44,7 +41,13 @@ import {
   buildNextBestMoves,
   type NextBestMoveFocus,
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
-import { fromGapCard, sortOwnedFirst, type LaneId, type ChangeOwnership } from '@/lib/deck-change';
+import {
+  fromGapCard,
+  sortOwnedFirst,
+  type Change,
+  type LaneId,
+  type ChangeOwnership,
+} from '@/lib/deck-change';
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
 import { computeAddFit } from '@/lib/card-fit';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
@@ -110,7 +113,7 @@ const ROLE_LABEL: Record<string, string> = {
 /** Shortcut items contributed to the registry under the "Deck editor" section. */
 const DECK_EDITOR_SHORTCUTS = [
   { keys: ['/'], description: 'Open card search' },
-  { keys: ['a'], description: 'Open Tune tab (suggestions)' },
+  { keys: ['a'], description: 'Open Coach tab (suggestions)' },
   { keys: ['c'], description: 'Open Power tab with combos' },
   { keys: ['Cmd/Ctrl', 'Z'], description: 'Undo last edit' },
   { keys: ['Cmd/Ctrl', 'Shift+Z'], description: 'Redo last edit' },
@@ -249,7 +252,6 @@ export function DeckEditorPage() {
     },
     [setSearchParams]
   );
-  const [applyingCost, setApplyingCost] = useState(false);
   const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
   // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
   // and a post-cut refill nudge (the card just cut + its role).
@@ -320,8 +322,8 @@ export function DeckEditorPage() {
   // its one-away tab. The panel only mounts once Power is active, so reveal on
   // the next frame, after the view switch has committed.
   const combosRef = useRef<DeckCombosPanelHandle>(null);
-  // A hero move that deep-links into a Tune lane sets this; DeckDisplay expands +
-  // scrolls the matching lane, then clears it (one-shot) via onTuneFocusHandled.
+  // A hero move that deep-links into the Coach feed sets this; CoachFeed maps it
+  // to a filter chip, then clears it (one-shot) via onFilterHandled.
   const [tuneFocusLane, setTuneFocusLane] = useState<LaneId | null>(null);
   const clearTuneFocus = useCallback(() => setTuneFocusLane(null), []);
   const handleNbmNavigate = useCallback(
@@ -563,20 +565,9 @@ export function DeckEditorPage() {
       oneAwayCombos: comboData.data?.oneAway,
       ownedNames,
       winConditions: deck.winConditions,
+      bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
     });
   }, [deck, comboData.data, ownedNames]);
-
-  // Which Tune lane to expand on first paint — the one the verdict hero points
-  // at (hero-pointed-expand). Falls back to Fill the gaps when the top move
-  // routes elsewhere (Deck/Stats/Power).
-  const tuneDefaultLane = useMemo<LaneId>(() => {
-    const lanes: readonly LaneId[] = ['fill-gaps', 'upgrade', 'budget', 'collection'];
-    const hit = nextBestMoves.find(
-      (m): m is typeof m & { focus: LaneId } =>
-        m.focus != null && (lanes as readonly string[]).includes(m.focus)
-    );
-    return hit?.focus ?? 'fill-gaps';
-  }, [nextBestMoves]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
@@ -587,9 +578,9 @@ export function DeckEditorPage() {
     return deck.gradeBracketSignature ? 'ready' : 'pending';
   }, [deck]);
 
-  // UX-311: deep-link from a StatsHero shortfall to the Tune lane that fixes
-  // it. Switches to the Tune tab and sets the lane focus so DeckAnalysisView
-  // expands + scrolls it (the same one-shot mechanism as NextBestMove deep-links).
+  // UX-311: deep-link from a StatsHero shortfall to the Coach filter that fixes
+  // it. Switches to the Coach tab and sets the focus so CoachFeed activates the
+  // matching chip (the same one-shot mechanism as NextBestMove deep-links).
   const handleNavigateToTune = useCallback(
     (lane: LaneId) => {
       openView('tune');
@@ -626,7 +617,7 @@ export function DeckEditorPage() {
   }, [deck, ownedNames, collectionCards, commanderColorIdentity]);
 
   // `/` opens the search panel; `c` jumps to the Power tab and reveals the
-  // combos panel; `a` opens the Tune tab (suggestions). Skipped while the user
+  // combos panel; `a` opens the Coach tab (suggestions). Skipped while the user
   // is typing into another input/textarea so the keys still type literally
   // inside a rename/search box.
   useEffect(() => {
@@ -647,7 +638,7 @@ export function DeckEditorPage() {
         window.requestAnimationFrame(handleViewCombos);
       } else if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        openAnalysisTab('tune'); // Suggestions live under the Tune tab.
+        openAnalysisTab('tune'); // Suggestions live under the Coach tab (view id stays 'tune').
       }
     };
     document.addEventListener('keydown', onKey);
@@ -1228,6 +1219,25 @@ export function DeckEditorPage() {
     }
   };
 
+  // CoachFeed unified apply handler — routes add/cut/swap changes from the
+  // CoachFeed to the existing engine add/cut/swap flows.
+  const handleApplyCoachMove = async (change: Change) => {
+    if (!deck) return;
+    if (change.type === 'add') {
+      await handleAddEngineCard(change.name);
+    } else if (change.type === 'cut') {
+      handleCutEngineCard(change.name);
+    } else if (change.type === 'swap' && change.inName) {
+      if (bracketFitSwapName === change.inName) return;
+      const slotId = deck.cards.find((c) => c.card.name === change.inName)?.slotId;
+      if (!slotId) return;
+      setBracketFitSwapName(change.inName);
+      void handleSwapInDeck(slotId, change.inName, change.name, () => {}).finally(() =>
+        setBracketFitSwapName(null)
+      );
+    }
+  };
+
   // Build the in-context "Swap this card" section for an in-deck card: role-scoped
   // EDHREC alternatives (same functional role, not the card itself), owned-first,
   // capped. Returns null when the role is untagged or there are no alternatives.
@@ -1282,7 +1292,6 @@ export function DeckEditorPage() {
   // role-equivalent. Same name→slot / resolve+allocate machinery as Optimize.
   const handleApplyCostSwaps = async (swaps: Array<{ removeName: string; addName: string }>) => {
     if (!deck) return;
-    setApplyingCost(true);
     try {
       const slotsByName = new Map<string, string[]>();
       for (const c of deck.cards) {
@@ -1314,8 +1323,8 @@ export function DeckEditorPage() {
         message: `Applied ${done} budget swap${done === 1 ? '' : 's'}`,
         tone: 'success',
       });
-    } finally {
-      setApplyingCost(false);
+    } catch {
+      pushToast({ message: 'Failed to apply budget swaps', tone: 'error' });
     }
   };
 
@@ -1586,7 +1595,7 @@ export function DeckEditorPage() {
     ...(showAnalysisExtras
       ? [
           { id: 'power' as DeckView, label: 'Power' },
-          { id: 'tune' as DeckView, label: 'Tune' },
+          { id: 'tune' as DeckView, label: 'Coach' },
         ]
       : []),
   ];
@@ -1866,9 +1875,6 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
-            tuneDefaultLane={tuneDefaultLane}
-            tuneFocusLane={tuneFocusLane}
-            onTuneFocusHandled={clearTuneFocus}
             analysisState={analysisState}
             onNavigateToTune={
               // Only wire the deep-link when analysis has run — until then the
@@ -1925,23 +1931,35 @@ export function DeckEditorPage() {
                 />
               ) : undefined
             }
-            improveSlot={
-              formatConfig?.hasCommander &&
-              ((deck.gapAnalysis?.length ?? 0) > 0 ||
-                (deck.optimizeSwaps &&
-                  (deck.optimizeSwaps.additions.length > 0 ||
-                    deck.optimizeSwaps.removals.length > 0)) ||
-                (deck.synergyAnalysis?.suggestions.length ?? 0) > 0) ? (
-                <ImproveLane
+            coachFeedSlot={
+              formatConfig?.hasCommander ? (
+                <CoachFeed
                   gaps={deck.gapAnalysis ?? []}
                   optimize={deck.optimizeSwaps}
                   synergy={deck.synergyAnalysis?.suggestions ?? []}
                   substitutes={substitutionPlan?.rows ?? []}
+                  costPlan={effectiveCostPlan ?? undefined}
+                  bracketFit={deck.bracketFit ?? undefined}
+                  oneAwayCombos={comboData.data?.oneAway}
+                  planScore={deck.planScore}
+                  roleCounts={deck.roleCounts ?? {}}
+                  roleTargets={deck.roleTargets ?? {}}
+                  deckSize={deck.cards.length}
+                  deckTarget={DECK_FORMAT_CONFIGS[deck.format].mainboardSize}
+                  bracketOverridePresent={deck.bracketOverride != null}
                   resolveOwnership={ownershipFor}
-                  onAdd={handleAddEngineCard}
-                  onCut={handleCutEngineCard}
-                  busyNames={addingEngineNames}
+                  ownedNames={ownedNames}
+                  onApplyMove={handleApplyCoachMove}
+                  onApplyAllDropIns={handleApplyCostSwaps}
+                  initialFilter={tuneFocusLane ?? undefined}
+                  onFilterHandled={clearTuneFocus}
+                  analysisState={analysisState}
                   commanderName={deck.commander?.name}
+                  busyNames={
+                    bracketFitSwapName
+                      ? new Set([...addingEngineNames, bracketFitSwapName])
+                      : addingEngineNames
+                  }
                   browser={
                     <DeckAnalysisPanel
                       embedded
@@ -1953,26 +1971,9 @@ export function DeckEditorPage() {
                       onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                     />
                   }
-                />
-              ) : undefined
-            }
-            nextBestMoveSlot={
-              nextBestMoves.length > 0 || (formatConfig?.hasCommander && comboData.loading) ? (
-                <NextBestMove
-                  moves={nextBestMoves}
-                  onNavigate={handleNbmNavigate}
+                  nextBestMoves={nextBestMoves}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
-                />
-              ) : undefined
-            }
-            costSlot={
-              formatConfig?.hasCommander &&
-              effectiveCostPlan &&
-              (effectiveCostPlan.spellRows.length > 0 || effectiveCostPlan.landRows.length > 0) ? (
-                <CostPanel
-                  plan={effectiveCostPlan}
-                  onApply={handleApplyCostSwaps}
-                  applying={applyingCost}
+                  onNbmNavigate={handleNbmNavigate}
                 />
               ) : undefined
             }
@@ -1992,41 +1993,6 @@ export function DeckEditorPage() {
             winConditionSlot={
               formatConfig?.hasCommander && deck.winConditions ? (
                 <WinConditionPanel analysis={deck.winConditions} />
-              ) : undefined
-            }
-            bracketFitSlot={
-              // Bracket Fit lives in the Power-tab Bracket panel. Only build it for
-              // a commander deck with a target set and a non-aligned plan — the
-              // aligned case renders its own tiny confirmation chip (no lane body).
-              // Reuses the EXACT add/cut/swap apply paths the Tune lane uses, incl.
-              // DeckSizePrompt-on-full via handleAddEngineCard.
-              formatConfig?.hasCommander && deck.bracketOverride != null && deck.bracketFit ? (
-                <BracketFitLane
-                  plan={deck.bracketFit}
-                  commanderName={deck.commander?.name}
-                  resolveOwnership={ownershipFor}
-                  onAdd={handleAddEngineCard}
-                  onCut={handleCutEngineCard}
-                  onSwap={(outName, inName) => {
-                    // Guard against a double-submit before the cut re-renders: the
-                    // cut name's busy gate disables the row, but also bail if a
-                    // swap for this exact card is already in flight.
-                    if (bracketFitSwapName === outName) return;
-                    // Cut the in-deck card, add the replacement (1-for-1). Locate
-                    // the slot from the cut name; no-op preview-close (no carousel).
-                    const slotId = deck.cards.find((c) => c.card.name === outName)?.slotId;
-                    if (!slotId) return;
-                    setBracketFitSwapName(outName);
-                    void handleSwapInDeck(slotId, outName, inName, () => {}).finally(() =>
-                      setBracketFitSwapName(null)
-                    );
-                  }}
-                  busyNames={
-                    bracketFitSwapName
-                      ? new Set([...addingEngineNames, bracketFitSwapName])
-                      : addingEngineNames
-                  }
-                />
               ) : undefined
             }
           />

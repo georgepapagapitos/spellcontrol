@@ -13,11 +13,8 @@ import {
   List as ListIconLucide,
   MoreVertical,
   Pencil,
-  PiggyBank,
   Search,
-  Target,
   Trash2,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -64,7 +61,6 @@ import {
 } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import { BracketBreakdown } from './BracketBreakdown';
 import { BracketVerdictStrip } from './BracketVerdictStrip';
-import { CollapsibleLane, type CollapsibleLaneHandle } from './CollapsibleLane';
 import type { LaneId } from '@/lib/deck-change';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
@@ -375,35 +371,17 @@ export interface DeckDisplayProps {
    * Power / Improve tabs. (Test hand stays a separate standalone panel.)
    */
   combosSlot?: React.ReactNode;
-  /** Unified Tune "Improve the deck" engine — merges EDHREC gap staples, optimizer
-   *  additions, off-meta synergy picks, and (in Owned-only mode) owned
-   *  substitutes into one list; optimizer removals fall into "Consider cutting".
-   *  Replaces the old fill-gaps / upgrade / collection lanes. Built by the page
-   *  (owns the add/cut flow + the EDHREC theme-browser). */
-  improveSlot?: React.ReactNode;
-  /** "Next best move" suggestions, rendered atop the Overview view. Built by
-   *  the page (it owns the live combo data + view-navigation callback). */
-  nextBestMoveSlot?: React.ReactNode;
-  /** Budget cost-optimizer surface — the Tune tab's "Fit a budget" lane. */
-  costSlot?: React.ReactNode;
+  /** CoachFeed slot — unified Coach tab surface (NBM + Improve + Cost + Bracket
+   *  Fit). Replaces the old improveSlot/nextBestMoveSlot/costSlot/bracketFitSlot.
+   *  Built by the page (owns all data + handlers). */
+  coachFeedSlot?: React.ReactNode;
   /** Engine *diagnostics* (axis-balance bars + warnings), rendered on the Power
    *  tab. */
   engineSlot?: React.ReactNode;
   /** Win-condition detection panel, rendered on the Power tab. */
   winConditionSlot?: React.ReactNode;
-  /** Bracket Fit coaching lane — target-bracket card moves, rendered inside the
-   *  Power tab's Bracket panel below the verdict strip. Built by the page (owns
-   *  the plan + the add/cut/swap handlers); only passed when bracketOverride is
-   *  set and the plan isn't aligned. */
-  bracketFitSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
-  /** Tune lane to expand on first paint (the one the verdict hero points at). */
-  tuneDefaultLane?: LaneId;
-  /** One-shot reveal target: a hero deep-link force-expands + scrolls this lane. */
-  tuneFocusLane?: LaneId | null;
-  /** Called once `tuneFocusLane` has been revealed, so the page can clear it. */
-  onTuneFocusHandled?: () => void;
   /**
    * In-context "Swap this card": for an in-deck card at `slotId`, return the
    * role-scoped replacement section rendered in the card-preview panel. `close`
@@ -431,15 +409,15 @@ export interface DeckDisplayProps {
   onShowTestHand?: () => void;
   /**
    * UX-310: whether the async commander-deck analysis is still in-flight for
-   * the first time. When 'pending', the Tune and Power tabs render skeleton
-   * lane placeholders instead of blank space. 'ready' (default) renders
+   * the first time. When 'pending', the Coach and Power tabs render skeleton
+   * placeholders instead of blank space. 'ready' (default) renders
    * normally — slots that are undefined simply don't appear.
    */
   analysisState?: 'pending' | 'ready';
   /**
-   * UX-311: deep-link from a StatsHero shortfall line to the Tune lane that
-   * addresses it. The page switches to the Tune tab and expands the target
-   * lane. Only passed for commander decks that have a full analysis result.
+   * UX-311: deep-link from a StatsHero shortfall line to the Coach filter that
+   * addresses it. The page switches to the Coach tab and activates the matching
+   * filter chip. Only passed for commander decks that have a full analysis result.
    */
   onNavigateToTune?: (lane: LaneId) => void;
 }
@@ -839,16 +817,10 @@ export function DeckDisplay({
   onExportOpenChange,
   onAddFromSearch,
   combosSlot,
-  improveSlot,
-  nextBestMoveSlot,
-  costSlot,
+  coachFeedSlot,
   engineSlot,
   winConditionSlot,
-  bracketFitSlot,
   powerHeroSlot,
-  tuneDefaultLane,
-  tuneFocusLane,
-  onTuneFocusHandled,
   renderSwapSuggestions,
   renderSimilarCards,
   activeView = 'deck',
@@ -1723,16 +1695,10 @@ export function DeckDisplay({
             saltiestCards={saltiestCards}
             planScore={planScore}
             combosSlot={combosSlot}
-            improveSlot={improveSlot}
-            nextBestMoveSlot={nextBestMoveSlot}
-            costSlot={costSlot}
+            coachFeedSlot={coachFeedSlot}
             engineSlot={engineSlot}
             winConditionSlot={winConditionSlot}
-            bracketFitSlot={bracketFitSlot}
             powerHeroSlot={powerHeroSlot}
-            tuneDefaultLane={tuneDefaultLane}
-            tuneFocusLane={tuneFocusLane}
-            onTuneFocusHandled={onTuneFocusHandled}
             commanderIdentity={commanderIdentity}
             analysisState={analysisState}
             onNavigateToTune={onNavigateToTune}
@@ -3144,16 +3110,10 @@ function DeckAnalysisView({
   saltiestCards,
   planScore,
   combosSlot,
-  improveSlot,
-  nextBestMoveSlot,
-  costSlot,
+  coachFeedSlot,
   engineSlot,
   winConditionSlot,
-  bracketFitSlot,
   powerHeroSlot,
-  tuneDefaultLane,
-  tuneFocusLane,
-  onTuneFocusHandled,
   commanderIdentity,
   analysisState = 'ready',
   onNavigateToTune,
@@ -3177,20 +3137,11 @@ function DeckAnalysisView({
   planScore?: PlanScore;
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
-  improveSlot?: React.ReactNode;
-  nextBestMoveSlot?: React.ReactNode;
-  costSlot?: React.ReactNode;
+  /** CoachFeed slot — replaces improveSlot/nextBestMoveSlot/costSlot/bracketFitSlot. */
+  coachFeedSlot?: React.ReactNode;
   engineSlot?: React.ReactNode;
   winConditionSlot?: React.ReactNode;
-  /** Bracket Fit coaching lane — rendered inside the Bracket panel. */
-  bracketFitSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
-  /** Tune lane to expand on first paint (the verdict hero's target). */
-  tuneDefaultLane?: LaneId;
-  /** One-shot lane to reveal + scroll (a hero deep-link). */
-  tuneFocusLane?: LaneId | null;
-  /** Cleared by the page once the focus lane has been revealed. */
-  onTuneFocusHandled?: () => void;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   commanderIdentity?: string[];
   /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads. */
@@ -3236,39 +3187,6 @@ function DeckAnalysisView({
   // renders the view's content. `current` aliases `view` so the per-view blocks
   // below stay untouched.
   const current = view;
-
-  // ── Tune intent lanes — imperative reveal targets for hero deep-links. ──
-  // The three improve-flavored focuses (fill-gaps / upgrade / collection) all
-  // resolve to the single merged Improve lane; budget and bracket-fit are their own lanes.
-  const improveLaneRef = useRef<CollapsibleLaneHandle>(null);
-  const budgetLaneRef = useRef<CollapsibleLaneHandle>(null);
-  // Bracket Fit is now a third Tune lane (UX-313: Power = diagnosis, Tune = prescription).
-  // A NBM deep-link with focus 'bracket-fit' will reveal it on the Tune tab.
-  const bracketFitLaneRef = useRef<CollapsibleLaneHandle>(null);
-  const laneRefs = useMemo<Record<LaneId, React.RefObject<CollapsibleLaneHandle | null>>>(
-    () => ({
-      'fill-gaps': improveLaneRef,
-      upgrade: improveLaneRef,
-      collection: improveLaneRef,
-      budget: budgetLaneRef,
-      // 'similar' only tags the carousel's similar-card rows — it's never a
-      // collapsible Tune lane, so it maps to the inert Improve ref purely to keep
-      // this map exhaustive over LaneId (nothing deep-links to it).
-      similar: improveLaneRef,
-      'bracket-fit': bracketFitLaneRef,
-    }),
-    []
-  );
-  // A hero move deep-linked into a lane: expand + scroll it, then let the page
-  // clear the one-shot target. Lanes only mount on the Tune tab, so wait for it.
-  useEffect(() => {
-    if (!tuneFocusLane || current !== 'tune') return;
-    // Consume the one-shot FIRST. A lane with no data isn't mounted (ref null) —
-    // there's nothing to reveal, but the page state must still clear, or a later
-    // mount (analysis populating optimizeSwaps) would surprise-scroll.
-    onTuneFocusHandled?.();
-    laneRefs[tuneFocusLane]?.current?.reveal();
-  }, [tuneFocusLane, current, laneRefs, onTuneFocusHandled]);
 
   return (
     <div className="deck-analysis-view">
@@ -3447,82 +3365,27 @@ function DeckAnalysisView({
 
       {current === 'tune' && (
         <div className="deck-bento deck-bento--tune">
-          {/* UX-310: skeleton while the async analysis is still in flight. Only
-              show when no lane content has arrived yet. Includes bracketFitSlot
-              (UX-313: Bracket Fit is now a third Tune lane). */}
-          {analysisState === 'pending' &&
-            !nextBestMoveSlot &&
-            !improveSlot &&
-            !costSlot &&
-            !bracketFitSlot && (
-              <div
-                className="deck-analysis-skeleton"
-                role="status"
-                aria-label="Analyzing your deck…"
-                aria-live="polite"
-              >
-                <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
-                <div className="deck-analysis-skeleton-bar is-headline" />
+          {analysisState === 'pending' && !coachFeedSlot && (
+            <div
+              className="deck-analysis-skeleton"
+              role="status"
+              aria-label="Analyzing your deck…"
+              aria-live="polite"
+            >
+              <p className="deck-analysis-skeleton-eyebrow">Analyzing your deck…</p>
+              <div className="deck-analysis-skeleton-bar is-headline" />
+              <div className="deck-analysis-skeleton-bar is-body" />
+              <div className="deck-analysis-skeleton-lane">
                 <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-lane">
-                  <div className="deck-analysis-skeleton-bar is-body" />
-                  <div className="deck-analysis-skeleton-bar is-body is-short" />
-                </div>
-                <div className="deck-analysis-skeleton-lane">
-                  <div className="deck-analysis-skeleton-bar is-body is-short" />
-                  <div className="deck-analysis-skeleton-bar is-body" />
-                </div>
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
               </div>
-            )}
-          {/* Verdict hero — the single highest-leverage move + the intent router
-              (deep-links into the lanes below). Full-width, like the Power hero. */}
-          {nextBestMoveSlot}
-          {/* Three intent lanes — collapsible (hero-pointed-expand).
-              Improve: EDHREC staples, optimizer adds, synergy picks.
-              Trim cost: cheaper role-equivalents (distinct apply contract).
-              Bracket Fit (UX-313): prescriptive card moves toward the target bracket
-              — moved here from the Power tab to restore Power = diagnosis,
-              Tune = prescription. */}
-          {improveSlot && (
-            <CollapsibleLane
-              ref={improveLaneRef}
-              title="Improve the deck"
-              icon={<TrendingUp width={16} height={16} aria-hidden />}
-              summary={<span>Your best adds — staples, power, and synergy</span>}
-              defaultCollapsed={
-                tuneDefaultLane !== 'fill-gaps' &&
-                tuneDefaultLane !== 'upgrade' &&
-                tuneDefaultLane !== 'collection'
-              }
-              storageKey="spellcontrol-tune-improve"
-            >
-              {improveSlot}
-            </CollapsibleLane>
+              <div className="deck-analysis-skeleton-lane">
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
+                <div className="deck-analysis-skeleton-bar is-body" />
+              </div>
+            </div>
           )}
-          {costSlot && (
-            <CollapsibleLane
-              ref={budgetLaneRef}
-              title="Trim cost"
-              icon={<PiggyBank width={16} height={16} aria-hidden />}
-              summary={<span>Cheaper cards that play the same role</span>}
-              defaultCollapsed={tuneDefaultLane !== 'budget'}
-              storageKey="spellcontrol-tune-budget"
-            >
-              {costSlot}
-            </CollapsibleLane>
-          )}
-          {bracketFitSlot && (
-            <CollapsibleLane
-              ref={bracketFitLaneRef}
-              title="Bracket Fit"
-              icon={<Target width={16} height={16} aria-hidden />}
-              summary={<span>Card moves toward your target bracket</span>}
-              defaultCollapsed={tuneDefaultLane !== 'bracket-fit'}
-              storageKey="spellcontrol-tune-bracket-fit"
-            >
-              {bracketFitSlot}
-            </CollapsibleLane>
-          )}
+          {coachFeedSlot}
         </div>
       )}
     </div>
