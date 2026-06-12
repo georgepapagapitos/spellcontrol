@@ -463,3 +463,32 @@ When you and a reviewer settle a recurring visual question ("should X be a pill?
 sentence or two. Keep entries short and prescriptive — a rule, the rationale if
 it's non-obvious, and the anti-pattern it prevents. This doc is only useful if it
 stays current, so prefer editing it over re-deciding.
+
+---
+
+## Deck-analysis band words
+
+### Avg mana value (curve)
+
+Three words map a deck's avg-CMC pacing, rendered beside the number in `DeckCurvePhases`:
+
+| Band word      | Typical avg CMC | Pacing keys                           |
+| -------------- | --------------- | ------------------------------------- |
+| `lean`         | < 2.8           | `aggressive-early`, `fast-tempo`      |
+| `balanced`     | 2.8 – 3.5       | `midrange`, `balanced`                |
+| `top-heavy`    | > 3.5           | `late-game`                           |
+
+The mapping is a pure exported function `avgCmcBandWord(pacing)` in `DeckCurvePhases.tsx`. Do not duplicate the logic elsewhere.
+
+### Salt score (EDHREC)
+
+Four words map a card's EDHREC salt score (0–4 scale), rendered in `SaltiestPanel` beside each raw score:
+
+| Band word        | Score range  |
+| ---------------- | ------------ |
+| `table-friendly` | < 0.5        |
+| `mild`           | 0.5 – 1.4   |
+| `spicy`          | 1.5 – 2.4   |
+| `polarizing`     | ≥ 2.5        |
+
+The mapping is a pure exported function `saltBandWord(salt)` in `SaltiestPanel.tsx`. The avg-salt footer also shows the band word for the deck-level average.

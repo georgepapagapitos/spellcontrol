@@ -3,8 +3,27 @@ import { COLOR_INFO } from '../../lib/colors';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
 import type { CurveColorBucket } from './deck-mana-types';
-import { gradeCurve, PACING_LABEL } from '@/deck-builder/services/deckBuilder/curveGrading';
+import { gradeCurve } from '@/deck-builder/services/deckBuilder/curveGrading';
+import type { Pacing } from '@/deck-builder/services/deckBuilder/pacingDetector';
+import { InfoTip } from '@/components/InfoTip';
 import './DeckCurvePhases.css';
+
+/**
+ * Maps a pacing label to a compact avg-CMC band word for the curve summary.
+ * Exported for unit testing.
+ */
+export function avgCmcBandWord(pacing: Pacing): 'lean' | 'balanced' | 'top-heavy' {
+  switch (pacing) {
+    case 'aggressive-early':
+    case 'fast-tempo':
+      return 'lean';
+    case 'midrange':
+    case 'balanced':
+      return 'balanced';
+    case 'late-game':
+      return 'top-heavy';
+  }
+}
 
 /**
  * The deck's mana curve, reimagined as a "color-stacked curve hero".
@@ -125,6 +144,18 @@ export function DeckCurvePhases({
     return { slots, maxCount };
   }, [manaCurve]);
 
+  // Per-CMC target heights for the pacing-aware target-band overlay.
+  // Maps each CMC slot to the average target count for its phase.
+  const targetByCmc = useMemo<Record<number, number>>(() => {
+    if (total === 0 || maxCount === 0) return {};
+    return Object.fromEntries(
+      phaseTotals.flatMap((phase) => {
+        const avgTarget = (phase.target * total) / phase.cmcs.length;
+        return phase.cmcs.map((cmc) => [cmc, avgTarget]);
+      })
+    );
+  }, [phaseTotals, total, maxCount]);
+
   // Which color categories actually appear, for the legend.
   const legendKeys = useMemo<SegmentKey[]>(() => {
     if (!curveByColor) return [];
@@ -137,8 +168,28 @@ export function DeckCurvePhases({
         <div className="deck-curve-phases-head-meta">
           <h4 className="deck-curve-phases-heading">Mana curve</h4>
           <span className="deck-curve-phases-avg">
-            Avg CMC {averageCmc.toFixed(2)}
-            {total > 0 && ` · ${PACING_LABEL[grading.pacing]} curve`}
+            {averageCmc.toFixed(1)}{' '}
+            <span className="deck-curve-phases-avg-label">avg mana value</span>
+            <InfoTip
+              label="avg mana value"
+              text={
+                <>
+                  <span className="info-tip-lead">Avg mana value bands</span>
+                  <ul className="info-tip-list">
+                    <li>
+                      <strong>lean</strong> — avg typically below 2.8; deck curves out early
+                    </li>
+                    <li>
+                      <strong>balanced</strong> — avg 2.8–3.5; healthy Commander spread
+                    </li>
+                    <li>
+                      <strong>top-heavy</strong> — avg above 3.5; deck leans on expensive spells
+                    </li>
+                  </ul>
+                </>
+              }
+            />
+            {total > 0 && ` · ${avgCmcBandWord(grading.pacing)}`}
           </span>
         </div>
         {hasColorData && (
@@ -188,6 +239,16 @@ export function DeckCurvePhases({
               <span className="deck-curve-phases-bar-count">{slot.count}</span>
 
               <div className="deck-curve-phases-bar-track">
+                {/* Target-height marker: a small dash at the pacing-aware target
+                    count for this CMC slot's phase. Rendered before the bar fill
+                    so it sits behind the fill in paint order. Static — no motion. */}
+                {total > 0 && maxCount > 0 && targetByCmc[slot.cmc] != null && (
+                  <div
+                    className="deck-curve-phases-bar-target"
+                    style={{ bottom: `${(targetByCmc[slot.cmc] / maxCount) * 100}%` }}
+                    aria-hidden="true"
+                  />
+                )}
                 {effectiveMode === 'color' && bucket ? (
                   // Stacked bar. DOM order W..colorless; CSS column-reverse puts
                   // W at the baseline so the stack reads bottom→top W,U,B,R,G,
