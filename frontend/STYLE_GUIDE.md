@@ -556,3 +556,111 @@ Four words map a card's EDHREC salt score (0–4 scale), rendered in `SaltiestPa
 | `polarizing`     | ≥ 2.5        |
 
 The mapping is a pure exported function `saltBandWord(salt)` in `SaltiestPanel.tsx`. The avg-salt footer also shows the band word for the deck-level average.
+
+---
+
+## Suggestion feeds (Coach tab — UX-401)
+
+The Coach tab (`?view=tune`) is the one prescriptive surface: a ranked,
+filterable list of moves the user can apply to improve their deck. The
+design rulings below are binding for any future work on the feed.
+
+### Row anatomy
+
+Every suggestion row is a `DeckCardRow` instance and contains, from left to
+right:
+
+1. **Thumbnail** — card art (CDN, cached via `useCardThumb`). Tap opens the
+   card carousel (the complement view). On a swap row, the outgoing card art
+   sits left of an arrow, dimmed.
+2. **Body** — card name (bold, `--text-sm`) + verdict chip(s) (shared
+   `VerdictBadge`) + plain-English reason (`--text-xs`, `--text-secondary`,
+   3-line clamp). Inclusion % is hue-tinted per the verdict badge's
+   red-<10%-only rule. The body is **non-interactive** — only the thumbnail
+   and action buttons are tap targets.
+3. **Secondary action (Fit?)** — an outline rect button (secondary-action
+   style: `--surface` bg, `--border` border, `--radius`) rendered just before
+   the primary action on every **add** and **swap** row. Absent on cut rows.
+   Aria-label: "Will {name} fit this deck?". Minimum 36px touch target on
+   coarse pointers. Tapping opens the `CardFitPanel` audition for the incoming
+   card; on swap rows the outgoing card is pre-seeded as the first cut
+   suggestion (`pinnedCutName` prop).
+4. **Primary action** — accent-fill rect (`deck-card-row-act`). Verb = "Add",
+   "Swap", or "Cut" per the `change.type`. On apply-success the row exits with
+   the **row-leave animation** (see Motion below).
+
+Never hand-roll a suggestion row outside `DeckCardRow` — the primitive owns
+the thumb, badges, reason, and action layout.
+
+### Tiered ordering
+
+The ranker (`lib/coach-rank.ts`) orders moves in three tiers, then by
+`deltaScore` / `inclusion`, owned-first within each tier:
+
+| Tier | Trigger | Examples |
+| --- | --- | --- |
+| **Tier 1 — severe deficit** | a gap/upgrade move whose target sub-score is < 60 | fill-gap adds when `roles` scores 45 |
+| **Tier 2 — quality** | move targets the weakest `PlanScore` sub-score and it's < 75 | ramp gap when `roles` is the weakest signal |
+| **Tier 3 — polish** | everything else | combo completions, budget swaps, bracket nudges |
+
+(Deck-size and missing-win-condition *structural* alerts have no concrete card
+move, so they live in the NextBestMove headline above the feed, not as ranked
+rows.)
+
+Owned cards surface before unowned within each tier (the standing
+`sortOwnedFirst` rule). **No raw score numbers in the UI** — the ordering is
+felt, not displayed, to avoid implying false precision.
+
+### Filter-chip row
+
+A row of 999px-radius toggle chips (aria-pressed) sits above the feed. Rules:
+
+- Chips wrap (`flex-wrap: wrap`), never clip — a narrow phone adds a second
+  line, not horizontal overflow (control-row rule from the Toolbars section).
+- A chip is hidden when its count is zero (except "All").
+- Count badges inside chips are `--text-muted` when inactive, `--accent` when
+  the chip is pressed.
+- The `f` key cycles chips in order (All → first non-zero chip → … → wrap),
+  guarded by `isTypingTarget`. Register it under the "Coach" section of the
+  `?` overlay via `useRegisterShortcuts`.
+
+### Cuts are separated
+
+Cut suggestions **never interleave** with add/swap rows. They live in a
+collapsed `<details>` disclosure at the feed's end ("Cuts (N)"), closed by
+default. Opening it does not expand the feed inline — it appends beneath the
+last add/swap row. Mixing cuts into an adds feed reads as noise and makes it
+unclear whether a row is an opportunity or a warning.
+
+### Apply feedback
+
+When the user clicks Apply on a row, the order is **animate, then apply** —
+the persisted analyses don't recompute synchronously and a cut mutates the
+store synchronously, so apply-first either snaps the row back or skips the
+animation entirely:
+
+1. The row plays the **row-leave animation** (`coach-feed-row-leaving` class +
+   `@keyframes coach-row-leave`): `translateX(0) → translateX(-1.5rem)` with
+   `opacity 1 → 0`, duration `var(--motion-base)`, easing
+   `var(--ease-out-soft)`; `pointer-events: none` while leaving. The Change is
+   parked until `animationend`. Reduced motion: the apply fires immediately and
+   no animation plays. A mid-animation unmount flushes the parked apply — the
+   click is never lost.
+2. On `animationend` the apply dispatches (existing engine handlers, no new
+   mutation paths) and the id moves to a "departed" set that hides the row
+   while the deck update propagates.
+3. The feed filters every row against the **live deck list** (`deckNames`),
+   so the applied row drops out for real — and an Undo (which restores the
+   deck) brings the suggestion back automatically.
+4. A toast with Undo appears (the existing `recordEdit` / toast-with-Undo
+   contract).
+5. Survivor rows may reflow. A FLIP list animation is explicitly out of scope
+   (tracked as UX-409).
+
+### Empty states
+
+| Situation | Copy |
+| --- | --- |
+| No suggestions at all (deck is tuned) | "Nothing to coach — this deck looks tuned." + hint: "Your deck is well-covered. Try adjusting your bracket target or browsing themes below." |
+| A filter chip returns zero rows but other rows exist | "No {filter} suggestions right now." (inline, no doors) |
+| Analysis still pending and no changes yet | Skeleton (`deck-analysis-skeleton` pattern — see Deck-analysis tabs section) |

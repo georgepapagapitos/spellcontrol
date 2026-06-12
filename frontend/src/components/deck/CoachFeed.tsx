@@ -1,5 +1,5 @@
 import './CoachFeed.css';
-import { type JSX, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
@@ -21,6 +21,7 @@ import {
   type ChangeOwnership,
 } from '@/lib/deck-change';
 import { rankCoachMoves, type CoachContext } from '@/lib/coach-rank';
+import { useRegisterShortcuts, isTypingTarget } from '@/lib/shortcut-registry';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
@@ -65,6 +66,16 @@ const FOCUS_TO_FILTER: Record<string, FilterId> = {
   'bracket-fit': 'bracket-fit',
 };
 
+// ── Shortcuts ─────────────────────────────────────────────────────────────
+
+/**
+ * Shortcuts contributed by the Coach feed to the app-wide `?` overlay.
+ * STABLE module-level constant — never inline (dep-array reference equality).
+ */
+const COACH_SHORTCUTS = [
+  { keys: ['f'], description: 'Cycle suggestion filters (All → Fix gaps → Upgrades → …)' },
+];
+
 const OWNED_ONLY_KEY = 'spellcontrol-improve-owned-only';
 
 function readOwnedOnly(): boolean {
@@ -104,11 +115,28 @@ export interface CoachFeedProps {
   // Ownership
   resolveOwnership: (name: string) => ChangeOwnership;
   ownedNames: Set<string>;
+  /**
+   * Lowercased names of the cards currently in the deck's mainboard — the
+   * ground truth the feed filters against. The persisted analyses (gaps,
+   * optimizer, bracket fit, cost plan) do NOT recompute synchronously on an
+   * apply, so without this filter an applied row would linger (and an undone
+   * apply couldn't bring its row back). Add rows hide once their card is in
+   * the deck; swap rows need their outgoing card still present and their
+   * incoming card absent; cut rows need their card still present.
+   */
+  deckNames: Set<string>;
   // Apply dispatch
   onApplyMove: (change: Change) => void | Promise<void>;
   onApplyAllDropIns: (
     swaps: Array<{ removeName: string; addName: string }>
   ) => void | Promise<void>;
+  /**
+   * Open the "Will it fit?" audition (CardFitPanel) for an add/swap row.
+   * Called with the Change so the page can resolve the incoming card name
+   * and, for swap rows, pre-seed the outgoing card as the suggested cut.
+   * Omit to suppress the Fit? button on all rows.
+   */
+  onPreviewFit?: (change: Change) => void;
   // Initial filter (from tuneFocusLane deep-link)
   initialFilter?: string;
   onFilterHandled?: () => void;
@@ -151,8 +179,10 @@ export function CoachFeed({
   bracketOverridePresent,
   resolveOwnership,
   ownedNames,
+  deckNames,
   onApplyMove,
   onApplyAllDropIns,
+  onPreviewFit,
   initialFilter,
   onFilterHandled,
   analysisState = 'ready',
@@ -195,6 +225,94 @@ export function CoachFeed({
     setActiveFilter(FOCUS_TO_FILTER[initialFilter] ?? 'all');
     onFilterHandled?.();
   }, [initialFilter, onFilterHandled]);
+
+  // ── Row-leave animation (animate, THEN apply) ────────────────────────────
+  // The persisted analyses don't recompute synchronously, and a cut mutates the
+  // store synchronously — so "apply first, animate the survivor" either snaps
+  // the row back (adds) or never shows the animation at all (cuts). Instead:
+  // clicking Apply marks the row leaving and PARKS the Change; the apply fires
+  // on animationend (or immediately under reduced motion / on unmount, so a
+  // mid-animation tab switch can't lose the user's click). After the apply the
+  // id sits in `departedIds` to bridge any async gap before the deck update
+  // drops the row from the data; an effect prunes departed ids the moment the
+  // data no longer contains them, so an UNDONE apply brings its row back.
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
+  const [departedIds, setDepartedIds] = useState<Set<string>>(new Set());
+  const pendingApplyRef = useRef(new Map<string, Change>());
+  const onApplyMoveRef = useRef(onApplyMove);
+  useEffect(() => {
+    onApplyMoveRef.current = onApplyMove;
+  }, [onApplyMove]);
+
+  const prefersReducedMotion = useCallback(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+    []
+  );
+
+  const handleApplyWithLeave = useCallback(
+    (change: Change) => {
+      if (prefersReducedMotion()) {
+        void onApplyMoveRef.current(change);
+        return;
+      }
+      pendingApplyRef.current.set(change.id, change);
+      setLeavingIds((prev) => new Set([...prev, change.id]));
+    },
+    [prefersReducedMotion]
+  );
+
+  const handleLeavingAnimationEnd = useCallback((id: string, e: React.AnimationEvent) => {
+    if (e.animationName !== 'coach-row-leave') return;
+    const change = pendingApplyRef.current.get(id);
+    pendingApplyRef.current.delete(id);
+    if (change) void onApplyMoveRef.current(change);
+    setLeavingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    // Hide the row while the (possibly async) apply propagates to the deck;
+    // the pruning effect below releases the id once the data drops the row.
+    setDepartedIds((prev) => new Set([...prev, id]));
+  }, []);
+
+  // A mid-animation unmount must not swallow the click — flush pending applies.
+  useEffect(
+    () => () => {
+      for (const change of pendingApplyRef.current.values()) {
+        void onApplyMoveRef.current(change);
+      }
+      pendingApplyRef.current.clear();
+    },
+    []
+  );
+
+  // ── Shortcut registration + `f` key cycle ───────────────────────────────
+  useRegisterShortcuts('Coach', COACH_SHORTCUTS);
+
+  // Ordered list of chips that actually have rows (used to cycle with `f`).
+  // Computed from filterCounts, but filterCounts isn't available yet (it's
+  // defined below in the return path). We derive it inline from addsAndSwaps
+  // after ranking, so the effect can reference it. We store it in a ref so
+  // the keydown listener always sees the current set without re-registering.
+  const cyclableFiltersRef = useRef<FilterId[]>(['all']);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'f' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+      const filters = cyclableFiltersRef.current;
+      if (filters.length === 0) return;
+      setActiveFilter((curr) => {
+        const idx = filters.indexOf(curr);
+        return filters[(idx + 1) % filters.length];
+      });
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // ── Build all changes ────────────────────────────────────────────────────
 
@@ -252,8 +370,26 @@ export function CoachFeed({
     // Bracket adds (not swaps/cuts).
     const bracketAdds = bracketChanges.filter((c) => c.type === 'add');
 
-    return [...mergedAdds, ...bracketAdds, ...comboChanges, ...swapsAndCuts];
-  }, [gaps, optimize, synergy, substitutes, costPlan, bracketFit, oneAwayCombos, resolveOwnership]);
+    // Ground-truth filter against the live deck list (see the deckNames prop
+    // doc): applied rows drop out, undone applies come back, and a swap whose
+    // target slot is gone can no longer be offered.
+    const inDeck = (n: string) => deckNames.has(n.toLowerCase());
+    return [...mergedAdds, ...bracketAdds, ...comboChanges, ...swapsAndCuts].filter((c) => {
+      if (c.type === 'add') return !inDeck(c.name);
+      if (c.type === 'cut') return inDeck(c.name);
+      return c.inName ? inDeck(c.inName) && !inDeck(c.name) : false;
+    });
+  }, [
+    gaps,
+    optimize,
+    synergy,
+    substitutes,
+    costPlan,
+    bracketFit,
+    oneAwayCombos,
+    resolveOwnership,
+    deckNames,
+  ]);
 
   // ── Rank ─────────────────────────────────────────────────────────────────
 
@@ -288,8 +424,25 @@ export function CoachFeed({
 
   // ── Separate adds/swaps from cuts ────────────────────────────────────────
 
-  const addsAndSwaps = useMemo(() => ranked.filter((r) => r.change.type !== 'cut'), [ranked]);
-  const cuts = useMemo(() => ranked.filter((r) => r.change.type === 'cut'), [ranked]);
+  // Release departed ids once the deck update has genuinely dropped their rows
+  // from the data — after that the id is stale bookkeeping, and if the row ever
+  // legitimately returns (the apply was undone), it must not stay hidden.
+  // Render-phase adjustment (react.dev "storing information from previous
+  // renders"): guarded setState during render, NOT an effect — React re-renders
+  // immediately without committing the stale frame.
+  const liveIds = useMemo(() => new Set(ranked.map((r) => r.change.id)), [ranked]);
+  if (departedIds.size > 0 && [...departedIds].some((id) => !liveIds.has(id))) {
+    setDepartedIds(new Set([...departedIds].filter((id) => liveIds.has(id))));
+  }
+
+  const addsAndSwaps = useMemo(
+    () => ranked.filter((r) => r.change.type !== 'cut' && !departedIds.has(r.change.id)),
+    [ranked, departedIds]
+  );
+  const cuts = useMemo(
+    () => ranked.filter((r) => r.change.type === 'cut' && !departedIds.has(r.change.id)),
+    [ranked, departedIds]
+  );
 
   // ── Filter ───────────────────────────────────────────────────────────────
 
@@ -322,6 +475,19 @@ export function CoachFeed({
     }
     return counts;
   }, [addsAndSwaps]);
+
+  // ── Update cyclable-filters ref (for `f` key cycle) ─────────────────────
+  // The `f` key listener uses a ref so it doesn't need to re-register on
+  // every render; we sync it via an effect (writing refs during render is
+  // flagged by react-hooks/refs).
+  const cyclableList = useMemo<FilterId[]>(
+    () =>
+      (Object.keys(FILTER_LABELS) as FilterId[]).filter((f) => f === 'all' || filterCounts[f] > 0),
+    [filterCounts]
+  );
+  useEffect(() => {
+    cyclableFiltersRef.current = cyclableList;
+  }, [cyclableList]);
 
   // ── Drop-in budget changes for "Apply all" ───────────────────────────────
 
@@ -475,20 +641,39 @@ export function CoachFeed({
           {/* Feed rows */}
           {filteredAdds.length > 0 ? (
             <ul className="coach-feed-rows">
-              {filteredAdds.map(({ change }) => (
-                <li key={change.id}>
-                  <DeckCardRow
-                    change={change}
-                    commanderName={commanderName}
-                    peekName={change.name}
-                    onPreview={() => carousel.open(previewEntries, change.name)}
-                    onAct={(c) => void onApplyMove(c)}
-                    acting={
-                      busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
+              {filteredAdds.map(({ change }) => {
+                const isLeaving = leavingIds.has(change.id);
+                const showFit = onPreviewFit && change.type !== 'cut';
+                return (
+                  <li
+                    key={change.id}
+                    className={isLeaving ? 'coach-feed-row-leaving' : undefined}
+                    onAnimationEnd={
+                      isLeaving ? (e) => handleLeavingAnimationEnd(change.id, e) : undefined
                     }
-                  />
-                </li>
-              ))}
+                  >
+                    <DeckCardRow
+                      change={change}
+                      commanderName={commanderName}
+                      peekName={change.name}
+                      onPreview={() => carousel.open(previewEntries, change.name)}
+                      onAct={(c) => handleApplyWithLeave(c)}
+                      acting={
+                        busy.has(change.name) || (change.inName ? busy.has(change.inName) : false)
+                      }
+                      secondaryAction={
+                        showFit
+                          ? {
+                              label: 'Fit?',
+                              ariaLabel: `Will ${change.name} fit this deck?`,
+                              onClick: () => onPreviewFit(change),
+                            }
+                          : undefined
+                      }
+                    />
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             !isPending && (
@@ -512,18 +697,27 @@ export function CoachFeed({
                 Cuts ({cuts.length})
               </summary>
               <ul className="coach-feed-rows coach-feed-cuts-list">
-                {cuts.map(({ change }) => (
-                  <li key={change.id}>
-                    <DeckCardRow
-                      change={change}
-                      commanderName={commanderName}
-                      peekName={change.name}
-                      onPreview={() => carousel.open(previewEntries, change.name)}
-                      onAct={(c) => void onApplyMove(c)}
-                      acting={busy.has(change.name)}
-                    />
-                  </li>
-                ))}
+                {cuts.map(({ change }) => {
+                  const isLeaving = leavingIds.has(change.id);
+                  return (
+                    <li
+                      key={change.id}
+                      className={isLeaving ? 'coach-feed-row-leaving' : undefined}
+                      onAnimationEnd={
+                        isLeaving ? (e) => handleLeavingAnimationEnd(change.id, e) : undefined
+                      }
+                    >
+                      <DeckCardRow
+                        change={change}
+                        commanderName={commanderName}
+                        peekName={change.name}
+                        onPreview={() => carousel.open(previewEntries, change.name)}
+                        onAct={(c) => handleApplyWithLeave(c)}
+                        acting={busy.has(change.name)}
+                      />
+                    </li>
+                  );
+                })}
               </ul>
             </details>
           )}
