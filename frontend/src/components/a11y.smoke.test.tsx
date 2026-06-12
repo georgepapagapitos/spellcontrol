@@ -51,6 +51,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 import { CardListTable } from './CardListTable';
+import { ShortcutRegistryProvider } from '../lib/shortcut-registry';
 
 /**
  * Component-scoped axe run:
@@ -183,9 +184,11 @@ describe('a11y smoke (axe): CardListTable list rows', () => {
       mk({ name: 'Counterspell', scryfallId: 'sf-counter' }),
     ];
     const { container } = render(
-      <MemoryRouter>
-        <CardListTable cards={cards} binders={[]} />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={cards} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     );
 
     const rows = Array.from(container.querySelectorAll('.collection-list-row'));
@@ -202,9 +205,11 @@ describe('a11y smoke (axe): CardListTable list rows', () => {
   it('selectable list rows expose aria-pressed (no violations beyond the known nested kebab)', async () => {
     const cards = [mk({ name: 'Lightning Bolt', scryfallId: 'sf-bolt' })];
     const { container } = render(
-      <MemoryRouter>
-        <CardListTable cards={cards} binders={[]} />
-      </MemoryRouter>
+      <ShortcutRegistryProvider>
+        <MemoryRouter>
+          <CardListTable cards={cards} binders={[]} />
+        </MemoryRouter>
+      </ShortcutRegistryProvider>
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Select' }));

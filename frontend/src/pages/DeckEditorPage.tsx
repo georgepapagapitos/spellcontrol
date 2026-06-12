@@ -56,6 +56,7 @@ import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commander
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
 import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
+import { useRegisterShortcuts } from '../lib/shortcut-registry';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import {
   buildAllocationMap,
@@ -105,6 +106,15 @@ const ROLE_LABEL: Record<string, string> = {
   boardwipe: 'Board Wipes',
   cardDraw: 'Card Advantage',
 };
+
+/** Shortcut items contributed to the registry under the "Deck editor" section. */
+const DECK_EDITOR_SHORTCUTS = [
+  { keys: ['/'], description: 'Open card search' },
+  { keys: ['a'], description: 'Open Tune tab (suggestions)' },
+  { keys: ['c'], description: 'Open Power tab with combos' },
+  { keys: ['Cmd/Ctrl', 'Z'], description: 'Undo last edit' },
+  { keys: ['Cmd/Ctrl', 'Shift+Z'], description: 'Redo last edit' },
+];
 
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -165,6 +175,10 @@ export function DeckEditorPage() {
     return true;
   }, [id, pushToast]);
   useUndoRedoKeyboard({ enabled: !!id, onUndo: onKeyboardUndo, onRedo: onKeyboardRedo });
+
+  // Register deck editor shortcuts in the app-wide `?` overlay (UX-334).
+  // Touch points: this line + the DECK_EDITOR_SHORTCUTS constant above it (~L107).
+  useRegisterShortcuts('Deck editor', DECK_EDITOR_SHORTCUTS);
 
   const collectionById = useCollectionByCopyId();
   const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(

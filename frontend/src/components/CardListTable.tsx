@@ -31,7 +31,7 @@ import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
 import { useConfirm } from '../lib/use-confirm';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
-import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
+import { useRegisterShortcuts } from '../lib/shortcut-registry';
 import { ManaCost } from './ManaCost';
 import { SetSymbol } from './shared/SetSymbol';
 import { setSymbolTitle } from '../lib/set-symbols';
@@ -110,6 +110,14 @@ type GridSize = '1x' | '2x' | '3x';
 
 const COLLECTION_VIEW_KEY = 'mtg-collection-view-mode';
 const GRID_SIZE_KEY = 'mtg-collection-grid-size';
+
+/** Shortcut items contributed to the registry under the "Collection" section. */
+const COLLECTION_SHORTCUTS = [
+  { keys: ['/'], description: 'Focus search' },
+  { keys: ['g'], description: 'Switch to grid view' },
+  { keys: ['l'], description: 'Switch to list view' },
+  { keys: ['c'], description: 'Switch to compact list' },
+];
 
 const GRID_SIZE_MIN_COL: Record<GridSize, { desktop: number; mobile: number }> = {
   '1x': { desktop: 150, mobile: 110 },
@@ -366,7 +374,6 @@ export function CardListTable({
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
   const [cmcMax, setCmcMax] = useState<number | undefined>(undefined);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // Bulk selection is keyed by row.key (the grouped printing+finish key, or a
   // copyId when grouping is off) — the same identity the row template renders
   // and the same one handleDeleteRow resolves to underlying copies. Each
@@ -405,6 +412,7 @@ export function CardListTable({
   // Global hotkeys while the table is mounted. We ignore key events when the
   // user is typing into an input/textarea/contenteditable so the shortcuts
   // don't fight with normal text entry.
+  // NOTE: `?` is handled globally by Layout's ShortcutRegistryProvider.
   useEffect(() => {
     function isTypingTarget(t: EventTarget | null): boolean {
       if (!(t instanceof HTMLElement)) return false;
@@ -415,19 +423,7 @@ export function CardListTable({
     }
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // `/` focuses search even from inside another input would be too
-      // surprising; require focus to be outside a typing target.
-      const typing = isTypingTarget(e.target);
-      if (e.key === '?' && !typing) {
-        e.preventDefault();
-        setShortcutsOpen((v) => !v);
-        return;
-      }
-      if (e.key === 'Escape' && shortcutsOpen) {
-        // Modal handles its own Escape, but keep state in sync if it slips.
-        return;
-      }
-      if (typing) return;
+      if (isTypingTarget(e.target)) return;
       if (e.key === '/') {
         const el = document.getElementById('collection-search');
         if (el instanceof HTMLInputElement) {
@@ -455,7 +451,12 @@ export function CardListTable({
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [shortcutsOpen]);
+  }, []);
+
+  // Register the Collection shortcut section while this table is mounted.
+  // The `?` overlay is owned by Layout; we contribute our shortcuts to the
+  // registry so they appear under the "Collection" section automatically.
+  useRegisterShortcuts('Collection', COLLECTION_SHORTCUTS);
 
   const cardToBinder = useMemo(() => {
     // Per-copy assignment — pinned and rule-matched cards are routed by
@@ -1898,30 +1899,6 @@ export function CardListTable({
 
       {scryfallOpen && showScryfall && (
         <InlineCardSearch query={debouncedSearch.trim()} onClose={() => setScryfallOpen(false)} />
-      )}
-
-      {shortcutsOpen && (
-        <KeyboardShortcutsOverlay
-          onClose={() => setShortcutsOpen(false)}
-          groups={[
-            {
-              title: 'Navigation',
-              shortcuts: [
-                { keys: ['/'], description: 'Focus search' },
-                { keys: ['?'], description: 'Show keyboard shortcuts' },
-                { keys: ['Esc'], description: 'Close dialogs and overlays' },
-              ],
-            },
-            {
-              title: 'View',
-              shortcuts: [
-                { keys: ['g'], description: 'Switch to grid view' },
-                { keys: ['l'], description: 'Switch to list view' },
-                { keys: ['c'], description: 'Switch to compact list' },
-              ],
-            },
-          ]}
-        />
       )}
 
       {editingCard && (
