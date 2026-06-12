@@ -18,6 +18,7 @@ import {
   type MyIdentities,
 } from '../lib/auth-api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { InfoTip } from '../components/InfoTip';
 import { SyncIndicator } from '../components/SyncIndicator';
 import { isNativePlatform } from '../lib/platform';
 import { OfflineModeSettings } from '../components/OfflineModeSettings';
@@ -264,6 +265,14 @@ export function SettingsPage() {
 
   return (
     <div className="settings-page">
+      {/* Brand moment: phone/native users never see the top header (display:none
+          ≤1024px), so Settings is the only place to surface the product name.
+          Only shown on small screens where the header is hidden. */}
+      <div className="settings-brand-moment" aria-hidden="true">
+        <span className="settings-brand-name">SpellControl</span>
+        <span className="settings-brand-tagline">MTG binder &amp; deck planner</span>
+      </div>
+
       <header className="binder-hero settings-page-hero">
         <div className="settings-page-hero-text">
           <h1 className="binder-hero-name">Settings</h1>
@@ -313,7 +322,8 @@ export function SettingsPage() {
                   <div className="settings-row-label">Not signed in</div>
                   <div className="settings-row-hint">
                     Your collection, binders, and decks are saved on this device. Sign in to sync
-                    them across devices and back them up.
+                    them across devices and back them up. Any cards on this device will be added to
+                    your account when you sign in.
                   </div>
                 </div>
                 <Link to="/auth" className="pill-btn pill-btn-primary">
@@ -479,7 +489,26 @@ export function SettingsPage() {
 
           <div className="settings-row">
             <div className="settings-row-text">
-              <div className="settings-row-value">Export full collection</div>
+              <div className="settings-row-value settings-row-value--with-tip">
+                Export full collection
+                <InfoTip
+                  label="binders and lists"
+                  wide
+                  text={
+                    <>
+                      <strong>Binders</strong> are rule-driven — you define filters (color, set,
+                      rarity, etc.) and SpellControl automatically routes matching cards into them.
+                      <br />
+                      <br />
+                      <strong>Lists</strong> are manual — a named group of specific cards you curate
+                      by hand, for things like a wish list or trade targets.
+                      <br />
+                      <br />
+                      The backup includes both binder rule definitions and lists.
+                    </>
+                  }
+                />
+              </div>
               <div className="settings-row-hint">
                 Download a JSON backup containing every card and binder definition.
               </div>
@@ -513,7 +542,13 @@ export function SettingsPage() {
 
           <div className="settings-row">
             <div className="settings-row-text">
-              <div className="settings-row-value">Repair deck allocations</div>
+              <div className="settings-row-value settings-row-value--with-tip">
+                Repair deck allocations
+                <InfoTip
+                  label="deck allocations"
+                  text="An allocation links each card slot in a deck to a specific physical copy in your collection — so if you own two copies of a card, SpellControl knows which one is claimed by which deck. Repair re-runs this matching after edits or re-imports."
+                />
+              </div>
               <div className="settings-row-hint">
                 Re-map each deck's reserved copies after edits or re-imports.
               </div>
