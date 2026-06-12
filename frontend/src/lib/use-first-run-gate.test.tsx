@@ -33,6 +33,7 @@ function GatedProbe({ status }: { status: AuthStatus }) {
 
 describe('isFirstRunExempt', () => {
   it.each([
+    ['/welcome', true],
     ['/auth', true],
     ['/auth/choose-username', true],
     ['/oauth/callback', true],
@@ -47,9 +48,9 @@ describe('isFirstRunExempt', () => {
 });
 
 describe('useFirstRunGate', () => {
-  it('redirects a never-visited guest from /collection to /auth', () => {
+  it('redirects a never-visited guest from /collection to /welcome', () => {
     const { getByTestId } = render(<Harness status="guest" initialPath="/collection" />);
-    expect(getByTestId('path').textContent).toBe('/auth');
+    expect(getByTestId('path').textContent).toBe('/welcome');
   });
 
   it('does not redirect when the ever-visited flag is set', () => {
@@ -60,7 +61,7 @@ describe('useFirstRunGate', () => {
 
   it('does not redirect during the loading / unknown bootstrap phase', () => {
     // First-run flag is absent, but status hasn't resolved yet — must not
-    // bounce the user to /auth because they may end up authed.
+    // bounce the user because they may end up authed.
     const loading = render(<Harness status="loading" initialPath="/collection" />);
     expect(loading.getByTestId('path').textContent).toBe('/collection');
     loading.unmount();
@@ -71,6 +72,11 @@ describe('useFirstRunGate', () => {
   it('does not redirect when the user is authed', () => {
     const { getByTestId } = render(<Harness status="authed" initialPath="/collection" />);
     expect(getByTestId('path').textContent).toBe('/collection');
+  });
+
+  it('does not loop when already on /welcome as a first-run guest', () => {
+    const { getByTestId } = render(<Harness status="guest" initialPath="/welcome" />);
+    expect(getByTestId('path').textContent).toBe('/welcome');
   });
 
   it('does not loop when already on /auth as a first-run guest', () => {

@@ -4,12 +4,13 @@ import { hasEverVisited } from './first-run';
 import type { AuthStatus } from '../store/auth';
 
 /**
- * Paths reachable without first satisfying the first-run gate: the auth
- * flow itself, the OAuth landing pages, and public share links. Exported
- * for unit tests; the hook below uses it internally.
+ * Paths reachable without first satisfying the first-run gate: the welcome
+ * screen itself, the auth flow, OAuth landing pages, and public share links.
+ * Exported for unit tests; the hook below uses it internally.
  */
 export function isFirstRunExempt(pathname: string): boolean {
   return (
+    pathname === '/welcome' ||
     pathname === '/auth' ||
     pathname.startsWith('/auth/') ||
     pathname === '/oauth/callback' ||
@@ -18,11 +19,12 @@ export function isFirstRunExempt(pathname: string): boolean {
 }
 
 /**
- * First-run gate: on a brand-new install, route the user to /auth before
- * dropping them into the app. The gate is one-shot — markEverVisited()
- * from `./first-run` is set on any intentional first auth choice (login,
- * register, Google sign-in, or "Continue without an account"), after which
- * this hook no-ops forever.
+ * First-run gate: on a brand-new install, route the user to /welcome before
+ * dropping them into the app. The welcome screen offers three doors: import,
+ * try samples, or sign in. The gate is one-shot — markEverVisited() from
+ * `./first-run` is called when the user chooses a door (import/samples) or
+ * when any auth choice completes (login, register, Google, "Continue without
+ * an account"), after which this hook no-ops forever.
  *
  * Only fires once auth status has resolved to 'guest'; bootstrap's
  * 'loading' / 'unknown' phase is intentionally ignored so we don't
@@ -35,6 +37,6 @@ export function useFirstRunGate(status: AuthStatus): void {
     if (status !== 'guest') return;
     if (hasEverVisited()) return;
     if (isFirstRunExempt(location.pathname)) return;
-    navigate('/auth', { replace: true });
+    navigate('/welcome', { replace: true });
   }, [status, location.pathname, navigate]);
 }
