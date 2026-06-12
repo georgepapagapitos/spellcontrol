@@ -1,0 +1,33 @@
+/*
+ * Co-located styles for SaltiestPanel.
+ *
+ * The base list/row/name/score/hint rules live in the global
+ * styles/deck-builder.css as `.deck-saltiest-*`. This file adds the
+ * band-word chip, which is new to the extracted component.
+ */
+
+/* Band-word chip beside each salt score. Muted by default; pacing colors
+   reinforce the semantic: table-friendly = soft, polarizing = warm warning. */
+.deck-saltiest-band {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.deck-saltiest-band--table-friendly {
+  color: var(--text-muted);
+}
+
+.deck-saltiest-band--mild {
+  color: var(--text-secondary);
+}
+
+.deck-saltiest-band--spicy {
+  color: #d4a838; /* matches grade-C amber — intentional literal per GOLD_COLOR pattern */
+}
+
+.deck-saltiest-band--polarizing {
+  color: var(--err-text);
+}

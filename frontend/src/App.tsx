@@ -18,6 +18,7 @@ import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
+import { WelcomePage } from './pages/WelcomePage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -184,6 +185,7 @@ export default function App() {
       <AutoLinkBanner />
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
+        <Route path="/welcome" element={<WelcomePage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />

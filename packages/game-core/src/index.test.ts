@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyAction, createGameState, gameToRecord, makePlayer } from './index';
+import { applyAction, createGameState, gameToRecord, makePlayer, type GameState } from './index';
 
 function lobby(players = 2, opts: Partial<Parameters<typeof createGameState>[0]> = {}) {
   return createGameState({
@@ -300,5 +300,198 @@ describe('applyAction', () => {
     s = applyAction(s, { type: 'life', seat: 2, delta: -40, actorSeat: 0 });
     expect(s.status).toBe('finished');
     expect(s.winnerSeat).toBe(0);
+  });
+});
+
+describe('pass-turn', () => {
+  it('from null starts at the first non-eliminated seat', () => {
+    const s0 = applyAction(lobby(3), { type: 'start' });
+    expect(s0.activeSeat).toBeNull();
+    const s1 = applyAction(s0, { type: 'pass-turn', actorSeat: null, ts: 2000 });
+    expect(s1.activeSeat).toBe(0); // seat 0 is the lowest seat
+    expect(s1.events.at(-1)?.kind).toBe('turn');
+    expect(s1.events.at(-1)?.targetSeat).toBe(0);
+  });
+
+  it('advances to the next seat in order', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null }); // → seat 0
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 0 }); // → seat 1
+    expect(s.activeSeat).toBe(1);
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 1 }); // → seat 2
+    expect(s.activeSeat).toBe(2);
+  });
+
+  it('wraps from last seat back to first', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    // Start at seat 2 manually by passing turn twice.
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null }); // seat 0
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 0 }); // seat 1
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 1 }); // seat 2
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 2 }); // wraps → seat 0
+    expect(s.activeSeat).toBe(0);
+  });
+
+  it('skips eliminated seats', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null }); // → seat 0
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 0 }); // → seat 1
+    // Eliminate seat 2 — next pass should skip it and wrap to seat 0.
+    s = applyAction(s, { type: 'life', seat: 2, delta: -40, actorSeat: 0 });
+    expect(s.players[2].eliminated).toBe(true);
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 1 }); // seat 2 is out → seat 0
+    expect(s.activeSeat).toBe(0);
+  });
+
+  it('toSeat sets the marker directly ("start turn here" on any live seat)', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    // From null, a targeted move lands on the target, not the lowest seat.
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 2, toSeat: 2 });
+    expect(s.activeSeat).toBe(2);
+    expect(s.events.at(-1)?.targetSeat).toBe(2);
+    // From a live marker, a targeted move also lands on the target.
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 1, toSeat: 1 });
+    expect(s.activeSeat).toBe(1);
+  });
+
+  it('toSeat falls back to advance when the target is eliminated or unknown', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null }); // → seat 0
+    s = applyAction(s, { type: 'life', seat: 2, delta: -40, actorSeat: 0 });
+    expect(s.players[2].eliminated).toBe(true);
+    // Targeting the eliminated seat 2 falls back to advancing 0 → 1.
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 0, toSeat: 2 });
+    expect(s.activeSeat).toBe(1);
+    // Targeting a nonexistent seat also falls back to the advance.
+    s = applyAction(s, { type: 'pass-turn', actorSeat: 1, toSeat: 9 });
+    expect(s.activeSeat).toBe(0);
+  });
+
+  it('returns null activeSeat when all players are eliminated', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    // Eliminate both players manually (bypasses auto-win by using eliminate directly).
+    // We need to test the helper in isolation; in practice the game ends when the last
+    // player falls. Use the internal scenario where we force both eliminated.
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null }); // → seat 0
+    // Eliminate seat 0 directly — in a 2-player game seat 1 auto-wins, so we test
+    // with a pre-built state that has both eliminated.
+    const allElim: GameState = {
+      ...s,
+      players: s.players.map((p) => ({ ...p, eliminated: true })),
+      status: 'finished',
+    };
+    // pass-turn on an all-eliminated state: activeSeat should become null.
+    const res = applyAction(allElim, { type: 'pass-turn', actorSeat: null });
+    expect(res.activeSeat).toBeNull();
+  });
+
+  it('reset clears activeSeat', () => {
+    let s = applyAction(lobby(2), { type: 'start' });
+    s = applyAction(s, { type: 'pass-turn', actorSeat: null }); // activeSeat = 0
+    s = applyAction(s, { type: 'reset' });
+    expect(s.activeSeat).toBeNull();
+    expect(s.status).toBe('lobby');
+  });
+
+  it('legacy state missing activeSeat defaults to null and passes turn correctly', () => {
+    const base = lobby(3);
+    // Simulate a legacy persisted state by removing activeSeat and designations.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacy: GameState = { ...base } as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (legacy as any).activeSeat;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (legacy as any).designations;
+    const started = applyAction(legacy, { type: 'start' });
+    expect(started.activeSeat).toBeNull(); // legacy tolerance
+    expect(started.designations).toEqual({ monarch: null, initiative: null });
+    const passed = applyAction(started, { type: 'pass-turn', actorSeat: null });
+    expect(passed.activeSeat).toBe(0);
+  });
+});
+
+describe('set-designation', () => {
+  it('claims monarch — single holder', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 1, actorSeat: 1 });
+    expect(s.designations.monarch).toBe(1);
+    expect(s.events.at(-1)?.kind).toBe('designation');
+    expect(s.events.at(-1)?.targetSeat).toBe(1);
+    expect(s.events.at(-1)?.message).toBe('monarch');
+  });
+
+  it('transfers monarch from previous holder', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 0, actorSeat: 0 });
+    expect(s.designations.monarch).toBe(0);
+    s = applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 2, actorSeat: 2 });
+    expect(s.designations.monarch).toBe(2); // transferred; seat 0 no longer holds it
+  });
+
+  it('claims initiative independently of monarch', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 0, actorSeat: 0 });
+    s = applyAction(s, {
+      type: 'set-designation',
+      designation: 'initiative',
+      seat: 1,
+      actorSeat: 1,
+    });
+    expect(s.designations.monarch).toBe(0);
+    expect(s.designations.initiative).toBe(1);
+  });
+
+  it('explicitly clears a designation with seat: null', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 0, actorSeat: 0 });
+    s = applyAction(s, {
+      type: 'set-designation',
+      designation: 'monarch',
+      seat: null,
+      actorSeat: 0,
+    });
+    expect(s.designations.monarch).toBeNull();
+    // Event should record the clear: targetSeat = null, fromSeat = previous holder.
+    const ev = s.events.at(-1)!;
+    expect(ev.kind).toBe('designation');
+    expect(ev.targetSeat).toBeNull();
+    expect(ev.fromSeat).toBe(0);
+  });
+
+  it('throws when target seat does not exist', () => {
+    const s = applyAction(lobby(3), { type: 'start' });
+    expect(() =>
+      applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 99, actorSeat: 0 })
+    ).toThrow();
+  });
+
+  it('reset clears all designations', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'set-designation', designation: 'monarch', seat: 0, actorSeat: 0 });
+    s = applyAction(s, {
+      type: 'set-designation',
+      designation: 'initiative',
+      seat: 1,
+      actorSeat: 1,
+    });
+    s = applyAction(s, { type: 'reset' });
+    expect(s.designations.monarch).toBeNull();
+    expect(s.designations.initiative).toBeNull();
+  });
+
+  it('legacy state missing designations tolerates set-designation', () => {
+    const base = lobby(2);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacy: GameState = { ...base } as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (legacy as any).designations;
+    const s = applyAction(legacy, {
+      type: 'set-designation',
+      designation: 'monarch',
+      seat: 0,
+      actorSeat: 0,
+    });
+    expect(s.designations.monarch).toBe(0);
+    expect(s.designations.initiative).toBeNull();
   });
 });

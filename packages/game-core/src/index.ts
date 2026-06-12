@@ -84,7 +84,9 @@ export interface GameEvent {
     | 'start'
     | 'end'
     | 'reset'
-    | 'settings';
+    | 'settings'
+    | 'turn'
+    | 'designation';
   actorSeat: number | null;
   targetSeat: number | null;
   delta?: number;
@@ -93,6 +95,21 @@ export interface GameEvent {
 }
 
 export type GameStatus = 'lobby' | 'active' | 'finished';
+
+/**
+ * Table designations: each can be held by at most one player at a time.
+ * - `monarch`: the Monarch, drawn from the Monarch mechanic.
+ * - `initiative`: holder of The Initiative (Undercity mechanic).
+ * A null value means the designation is currently unclaimed.
+ * Persisted per game; legacy games that predate this field read it as
+ * `{ monarch: null, initiative: null }` via the default in resolvers.
+ */
+export interface GameDesignations {
+  monarch: number | null;
+  initiative: number | null;
+}
+
+export type DesignationKind = keyof GameDesignations;
 
 export interface GameState {
   id: string;
@@ -115,6 +132,19 @@ export interface GameState {
    * `horizontal` via the resolver.
    */
   tapOrientation: TapOrientation;
+  /**
+   * The seat number of the player whose turn it currently is, or null when
+   * turn tracking has not yet started. Games that never call `pass-turn` keep
+   * this null and behave exactly as before — no change in existing behaviour.
+   * Persisted per game; legacy states read this as null via the resolver.
+   */
+  activeSeat: number | null;
+  /**
+   * Table designations (Monarch, Initiative). Each is a seat number or null
+   * (unclaimed). One holder at most per designation; claiming transfers it.
+   * Persisted per game; legacy states default to both null via the resolver.
+   */
+  designations: GameDesignations;
   players: GamePlayer[];
   events: GameEvent[];
   winnerSeat: number | null;
@@ -175,6 +205,27 @@ export type GameAction =
         >
       >;
       ts?: number;
+    }
+  /**
+   * Move the turn marker. Without `toSeat`: advance the active seat to the
+   * next non-eliminated player in seat order (wraps; from null starts at the
+   * lowest-seat non-eliminated player). With `toSeat`: set the marker
+   * directly to that seat ("start/take the turn here") — ignored if that
+   * seat is eliminated/unknown, falling back to the advance behaviour.
+   * Safe to call at any game status — the UI gates it to active games.
+   */
+  | { type: 'pass-turn'; actorSeat: number | null; toSeat?: number | null; ts?: number }
+  /**
+   * Claim or clear a table designation (Monarch / Initiative).
+   * Setting `seat` to null explicitly clears the designation.
+   * Claiming automatically removes it from the previous holder.
+   */
+  | {
+      type: 'set-designation';
+      designation: DesignationKind;
+      seat: number | null;
+      actorSeat: number | null;
+      ts?: number;
     };
 
 const MAX_EVENTS = 500;
@@ -204,6 +255,32 @@ function updatePlayer(
   patch: (p: GamePlayer) => GamePlayer
 ): GamePlayer[] {
   return state.players.map((p) => (p.seat === seat ? patch(p) : p));
+}
+
+/**
+ * Find the next non-eliminated seat after `currentSeat` in sorted seat order,
+ * wrapping. Returns `null` if no eligible seat exists (everyone is eliminated).
+ * When `currentSeat` is null, returns the first non-eliminated seat.
+ */
+function nextActiveSeat(players: GamePlayer[], currentSeat: number | null): number | null {
+  const alive = players.filter((p) => !p.eliminated).sort((a, b) => a.seat - b.seat);
+  if (alive.length === 0) return null;
+  if (currentSeat === null) return alive[0].seat;
+  const idx = alive.findIndex((p) => p.seat === currentSeat);
+  // If the current active seat is no longer alive, start at the first alive seat.
+  if (idx === -1) return alive[0].seat;
+  return alive[(idx + 1) % alive.length].seat;
+}
+
+/**
+ * Resolve the designations field tolerantly — legacy persisted states that
+ * were created before UX-324 won't have this field.
+ */
+function resolveDesignations(raw: GameDesignations | undefined | null): GameDesignations {
+  return {
+    monarch: raw?.monarch ?? null,
+    initiative: raw?.initiative ?? null,
+  };
 }
 
 function checkLossConditions(player: GamePlayer, state: GameState): boolean {
@@ -279,6 +356,8 @@ export function createGameState(input: {
     poisonEnabled: input.poisonEnabled,
     layout: input.layout ?? 'pod',
     tapOrientation: input.tapOrientation ?? 'horizontal',
+    activeSeat: null,
+    designations: { monarch: null, initiative: null },
     players: input.players,
     events: [],
     winnerSeat: null,
@@ -334,7 +413,13 @@ export interface ApplyResult {
  */
 export function applyAction(prev: GameState, action: GameAction): GameState {
   const ts = action.ts ?? Date.now();
-  let next: GameState = { ...prev };
+  // Legacy tolerance: old persisted states won't have activeSeat / designations.
+  // Normalize them once at the top so all action cases see consistent fields.
+  let next: GameState = {
+    ...prev,
+    activeSeat: prev.activeSeat ?? null,
+    designations: resolveDesignations(prev.designations),
+  };
 
   switch (action.type) {
     case 'start': {
@@ -370,6 +455,9 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
         winnerSeat: null,
         startedAt: null,
         endedAt: null,
+        // Reset turn tracking and designations when the game resets.
+        activeSeat: null,
+        designations: { monarch: null, initiative: null },
         players: prev.players.map((p) => ({
           ...p,
           life: prev.startingLife,
@@ -546,6 +634,56 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           kind: 'settings',
           actorSeat: null,
           targetSeat: null,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'pass-turn': {
+      // Resolve legacy states: activeSeat may be absent on old persisted games.
+      const currentActive = (prev as GameState).activeSeat ?? null;
+      // A targeted move ("start the turn here") sets the marker directly when
+      // the target seat is a live player; otherwise advance from current.
+      const target =
+        action.toSeat != null &&
+        prev.players.some((p) => p.seat === action.toSeat && !p.eliminated)
+          ? action.toSeat
+          : null;
+      const newActive = target ?? nextActiveSeat(prev.players, currentActive);
+      next = {
+        ...next,
+        // Legacy tolerance: carry forward the designations field even if missing.
+        designations: resolveDesignations((prev as GameState).designations),
+        activeSeat: newActive,
+        events: pushEvent(next, {
+          kind: 'turn',
+          actorSeat: action.actorSeat,
+          targetSeat: newActive,
+          ts,
+        }),
+      };
+      break;
+    }
+    case 'set-designation': {
+      const designations = resolveDesignations((prev as GameState).designations);
+      // Validate the target seat exists (unless clearing with null).
+      if (action.seat !== null && !prev.players.some((p) => p.seat === action.seat)) {
+        throw new Error(`No player at seat ${action.seat}.`);
+      }
+      next = {
+        ...next,
+        designations: {
+          ...designations,
+          [action.designation]: action.seat,
+        },
+        events: pushEvent(next, {
+          kind: 'designation',
+          actorSeat: action.actorSeat,
+          // targetSeat = new holder (or null if cleared)
+          targetSeat: action.seat,
+          // fromSeat = previous holder (null if unclaimed)
+          fromSeat: designations[action.designation] ?? undefined,
+          message: action.designation,
           ts,
         }),
       };
