@@ -590,6 +590,17 @@ export function DeckEditorPage() {
     return deck.gradeBracketSignature ? 'ready' : 'pending';
   }, [deck]);
 
+  // Session-scoped reveal key for score animations. Non-null only when analysis
+  // is ready and the deck has a gradeBracketSignature. The module-level registry
+  // in use-animated-number ensures the reveal fires exactly once per key (even
+  // across tab switches and remounts) — no latch state needed here.
+  const scoreRevealKey = useMemo<string | null>(() => {
+    if (!deck) return null;
+    if (analysisState !== 'ready') return null;
+    if (!deck.gradeBracketSignature) return null;
+    return `${deck.id}:${deck.gradeBracketSignature}`;
+  }, [deck, analysisState]);
+
   // UX-311: deep-link from a StatsHero shortfall to the Coach filter that fixes
   // it. Switches to the Coach tab and sets the focus so CoachFeed activates the
   // matching chip (the same one-shot mechanism as NextBestMove deep-links).
@@ -1905,6 +1916,7 @@ export function DeckEditorPage() {
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
             analysisState={analysisState}
+            scoreRevealKey={scoreRevealKey}
             onNavigateToTune={
               // Only wire the deep-link when analysis has run — until then the
               // Tune lanes don't exist yet, so a deep-link would land on nothing.
@@ -1917,6 +1929,7 @@ export function DeckEditorPage() {
                 <PowerHero
                   bracket={effectiveBracket(deck) ?? null}
                   bracketOverridden={deck.bracketOverride != null}
+                  revealKey={scoreRevealKey}
                   bracketReasons={(deck.bracketEstimation?.hardFloors ?? []).map((f) => f.reason)}
                   engineLabel={deck.synergyAnalysis?.axes[0]?.label}
                   engineProducers={deck.synergyAnalysis?.axes[0]?.producers}

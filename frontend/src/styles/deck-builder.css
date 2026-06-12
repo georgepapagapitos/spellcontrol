@@ -2381,6 +2381,51 @@ input.toolbar-search-input {
   }
 }
 
+/* ── Panel cascade animation ─────────────────────────────────────────────────
+   Staggered entrance for bento panels when analysis becomes ready. The
+   `.panel-cascade-enter` class is added by usePanelCascade / panelCascadeClass;
+   slot 0–5 drive the delay. Panels beyond index 5 share the last slot delay.
+   Reduced-motion: animation is suppressed entirely. */
+@keyframes panel-cascade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panel-cascade-enter {
+  animation: panel-cascade-in var(--motion-gentle) var(--ease-out-soft) both;
+}
+
+.panel-cascade-enter-0 {
+  animation-delay: 0ms;
+}
+.panel-cascade-enter-1 {
+  animation-delay: 40ms;
+}
+.panel-cascade-enter-2 {
+  animation-delay: 80ms;
+}
+.panel-cascade-enter-3 {
+  animation-delay: 120ms;
+}
+.panel-cascade-enter-4 {
+  animation-delay: 160ms;
+}
+.panel-cascade-enter-5 {
+  animation-delay: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-cascade-enter {
+    animation: none;
+  }
+}
+
 .deck-stats-panel-title {
   font-size: var(--text-xs);
   text-transform: uppercase;
