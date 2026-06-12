@@ -490,6 +490,36 @@ settled here:
   action). No fork of sample data; the import appears as the normal deletable
   "Sample: starter pack" entry in import history.
 
+## Keyboard shortcuts — discoverability pattern (UX-334)
+
+**One global overlay, one registry.** The `?` key opens a single
+`KeyboardShortcutsOverlay` (a shared `Modal`) from anywhere outside a text
+input. Pages/components contribute their section via
+`useRegisterShortcuts(sectionTitle, shortcuts)` from `lib/shortcut-registry`.
+The overlay renders all mounted sections in registration order ("Global" always
+first, since Layout mounts it first). Do NOT wire a local `?` listener in a
+page — the global listener in Layout handles it.
+
+**`shortcuts` must be stable.** Pass a module-level constant or `useMemo` array
+— never an inline array literal. An inline literal creates a new reference on
+every render, causing `useRegisterShortcuts`'s effect to re-register
+repeatedly (an infinite render loop).
+
+**Input guard.** The `?` key is suppressed when focus is inside any
+`<input>`, `<textarea>`, `<select>`, or `contentEditable`. The guard is
+`isTypingTarget` from `lib/shortcut-registry`.
+
+**Footer chip.** A `<button className="footer-shortcuts-chip">` in `Footer.tsx`
+calls `show()` from `useShortcutRegistry`. It is `display:none` by default and
+revealed only at `≥1024px` + `(hover:hover) and (pointer:fine)` — i.e. desktop
+fine-pointer only. Do NOT add similar chips to page headers/toolbars.
+
+**`kbd` styling.** The overlay uses `.shortcuts-overlay-kbd` (from `global.css`).
+The footer chip uses `.footer-shortcuts-kbd`. Both have the same visual treatment
+(mono, small-caps-border box) — don't hand-roll a third variant.
+
+---
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",
