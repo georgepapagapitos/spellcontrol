@@ -7,6 +7,8 @@ import {
   MoreVertical,
   Package,
   Plus,
+  Trash2,
+  Wand2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -340,6 +342,19 @@ export function DecksIndexPage() {
             items={[
               { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
               { label: 'Add precon', icon: Package, onClick: () => setShowProductSearch(true) },
+              // "Delete all decks" is a danger item — destructive actions live
+              // in the page kebab per STYLE_GUIDE. Only shown when there are
+              // multiple decks to delete. (UX-316)
+              ...(decks.length > 1
+                ? [
+                    {
+                      label: 'Delete all decks',
+                      icon: Trash2,
+                      onClick: () => setConfirmDeleteAll(true),
+                      danger: true,
+                    },
+                  ]
+                : []),
             ]}
           />
           <Link to="/decks/new" className="pill-btn pill-btn-primary">
@@ -435,12 +450,36 @@ export function DecksIndexPage() {
       )}
 
       {decks.length === 0 ? (
+        /* Three-door empty state (UX-317) — mirrors the Binders gold standard:
+           a tagline, a plain-English hint, then ALL three entry points so the
+           user knows what the page can do before they've done anything. */
         <div className="empty-state">
           <p className="empty-state-tagline">No decks yet.</p>
-          <div className="empty-state-actions">
-            <Link to="/decks/new" className="btn btn-primary">
-              Build your first deck
+          <p className="empty-state-hint">
+            Build a deck from scratch with the guided builder, import a list you already have, or
+            add a preconstructed deck from your collection.
+          </p>
+          <div className="empty-state-actions decks-empty-actions">
+            <Link to="/decks/new/guided" className="btn btn-primary empty-state-action">
+              <Wand2 width={14} height={14} strokeWidth={2} aria-hidden />
+              Build a deck
             </Link>
+            <button
+              type="button"
+              className="btn empty-state-action"
+              onClick={() => setShowImport(true)}
+            >
+              <Download width={14} height={14} strokeWidth={2} aria-hidden />
+              Import deck
+            </button>
+            <button
+              type="button"
+              className="btn empty-state-action"
+              onClick={() => setShowProductSearch(true)}
+            >
+              <Package width={14} height={14} strokeWidth={2} aria-hidden />
+              Add precon
+            </button>
           </div>
         </div>
       ) : sorted.length === 0 ? (
@@ -579,17 +618,7 @@ export function DecksIndexPage() {
         </ul>
       )}
 
-      {decks.length > 1 && (
-        <div className="decks-index-danger">
-          <button
-            type="button"
-            className="btn-link decks-index-danger-btn"
-            onClick={() => setConfirmDeleteAll(true)}
-          >
-            Delete all decks
-          </button>
-        </div>
-      )}
+      {/* "Delete all decks" moved to the hero ⋮ OverflowMenu (UX-316). */}
       {shareDeck && (
         <ShareDialog
           kind="deck"

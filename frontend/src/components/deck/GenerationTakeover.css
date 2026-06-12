@@ -1,0 +1,97 @@
+/* ── GenerationTakeover ────────────────────────────────────────────────────
+   Focused full-width panel that replaces the inline progress strip during
+   commander-deck generation. Commander art anchors the wait; the overlay
+   gradient keeps the text legible on any art. Uses semantic tokens only;
+   no new keyframes (reuses shared fade-in from global.css). */
+
+.gen-takeover {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 18rem;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface-raised);
+  animation: fade-in var(--motion-base) var(--ease-out-soft) both;
+}
+
+/* ── Art layer ─────────────────────────────────────────────────────────── */
+.gen-takeover-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.gen-takeover-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* Gradient overlay: darkens the bottom half for text legibility without
+   obscuring the commander's face (art-crop images have the art centered
+   toward the top third). */
+.gen-takeover-art-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 25%,
+    color-mix(in srgb, var(--surface) 60%, transparent) 65%,
+    color-mix(in srgb, var(--surface) 90%, transparent) 100%
+  );
+}
+
+/* ── Content layer ─────────────────────────────────────────────────────── */
+.gen-takeover-body {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: var(--space-5) var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.gen-takeover-commander {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.gen-takeover-step {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-height: 1.4em; /* prevent layout jump between messages */
+}
+
+.gen-takeover-bar {
+  /* Let the bar fill the panel width. */
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .gen-takeover {
+    min-height: 14rem;
+  }
+
+  .gen-takeover-body {
+    padding: var(--space-4);
+  }
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .gen-takeover {
+    animation: none;
+  }
+}

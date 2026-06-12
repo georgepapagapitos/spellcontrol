@@ -1,6 +1,13 @@
-import { Coins, Copy, MoreVertical, Plus, Redo2, Trash2, Undo2, X } from 'lucide-react';
+import { Coins, Copy, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams, Link, Navigate } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+  Link,
+  Navigate,
+} from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
@@ -62,6 +69,8 @@ import {
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StealConfirmSheet } from '../components/deck/StealConfirmSheet';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
+import { BuildReportSheet } from '../components/deck/BuildReportSheet';
+import { isBuildReportSeen } from '../lib/build-report-seen';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
@@ -100,6 +109,7 @@ const ROLE_LABEL: Record<string, string> = {
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === id) ?? null);
   const updateDeck = useDecksStore((s) => s.updateDeck);
   const renameDeck = useDecksStore((s) => s.renameDeck);
@@ -177,6 +187,20 @@ export function DeckEditorPage() {
   const [showPartnerPicker, setShowPartnerPicker] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // One-shot build-report sheet: shown once immediately after deck generation.
+  // Gated on BOTH the justGenerated router state (set by GuidedBuildPage's
+  // post-save navigate — so pre-existing generated decks never pop it) AND the
+  // localStorage seen-set (so a refresh that restores history state doesn't
+  // re-show it).
+  const [showBuildReport, setShowBuildReport] = useState(
+    () =>
+      !!(
+        (location.state as { justGenerated?: boolean } | null)?.justGenerated &&
+        deck?.source === 'generated' &&
+        deck?.buildReport &&
+        !isBuildReportSeen(deck?.id ?? '')
+      )
+  );
   // Hoisted so the mobile action sheet can open Export without rendering
   // a duplicate button. Passed to DeckDisplay as a controlled prop pair.
   const [exportOpen, setExportOpen] = useState(false);
@@ -1707,14 +1731,20 @@ export function DeckEditorPage() {
             <Copy width={14} height={14} strokeWidth={2} aria-hidden />
             Duplicate
           </button>
-          <button
-            type="button"
-            className="btn btn-danger deck-editor-action-btn"
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 width={14} height={14} strokeWidth={2} aria-hidden />
-            Delete
-          </button>
+          {/* Delete lives in the ⋮ overflow on ALL sizes (desktop included),
+              per the STYLE_GUIDE ruling that destructive actions belong in
+              the page kebab — not inline. UX-316. */}
+          <DeckEditorOverflowMenu
+            onDuplicate={handleDuplicate}
+            onDelete={() => setConfirmDelete(true)}
+            onExport={() => setExportOpen(true)}
+            onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
+            onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+            onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
+            onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
+            undoLabel={undoEditLabel}
+            redoLabel={redoEditLabel}
+          />
         </div>
         <div className="deck-editor-mobile-actions">
           {/* Undo/redo aren't pills here — a bare icon gives no hint of *what*
@@ -2313,6 +2343,21 @@ export function DeckEditorPage() {
           confirmLabel="Release copy"
           onConfirm={handleReleaseConfirm}
           onCancel={() => setReleaseCard(null)}
+        />
+      )}
+
+      {/* One-shot post-generation build report sheet (UX-316).
+          Shown once per deck immediately after generation; never again. */}
+      {showBuildReport && deck?.buildReport && (
+        <BuildReportSheet
+          deckId={deck.id}
+          commanderName={deck.commander?.name}
+          commanderImageUrl={
+            deck.commander?.image_uris?.art_crop ??
+            deck.commander?.card_faces?.[0]?.image_uris?.art_crop
+          }
+          report={deck.buildReport}
+          onClose={() => setShowBuildReport(false)}
         />
       )}
 
