@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
+import { useCollectionStore } from '../store/collection';
 import { fetchProviders, googleSignInUrl } from '../lib/auth-api';
 import { isNativePlatform } from '../lib/platform';
 import { preventFocusSteal } from '../lib/keyboard';
 import { markEverVisited } from '../lib/first-run';
+import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
 
 type Mode = 'login' | 'register';
@@ -52,6 +54,8 @@ export default function AuthPage() {
   const loginAction = useAuth((s) => s.login);
   const registerAction = useAuth((s) => s.register);
   const navigate = useNavigate();
+  // Live local card count — used to tell the user about data promotion on sign-in.
+  const localCardCount = useCollectionStore((s) => s.cards.length);
   const [searchParams] = useSearchParams();
   const oauthFailed = searchParams.get('error') === 'google';
 
@@ -90,13 +94,27 @@ export default function AuthPage() {
     }
     setConfirmError(null);
     setSubmitting(true);
+    // Snapshot count before the action so the toast copy is accurate even
+    // if the store updates during the async login/register call.
+    const cardsToMerge = localCardCount;
     const ok =
       mode === 'login'
         ? await loginAction(username.trim(), password)
         : await registerAction(username.trim(), password);
     setSubmitting(false);
-    if (ok) navigate('/', { replace: true });
-    else if (mode === 'register') setConfirm('');
+    if (ok) {
+      // Confirm the promotion in a toast so users see the result, not just our
+      // pre-submit promise. Only fires when there was local data to merge.
+      if (cardsToMerge > 0) {
+        toast.show({
+          message: `${cardsToMerge.toLocaleString()} ${cardsToMerge === 1 ? 'card' : 'cards'} added to your account.`,
+          tone: 'success',
+        });
+      }
+      navigate('/', { replace: true });
+    } else if (mode === 'register') {
+      setConfirm('');
+    }
   }
 
   function handleGoogle() {
@@ -130,6 +148,13 @@ export default function AuthPage() {
             ? 'Sign in to sync your collection across devices.'
             : 'Create an account to sync across devices.'}
         </p>
+
+        {localCardCount > 0 && (
+          <p className="auth-merge-notice">
+            The {localCardCount.toLocaleString()} {localCardCount === 1 ? 'card' : 'cards'} on this
+            device will be added to your account.
+          </p>
+        )}
 
         <Tabs<Mode>
           ariaLabel="Sign in or create account"
