@@ -1,5 +1,6 @@
 import { Coins, Copy, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { haptics } from '../lib/haptics';
 import {
   useLocation,
   useNavigate,
@@ -1055,9 +1056,11 @@ export function DeckEditorPage() {
           addSideboardCard(deck.id, scry, claim?.copyId ?? null)
         );
         pushToast({ message: `Added ${cardName} to sideboard`, tone: 'success' });
+        haptics.tap();
       } else {
         recordEdit(deck.id, `add ${cardName}`, () => addCard(deck.id, scry, claim?.copyId ?? null));
         pushToast({ message: `Added ${cardName}`, tone: 'success' });
+        haptics.tap();
       }
     } catch {
       pushToast({ message: `Couldn't add ${cardName}`, tone: 'error' });
@@ -1093,6 +1096,7 @@ export function DeckEditorPage() {
     const wasFull = deck.cards.length >= mainboardLimit;
     recordEdit(deck.id, `cut ${cardName}`, () => removeCard(deck.id, slotId));
     pushToast({ message: `Cut ${cardName}`, tone: 'success' });
+    haptics.tap();
     if (isCommander && wasFull) {
       setRefillAfterCut({ name: cardName, role: classifyCandidate(cardName) ?? null });
     }
@@ -1120,6 +1124,7 @@ export function DeckEditorPage() {
       if (before)
         commitEdit(deck.id, cutName ? `replace ${cutName} → ${name}` : `add ${name}`, before);
       pushToast({ message: `Added ${name}`, tone: 'success' });
+      haptics.tap();
     } catch {
       pushToast({ message: `Couldn't add ${name}`, tone: 'error' });
     } finally {
@@ -1250,6 +1255,7 @@ export function DeckEditorPage() {
       swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
       if (before) commitEdit(deck.id, `swap ${oldName} → ${newName}`, before);
       pushToast({ message: `Swapped ${oldName} → ${newName}`, tone: 'success' });
+      haptics.tap();
       close();
     } catch {
       pushToast({ message: `Couldn't swap ${oldName}`, tone: 'error' });

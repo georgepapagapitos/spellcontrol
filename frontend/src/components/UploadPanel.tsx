@@ -1,5 +1,6 @@
 import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Suspense, lazy, useMemo, useRef, useState } from 'react';
+import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import type { UploadResponse } from '../types';
@@ -203,6 +204,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         setStagedFiles([]);
         setStageNote(null);
         setRecentImportIds(newImportIds);
+        haptics.success();
         return;
       }
 
@@ -227,6 +229,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       setSuccessMsg(parts.join(' · '));
       if (p.label === 'pasted-list') setPasteText('');
       setRecentImportIds(newImportIds);
+      haptics.success();
     } catch (err) {
       const fallback = 'Could not read that file. Double-check the format and try again.';
       setError(err instanceof Error ? err.message : fallback);

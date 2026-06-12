@@ -215,6 +215,59 @@ STYLE_GUIDE discussion, not an inline constant.
    `--ease-pop` one-shot ≤320ms; skeleton shimmer 1.4s; spinner 0.8s linear
    (use the shared `spin` / `skeleton-shimmer` keyframes — don't redeclare).
 
+### Live values
+
+**Live values animate on computation, not on mount.** A count-up or cascade
+plays when the underlying analysis (re)computes or the value genuinely changes —
+never again on tab switches or remounts of unchanged data. The `revealKey`
+registry in `lib/use-animated-number.ts` is the mechanism: a key is consumed
+globally once, so remounts of the same component don't replay the tween.
+
+**Motion budget:**
+- Reveal: 600ms easeOutCubic (0 → final value on first computation)
+- Re-target: 200ms (small delta, ≤5 — the normal live-update path)
+- Pop one-shot: ≤320ms (`--ease-pop`) on value change
+
+Number and gauge share **one tween** — the `useAnimatedNumber` display value
+drives both the rendered digit and `--hero-score-pct` inline, so the sweep and
+the count-up land on the same frame (two decorations moving together → one fact
+arriving).
+
+**Words and bands never count up.** Only integer scores tween; verdict labels,
+band words, bracket text, and percentage labels are set synchronously.
+
+**Reduced motion:** `matchMedia('prefers-reduced-motion: reduce')` → set final
+value immediately, still bump `popKey` so the pop CSS gate fires (the CSS pop
+animation is itself reduced-motion gated, so this is safe).
+
+### Device tilt
+
+Gyro tilt is a foil-and-preview-only interaction — foil/etched cards only, in
+the card-preview surface only. The listener attaches on preview open and detaches
+on dismiss (zero idle battery cost).
+
+**Mandatory gates (all must hold for the listener to attach):**
+
+1. The card is foil or etched (`card.foil` truthy — `classifyFoil` returns a
+   style other than `'none'`).
+2. Touch device — NOT `(hover: none)`: Samsung WebViews report `hover: hover`
+   on touch (the documented Galaxy trap), so the robust check is the inverse
+   of the full desktop gate: `!matchMedia('(hover: hover) and (pointer: fine)')`.
+3. `prefers-reduced-motion: reduce` is NOT set. Vestibular motion triggered by
+   hand movement is exactly what that media feature is for — hard-disabled, not
+   just reduced.
+4. Swipe suppression: during a parent-owned swipe gesture, `shouldSuppressTilt`
+   returns true and the tilt eases to neutral (same handshake as the cursor path).
+
+**Baseline-delta mapping** — the first orientation sample captured at preview
+open becomes the neutral reference. All subsequent samples map only the *delta*
+from that baseline, so nobody needs to hold the phone flat for the effect to
+work. The pure mapping math lives in `lib/tilt-mapping.ts` (unit-tested).
+
+**No new settings UI.** The gyro interaction is gated by foil + preview-open
+interaction context and disabled under OS reduced-motion — no additional toggle
+needed.
+
 ### Reduced motion
 
 Every keyframe gets a `prefers-reduced-motion: reduce` gate (the global

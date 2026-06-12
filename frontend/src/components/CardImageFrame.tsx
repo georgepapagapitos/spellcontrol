@@ -52,9 +52,12 @@ export function CardImageFrame({
   eager,
   shouldSuppressTilt,
 }: Props) {
-  const holoRef = useHolographic(active, { shouldSuppressTilt });
   const style = classifyFoil(card);
   const foilClass = style !== 'none' ? ` is-foil foil-${style}` : '';
+  // enableGyro: foil/etched cards only — the gyro tilt is the "physical binder"
+  // fantasy and only reads naturally when there is shimmer to move. Non-foil cards
+  // stay flat on native (cursor tilt still works on desktop via the pointer path).
+  const holoRef = useHolographic(active, { shouldSuppressTilt, enableGyro: style !== 'none' });
 
   return (
     <div className={`card-preview-image-frame${foilClass}`} ref={holoRef}>

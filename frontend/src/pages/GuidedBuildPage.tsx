@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { haptics } from '../lib/haptics';
 import { useNavigate } from 'react-router-dom';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
@@ -219,6 +220,8 @@ export function GuidedBuildPage() {
         collectionCards,
         createDeck
       );
+      // Deck generation completed — success haptic to mark the moment.
+      haptics.success();
       // justGenerated gates the one-shot Build Report sheet — without it,
       // every pre-existing generated deck would pop the sheet once on its
       // next open (the seen-set only guards against repeats).
