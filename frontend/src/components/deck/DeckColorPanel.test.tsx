@@ -88,4 +88,41 @@ describe('DeckColorPanel', () => {
     // No donut SVG when there's no data.
     expect(screen.queryByLabelText('Color distribution')).toBeNull();
   });
+
+  it('donut center shows total card count', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 10, U: 6, C: 4 }, total: 20 }}
+        manaProduction={{ counts: {}, total: 0 }}
+      />
+    );
+    // The center label aria-label includes the total count.
+    expect(screen.getByLabelText(/20 cards total/)).toBeTruthy();
+    // The visible count text is also present.
+    expect(screen.getByText('20')).toBeTruthy();
+  });
+
+  it('donut center aria-label includes color identity (excluding colorless)', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { W: 10, U: 6, C: 4 }, total: 20 }}
+        manaProduction={{ counts: {}, total: 0 }}
+      />
+    );
+    // W and U are identity colors; C (colorless) is excluded from identity.
+    const centerEl = screen.getByLabelText(/20 cards total, White, Blue/);
+    expect(centerEl).toBeTruthy();
+  });
+
+  it('donut center aria-label omits color identity when only colorless is present', () => {
+    render(
+      <DeckColorPanel
+        colorDist={{ counts: { C: 10 }, total: 10 }}
+        manaProduction={{ counts: {}, total: 0 }}
+      />
+    );
+    // Only colorless — no identity label.
+    const centerEl = screen.getByLabelText('10 cards total');
+    expect(centerEl).toBeTruthy();
+  });
 });

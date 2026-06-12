@@ -1,5 +1,6 @@
 import { type JSX, useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
+import { ColorPip } from '../shared/ManaSymbol';
 import { DeckColorBalance } from './DeckColorBalance';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
@@ -49,23 +50,42 @@ function DistributionDonut({
     return acc;
   }, []);
 
+  // Identity row: colors present in distribution, excluding colorless (C).
+  const identityColors = COLOR_ORDER.filter((k) => k !== 'C' && (counts[k] ?? 0) > 0);
+  const identityLabel = identityColors.map((k) => COLOR_INFO[k]?.label ?? k).join(', ');
+
   return (
     <div className="deck-color-donut">
-      <svg viewBox="-50 -50 100 100" width={112} height={112} aria-label="Color distribution">
-        <circle r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
-        {segments.map(({ k, len, offset }) => (
-          <circle
-            key={k}
-            r={radius}
-            fill="none"
-            stroke={COLOR_INFO[k]?.pip ?? 'var(--accent)'}
-            strokeWidth={stroke}
-            strokeDasharray={`${len} ${circ - len}`}
-            strokeDashoffset={-offset}
-            transform="rotate(-90)"
-          />
-        ))}
-      </svg>
+      <div className="deck-color-donut-wrap">
+        <svg viewBox="-50 -50 100 100" width={112} height={112} aria-label="Color distribution">
+          <circle r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+          {segments.map(({ k, len, offset }) => (
+            <circle
+              key={k}
+              r={radius}
+              fill="none"
+              stroke={COLOR_INFO[k]?.pip ?? 'var(--accent)'}
+              strokeWidth={stroke}
+              strokeDasharray={`${len} ${circ - len}`}
+              strokeDashoffset={-offset}
+              transform="rotate(-90)"
+            />
+          ))}
+        </svg>
+        <div
+          className="deck-color-donut-center"
+          aria-label={`${total} cards total${identityLabel ? `, ${identityLabel}` : ''}`}
+        >
+          <span className="deck-color-donut-center-count">{total}</span>
+          {identityColors.length > 0 && (
+            <span className="deck-color-donut-center-pips" aria-hidden="true">
+              {identityColors.map((k) => (
+                <ColorPip key={k} color={k} />
+              ))}
+            </span>
+          )}
+        </div>
+      </div>
       <ul className="deck-color-donut-legend">
         {COLOR_ORDER.filter((k) => (counts[k] ?? 0) > 0).map((k) => {
           const v = counts[k];

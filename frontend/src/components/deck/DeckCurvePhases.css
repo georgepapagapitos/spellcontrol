@@ -123,6 +123,23 @@
   display: flex;
   align-items: flex-end;
   min-height: 2px;
+  position: relative;
+}
+
+/* Target-height marker — a thin horizontal dash showing the pacing-aware
+   target count for this CMC slot's phase. Positioned from the bottom of the
+   track, sits behind the bar fill (earlier in DOM order). No animation (static
+   reference line; reduced-motion irrelevant but we don't animate it anyway). */
+.deck-curve-phases-bar-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--text-muted);
+  opacity: 0.45;
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Solid (count) bar — the classic accent histogram look. */
