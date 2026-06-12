@@ -3929,3 +3929,115 @@ body:has(.game-board) .modal-backdrop {
   pointer-events: auto;
   animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
 }
+
+/* ── UX-324: Turn marker + designations ─────────────────────────────────── */
+
+/**
+ * Active-turn ring: a bright neutral ring on the active player's panel.
+ * Neutral white (not a player color) so it reads on every palette. Overlays
+ * the existing box-shadow via a separate ::before pseudo. Rotated panels
+ * inherit the ring via CSS; no JS intervention needed.
+ *
+ * We do NOT transition the ring on/off (rotation-safe concern: the panel's
+ * transform is already not transitioned). The ring appears/disappears on the
+ * next render frame.
+ */
+.player-panel.is-active-turn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* Neutral bright ring — reads on any panel palette. 2.5px for clarity.
+     Not the accent color so the active-seat mark doesn't compete with the
+     "this is your seat" is-mine highlight or the is-winner ring. */
+  box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Reduced-motion: skip any gating animation (the ring itself is static). */
+@media (prefers-reduced-motion: reduce) {
+  .player-panel.is-active-turn::after {
+    /* Already static — nothing to gate here. Keep the rule explicit for
+       documentation and to future-proof if a pulse is ever added. */
+    animation: none;
+  }
+}
+
+/* Eliminated panels lose the ring — the seat is logically out. */
+.player-panel.is-eliminated.is-active-turn::after {
+  display: none;
+}
+
+/* ── Designation chips (Monarch / Initiative) ──────────────────────────── */
+
+/**
+ * Chip container sits at the top-right of the panel content area, inside
+ * the rotated .player-panel so it reads upright for that seat automatically.
+ * Positioned to avoid collision with the ⋯ seat-menu button (bottom-right)
+ * and the name (top-left).
+ */
+.pp-designation-chips {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  pointer-events: none; /* tap falls through to the panel — use seat menu to change */
+}
+
+.pp-designation-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 28px × 28px: large enough to read as a chip, small enough not to crowd. */
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  font-size: var(--text-base);
+  line-height: 1;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Gentle entrance — not mandatory, gated for reduced-motion */
+@media (prefers-reduced-motion: no-preference) {
+  .pp-designation-chip {
+    animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
+  }
+}
+
+/* ── Seat menu: turn + designation sections ─────────────────────────────── */
+
+.seat-menu-turn-section,
+.seat-menu-designations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Active-turn state: highlight the "Pass turn" button slightly */
+.seat-menu-action.is-active-turn {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Designation-held state: tint the claim button so current state is clear */
+.seat-menu-action.is-designation-active {
+  background: rgba(255, 220, 80, 0.18);
+  border-color: rgba(255, 220, 80, 0.45);
+  color: rgba(255, 235, 120, 0.95);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-action.is-active-turn:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .seat-menu-action.is-designation-active:hover {
+    background: rgba(255, 220, 80, 0.26);
+  }
+}
