@@ -44,8 +44,51 @@
   min-width: 0;
 }
 
-.deck-color-donut svg {
+/* Wrapper that lets the center label overlay the donut hole. */
+.deck-color-donut-wrap {
+  position: relative;
   flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+}
+
+.deck-color-donut-wrap svg {
+  display: block;
+}
+
+/* Center label: total count + color pips, overlaid in the donut hole.
+   The hole radius is ~22px (radius 36 - stroke 14). We keep the overlay
+   compact so it stays inside the ring at all viewport widths. */
+.deck-color-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  /* Non-interactive: the SVG rings and legend rows are the tap targets. */
+  pointer-events: none;
+}
+
+.deck-color-donut-center-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.deck-color-donut-center-pips {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  /* Scale down mana pips so they fit in the ~20px hole. The ms font renders
+     pip glyphs at roughly 1em; 0.625rem (≈10px) keeps 5 pips clear of the ring.
+     Expressed as calc() to satisfy the stylelint font-size literal ban. */
+  font-size: calc(var(--text-xs) * 0.87);
+  line-height: 1;
 }
 
 .deck-color-donut-legend {

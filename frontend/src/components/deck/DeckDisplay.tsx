@@ -72,6 +72,7 @@ import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
 import { DeckTypeBreakdown } from './DeckTypeBreakdown';
+import { SaltiestPanel } from './SaltiestPanel';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { computeRoleDensity } from '@/deck-builder/services/deckBuilder/roleDensity';
 import { StatsHero } from './StatsHero';
@@ -3236,9 +3237,6 @@ function DeckAnalysisView({
   // below stay untouched.
   const current = view;
 
-  // Tap a saltiest-card name to preview it (swipe through the salt list).
-  const saltCarousel = useCardCarousel('Saltiest cards');
-
   // ── Tune intent lanes — imperative reveal targets for hero deep-links. ──
   // The three improve-flavored focuses (fill-gaps / upgrade / collection) all
   // resolve to the single merged Improve lane; budget and bracket-fit are their own lanes.
@@ -3316,34 +3314,7 @@ function DeckAnalysisView({
           <div className="deck-stats-pair">
             {saltiestCards && saltiestCards.length > 0 && (
               <Panel title="Saltiest cards">
-                <ul className="deck-saltiest-list">
-                  {saltiestCards.map((c) => (
-                    <li key={c.name} className="deck-saltiest-row">
-                      <button
-                        type="button"
-                        className="deck-saltiest-name"
-                        onClick={() =>
-                          void saltCarousel.open(
-                            saltiestCards.map((s) => ({
-                              name: s.name,
-                              label: `Salt ${s.salt.toFixed(2)}`,
-                            })),
-                            c.name
-                          )
-                        }
-                        aria-label={`Preview ${c.name}`}
-                      >
-                        {c.name}
-                      </button>
-                      <span className="deck-saltiest-score">{c.salt.toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="deck-saltiest-hint">
-                  EDHREC salt score (higher = more polarizing)
-                  {typeof averageSalt === 'number' && ` · deck avg ${averageSalt.toFixed(2)}`}.
-                </p>
-                {saltCarousel.preview}
+                <SaltiestPanel cards={saltiestCards} averageSalt={averageSalt} />
               </Panel>
             )}
           </div>

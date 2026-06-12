@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DeckCurvePhases } from './DeckCurvePhases';
+import { DeckCurvePhases, avgCmcBandWord } from './DeckCurvePhases';
 import type { ScryfallCard } from '@/deck-builder/types';
 
-describe('DeckCurvePhases', () => {
-  const manaCurve = { 0: 1, 1: 6, 2: 14, 3: 12, 4: 8, 5: 5, 6: 3, 7: 2 };
+// Shared fixture used across describe blocks.
+const manaCurve = { 0: 1, 1: 6, 2: 14, 3: 12, 4: 8, 5: 5, 6: 3, 7: 2 };
 
+describe('DeckCurvePhases', () => {
   it('renders a histogram bar with a count for every CMC slot 0..7+', () => {
     const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
     const cols = container.querySelectorAll('.deck-curve-phases-bar-col');
@@ -55,9 +56,10 @@ describe('DeckCurvePhases', () => {
     }
   });
 
-  it('shows the average CMC', () => {
+  it('shows the average CMC rounded to 1 decimal', () => {
     render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.14} />);
-    expect(screen.getByText(/Avg CMC 3\.14/)).toBeTruthy();
+    // Now shows 1 decimal: "3.1 avg mana value"
+    expect(screen.getByText(/3\.1/)).toBeTruthy();
   });
 
   it('makes bars and phases tappable when card lists are provided', () => {
@@ -77,9 +79,13 @@ describe('DeckCurvePhases', () => {
     expect(screen.queryByRole('button', { name: /Late-game cards/ })).toBeNull();
   });
 
-  it('renders no buttons when no card lists are provided', () => {
-    render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
-    expect(screen.queryByRole('button')).toBeNull();
+  it('renders no drill-down buttons when no card lists are provided', () => {
+    const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    // No bar-fill or phase buttons (drill-down interactions) — but the InfoTip
+    // button is always present as a UI control and is not a drill-down.
+    expect(container.querySelectorAll('.deck-curve-phases-bar-fill-btn').length).toBe(0);
+    expect(container.querySelectorAll('.deck-curve-phases-seg-btn').length).toBe(0);
+    expect(container.querySelectorAll('.deck-curve-phases-phase-btn').length).toBe(0);
   });
 
   it('handles an empty curve without dividing by zero', () => {
@@ -160,5 +166,75 @@ describe('DeckCurvePhases', () => {
       name: /Show the 10 blue cards at mana value 2/i,
     });
     fireEvent.click(blueSeg);
+  });
+});
+
+// ── avgCmcBandWord mapping ────────────────────────────────────────────────
+describe('avgCmcBandWord', () => {
+  it('maps aggressive-early to lean', () => {
+    expect(avgCmcBandWord('aggressive-early')).toBe('lean');
+  });
+
+  it('maps fast-tempo to lean', () => {
+    expect(avgCmcBandWord('fast-tempo')).toBe('lean');
+  });
+
+  it('maps midrange to balanced', () => {
+    expect(avgCmcBandWord('midrange')).toBe('balanced');
+  });
+
+  it('maps balanced to balanced', () => {
+    expect(avgCmcBandWord('balanced')).toBe('balanced');
+  });
+
+  it('maps late-game to top-heavy', () => {
+    expect(avgCmcBandWord('late-game')).toBe('top-heavy');
+  });
+});
+
+// ── Avg CMC band word rendering ──────────────────────────────────────────
+describe('DeckCurvePhases avg-CMC band word', () => {
+  it('shows a band word (lean/balanced/top-heavy) when total > 0', () => {
+    // manaCurve with early-heavy distribution → pacing aggressive-early → lean
+    const earlyHeavy = { 0: 5, 1: 20, 2: 25, 3: 5, 4: 2, 5: 1, 6: 0, 7: 0 };
+    render(<DeckCurvePhases manaCurve={earlyHeavy} averageCmc={1.8} />);
+    expect(screen.getByText(/lean/)).toBeTruthy();
+  });
+
+  it('shows "avg mana value" label text', () => {
+    render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    expect(screen.getByText('avg mana value')).toBeTruthy();
+  });
+
+  it('shows no band word when curve is empty', () => {
+    render(<DeckCurvePhases manaCurve={{}} averageCmc={0} />);
+    // With total = 0 the band word is suppressed.
+    expect(screen.queryByText('lean')).toBeNull();
+    expect(screen.queryByText('balanced')).toBeNull();
+    expect(screen.queryByText('top-heavy')).toBeNull();
+  });
+});
+
+// ── Target-band overlay ───────────────────────────────────────────────────
+describe('DeckCurvePhases target-band overlay', () => {
+  it('renders .deck-curve-phases-bar-target elements when total > 0', () => {
+    const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    const targets = container.querySelectorAll('.deck-curve-phases-bar-target');
+    // One target overlay per CMC slot (all 8 slots)
+    expect(targets.length).toBe(8);
+  });
+
+  it('does not render target overlays when curve is empty', () => {
+    const { container } = render(<DeckCurvePhases manaCurve={{}} averageCmc={0} />);
+    const targets = container.querySelectorAll('.deck-curve-phases-bar-target');
+    expect(targets.length).toBe(0);
+  });
+
+  it('target overlay is aria-hidden (decorative)', () => {
+    const { container } = render(<DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} />);
+    const targets = container.querySelectorAll('.deck-curve-phases-bar-target');
+    for (const el of targets) {
+      expect(el.getAttribute('aria-hidden')).toBe('true');
+    }
   });
 });

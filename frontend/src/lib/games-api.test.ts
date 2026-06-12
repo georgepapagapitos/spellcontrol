@@ -15,6 +15,8 @@ function mockState(overrides: Partial<GameState> = {}): GameState {
     poisonEnabled: false,
     layout: 'pod',
     tapOrientation: 'horizontal',
+    activeSeat: null,
+    designations: { monarch: null, initiative: null },
     players: [],
     events: [],
     winnerSeat: null,
