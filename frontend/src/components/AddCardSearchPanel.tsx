@@ -4,6 +4,7 @@ import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from './ManaCost';
 import { useCollectionStore } from '../store/collection';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { haptics } from '../lib/haptics';
 
 interface Props {
   /** When provided, the card is also pinned to this binder after being added. */
@@ -85,6 +86,7 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
     const copyId = await addCard(card);
     if (binderId) pinCardToBinder(binderId, copyId);
     setRecentlyAdded((prev) => new Set(prev).add(card.id));
+    haptics.tap();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
