@@ -456,6 +456,40 @@ The app's analysis surfaces speak **one vocabulary** so users learn it once:
 - A third grading scale (letter grades) appearing next to band words and bracket numbers
 - "Soft score" being confused with Build health's subscore bands
 
+## First-run welcome screen (UX-331)
+
+The first-run gate now routes to `/welcome` instead of `/auth`. Design rulings
+settled here:
+
+- **Three doors, two primary.** The welcome presents exactly three CTAs: "Import
+  my collection", "Try sample cards", and "Sign in". Doors 1–2 are the primary
+  pair (pill-btn-primary, accent fill) because collection activation (getting
+  cards in) is the event that makes the app useful. "Sign in" is secondary
+  (default pill-btn surface) — it's present but not dominant.
+- **Hero-class surface.** The welcome card is hero-class: full-viewport centered,
+  `max-width: 400px`, serif brand name (`--font-serif`), pill CTAs. All three
+  doors are pill-shaped because they live in the page hero.
+- **Brand name + one line only.** The welcome copy is the app name ("SpellControl")
+  and a single tagline. No feature list, no tour. Any extra copy increases the time
+  before the user can do something real.
+- **No exit animation.** The welcome is a one-shot surface that replaces itself
+  immediately when any door is chosen. Instant replacement via React state is the
+  symmetric exit — it reads as deliberate action, not a vanish.
+- **Entrance animation.** `welcome-rise`: opacity 0→1 + translateY 12px→0 over
+  `--motion-gentle` (320ms) `--ease-out-soft`. No exit needed (see above). The
+  `prefers-reduced-motion: reduce` block sets `animation: none` — not a 0.001ms
+  backstop (infinite loops don't apply here, but the reduced-motion gate still must
+  be explicit per the Motion § Reduced-motion rule).
+- **Dismissal on doors 1 & 2 only; door 3 defers to AuthPage.** "Import" and
+  "Try samples" call `markEverVisited()` immediately (the user has made their
+  activation choice). "Sign in" navigates to `/auth` without marking — the auth
+  store calls `markEverVisited()` on any auth completion, so if the user abandons
+  /auth the welcome reappears on next boot.
+- **Sample load reuses the existing path.** Door 2 calls `importText` →
+  `loadSampleBinders` exactly as BindersIndexPage does (same CSV, same store
+  action). No fork of sample data; the import appears as the normal deletable
+  "Sample: starter pack" entry in import history.
+
 ## Extending this guide
 
 When you and a reviewer settle a recurring visual question ("should X be a pill?",

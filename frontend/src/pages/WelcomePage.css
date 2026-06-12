@@ -1,0 +1,107 @@
+/* WelcomePage — first-run three-door welcome screen.
+ *
+ * Hero-class surface: full-viewport centered card, pill CTAs, serif brand
+ * name. Entrance animates once (opacity + subtle translate-up) and respects
+ * prefers-reduced-motion. No exit animation needed — the welcome is a
+ * one-shot; choosing any door replaces it immediately via React state.
+ *
+ * All tokens from global.css — no raw numeric values.
+ */
+
+.welcome-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+
+.welcome-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 28px 32px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+  animation: welcome-rise var(--motion-gentle) var(--ease-out-soft) both;
+}
+
+@keyframes welcome-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-card {
+    animation: none;
+  }
+}
+
+/* Brand block */
+
+.welcome-brand {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.welcome-tagline {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  margin: 0 0 32px;
+  line-height: 1.5;
+}
+
+/* Door group — vertical stack of pill CTAs */
+
+.welcome-doors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Primary pair — doors 1 & 2: import + sample.
+ * Styled as pill-btn-primary (accent fill) for emphasis. */
+.welcome-doors .pill-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.65rem 1.1rem;
+  font-size: var(--text-base);
+}
+
+/* Sign in door — secondary, keeps the default pill-btn surface style. */
+.welcome-door-secondary {
+  margin-top: 4px;
+}
+
+/* Loading state while sample cards are being fetched */
+.welcome-loading-hint {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Error banner for sample-load failure */
+.welcome-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--err-bg);
+  border: 1px solid var(--err-border);
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
