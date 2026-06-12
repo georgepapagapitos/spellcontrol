@@ -1,0 +1,401 @@
+/* ── DeckIdentityCard ────────────────────────────────────────────────────────
+   Identity hero card: commander art band + color-identity arc + deck name +
+   sparkline + pillars (Functional + Build health). Ports the StatsHero pillar
+   logic and adds the new visual chrome.
+   Container-query responsive: child of `.deck-bento` (container-name: bento).
+   Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
+
+.deck-identity-card {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* ── Art band (3-layer recipe from BuildReportSheet) ──────────────────────── */
+
+.deck-identity-card-art-band {
+  position: relative;
+  min-height: clamp(6rem, 18cqi, 9rem);
+  overflow: hidden;
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+/* Layer 1 — art image */
+.deck-identity-card-art-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.deck-identity-card-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+}
+
+/* Layer 2 — gradient fade */
+.deck-identity-card-art-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 20%,
+    color-mix(in srgb, var(--surface-raised) 70%, transparent) 60%,
+    var(--surface-raised) 100%
+  );
+}
+
+/* No-commander banner — uses deck.color as bg with ColorPips */
+.deck-identity-card-color-banner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  opacity: 0.85;
+}
+
+/* Layer 3 — z-index:1 content overlaid on art */
+.deck-identity-card-art-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  height: 100%;
+}
+
+/* ── Color identity arc (circular SVG ring) ──────────────────────────────── */
+
+.deck-identity-card-arc-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+/* ── Deck name + format row ───────────────────────────────────────────────── */
+
+.deck-identity-card-title-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.deck-identity-card-deck-name {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-identity-card-commander-name {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-identity-card-format {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── Main body ───────────────────────────────────────────────────────────── */
+
+.deck-identity-card-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Identity line (archetype · bracket · validation) ─────────────────────── */
+
+.deck-identity-card-identity-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.deck-identity-card-identity-sep {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  user-select: none;
+}
+
+.deck-identity-card-identity-bracket {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.deck-identity-card-identity-val {
+  font-weight: 600;
+}
+
+.deck-identity-card-identity-val.is-success {
+  color: var(--success);
+}
+
+.deck-identity-card-identity-val.is-warn {
+  color: var(--warn-text);
+}
+
+.deck-identity-card-identity-val.is-err {
+  color: var(--err-text);
+}
+
+/* ── Sparkline (8 CMC buckets, vertical micro-bars) ─────────────────────── */
+
+.deck-identity-card-sparkline-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.deck-identity-card-sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.deck-identity-card-spark-bar {
+  width: 6px;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.deck-identity-card-sparkline-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Pillars (ported from StatsHero) ──────────────────────────────────────── */
+
+.deck-identity-card-pillars {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@container bento (min-width: 640px) {
+  .deck-identity-card-pillars {
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(1rem, 2.5cqi, 1.75rem);
+  }
+
+  .deck-identity-card-pillars.is-solo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.deck-identity-card-pillar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.deck-identity-card-eyebrow {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ── Functional verdict ────────────────────────────────────────────────────── */
+
+.deck-identity-card-verdict {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.deck-identity-card-verdict-glyph {
+  font-weight: 700;
+  line-height: 1;
+}
+
+.deck-identity-card-verdict-label {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.deck-identity-card-verdict.is-success {
+  color: var(--success);
+}
+
+.deck-identity-card-verdict.is-warn {
+  color: var(--warn-text);
+}
+
+.deck-identity-card-verdict.is-err {
+  color: var(--err-text);
+}
+
+.deck-identity-card-ratio {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shortfall list ────────────────────────────────────────────────────────── */
+
+.deck-identity-card-shortfall-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.deck-identity-card-shortfall-item {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.deck-identity-card-shortfall-more {
+  color: var(--text-muted);
+}
+
+.deck-identity-card-shortfall-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: left;
+  transition:
+    border-color var(--motion-fast),
+    background var(--motion-fast);
+  min-height: 28px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-identity-card-shortfall-btn:hover {
+    background: var(--surface-raised);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+}
+
+.deck-identity-card-shortfall-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-identity-card-shortfall-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-identity-card-shortfall-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+@media (pointer: coarse) {
+  .deck-identity-card-shortfall-btn {
+    min-height: 44px;
+    padding-block: var(--space-2);
+  }
+}
+
+/* ── Build health ──────────────────────────────────────────────────────────── */
+
+.deck-identity-card-band {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.deck-identity-card-band-num {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.deck-identity-card-limited {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-identity-card-headline {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.deck-identity-card-softspot {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* ── Skeleton shimmer (uses global .deck-analysis-skeleton-bar) ──────────── */
+
+.deck-identity-card-skeleton-pillar {
+  height: 60px;
+  border-radius: var(--radius);
+}
+
+/* ── Brand mark ───────────────────────────────────────────────────────────── */
+
+.deck-identity-card-brand {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.deck-identity-card-brand-text {
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}

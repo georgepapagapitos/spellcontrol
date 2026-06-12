@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { StatsHero, type StatsHeroProps } from './StatsHero';
+import { DeckIdentityCard, type DeckIdentityCardProps } from './DeckIdentityCard';
 import type {
   ValidationCheck,
   ValidationResult,
@@ -54,13 +54,22 @@ const healthyPlan = makePlan(82, {
   cardFit: sub(78, 'Healthy'),
 });
 
-const base: StatsHeroProps = {
+const base: DeckIdentityCardProps = {
+  commander: null,
+  deckName: 'Test deck',
+  format: 'commander',
+  deckColor: '#3a7bd5',
+  bracket: undefined,
+  analysisPending: false,
   validation: makeValidation([PASS('size'), PASS('identity')]),
   planScore: healthyPlan,
+  manaCurve: {},
+  identity: null,
+  averageCmc: 3.0,
 };
 
-function renderHero(overrides: Partial<StatsHeroProps> = {}) {
-  return render(<StatsHero {...base} {...overrides} />);
+function renderCard(overrides: Partial<DeckIdentityCardProps> = {}) {
+  return render(<DeckIdentityCard {...base} {...overrides} />);
 }
 
 /** Match by an element's full (whitespace-collapsed) textContent across common text elements. */
@@ -72,14 +81,14 @@ function hasText(re: RegExp): boolean {
 
 /** Collect all shortfall item texts (each <li> in the shortfall list). */
 function shortfallTexts(): string[] {
-  return Array.from(document.querySelectorAll('.stats-hero-shortfall-item')).map((el) =>
+  return Array.from(document.querySelectorAll('.deck-identity-card-shortfall-item')).map((el) =>
     (el.textContent ?? '').replace(/\s+/g, ' ').trim()
   );
 }
 
-describe('StatsHero', () => {
+describe('DeckIdentityCard', () => {
   it('renders an all-clear verdict + healthy plan with its weakest soft spot', () => {
-    renderHero();
+    renderCard();
     expect(hasText(/^✓ ?All clear$/)).toBe(true);
     expect(hasText(/^2 of 2 checks pass$/)).toBe(true);
     expect(hasText(/^82 · Healthy$/)).toBe(true);
@@ -99,7 +108,7 @@ describe('StatsHero', () => {
       { id: 'removal', label: 'Removal count', status: 'fail', detail: '6 / 8' },
       PASS('curve'),
     ];
-    renderHero({ validation: makeValidation(checks) });
+    renderCard({ validation: makeValidation(checks) });
     expect(hasText(/^✗ ?5 to fix$/)).toBe(true);
     // First three items in the list, then "+2 more".
     const items = shortfallTexts();
@@ -115,7 +124,7 @@ describe('StatsHero', () => {
       { id: 'removal', label: 'Removal count', status: 'warn', detail: '6 / 8' },
       { id: 'curve', label: 'Curve', status: 'warn', detail: 'Avg MV 3.80' },
     ];
-    renderHero({ validation: makeValidation(checks) });
+    renderCard({ validation: makeValidation(checks) });
     expect(hasText(/^▾ ?2 to tune$/)).toBe(true);
     const items = shortfallTexts();
     expect(items[0]).toMatch(/Removal count 6 \/ 8/);
@@ -123,7 +132,7 @@ describe('StatsHero', () => {
   });
 
   it('renders only the Functional pillar when planScore is null', () => {
-    renderHero({ planScore: null });
+    renderCard({ planScore: null });
     expect(hasText(/^✓ ?All clear$/)).toBe(true);
     expect(screen.queryByText('Build health')).toBeNull();
     expect(hasText(/soft spot:/)).toBe(false);
@@ -140,7 +149,7 @@ describe('StatsHero', () => {
       },
       { bandLabel: 'Solid', limitedData: true }
     );
-    renderHero({ planScore: plan });
+    renderCard({ planScore: plan });
     expect(hasText(/^70 · Solid · limited data$/)).toBe(true);
     // curve (64) is the weakest of the non-partial entries; the partial strategy (50) is ignored.
     expect(hasText(/^soft spot: Curve — Solid$/)).toBe(true);
@@ -154,7 +163,7 @@ describe('StatsHero', () => {
       curve: sub(50, 'Unscored', true),
       cardFit: sub(50, 'Unscored', true),
     });
-    renderHero({ planScore: plan });
+    renderCard({ planScore: plan });
     expect(hasText(/soft spot:/)).toBe(false);
   });
 
@@ -165,7 +174,7 @@ describe('StatsHero', () => {
       PASS('size'),
       { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
     ];
-    renderHero({ validation: makeValidation(checks) });
+    renderCard({ validation: makeValidation(checks) });
     expect(screen.queryByRole('button', { name: /Ramp count/i })).toBeNull();
     expect(shortfallTexts()[0]).toMatch(/Ramp count 4 \/ 10/);
   });
@@ -175,7 +184,7 @@ describe('StatsHero', () => {
       PASS('size'),
       { id: 'ramp', label: 'Ramp count', status: 'warn', detail: '4 / 10' },
     ];
-    renderHero({ validation: makeValidation(checks), onNavigate: vi.fn() });
+    renderCard({ validation: makeValidation(checks), onNavigate: vi.fn() });
     const btn = screen.getByRole('button', { name: /Ramp count 4 \/ 10 — go to Tune/i });
     expect(btn).toBeTruthy();
   });
@@ -186,7 +195,7 @@ describe('StatsHero', () => {
       PASS('size'),
       { id: 'removal', label: 'Removal count', status: 'warn', detail: '6 / 8' },
     ];
-    renderHero({ validation: makeValidation(checks), onNavigate });
+    renderCard({ validation: makeValidation(checks), onNavigate });
     const btn = screen.getByRole('button', { name: /Removal count/i });
     fireEvent.click(btn);
     expect(onNavigate).toHaveBeenCalledWith('fill-gaps');
@@ -198,8 +207,32 @@ describe('StatsHero', () => {
       { id: 'identity', label: 'Commander identity', status: 'fail', detail: '2 off-color' },
       { id: 'singleton', label: 'Singleton', status: 'fail', detail: '1 duplicate' },
     ];
-    renderHero({ validation: makeValidation(checks), onNavigate: vi.fn() });
+    renderCard({ validation: makeValidation(checks), onNavigate: vi.fn() });
     // No Tune deep-link for hard-rule failures — they require card edits in the Deck view.
     expect(screen.queryAllByRole('button', { name: /go to Tune/i })).toHaveLength(0);
+  });
+
+  it('shows the Build health skeleton while analysis is pending (no planScore yet)', () => {
+    // A pending first analysis means planScore is absent — the skeleton must not
+    // depend on planScore existing.
+    const { container } = renderCard({ analysisPending: true, planScore: null });
+    expect(container.querySelector('.deck-identity-card-skeleton-pillar')).not.toBeNull();
+    expect(hasText(/^Build health$/)).toBe(true);
+    expect(container.querySelector('.deck-identity-card-pillars.is-solo')).toBeNull();
+  });
+
+  it('renders commander + partner names and the human format label', () => {
+    const commander = {
+      name: 'Atraxa, Praetors’ Voice',
+      color_identity: ['W', 'U', 'B', 'G'],
+    } as unknown as DeckIdentityCardProps['commander'];
+    const partnerCommander = {
+      name: 'Tymna the Weaver',
+      color_identity: ['W', 'B'],
+    } as unknown as DeckIdentityCardProps['partnerCommander'];
+    renderCard({ commander, partnerCommander });
+    expect(hasText(/Atraxa, Praetors’ Voice · Tymna the Weaver/)).toBe(true);
+    // DECK_FORMAT_CONFIGS label, not the raw 'commander' id.
+    expect(hasText(/^Commander$/)).toBe(true);
   });
 });

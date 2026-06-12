@@ -1848,6 +1848,7 @@ export function DeckEditorPage() {
             title={deck.name}
             deckId={deck.id}
             format={deck.format}
+            color={deck.color}
             commander={deck.commander}
             partnerCommander={deck.partnerCommander}
             selectedThemes={deck.generationContext?.selectedThemes}
