@@ -33,7 +33,7 @@ describe('NextBestMove', () => {
   it('fires onNavigate with the move destination and focus', () => {
     const onNavigate = vi.fn();
     render(<NextBestMove moves={moves} onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Go to Tune' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Coach' }));
     expect(onNavigate).toHaveBeenCalledWith('tune', undefined);
   });
 

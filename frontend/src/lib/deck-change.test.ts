@@ -9,6 +9,8 @@ import {
   fromSubstituteRow,
   fromBracketFitMove,
   fromSwap,
+  fromCostSwapRow,
+  fromComboCompletion,
   mergeImprove,
   parsePrice,
 } from './deck-change';
@@ -17,6 +19,8 @@ import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
+import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
+import type { ComboMatch } from '@/types/combos';
 
 /** Minimal add Change for the lane helpers. */
 function add(over: Partial<Change>): Change {
@@ -405,5 +409,132 @@ describe('fromSwap', () => {
     expect(c.imageUrl).toBe('https://img/only-small');
     expect(c.lane).toBe('upgrade');
     expect(c.ownership).toBeUndefined();
+  });
+});
+
+describe('fromCostSwapRow', () => {
+  const baseRow: CostSwapRow = {
+    id: 'Smothering Tithe',
+    currentName: 'Smothering Tithe',
+    currentPrice: 24.0,
+    currentInclusion: 41,
+    currentCmc: 4,
+    suggestionName: 'Esper Sentinel',
+    suggestionPrice: 8.0,
+    suggestionInclusion: 38,
+    suggestionCmc: 1,
+    savings: 16.0,
+    confidence: 'drop-in',
+    category: 'spell',
+  };
+
+  it('drop-in: name=suggestion (INCOMING), inName=current (OUTGOING), deltaPrice=-savings, reason mentions "Drop-in"', () => {
+    const c = fromCostSwapRow(baseRow);
+    expect(c.type).toBe('swap');
+    expect(c.lane).toBe('budget');
+    expect(c.name).toBe('Esper Sentinel'); // incoming cheaper card
+    expect(c.inName).toBe('Smothering Tithe'); // outgoing expensive card
+    expect(c.deltaPrice).toBe(-16.0);
+    expect(c.reason).toContain('Drop-in replacement');
+    expect(c.reason).toContain('saves $16.00');
+    expect(c.confidence).toBe('drop-in');
+  });
+
+  it('sidegrade: reason mentions "Sidegrade"', () => {
+    const c = fromCostSwapRow({ ...baseRow, confidence: 'sidegrade', savings: 10.5 });
+    expect(c.reason).toContain('Sidegrade');
+    expect(c.reason).toContain('saves $10.50');
+    expect(c.confidence).toBe('sidegrade');
+  });
+
+  it('budget: reason mentions "Budget pick"', () => {
+    const c = fromCostSwapRow({ ...baseRow, confidence: 'budget', savings: 5.0 });
+    expect(c.reason).toContain('Budget pick');
+    expect(c.reason).toContain('saves $5.00');
+    expect(c.confidence).toBe('budget');
+  });
+
+  it('confidence field is set correctly', () => {
+    const c = fromCostSwapRow(baseRow);
+    expect(c.confidence).toBe('drop-in');
+  });
+
+  it('carries the resolved ownership of the INCOMING suggestion', () => {
+    expect(fromCostSwapRow(baseRow, 'owned').ownership).toBe('owned');
+    expect(fromCostSwapRow(baseRow).ownership).toBeUndefined();
+  });
+});
+
+describe('fromComboCompletion', () => {
+  const match: ComboMatch = {
+    combo: {
+      id: 'combo-1',
+      identity: 'WG',
+      produces: ['infinite damage'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity: 100,
+      cardCount: 2,
+      bracket: 4,
+      cards: [
+        { oracleId: 'o1', cardName: 'Walking Ballista', quantity: 1 },
+        { oracleId: 'o2', cardName: 'Heliod, Sun-Crowned', quantity: 1 },
+      ],
+    },
+    presentOracleIds: ['o1'],
+    missingOracleIds: ['o2'],
+  };
+
+  it('produces add Change with lane combos and type add', () => {
+    const c = fromComboCompletion(match, 'Heliod, Sun-Crowned');
+    expect(c.type).toBe('add');
+    expect(c.lane).toBe('combos');
+    expect(c.name).toBe('Heliod, Sun-Crowned');
+  });
+
+  it('reason names the in-deck partner and the result', () => {
+    const c = fromComboCompletion(match, 'Heliod, Sun-Crowned');
+    expect(c.reason).toContain('Walking Ballista');
+    expect(c.reason).toContain('infinite damage');
+  });
+
+  it('3-card combo names both partners', () => {
+    const match3: ComboMatch = {
+      ...match,
+      combo: {
+        ...match.combo,
+        cardCount: 3,
+        cards: [
+          { oracleId: 'o1', cardName: 'Card A', quantity: 1 },
+          { oracleId: 'o2', cardName: 'Card B', quantity: 1 },
+          { oracleId: 'o3', cardName: 'Missing Card', quantity: 1 },
+        ],
+      },
+      missingOracleIds: ['o3'],
+    };
+    const c = fromComboCompletion(match3, 'Missing Card');
+    expect(c.reason).toContain('Card A');
+    expect(c.reason).toContain('Card B');
+  });
+
+  it('carries the resolved ownership of the missing card', () => {
+    expect(fromComboCompletion(match, 'Heliod, Sun-Crowned', 'owned').ownership).toBe('owned');
+    expect(fromComboCompletion(match, 'Heliod, Sun-Crowned').ownership).toBeUndefined();
+  });
+});
+
+describe('fromBracketFitMove swap convention (lock test)', () => {
+  it('swap: name=incoming (replacement), inName=outgoing (card being cut)', () => {
+    const move: BracketFitMove = {
+      type: 'swap',
+      name: 'Cyclonic Rift', // the card being CUT
+      inName: 'Evacuation', // the replacement coming IN
+      reason: 'Too powerful',
+      signal: 'game-changer',
+    };
+    const c = fromBracketFitMove(move, 'owned');
+    expect(c.name).toBe('Evacuation'); // INCOMING (primary)
+    expect(c.inName).toBe('Cyclonic Rift'); // OUTGOING (cut)
   });
 });

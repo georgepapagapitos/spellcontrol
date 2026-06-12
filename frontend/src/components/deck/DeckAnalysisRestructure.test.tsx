@@ -167,7 +167,7 @@ describe('UX-312 — Standalone Validation and Build-health panels absent from S
 describe('UX-313 — Bracket Fit lane renders on Tune tab', () => {
   const bracketFitContent = <div data-testid="bracket-fit-content">Bracket Fit lane content</div>;
 
-  it('renders bracketFitSlot on the Tune tab', () => {
+  it('renders coachFeedSlot on the Tune tab', () => {
     render(
       <MemoryRouter>
         <DeckDisplay
@@ -177,14 +177,14 @@ describe('UX-313 — Bracket Fit lane renders on Tune tab', () => {
           deckId="deck-1"
           format="commander"
           activeView="tune"
-          bracketFitSlot={bracketFitContent}
+          coachFeedSlot={bracketFitContent}
         />
       </MemoryRouter>
     );
     expect(screen.getByTestId('bracket-fit-content')).toBeTruthy();
   });
 
-  it('does NOT render bracketFitSlot on the Power tab', () => {
+  it('does NOT render coachFeedSlot on the Power tab', () => {
     render(
       <MemoryRouter>
         <DeckDisplay
@@ -194,15 +194,15 @@ describe('UX-313 — Bracket Fit lane renders on Tune tab', () => {
           deckId="deck-1"
           format="commander"
           activeView="power"
-          bracketFitSlot={bracketFitContent}
+          coachFeedSlot={bracketFitContent}
         />
       </MemoryRouter>
     );
-    // bracketFitSlot should not appear on Power (it moved to Tune)
+    // coachFeedSlot should not appear on Power (Coach tab only)
     expect(screen.queryByTestId('bracket-fit-content')).toBeNull();
   });
 
-  it('renders a "Bracket Fit" collapsible lane heading on the Tune tab', () => {
+  it('renders coachFeedSlot content on the Tune tab', () => {
     render(
       <MemoryRouter>
         <DeckDisplay
@@ -212,11 +212,11 @@ describe('UX-313 — Bracket Fit lane renders on Tune tab', () => {
           deckId="deck-1"
           format="commander"
           activeView="tune"
-          bracketFitSlot={bracketFitContent}
+          coachFeedSlot={bracketFitContent}
         />
       </MemoryRouter>
     );
-    expect(screen.getByText('Bracket Fit')).toBeTruthy();
+    expect(screen.getByTestId('bracket-fit-content')).toBeTruthy();
   });
 });
 

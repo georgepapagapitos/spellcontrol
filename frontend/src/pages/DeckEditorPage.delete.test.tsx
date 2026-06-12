@@ -146,17 +146,11 @@ vi.mock('../components/deck/use-deck-tokens', () => ({
 vi.mock('../components/deck/PowerHero', () => ({
   PowerHero: () => <div />,
 }));
-vi.mock('../components/deck/ImproveLane', () => ({
-  ImproveLane: () => <div />,
+vi.mock('../components/deck/CoachFeed', () => ({
+  CoachFeed: () => <div />,
 }));
 vi.mock('../components/deck/DeckSizePrompt', () => ({
   DeckSizePrompt: () => <div />,
-}));
-vi.mock('../components/deck/CostPanel', () => ({
-  CostPanel: () => <div />,
-}));
-vi.mock('../components/deck/BracketFitLane', () => ({
-  BracketFitLane: () => <div />,
 }));
 vi.mock('../components/deck/EnginePanel', () => ({
   EnginePanel: () => <div />,

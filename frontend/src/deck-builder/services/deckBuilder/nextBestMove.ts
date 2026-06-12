@@ -59,6 +59,8 @@ export interface NextBestMoveInput {
   ownedNames?: Set<string>;
   /** Win-condition analysis from detect.ts — drives the "no clear win condition" move. */
   winConditions?: WinConditionAnalysis;
+  /** Whether Bracket Fit has card moves ready (bracketFit?.moves.length > 0). */
+  bracketFitHasMoves?: boolean;
 }
 
 /** Display labels for the functional roles (mirrors planScore's ROLE_LABELS). */
@@ -289,6 +291,18 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       usedCards.add(missingName);
       break;
     }
+  }
+
+  // ── Tier 3: polish — bracket-fit (target set, moves exist) ──────────────
+  if (input.bracketFitHasMoves && !moves.some((m) => m.focus === 'bracket-fit')) {
+    moves.push({
+      id: 'bracket-fit',
+      tier: 3,
+      title: 'Fit your bracket target',
+      detail: 'Bracket Fit has card moves ready to close the gap to your target bracket.',
+      navigateTo: 'tune',
+      focus: 'bracket-fit',
+    });
   }
 
   // limited-data info note (tier 3)

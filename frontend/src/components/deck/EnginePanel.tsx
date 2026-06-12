@@ -20,8 +20,8 @@ export interface EnginePanelProps {
    * Diagnostics-only mode: render just the headline + per-axis balance bars +
    * warnings, omitting the off-meta suggestion rows. Used on the Power tab,
    * where the bars are the gameplan diagnostic; the suggestion *rows* now live
-   * in the Tune tab's "Improve the deck" lane (see ImproveLane), so all
-   * "add a card" prescription stays in one place.
+   * in the Coach tab's unified feed (see CoachFeed), so all "add a card"
+   * prescription stays in one place.
    */
   showSuggestions?: boolean;
 }
