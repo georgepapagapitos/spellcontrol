@@ -356,7 +356,37 @@ with its siblings (the EnginePanel once painted every axis full-width; that's
 the failure mode this rule exists for). Accessibility: bars default to
 `aria-hidden` with the numbers as adjacent visible text; live operations opt
 into `role="progressbar"` (see `ProgressBar`). Vertical charts (curve hero,
-test-hand histogram) are charts, not meters, and stay bespoke.
+test-hand histogram) are charts, not meters, and stay bespoke. Radar/polar
+charts also stay bespoke — see **"Radar / polar charts"** below.
+
+## Radar / polar charts
+
+A radar chart is permitted only when displaying **≥3 labeled dimensions of one
+normalized measure** — where shape = balance, not absolute magnitude.
+
+Rules (all mandatory):
+
+- **Normalization must be stated in an adjacent caption.** Never imply an
+  absolute scale. The caption reads "Engine balance, not power" with an
+  InfoTip explaining that vertices are normalized to the busiest axis.
+- **Every vertex carries its word + value** — label + count, no unlabeled
+  vertices, ever. (The "charts say what they mean" obligation extends to polar
+  geometry.)
+- **Vertices that drill down are real `<button>`s** with ≥44px coarse-pointer
+  hit areas (padding/`min-height: 44px`). Each carries a full `aria-label`
+  ("Axis — N cards: M producers, K payoffs. Show cards.").
+- **One-shot entrance only** — `scale(0.92→1) + fade`, `--motion-gentle`
+  `--ease-out-soft`, explicit `@media (prefers-reduced-motion: reduce) {
+  animation: none }` gate. No continuous or looping animation.
+- **<3 active axes:** do not render the polygon. Show labeled count chips
+  (999px pill) with an explanatory fallback message instead.
+- **SVG accessibility:** `role="img"` + `aria-label` sentence naming every
+  axis and count. Vertex buttons are the accessible interactive layer.
+- **Color:** the value polygon uses `var(--accent)` fill (low opacity) +
+  accent stroke — it's about axes, not card colors. WUBRG pips are not used.
+- **Bespoke, never MeterBar.** Radar geometry belongs in
+  `lib/playstyle-radar.ts` + the co-located component; `radarLayout` is the
+  single geometry source.
 
 ## Card row information hierarchy
 

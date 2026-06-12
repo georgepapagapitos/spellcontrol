@@ -1,5 +1,5 @@
-import { useId, type JSX } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { useId, useState, lazy, Suspense, type JSX } from 'react';
+import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import './DeckIdentityCard.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { SubScoreKey, PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
@@ -18,6 +18,11 @@ import type { DeckIdentity } from '@/deck-builder/services/deckBuilder/deckIdent
 import { buildIdentityLine } from '@/lib/deck-identity-line';
 import type { Pacing } from '@/deck-builder/services/deckBuilder/pacingDetector';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+
+// ── Lazy-loaded PlaystyleRadar (only imported when the expander is first opened) ──
+const PlaystyleRadar = lazy(() =>
+  import('./PlaystyleRadar').then((m) => ({ default: m.PlaystyleRadar }))
+);
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +46,11 @@ export interface DeckIdentityCardProps {
   averageCmc: number;
   /** Deep-link handler for shortfall buttons → Tune lane. */
   onNavigate?: (lane: LaneId) => void;
+  /**
+   * The deck's cards — used to power the playstyle radar.
+   * Thread from DeckAnalysisView's `allCards` prop (includes commander).
+   */
+  cards?: ScryfallCard[];
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -240,7 +250,19 @@ export function DeckIdentityCard({
   identity,
   averageCmc,
   onNavigate,
+  cards = [],
 }: DeckIdentityCardProps): JSX.Element {
+  // Playstyle expander: collapsed by default; lazy-mounts PlaystyleRadar on first expand
+  const [playstyleOpen, setPlaystyleOpen] = useState(false);
+  // Track whether it has ever been opened — once true, the Suspense boundary stays mounted
+  const [playstyleEverOpened, setPlaystyleEverOpened] = useState(false);
+
+  const togglePlaystyle = () => {
+    if (!playstyleOpen && !playstyleEverOpened) {
+      setPlaystyleEverOpened(true);
+    }
+    setPlaystyleOpen((open) => !open);
+  };
   const verdict = summarizeValidation(validation);
 
   const shortfallChecks = validation.checks.filter(
@@ -353,6 +375,39 @@ export function DeckIdentityCard({
 
         {/* Sparkline */}
         <CurveSparkline manaCurve={manaCurve} averageCmc={averageCmc} />
+
+        {/* ── Playstyle expander ── */}
+        <div className="deck-identity-card-playstyle">
+          <button
+            type="button"
+            className="deck-identity-card-playstyle-toggle"
+            aria-expanded={playstyleOpen}
+            aria-controls="deck-identity-playstyle-body"
+            onClick={togglePlaystyle}
+          >
+            <span className="deck-identity-card-playstyle-title">Playstyle</span>
+            <span className="deck-identity-card-playstyle-chevron" aria-hidden="true">
+              {playstyleOpen ? (
+                <ChevronUp width={14} height={14} />
+              ) : (
+                <ChevronDown width={14} height={14} />
+              )}
+            </span>
+          </button>
+          <div
+            id="deck-identity-playstyle-body"
+            className="deck-identity-card-playstyle-body"
+            hidden={!playstyleOpen}
+            aria-hidden={!playstyleOpen}
+          >
+            {/* Lazy-mount: only render after first expand */}
+            {playstyleEverOpened && (
+              <Suspense fallback={<div className="deck-identity-card-playstyle-loading" />}>
+                <PlaystyleRadar cards={cards} />
+              </Suspense>
+            )}
+          </div>
+        </div>
 
         {/* Pillars */}
         <div

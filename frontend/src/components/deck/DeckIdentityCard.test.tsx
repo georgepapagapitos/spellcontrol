@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DeckIdentityCard, type DeckIdentityCardProps } from './DeckIdentityCard';
 import type {
@@ -223,7 +223,7 @@ describe('DeckIdentityCard', () => {
 
   it('renders commander + partner names and the human format label', () => {
     const commander = {
-      name: 'Atraxa, Praetors’ Voice',
+      name: "Atraxa, Praetors' Voice",
       color_identity: ['W', 'U', 'B', 'G'],
     } as unknown as DeckIdentityCardProps['commander'];
     const partnerCommander = {
@@ -231,8 +231,53 @@ describe('DeckIdentityCard', () => {
       color_identity: ['W', 'B'],
     } as unknown as DeckIdentityCardProps['partnerCommander'];
     renderCard({ commander, partnerCommander });
-    expect(hasText(/Atraxa, Praetors’ Voice · Tymna the Weaver/)).toBe(true);
+    expect(hasText(/Atraxa, Praetors' Voice · Tymna the Weaver/)).toBe(true);
     // DECK_FORMAT_CONFIGS label, not the raw 'commander' id.
     expect(hasText(/^Commander$/)).toBe(true);
+  });
+
+  // ── Playstyle expander ────────────────────────────────────────────────────
+
+  it('Playstyle expander is collapsed by default', () => {
+    const { container } = renderCard();
+    const body = container.querySelector('#deck-identity-playstyle-body');
+    expect(body).not.toBeNull();
+    // The body is hidden when collapsed
+    expect(body!.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('Playstyle toggle button has aria-expanded=false when collapsed', () => {
+    renderCard();
+    const toggle = screen.getByRole('button', { name: /playstyle/i });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('radar body mounts on expand (lazy-mount: not present before first expand)', () => {
+    const { container } = renderCard({ cards: [] });
+    // Before expand: no PlaystyleRadar content inside the body
+    const body = container.querySelector('#deck-identity-playstyle-body');
+    expect(body).not.toBeNull();
+    // The body is hidden initially
+    expect(body!.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('toggle opens and closes the expander', () => {
+    const { container } = renderCard({ cards: [] });
+    const toggle = screen.getByRole('button', { name: /playstyle/i });
+
+    // Open
+    act(() => {
+      fireEvent.click(toggle);
+    });
+    const body = container.querySelector('#deck-identity-playstyle-body');
+    expect(body!.hasAttribute('hidden')).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+    // Close again
+    act(() => {
+      fireEvent.click(toggle);
+    });
+    expect(body!.hasAttribute('hidden')).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });
