@@ -37,6 +37,17 @@ Anti-patterns this rule kills:
   mobile, a rect on desktop).
 - A non-hero text button styled as a pill — it reads as a tag.
 
+**The one labelled-pill exception below the hero: toolbar controls.** Compact
+toolbar _pickers and disclosures_ — Sort / Group / Show / the view-mode toggle /
+the symbol **Key** — use the shared `.toolbar-pill` (`999px`, `--surface` bg,
+`0.5px --border-strong` border), not a rect. They're neither do-something
+_actions_ (those are rects) nor static _labels_ (those are non-actionable chips)
+but a third thing — _controls_ — and the pill is their established family
+(`SelectMenu`, the `ToolbarPopover` trigger, `Legend variant="pill"`). This and
+the circular icon-only button are the **only** labelled pills allowed below the
+hero; a one-off labelled pill that _isn't_ part of this toolbar-control family
+still reads as a tag — don't.
+
 **Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
 button is an \*\*accent-fill rect with a leading lucide icon at `width/height={14}`
 
@@ -101,6 +112,27 @@ at 320px. If it can't shrink, it must wrap or collapse.
 
 Verify both at the **320px floor** in the Responsive section — that's where the
 clip shows up first.
+
+## Symbol key / Legend
+
+The card-symbol key is **one shared component** (`components/Legend.tsx`), driven
+by a `context` prop (`collection` | `binder` | `deck`) — never hand-roll a
+per-view key. Context decides only the _content_ (binder adds slot-border
+colors; deck adds role badges + markers; collection shows the deck/binder
+badges); the trigger, popover, and behavior are identical everywhere.
+
+**Placement is fixed across views.** The Key is the **trailing reference control
+at the right end of the toolbar — grouped with the view-mode toggle where one
+exists** (collection, binder) — rendered `variant="pill"` with `align="right"`.
+This is the _same-relative-order_ rule of [WCAG 2.2 SC 3.2.3 Consistent
+Navigation](https://www.w3.org/WAI/WCAG22/Understanding/consistent-navigation.html):
+a low-frequency reference affordance needs a predictable home, and the standard
+asks for consistent _relative_ position (rightmost, by the view toggle), **not**
+pixel-identical toolbars. Don't render it leading-left, and don't fall back to
+the underlined-text `variant="link"` (that was the binder's old outlier). To
+right-anchor it, make it the **last** flex child after the view-mode toggle so
+it rides the existing trailing auto-margins — don't add a competing
+`margin-left: auto` (multiple autos split the free space and break the grouping).
 
 ## Overlays
 
