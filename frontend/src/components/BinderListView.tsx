@@ -280,9 +280,6 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
             <span>Browse pages</span>
           </button>
         )}
-        <span className="binder-summary-meta">
-          <Legend context="binder" />
-        </span>
         {sortEditable && (
           <span className="binder-summary-sep" aria-hidden="true">
             ·
@@ -306,6 +303,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           </button>
         )}
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
+        <Legend context="binder" variant="pill" align="right" />
       </div>
       {flat.sectionRows.map(({ sectionKey, rows }) => {
         const section = binder.sections.find((s) => s.key === sectionKey);

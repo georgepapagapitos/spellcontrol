@@ -1535,14 +1535,7 @@ input[type='search'] {
   padding-left: 2px;
   flex-wrap: wrap;
 }
-.binder-summary-meta {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-/* Connects the sort pill to the "Browse pages · Key" group with the same
-   dot the meta cluster uses internally. */
+/* Separator dot between the Browse-pages button and the sort pill. */
 .binder-summary-sep {
   font-size: var(--text-sm);
   color: var(--text-muted);

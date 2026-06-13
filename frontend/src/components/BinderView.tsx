@@ -359,9 +359,6 @@ function SectionList({
             <span>Browse pages</span>
           </button>
         )}
-        <span className="binder-summary-meta">
-          <Legend context="binder" />
-        </span>
         {sortEditable && (
           <span className="binder-summary-sep" aria-hidden="true">
             ·
@@ -385,6 +382,7 @@ function SectionList({
           </button>
         )}
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
+        <Legend context="binder" variant="pill" align="right" />
       </div>
       {sections.map((section, sectionIdx) => {
         const isCollapsed = collapsed.has(section.key);
