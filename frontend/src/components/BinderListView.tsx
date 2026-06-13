@@ -2,22 +2,16 @@ import { BookOpen } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
-import { FoilBadge } from './FoilBadge';
-import type { ScryfallCard } from '@/deck-builder/types';
 import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { ManaCost } from './ManaCost';
 import { ColorPip } from './shared/ManaSymbol';
-import { SetSymbol } from './shared/SetSymbol';
-import { setSymbolTitle } from '../lib/set-symbols';
+import { CardRow } from './shared/CardRow';
+import { buildEditedCards } from '../lib/edit-card';
 import { useCollectionStore } from '../store/collection';
-import { getColorKey, COLOR_INFO } from '../lib/colors';
-import { formatMoney } from '../lib/format-money';
 import { SortPopover } from './SortPopover';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
 import type { SectionTabInput } from '../lib/binder-spreads';
-import { DeckBadge } from './DeckBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 
 interface Props {
@@ -41,18 +35,6 @@ interface Row {
   qty: number;
   /** First page number this card lands on inside its section. */
   pageNum: number;
-}
-
-function pickPrice(card: ScryfallCard, foil: boolean): number {
-  const p = card.prices;
-  if (!p) return 0;
-  const candidates = foil ? [p.usd_foil, p.usd_etched, p.usd] : [p.usd, p.usd_etched, p.usd_foil];
-  for (const raw of candidates) {
-    if (!raw) continue;
-    const n = Number(raw);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return 0;
 }
 
 /**
@@ -170,53 +152,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
-    const sc = selection.card;
-    const firstFace = sc.card_faces?.[0];
-    const cardFields: Partial<EnrichedCard> = {
-      scryfallId: sc.id,
-      name: sc.name,
-      setCode: sc.set.toUpperCase(),
-      setName: sc.set_name,
-      collectorNumber: sc.collector_number,
-      rarity: sc.rarity,
-      finish: selection.finish,
-      foil: selection.finish !== 'nonfoil',
-      imageSmall: sc.image_uris?.small ?? firstFace?.image_uris?.small,
-      imageNormal: sc.image_uris?.normal ?? firstFace?.image_uris?.normal,
-      imageLarge: sc.image_uris?.large ?? firstFace?.image_uris?.large,
-      imageNormalBack: sc.card_faces?.[1]?.image_uris?.normal,
-      imageLargeBack: sc.card_faces?.[1]?.image_uris?.large,
-      frameEffects: sc.frame_effects,
-      fullArt: sc.full_art === true || sc.frame_effects?.includes('fullart'),
-      borderColor: sc.border_color,
-      layout: sc.layout,
-      finishes: sc.finishes,
-      promoTypes: sc.promo_types,
-      purchasePrice: pickPrice(sc, selection.finish !== 'nonfoil'),
-      pricedAt: Date.now(),
-    };
-    const existing = allCards.filter(
-      (c) => c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish
-    );
-    const targetQty = selection.quantity ?? existing.length;
-    const others = allCards.filter(
-      (c) => !(c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish)
-    );
-    const updated = existing
-      .slice(0, targetQty)
-      .map((c) => ({ ...c, ...cardFields, copyId: c.copyId }));
-    const added: EnrichedCard[] = [];
-    for (let i = updated.length; i < targetQty; i++) {
-      added.push({
-        ...editingCard,
-        ...cardFields,
-        copyId: crypto.randomUUID(),
-        sourceCategory: editingCard.sourceCategory,
-        sourceFormat: editingCard.sourceFormat,
-        importId: editingCard.importId,
-      } as EnrichedCard);
-    }
-    replaceAllCards([...others, ...updated, ...added]);
+    replaceAllCards(buildEditedCards(editingCard, selection, allCards));
     setEditingCard(null);
   };
 
@@ -342,85 +278,30 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                 aria-labelledby={headerId}
                 className={`collection-list${isCompact ? ' is-compact' : ''}`}
               >
-                {rows.map((r) => {
-                  const colorKey = getColorKey(r.card);
-                  return (
-                    <div
-                      key={r.key}
-                      className="collection-list-row"
-                      role="row"
-                      tabIndex={0}
-                      onClick={() => {
-                        const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
-                        if (idx !== undefined) setPreviewIndex(idx);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
-                          if (idx !== undefined) setPreviewIndex(idx);
-                        }
-                      }}
-                    >
-                      {r.card.imageSmall ? (
-                        <img
-                          src={r.card.imageSmall}
-                          alt=""
-                          loading="lazy"
-                          className="collection-list-thumb"
-                        />
-                      ) : (
-                        <div
-                          className="collection-list-thumb collection-list-thumb-placeholder"
-                          style={{ background: COLOR_INFO[colorKey]?.pip }}
-                          aria-hidden
-                        />
-                      )}
-                      <div className="collection-list-main">
-                        <div className="collection-list-name">
-                          {r.card.name}
-                          {r.card.foil && <FoilBadge card={r.card} showLabel />}
-                          <DeckBadge allocations={allocationsFor(r.card)} />
-                        </div>
-                        <div className="collection-list-meta">
-                          <SetSymbol
-                            setCode={r.card.setCode}
-                            rarity={r.card.rarity}
-                            title={setSymbolTitle({
-                              setCode: r.card.setCode,
-                              setName: r.card.setName,
-                              collectorNumber: r.card.collectorNumber,
-                              rarity: r.card.rarity,
-                            })}
-                          />
-                          <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
-                          <span className="card-list-cn">#{r.card.collectorNumber}</span>
-                          {r.pageNum > 0 && (
-                            <span className="card-list-page" title={`Page ${r.pageNum}`}>
-                              p.{r.pageNum}
-                            </span>
-                          )}
-                          <ManaCost cost={r.card.manaCost} />
-                        </div>
-                      </div>
-                      <div className="collection-list-right">
-                        <CardRowMenu
-                          card={r.card}
-                          onEditCard={() => setEditingCard(r.card)}
-                          currentBinder={{
-                            id: binder.def.id,
-                            name: binder.def.name,
-                            color: binder.def.color,
-                          }}
-                        />
-                        {r.qty > 1 && <div className="collection-list-qty">×{r.qty}</div>}
-                        <div className="collection-list-price">
-                          {formatMoney(r.card.purchasePrice * r.qty)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {rows.map((r) => (
+                  <CardRow
+                    key={r.key}
+                    card={r.card}
+                    qty={r.qty}
+                    allocations={allocationsFor(r.card)}
+                    pageNum={r.pageNum}
+                    onActivate={() => {
+                      const idx = previewIndexFor.get(`${sectionKey}:${r.key}`);
+                      if (idx !== undefined) setPreviewIndex(idx);
+                    }}
+                    menu={
+                      <CardRowMenu
+                        card={r.card}
+                        onEditCard={() => setEditingCard(r.card)}
+                        currentBinder={{
+                          id: binder.def.id,
+                          name: binder.def.name,
+                          color: binder.def.color,
+                        }}
+                      />
+                    }
+                  />
+                ))}
               </div>
             )}
           </div>
