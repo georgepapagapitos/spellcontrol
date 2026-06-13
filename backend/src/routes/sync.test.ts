@@ -53,7 +53,13 @@ async function pull(cookie: string, since = 0, limit = 5000) {
 async function push(
   cookie: string,
   body: {
-    upserts?: Array<{ kind: string; id: string; data: unknown; importId?: string }>;
+    upserts?: Array<{
+      kind: string;
+      id: string;
+      data: unknown;
+      importId?: string;
+      clientRev?: number;
+    }>;
     deletions?: Array<{ kind: string; id: string }>;
   }
 ) {
@@ -61,6 +67,7 @@ async function push(
   expect(res.status).toBe(200);
   return res.body as {
     applied: Array<{ kind: string; id: string; rev: number; deletedAt: number | null }>;
+    conflicts: Array<{ kind: 'deck'; id: string; serverRev: number; serverData: unknown }>;
     cursor: number;
   };
 }
@@ -200,6 +207,86 @@ describe('POST /api/sync (push)', () => {
       .set('Cookie', cookie)
       .send({ deletions: [{ kind: 'binder' }] });
     expect(bad3.status).toBe(400);
+  });
+});
+
+describe('deck reject-stale (optimistic concurrency)', () => {
+  it('applies a deck upsert when clientRev matches the stored rev', async () => {
+    const cookie = await registerAndGetCookie('deck_match');
+    const first = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'v1' } }],
+    });
+    const rev1 = first.applied[0].rev;
+    const second = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'v2' }, clientRev: rev1 }],
+    });
+    expect(second.conflicts).toEqual([]);
+    expect(second.applied).toHaveLength(1);
+    expect(second.applied[0].rev).toBeGreaterThan(rev1);
+    const view = await pull(cookie, rev1);
+    expect((view.rows[0].data as { name: string }).name).toBe('v2');
+  });
+
+  it('reports a conflict and leaves the deck untouched when clientRev is stale', async () => {
+    const cookie = await registerAndGetCookie('deck_stale');
+    const first = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'v1' } }],
+    });
+    const rev1 = first.applied[0].rev;
+    // Another device advances the deck to v2.
+    const second = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'v2' }, clientRev: rev1 }],
+    });
+    const rev2 = second.applied[0].rev;
+    // This device still thinks it's at rev1 → stale write must be rejected.
+    const stale = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'STALE' }, clientRev: rev1 }],
+    });
+    expect(stale.applied).toEqual([]);
+    expect(stale.conflicts).toHaveLength(1);
+    expect(stale.conflicts[0]).toMatchObject({ kind: 'deck', id: 'd-1', serverRev: rev2 });
+    expect((stale.conflicts[0].serverData as { name: string }).name).toBe('v2');
+    // The server's row is unchanged (still v2, still rev2).
+    const view = await pull(cookie, rev1);
+    expect(view.rows).toHaveLength(1);
+    expect(view.rows[0].rev).toBe(rev2);
+    expect((view.rows[0].data as { name: string }).name).toBe('v2');
+  });
+
+  it('clientRev 0 / absent keeps unconditional last-write-wins (back-compat)', async () => {
+    const cookie = await registerAndGetCookie('deck_lww');
+    const first = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'v1' } }],
+    });
+    const rev1 = first.applied[0].rev;
+    // No clientRev (a pre-clientRev client) → overwrites regardless of stored rev.
+    const second = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'v2' } }],
+    });
+    expect(second.conflicts).toEqual([]);
+    expect(second.applied[0].rev).toBeGreaterThan(rev1);
+    const view = await pull(cookie, rev1);
+    expect((view.rows[0].data as { name: string }).name).toBe('v2');
+  });
+
+  it('inserts a brand-new deck even when clientRev > 0 (no row to conflict with)', async () => {
+    const cookie = await registerAndGetCookie('deck_new_clientrev');
+    const res = await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'd-new', data: { id: 'd-new', name: 'fresh' }, clientRev: 5 }],
+    });
+    expect(res.conflicts).toEqual([]);
+    expect(res.applied).toHaveLength(1);
+    const view = await pull(cookie, 0);
+    expect(view.rows.find((r) => r.id === 'd-new')).toBeDefined();
+  });
+
+  it('rejects a non-numeric clientRev', async () => {
+    const cookie = await registerAndGetCookie('deck_bad_clientrev');
+    const res = await request(app)
+      .post('/api/sync')
+      .set('Cookie', cookie)
+      .send({ upserts: [{ kind: 'deck', id: 'd-1', data: {}, clientRev: 'nope' }] });
+    expect(res.status).toBe(400);
   });
 });
 
