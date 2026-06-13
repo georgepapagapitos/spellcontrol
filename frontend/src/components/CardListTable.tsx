@@ -14,7 +14,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
 import { formatMoney } from '../lib/format-money';
-import { FoilBadge } from './FoilBadge';
 import type {
   BinderFilter,
   ChipExpression,
@@ -33,8 +32,6 @@ import { useConfirm } from '../lib/use-confirm';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
 import { useRegisterShortcuts } from '../lib/shortcut-registry';
-import { ManaCost } from './ManaCost';
-import { SetSymbol } from './shared/SetSymbol';
 import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
@@ -56,7 +53,7 @@ import {
   type SectionHeader,
   type GridLayoutRow,
 } from '../lib/group-sections';
-import { getColorKey, COLOR_INFO } from '../lib/colors';
+import { getColorKey } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
 import {
   collectionFiltersToFilterGroup,
@@ -64,8 +61,9 @@ import {
   hasStructuredFilter,
 } from '../lib/collection-filters-to-binder';
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
-import { getCardType, parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
-import { TypeIcon } from './shared/ManaSymbol';
+import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
+import { CardRow } from './shared/CardRow';
+import { buildEditedCards } from '../lib/edit-card';
 import {
   compileExpression,
   compileFilter,
@@ -222,31 +220,6 @@ const GROUP_KEY_TO_FIELD: Record<Exclude<GroupKey, 'none'>, SortField> = {
   rarity: 'rarity',
   set: 'setReleaseDate',
 };
-
-function pickPrice(card: import('@/deck-builder/types').ScryfallCard, foil: boolean): number {
-  const p = card.prices;
-  if (!p) return 0;
-  const candidates = foil ? [p.usd_foil, p.usd_etched, p.usd] : [p.usd, p.usd_etched, p.usd_foil];
-  for (const raw of candidates) {
-    if (!raw) continue;
-    const n = Number(raw);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return 0;
-}
-
-/**
- * At-a-glance primary-type indicator for a collection row's meta line — a
- * single mana-font type glyph (creature / instant / land / …), the most
- * space-efficient signal, so it survives the 32px compact row and the
- * narrowest phones where the SET/#CN tokens drop. The readable type name
- * rides as the accessible label + tooltip, not on screen.
- */
-function CardTypeGlyph({ typeLine }: { typeLine: string | undefined }) {
-  const t = getCardType({ typeLine } as Parameters<typeof getCardType>[0]);
-  const label = t.charAt(0).toUpperCase() + t.slice(1);
-  return <TypeIcon type={t} label={label} className="card-list-type" />;
-}
 
 export function CardListTable({
   cards,
@@ -828,58 +801,7 @@ export function CardListTable({
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
-    const sc = selection.card;
-    const firstFace = sc.card_faces?.[0];
-    const cardFields: Partial<EnrichedCard> = {
-      scryfallId: sc.id,
-      name: sc.name,
-      setCode: sc.set.toUpperCase(),
-      setName: sc.set_name,
-      collectorNumber: sc.collector_number,
-      rarity: sc.rarity,
-      finish: selection.finish,
-      foil: selection.finish !== 'nonfoil',
-      imageSmall: sc.image_uris?.small ?? firstFace?.image_uris?.small,
-      imageNormal: sc.image_uris?.normal ?? firstFace?.image_uris?.normal,
-      imageLarge: sc.image_uris?.large ?? firstFace?.image_uris?.large,
-      imageNormalBack: sc.card_faces?.[1]?.image_uris?.normal,
-      imageLargeBack: sc.card_faces?.[1]?.image_uris?.large,
-      frameEffects: sc.frame_effects,
-      fullArt: sc.full_art === true || sc.frame_effects?.includes('fullart'),
-      borderColor: sc.border_color,
-      layout: sc.layout,
-      finishes: sc.finishes,
-      promoTypes: sc.promo_types,
-      purchasePrice: pickPrice(sc, selection.finish !== 'nonfoil'),
-      pricedAt: Date.now(),
-    };
-
-    // Existing copies of this printing/finish — these get updated in place,
-    // preserving their copyId so any deck allocations stay intact.
-    const existingCopies = allCards.filter(
-      (c) => c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish
-    );
-    const targetQty = selection.quantity ?? existingCopies.length;
-    const otherCards = allCards.filter(
-      (c) => !(c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish)
-    );
-
-    const updatedExisting = existingCopies
-      .slice(0, targetQty)
-      .map((c) => ({ ...c, ...cardFields, copyId: c.copyId }));
-    const newCopies: EnrichedCard[] = [];
-    for (let i = updatedExisting.length; i < targetQty; i++) {
-      newCopies.push({
-        ...editingCard,
-        ...cardFields,
-        copyId: crypto.randomUUID(),
-        sourceCategory: editingCard.sourceCategory,
-        sourceFormat: editingCard.sourceFormat,
-        importId: editingCard.importId,
-      } as EnrichedCard);
-    }
-
-    replaceAllCards([...otherCards, ...updatedExisting, ...newCopies]);
+    replaceAllCards(buildEditedCards(editingCard, selection, allCards));
     setEditingCard(null);
   };
 
@@ -1812,7 +1734,6 @@ export function CardListTable({
         >
           {listVirtualizer.getVirtualItems().map((virtualRow) => {
             const r = displayRows[virtualRow.index];
-            const colorKey = getColorKey(r.card);
             const selected = selectedRowKeys.has(r.key);
             // When grouping is active, the first row of each section carries its
             // header *inside* the measured cell, so the virtualizer's dynamic
@@ -1848,72 +1769,19 @@ export function CardListTable({
                     <span className="collection-list-section-count">{header.count}</span>
                   </div>
                 )}
-                <div
-                  className={`collection-list-row${
-                    virtualRow.index === displayRows.length - 1 ? ' is-last-row' : ''
-                  }${selectMode ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}`}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selectMode ? selected : undefined}
-                  onClick={() =>
+                <CardRow
+                  card={r.card}
+                  qty={r.qty}
+                  allocations={allocationsFor(r.card)}
+                  binders={r.binders}
+                  setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
+                  isLastRow={virtualRow.index === displayRows.length - 1}
+                  selectMode={selectMode}
+                  selected={selected}
+                  onActivate={() =>
                     selectMode ? toggleRow(r.key) : setPreviewIndex(virtualRow.index)
                   }
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (selectMode) toggleRow(r.key);
-                      else setPreviewIndex(virtualRow.index);
-                    }
-                  }}
-                >
-                  {selectMode && (
-                    <span className="collection-list-check" data-checked={selected} aria-hidden>
-                      {selected && <Check width={13} height={13} strokeWidth={3} />}
-                    </span>
-                  )}
-                  {r.card.imageSmall ? (
-                    <img
-                      src={r.card.imageSmall}
-                      alt=""
-                      loading="lazy"
-                      className="collection-list-thumb"
-                    />
-                  ) : (
-                    <div
-                      className="collection-list-thumb collection-list-thumb-placeholder"
-                      style={{ background: COLOR_INFO[colorKey]?.pip }}
-                      aria-hidden
-                    />
-                  )}
-                  <div className="collection-list-main">
-                    <div className="collection-list-name">
-                      {r.card.name}
-                      {r.card.foil && <FoilBadge card={r.card} showLabel />}
-                      <DeckBadge allocations={allocationsFor(r.card)} />
-                      <BinderBadge binders={r.binders} />
-                    </div>
-                    <div className="collection-list-meta">
-                      <CardTypeGlyph typeLine={r.card.typeLine} />
-                      <SetSymbol
-                        setCode={r.card.setCode}
-                        rarity={r.card.rarity}
-                        title={setSymbolTitle({
-                          setCode: r.card.setCode,
-                          setName: r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
-                          collectorNumber: r.card.collectorNumber,
-                          rarity: r.card.rarity,
-                        })}
-                      />
-                      <span className="card-list-set-code">{r.card.setCode.toUpperCase()}</span>
-                      <span className="card-list-cn">#{r.card.collectorNumber}</span>
-                    </div>
-                  </div>
-                  {r.card.manaCost ? (
-                    <ManaCost cost={r.card.manaCost} className="mana-cost-row" />
-                  ) : (
-                    <span className="mana-cost-row" aria-hidden />
-                  )}
-                  <div className="collection-list-right">
+                  menu={
                     <CardRowMenu
                       card={r.card}
                       onEditCard={() => setEditingCard(r.card)}
@@ -1924,12 +1792,8 @@ export function CardListTable({
                           : null
                       }
                     />
-                    <div className="collection-list-qty">×{r.qty}</div>
-                    <div className="collection-list-price" title="Purchase cost recorded at import">
-                      {formatMoney(r.card.purchasePrice * r.qty)}
-                    </div>
-                  </div>
-                </div>
+                  }
+                />
               </div>
             );
           })}
