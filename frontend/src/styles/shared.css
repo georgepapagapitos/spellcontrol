@@ -4,23 +4,143 @@
  * variables as the rest of the app for consistent theming.
  */
 
+/* ── Shell wrapper (brand bar + footer) ───────────────────────────────── */
+
+:root {
+  --brandbar-h: 52px;
+}
+
+.shared-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  /* The shell is the scroll root for the entire shared page. The sticky brand
+     bar stays at top:0 within this scroll container so the Copy button is
+     always reachable while scrolling the deck. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Brand bar — sticky so the Copy button stays reachable while scrolling. */
+.shared-brandbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--brandbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: var(--surface-raised);
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.shared-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.shared-brand:hover {
+  color: var(--accent-hover, var(--accent));
+}
+
+.shared-brand-mark {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.shared-brand-text {
+  color: var(--text-primary);
+}
+
+.shared-brandbar-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Footer — bottom of the shell, never sticky. */
+.shared-footer {
+  margin-top: auto;
+  padding: 1.5rem 1rem;
+  border-top: 0.5px solid var(--border);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.shared-footer-cta {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.shared-footer-cta:hover {
+  text-decoration: underline;
+}
+
+.shared-footer-fineprint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+/* ── Copy-deck button ─────────────────────────────────────────────────── */
+
+/* Bar variant: compact icon + label in the sticky brand bar. */
+.shared-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+/* Block variant: full-width echo at the end of the deck content. */
+.shared-copy-btn--block {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
 .shared-view {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
   color: var(--text-primary);
   background: var(--bg);
-  /* The shared page renders OUTSIDE the app shell (Layout is auth-gated), so
-     there is no `.app-main` scroll container here and global
-     `body { overflow: hidden }` would clip a tall collection at the viewport
-     edge. This element therefore has to be its own scroll container. dvh so it
-     fills the viewport without the mobile address-bar gap. */
+  /* When wrapped in .shared-shell the shell itself is the scroll root (flex
+     column, min-height 100dvh). The view grows to fill the available space
+     between the brand bar and the footer. Without the shell (legacy/fallback),
+     this element was its own scroll container — the height/overflow below
+     preserve that behaviour via the :not selector. */
+  flex: 1;
+  box-sizing: border-box;
+}
+
+/* Fallback: if .shared-view is rendered without .shared-shell wrapping it,
+   keep the old self-scrolling behaviour so the page doesn't clip. */
+.shared-view:not(.shared-shell *) {
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  box-sizing: border-box;
 }
 
 .shared-view-header {

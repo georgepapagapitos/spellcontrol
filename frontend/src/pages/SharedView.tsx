@@ -6,6 +6,8 @@ import { SharedCollectionView } from '../components/shared/SharedCollectionView'
 import { SharedBinderView } from '../components/shared/SharedBinderView';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { SharedListView } from '../components/shared/SharedListView';
+import { SharedShell } from '../components/shared/SharedShell';
+import { CopyDeckButton } from '../components/shared/CopyDeckButton';
 
 /**
  * Public read-only view for /s/:token. Fetches via the unauthed public
@@ -15,7 +17,13 @@ import { SharedListView } from '../components/shared/SharedListView';
  */
 export function SharedView() {
   const { token } = useParams<{ token: string }>();
-  if (!token) return <NotFoundView />;
+  if (!token) {
+    return (
+      <SharedShell>
+        <NotFoundView />
+      </SharedShell>
+    );
+  }
   // Remount on token change so per-link state is fresh and the effect runs once.
   return <SharedViewInner key={token} token={token} />;
 }
@@ -61,32 +69,56 @@ function SharedViewInner({ token }: { token: string }) {
 
   if (state.status === 'loading') {
     return (
-      <main className="shared-view shared-view--loading" aria-busy="true">
-        <p>Loading…</p>
-      </main>
+      <SharedShell>
+        <main className="shared-view shared-view--loading" aria-busy="true">
+          <p>Loading…</p>
+        </main>
+      </SharedShell>
     );
   }
   if (state.status === 'notFound') {
-    return <NotFoundView />;
+    return (
+      <SharedShell>
+        <NotFoundView />
+      </SharedShell>
+    );
   }
   if (state.status === 'error') {
     return (
-      <main className="shared-view shared-view--error">
-        <h1>Something went wrong</h1>
-        <p>{state.message}</p>
-      </main>
+      <SharedShell>
+        <main className="shared-view shared-view--error">
+          <h1>Something went wrong</h1>
+          <p>{state.message}</p>
+        </main>
+      </SharedShell>
     );
   }
 
   const { payload } = state;
   if (payload.kind === 'collection') {
-    return <SharedCollectionView data={payload.data} />;
+    return (
+      <SharedShell>
+        <SharedCollectionView data={payload.data} />
+      </SharedShell>
+    );
   }
   if (payload.kind === 'binder') {
-    return <SharedBinderView data={payload.data} />;
+    return (
+      <SharedShell>
+        <SharedBinderView data={payload.data} />
+      </SharedShell>
+    );
   }
   if (payload.kind === 'deck') {
-    return <SharedDeckView data={payload.data} />;
+    return (
+      <SharedShell action={<CopyDeckButton data={payload.data} variant="bar" />}>
+        <SharedDeckView data={payload.data} />
+      </SharedShell>
+    );
   }
-  return <SharedListView data={payload.data} />;
+  return (
+    <SharedShell>
+      <SharedListView data={payload.data} />
+    </SharedShell>
+  );
 }

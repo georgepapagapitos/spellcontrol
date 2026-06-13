@@ -8,6 +8,7 @@ import { SharedCardList, type SharedCardListItem } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
+import { CopyDeckButton } from './CopyDeckButton';
 import type { PublicCard } from '../../lib/shared-types';
 
 interface Props {
@@ -244,6 +245,8 @@ export function SharedDeckView({ data }: Props) {
           })()}
         </section>
       )}
+
+      <CopyDeckButton data={data} variant="block" />
 
       {preview && <SharedCardModal card={preview} onClose={() => setPreview(null)} />}
     </main>
