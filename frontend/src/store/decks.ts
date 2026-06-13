@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isApplyingServer } from '../lib/applying-server';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   ScryfallCard,
@@ -931,10 +932,8 @@ export function selectDeck(id: string | undefined): (state: DecksState) => Deck 
  */
 useDecksStore.subscribe((state, prev) => {
   if (state.decks === prev.decks) return;
-  void import('../lib/sync')
-    .then((sync) => {
-      if (sync.isApplyingServer()) return;
-      return sync.persistDecksState(state.decks);
-    })
-    .catch(() => {});
+  // Synchronous guard — see store/collection.ts for why the async-import check
+  // was too late and let pulled state re-persist.
+  if (isApplyingServer()) return;
+  void import('../lib/sync').then((sync) => sync.persistDecksState(state.decks)).catch(() => {});
 });

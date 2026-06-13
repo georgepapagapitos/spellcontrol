@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { setApplyingServer } from './applying-server';
 import { pullSync, pushSync, type SyncRow, type SyncUpsert, type SyncDeletion } from './auth-api';
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
@@ -46,13 +47,12 @@ let broadcastChannel: BroadcastChannel | null = null;
  * Store subscribers must check this and skip enqueuing — those changes are
  * already on the server and would loop forever if re-pushed.
  */
-let applyingServer = false;
 let suspendStoreHydration = false;
 
-/** Subscribers in collection.ts / decks.ts / play.ts check this. */
-export function isApplyingServer(): boolean {
-  return applyingServer;
-}
+// The applyingServer flag lives in its own module so subscribers can read it
+// synchronously without an import cycle. Re-exported so existing
+// `sync.isApplyingServer()` callers keep working.
+export { isApplyingServer } from './applying-server';
 
 type SyncState = 'idle' | 'syncing' | 'ready';
 let syncedState: SyncState = 'idle';
@@ -324,8 +324,11 @@ export async function recordDelete(kind: EntityKind, id: string): Promise<void> 
  * mutators still call one of these helpers after every mutation, but per-
  * row sync semantics are computed here instead of after a full PUT.
  *
- * Always upserts every row in the array (cheap server-side, queue coalesces
- * identical-target ops); the diff only matters for computing deletions.
+ * Only persists rows that actually changed since the last synced copy: a row
+ * already carrying a server rev (>0) whose data is byte-identical to IDB is
+ * skipped. Re-pushing those unchanged rows was the "constantly syncing" smell
+ * (E38) — one card edit re-enqueued the entire collection — and it also reset
+ * every row's server rev to 0 locally. The diff still computes deletions.
  */
 async function persistKind<T>(
   kind: EntityKind,
@@ -334,35 +337,47 @@ async function persistKind<T>(
   getImportId?: (row: T) => string
 ): Promise<void> {
   const local = await estore.getAllLive(kind);
-  const localIds = new Set(local.map((r) => r.id));
+  const localById = new Map(local.map((r) => [r.id, r]));
   const desiredIds = new Set(rows.map(getId));
 
-  const tobsToWrite: estore.StoredRow[] = rows.map((r) => ({
-    id: getId(r),
-    data: r,
-    rev: 0,
-    deletedAt: null,
-    ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
-  }));
-  await estore.putMany(kind, tobsToWrite);
-
-  const toDelete: string[] = [];
-  for (const id of localIds) if (!desiredIds.has(id)) toDelete.push(id);
-  await estore.deleteMany(kind, toDelete);
-
+  // ponytail: O(kind-size) JSON.stringify per call to detect changes — fine at
+  // realistic collection sizes (one diff per user action, no network); hash the
+  // rows if a profiler ever flags it. Identical stringify ⟹ identical content,
+  // so skipping is never lossy. Unpushed rows (rev 0) are never skipped, so a
+  // pending mutation that was dropped pre-ack still gets retried.
+  const changedRows: estore.StoredRow[] = [];
   const muts: queue.Mutation[] = [];
   for (const r of rows) {
+    const id = getId(r);
+    const existing = localById.get(id);
+    const unchanged =
+      existing != null &&
+      existing.rev > 0 &&
+      existing.deletedAt == null &&
+      JSON.stringify(existing.data) === JSON.stringify(r);
+    if (unchanged) continue;
+    changedRows.push({
+      id,
+      data: r,
+      rev: 0,
+      deletedAt: null,
+      ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
+    });
     muts.push({
       op: 'upsert',
       kind,
-      id: getId(r),
+      id,
       data: r,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
     });
   }
-  for (const id of toDelete) {
-    muts.push({ op: 'delete', kind, id });
-  }
+  if (changedRows.length > 0) await estore.putMany(kind, changedRows);
+
+  const toDelete: string[] = [];
+  for (const id of localById.keys()) if (!desiredIds.has(id)) toDelete.push(id);
+  if (toDelete.length > 0) await estore.deleteMany(kind, toDelete);
+  for (const id of toDelete) muts.push({ op: 'delete', kind, id });
+
   if (muts.length > 0) {
     await queue.enqueueBatch(muts);
     void refreshPending();
@@ -517,11 +532,11 @@ function schedulePush(): void {
 async function applyServerRows(rows: SyncRow[]): Promise<void> {
   // Batch by kind so we can write all upserts / all deletes in one IDB tx per kind.
   const upsertsByKind = new Map<EntityKind, estore.StoredRow[]>();
-  const deletionsByKind = new Map<EntityKind, string[]>();
+  const deletionsByKind = new Map<EntityKind, { id: string; rev: number; deletedAt: number }[]>();
   for (const r of rows) {
     if (r.deletedAt != null) {
       const arr = deletionsByKind.get(r.kind) ?? [];
-      arr.push(r.id);
+      arr.push({ id: r.id, rev: r.rev, deletedAt: r.deletedAt });
       deletionsByKind.set(r.kind, arr);
     } else {
       const arr = upsertsByKind.get(r.kind) ?? [];
@@ -536,7 +551,11 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
     }
   }
   for (const [kind, rows] of upsertsByKind) await estore.putMany(kind, rows);
-  for (const [kind, ids] of deletionsByKind) await estore.deleteMany(kind, ids);
+  // Write a tombstone row (data: null, deletedAt set) rather than hard-removing
+  // the key, so a re-delivered tombstone on a lagging cursor stays deleted
+  // instead of resurrecting as a live row. getAllLive filters these out.
+  for (const [kind, dels] of deletionsByKind)
+    for (const d of dels) await estore.putTombstone(kind, d.id, d.rev, d.deletedAt);
 
   // A deck row changed on the server (another device edited it) → this device's
   // undo/redo snapshots for that deck are now stale; replaying them would clobber
@@ -545,7 +564,7 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
   // delivered deck rows, so idle focus-pulls don't nuke history.
   const changedDeckIds = new Set<string>([
     ...(upsertsByKind.get('deck')?.map((r) => r.id) ?? []),
-    ...(deletionsByKind.get('deck') ?? []),
+    ...(deletionsByKind.get('deck')?.map((d) => d.id) ?? []),
   ]);
   if (changedDeckIds.size > 0) {
     try {
@@ -730,7 +749,7 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   const { useDecksStore } = await import('../store/decks');
   const { usePlayStore } = await import('../store/play');
 
-  applyingServer = true;
+  setApplyingServer(true);
   try {
     // Casts: rows are stored with a typed shape on write (see persistKind),
     // but the read path passes through `unknown` for IDB hygiene. The state
@@ -751,7 +770,7 @@ async function rehydrateStoresFromIdb(): Promise<void> {
       typeof usePlayStore.setState
     >[0]);
   } finally {
-    applyingServer = false;
+    setApplyingServer(false);
   }
 }
 
@@ -761,7 +780,7 @@ async function resetInMemoryStores(): Promise<void> {
   const { usePlayStore } = await import('../store/play');
   const { deckHistory } = await import('../store/deck-history');
   deckHistory.clear();
-  applyingServer = true;
+  setApplyingServer(true);
   try {
     useCollectionStore.setState({
       cards: [],
@@ -781,6 +800,6 @@ async function resetInMemoryStores(): Promise<void> {
       typeof usePlayStore.setState
     >[0]);
   } finally {
-    applyingServer = false;
+    setApplyingServer(false);
   }
 }

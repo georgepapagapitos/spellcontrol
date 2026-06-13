@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { isApplyingServer } from '../lib/applying-server';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -1100,14 +1101,15 @@ export const useCollectionStore = create<CollectionState>()(
  */
 useCollectionStore.subscribe((state, prev) => {
   if (state.binders === prev.binders) return;
-  // Lazy-import to break the cycle: sync.ts imports the stores back in.
-  // Errors from the sync layer must not bubble — a missing IDB (tests) or a
-  // network-down push attempt should never crash the in-memory mutation
-  // that fired this subscriber. The sync driver retries on next focus / online.
+  // Check the guard synchronously: subscribers fire synchronously during the
+  // sync driver's setState, where the flag is set — but it would already be
+  // reset by the time an async import('../lib/sync') resolved, which let pulled
+  // state get re-persisted and re-pushed. Lazy-import only the persist call to
+  // break the cycle (sync.ts imports the stores back). Errors must not bubble —
+  // a missing IDB (tests) or network-down push must never crash the mutation;
+  // the sync driver retries on next focus / online.
+  if (isApplyingServer()) return;
   void import('../lib/sync')
-    .then((sync) => {
-      if (sync.isApplyingServer()) return;
-      return sync.persistBindersState(state.binders);
-    })
+    .then((sync) => sync.persistBindersState(state.binders))
     .catch(() => {});
 });

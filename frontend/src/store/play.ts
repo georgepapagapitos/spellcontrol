@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isApplyingServer } from '../lib/applying-server';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   applyAction,
@@ -527,12 +528,9 @@ export const usePlayStore = create<PlayState>()(
  */
 usePlayStore.subscribe((state, prev) => {
   if (state.history === prev.history) return;
-  void import('../lib/sync')
-    .then((sync) => {
-      if (sync.isApplyingServer()) return;
-      return sync.persistGamesState(state.history);
-    })
-    .catch(() => {});
+  // Synchronous guard — see store/collection.ts.
+  if (isApplyingServer()) return;
+  void import('../lib/sync').then((sync) => sync.persistGamesState(state.history)).catch(() => {});
 });
 
 // ── Per-deck win/loss aggregation ───────────────────────────────────────────
