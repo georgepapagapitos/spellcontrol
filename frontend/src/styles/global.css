@@ -6961,6 +6961,86 @@ hr {
   margin-top: 0.15rem;
 }
 
+/* ── Binder spread mode (≥1024px) ───────────────────────────────────────────
+   Activated by .is-spread on .binder-pages-backdrop (driven by the
+   matchMedia state in BinderPagePreview — not a CSS media query, so DOM and
+   CSS can never disagree).
+
+   --slide-size override: the spread is ~2× as wide as a single page, so we
+   raise the ceiling to fit two page grids side-by-side. JS bakes 1 ratio-unit
+   for the spine into --page-w-ratio; min() still clamps to the track width and
+   height.
+
+   Exact-fraction contract: JS sets --spread-page-frac = (cols×5)/(2×cols×5+1)
+   and --spread-spine-frac = 1/(2×cols×5+1). The CSS assigns each child an
+   exact flex basis of (--slide-size × frac), so pages + spine sum identically
+   to --slide-size — no height overflow at any viewport.                     */
+.binder-pages-backdrop.is-spread .binder-pages-track {
+  --slide-size: min(100cqw, calc(100cqh * var(--page-w-ratio, 1.45)), clamp(880px, 86vw, 1480px));
+}
+
+/* Spread slide: row of [left-page | spine | right-page]. flex so the spine
+   sits between the two page grids without affecting .binder-pages-page's
+   own grid layout. align-items:stretch so pages and spine fill the same
+   height. gap:0 — the spine is the only separator; inherited gap would add
+   extra space outside the exact-fraction budget. */
+.binder-pages-slide--spread {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* Spine gutter between the two facing pages. The vertical gradient is
+   darkest at the seam (center) to evoke a bound edge; the repeating rings
+   hint at binder hardware. Width is an exact fraction of --slide-size so
+   pages + spine sum identically to --slide-size (no height overflow). */
+.binder-spread-spine {
+  flex: 0 0 calc(var(--slide-size) * var(--spread-spine-frac));
+  align-self: stretch;
+  /* Subtle ring notches evoke binder hardware holes along the spine. */
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 22px,
+      rgba(255, 255, 255, 0.06) 22px,
+      rgba(255, 255, 255, 0.06) 28px,
+      transparent 28px,
+      transparent 50px
+    ),
+    linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.38) 45%,
+      rgba(0, 0, 0, 0.55) 50%,
+      rgba(0, 0, 0, 0.38) 55%,
+      rgba(0, 0, 0, 0.08) 100%
+    );
+  pointer-events: none;
+}
+
+/* Exact-fraction page sizing: each page side gets exactly --slide-size ×
+   --spread-page-frac, so left + spine + right = --slide-size by construction.
+   width:auto overrides .binder-pages-page's base width:100% so the flex basis
+   wins; min-width:0 prevents blowout inside the flex row. */
+.binder-pages-slide--spread .binder-pages-page,
+.binder-pages-slide--spread .binder-spread-blank {
+  flex: 0 0 calc(var(--slide-size) * var(--spread-page-frac));
+  width: auto;
+  min-width: 0;
+}
+
+/* Blank side placeholder — a barely-visible sheet silhouette. Same aspect
+   ratio as the page grid so the spread stays geometrically balanced. The
+   dashed border and low-alpha fill signal "empty slot" without fake pockets. */
+.binder-spread-blank {
+  min-width: 0;
+  background: color-mix(in srgb, var(--surface-raised) 18%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--border) 40%, transparent);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
 /* ── Responsive enhancements ────────────────────────────────────────────── */
 /* Prevent iOS Safari / WKWebView auto-zoom on focus. Mobile Safari zooms the
    page whenever a focused control's font-size is below 16px — and the page
