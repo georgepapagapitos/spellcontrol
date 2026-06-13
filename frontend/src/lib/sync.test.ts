@@ -9,6 +9,12 @@ vi.mock('./auth-api', () => ({
   pushSync: vi.fn(),
 }));
 
+// Default to web; the native-resume test flips isNativePlatform to true.
+vi.mock('./platform', () => ({ isNativePlatform: vi.fn(() => false) }));
+vi.mock('@capacitor/app', () => ({
+  App: { addListener: vi.fn(async () => ({ remove: vi.fn() })) },
+}));
+
 import {
   startSync,
   stopSyncAndWipeLocal,
@@ -30,11 +36,15 @@ import {
   hasSyncError,
 } from './sync';
 import { pullSync, pushSync } from './auth-api';
+import { isNativePlatform } from './platform';
+import { App as CapacitorApp } from '@capacitor/app';
 import * as estore from './entity-store';
 import * as queue from './mutation-queue';
 
 const mockPull = pullSync as unknown as ReturnType<typeof vi.fn>;
 const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
+const mockIsNative = isNativePlatform as unknown as ReturnType<typeof vi.fn>;
+const mockAddListener = CapacitorApp.addListener as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -46,6 +56,7 @@ beforeEach(async () => {
   // Default: empty pull, empty push.
   mockPull.mockResolvedValue({ rows: [], cursor: 0, hasMore: false });
   mockPush.mockResolvedValue({ applied: [], cursor: 0 });
+  mockIsNative.mockReturnValue(false); // web by default; native test opts in
 });
 
 afterEach(async () => {
@@ -124,6 +135,28 @@ describe('lifecycle', () => {
     // Still 'idle' — no startSync was called.
     expect(getSyncState()).toBe('idle');
     expect(mockPull).not.toHaveBeenCalled();
+  });
+});
+
+describe('native resume', () => {
+  it('pulls when the app is foregrounded (Capacitor resume)', async () => {
+    mockIsNative.mockReturnValue(true);
+    await startSync('user-1');
+    // Grab the handler registered for the Capacitor `resume` event.
+    const resumeCall = mockAddListener.mock.calls.find((c) => c[0] === 'resume');
+    expect(resumeCall).toBeDefined();
+    const onResume = resumeCall![1] as () => void;
+
+    const before = mockPull.mock.calls.length;
+    onResume(); // simulate the app coming back to the foreground
+    await Promise.resolve();
+    expect(mockPull.mock.calls.length).toBe(before + 1);
+  });
+
+  it('does not register a resume listener on web', async () => {
+    mockIsNative.mockReturnValue(false);
+    await startSync('user-1');
+    expect(mockAddListener.mock.calls.some((c) => c[0] === 'resume')).toBe(false);
   });
 });
 
