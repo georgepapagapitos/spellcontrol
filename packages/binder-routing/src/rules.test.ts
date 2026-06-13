@@ -131,9 +131,9 @@ describe('cardMatchesFilter', () => {
     it('excludes $0 (no-price) cards from any price-bounded filter', () => {
       expect(cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMin: 0 })).toBe(false);
       expect(cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMax: 100 })).toBe(false);
-      expect(cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMin: 0, priceMax: 100 })).toBe(
-        false
-      );
+      expect(
+        cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMin: 0, priceMax: 100 })
+      ).toBe(false);
     });
   });
 

@@ -104,9 +104,11 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
   if (f.typeChips && !substringMatchesExpression(card.typeLine, f.typeChips)) return false;
   if (f.supertypeChips || f.subtypeChips || f.typeTokenChips) {
     const parsed = parseTypeLine(card.typeLine);
-    if (f.supertypeChips && !setMatchesExpression(parsed.supertypes, f.supertypeChips)) return false;
+    if (f.supertypeChips && !setMatchesExpression(parsed.supertypes, f.supertypeChips))
+      return false;
     if (f.typeTokenChips && !setMatchesExpression(parsed.types, f.typeTokenChips)) return false;
-    if (f.subtypeChips && !substringMatchesExpression(parsed.subtypes.join(' '), f.subtypeChips)) return false;
+    if (f.subtypeChips && !substringMatchesExpression(parsed.subtypes.join(' '), f.subtypeChips))
+      return false;
   }
   if (f.oracleChips && !substringMatchesExpression(card.oracleText, f.oracleChips)) return false;
 
