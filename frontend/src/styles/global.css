@@ -9603,36 +9603,68 @@ i.ss.set-symbol--mythic {
 
 /* Auth page — full-viewport centered card. Uses theme tokens so it re-skins
  * with the active guild. */
+/* Scroll container, not a fixed centered box: register mode is taller than
+   the short viewports/keyboard-open states, so the page MUST be able to
+   scroll. The card centers via `margin: auto` (not align/justify center,
+   which clip overflow and stranded the bottom of the form — the bug this
+   redesign fixes). Padding carries safe-area + keyboard insets on native. */
 .auth-page {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
+  overflow-y: auto;
   background: var(--bg);
+  padding: calc(var(--space-6) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-6) + var(--keyboard-inset) + var(--safe-bottom))
+    calc(var(--space-4) + var(--safe-left));
 }
 
 .auth-card {
   width: 100%;
   max-width: 380px;
+  margin: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 24px;
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+  animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
 
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card {
+    animation: none;
+  }
+}
+
+/* Serif wordmark — matches the WelcomePage brand block so the two first-run
+   surfaces read as siblings. */
 .auth-title {
-  font-size: var(--text-xl);
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0 0 6px;
   color: var(--text-primary);
 }
 
 .auth-subtitle {
-  margin: 0 0 20px;
+  margin: 0 0 22px;
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  line-height: 1.5;
 }
 
 /* Honesty sentence: appears when there are local guest cards waiting to be
