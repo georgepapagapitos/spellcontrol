@@ -241,7 +241,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           id: 'cardfit',
           tier: 2,
           title: 'Tighten card fit',
-          detail: `${sub.surface} Swap low-fit cards for stronger options on the Tune view.`,
+          detail: `${sub.surface} Swap low-fit cards for stronger options on the Coach tab.`,
           navigateTo: SUBSCORE_VIEW.cardFit,
           focus: 'upgrade',
         });
