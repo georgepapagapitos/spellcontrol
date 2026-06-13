@@ -12,9 +12,9 @@ export const syncRouter: Router = Router();
  *     → { rows, cursor, hasMore }
  *
  *   POST /api/sync
- *     body { upserts: [{ kind, id, data, importId? }],
+ *     body { upserts: [{ kind, id, data, importId?, clientRev? }],
  *            deletions: [{ kind, id }] }
- *     → { applied, cursor }
+ *     → { applied, conflicts, cursor }
  *
  * Every user-data row carries its own monotonic `rev` (from `user_data_rev_seq`)
  * and a `deleted_at` tombstone. Clients pull deltas since the last cursor and
@@ -55,6 +55,13 @@ interface UpsertOp {
   id: string;
   data: unknown;
   importId?: string;
+  /**
+   * Deck-only optimistic-concurrency token: the `rev` the client last saw for
+   * this deck. When > 0 the server only writes if the stored rev still matches,
+   * otherwise it reports a conflict (see the deck reject-stale path below).
+   * Absent/0 = unconditional last-write-wins, the behaviour for every other kind.
+   */
+  clientRev?: number;
 }
 interface DeletionOp {
   kind: Kind;
@@ -81,11 +88,16 @@ function parseUpserts(raw: unknown): { value: UpsertOp[] } | { error: string } {
       if (r.importId !== undefined && typeof r.importId !== 'string')
         return { error: `upserts[${i}].importId must be a string when provided.` };
     }
+    if (r.kind === 'deck' && r.clientRev !== undefined) {
+      if (typeof r.clientRev !== 'number' || !Number.isFinite(r.clientRev) || r.clientRev < 0)
+        return { error: `upserts[${i}].clientRev must be a non-negative number when provided.` };
+    }
     out.push({
       kind: r.kind,
       id: r.id,
       data: r.data,
       ...(r.kind === 'card' && typeof r.importId === 'string' ? { importId: r.importId } : {}),
+      ...(r.kind === 'deck' && typeof r.clientRev === 'number' ? { clientRev: r.clientRev } : {}),
     });
   }
   return { value: out };
@@ -204,6 +216,7 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
 
   const now = Date.now();
   const applied: AppliedRow[] = [];
+  const conflicts: Array<{ kind: 'deck'; id: string; serverRev: number; serverData: unknown }> = [];
   const client = await getPool().connect();
   try {
     await client.query('BEGIN');
@@ -245,8 +258,19 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     // sidesteps the fiddlier jsonb[] array binding.
     type UpsertBucket = Map<string, { data: string | null; rev: number; importId: string }>;
     const upsertByKind = new Map<Kind, UpsertBucket>();
+    // Decks are handled separately (optimistic concurrency, below), not in the
+    // bulk unnest path. De-duped by id like the buckets — last write wins.
+    const deckUpserts = new Map<string, { data: string | null; rev: number; clientRev: number }>();
     for (const u of upserts.value) {
       const r = revs[ri++];
+      if (u.kind === 'deck') {
+        deckUpserts.set(u.id, {
+          data: u.data === undefined ? null : JSON.stringify(u.data),
+          rev: r,
+          clientRev: u.clientRev ?? 0,
+        });
+        continue;
+      }
       const bucket = upsertByKind.get(u.kind) ?? new Map();
       upsertByKind.set(u.kind, bucket);
       bucket.set(u.id, {
@@ -283,6 +307,57 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
         );
       }
       for (const id of ids) applied.push({ kind, id, rev: bucket.get(id)!.rev, deletedAt: null });
+    }
+
+    // ── Decks: optimistic concurrency (reject-stale). A deck is a rich blob
+    //    where a silent last-write-wins clobber loses real work, so when the
+    //    client sends the rev it last saw (clientRev > 0) we only write if the
+    //    stored rev still matches; otherwise we report the server's current row
+    //    as a conflict and leave it untouched (server wins, client re-pulls).
+    //    clientRev 0/absent (every pre-clientRev client) keeps the unconditional
+    //    last-write-wins every other kind uses — so this path is dormant and
+    //    behaviour-neutral until the client starts sending clientRev. ──
+    for (const [id, d] of deckUpserts) {
+      if (d.clientRev > 0) {
+        const upd = await client.query(
+          `UPDATE user_decks
+           SET data = $3::jsonb, rev = $4, deleted_at = NULL, updated_at = $5
+           WHERE user_id = $1 AND id = $2 AND rev = $6
+           RETURNING id`,
+          [userId, id, d.data, d.rev, now, d.clientRev]
+        );
+        if (upd.rowCount === 1) {
+          applied.push({ kind: 'deck', id, rev: d.rev, deletedAt: null });
+          continue;
+        }
+        // clientRev didn't match. If a row exists at a different rev it changed
+        // on another device → conflict. If no row exists at all the client
+        // referenced a rev for a deck we don't have → fall through to insert
+        // rather than drop the user's data.
+        const cur = await client.query<{ data: unknown; rev: string }>(
+          `SELECT data, rev FROM user_decks WHERE user_id = $1 AND id = $2`,
+          [userId, id]
+        );
+        if (cur.rows.length > 0) {
+          conflicts.push({
+            kind: 'deck',
+            id,
+            serverRev: Number(cur.rows[0].rev),
+            serverData: cur.rows[0].data,
+          });
+          continue;
+        }
+      }
+      // Unconditional last-write-wins: clientRev 0/absent, or a missing row above.
+      await client.query(
+        `INSERT INTO user_decks (user_id, id, data, rev, deleted_at, updated_at)
+         VALUES ($1, $2, $3::jsonb, $4, NULL, $5)
+         ON CONFLICT (user_id, id) DO UPDATE
+           SET data = EXCLUDED.data, rev = EXCLUDED.rev,
+               deleted_at = NULL, updated_at = EXCLUDED.updated_at`,
+        [userId, id, d.data, d.rev, now]
+      );
+      applied.push({ kind: 'deck', id, rev: d.rev, deletedAt: null });
     }
 
     // ── Deletions (+ cascades): assign revs in the same order the old loop did
@@ -368,11 +443,11 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   const cursor = applied.reduce((mx, a) => Math.max(mx, a.rev), 0);
   logger.debug(
     `[sync] POST.ok user=${userId} upserts=${upserts.value.length} ` +
-      `deletions=${deletions.value.length} ` +
-      `cascaded=${applied.length - upserts.value.length - deletions.value.length} ` +
+      `deletions=${deletions.value.length} conflicts=${conflicts.length} ` +
+      `cascaded=${applied.length - (upserts.value.length - conflicts.length) - deletions.value.length} ` +
       `cursor=${cursor}`
   );
-  res.json({ applied, cursor });
+  res.json({ applied, conflicts, cursor });
 });
 
 interface QueryClient {
