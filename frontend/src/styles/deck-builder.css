@@ -1710,13 +1710,25 @@ input.toolbar-search-input {
 
 .deck-row-name {
   flex: 1 1 auto;
-  /* Without min-width: 0, a flex item defaults to min-content — long
-     card names (e.g. "Hangarback, Carving Knight") couldn't shrink,
-     which pushed the whole row wider than the panel and bled past the
-     viewport on narrow phones. Pairing it with overflow-wrap: anywhere
-     lets unbreakable strings wrap rather than overflowing. */
+  /* Row of identity + trailing chips (partner/legality/alloc/foil/synergy/
+     inclusion). min-width: 0 lets it shrink below min-content so a long name
+     doesn't push the row past the viewport; the name-text child absorbs the
+     shrink by ellipsizing, leaving the chips intact at a fixed gap. */
   min-width: 0;
-  overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
+}
+
+/* The card name truncates with an ellipsis so the trailing chips never get
+   pushed off or forced to wrap; the full name stays available via title +
+   the tap-to-open preview. Chips keep their own margin-left (uniform 0.4rem)
+   so the flex row needs no gap. */
+.deck-row-name-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deck-row-menu {
@@ -8420,30 +8432,21 @@ input.deck-row-qty-input.deck-row-qty-missing {
   color: var(--text-primary);
 }
 
+/* Icon-only ✦ pill — the synergy reason text was dropped from the row (it
+   crowded the name and made rows uneven); the reasons live in the title
+   tooltip and the tap-to-open preview, and the Key explains the ✦. */
 .deck-row-synergy {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-left: 0.4rem;
-  padding: 0 0.4rem;
+  padding: 0 0.3rem;
   font-size: var(--text-xs);
   line-height: 1.4;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent);
   border: 0.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  white-space: nowrap;
-  max-width: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Center the pill against the card-name text instead of sitting on
-     its baseline (which made the padded chip ride high in the row). */
-  vertical-align: middle;
   cursor: help;
-}
-
-/* Space the reason text off the ✦ icon (the literal space between them
-   moved into the label span when it was split out for the mobile collapse). */
-.deck-row-synergy-label {
-  margin-left: 0.25rem;
 }
 
 /* EDHREC inclusion-% chip — a quiet, bordered marker sitting after the card
@@ -8474,21 +8477,12 @@ input.deck-row-qty-input.deck-row-qty-missing {
     margin-left: 0.3rem;
   }
 
-  /* Collapse the long text tags to icon-only badges on phones/native — the
-     ✦ synergy pill and the Partner tag drop their labels, leaving a compact
-     tappable icon. The full reasons / role / inclusion / legality are still a
-     tap away: tapping the row opens the detail sheet (DeckCardPreviewMeta),
-     which renders all of it. Mirrors the .deck-row-alloc-badge-label collapse
-     at 700px. Tablet (>600px) keeps the full text. */
-  .deck-row-synergy-label,
+  /* Collapse the Partner tag to an icon-only badge on phones/native. The
+     full role / inclusion / legality detail is a tap away: tapping the row
+     opens the detail sheet (DeckCardPreviewMeta). (The ✦ synergy pill is now
+     icon-only at all widths, so it needs no phone-specific collapse.) */
   .deck-row-partner-label {
     display: none;
-  }
-
-  .deck-row-synergy {
-    /* No text to truncate now — square the pill up around the lone ✦. */
-    max-width: none;
-    padding: 0 0.3rem;
   }
 
   .deck-row-partner-tag {
