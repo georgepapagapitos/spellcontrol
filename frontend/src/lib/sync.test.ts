@@ -163,6 +163,22 @@ describe('pull', () => {
     expect(await estore.getAllLive('binder')).toEqual([]);
   });
 
+  it('retains a tombstone row (carrying server rev) instead of hard-deleting it', async () => {
+    // Resurrection guard: a pulled tombstone must leave a deletedAt-marked row
+    // behind so a re-delivered tombstone on a lagging cursor stays dead rather
+    // than reappearing as a live row.
+    await estore.putMany('binder', [{ id: 'b-1', data: { id: 'b-1' }, rev: 1, deletedAt: null }]);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'binder', id: 'b-1', data: null, rev: 5, deletedAt: 1700000000000 }],
+      cursor: 5,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    const raw = await estore.getById('binder', 'b-1');
+    expect(raw).toMatchObject({ id: 'b-1', data: null, rev: 5, deletedAt: 1700000000000 });
+    expect(await estore.getAllLive('binder')).toEqual([]);
+  });
+
   it('keeps pulling while hasMore is true and advances the cursor', async () => {
     mockPull
       .mockResolvedValueOnce({
@@ -305,6 +321,33 @@ describe('persistKind helpers', () => {
     const ops = batch.map((b) => `${b.m.op}:${b.m.kind}:${b.m.id}`);
     expect(ops).toContain('upsert:binder:b-1');
     expect(ops).toContain('delete:binder:b-2');
+  });
+
+  it('skips rows that are unchanged since the last synced copy (E38)', async () => {
+    // b-1 already carries a server rev and identical data → must not re-enqueue.
+    // b-2 differs → must enqueue. This is the chattiness fix: a one-binder edit
+    // no longer re-pushes the whole kind.
+    await estore.putMany('binder', [
+      { id: 'b-1', data: { id: 'b-1', name: 'same' }, rev: 7, deletedAt: null },
+      { id: 'b-2', data: { id: 'b-2', name: 'old' }, rev: 8, deletedAt: null },
+    ]);
+    await persistBindersState([
+      { id: 'b-1', name: 'same' } as { id: string },
+      { id: 'b-2', name: 'changed' } as { id: string },
+    ]);
+    const ops = (await queue.peekBatch(10)).map((b) => `${b.m.op}:${b.m.id}`);
+    expect(ops).toEqual(['upsert:b-2']);
+    // The unchanged row keeps its server rev (not reset to 0).
+    expect((await estore.getById('binder', 'b-1'))?.rev).toBe(7);
+  });
+
+  it('still re-enqueues an unchanged row that was never pushed (rev 0)', async () => {
+    await estore.putMany('binder', [
+      { id: 'b-1', data: { id: 'b-1', name: 'same' }, rev: 0, deletedAt: null },
+    ]);
+    await persistBindersState([{ id: 'b-1', name: 'same' } as { id: string }]);
+    const ops = (await queue.peekBatch(10)).map((b) => `${b.m.op}:${b.m.id}`);
+    expect(ops).toEqual(['upsert:b-1']);
   });
 
   it('persistCardsState includes importId on the upsert row', async () => {
