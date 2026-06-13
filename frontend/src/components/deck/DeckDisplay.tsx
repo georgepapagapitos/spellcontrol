@@ -2883,7 +2883,9 @@ function DeckCardRow({
           <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
         ))}
       <span className="deck-row-name" title={row.card.type_line}>
-        {row.name}
+        <span className="deck-row-name-text" title={row.name}>
+          {row.name}
+        </span>
         {row.isPartner && (
           <span className="deck-row-partner-tag" title="Partner commander">
             <Handshake width={12} height={12} strokeWidth={2.4} aria-hidden />
@@ -2902,7 +2904,6 @@ function DeckCardRow({
             <span className="deck-row-synergy-icon" aria-hidden>
               ✦
             </span>
-            <span className="deck-row-synergy-label">{synergyReasons[0]}</span>
           </span>
         )}
         {typeof inclusionPct === 'number' && (
