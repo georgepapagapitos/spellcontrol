@@ -315,6 +315,12 @@ export interface BinderFilter {
   manaCost?: string;
   /** Type-line chips. Substring match. */
   typeChips?: ChipExpression;
+  /** Primary card types. Exact-token match against parsed types, e.g. Creature, Instant. */
+  typeTokenChips?: ChipExpression;
+  /** Supertype chips. Exact-token match against parsed supertypes (e.g. "Legendary", "Basic"). */
+  supertypeChips?: ChipExpression;
+  /** Subtype chips. Substring match against joined subtypes (e.g. "Angel", "Equipment"). */
+  subtypeChips?: ChipExpression;
   /** Oracle-text chips. Substring match. */
   oracleChips?: ChipExpression;
   setCodes?: string[];

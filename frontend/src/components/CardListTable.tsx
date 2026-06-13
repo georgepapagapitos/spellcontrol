@@ -1,5 +1,6 @@
 import {
   AlignJustify,
+  Bookmark,
   Check,
   CheckSquare,
   LayoutGrid,
@@ -57,6 +58,11 @@ import {
 } from '../lib/group-sections';
 import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
+import {
+  collectionFiltersToFilterGroup,
+  deriveBinderName,
+  hasStructuredFilter,
+} from '../lib/collection-filters-to-binder';
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { getCardType, parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { TypeIcon } from './shared/ManaSymbol';
@@ -825,6 +831,7 @@ export function CardListTable({
   }, [editingCard, cards]);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allCards = useCollectionStore((s) => s.cards);
+  const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const allocations = useAllocations();
   // Index allocations by printing (scryfallId + foil) once so per-row lookups
   // stay O(1). Without this, allocationsFor scans allCards on every call —
@@ -1035,6 +1042,81 @@ export function CardListTable({
   // Stable reference (same shape every time) — memoized so the
   // chips useMemo dependency doesn't trigger on every render.
   const EMPTY_EXPR = useMemo<ChipExpression>(() => ({ chips: [], joiners: [] }), []);
+
+  // Whether at least one STRUCTURED filter (not just a search term) is active.
+  // Used to gate the "Save as binder" button.
+  // Note: condition and binder filters are deliberately excluded from hasStructuredFilter
+  // because they can't be mapped to a binder rule — so those filters alone won't
+  // enable the button.
+  const structuredFilterActive = hasStructuredFilter({
+    colorFilter,
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    rarityExpr,
+    oracleExpr,
+    legalityExpr,
+    layoutExpr,
+    treatmentExpr,
+    borderExpr,
+    finishExpr,
+    conditionExpr,
+    binderExpr,
+    setFilter,
+    priceMin,
+    priceMax,
+    cmcMin,
+    cmcMax,
+    search,
+  });
+
+  const handleSaveAsBinderClick = useCallback(() => {
+    const filterInput = {
+      colorFilter,
+      supertypeExpr,
+      typesExpr,
+      subtypeExpr,
+      rarityExpr,
+      oracleExpr,
+      legalityExpr,
+      layoutExpr,
+      treatmentExpr,
+      borderExpr,
+      finishExpr,
+      conditionExpr,
+      binderExpr,
+      setFilter,
+      priceMin,
+      priceMax,
+      cmcMin,
+      cmcMax,
+      search,
+    };
+    const { group, flagged } = collectionFiltersToFilterGroup(filterInput);
+    const name = deriveBinderName(filterInput);
+    setEditingBinder('new', { name, groups: [group], flagged });
+  }, [
+    colorFilter,
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    rarityExpr,
+    oracleExpr,
+    legalityExpr,
+    layoutExpr,
+    treatmentExpr,
+    borderExpr,
+    finishExpr,
+    conditionExpr,
+    binderExpr,
+    setFilter,
+    priceMin,
+    priceMax,
+    cmcMin,
+    cmcMax,
+    search,
+    setEditingBinder,
+  ]);
 
   // Clear all active filters and the search term at once.
   const clearAllFilters = useCallback(() => {
@@ -1396,6 +1478,16 @@ export function CardListTable({
               onClick={clearAllFilters}
             >
               Clear all
+            </button>
+          )}
+          {structuredFilterActive && (
+            <button
+              type="button"
+              className="collection-save-as-binder-btn"
+              onClick={handleSaveAsBinderClick}
+            >
+              <Bookmark width={12} height={12} strokeWidth={2} aria-hidden />
+              <span>Save as binder</span>
             </button>
           )}
         </div>

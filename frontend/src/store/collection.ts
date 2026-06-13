@@ -84,6 +84,11 @@ interface CollectionState {
   lists: ListDef[];
   activeTab: string;
   editingBinder: string | null;
+  editingBinderSeed: {
+    name?: string;
+    groups?: import('../types').BinderFilterGroup[];
+    flagged?: string[];
+  } | null;
 
   search: string;
 
@@ -221,7 +226,10 @@ interface CollectionState {
 
   // UI actions
   setActiveTab: (tab: string) => void;
-  setEditingBinder: (id: string | null) => void;
+  setEditingBinder: (
+    id: string | null,
+    seed?: { name?: string; groups?: import('../types').BinderFilterGroup[]; flagged?: string[] }
+  ) => void;
 
   // Config actions
   setSearch: (s: string) => void;
@@ -301,6 +309,7 @@ export const useCollectionStore = create<CollectionState>()(
       error: null,
       activeTab: 'uncategorized',
       editingBinder: null,
+      editingBinderSeed: null,
       search: '',
 
       // Persisted defaults
@@ -1057,7 +1066,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       setActiveTab: (tab) => set({ activeTab: tab }),
-      setEditingBinder: (id) => set({ editingBinder: id }),
+      setEditingBinder: (id, seed) => set({ editingBinder: id, editingBinderSeed: seed ?? null }),
 
       setSearch: (s) => set({ search: s }),
     }),
