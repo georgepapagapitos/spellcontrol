@@ -95,6 +95,7 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
         totalPages={active.totalPages}
         sections={active.sections}
         pocketSize={active.effectivePocketSize}
+        doubleSided={active.def.doubleSided}
         editSorts={active.def.sorts}
         valueOrders={active.def.sortValueOrders ?? {}}
         sortEditable={active.def.mode !== 'manual' && !active.def.manualOrder?.length}
@@ -114,6 +115,7 @@ function SectionList({
   totalPages,
   sections,
   pocketSize,
+  doubleSided,
   editSorts,
   valueOrders,
   sortEditable,
@@ -128,6 +130,7 @@ function SectionList({
   totalPages: number;
   sections: BinderSection[];
   pocketSize: PocketSize;
+  doubleSided: boolean;
   editSorts: SortEntry[];
   valueOrders: Partial<Record<SortField, string[]>>;
   sortEditable: boolean;
@@ -422,6 +425,7 @@ function SectionList({
           pageLabels={flatPageLabels}
           startPageIndex={pagesStartIndex}
           pocketSize={pocketSize}
+          doubleSided={doubleSided}
           binderName={binderName}
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}

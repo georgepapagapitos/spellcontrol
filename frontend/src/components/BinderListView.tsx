@@ -451,6 +451,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           pageLabels={flatPageLabels}
           startPageIndex={pagesStartIndex}
           pocketSize={binder.effectivePocketSize}
+          doubleSided={binder.def.doubleSided}
           binderName={binder.def.name}
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}

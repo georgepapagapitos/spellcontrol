@@ -10,6 +10,7 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { classifyFoil } from '../lib/foil-style';
+import { buildSpreads, spreadIndexForPage } from '../lib/binder-spreads';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -26,6 +27,11 @@ interface Props {
   startPageIndex: number;
   pocketSize: PocketSize;
   binderName: string;
+  /**
+   * Whether the physical binder is double-sided (sheet backs are discrete
+   * pages). Controls verso/recto pairing in spread mode.
+   */
+  doubleSided?: boolean;
   /**
    * Resolve a tapped card to the scope used by the inner CardPreview
    * (which list to walk for prev/next, where to start, etc). Return null
@@ -45,12 +51,44 @@ interface Props {
 // without disturbing native scroll-snap (every page keeps a sized slide div).
 const PAGE_WINDOW_RADIUS = 5;
 
+// In spread mode each slide mounts two grids, so tighten the window to keep
+// the DOM light for large binders.
+const SPREAD_WINDOW_RADIUS = 3;
+
+// Breakpoint at which the spread layout activates (≥1024px).
+const SPREAD_BREAKPOINT = '(min-width: 1024px)';
+
+/** Returns true when the viewport is at or above the spread breakpoint. */
+function querySpreadMode(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia(SPREAD_BREAKPOINT).matches;
+}
+
+/**
+ * Subscribes to the spread breakpoint and returns the current match state.
+ * Safe in node/test environments (matchMedia absent → always false).
+ */
+function useSpreadMode(): boolean {
+  const [active, setActive] = useState<boolean>(() => querySpreadMode());
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia(SPREAD_BREAKPOINT);
+    const handler = (e: MediaQueryListEvent) => setActive(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  return active;
+}
+
 export function BinderPagePreview({
   pages,
   pageLabels,
   startPageIndex,
   pocketSize,
   binderName,
+  doubleSided = false,
   resolveCard,
   onClose,
   onEditCard,
@@ -74,7 +112,19 @@ export function BinderPagePreview({
   // grow more on short viewports than tall 9-pocket pages.
   const pageAspectRatio = (cols * 5) / (rows * 7);
 
-  const [selected, setSelected] = useState(startPageIndex);
+  const isSpread = useSpreadMode();
+  const spreads = useMemo(
+    () => (isSpread ? buildSpreads(pages.length, doubleSided) : []),
+    [isSpread, pages.length, doubleSided]
+  );
+
+  // `selected` is a page index in single mode, a spread index in spread mode.
+  const [selected, setSelected] = useState(() =>
+    isSpread
+      ? Math.max(0, spreadIndexForPage(buildSpreads(pages.length, doubleSided), startPageIndex))
+      : startPageIndex
+  );
+
   const [innerCard, setInnerCard] = useState<InnerCardScope | null>(null);
 
   // O(1) lookup from card → flat page index, so we can keep the flipbook in
@@ -97,18 +147,33 @@ export function BinderPagePreview({
     if (!innerCard) return;
     const card = innerCard.cards[innerCard.index];
     if (!card) return;
-    const target = cardToPageIndex.get(card);
-    if (target === undefined || target === selected) return;
-    slideRefs.current[target]?.scrollIntoView({
-      inline: 'center',
-      block: 'nearest',
-      behavior: 'instant' as ScrollBehavior,
-    });
-  }, [innerCard, cardToPageIndex, selected]);
+    const targetPage = cardToPageIndex.get(card);
+    if (targetPage === undefined) return;
+
+    if (isSpread) {
+      const targetSpread = spreadIndexForPage(spreads, targetPage);
+      if (targetSpread === -1 || targetSpread === selected) return;
+      slideRefs.current[targetSpread]?.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: 'instant' as ScrollBehavior,
+      });
+    } else {
+      if (targetPage === selected) return;
+      slideRefs.current[targetPage]?.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: 'instant' as ScrollBehavior,
+      });
+    }
+  }, [innerCard, cardToPageIndex, selected, isSpread, spreads]);
 
   // Initial scroll: jump to the requested page without animation.
   useLayoutEffect(() => {
-    const slide = slideRefs.current[startPageIndex];
+    const targetIdx = isSpread
+      ? Math.max(0, spreadIndexForPage(spreads, startPageIndex))
+      : startPageIndex;
+    const slide = slideRefs.current[targetIdx];
     if (slide) {
       slide.scrollIntoView({
         inline: 'center',
@@ -119,7 +184,47 @@ export function BinderPagePreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useCenteredSlide(trackRef, slideRefs, setSelected, [pages]);
+  // Re-center when crossing the spread/single breakpoint. Track the current
+  // representative page (right side of spread if available, else left), then
+  // remap it when the mode changes.
+  const selectedPageRef = useRef(startPageIndex);
+  useLayoutEffect(() => {
+    if (isSpread) {
+      // Entering spread mode: map saved page → its spread.
+      const spreadIdx = Math.max(0, spreadIndexForPage(spreads, selectedPageRef.current));
+      setSelected(spreadIdx);
+      slideRefs.current[spreadIdx]?.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: 'instant' as ScrollBehavior,
+      });
+    } else {
+      // Leaving spread mode: restore saved page.
+      const pageIdx = selectedPageRef.current;
+      setSelected(pageIdx);
+      slideRefs.current[pageIdx]?.scrollIntoView({
+        inline: 'center',
+        block: 'nearest',
+        behavior: 'instant' as ScrollBehavior,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSpread]);
+
+  // Keep selectedPageRef in sync with `selected` so breakpoint re-entry uses
+  // the most recent page.
+  useEffect(() => {
+    if (isSpread) {
+      const s = spreads[selected];
+      if (s) selectedPageRef.current = s.right ?? s.left ?? 0;
+    } else {
+      selectedPageRef.current = selected;
+    }
+  }, [selected, isSpread, spreads]);
+
+  const slideCount = isSpread ? spreads.length : pages.length;
+
+  useCenteredSlide(trackRef, slideRefs, setSelected, [pages, spreads]);
 
   // Clamp the native scroll so a momentum fling can't rubber-band past the
   // first/last page (mirrors CardPreview — same WebView overscroll gap).
@@ -141,7 +246,7 @@ export function BinderPagePreview({
       }
       let next: number | null = null;
       if (e.key === 'ArrowLeft') next = Math.max(0, selected - 1);
-      else if (e.key === 'ArrowRight') next = Math.min(pages.length - 1, selected + 1);
+      else if (e.key === 'ArrowRight') next = Math.min(slideCount - 1, selected + 1);
       if (next === null || next === selected) return;
       slideRefs.current[next]?.scrollIntoView({
         inline: 'center',
@@ -151,7 +256,7 @@ export function BinderPagePreview({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [beginClose, selected, pages.length, innerCard]);
+  }, [beginClose, selected, slideCount, innerCard]);
 
   const { isDragging, touchHandlers } = useSwipeDownDismiss({
     onDismiss: beginClose,
@@ -182,17 +287,84 @@ export function BinderPagePreview({
   // (only the opaque binder page + info panel rise); the dim sits on the
   // backdrop, which stays put, fades in/out (.is-closing), and carries the
   // sizing var (--page-w-ratio drives --slide-size).
+  //
+  // In spread mode the slide contains [left-page | spine | right-page].
+  // We reserve exactly 1 ratio-unit for the spine in --page-w-ratio so
+  // min() still clamps the slide to the track. --spread-page-frac and
+  // --spread-spine-frac let the CSS assign exact fractional widths to each
+  // child so that pages + spine sum to exactly --slide-size — eliminating
+  // the few-px height-overflow that occurred when the CSS clamp-based spine
+  // width didn't match the JS-reserved unit.
+  const spreadAspectRatio = (2 * cols * 5 + 1) / (rows * 7);
+  const spreadPageFrac = (cols * 5) / (2 * cols * 5 + 1);
+  const spreadSpineFrac = 1 / (2 * cols * 5 + 1);
   const backdropStyle = {
-    ['--page-w-ratio' as string]: pageAspectRatio,
+    ['--page-w-ratio' as string]: isSpread ? spreadAspectRatio : pageAspectRatio,
+    ...(isSpread && {
+      ['--spread-page-frac' as string]: spreadPageFrac,
+      ['--spread-spine-frac' as string]: spreadSpineFrac,
+    }),
   } as React.CSSProperties;
 
-  const currentPage = pages[selected];
-  const currentLabel = pageLabels[selected] ?? '';
+  // Panel display helpers for spread mode.
+  const panelInfo = (): { contextLine: string; counterLine: string } => {
+    if (!isSpread) {
+      const currentPage = pages[selected];
+      const currentLabel = pageLabels[selected] ?? '';
+      return {
+        contextLine: `${currentLabel ? `${currentLabel} · ` : ''}page ${currentPage?.pageNum}`,
+        counterLine: `Page ${selected + 1} of ${pages.length}`,
+      };
+    }
+    const spread = spreads[selected];
+    if (!spread) {
+      return { contextLine: '', counterLine: '' };
+    }
+    const leftPage = spread.left !== null ? pages[spread.left] : null;
+    const rightPage = spread.right !== null ? pages[spread.right] : null;
+    const leftNum = leftPage?.pageNum;
+    const rightNum = rightPage?.pageNum;
+    const leftLabel = spread.left !== null ? (pageLabels[spread.left] ?? '') : '';
+    const rightLabel = spread.right !== null ? (pageLabels[spread.right] ?? '') : '';
+
+    // Section / label context line.
+    let contextLine: string;
+    if (leftLabel && rightLabel && leftLabel !== rightLabel) {
+      if (leftNum !== undefined && rightNum !== undefined) {
+        contextLine = `${leftLabel} → ${rightLabel} · pages ${leftNum}–${rightNum}`;
+      } else if (leftNum !== undefined) {
+        contextLine = `${leftLabel} → ${rightLabel} · page ${leftNum}`;
+      } else if (rightNum !== undefined) {
+        contextLine = `${leftLabel} → ${rightLabel} · page ${rightNum}`;
+      } else {
+        contextLine = `${leftLabel} → ${rightLabel}`;
+      }
+    } else {
+      const label = leftLabel || rightLabel;
+      if (leftNum !== undefined && rightNum !== undefined) {
+        contextLine = `${label ? `${label} · ` : ''}pages ${leftNum}–${rightNum}`;
+      } else if (leftNum !== undefined) {
+        contextLine = `${label ? `${label} · ` : ''}page ${leftNum}`;
+      } else if (rightNum !== undefined) {
+        contextLine = `${label ? `${label} · ` : ''}page ${rightNum}`;
+      } else {
+        contextLine = label;
+      }
+    }
+    return {
+      contextLine,
+      counterLine: `Spread ${selected + 1} of ${spreads.length}`,
+    };
+  };
+
+  const { contextLine, counterLine } = panelInfo();
+
+  const windowRadius = isSpread ? SPREAD_WINDOW_RADIUS : PAGE_WINDOW_RADIUS;
 
   return (
     <>
       <div
-        className={`binder-pages-backdrop${isClosing ? ' is-closing' : ''}`}
+        className={`binder-pages-backdrop${isSpread ? ' is-spread' : ''}${isClosing ? ' is-closing' : ''}`}
         onClick={() => beginClose()}
         role="dialog"
         aria-modal="true"
@@ -219,7 +391,7 @@ export function BinderPagePreview({
             ×
           </button>
           <div className="card-preview-grabber" aria-hidden="true" />
-          {pages.length > 1 && (
+          {slideCount > 1 && (
             // Mirror CardPreview: the prev/next arrows MUST live inside
             // .carousel-nav-layer (grid-row:1 / grid-column:1, overlaying the
             // track cell with justify-content:space-between). Rendered as bare
@@ -243,7 +415,7 @@ export function BinderPagePreview({
                     });
                 }}
                 disabled={selected === 0}
-                aria-label="Previous page"
+                aria-label={isSpread ? 'Previous spread' : 'Previous page'}
               >
                 <ChevronLeft width={20} height={20} strokeWidth={2.4} aria-hidden />
               </button>
@@ -252,7 +424,7 @@ export function BinderPagePreview({
                 className="carousel-nav carousel-nav-next"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const next = Math.min(pages.length - 1, selected + 1);
+                  const next = Math.min(slideCount - 1, selected + 1);
                   if (next !== selected)
                     slideRefs.current[next]?.scrollIntoView({
                       inline: 'center',
@@ -260,62 +432,108 @@ export function BinderPagePreview({
                       behavior: 'smooth',
                     });
                 }}
-                disabled={selected === pages.length - 1}
-                aria-label="Next page"
+                disabled={selected === slideCount - 1}
+                aria-label={isSpread ? 'Next spread' : 'Next page'}
               >
                 <ChevronRight width={20} height={20} strokeWidth={2.4} aria-hidden />
               </button>
             </div>
           )}
           <div className="binder-pages-track" ref={trackRef}>
-            {pages.map((page, i) => {
-              const slideRef = (el: HTMLDivElement | null) => {
-                slideRefs.current[i] = el;
-              };
-              // Out-of-window pages render a bare placeholder: it keeps the
-              // slide's width/scroll-snap slot so native scrolling is intact,
-              // but skips the pocket grid (cols×rows cells) — a few thousand
-              // cells mounted at once is what would jank a large binder.
-              if (Math.abs(i - selected) > PAGE_WINDOW_RADIUS) {
-                return (
-                  <div
-                    className="binder-pages-slide"
-                    ref={slideRef}
-                    key={`${page.pageNum}-${i}`}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                );
-              }
-              return (
-                <div
-                  className={`binder-pages-slide${i === selected ? ' is-active' : ''}`}
-                  ref={slideRef}
-                  key={`${page.pageNum}-${i}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Page number lives in the bottom info panel; no per-slide
-                      label above the grid (was .binder-pages-slide-label). */}
-                  <SlideGrid
-                    slots={page.slots}
-                    cols={cols}
-                    rows={rows}
-                    aspect={slideAspect}
-                    allocations={allocations}
-                    onTapCard={handleCardTap}
-                  />
-                </div>
-              );
-            })}
+            {isSpread
+              ? spreads.map((spread, i) => {
+                  const slideRef = (el: HTMLDivElement | null) => {
+                    slideRefs.current[i] = el;
+                  };
+                  if (Math.abs(i - selected) > windowRadius) {
+                    return (
+                      <div
+                        className="binder-pages-slide"
+                        ref={slideRef}
+                        key={`spread-${i}`}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    );
+                  }
+                  return (
+                    <div
+                      className={`binder-pages-slide binder-pages-slide--spread${i === selected ? ' is-active' : ''}`}
+                      ref={slideRef}
+                      key={`spread-${i}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {spread.left !== null ? (
+                        <SlideGrid
+                          slots={pages[spread.left].slots}
+                          cols={cols}
+                          rows={rows}
+                          aspect={slideAspect}
+                          allocations={allocations}
+                          onTapCard={handleCardTap}
+                        />
+                      ) : (
+                        <div className="binder-spread-blank" aria-hidden="true" />
+                      )}
+                      <div className="binder-spread-spine" aria-hidden="true" />
+                      {spread.right !== null ? (
+                        <SlideGrid
+                          slots={pages[spread.right].slots}
+                          cols={cols}
+                          rows={rows}
+                          aspect={slideAspect}
+                          allocations={allocations}
+                          onTapCard={handleCardTap}
+                        />
+                      ) : (
+                        <div className="binder-spread-blank" aria-hidden="true" />
+                      )}
+                    </div>
+                  );
+                })
+              : pages.map((page, i) => {
+                  const slideRef = (el: HTMLDivElement | null) => {
+                    slideRefs.current[i] = el;
+                  };
+                  // Out-of-window pages render a bare placeholder: it keeps the
+                  // slide's width/scroll-snap slot so native scrolling is intact,
+                  // but skips the pocket grid (cols×rows cells) — a few thousand
+                  // cells mounted at once is what would jank a large binder.
+                  if (Math.abs(i - selected) > windowRadius) {
+                    return (
+                      <div
+                        className="binder-pages-slide"
+                        ref={slideRef}
+                        key={`${page.pageNum}-${i}`}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    );
+                  }
+                  return (
+                    <div
+                      className={`binder-pages-slide${i === selected ? ' is-active' : ''}`}
+                      ref={slideRef}
+                      key={`${page.pageNum}-${i}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Page number lives in the bottom info panel; no per-slide
+                          label above the grid (was .binder-pages-slide-label). */}
+                      <SlideGrid
+                        slots={page.slots}
+                        cols={cols}
+                        rows={rows}
+                        aspect={slideAspect}
+                        allocations={allocations}
+                        onTapCard={handleCardTap}
+                      />
+                    </div>
+                  );
+                })}
           </div>
 
           <div className="binder-pages-panel" onClick={(e) => e.stopPropagation()}>
             <div className="binder-pages-name">{binderName}</div>
-            <div className="binder-pages-context">
-              {currentLabel ? `${currentLabel} · ` : ''}page {currentPage?.pageNum}
-            </div>
-            <div className="binder-pages-counter">
-              Page {selected + 1} of {pages.length}
-            </div>
+            <div className="binder-pages-context">{contextLine}</div>
+            <div className="binder-pages-counter">{counterLine}</div>
           </div>
         </div>
       </div>
