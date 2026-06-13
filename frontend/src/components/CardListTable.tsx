@@ -13,10 +13,10 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
-import { normalizeForSearch } from '../lib/normalize-search';
 import { formatMoney } from '../lib/format-money';
 import { FoilBadge } from './FoilBadge';
 import type {
+  BinderFilter,
   ChipExpression,
   EnrichedCard,
   MaterializedBinder,
@@ -68,12 +68,10 @@ import { getCardType, parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types
 import { TypeIcon } from './shared/ManaSymbol';
 import {
   compileExpression,
-  effectiveTreatments,
+  compileFilter,
+  cardMatchesCompiled,
   exactMatchesExpression,
   isExpressionEmpty,
-  legalityMatchesExpression,
-  setMatchesExpression,
-  substringMatchesExpression,
 } from '../lib/rules';
 
 interface Props {
@@ -536,113 +534,80 @@ export function CardListTable({
     return [...grouped.values()].map(({ binderIds: _ids, ...row }) => row);
   }, [cards, cardToBinder, groupPrintings]);
 
-  // Compile the type-line expressions once per change; the per-row loop
-  // below just checks the compiled groups against the parsed typeline.
-  const compiledSupertype = useMemo(() => compileExpression(supertypeExpr), [supertypeExpr]);
-  const compiledTypes = useMemo(() => compileExpression(typesExpr), [typesExpr]);
-  const compiledSubtype = useMemo(() => compileExpression(subtypeExpr), [subtypeExpr]);
-  const compiledRarity = useMemo(() => compileExpression(rarityExpr), [rarityExpr]);
+  // Binder membership and condition are collection-only post-checks that don't
+  // map directly to BinderFilter fields, so they're compiled separately.
   const compiledBinder = useMemo(() => compileExpression(binderExpr), [binderExpr]);
-  const compiledOracle = useMemo(() => compileExpression(oracleExpr), [oracleExpr]);
-  const compiledLegality = useMemo(() => compileExpression(legalityExpr), [legalityExpr]);
-  const compiledLayout = useMemo(() => compileExpression(layoutExpr), [layoutExpr]);
-  const compiledTreatment = useMemo(() => compileExpression(treatmentExpr), [treatmentExpr]);
-  const compiledBorder = useMemo(() => compileExpression(borderExpr), [borderExpr]);
-  const compiledFinish = useMemo(() => compileExpression(finishExpr), [finishExpr]);
   const compiledCondition = useMemo(() => compileExpression(conditionExpr), [conditionExpr]);
 
-  const filtered = useMemo(() => {
-    const nq = normalizeForSearch(debouncedSearch);
-    return rows.filter((r) => {
-      if (nq && !normalizeForSearch(r.card.name).includes(nq)) return false;
-      if (compiledBinder) {
-        const bname = r.binderName ?? '__uncategorized';
-        if (!exactMatchesExpression(bname, compiledBinder)) return false;
-      }
-      if (colorFilter.size > 0) {
-        const k = getColorKey(r.card);
-        // multicolor cards match if any of the selected colors are in identity;
-        // colorless matches only if 'C' is selected.
-        const ci = r.card.colorIdentity || [];
-        const matches =
-          (k === 'C' && colorFilter.has('C')) ||
-          ci.some((c) => colorFilter.has(c)) ||
-          (k !== 'C' && colorFilter.has(k));
-        if (!matches) return false;
-      }
-      if (compiledSupertype || compiledTypes || compiledSubtype) {
-        const parsed = parseTypeLine(r.card.typeLine);
-        if (compiledSupertype) {
-          if (!setMatchesExpression(parsed.supertypes, compiledSupertype)) return false;
-        }
-        if (compiledTypes) {
-          if (!setMatchesExpression(parsed.types, compiledTypes)) return false;
-        }
-        if (compiledSubtype) {
-          // Substring against the joined subtype text — lets multi-word
-          // chips like "Equipment" still match within a longer subtype
-          // list like "Artifact — Equipment Vehicle".
-          const joined = parsed.subtypes.join(' ');
-          if (!substringMatchesExpression(joined, compiledSubtype)) return false;
-        }
-      }
-      if (compiledRarity) {
-        if (!exactMatchesExpression(r.card.rarity, compiledRarity)) return false;
-      }
-      if (compiledOracle && !substringMatchesExpression(r.card.oracleText, compiledOracle))
-        return false;
-      if (compiledLegality && !legalityMatchesExpression(r.card.legalities, compiledLegality))
-        return false;
-      if (compiledLayout && !exactMatchesExpression(r.card.layout, compiledLayout)) return false;
-      if (
-        compiledTreatment &&
-        !setMatchesExpression(effectiveTreatments(r.card), compiledTreatment)
-      )
-        return false;
-      if (compiledBorder && !exactMatchesExpression(r.card.borderColor, compiledBorder))
-        return false;
-      if (compiledFinish) {
-        // Match the finish the user *owns*, not the printing's available
-        // finishes — mirrors cardMatchesCompiled so "Finish IS foil" doesn't
-        // match every nonfoil basic that merely comes in foil too.
-        const owned = r.card.finish ?? (r.card.foil ? 'foil' : 'nonfoil');
-        if (!setMatchesExpression([owned], compiledFinish)) return false;
-      }
-      if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
-        return false;
-      if (setFilter.size > 0 && !setFilter.has((r.card.setCode || '').toUpperCase())) return false;
-      // Price filter: purchasePrice === 0 means no price recorded → skip (no match)
-      if (priceMin !== undefined && (r.card.purchasePrice <= 0 || r.card.purchasePrice < priceMin))
-        return false;
-      if (priceMax !== undefined && (r.card.purchasePrice <= 0 || r.card.purchasePrice > priceMax))
-        return false;
-      // CMC filter: cmc === undefined means unknown → skip (no match)
-      if (cmcMin !== undefined && (r.card.cmc === undefined || r.card.cmc < cmcMin)) return false;
-      if (cmcMax !== undefined && (r.card.cmc === undefined || r.card.cmc > cmcMax)) return false;
-      return true;
-    });
+  // Build a BinderFilter from all the non-collection-specific filter state and
+  // let the engine handle matching — eliminates the 11 individual compilations
+  // and the hand-rolled per-field checks from the old filtered useMemo.
+  const compiledMatchFilter = useMemo(() => {
+    const f: BinderFilter = {};
+    if (!isExpressionEmpty(supertypeExpr)) f.supertypeChips = supertypeExpr;
+    if (!isExpressionEmpty(typesExpr)) f.typeTokenChips = typesExpr;
+    if (!isExpressionEmpty(subtypeExpr)) f.subtypeChips = subtypeExpr;
+    if (!isExpressionEmpty(rarityExpr)) f.rarities = rarityExpr;
+    if (!isExpressionEmpty(oracleExpr)) f.oracleChips = oracleExpr;
+    if (!isExpressionEmpty(legalityExpr)) f.legalities = legalityExpr;
+    if (!isExpressionEmpty(layoutExpr)) f.layouts = layoutExpr;
+    if (!isExpressionEmpty(treatmentExpr)) f.treatments = treatmentExpr;
+    if (!isExpressionEmpty(borderExpr)) f.borderColors = borderExpr;
+    if (!isExpressionEmpty(finishExpr)) f.finishes = finishExpr;
+    if (setFilter.size > 0) f.setCodes = [...setFilter].map((s) => s.toUpperCase());
+    if (priceMin !== undefined) f.priceMin = priceMin;
+    if (priceMax !== undefined) f.priceMax = priceMax;
+    if (cmcMin !== undefined) f.cmcMin = cmcMin;
+    if (cmcMax !== undefined) f.cmcMax = cmcMax;
+    const trimmed = debouncedSearch.trim();
+    if (trimmed) f.nameContains = trimmed;
+    return compileFilter(f);
   }, [
-    rows,
-    debouncedSearch,
-    compiledBinder,
-    colorFilter,
-    compiledSupertype,
-    compiledTypes,
-    compiledSubtype,
-    compiledRarity,
-    compiledOracle,
-    compiledLegality,
-    compiledLayout,
-    compiledTreatment,
-    compiledBorder,
-    compiledFinish,
-    compiledCondition,
+    supertypeExpr,
+    typesExpr,
+    subtypeExpr,
+    rarityExpr,
+    oracleExpr,
+    legalityExpr,
+    layoutExpr,
+    treatmentExpr,
+    borderExpr,
+    finishExpr,
     setFilter,
     priceMin,
     priceMax,
     cmcMin,
     cmcMax,
+    debouncedSearch,
   ]);
+
+  const filtered = useMemo(
+    () =>
+      rows.filter((r) => {
+        // Post-check 1: binder membership (collection-only)
+        if (compiledBinder) {
+          const bname = r.binderName ?? '__uncategorized';
+          if (!exactMatchesExpression(bname, compiledBinder)) return false;
+        }
+        // Post-check 2: color identity (collection-only, different semantics than engine)
+        if (colorFilter.size > 0) {
+          const k = getColorKey(r.card);
+          const ci = r.card.colorIdentity || [];
+          const matches =
+            (k === 'C' && colorFilter.has('C')) ||
+            ci.some((c) => colorFilter.has(c)) ||
+            (k !== 'C' && colorFilter.has(k));
+          if (!matches) return false;
+        }
+        // Post-check 3: condition (collection-only, physical copy field)
+        if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
+          return false;
+        // Engine check: everything else (type, rarity, oracle, legality, layout,
+        // treatment, border, finish, sets, price, cmc, name search)
+        return cardMatchesCompiled(r.card, compiledMatchFilter);
+      }),
+    [rows, compiledBinder, colorFilter, compiledCondition, compiledMatchFilter]
+  );
 
   const sorted = useMemo(() => {
     const field: SortField = SORT_KEY_TO_FIELD[sortKey];

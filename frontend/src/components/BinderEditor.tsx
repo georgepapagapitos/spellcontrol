@@ -5,7 +5,6 @@ import { useCollectionStore } from '../store/collection';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
-import { SUPERTYPES, TYPES } from '../lib/card-types';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
@@ -18,24 +17,20 @@ import { PRESET_COLORS, pickRandomPresetColor } from '../lib/preset-colors';
 import { isNativePlatform } from '../lib/platform';
 import { pickNativeFiles } from '../lib/native-file-picker';
 import { InfoTip } from './InfoTip';
+import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 
 const BINDER_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import type {
   BinderFilter,
   BinderFilterGroup,
   BinderInput,
-  BorderColor,
   ChipExpression,
   ColorChoice,
   EnrichedCard,
-  Finish,
-  Format,
-  Layout,
   PocketSize,
   Rarity,
   SortEntry,
   SortField,
-  Treatment,
 } from '../types';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic', 'special', 'bonus'];
@@ -49,54 +44,6 @@ const COLORS: { key: ColorChoice; label: string }[] = [
   { key: 'G', label: 'Green' },
   { key: 'M', label: 'Multicolor' },
   { key: 'C', label: 'Colorless' },
-];
-const FORMATS: Format[] = [
-  'standard',
-  'pioneer',
-  'modern',
-  'legacy',
-  'vintage',
-  'commander',
-  'pauper',
-];
-const FINISHES: { key: Finish; label: string }[] = [
-  { key: 'nonfoil', label: 'Normal' },
-  { key: 'foil', label: 'Foil' },
-  { key: 'etched', label: 'Etched' },
-];
-const LAYOUTS: { key: Layout; label: string }[] = [
-  { key: 'normal', label: 'Normal' },
-  { key: 'split', label: 'Split' },
-  { key: 'flip', label: 'Flip' },
-  { key: 'transform', label: 'Transform' },
-  { key: 'modal_dfc', label: 'Modal DFC' },
-  { key: 'adventure', label: 'Adventure' },
-  { key: 'meld', label: 'Meld' },
-  { key: 'leveler', label: 'Leveler' },
-  { key: 'saga', label: 'Saga' },
-  { key: 'planar', label: 'Planar' },
-  { key: 'scheme', label: 'Scheme' },
-  { key: 'vanguard', label: 'Vanguard' },
-  { key: 'token', label: 'Token' },
-  { key: 'double_faced_token', label: 'DFC token' },
-  { key: 'emblem', label: 'Emblem' },
-  { key: 'augment', label: 'Augment' },
-  { key: 'host', label: 'Host' },
-  { key: 'class', label: 'Class' },
-];
-const TREATMENT_OPTIONS: { key: Treatment; label: string }[] = [
-  { key: 'fullart', label: 'Full art' },
-  { key: 'extendedart', label: 'Extended art' },
-  { key: 'showcase', label: 'Showcase' },
-  { key: 'etched', label: 'Etched' },
-  { key: 'inverted', label: 'Inverted' },
-];
-const BORDER_OPTIONS: { key: BorderColor; label: string }[] = [
-  { key: 'black', label: 'Black' },
-  { key: 'white', label: 'White' },
-  { key: 'borderless', label: 'Borderless' },
-  { key: 'silver', label: 'Silver' },
-  { key: 'gold', label: 'Gold' },
 ];
 const DEFAULT_EDHREC_TOP_N = 100;
 
@@ -1678,60 +1625,6 @@ function FilterGroupFields({
             />
           </div>
 
-          {/* Finishes */}
-          <div className="rule-row">
-            <span className="rule-label">Finishes</span>
-            <ChipExpressionBuilder
-              options={FINISHES.map((f) => ({ value: f.key, label: f.label }))}
-              value={filter.finishes ?? EMPTY_EXPR}
-              onChange={(next) => patch({ finishes: next })}
-              defaultJoiner="OR"
-              placeholder="Add finish..."
-            />
-          </div>
-
-          {/* Layout */}
-          <div className="rule-row">
-            <span className="rule-label">Layout</span>
-            <ChipExpressionBuilder
-              options={LAYOUTS.map((l) => ({ value: l.key, label: l.label }))}
-              value={filter.layouts ?? EMPTY_EXPR}
-              onChange={(next) => patch({ layouts: next })}
-              defaultJoiner="OR"
-              placeholder="Add layout..."
-            />
-          </div>
-
-          {/* Treatments */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Treatment{' '}
-              <InfoTip
-                label="treatment filter"
-                text="Cosmetic treatment of the printing. Full art = full-art lands and cards. Extended art = art that extends to the card edges. Showcase = special frame variants. Etched = etched-foil printings."
-              />
-            </span>
-            <ChipExpressionBuilder
-              options={TREATMENT_OPTIONS.map((t) => ({ value: t.key, label: t.label }))}
-              value={filter.treatments ?? EMPTY_EXPR}
-              onChange={(next) => patch({ treatments: next })}
-              defaultJoiner="OR"
-              placeholder="Add treatment..."
-            />
-          </div>
-
-          {/* Border */}
-          <div className="rule-row">
-            <span className="rule-label">Border</span>
-            <ChipExpressionBuilder
-              options={BORDER_OPTIONS.map((b) => ({ value: b.key, label: b.label }))}
-              value={filter.borderColors ?? EMPTY_EXPR}
-              onChange={(next) => patch({ borderColors: next })}
-              defaultJoiner="OR"
-              placeholder="Add border..."
-            />
-          </div>
-
           {/* EDHREC */}
           <div className="rule-row">
             <span className="rule-label">
@@ -1775,95 +1668,17 @@ function FilterGroupFields({
             </div>
           </div>
 
-          {/* Legalities */}
-          <div className="rule-row">
-            <span className="rule-label">Legalities</span>
-            <ChipExpressionBuilder
-              options={FORMATS.map((f) => ({ value: f, label: f }))}
-              value={filter.legalities ?? EMPTY_EXPR}
-              onChange={(next) => patch({ legalities: next })}
-              defaultJoiner="OR"
-              placeholder="Add format..."
-            />
-          </div>
-
-          {/* Supertype */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Supertype{' '}
-              <InfoTip
-                label="supertype filter"
-                text="Exact-token match against parsed supertypes. Examples: Legendary, Basic, Snow, Token."
-              />
-            </span>
-            <ChipExpressionBuilder
-              options={SUPERTYPES.map((s) => ({
-                value: s,
-                label: s.charAt(0).toUpperCase() + s.slice(1),
-              }))}
-              value={filter.supertypeChips ?? EMPTY_EXPR}
-              onChange={(next) => patch({ supertypeChips: next })}
-              defaultJoiner="OR"
-              placeholder="e.g. legendary, basic"
-            />
-          </div>
-
-          {/* Type (exact primary type) */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Type{' '}
-              <InfoTip
-                label="primary type filter"
-                text="Exact match against the card's primary type (Creature, Instant, Sorcery, Artifact, Enchantment, Land, Planeswalker, Battle). Unlike the Type line filter above, this does not do substring matching."
-              />
-            </span>
-            <ChipExpressionBuilder
-              options={TYPES.map((t) => ({
-                value: t,
-                label: t.charAt(0).toUpperCase() + t.slice(1),
-              }))}
-              value={filter.typeTokenChips ?? EMPTY_EXPR}
-              onChange={(next) => patch({ typeTokenChips: next })}
-              defaultJoiner="OR"
-              placeholder="e.g. creature, instant"
-            />
-          </div>
-
-          {/* Subtype */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Subtype{' '}
-              <InfoTip
-                label="subtype filter"
-                text="Substring match against the card's subtypes (after the dash). Examples: Angel, Equipment, Human, Wizard."
-              />
-            </span>
-            <ChipExpressionBuilder
-              value={filter.subtypeChips ?? EMPTY_EXPR}
-              onChange={(next) => patch({ subtypeChips: next })}
-              suggestions={typeSuggestions}
-              defaultJoiner="OR"
-              placeholder="e.g. angel, equipment"
-            />
-          </div>
-
-          {/* Oracle text */}
-          <div className="rule-row">
-            <span className="rule-label">
-              Oracle text{' '}
-              <InfoTip
-                label="oracle text filter"
-                text="Substring match against the oracle (rules) text. Each chip can be toggled between IS and IS NOT."
-              />
-            </span>
-            <ChipExpressionBuilder
-              value={filter.oracleChips ?? EMPTY_EXPR}
-              onChange={(next) => patch({ oracleChips: next })}
-              suggestions={oracleSuggestions}
-              defaultJoiner="OR"
-              placeholder="e.g. flying, draw a card"
-            />
-          </div>
+          {/* Oracle · Legality · Layout · Treatment · Border · Finish
+              Supertype · Type · Subtype — shared rows via FilterFieldEditor */}
+          <FilterFieldEditor
+            value={filter}
+            onPatch={patch}
+            subtypeSuggestions={typeSuggestions}
+            oracleSuggestions={oracleSuggestions}
+            showTypeRows
+            showFinish
+            variant="binder"
+          />
         </>
       )}
     </>
@@ -2027,48 +1842,6 @@ function SetMultiSelect({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function NumberRangeInput({
-  min,
-  max,
-  step,
-  onMinChange,
-  onMaxChange,
-}: {
-  min: number | undefined;
-  max: number | undefined;
-  step: number;
-  onMinChange: (v: number | undefined) => void;
-  onMaxChange: (v: number | undefined) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <input
-        type="number"
-        value={min ?? ''}
-        step={step}
-        min={0}
-        placeholder="min"
-        onChange={(e) =>
-          onMinChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
-        }
-        style={{ width: 90 }}
-      />
-      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
-      <input
-        type="number"
-        value={max ?? ''}
-        step={step}
-        min={0}
-        placeholder="max"
-        onChange={(e) =>
-          onMaxChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
-        }
-        style={{ width: 90 }}
-      />
     </div>
   );
 }

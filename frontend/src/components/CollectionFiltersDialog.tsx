@@ -1,122 +1,17 @@
 import { ListFilter, X } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import type {
-  BorderColor,
-  ChipExpression,
-  Condition,
-  Finish,
-  Format,
-  Layout,
-  MaterializedBinder,
-  Treatment,
-} from '../types';
+import type { ChipExpression, Condition, MaterializedBinder } from '../types';
 import type { SetMap } from '../lib/api';
 import { Modal } from './Modal';
 import { SetFilterPicker } from './SetFilterPicker';
 import { ColorPip } from './shared/ManaSymbol';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { TypeLineExpressionBuilder } from './TypeLineExpressionBuilder';
+import { FilterFieldEditor, NumberRangeInput } from './FilterFieldEditor';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
-/**
- * Pair of min/max number inputs. Mirrors the pattern used in BinderEditor
- * (not exported from there, so we keep a local copy).
- */
-function NumberRangeInput({
-  min,
-  max,
-  step,
-  onMinChange,
-  onMaxChange,
-}: {
-  min: number | undefined;
-  max: number | undefined;
-  step: number;
-  onMinChange: (v: number | undefined) => void;
-  onMaxChange: (v: number | undefined) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <input
-        type="number"
-        value={min ?? ''}
-        step={step}
-        min={0}
-        placeholder="min"
-        onChange={(e) =>
-          onMinChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
-        }
-        style={{ width: 90 }}
-      />
-      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>to</span>
-      <input
-        type="number"
-        value={max ?? ''}
-        step={step}
-        min={0}
-        placeholder="max"
-        onChange={(e) =>
-          onMaxChange(e.target.value === '' ? undefined : parseFloat(e.target.value))
-        }
-        style={{ width: 90 }}
-      />
-    </div>
-  );
-}
-
-// Closed vocabularies for the enum chip rows. Kept local — mirroring
-// COLOR_FILTERS/RARITIES in the consuming pages — so this dialog isn't
-// load-coupled to the binder rule editor that defines the same lists.
-const FORMATS: Format[] = [
-  'standard',
-  'pioneer',
-  'modern',
-  'legacy',
-  'vintage',
-  'commander',
-  'pauper',
-];
-const LAYOUTS: { value: Layout; label: string }[] = [
-  { value: 'normal', label: 'Normal' },
-  { value: 'split', label: 'Split' },
-  { value: 'flip', label: 'Flip' },
-  { value: 'transform', label: 'Transform' },
-  { value: 'modal_dfc', label: 'Modal DFC' },
-  { value: 'adventure', label: 'Adventure' },
-  { value: 'meld', label: 'Meld' },
-  { value: 'leveler', label: 'Leveler' },
-  { value: 'saga', label: 'Saga' },
-  { value: 'planar', label: 'Planar' },
-  { value: 'scheme', label: 'Scheme' },
-  { value: 'vanguard', label: 'Vanguard' },
-  { value: 'token', label: 'Token' },
-  { value: 'double_faced_token', label: 'DFC token' },
-  { value: 'emblem', label: 'Emblem' },
-  { value: 'augment', label: 'Augment' },
-  { value: 'host', label: 'Host' },
-  { value: 'class', label: 'Class' },
-];
-const TREATMENTS: { value: Treatment; label: string }[] = [
-  { value: 'fullart', label: 'Full art' },
-  { value: 'extendedart', label: 'Extended art' },
-  { value: 'showcase', label: 'Showcase' },
-  { value: 'etched', label: 'Etched' },
-  { value: 'inverted', label: 'Inverted' },
-];
-const BORDERS: { value: BorderColor; label: string }[] = [
-  { value: 'black', label: 'Black' },
-  { value: 'white', label: 'White' },
-  { value: 'borderless', label: 'Borderless' },
-  { value: 'silver', label: 'Silver' },
-  { value: 'gold', label: 'Gold' },
-];
-const FINISHES: { value: Finish; label: string }[] = [
-  { value: 'nonfoil', label: 'Normal' },
-  { value: 'foil', label: 'Foil' },
-  { value: 'etched', label: 'Etched' },
-];
 const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'nm', label: 'Near Mint' },
   { value: 'lp', label: 'Lightly Played' },
@@ -364,6 +259,28 @@ function DialogBody({
     (showCmc && (draftCmcMin !== undefined || draftCmcMax !== undefined)) ||
     (showOptions && !draftGroup);
 
+  // Assemble the current draft chip state into a BinderFilter so FilterFieldEditor
+  // can read it as a unified value. The patch handler routes each key back to its
+  // individual draft setter. Rarity, Price, CMC, and color remain separate: rarity
+  // uses the caller-supplied `rarities` options list; price/CMC are conditional.
+  const draftAsFilter: import('../types').BinderFilter = {
+    oracleChips: draftOracle,
+    legalities: draftLegality,
+    layouts: draftLayout,
+    treatments: draftTreatment,
+    borderColors: draftBorder,
+    ...(showFinish ? { finishes: draftFinish } : {}),
+  };
+
+  const handleFilterPatch = (p: Partial<import('../types').BinderFilter>) => {
+    if (p.oracleChips !== undefined) setDraftOracle(p.oracleChips);
+    if (p.legalities !== undefined) setDraftLegality(p.legalities);
+    if (p.layouts !== undefined) setDraftLayout(p.layouts);
+    if (p.treatments !== undefined) setDraftTreatment(p.treatments);
+    if (p.borderColors !== undefined) setDraftBorder(p.borderColors);
+    if (p.finishes !== undefined) setDraftFinish(p.finishes);
+  };
+
   const toggleDraftColor = (c: string) => {
     setDraftColor((prev) => {
       const next = new Set(prev);
@@ -502,82 +419,14 @@ function DialogBody({
           />
         </section>
 
-        {/* Free-text oracle search — substring against the rules text.
-              Defaults to OR so "draw" / "destroy" reads as either; flip a
-              joiner to AND for "draw a card" AND "{T}". */}
-        <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Oracle text</div>
-          <ChipExpressionBuilder
-            value={draftOracle}
-            onChange={setDraftOracle}
-            suggestions={[]}
-            defaultJoiner="OR"
-            placeholder="e.g. flying, draw a card…"
-          />
-        </section>
-
-        <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Format</div>
-          <ChipExpressionBuilder
-            value={draftLegality}
-            onChange={setDraftLegality}
-            options={FORMATS.map((f) => ({
-              value: f,
-              label: f.charAt(0).toUpperCase() + f.slice(1),
-            }))}
-            defaultJoiner="OR"
-            placeholder="Add format…"
-          />
-        </section>
-
-        <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Layout</div>
-          <ChipExpressionBuilder
-            value={draftLayout}
-            onChange={setDraftLayout}
-            options={LAYOUTS}
-            defaultJoiner="OR"
-            lockJoiner="OR"
-            placeholder="Add layout…"
-          />
-        </section>
-
-        <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Treatment</div>
-          <ChipExpressionBuilder
-            value={draftTreatment}
-            onChange={setDraftTreatment}
-            options={TREATMENTS}
-            defaultJoiner="OR"
-            placeholder="Add treatment…"
-          />
-        </section>
-
-        <section className="collection-filters-section">
-          <div className="collection-filters-section-label">Border</div>
-          <ChipExpressionBuilder
-            value={draftBorder}
-            onChange={setDraftBorder}
-            options={BORDERS}
-            defaultJoiner="OR"
-            lockJoiner="OR"
-            placeholder="Add border…"
-          />
-        </section>
-
-        {showFinish && (
-          <section className="collection-filters-section">
-            <div className="collection-filters-section-label">Finish</div>
-            <ChipExpressionBuilder
-              value={draftFinish}
-              onChange={setDraftFinish}
-              options={FINISHES}
-              defaultJoiner="OR"
-              lockJoiner="OR"
-              placeholder="Add finish…"
-            />
-          </section>
-        )}
+        {/* Oracle · Format · Layout · Treatment · Border · Finish
+              (chip rows common with BinderEditor — deduped via FilterFieldEditor). */}
+        <FilterFieldEditor
+          value={draftAsFilter}
+          onPatch={handleFilterPatch}
+          showFinish={showFinish}
+          variant="dialog"
+        />
 
         {showCondition && (
           <section className="collection-filters-section">
