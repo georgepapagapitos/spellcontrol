@@ -31,9 +31,9 @@ async function registerAndGetCookie(username: string): Promise<string> {
   return extractSessionCookie(res.headers['set-cookie'])!;
 }
 
-async function pull(cookie: string, since = 0, limit = 5000) {
+async function pull(cookie: string, since = 0, limit = 5000, fresh = false) {
   const res = await request(app)
-    .get(`/api/sync?since=${since}&limit=${limit}`)
+    .get(`/api/sync?since=${since}&limit=${limit}${fresh ? '&fresh=1' : ''}`)
     .set('Cookie', cookie);
   expect(res.status).toBe(200);
   return res.body as {
@@ -308,6 +308,28 @@ describe('tombstones', () => {
     expect(bView2.rows[0].id).toBe('b-1');
     expect(bView2.rows[0].deletedAt).not.toBeNull();
     expect(bView2.rows[0].data).toBeNull();
+  });
+
+  it('fresh=1 pull skips tombstones and returns only live rows', async () => {
+    const cookie = await registerAndGetCookie('tomb_fresh');
+    await push(cookie, {
+      upserts: [
+        { kind: 'binder', id: 'live-1', data: { id: 'live-1' } },
+        { kind: 'binder', id: 'gone-1', data: { id: 'gone-1' } },
+      ],
+    });
+    await push(cookie, { deletions: [{ kind: 'binder', id: 'gone-1' }] });
+
+    // Default pull (a catching-up client) still sees the tombstone so it can
+    // propagate the deletion.
+    const normal = await pull(cookie, 0, 5000, false);
+    expect(normal.rows.map((r) => r.id).sort()).toEqual(['gone-1', 'live-1']);
+    expect(normal.rows.find((r) => r.id === 'gone-1')?.deletedAt).not.toBeNull();
+
+    // A fresh client (no local rows) gets only the live row — nothing to delete.
+    const fresh = await pull(cookie, 0, 5000, true);
+    expect(fresh.rows.map((r) => r.id)).toEqual(['live-1']);
+    expect(fresh.rows.every((r) => r.deletedAt == null)).toBe(true);
   });
 
   it('deleting an import cascades a tombstone to each of its live cards', async () => {

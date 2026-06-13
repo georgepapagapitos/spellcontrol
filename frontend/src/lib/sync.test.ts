@@ -86,7 +86,8 @@ describe('lifecycle', () => {
     // A second startSync uses since=42 — no rows above that.
     mockPull.mockResolvedValueOnce({ rows: [], cursor: 42, hasMore: false });
     await startSync('user-1');
-    expect(mockPull).toHaveBeenLastCalledWith(42);
+    // A non-zero cursor is not a fresh pull → server still sends tombstones.
+    expect(mockPull).toHaveBeenLastCalledWith(42, undefined, false);
   });
 
   it('wipes local state when a different user signs in on the same device', async () => {
@@ -193,8 +194,9 @@ describe('pull', () => {
       });
     await startSync('user-1');
     expect(mockPull).toHaveBeenCalledTimes(2);
-    expect(mockPull).toHaveBeenNthCalledWith(1, 0);
-    expect(mockPull).toHaveBeenNthCalledWith(2, 1);
+    // Bootstrap pull starts at cursor 0 → fresh=true, held across every page.
+    expect(mockPull).toHaveBeenNthCalledWith(1, 0, undefined, true);
+    expect(mockPull).toHaveBeenNthCalledWith(2, 1, undefined, true);
     expect((await estore.getAllLive('binder')).map((r) => r.id).sort()).toEqual(['b-1', 'b-2']);
   });
 

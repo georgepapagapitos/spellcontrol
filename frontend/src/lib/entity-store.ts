@@ -114,6 +114,25 @@ export async function putTombstone(
   await db.put(storeName(kind), { id, data: null, rev, deletedAt });
 }
 
+/**
+ * Apply many tombstones in ONE transaction per kind — the batched form of
+ * putTombstone. Applying server deletions one-at-a-time opened a fresh IDB
+ * transaction per row, which crawled when a delta carried thousands of
+ * tombstones (large/heavily-edited accounts catching up).
+ */
+export async function putTombstones(
+  kind: EntityKind,
+  rows: Array<{ id: string; rev: number; deletedAt: number }>
+): Promise<void> {
+  if (rows.length === 0) return;
+  const db = await getDB();
+  const tx = db.transaction(storeName(kind), 'readwrite');
+  await Promise.all(
+    rows.map((r) => tx.store.put({ id: r.id, data: null, rev: r.rev, deletedAt: r.deletedAt }))
+  );
+  await tx.done;
+}
+
 /** Hard-delete a row by id. Used on logout / boot wipe, not on tombstone apply. */
 export async function deleteMany(kind: EntityKind, ids: string[]): Promise<void> {
   if (ids.length === 0) return;

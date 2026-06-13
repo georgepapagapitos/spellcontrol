@@ -415,9 +415,14 @@ export const persistGamesState = (games: ReadonlyArray<{ id: string }>): Promise
 async function pull(): Promise<void> {
   if (isPulling || !currentOwnerId) return;
   isPulling = true;
+  // A cursor of 0 means we have no local rows yet (cursor + IDB are wiped
+  // together), so there's nothing to delete — tell the server to skip every
+  // historical tombstone and send only live rows. Captured once: it applies to
+  // every page of this bootstrap pull even as the cursor advances.
+  const fresh = cursor === 0;
   try {
     while (true) {
-      const page = await pullSync(cursor);
+      const page = await pullSync(cursor, undefined, fresh);
       if (page.rows.length > 0) {
         await applyServerRows(page.rows);
         saveCursor(page.cursor);
@@ -554,8 +559,9 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
   // Write a tombstone row (data: null, deletedAt set) rather than hard-removing
   // the key, so a re-delivered tombstone on a lagging cursor stays deleted
   // instead of resurrecting as a live row. getAllLive filters these out.
-  for (const [kind, dels] of deletionsByKind)
-    for (const d of dels) await estore.putTombstone(kind, d.id, d.rev, d.deletedAt);
+  // Batched (one tx per kind) — a delta carrying thousands of tombstones must
+  // not open thousands of IDB transactions.
+  for (const [kind, dels] of deletionsByKind) await estore.putTombstones(kind, dels);
 
   // A deck row changed on the server (another device edited it) → this device's
   // undo/redo snapshots for that deck are now stale; replaying them would clobber
