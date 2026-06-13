@@ -1,3 +1,4 @@
+import { BookOpen } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
@@ -268,20 +269,18 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   return (
     <>
       <div className="binder-summary" aria-live="polite">
+        {flatPages.length > 0 && (
+          <button
+            type="button"
+            className="binder-summary-browse-pages"
+            onClick={() => setPagesStartIndex(0)}
+            aria-label={`Browse pages of ${binder.def.name}`}
+          >
+            <BookOpen width={13} height={13} strokeWidth={1.8} aria-hidden />
+            <span>Browse pages</span>
+          </button>
+        )}
         <span className="binder-summary-meta">
-          {flatPages.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="binder-summary-open"
-                onClick={() => setPagesStartIndex(0)}
-                aria-label={`Browse pages of ${binder.def.name}`}
-              >
-                Browse pages
-              </button>
-              {' · '}
-            </>
-          )}
           <Legend context="binder" />
         </span>
         {sortEditable && (
