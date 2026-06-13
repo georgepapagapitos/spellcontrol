@@ -17,7 +17,7 @@ interface Props {
 
 type Result =
   | { kind: 'coin'; side: CoinSide }
-  | { kind: 'dice'; text: string; total: number }
+  | { kind: 'dice'; text: string; rolls: number[]; total: number }
   | { kind: 'first'; name: string };
 
 /**
@@ -47,7 +47,7 @@ export function GameTools({ game, dispatch }: Props) {
 
   const onRoll = (sides: number, count = 1) => {
     const r = rollDice(sides, count);
-    reveal({ kind: 'dice', text: `${r.count}d${r.sides}`, total: r.total });
+    reveal({ kind: 'dice', text: `${r.count}d${r.sides}`, rolls: r.rolls, total: r.total });
     announce(describeRoll(r));
   };
 
@@ -73,8 +73,19 @@ export function GameTools({ game, dispatch }: Props) {
             )}
             {result.kind === 'dice' && (
               <>
+                {result.rolls.length > 1 && (
+                  <div className="game-tools-dice-faces">
+                    {result.rolls.map((n, i) => (
+                      <span key={i} className="game-tools-die-face">
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <span className="game-tools-result-big">{result.total}</span>
-                <span className="game-tools-result-sub">{result.text}</span>
+                <span className="game-tools-result-sub">
+                  {result.rolls.length > 1 ? `${result.text} · total` : result.text}
+                </span>
               </>
             )}
             {result.kind === 'first' && (
