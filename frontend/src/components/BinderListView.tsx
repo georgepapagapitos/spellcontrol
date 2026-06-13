@@ -15,6 +15,7 @@ import { formatMoney } from '../lib/format-money';
 import { SortPopover } from './SortPopover';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
+import type { SectionTabInput } from '../lib/binder-spreads';
 import { DeckBadge } from './DeckBadge';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 
@@ -102,6 +103,24 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   );
   const flatPageLabels = useMemo(
     () => binder.sections.flatMap((s) => s.pages.map(() => s.label)),
+    [binder.sections]
+  );
+
+  // Section index tabs for spread mode — matches the BinderView computation.
+  // Uses reduce to accumulate the running page-offset without mutating a
+  // variable (required by the react-hooks/immutability lint rule).
+  const sectionTabs = useMemo<SectionTabInput[]>(
+    () =>
+      binder.sections.reduce<{ tabs: SectionTabInput[]; offset: number }>(
+        (acc, s) => ({
+          tabs: [
+            ...acc.tabs,
+            { key: s.key, label: s.label, pip: s.pip, firstPageIndex: acc.offset },
+          ],
+          offset: acc.offset + s.pages.length,
+        }),
+        { tabs: [], offset: 0 }
+      ).tabs,
     [binder.sections]
   );
 
@@ -455,6 +474,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           binderName={binder.def.name}
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}
+          sectionTabs={sectionTabs}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);

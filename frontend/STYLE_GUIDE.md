@@ -747,3 +747,97 @@ animation entirely:
 | No suggestions at all (deck is tuned) | "Nothing to coach — this deck looks tuned." + hint: "Your deck is well-covered. Try adjusting your bracket target or browsing themes below." |
 | A filter chip returns zero rows but other rows exist | "No {filter} suggestions right now." (inline, no doors) |
 | Analysis still pending and no changes yet | Skeleton (`deck-analysis-skeleton` pattern — see Deck-analysis tabs section) |
+
+## Binder spread (≥1024px)
+
+### When spreads render
+
+The flipbook (`BinderPagePreview`) activates spread mode exclusively via a JS
+`matchMedia('(min-width: 1024px)')` listener. The class `is-spread` is added to
+`.binder-pages-backdrop` from JS — there is **no CSS `@media` duplicate**. This
+is intentional: DOM and CSS must never disagree about which layout is active.
+Spread mode only appears inside the flipbook overlay; the binder grid view is
+single-column at all widths.
+
+### Pairing convention
+
+`buildSpreads(pageCount, doubleSided)` in `lib/binder-spreads.ts` owns the
+pairing logic:
+
+- **doubleSided (book/verso-recto):** The first spread always has a blank left
+  side with page 0 on the right — matches physical book convention. Subsequent
+  spreads pair pages as verso/recto pairs. A trailing odd page lands on the
+  left of a final spread with a blank right.
+- **Single-sided (simple pairs):** Pages pair sequentially: [0|1], [2|3], etc.
+  A trailing odd page becomes the left of a final spread with a blank right.
+
+### Spine
+
+The `.binder-spread-spine` element is `aria-hidden` and purely decorative. Its
+width is an exact fraction of `--slide-size` (set via `--spread-spine-frac` from
+JS) so that pages + spine sum identically to `--slide-size` at every viewport —
+no height overflow.
+
+### Tab-divider rules
+
+Physical index-tab dividers appear in the left/right gutters outside the spread
+slide when the binder has more than 1 section. They are rendered only in spread
+mode; nothing renders below 1024px.
+
+**Side split:** a section's tab goes on the **left** when its first page's
+spread index is ≤ the current spread index (passed / current sections). It goes
+on the **right** when its first page is on a later spread (upcoming sections).
+
+**Current section:** the last left-side tab in section order — the section whose
+pages this spread is showing. It carries the `is-current` class and gets an
+accent-tinted background and border.
+
+**Compression ladder (per side, decided independently):**
+
+1. If all tabs fit at the full-tab height (default 56px + 6px gap) →
+   `variant: 'full'` for all tabs on that side: truncated label text in
+   `writing-mode: vertical-rl` + a `ColorPip` when the section has one.
+2. If all tabs fit at the mini height (default 30px + 6px gap) → all tabs go
+   `variant: 'mini'`: pip if available, else the first character of the label.
+3. Otherwise, **sample**: always keep the first tab, last tab, and (left side
+   only) the current tab. Fill the remaining capacity with evenly-spaced picks
+   from the middle range. Everything in the sampled set is mini.
+
+The compression ladder is a **lib contract with unit tests** —
+`layoutSectionTabs` in `lib/binder-spreads.ts` covers the containment
+invariant (`top ≥ 0` and `top + height ≤ gutterHeight`) across 2/8/27/40 tabs
+at gutter heights 300/600/900px. If you change default heights or the gap,
+update the tests.
+
+**A mini tab is a compressed state of a labeled control, not a new glyph.** The
+full label is always present as the button's `title` attribute and
+`aria-label`, so assistive technology and pointer hover always expose the real
+name. There is no Key entry for mini tabs — they require no separate legend
+entry because they reduce from full tabs, not from standalone glyphs.
+
+### Exact-fraction geometry rule
+
+The pages + spine already consume exactly `--slide-size` (the exact-fraction
+contract from PR-1). Tab gutters live **outside** that budget:
+
+- `--spread-tab-gutter: 30px` is set on the `.is-spread` track rule.
+- When tabs actually render the backdrop also carries `is-tabbed`, and the
+  `.is-spread.is-tabbed` track override subtracts both gutters from the
+  `--slide-size` first min() term (`calc(100cqw - 2 * var(--spread-tab-gutter))`),
+  so pages+spine still fit inside the available viewport width. A no-tab
+  spread binder (≤1 section) keeps the plain `.is-spread` sizing — no width
+  is reserved for gutters that don't exist.
+- The slide's `.binder-pages-slide--tabbed` modifier widens its `flex-basis` to
+  `calc(var(--slide-size) + 2 * var(--spread-tab-gutter))` so the slide
+  envelope covers both gutters — applied to every slide (windowed or
+  placeholder) so slide widths never change as spreads enter/leave the
+  render window.
+- The centering spacers (`::before/::after`) have an `.is-spread.is-tabbed`
+  override that accounts for the extra gutter width so first/last spreads
+  still center.
+
+**Hard rule:** anything added to a spread slide must either live inside the
+pages+spine fraction budget (touching `--spread-page-frac` / `--spread-spine-frac`)
+or extend the slide's flex-basis explicitly (like the `--tabbed` modifier above).
+Never let content push the pages' computed height past the track — the
+exact-fraction contract is what eliminates height overflow at every viewport.

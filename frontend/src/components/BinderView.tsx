@@ -17,6 +17,7 @@ import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { BinderPagePreview } from './BinderPagePreview';
+import type { SectionTabInput } from '../lib/binder-spreads';
 import { BinderDriftBanner } from './BinderDriftBanner';
 import { Legend } from './Legend';
 import { useAllocations } from '../lib/allocations';
@@ -252,6 +253,7 @@ function SectionList({
 
   // Cumulative page-offset per section, for translating section-local page
   // indices (from p{N} clicks) into the global flat-pages index.
+  // Also used to derive `sectionTabs` below — reuse the same running sum.
   const sectionPageOffsets = useMemo(() => {
     return sections.reduce<{ offsets: number[]; total: number }>(
       (acc, s) => {
@@ -261,6 +263,19 @@ function SectionList({
       { offsets: [], total: 0 }
     ).offsets;
   }, [sections]);
+
+  // Build SectionTabInput[] for the spread-mode index tabs.
+  // firstPageIndex = global flat-page offset for the section's first page.
+  const sectionTabs = useMemo<SectionTabInput[]>(
+    () =>
+      sections.map((s, i) => ({
+        key: s.key,
+        label: s.label,
+        pip: s.pip,
+        firstPageIndex: sectionPageOffsets[i] ?? 0,
+      })),
+    [sections, sectionPageOffsets]
+  );
 
   // Flat binder-wide arrays so CardPreview can navigate past section boundaries.
   // Each parallel array is keyed by the global card index.
@@ -429,6 +444,7 @@ function SectionList({
           binderName={binderName}
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}
+          sectionTabs={sectionTabs}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);
