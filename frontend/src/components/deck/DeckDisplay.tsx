@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat, ThemeResult, BuildReport } from '@/deck-builder/types';
 import { producedManaColors, isManaSourceType, deckColorIdentity } from '@/lib/mana-sources';
@@ -2677,9 +2678,16 @@ function CategorySection({
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
 }) {
+  // Hooks must run unconditionally — keep them above the empty-section early
+  // return (a section emptying from N→0 cards would otherwise change the hook
+  // count between renders and crash).
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const { entries, registerItem, onExitEnd } = useListFlip(rows, (r) => r.name, listRef);
+
   if (rows.length === 0) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
+
   return (
     <section className="deck-section">
       <header className="deck-section-header">
@@ -2694,19 +2702,19 @@ function CategorySection({
         )}
         {headerAction}
       </header>
-      <ul className="deck-section-rows">
-        {rows.map((row) => (
+      <ul className="deck-section-rows" ref={listRef}>
+        {entries.map((entry) => (
           <DeckCardRow
-            key={row.name}
-            row={row}
+            key={entry.key}
+            row={entry.item}
             currency={currency}
             showPrefs={showPrefs}
-            onClick={() => onRowClick(row.name)}
-            onRemoveCard={onRemoveCard}
-            onSetQty={onSetQty}
-            onEditCard={onEditCard}
-            legalityIssue={legalityBySlot?.get(row.slotIds[0])}
-            onMoveToZone={onMoveToSideboard ?? onMoveToMainboard}
+            onClick={() => onRowClick(entry.item.name)}
+            onRemoveCard={entry.leaving ? undefined : onRemoveCard}
+            onSetQty={entry.leaving ? undefined : onSetQty}
+            onEditCard={entry.leaving ? undefined : onEditCard}
+            legalityIssue={legalityBySlot?.get(entry.item.slotIds[0])}
+            onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
             moveLabel={
               onMoveToSideboard
                 ? 'Move to sideboard'
@@ -2714,15 +2722,20 @@ function CategorySection({
                   ? 'Move to mainboard'
                   : undefined
             }
-            onMakeCommander={onMakeCommander}
+            onMakeCommander={entry.leaving ? undefined : onMakeCommander}
             canMakeCommander={canMakeCommander}
-            onMakePartner={onMakePartner}
+            onMakePartner={entry.leaving ? undefined : onMakePartner}
             canMakePartner={canMakePartner}
-            onMoveToAnotherDeck={onMoveToAnotherDeck}
-            onReleaseCopy={onReleaseCopy}
-            onUseOwnCopy={onUseOwnCopy}
-            synergyReasons={synergyByName?.get(row.card.name)}
-            inclusionPct={cardInclusionMap?.[row.card.name]}
+            onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
+            onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
+            onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
+            synergyReasons={synergyByName?.get(entry.item.card.name)}
+            inclusionPct={cardInclusionMap?.[entry.item.card.name]}
+            entering={entry.entering}
+            leaving={entry.leaving}
+            leavingStyle={entry.leaving ? entry.style : undefined}
+            itemRef={(el) => registerItem(entry.key, el)}
+            onLeavingAnimationEnd={() => onExitEnd(entry.key)}
           />
         ))}
       </ul>
@@ -2750,6 +2763,11 @@ function DeckCardRow({
   onUseOwnCopy,
   synergyReasons,
   inclusionPct,
+  entering,
+  leaving,
+  leavingStyle,
+  itemRef,
+  onLeavingAnimationEnd,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -2771,6 +2789,16 @@ function DeckCardRow({
   synergyReasons?: string[];
   /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
   inclusionPct?: number;
+  /** True on the commit this key first appears — drives the enter keyframe. */
+  entering?: boolean;
+  /** True when this row is a ghost playing its leave animation. */
+  leaving?: boolean;
+  /** Inline style pinning the ghost at its last in-flow top offset (absolute). */
+  leavingStyle?: React.CSSProperties;
+  /** Callback ref forwarded to the root <li> for FLIP measurement. */
+  itemRef?: (el: HTMLLIElement | null) => void;
+  /** Called on animationend to drop the ghost. */
+  onLeavingAnimationEnd?: () => void;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -2825,19 +2853,29 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
+  const rowClass = `deck-row` + (entering ? ' is-entering' : '') + (leaving ? ' is-leaving' : '');
+
   return (
     <li
-      className="deck-row"
+      className={rowClass}
       data-peek-name={row.name}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
+      onClick={leaving ? undefined : onClick}
+      role={leaving ? undefined : 'button'}
+      tabIndex={leaving ? -1 : 0}
+      aria-hidden={leaving ? true : undefined}
+      ref={itemRef}
+      style={leavingStyle}
+      onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
+      onKeyDown={
+        leaving
+          ? undefined
+          : (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+      }
     >
       {canEditQty && editingQty ? (
         <input

@@ -20,6 +20,9 @@ export interface NextBestMoveProps {
    *  move arrives a beat after the rest. While that's in flight, hold a slot
    *  with a placeholder so the suggestion doesn't pop in unannounced. */
   combosLoading?: boolean;
+  /** The currently-active view; suppresses the navigate button when a move
+   *  points at the same view (self-referential). */
+  currentView?: DeckView;
 }
 
 /**
@@ -28,7 +31,12 @@ export interface NextBestMoveProps {
  * analysis view — a navigate button. Renders a compact healthy state when
  * there's nothing to suggest. All copy/numbers come from `moves`.
  */
-export function NextBestMove({ moves, onNavigate, combosLoading }: NextBestMoveProps): JSX.Element {
+export function NextBestMove({
+  moves,
+  onNavigate,
+  combosLoading,
+  currentView,
+}: NextBestMoveProps): JSX.Element {
   const shown = moves.slice(0, 3);
   // Hold a slot for a still-loading combo suggestion — but only when there's
   // room (the list caps at 3) and no combo move is already shown.
@@ -63,7 +71,7 @@ export function NextBestMove({ moves, onNavigate, combosLoading }: NextBestMoveP
               <p className="next-best-move-title">{move.title}</p>
               <p className="next-best-move-detail">{move.detail}</p>
             </div>
-            {move.navigateTo && onNavigate && (
+            {move.navigateTo && onNavigate && move.navigateTo !== currentView && (
               <button
                 type="button"
                 className="next-best-move-nav"

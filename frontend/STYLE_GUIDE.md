@@ -141,6 +141,18 @@ it rides the existing trailing auto-margins — don't add a competing
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
 
+## Public shared views (/s/:token)
+
+Public shared views wrap their content in `components/shared/SharedShell.tsx` — **not** the app
+`<Header>`/`<Footer>`, which couple to the auth/collection/play stores a logged-out visitor
+doesn't have. `SharedShell` is the SINGLE scroll root for any `/s/:token` page: when wrapping
+a full-height scroller in new chrome, the wrapper owns the scroll and the inner element's
+`height`/`overflow` must be neutralized — never stack two `100dvh` scroll roots.
+
+The conversion CTA on a shared **deck** is "Copy this deck" into the guest local store (works
+logged-out; sign-in promotes it). Shared binders/collections get the brand bar and footer CTA
+but no deck-copy action. Keep conversion deck-only for now.
+
 ## Info tooltips
 
 When a label needs a plain-language explainer for a concept not everyone knows
