@@ -6439,6 +6439,14 @@ hr {
   text-align: left;
 }
 
+/* The renderPanelMeta block (deck role/inclusion/warning/synergy) is short,
+   identity-adjacent content — keep it hugging its width and centered like the
+   name/type/set lines, not stretched full-width like the list slots above. */
+.card-preview-slot--meta {
+  width: auto;
+  max-width: 100%;
+}
+
 .card-preview-name-row {
   display: flex;
   align-items: baseline;

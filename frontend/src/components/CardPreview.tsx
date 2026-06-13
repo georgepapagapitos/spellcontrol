@@ -613,7 +613,9 @@ export function CardPreview({
               })()}
             </div>
             {renderPanelMeta && (
-              <div className="card-preview-slot">{renderPanelMeta(selected)}</div>
+              <div className="card-preview-slot card-preview-slot--meta">
+                {renderPanelMeta(selected)}
+              </div>
             )}
             <div className="card-preview-meta">
               <span
