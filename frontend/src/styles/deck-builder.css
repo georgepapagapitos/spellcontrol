@@ -1680,8 +1680,43 @@ input.toolbar-search-input {
   list-style: none;
   margin: 0;
   padding: 0;
+  /* Offset parent for absolutely-pinned FLIP leave-ghosts (use-list-flip). */
+  position: relative;
   display: flex;
   flex-direction: column;
+}
+
+/* ── FLIP list animation keyframes ───────────────────────────────────────── */
+
+@keyframes deck-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes deck-row-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row.is-entering {
+    animation: none;
+  }
+  .deck-row.is-leaving {
+    animation: none;
+  }
 }
 
 /* Single card row: qty | rarity pill | name | mana cost | price */
@@ -1693,6 +1728,18 @@ input.toolbar-search-input {
   color: var(--text-primary);
   padding: 0.2rem 0.25rem;
   border-radius: var(--radius);
+  /* FLIP glide: the hook inverts the position then clears transform so this
+     transition takes over. Compose with any existing row hover — don't clobber. */
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+.deck-row.is-entering {
+  animation: deck-row-enter var(--motion-base) var(--ease-out-soft) both;
+}
+
+.deck-row.is-leaving {
+  animation: deck-row-leave var(--motion-base) var(--ease-out-soft) both;
+  pointer-events: none;
 }
 
 .deck-row-qty {

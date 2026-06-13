@@ -523,6 +523,7 @@ export function CoachFeed({
             moves={nextBestMoves}
             onNavigate={onNbmNavigate}
             combosLoading={combosLoading}
+            currentView="tune"
           />
         )}
         <div
@@ -559,6 +560,7 @@ export function CoachFeed({
           moves={nextBestMoves}
           onNavigate={onNbmNavigate}
           combosLoading={combosLoading}
+          currentView="tune"
         />
       )}
 

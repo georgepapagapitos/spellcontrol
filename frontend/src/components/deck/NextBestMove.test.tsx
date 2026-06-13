@@ -114,4 +114,36 @@ describe('NextBestMove', () => {
     render(<NextBestMove moves={three} combosLoading />);
     expect(screen.queryByText(/Checking for combos/)).toBeNull();
   });
+
+  it('suppresses the navigate button when navigateTo === currentView', () => {
+    const onNavigate = vi.fn();
+    render(<NextBestMove moves={moves} onNavigate={onNavigate} currentView="tune" />);
+    // The tune move (id=roles-ramp) should NOT show a button; the deck move should.
+    expect(screen.queryByRole('button', { name: 'Go to Coach' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Go to Deck' })).toBeTruthy();
+  });
+
+  it('shows the navigate button when navigateTo differs from currentView', () => {
+    const onNavigate = vi.fn();
+    render(<NextBestMove moves={moves} onNavigate={onNavigate} currentView="stats" />);
+    // Both deck and tune buttons should show when currentView is stats.
+    expect(screen.getByRole('button', { name: 'Go to Deck' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go to Coach' })).toBeTruthy();
+  });
+
+  it('cardFit detail no longer contains "Coach tab"', () => {
+    const cardFitMove: Move[] = [
+      {
+        id: 'cardfit',
+        tier: 2,
+        title: 'Tighten card fit',
+        detail: 'Card Fit 72. Swap low-fit cards for stronger options.',
+        navigateTo: 'tune',
+        focus: 'upgrade',
+      },
+    ];
+    render(<NextBestMove moves={cardFitMove} />);
+    expect(screen.queryByText(/Coach tab/)).toBeNull();
+    expect(screen.getByText(/Swap low-fit cards for stronger options\./)).toBeTruthy();
+  });
 });
