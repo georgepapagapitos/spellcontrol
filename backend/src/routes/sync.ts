@@ -141,6 +141,12 @@ syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const since = parseSince(req.query.since);
   const limit = parseLimit(req.query.limit);
+  // `fresh=1` ⇒ the client has no local rows (bootstrap pull), so skip every
+  // tombstone and return only live rows — it has nothing to delete, and a
+  // long-lived account's historical tombstones would otherwise dominate the
+  // first pull. `$3 = includeTombstones`: true keeps the delete-propagating
+  // behaviour for incremental (since > 0) pulls.
+  const includeTombstones = req.query.fresh !== '1';
 
   // Fetch limit+1 to detect hasMore without a second COUNT query.
   const { rows } = await getPool().query<{
@@ -153,26 +159,26 @@ syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   }>(
     `
     SELECT 'import'::text AS kind, id, data, rev, deleted_at, NULL::text AS import_id
-      FROM user_imports WHERE user_id = $1 AND rev > $2
+      FROM user_imports WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     UNION ALL
     SELECT 'card'::text AS kind, id, data, rev, deleted_at, import_id
-      FROM user_cards WHERE user_id = $1 AND rev > $2
+      FROM user_cards WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     UNION ALL
     SELECT 'binder'::text AS kind, id, data, rev, deleted_at, NULL::text
-      FROM user_binders WHERE user_id = $1 AND rev > $2
+      FROM user_binders WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     UNION ALL
     SELECT 'deck'::text AS kind, id, data, rev, deleted_at, NULL::text
-      FROM user_decks WHERE user_id = $1 AND rev > $2
+      FROM user_decks WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     UNION ALL
     SELECT 'game'::text AS kind, id, data, rev, deleted_at, NULL::text
-      FROM user_games WHERE user_id = $1 AND rev > $2
+      FROM user_games WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     UNION ALL
     SELECT 'list'::text AS kind, id, data, rev, deleted_at, NULL::text
-      FROM user_lists WHERE user_id = $1 AND rev > $2
+      FROM user_lists WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     ORDER BY rev ASC
-    LIMIT $3
+    LIMIT $4
     `,
-    [userId, since, limit + 1]
+    [userId, since, includeTombstones, limit + 1]
   );
 
   const hasMore = rows.length > limit;

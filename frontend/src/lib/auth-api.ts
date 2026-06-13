@@ -246,11 +246,18 @@ export async function acknowledgeAutoLink(): Promise<void> {
 
 /**
  * Pull delta rows newer than `since`. The server pages at `limit` (default 2000);
- * the response carries `hasMore` so the driver knows to keep pulling.
+ * the response carries `hasMore` so the driver knows to keep pulling. `fresh`
+ * tells the server we have no local rows yet, so it skips historical tombstones
+ * and sends only live rows — a fresh client has nothing to delete.
  */
-export async function pullSync(since: number, limit?: number): Promise<SyncPullPage> {
+export async function pullSync(
+  since: number,
+  limit?: number,
+  fresh?: boolean
+): Promise<SyncPullPage> {
   const params = new URLSearchParams({ since: String(since) });
   if (typeof limit === 'number' && limit > 0) params.set('limit', String(limit));
+  if (fresh) params.set('fresh', '1');
   const res = await authedFetch(`/api/sync?${params.toString()}`, { method: 'GET' });
   return handleResponse<SyncPullPage>(res);
 }
