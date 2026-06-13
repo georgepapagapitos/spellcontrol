@@ -29,6 +29,28 @@ describe('cleanFilter', () => {
     expect(cleanFilter(f)).toEqual(f);
   });
 
+  // A3 — round-trip guards for chip fields that must survive cleanFilter.
+  it('preserves supertypeChips through cleanFilter (regression guard)', () => {
+    const f: BinderFilter = {
+      supertypeChips: { chips: [{ value: 'legendary', negate: false }], joiners: [] },
+    };
+    expect(cleanFilter(f)).toEqual(f);
+  });
+
+  it('preserves subtypeChips through cleanFilter (regression guard)', () => {
+    const f: BinderFilter = {
+      subtypeChips: { chips: [{ value: 'angel', negate: false }], joiners: [] },
+    };
+    expect(cleanFilter(f)).toEqual(f);
+  });
+
+  it('preserves typeTokenChips through cleanFilter (regression guard)', () => {
+    const f: BinderFilter = {
+      typeTokenChips: { chips: [{ value: 'creature', negate: false }], joiners: [] },
+    };
+    expect(cleanFilter(f)).toEqual(f);
+  });
+
   it('drops blank chips and empty fields as before', () => {
     expect(
       cleanFilter({

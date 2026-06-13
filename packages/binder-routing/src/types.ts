@@ -125,6 +125,12 @@ export interface BinderFilter {
   cmcMax?: number;
   manaCost?: string;
   typeChips?: ChipExpression;
+  /** Primary card types. Exact-token match against parsed types, e.g. Creature, Instant. */
+  typeTokenChips?: ChipExpression;
+  /** Supertype chips. Exact-token match against parsed supertypes (e.g. "Legendary", "Basic"). */
+  supertypeChips?: ChipExpression;
+  /** Subtype chips. Substring match against joined subtypes (e.g. "Angel", "Equipment"). */
+  subtypeChips?: ChipExpression;
   oracleChips?: ChipExpression;
   setCodes?: string[];
   priceMin?: number;

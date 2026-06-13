@@ -1,6 +1,8 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression, EnrichedCard } from './types.js';
 import { getColorKey } from './colors.js';
 import { isCommanderEligible } from './commanders-core.js';
+import { parseTypeLine } from './card-types.js';
+import { normalizeForSearch } from './normalize-search.js';
 
 /**
  * Pre-processed filter ready for the per-card matching hot path.
@@ -21,13 +23,16 @@ interface CompiledFilter {
   colors?: CompiledExpression;
   rarities?: CompiledExpression;
   typeChips?: CompiledExpression;
+  typeTokenChips?: CompiledExpression;
+  supertypeChips?: CompiledExpression;
+  subtypeChips?: CompiledExpression;
   oracleChips?: CompiledExpression;
   finishes?: CompiledExpression;
   layouts?: CompiledExpression;
   treatments?: CompiledExpression;
   borderColors?: CompiledExpression;
   setCodesLower?: string[];
-  nameContainsLower?: string;
+  nameContainsNormalized?: string;
   manaCostNormalized?: string;
   priceMin?: number;
   priceMax?: number;
@@ -43,6 +48,9 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   out.colors = compileExpression(filter.colors);
   out.rarities = compileExpression(filter.rarities);
   out.typeChips = compileExpression(filter.typeChips);
+  out.typeTokenChips = compileExpression(filter.typeTokenChips);
+  out.supertypeChips = compileExpression(filter.supertypeChips);
+  out.subtypeChips = compileExpression(filter.subtypeChips);
   out.oracleChips = compileExpression(filter.oracleChips);
   out.finishes = compileExpression(filter.finishes);
   out.layouts = compileExpression(filter.layouts);
@@ -53,8 +61,8 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
     out.setCodesLower = filter.setCodes.map((s) => s.toLowerCase());
   }
 
-  const name = filter.nameContains?.trim().toLowerCase();
-  if (name) out.nameContainsLower = name;
+  const nameRaw = filter.nameContains?.trim();
+  if (nameRaw) out.nameContainsNormalized = normalizeForSearch(nameRaw);
 
   const manaTrimmed = filter.manaCost?.trim();
   if (manaTrimmed) out.manaCostNormalized = normalizeMana(manaTrimmed);
@@ -78,8 +86,12 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
 
   if (f.rarities && !exactMatchesExpression(card.rarity, f.rarities)) return false;
 
-  if (f.priceMin !== undefined && card.purchasePrice < f.priceMin) return false;
-  if (f.priceMax !== undefined && card.purchasePrice > f.priceMax) return false;
+  // Price: purchasePrice <= 0 means no price recorded — exclude from any price-bounded filter,
+  // mirroring the collection predicate in CardListTable.tsx.
+  if (f.priceMin !== undefined && (card.purchasePrice <= 0 || card.purchasePrice < f.priceMin))
+    return false;
+  if (f.priceMax !== undefined && (card.purchasePrice <= 0 || card.purchasePrice > f.priceMax))
+    return false;
 
   if (f.colors) {
     const key = getColorKey(card);
@@ -90,17 +102,25 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
   }
 
   if (f.typeChips && !substringMatchesExpression(card.typeLine, f.typeChips)) return false;
+  if (f.supertypeChips || f.subtypeChips || f.typeTokenChips) {
+    const parsed = parseTypeLine(card.typeLine);
+    if (f.supertypeChips && !setMatchesExpression(parsed.supertypes, f.supertypeChips)) return false;
+    if (f.typeTokenChips && !setMatchesExpression(parsed.types, f.typeTokenChips)) return false;
+    if (f.subtypeChips && !substringMatchesExpression(parsed.subtypes.join(' '), f.subtypeChips)) return false;
+  }
   if (f.oracleChips && !substringMatchesExpression(card.oracleText, f.oracleChips)) return false;
 
-  if (f.cmcMin !== undefined && (card.cmc ?? 0) < f.cmcMin) return false;
-  if (f.cmcMax !== undefined && (card.cmc ?? 0) > f.cmcMax) return false;
+  // CMC: cmc === undefined means unknown — exclude from any cmc-bounded filter,
+  // mirroring the collection predicate in CardListTable.tsx.
+  if (f.cmcMin !== undefined && (card.cmc === undefined || card.cmc < f.cmcMin)) return false;
+  if (f.cmcMax !== undefined && (card.cmc === undefined || card.cmc > f.cmcMax)) return false;
 
   if (f.manaCostNormalized !== undefined) {
     if (normalizeMana(card.manaCost || '') !== f.manaCostNormalized) return false;
   }
 
-  if (f.nameContainsLower !== undefined) {
-    if (!card.name.toLowerCase().includes(f.nameContainsLower)) return false;
+  if (f.nameContainsNormalized !== undefined) {
+    if (!normalizeForSearch(card.name).includes(f.nameContainsNormalized)) return false;
   }
 
   if (f.setCodesLower) {
@@ -215,6 +235,9 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     isExpressionEmpty(filter.colors) &&
     isExpressionEmpty(filter.rarities) &&
     isExpressionEmpty(filter.typeChips) &&
+    isExpressionEmpty(filter.typeTokenChips) &&
+    isExpressionEmpty(filter.supertypeChips) &&
+    isExpressionEmpty(filter.subtypeChips) &&
     isExpressionEmpty(filter.oracleChips) &&
     isExpressionEmpty(filter.finishes) &&
     isExpressionEmpty(filter.layouts) &&

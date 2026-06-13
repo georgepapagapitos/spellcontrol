@@ -5,6 +5,7 @@ import { useCollectionStore } from '../store/collection';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
+import { SUPERTYPES, TYPES } from '../lib/card-types';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
@@ -167,6 +168,9 @@ function isFilterEmpty(f: BinderFilter): boolean {
     f.colors,
     f.rarities,
     f.typeChips,
+    f.typeTokenChips,
+    f.supertypeChips,
+    f.subtypeChips,
     f.oracleChips,
     f.finishes,
     f.layouts,
@@ -202,6 +206,9 @@ function hasCollapsedFieldValue(f: BinderFilter): boolean {
   if (f.borderColors && f.borderColors.chips.length > 0) return true;
   if (f.legalities && f.legalities.chips.length > 0) return true;
   if (f.oracleChips && f.oracleChips.chips.length > 0) return true;
+  if (f.typeTokenChips && f.typeTokenChips.chips.length > 0) return true;
+  if (f.supertypeChips && f.supertypeChips.chips.length > 0) return true;
+  if (f.subtypeChips && f.subtypeChips.chips.length > 0) return true;
   return false;
 }
 
@@ -232,6 +239,7 @@ const defaultFixedCapacity = (pocket: PocketSize, doubleSided: boolean): number 
 
 export function BinderEditor() {
   const editingBinder = useCollectionStore((s) => s.editingBinder);
+  const editingBinderSeed = useCollectionStore((s) => s.editingBinderSeed);
   const binders = useCollectionStore((s) => s.binders);
   const cards = useCollectionStore((s) => s.cards);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -358,13 +366,17 @@ export function BinderEditor() {
   }, [isOpen]);
 
   // Sync form fields from props when the modal opens. Use the render-phase reset
-  // pattern: track the last `isOpen`/`existing` pair we initialized for, and
-  // re-init whenever either changes while the modal is open.
+  // pattern: track the last `isOpen`/`existing`/`editingBinderSeed` triple we
+  // initialized for, and re-init whenever any of them changes while the modal
+  // is open. Tracking editingBinderSeed ensures re-opening 'new' with a fresh
+  // seed (e.g. "Save as binder" with different filters) re-seeds name+groups.
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   const [prevExisting, setPrevExisting] = useState(existing);
-  if (prevIsOpen !== isOpen || prevExisting !== existing) {
+  const [prevSeed, setPrevSeed] = useState(editingBinderSeed);
+  if (prevIsOpen !== isOpen || prevExisting !== existing || prevSeed !== editingBinderSeed) {
     setPrevIsOpen(isOpen);
     setPrevExisting(existing);
+    setPrevSeed(editingBinderSeed);
     if (isOpen) {
       if (existing) {
         setName(existing.name);
@@ -385,14 +397,14 @@ export function BinderEditor() {
         setSorts([...existing.sorts]);
         setSortValueOrders({ ...(existing.sortValueOrders ?? {}) });
       } else {
-        setName('');
+        setName(editingBinderSeed?.name ?? '');
         setColor(nextRandomColor);
         setPocketSize(9);
         setDoubleSided(false);
         setFixedCapacity(null);
         setShowDeckAllocated(true);
         setKeepPrintingsTogether(false);
-        setGroups([newGroup()]);
+        setGroups(editingBinderSeed?.groups?.length ? editingBinderSeed.groups : [newGroup()]);
         setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
         setSortValueOrders({});
@@ -901,6 +913,31 @@ export function BinderEditor() {
                           : '— a card joins this binder if it matches any rule group below'}
                       </span>
                     </h3>
+
+                    {isNew &&
+                      editingBinderSeed?.flagged &&
+                      editingBinderSeed.flagged.length > 0 && (
+                        <p
+                          className="binder-seed-note"
+                          style={{
+                            color: 'var(--text-secondary)',
+                            fontSize: 'var(--text-sm)',
+                            marginBottom: 'var(--space-2)',
+                          }}
+                        >
+                          Some filters weren&apos;t carried over or match differently in a binder:{' '}
+                          {editingBinderSeed.flagged
+                            .map((key) => {
+                              if (key === 'condition') return 'condition';
+                              if (key === 'binder') return 'binder membership';
+                              if (key === 'color')
+                                return 'color (binders match exact color identity)';
+                              return key;
+                            })
+                            .join(', ')}
+                          .
+                        </p>
+                      )}
 
                     <FilterGroupList
                       groups={groups}
@@ -1750,6 +1787,66 @@ function FilterGroupFields({
             />
           </div>
 
+          {/* Supertype */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Supertype{' '}
+              <InfoTip
+                label="supertype filter"
+                text="Exact-token match against parsed supertypes. Examples: Legendary, Basic, Snow, Token."
+              />
+            </span>
+            <ChipExpressionBuilder
+              options={SUPERTYPES.map((s) => ({
+                value: s,
+                label: s.charAt(0).toUpperCase() + s.slice(1),
+              }))}
+              value={filter.supertypeChips ?? EMPTY_EXPR}
+              onChange={(next) => patch({ supertypeChips: next })}
+              defaultJoiner="OR"
+              placeholder="e.g. legendary, basic"
+            />
+          </div>
+
+          {/* Type (exact primary type) */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Type{' '}
+              <InfoTip
+                label="primary type filter"
+                text="Exact match against the card's primary type (Creature, Instant, Sorcery, Artifact, Enchantment, Land, Planeswalker, Battle). Unlike the Type line filter above, this does not do substring matching."
+              />
+            </span>
+            <ChipExpressionBuilder
+              options={TYPES.map((t) => ({
+                value: t,
+                label: t.charAt(0).toUpperCase() + t.slice(1),
+              }))}
+              value={filter.typeTokenChips ?? EMPTY_EXPR}
+              onChange={(next) => patch({ typeTokenChips: next })}
+              defaultJoiner="OR"
+              placeholder="e.g. creature, instant"
+            />
+          </div>
+
+          {/* Subtype */}
+          <div className="rule-row">
+            <span className="rule-label">
+              Subtype{' '}
+              <InfoTip
+                label="subtype filter"
+                text="Substring match against the card's subtypes (after the dash). Examples: Angel, Equipment, Human, Wizard."
+              />
+            </span>
+            <ChipExpressionBuilder
+              value={filter.subtypeChips ?? EMPTY_EXPR}
+              onChange={(next) => patch({ subtypeChips: next })}
+              suggestions={typeSuggestions}
+              defaultJoiner="OR"
+              placeholder="e.g. angel, equipment"
+            />
+          </div>
+
           {/* Oracle text */}
           <div className="rule-row">
             <span className="rule-label">
@@ -1839,6 +1936,9 @@ function cloneChips(f: BinderFilter): Partial<BinderFilter> {
     colors: dup(f.colors),
     rarities: dup(f.rarities),
     typeChips: dup(f.typeChips),
+    typeTokenChips: dup(f.typeTokenChips),
+    supertypeChips: dup(f.supertypeChips),
+    subtypeChips: dup(f.subtypeChips),
     oracleChips: dup(f.oracleChips),
     finishes: dup(f.finishes),
     layouts: dup(f.layouts),

@@ -8579,10 +8579,38 @@ hr {
   transition: opacity var(--motion-fast);
 }
 
-.collection-filter-chips-clear-all:hover,
-.collection-filter-chips-clear-all:focus-visible {
+.collection-filter-chips-clear-all:hover {
   opacity: 0.8;
-  outline: none;
+}
+
+.collection-filter-chips-clear-all:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* "Save as binder" button — same row as filter chips, styled like
+   collection-filter-chips-clear-all but with a leading icon. */
+.collection-save-as-binder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: 0;
+  padding: 0.2rem var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: opacity var(--motion-fast);
+}
+
+.collection-save-as-binder-btn:hover {
+  opacity: 0.8;
+}
+
+.collection-save-as-binder-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Sticky sort/group/view controls row — pins below the search bar so

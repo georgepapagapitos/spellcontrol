@@ -126,6 +126,15 @@ describe('cardMatchesFilter', () => {
       expect(cardMatchesFilter(makeCard({ purchasePrice: 0.5 }), { priceMin: 1 })).toBe(false);
       expect(cardMatchesFilter(makeCard({ purchasePrice: 20 }), { priceMax: 10 })).toBe(false);
     });
+    // B2: purchasePrice <= 0 means no price recorded — excluded from any price-bounded filter
+    // (mirrors CardListTable predicate).
+    it('excludes $0 (no-price) cards from any price-bounded filter', () => {
+      expect(cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMin: 0 })).toBe(false);
+      expect(cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMax: 100 })).toBe(false);
+      expect(cardMatchesFilter(makeCard({ purchasePrice: 0 }), { priceMin: 0, priceMax: 100 })).toBe(
+        false
+      );
+    });
   });
 
   describe('colors', () => {
@@ -199,6 +208,96 @@ describe('cardMatchesFilter', () => {
     });
   });
 
+  describe('typeTokenChips (exact-token match on parsed primary types — B1)', () => {
+    const creature = makeCard({ typeLine: 'Creature — Elf Warrior' });
+    const planeswalker = makeCard({ typeLine: 'Legendary Planeswalker — Jace' });
+    const artifactCreature = makeCard({ typeLine: 'Artifact Creature — Golem' });
+
+    it('IS chip matches a card whose primary type is exactly that token', () => {
+      expect(cardMatchesFilter(creature, { typeTokenChips: chip('creature') })).toBe(true);
+    });
+    it('IS chip rejects a card whose primary type list does not contain that token', () => {
+      expect(cardMatchesFilter(planeswalker, { typeTokenChips: chip('creature') })).toBe(false);
+    });
+    // Key regression: "plane" is a substring of "planeswalker", but should NOT match
+    // typeTokenChips: chip('plane') since exact-token matching requires the whole token.
+    it('does not substring-match — "plane" does not match a Planeswalker', () => {
+      expect(cardMatchesFilter(planeswalker, { typeTokenChips: chip('plane') })).toBe(false);
+    });
+    it('matches a multi-type card (Artifact Creature) against either type token', () => {
+      expect(cardMatchesFilter(artifactCreature, { typeTokenChips: chip('creature') })).toBe(true);
+      expect(cardMatchesFilter(artifactCreature, { typeTokenChips: chip('artifact') })).toBe(true);
+    });
+    it('multiple IS chips OR among themselves', () => {
+      const filter: BinderFilter = { typeTokenChips: chips('creature', 'instant') };
+      expect(cardMatchesFilter(creature, filter)).toBe(true);
+      expect(cardMatchesFilter(planeswalker, filter)).toBe(false);
+    });
+    it('IS NOT chip excludes cards with the primary type', () => {
+      const filter: BinderFilter = { typeTokenChips: chip('planeswalker', true) };
+      expect(cardMatchesFilter(planeswalker, filter)).toBe(false);
+      expect(cardMatchesFilter(creature, filter)).toBe(true);
+    });
+    it('empty typeTokenChips imposes no constraint (isFilterEmpty)', () => {
+      expect(isFilterEmpty({ typeTokenChips: { chips: [], joiners: [] } })).toBe(true);
+    });
+    it('non-empty typeTokenChips makes isFilterEmpty return false', () => {
+      expect(isFilterEmpty({ typeTokenChips: chip('creature') })).toBe(false);
+    });
+  });
+
+  describe('supertypeChips (exact-token match on parsed supertypes)', () => {
+    const legendary = makeCard({ typeLine: 'Legendary Creature — Human Wizard' });
+    const nonLegendary = makeCard({ typeLine: 'Creature — Human Wizard' });
+    const basicLand = makeCard({ typeLine: 'Basic Land — Forest' });
+
+    it('IS chip matches a card with that supertype', () => {
+      expect(cardMatchesFilter(legendary, { supertypeChips: chip('legendary') })).toBe(true);
+    });
+    it('IS chip rejects a card without that supertype', () => {
+      expect(cardMatchesFilter(nonLegendary, { supertypeChips: chip('legendary') })).toBe(false);
+    });
+    it('IS NOT chip excludes cards with the supertype', () => {
+      const filter: BinderFilter = { supertypeChips: chip('legendary', true) };
+      expect(cardMatchesFilter(legendary, filter)).toBe(false);
+      expect(cardMatchesFilter(nonLegendary, filter)).toBe(true);
+    });
+    it('multiple IS chips OR among themselves', () => {
+      const filter: BinderFilter = { supertypeChips: chips('legendary', 'basic') };
+      expect(cardMatchesFilter(legendary, filter)).toBe(true);
+      expect(cardMatchesFilter(basicLand, filter)).toBe(true);
+      expect(cardMatchesFilter(nonLegendary, filter)).toBe(false);
+    });
+    it('empty supertypeChips imposes no constraint (isFilterEmpty)', () => {
+      expect(isFilterEmpty({ supertypeChips: { chips: [], joiners: [] } })).toBe(true);
+    });
+  });
+
+  describe('subtypeChips (substring match on joined subtypes)', () => {
+    const angelCard = makeCard({ typeLine: 'Creature — Angel' });
+    const humanWizard = makeCard({ typeLine: 'Legendary Creature — Human Wizard' });
+    const sorcery = makeCard({ typeLine: 'Sorcery' });
+
+    it('IS chip matches a card whose subtypes contain that substring', () => {
+      expect(cardMatchesFilter(angelCard, { subtypeChips: chip('angel') })).toBe(true);
+    });
+    it('IS chip rejects a card whose subtypes do not contain the substring', () => {
+      expect(cardMatchesFilter(humanWizard, { subtypeChips: chip('angel') })).toBe(false);
+    });
+    it('IS NOT chip excludes cards matching the subtype substring', () => {
+      const filter: BinderFilter = { subtypeChips: chip('human', true) };
+      expect(cardMatchesFilter(humanWizard, filter)).toBe(false);
+      expect(cardMatchesFilter(angelCard, filter)).toBe(true);
+    });
+    it('matches a card with no subtypes (empty subtype join) against IS NOT', () => {
+      const filter: BinderFilter = { subtypeChips: chip('angel', true) };
+      expect(cardMatchesFilter(sorcery, filter)).toBe(true);
+    });
+    it('empty subtypeChips imposes no constraint (isFilterEmpty)', () => {
+      expect(isFilterEmpty({ subtypeChips: { chips: [], joiners: [] } })).toBe(true);
+    });
+  });
+
   describe('oracleChips', () => {
     it('matches oracle text substring', () => {
       const card = makeCard({ oracleText: 'Flying. When this creature dies, draw a card.' });
@@ -217,10 +316,21 @@ describe('cardMatchesFilter', () => {
   });
 
   describe('CMC range', () => {
-    it('respects bounds; missing cmc treated as 0', () => {
+    it('respects bounds', () => {
       expect(cardMatchesFilter(makeCard({ cmc: 3 }), { cmcMin: 2, cmcMax: 5 })).toBe(true);
       expect(cardMatchesFilter(makeCard({ cmc: 1 }), { cmcMin: 2 })).toBe(false);
-      expect(cardMatchesFilter(makeCard({ cmc: undefined }), { cmcMax: 0 })).toBe(true);
+    });
+    // B3: cmc === undefined means unknown — excluded from any cmc-bounded filter
+    // (mirrors CardListTable predicate; old behavior was (cmc ?? 0) which
+    // made unknowns pass cmcMax: 0).
+    it('excludes cards with unknown cmc from any cmc-bounded filter', () => {
+      expect(cardMatchesFilter(makeCard({ cmc: undefined }), { cmcMax: 0 })).toBe(false);
+      expect(cardMatchesFilter(makeCard({ cmc: undefined }), { cmcMin: 0 })).toBe(false);
+      expect(cardMatchesFilter(makeCard({ cmc: undefined }), { cmcMin: 3, cmcMax: 5 })).toBe(false);
+    });
+    it('allows cards with known cmc: 0 when cmcMax includes 0', () => {
+      expect(cardMatchesFilter(makeCard({ cmc: 0 }), { cmcMax: 0 })).toBe(true);
+      expect(cardMatchesFilter(makeCard({ cmc: 0 }), { cmcMin: 0, cmcMax: 2 })).toBe(true);
     });
   });
 
@@ -290,6 +400,15 @@ describe('cardMatchesFilter', () => {
         cardMatchesFilter(makeCard({ name: 'Lightning Bolt' }), { nameContains: 'bolt' })
       ).toBe(true);
     });
+    // B4: name matching uses normalizeForSearch — diacritics and apostrophes folded.
+    it('nameContains matches across apostrophes and diacritics (normalizeForSearch)', () => {
+      expect(
+        cardMatchesFilter(makeCard({ name: "Urza's Saga" }), { nameContains: 'urzas saga' })
+      ).toBe(true);
+      expect(
+        cardMatchesFilter(makeCard({ name: 'Jötun Grunt' }), { nameContains: 'jotun grunt' })
+      ).toBe(true);
+    });
     it('edhrecRankMax bounds', () => {
       expect(cardMatchesFilter(makeCard({ edhrecRank: 50 }), { edhrecRankMax: 100 })).toBe(true);
       expect(cardMatchesFilter(makeCard({ edhrecRank: 200 }), { edhrecRankMax: 100 })).toBe(false);
@@ -338,6 +457,11 @@ describe('isFilterEmpty', () => {
     expect(isFilterEmpty({ legalities: chips('standard') })).toBe(false);
     expect(isFilterEmpty({ typeChips: chip('creature') })).toBe(false);
     expect(isFilterEmpty({ manaCost: '{R}' })).toBe(false);
+  });
+  it('false when supertypeChips, typeTokenChips, or subtypeChips is set', () => {
+    expect(isFilterEmpty({ supertypeChips: chip('legendary') })).toBe(false);
+    expect(isFilterEmpty({ typeTokenChips: chip('creature') })).toBe(false);
+    expect(isFilterEmpty({ subtypeChips: chip('angel') })).toBe(false);
   });
   it('treats blank chip values as empty', () => {
     expect(isFilterEmpty({ typeChips: chip('   ') })).toBe(true);
