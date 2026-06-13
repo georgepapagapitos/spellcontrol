@@ -9608,14 +9608,20 @@ i.ss.set-symbol--mythic {
    scroll. The card centers via `margin: auto` (not align/justify center,
    which clip overflow and stranded the bottom of the form — the bug this
    redesign fixes). Padding carries safe-area + keyboard insets on native. */
+/* Fixed-height scroll viewport — NOT min-height. `body { overflow:hidden }`
+   clips the page, and #root has no height cap, so a min-height page just
+   grows past the viewport into the clipped region (the bug: register mode
+   was cut off with no scroll). height:100dvh pins it to the viewport so its
+   own overflow-y scrolls — a safety net for short screens / keyboard open.
+   In the normal case the form is tight enough that it never triggers. */
 .auth-page {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   overflow-y: auto;
   background: var(--bg);
-  padding: calc(var(--space-6) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
-    calc(var(--space-6) + var(--keyboard-inset) + var(--safe-bottom))
+  padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-5) + var(--keyboard-inset) + var(--safe-bottom))
     calc(var(--space-4) + var(--safe-left));
 }
 
@@ -9626,7 +9632,7 @@ i.ss.set-symbol--mythic {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px 28px;
+  padding: 26px 24px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
   animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
@@ -9661,10 +9667,10 @@ i.ss.set-symbol--mythic {
 }
 
 .auth-subtitle {
-  margin: 0 0 22px;
+  margin: 0 0 16px;
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 /* Honesty sentence: appears when there are local guest cards waiting to be
@@ -9681,14 +9687,14 @@ i.ss.set-symbol--mythic {
 /* The mode switcher is the shared <Tabs> primitive (components/Tabs.tsx,
    `fitted` variant); this hook only positions it inside the card. */
 .auth-tabs {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 14px;
+  gap: 12px;
 }
 
 .auth-field {
@@ -9919,7 +9925,7 @@ i.ss.set-symbol--mythic {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 16px 0;
+  margin: 12px 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
   text-transform: uppercase;
@@ -9938,7 +9944,7 @@ i.ss.set-symbol--mythic {
    screen is always escapable. */
 .auth-back {
   align-self: center;
-  margin-top: 16px;
+  margin-top: 12px;
   padding: 4px;
   background: transparent;
   border: 0;
