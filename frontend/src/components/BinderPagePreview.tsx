@@ -10,7 +10,9 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import { useAllocations, type AllocationInfo } from '../lib/allocations';
 import { classifyFoil } from '../lib/foil-style';
-import { buildSpreads, spreadIndexForPage } from '../lib/binder-spreads';
+import { buildSpreads, spreadIndexForPage, layoutSectionTabs } from '../lib/binder-spreads';
+import type { SectionTabInput, TabPlacement, Spread } from '../lib/binder-spreads';
+import { ColorPip } from './shared/ManaSymbol';
 
 export interface InnerCardScope {
   cards: EnrichedCard[];
@@ -43,6 +45,12 @@ interface Props {
   onEditCard?: (card: EnrichedCard) => void;
   /** Group-printings qty by copyId — forwarded to inner CardPreview's ×N tag. */
   qtyByCopyId?: Map<string, number>;
+  /**
+   * Section index tabs for spread mode (≥1024px). When provided and the
+   * binder has more than 1 section, physical index-tab dividers appear in the
+   * left/right gutters outside the spread slide. No-op in single-page mode.
+   */
+  sectionTabs?: SectionTabInput[];
 }
 
 // Pages within this many slides of the focus mount their full pocket grid;
@@ -93,10 +101,20 @@ export function BinderPagePreview({
   onClose,
   onEditCard,
   qtyByCopyId,
+  sectionTabs,
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  // The available height for gutter tab columns equals the track's clientHeight
+  // minus its vertical padding (1.25rem top + 1.25rem bottom ≈ 40px at 16px
+  // base). We measure the track element via ResizeObserver and subtract the
+  // padding so tabs never overflow the visible slide height.
+  // Guard: ResizeObserver is absent in test environments (happy-dom) → we
+  // start at 0 so no tabs render until the observer fires (or never in tests
+  // unless mocked).
+  const [gutterHeight, setGutterHeight] = useState(0);
 
   // Each page is one carousel slide. (Double-sided binders are modelled as
   // pocketSize-per-side already; the back of a sheet is its own page in the
@@ -276,6 +294,31 @@ export function BinderPagePreview({
 
   const allocations = useAllocations();
 
+  // Measure the track's clientHeight (minus its own vertical padding) so the
+  // tab layout lib knows how much vertical space the gutter columns have.
+  // Padding constants mirror the CSS values set on .binder-pages-track:
+  //   ≥601px → paddingTop:1.25rem, paddingBottom:1.25rem   (≈ 40px each)
+  //   ≤600px → paddingTop:0.75rem, paddingBottom:1.25rem   (≈ 12 + 20 = 32px)
+  // We compute from `getComputedStyle` so the actual rendered padding drives
+  // the number regardless of viewport size.
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const track = trackRef.current;
+    if (!track) return;
+
+    const update = () => {
+      const style = getComputedStyle(track);
+      const pt = parseFloat(style.paddingTop) || 0;
+      const pb = parseFloat(style.paddingBottom) || 0;
+      setGutterHeight(Math.max(0, track.clientHeight - pt - pb));
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(track);
+    return () => ro.disconnect();
+  }, []);
+
   const handleCardTap = (card: EnrichedCard) => {
     const scope = resolveCard(card);
     if (scope) setInnerCard(scope);
@@ -360,11 +403,15 @@ export function BinderPagePreview({
   const { contextLine, counterLine } = panelInfo();
 
   const windowRadius = isSpread ? SPREAD_WINDOW_RADIUS : PAGE_WINDOW_RADIUS;
+  // True when gutter columns are rendered — used to apply is-tabbed to the
+  // backdrop so CSS can scope the gutter-reserving --slide-size override and
+  // centering spacers only when tabs are actually present (Fix 3).
+  const hasTabs = isSpread && (sectionTabs?.length ?? 0) > 1;
 
   return (
     <>
       <div
-        className={`binder-pages-backdrop${isSpread ? ' is-spread' : ''}${isClosing ? ' is-closing' : ''}`}
+        className={`binder-pages-backdrop${isSpread ? ' is-spread' : ''}${hasTabs ? ' is-tabbed' : ''}${isClosing ? ' is-closing' : ''}`}
         onClick={() => beginClose()}
         role="dialog"
         aria-modal="true"
@@ -445,10 +492,26 @@ export function BinderPagePreview({
                   const slideRef = (el: HTMLDivElement | null) => {
                     slideRefs.current[i] = el;
                   };
+
+                  // `tabbed` is true whenever the binder has >1 section in spread mode,
+                  // regardless of whether this particular slide is inside the render window.
+                  // Computing it once (not gated by windowRadius) means placeholder slides
+                  // and full slides always share the same --tabbed flex-basis, so the track
+                  // width is stable as slides enter/leave the window.
+                  const tabbed = isSpread && (sectionTabs?.length ?? 0) > 1;
+
+                  // Compute tab placements only for windowed slides (pure + cheap).
+                  const showPlacements = tabbed && Math.abs(i - selected) <= windowRadius;
+                  const tabPlacements = showPlacements
+                    ? layoutSectionTabs(sectionTabs!, i, spreads, gutterHeight)
+                    : [];
+                  const leftPlacements = tabPlacements.filter((p) => p.side === 'left');
+                  const rightPlacements = tabPlacements.filter((p) => p.side === 'right');
+
                   if (Math.abs(i - selected) > windowRadius) {
                     return (
                       <div
-                        className="binder-pages-slide"
+                        className={`binder-pages-slide${tabbed ? ' binder-pages-slide--tabbed' : ''}`}
                         ref={slideRef}
                         key={`spread-${i}`}
                         onClick={(e) => e.stopPropagation()}
@@ -457,11 +520,20 @@ export function BinderPagePreview({
                   }
                   return (
                     <div
-                      className={`binder-pages-slide binder-pages-slide--spread${i === selected ? ' is-active' : ''}`}
+                      className={`binder-pages-slide binder-pages-slide--spread${i === selected ? ' is-active' : ''}${tabbed ? ' binder-pages-slide--tabbed' : ''}`}
                       ref={slideRef}
                       key={`spread-${i}`}
                       onClick={(e) => e.stopPropagation()}
                     >
+                      {showPlacements && (
+                        <SpreadTabGutter
+                          placements={leftPlacements}
+                          side="left"
+                          pages={pages}
+                          spreads={spreads}
+                          slideRefs={slideRefs}
+                        />
+                      )}
                       {spread.left !== null ? (
                         <SlideGrid
                           slots={pages[spread.left].slots}
@@ -486,6 +558,15 @@ export function BinderPagePreview({
                         />
                       ) : (
                         <div className="binder-spread-blank" aria-hidden="true" />
+                      )}
+                      {showPlacements && (
+                        <SpreadTabGutter
+                          placements={rightPlacements}
+                          side="right"
+                          pages={pages}
+                          spreads={spreads}
+                          slideRefs={slideRefs}
+                        />
                       )}
                     </div>
                   );
@@ -654,6 +735,70 @@ function Cell({
         </Link>
       )}
     </button>
+  );
+}
+
+/**
+ * Renders one gutter column of index tabs (left or right) for a spread slide.
+ * Extracted from the spread map so both gutters share identical logic without
+ * duplication (Fix 4). Tab clicks use `block: 'nearest'` for consistency with
+ * every other scrollIntoView call in this file (Fix 6). aria-label uses the
+ * physical pageNum from pages[] rather than the flat index (Fix 5).
+ */
+function SpreadTabGutter({
+  placements,
+  side,
+  pages,
+  spreads,
+  slideRefs,
+}: {
+  placements: TabPlacement[];
+  side: 'left' | 'right';
+  pages: BinderPage[];
+  spreads: Spread[];
+  slideRefs: React.RefObject<Array<HTMLDivElement | null>>;
+}) {
+  return (
+    <div className={`binder-spread-tab-gutter binder-spread-tab-gutter--${side}`}>
+      {placements.map((placement) => {
+        const physicalPageNum =
+          pages[placement.firstPageIndex]?.pageNum ?? placement.firstPageIndex + 1;
+        return (
+          <button
+            key={placement.key}
+            type="button"
+            className={`binder-spread-tab binder-spread-tab--${side} binder-spread-tab--${placement.variant}${placement.isCurrent ? ' is-current' : ''}`}
+            style={{ top: placement.top, height: placement.height }}
+            title={placement.label}
+            aria-label={`Jump to ${placement.label}, page ${physicalPageNum}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const targetSpread = spreadIndexForPage(spreads, placement.firstPageIndex);
+              if (targetSpread >= 0) {
+                slideRefs.current[targetSpread]?.scrollIntoView({
+                  inline: 'center',
+                  block: 'nearest',
+                  behavior: 'smooth',
+                });
+              }
+            }}
+          >
+            {placement.variant === 'full' ? (
+              <>
+                {placement.pip && <ColorPip color={placement.key} pip={true} aria-hidden />}
+                <span className="binder-spread-tab-label">{placement.label}</span>
+              </>
+            ) : placement.pip ? (
+              <ColorPip color={placement.key} pip={true} aria-hidden />
+            ) : (
+              <span className="binder-spread-tab-char" aria-hidden="true">
+                {placement.label.charAt(0)}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
