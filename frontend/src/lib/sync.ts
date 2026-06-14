@@ -276,6 +276,18 @@ export async function flushSync(): Promise<void> {
   await push();
 }
 
+/**
+ * Explicit user-driven refresh (pull-to-refresh): flush any pending local
+ * mutations, then pull server deltas. Awaitable so the UI can keep a spinner up
+ * until it settles. Bypasses the focus-pull throttle — this is an intentional
+ * gesture, not a passive lifecycle event.
+ */
+export async function refreshNow(): Promise<void> {
+  if (!currentOwnerId) return;
+  await push();
+  await pull();
+}
+
 // ── Mutation entry points (called from stores) ──────────────────────────────
 
 /**

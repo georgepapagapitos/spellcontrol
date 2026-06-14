@@ -1,0 +1,65 @@
+/* Native pull-to-refresh indicator. Sits at the top of `app-main` (the single
+   scroll container), out of layout flow, and descends a spinner as the user
+   drags down. Content does not move (Android Material pattern). */
+
+.ptr-host {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 5; /* above list content, below the header + overlays */
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ptr-badge {
+  margin-top: 8px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* Animate only when settling back to idle or resting at the refresh position —
+   while the finger is down the indicator must track 1:1, so no transition. */
+.ptr-host[data-status='idle'] .ptr-badge,
+.ptr-host[data-status='refreshing'] .ptr-badge {
+  transition:
+    transform var(--motion-base) ease,
+    opacity var(--motion-base) ease;
+}
+
+.ptr-spinner {
+  width: 20px;
+  height: 20px;
+  fill: none;
+}
+
+.ptr-arc {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  /* pathLength=100 on the circle → dash units are percentages: a ~70% arc. */
+  stroke-dasharray: 70 100;
+  transform-origin: center;
+}
+
+.ptr-host[data-status='refreshing'] .ptr-spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptr-host[data-status='idle'] .ptr-badge,
+  .ptr-host[data-status='refreshing'] .ptr-badge {
+    transition: none;
+  }
+  .ptr-host[data-status='refreshing'] .ptr-spinner {
+    animation: none;
+  }
+}

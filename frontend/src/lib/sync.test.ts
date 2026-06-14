@@ -31,6 +31,7 @@ import {
   persistImportsState,
   persistListsState,
   recordUpsert,
+  refreshNow,
   getPendingCount,
   isOnline,
   hasSyncError,
@@ -157,6 +158,24 @@ describe('native resume', () => {
     mockIsNative.mockReturnValue(false);
     await startSync('user-1');
     expect(mockAddListener.mock.calls.some((c) => c[0] === 'resume')).toBe(false);
+  });
+});
+
+describe('refreshNow', () => {
+  it('flushes pending mutations then pulls', async () => {
+    await startSync('user-1');
+    await recordUpsert('binder', 'b-ref', { id: 'b-ref' }); // queue something to flush
+    mockPush.mockClear();
+    mockPull.mockClear();
+    await refreshNow();
+    expect(mockPush).toHaveBeenCalled(); // the pending mutation was pushed
+    expect(mockPull).toHaveBeenCalled();
+  });
+
+  it('is a no-op with no signed-in owner', async () => {
+    await refreshNow(); // never started sync
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockPull).not.toHaveBeenCalled();
   });
 });
 
