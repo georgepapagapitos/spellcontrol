@@ -40,6 +40,15 @@ function isNetworkError(err: unknown): err is NetworkError {
   return err instanceof Error && (err as Partial<NetworkError>).isNetworkError === true;
 }
 
+// Transient server/gateway statuses worth retrying: rate limiting (429) and the
+// "try again shortly" 5xx family — Fly cold-start/restart, gateway hiccups, or
+// an upstream Scryfall 503/429 forwarded through /api/import. A plain 4xx
+// (bad parse, oversize body) is the client's fault and still surfaces at once.
+function isRetryableStatus(err: unknown): boolean {
+  const status = (err as { status?: number } | undefined)?.status;
+  return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
 function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -87,10 +96,14 @@ async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
       return await postImportChunk(text);
     } catch (err) {
       lastErr = err;
-      // Only retry transient network failures. HTTP 4xx/5xx from the server
-      // (parser errors, rate limiting, oversize body) come through as normal
-      // errors and should surface immediately.
-      if (!isNetworkError(err) || attempt >= IMPORT_RETRY_DELAYS_MS.length) break;
+      // Retry transient network failures and transient server statuses
+      // (429/502/503/504). A plain 4xx (parse error, oversize body) surfaces
+      // immediately — retrying it would just fail again.
+      if (
+        (!isNetworkError(err) && !isRetryableStatus(err)) ||
+        attempt >= IMPORT_RETRY_DELAYS_MS.length
+      )
+        break;
       await sleep(IMPORT_RETRY_DELAYS_MS[attempt]);
     }
   }

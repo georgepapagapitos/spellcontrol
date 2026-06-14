@@ -98,6 +98,24 @@ describe('api', () => {
     expect(out.totalRows).toBe(1);
   });
 
+  it('importText retries a transient 503 on a single chunk', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: 'busy' }, { status: 503 }))
+      .mockResolvedValueOnce(uploadOk({ totalRows: 1, scryfallHits: 1 }));
+    const out = await importText('Sol Ring');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(out.totalRows).toBe(1);
+  });
+
+  it('importText does NOT retry a 4xx — it surfaces immediately', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ error: 'bad request' }, { status: 400 }));
+    await expect(importText('Sol Ring')).rejects.toThrow(/bad request/);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('importText surfaces a chunk failure with batch context after retries exhaust', async () => {
     const lines = Array.from({ length: 1200 }, (_, i) => `Card ${i}`);
     const text = lines.join('\n');

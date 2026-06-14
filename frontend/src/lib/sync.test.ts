@@ -30,6 +30,7 @@ import {
   persistGamesState,
   persistImportsState,
   persistListsState,
+  persistCardsChunked,
   recordUpsert,
   refreshNow,
   getPendingCount,
@@ -257,6 +258,39 @@ describe('pull', () => {
     await expect(startSync('user-1')).resolves.toBeUndefined();
     expect(getSyncState()).toBe('ready');
   });
+
+  it('rehydrates the in-memory stores ONCE for a multi-page bootstrap pull', async () => {
+    // Regression guard for the native boot OOM: applyServerRows used to call
+    // rehydrateStoresFromIdb on EVERY page, so a 3-page bootstrap rebuilt +
+    // re-materialized the whole collection 3 times (6× for ~12k cards). The
+    // fix suspends rehydration across the pull and rehydrates once at the end.
+    const { useCollectionStore } = await import('../store/collection');
+    const card = (id: string, rev: number) => ({
+      kind: 'card' as const,
+      id,
+      data: { copyId: id, name: id },
+      rev,
+      deletedAt: null,
+      importId: '',
+    });
+    mockPull
+      .mockResolvedValueOnce({ rows: [card('c1', 1), card('c2', 2)], cursor: 2, hasMore: true })
+      .mockResolvedValueOnce({ rows: [card('c3', 3), card('c4', 4)], cursor: 4, hasMore: true })
+      .mockResolvedValueOnce({ rows: [card('c5', 5)], cursor: 5, hasMore: false });
+
+    const setStateSpy = vi.spyOn(useCollectionStore, 'setState');
+    await startSync('user-1');
+
+    // rehydrateStoresFromIdb is the only thing that setStates the collection
+    // with a `cards` payload. Count those: one cold-cache rehydrate at startup
+    // (empty IDB) + exactly ONE after the entire 3-page pull — NOT one per page.
+    const rehydrations = setStateSpy.mock.calls.filter(
+      (c) => c[0] != null && typeof c[0] === 'object' && 'cards' in (c[0] as object)
+    ).length;
+    expect(rehydrations).toBe(2);
+    // All five cards from all three pages landed in the in-memory store.
+    expect(useCollectionStore.getState().cards).toHaveLength(5);
+  });
 });
 
 describe('push', () => {
@@ -430,6 +464,23 @@ describe('persistKind helpers', () => {
     expect(batch.some((b) => b.m.op === 'upsert' && b.m.kind === kind && b.m.id === 'x-1')).toBe(
       true
     );
+  });
+});
+
+describe('persistCardsChunked', () => {
+  it('writes all rows to IDB and enqueues them across bounded chunks', async () => {
+    // 2500 cards at chunk size 1000 → 3 chunks. The point of the helper is that
+    // it never holds the whole set in one transaction/array; correctness here is
+    // that every row still lands in both IDB and the queue.
+    const cards = Array.from({ length: 2500 }, (_, i) => ({ copyId: `c${i}`, importId: '' }));
+    await persistCardsChunked(cards);
+    expect(await estore.getAllLive('card')).toHaveLength(2500);
+    expect(await queue.size()).toBe(2500);
+  });
+
+  it('is a no-op for an empty input (no push scheduled)', async () => {
+    await persistCardsChunked([]);
+    expect(await queue.size()).toBe(0);
   });
 });
 
