@@ -33,14 +33,6 @@ export interface SyncUpsert {
   id: string;
   data: unknown;
   importId?: string;
-  /**
-   * Deck reject-stale: the server rev this device last saw for this deck. The
-   * server only writes if its stored rev still matches; on a mismatch it leaves
-   * the row untouched and returns it in `conflicts[]` (server wins). Only sent
-   * for `kind:'deck'`; absent/0 means unconditional last-write-wins (every
-   * other kind, and pre-clientRev clients).
-   */
-  clientRev?: number;
 }
 export interface SyncDeletion {
   kind: SyncKind;
@@ -54,13 +46,6 @@ export interface SyncPushResult {
     rev: number;
     deletedAt: number | null;
   }>;
-  /**
-   * Decks whose `clientRev` was stale — another device wrote them since. The
-   * server left its row untouched; the client must drop its losing edit and
-   * adopt `serverData` at `serverRev`. Empty on the happy path; absent from
-   * pre-reject-stale servers (treat as none).
-   */
-  conflicts?: Array<{ kind: 'deck'; id: string; serverRev: number; serverData: unknown }>;
   cursor: number;
 }
 
@@ -278,14 +263,11 @@ export async function pullSync(
 }
 
 /**
- * Apply a delta batch. Last-write-wins per row for every kind EXCEPT decks: a
- * deck upsert carrying `clientRev > 0` is reject-stale — the server writes only
- * if its stored rev still matches, else it leaves the row and returns it in
- * `conflicts[]` (HTTP stays 200, never 409, so the push queue still drains).
- * The server stamps each applied op with a fresh rev (from `user_data_rev_seq`)
- * and an `import` deletion cascades tombstones to its cards inside the same tx.
+ * Apply a delta batch. Last-write-wins per row for every kind. The server
+ * stamps each applied op with a fresh rev (from `user_data_rev_seq`) and an
+ * `import` deletion cascades tombstones to its cards inside the same tx.
  * Callers reflect the returned `applied[]` revs onto their local rows so
- * subsequent pulls don't re-deliver them, and adopt `conflicts[]` server data.
+ * subsequent pulls don't re-deliver them.
  */
 export async function pushSync(input: {
   upserts: SyncUpsert[];
