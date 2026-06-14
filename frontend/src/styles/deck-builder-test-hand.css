@@ -1,0 +1,431 @@
+/* deck-builder-test-hand.css — Deck test-hand panel (draggable fan, actions, chips) + opening-hand Monte-Carlo simulator.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 4831-5259. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Deck test-hand panel ────────────────────────────────────────────── */
+.deck-test-hand-panel {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.deck-test-hand-panel.is-collapsed {
+  padding: 0.65rem 0.75rem;
+}
+
+.deck-test-hand-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.deck-test-hand-header-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-test-hand-header-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.deck-test-hand-header-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.deck-test-hand-header:hover .deck-test-hand-header-chevron {
+  color: var(--accent);
+}
+
+.deck-test-hand-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.deck-test-hand-panel.is-collapsed .deck-test-hand-body {
+  display: none;
+}
+
+.deck-test-hand-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Fan layout — cards overlap via negative margin-left, container is centered
+   so the fan reads as a real opening hand. The outer scroll wrapper keeps
+   us tidy at small widths or after Draw if the fan exceeds the panel. */
+.deck-test-hand-fan-scroll {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  /* Headroom for the lift-on-hover (-8px translateY + scale 1.04) and
+     lift-on-drag (-12px translateY + scale 1.06 + accent ring + 14-28px
+     shadow blur). Setting overflow-x: auto implicitly makes overflow-y
+     also clip, so without this padding the top of a lifted card would be
+     cut off. Bottom padding gives the shadow room to land. */
+  padding: 1.5rem 0.5rem 0.75rem;
+  /* Hide the scrollbar visually unless the user actually scrolls — keeps the
+     resting state clean. */
+  scrollbar-width: thin;
+}
+
+.deck-test-hand-fan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  user-select: none;
+  /* touch-action: pan-y lets vertical page-scroll still work while we
+     consume horizontal pointer movement for drag-reorder. */
+  touch-action: pan-y;
+}
+
+.deck-test-hand-card {
+  flex: 0 0 auto;
+  width: clamp(4.5rem, 13vw, 7rem);
+  position: relative;
+  /* The LI's `transform` is OWNED by @dnd-kit (drag offset + sibling slide).
+     Don't put any other transform / animation on the LI itself — they would
+     fight dnd-kit's inline style and the card would appear to stick.
+     Hover and entrance animations live on the inner .deck-test-hand-card-art
+     so they compose cleanly. */
+  cursor: grab;
+}
+
+.deck-test-hand-card:active {
+  cursor: grabbing;
+}
+
+.deck-test-hand-card.is-dragging {
+  cursor: grabbing;
+}
+
+.deck-test-hand-card-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: 0.55rem;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  box-shadow: 0 2px 5px color-mix(in srgb, black 35%, transparent);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* Newly-drawn cards (not initial-deal cards) slide in from the right. We
+   animate transform-only — never opacity — so reorders that mutate any
+   animation property can't cause the card to fade out. The opacity stays
+   1 throughout. */
+.deck-test-hand-card-art.is-newly-drawn {
+  animation: deck-test-hand-slide-in 260ms ease-out;
+}
+
+@keyframes deck-test-hand-slide-in {
+  from {
+    transform: translateX(40px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.deck-test-hand-card.is-dragging .deck-test-hand-card-art {
+  transform: translateY(-12px) scale(1.06);
+  box-shadow:
+    0 14px 28px color-mix(in srgb, black 55%, transparent),
+    0 0 0 1px var(--accent);
+  /* No transition while dragging — the lift is sticky for the duration. */
+  transition: none;
+}
+
+.deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
+  transform: translateY(-8px) scale(1.04);
+  box-shadow:
+    0 6px 14px color-mix(in srgb, black 35%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-test-hand-card-art.is-newly-drawn {
+    animation: none;
+  }
+  .deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
+    transform: none;
+  }
+}
+
+.deck-test-hand-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.deck-test-hand-card-art-fallback {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--text-muted) 18%, transparent) 4px 5px
+  );
+}
+
+/* Pill action buttons — bigger touch target than .btn-sm, centered under the
+   fan so the layout mirrors the reference. */
+.deck-test-hand-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+}
+
+.deck-test-hand-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  /* Action buttons use the 8px rounded-rect (--radius); pills are reserved for
+     non-actionable chips/badges (.deck-test-hand-chip) and round icon buttons. */
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+  min-height: 2.25rem;
+}
+
+.deck-test-hand-action:hover:not([disabled]) {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.deck-test-hand-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-test-hand-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deck-test-hand-action.is-primary {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.deck-test-hand-action.is-primary:hover:not([disabled]) {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-color: var(--accent);
+}
+
+/* Hand-breakdown chip row — small pills showing the actually-dealt hand
+   composition (lands, ramp, removal, draw) so players can read it at a
+   glance instead of squinting at the cards. */
+.deck-test-hand-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.deck-test-hand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.deck-test-hand-chip strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.deck-test-hand-chip-label {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.deck-test-hand-chip-cmc-icon {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: var(--text-xs);
+}
+
+.deck-test-hand-chip.is-verdict {
+  margin-left: 0.25rem;
+  padding-inline: 0.6rem;
+}
+
+.deck-test-hand-chip.is-keepable {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.deck-test-hand-chip.is-keepable strong {
+  color: var(--accent);
+}
+
+.deck-test-hand-chip.is-mulligan {
+  background: color-mix(in srgb, var(--warn-text, #f0a000) 18%, transparent);
+  border-color: color-mix(in srgb, var(--warn-text, #f0a000) 45%, transparent);
+}
+
+.deck-test-hand-chip.is-mulligan strong {
+  color: var(--warn-text, #f0a000);
+}
+
+.deck-test-hand-stat-secondary {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-test-hand-stat-secondary strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Opening-hand simulator ──────────────────────────────────────────────
+   Monte-Carlo report layered onto the test hand: a run button plus, once
+   simulated, a stat-tile row and a land-count histogram. Stat tiles wrap and
+   the histogram's eight bars are flex:1, so the whole block survives any
+   viewport down to ~300px without horizontal scroll. */
+.deck-test-hand-sim {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.6rem;
+  margin-top: 0.1rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.deck-test-hand-sim-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.deck-test-hand-sim-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.deck-test-hand-sim-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.deck-test-hand-sim-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.deck-test-hand-sim-stat {
+  flex: 1 1 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.3rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.deck-test-hand-sim-stat strong {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.deck-test-hand-sim-stat.is-good strong {
+  color: var(--accent);
+}
+
+.deck-test-hand-sim-stat.is-warn strong {
+  color: var(--warn-text, #f0a000);
+}
+
+.deck-test-hand-sim-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Land-count histogram — reuses the stats-panel `.deck-curve` chart, bars
+   WUBRG-segmented by the colour identity of the lands drawn. Just shorter
+   than the deck curve. */
+.deck-test-hand-sim-curve {
+  height: clamp(5.5rem, 14vh, 9rem);
+}
+
+/* The 0-land bucket has no lands to colour, so its bar has no segments —
+   render it muted rather than the `.deck-curve-bar` default accent, which
+   would wrongly read as a healthy result. */
+.deck-test-hand-sim-curve .deck-curve-bar:empty {
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
+}

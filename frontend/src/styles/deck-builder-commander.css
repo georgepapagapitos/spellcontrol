@@ -1,0 +1,780 @@
+/* deck-builder-commander.css — Commander search: input, results panel, result-grid cards, owned toggle, top/playstyle suggestions, partner selector.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 40-817. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Commander search ─────────────────────────────────────────────────── */
+.commander-search {
+  position: relative;
+}
+
+.commander-search-input {
+  width: 100%;
+}
+
+/* ── Search results panel ──────────────────────────────────────────────
+   Sits below the input and sizes to its content (one result → one short
+   row), so there's no dead space. It only ever grows *downward*, so the
+   input above it never moves no matter how many results come back. The
+   max-height caps it and switches on internal scroll for long lists; dvh
+   shrinks that cap with the layout viewport when the keyboard opens, and
+   --keyboard-inset covers iOS Safari, where the keyboard floats instead
+   of resizing. Hosts results, a status line, or EDHREC suggestions. */
+.commander-search-panel {
+  margin-top: 0.75rem;
+  max-height: clamp(12rem, calc(55dvh - var(--keyboard-inset)), 26rem);
+  overflow-y: auto;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.commander-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+}
+
+.commander-search-status {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.commander-search-loading {
+  padding: 0.5rem 0.75rem;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.commander-search-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+.commander-search-item:hover,
+.commander-search-item:focus-visible {
+  background: var(--accent-light);
+  outline: none;
+}
+
+.commander-search-item-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.commander-search-item-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Legend explaining the readiness % chip. */
+.commander-readiness-hint {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.commander-search-item-readiness {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Loading + unavailable variants: no accent fill, just a quiet glyph. */
+.commander-search-item-readiness.is-loading,
+.commander-search-item-readiness.is-muted {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  background: transparent;
+  padding: 0.05rem 0.2rem;
+}
+
+.commander-readiness-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commander-readiness-spin {
+    animation: none;
+  }
+}
+
+.commander-search-item-type {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Commander result grid — the shared presentation for every commander list
+   (by-name search, by-playstyle browser, top-EDHREC suggestions, guided
+   build). Reflows from one column on phones / native to multiple columns as
+   width allows; each card pairs a card-shaped art thumbnail with the name,
+   color pips, optional type line and the readiness %. */
+.commander-result-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.5rem;
+}
+
+.commander-result-grid > li {
+  min-width: 0;
+}
+
+.commander-result-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.commander-result-card:hover:not(:disabled),
+.commander-result-card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.commander-result-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.commander-result-art {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 3.6rem;
+  border-radius: calc(var(--radius) * 0.6);
+  overflow: hidden;
+  background: var(--surface);
+  display: block;
+}
+
+.commander-result-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Bias the crop to the top so the card art + title show, not the text box. */
+  object-position: center top;
+  display: block;
+}
+
+.commander-result-art-skeleton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+
+.commander-result-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.commander-result-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.commander-result-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commander-result-pips {
+  display: inline-flex;
+  gap: 0.12rem;
+}
+
+.commander-result-type {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Plays like" detected-playstyle tags on the selected-commander pick card. */
+.commander-pick-playstyles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.commander-pick-playstyles-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.commander-pick-playstyle-tag {
+  padding: 0.1rem 0.5rem;
+  font-size: var(--text-xs);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  border: 0.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  white-space: nowrap;
+}
+
+/* Readiness bar inside the selected-commander pick card. */
+.commander-pick-readiness {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.commander-pick {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  /* Anchor for the absolutely-positioned Change pill in the top-right. */
+  position: relative;
+}
+
+.commander-pick-art {
+  /* Full card image, not just the art crop — shows mana cost, type line,
+     full art, rules text, and stats exactly as the card prints. */
+  width: 180px;
+  height: auto;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  /* MTG cards have ~4.75% / 3.5% rounded corners; matches deck grid view. */
+  border-radius: 4.75% / 3.5%;
+  border: 0;
+  flex: 0 0 auto;
+  /* Stay at the natural card aspect ratio even when the body grows
+     taller — without this, the parent's `align-items: stretch` would
+     force the image to body-height and `object-fit: cover` would crop
+     out the top/bottom of the card. */
+  align-self: flex-start;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.commander-pick-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commander-pick-headline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.commander-pick-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.commander-pick-mana {
+  /* Mana symbols sit on the headline next to the name. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1.05em;
+  letter-spacing: 0.02em;
+}
+
+.commander-pick-type {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.commander-pick-oracle {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.commander-pick-oracle p {
+  margin: 0;
+}
+
+/* P/T (or Loyalty) chip — sits inline with the name and mana cost. */
+.commander-pick-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.commander-pick-stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.commander-pick-stat-value {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+
+/* Top-right pill anchor for the Change action — sits in the section's
+   top-right corner alongside the "Commander" heading rather than on the
+   same line as the commander's name. Negative top pulls it above the
+   body's flex top edge to align with the section title row. */
+.commander-pick-change.btn {
+  position: absolute;
+  top: -2.5rem;
+  right: 0;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: var(--text-xs);
+  height: auto;
+}
+
+/* Below ~820px the body's wrapped oracle text starts overflowing the
+   row, so we drop the art to a smaller fixed width to keep things
+   readable without needing a full stack. */
+@media (max-width: 820px) {
+  .commander-pick-art {
+    width: 132px;
+  }
+}
+
+/* Tight tablets / phones: stack the card above the body. */
+@media (max-width: 600px) {
+  .commander-pick {
+    flex-wrap: wrap;
+  }
+  .commander-pick-art {
+    width: 100%;
+    max-width: 220px;
+    align-self: center;
+  }
+  .commander-pick-body {
+    width: 100%;
+    /* Reset the right-padding once the Change pill is hidden / repositioned. */
+  }
+  .commander-pick-change.btn {
+    /* In the stacked layout the absolutely-positioned Change pill stays
+       in the section's top-right corner — no further changes needed. */
+  }
+}
+
+/* Center the commander search column so it doesn't stretch the full
+   width of the parent section card — matches the reference repo's
+   focused single-column treatment. */
+.commander-search {
+  max-width: 38rem;
+  margin: 0 auto;
+}
+
+.commander-search > .commander-search-input {
+  display: block;
+  width: 100%;
+}
+
+/* ── Owned-only toggle ──────────────────────────────────────────────── */
+.commander-owned-toggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.6rem auto 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.commander-owned-toggle:hover,
+.commander-owned-toggle:focus-within {
+  color: var(--text-primary);
+}
+
+.commander-owned-count {
+  color: var(--text-muted);
+}
+
+/* ── Top-commanders suggestion section ──────────────────────────────── */
+/* Lives inside .commander-search-panel — no top margin; the panel's own
+   padding does the spacing. */
+.commander-suggestions {
+  padding: 0.85rem 0.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.commander-suggestions-label {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.commander-suggestions-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* ── By-playstyle facet ──────────────────────────────────────────────
+   The Name | Playstyle mode switcher and the playstyle browser that the
+   "By playstyle" tab reveals. Reuses the suggestion-chip vocabulary so the
+   commander results read identically across both facets. */
+.commander-search-modes {
+  margin-bottom: 0.75rem;
+}
+
+.commander-playstyle-browse {
+  padding: 0.85rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  text-align: center;
+}
+
+.commander-suggestions-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Browse mode grows inline with the page instead of scrolling inside the capped
+   dropdown box — no scroll container nested in the page scroll. The "Show more"
+   expander keeps the initial height short. */
+.commander-search-panel--browse {
+  max-height: none;
+  overflow: visible;
+}
+
+.commander-playstyle-more {
+  align-self: center;
+  margin-top: 0.2rem;
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+}
+
+.commander-playstyle-more:hover {
+  text-decoration: underline;
+}
+
+/* Mana-color filter row — circular pips that toggle on click. */
+.commander-color-filter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.commander-color-pip {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  /* Inactive state is dimmed so the active selection pops — clicking
+     a pip should feel like turning it on. */
+  opacity: 0.55;
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.commander-color-pip .ms {
+  /* The mana-font glyph drives its own size; we just want it readable. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1.4em;
+}
+
+.commander-color-pip:hover {
+  opacity: 0.85;
+}
+
+.commander-color-pip.active {
+  opacity: 1;
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 4px var(--surface);
+  transform: scale(1.05);
+}
+
+.commander-color-pip:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 4px var(--surface);
+}
+
+.commander-color-clear {
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+
+.commander-color-clear:hover {
+  color: var(--text-primary);
+}
+
+/* Pill chip — now only the "Random" surprise-me button. */
+.commander-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.commander-suggestion-chip:hover:not(:disabled),
+.commander-suggestion-chip:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  outline: none;
+}
+
+.commander-suggestion-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Surprise-me button row. */
+.commander-surprise {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.4rem;
+}
+
+.commander-surprise-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.commander-surprise-chip {
+  /* The randomize chip uses the same pill silhouette as the suggestion
+     chips above it, but stays visually distinct — it's an action, not
+     an option. Slight border tint signals that. */
+  border-color: var(--border-strong);
+  font-weight: 600;
+}
+
+.commander-surprise-chip:hover:not(:disabled) {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.commander-surprise-chip:hover:not(:disabled) .commander-surprise-icon {
+  color: var(--on-accent);
+}
+
+.commander-search-error {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--err-text);
+  text-align: center;
+}
+
+/* ── Partner commander selector ─────────────────────────────────────────
+   Appears only when the chosen commander supports a partner mechanic.
+   The toggle row mirrors the "Build from my collection" group; the picker
+   reuses the commander-search panel shell so it behaves identically on
+   touch / native (keyboard insets, downward-only growth). */
+.partner-selector-intro {
+  margin: 0 0 0.85rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.partner-toggle {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  user-select: none;
+}
+
+.partner-toggle.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.partner-toggle-checkbox {
+  flex: 0 0 auto;
+}
+
+.partner-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.partner-toggle-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.partner-toggle-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.partner-warning {
+  margin: 0.6rem 0;
+  padding: 0.55rem 0.75rem;
+  font-size: var(--text-xs);
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+}
+
+.partner-picker {
+  margin-top: 0.75rem;
+}
+
+.partner-search-input {
+  width: 100%;
+}
+
+/* Reset the column layout of .commander-search-item for the two-up partner
+   row: name/type stack on the left, owned + popularity meta on the right. */
+.partner-result {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.partner-result-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.partner-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+
+.partner-result-owned {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+.partner-result-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.partner-panel-error {
+  color: var(--err-text);
+}
+
+/* Phones: the owned/popularity meta would crowd the name on a narrow row,
+   so drop the result back to a stack. */
+@media (max-width: 480px) {
+  .partner-result {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+}

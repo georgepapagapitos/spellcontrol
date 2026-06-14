@@ -1,0 +1,382 @@
+/* deck-builder-editor.css — New-deck chooser actions + DeckEditorPage layout (hero/name/actions), overflow menu, page-top view tabs.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 3229-3608. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── New-deck chooser actions ─────────────────────────────────────────── */
+.deck-builder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.deck-builder-actions-hint {
+  flex: 1 1 100%;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* ── Editor layout ────────────────────────────────────────────────────── */
+.deck-editor-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Two-column grid so the title can wrap to multiple lines without ever
+   pushing the action cluster (or the mobile 3-dot overflow) onto its
+   own row. `align-items: start` pins actions to the top of the header
+   so they stay top-right regardless of title height. Only one of
+   `.deck-editor-actions` (desktop) or `.deck-editor-overflow` (mobile)
+   is visible at a time — both compete for the auto column, but the
+   hidden one collapses out of the grid layout. */
+.deck-editor-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1rem;
+}
+
+.deck-editor-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.deck-editor-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Inline hero editor: opened by clicking the deck title. Holds the
+   name field and the deck color picker together so color editing no
+   longer needs its own toolbar button / overflow entry. */
+.deck-editor-hero-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(22rem, 100%);
+  padding: 0.7rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.deck-editor-hero-edit-color {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.deck-editor-hero-edit-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-editor-hero-edit-done {
+  align-self: flex-end;
+}
+
+.deck-editor-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  /* Truncate within the header's title column so a long name can't spill over
+     the adjacent action cluster (undo/redo/⋮) on narrow viewports. */
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-editor-name:hover {
+  color: var(--accent);
+}
+
+.deck-editor-name-input {
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 0.15rem 0.4rem;
+}
+
+.deck-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deck-editor-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Count pill on an action button (e.g. Tokens · N). */
+.deck-editor-action-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  background: var(--surface-raised);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* Icon-only undo/redo: square the action button so it doesn't carry text
+   padding, and dim it when there's nothing to undo/redo. */
+.deck-editor-icon-btn {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+.deck-editor-icon-btn:disabled,
+.deck-editor-icon-pill:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Mobile undo/redo: round icon buttons matching the ⋮ overflow shape. */
+.deck-editor-icon-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+}
+
+/* ── Deck editor overflow ──────────────────────────────────────────────── */
+/* The ⋮ overflow is visible on ALL viewport sizes (UX-316: Delete and other
+   destructive actions live here, not inline). On desktop it sits at the end
+   of .deck-editor-actions; on mobile it lives in .deck-editor-mobile-actions. */
+.deck-editor-overflow {
+  position: relative;
+  display: none; /* shown via the media queries below */
+}
+
+/* Mobile-only cluster: a visible "Add cards" pill (so adding is a
+   first-class affordance, like the collection's Add card button —
+   no longer buried in the overflow) plus the 3-dot menu. Hidden on
+   desktop, where .deck-editor-actions covers these. */
+.deck-editor-mobile-actions {
+  display: none;
+}
+
+/* The mobile Add cards button is an action button, so it uses the 8px
+   rounded-rect like its desktop twin — overriding the `.pill-btn` pill so the
+   same action doesn't read as two different shapes across breakpoints. (The
+   round ⋮ overflow button below stays a circle — that's an icon-only button.) */
+.deck-editor-add-pill {
+  border-radius: var(--radius);
+}
+
+.deck-editor-overflow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: transparent;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.deck-editor-overflow-btn:hover,
+.deck-editor-overflow-btn[aria-expanded='true'] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+/* The bottom-sheet backdrop + drag handle aren't used anymore — the
+   overflow opens as an anchored popover at every breakpoint, matching
+   the binder/deck index card 3-dot menus. The DOM nodes still render
+   for the time being to keep the JSX simple. */
+.deck-editor-overflow-backdrop,
+.deck-editor-overflow-handle {
+  display: none;
+}
+
+.deck-editor-overflow-panel {
+  /* Anchored popover: drops directly below the 3-dot button, right-
+     edge-aligned. Same shape as `.binders-index-card-menu-panel` /
+     `.decks-index-card-menu-panel` so every 3-dot in the app reads as
+     one component. */
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  /* This is a menu, so it sits on the --z-menu layer — above the sticky deck
+     view-tabs (--z-popover) it drops over, below sheets/modals. */
+  z-index: var(--z-menu);
+  min-width: 12rem;
+  /* Cap so a labelled "Undo remove <long card name>" row can't run off-screen;
+     the row wraps instead (see overflow-wrap on the item). */
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  gap: 1px;
+}
+
+/* Hairline between the undo/redo rows and the rest of the deck actions. */
+.deck-editor-overflow-divider {
+  height: 1px;
+  margin: 0.25rem 0.3rem;
+  background: var(--border);
+}
+
+.deck-editor-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  /* Long undo/redo labels (a card name) wrap inside the row rather than
+     widening the menu or clipping. */
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+/* Shared menu-item hover used by every 3-dot popover in the app —
+   binders index, decks index, and the deck-editor overflow. Single
+   place so the affordance is identical across surfaces, and a clear
+   `--surface-raised` swap so the focused row is obvious against the
+   `--surface`-backed panel. */
+.binders-index-card-menu-item,
+.decks-index-card-menu-item,
+.deck-editor-overflow-item {
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+
+.binders-index-card-menu-item:hover:not(:disabled),
+.binders-index-card-menu-item:focus-visible,
+.decks-index-card-menu-item:hover,
+.decks-index-card-menu-item:focus-visible,
+.deck-editor-overflow-item:hover,
+.deck-editor-overflow-item:focus-visible {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.deck-editor-overflow-item--danger {
+  color: var(--err-text, #d8442a);
+}
+
+.deck-editor-overflow-item--danger:hover,
+.deck-editor-overflow-item--danger:focus-visible {
+  color: var(--err-text, #d8442a);
+}
+
+/* ── Page-top distinct-view tabs ──────────────────────────────────────────
+   The deck editor's primary nav (Deck · Overview · Mana · Power · Improve),
+   mirroring the Collection hub's section tabs. Sticks to the top of the scroll
+   region so it stays in reach as the active view scrolls. Uses the `underline`
+   Tabs variant inside (accent indicator tracking the active tab, scrolls
+   horizontally on overflow), so only this wrapper is bespoke. */
+.deck-editor-view-tabs {
+  position: sticky;
+  top: 0;
+  /* Just high enough to keep scrolling page content beneath the sticky strip —
+     deliberately BELOW --z-menu so header menus (the ⋮ overflow) float above it
+     instead of dropping behind it. Sheets and modals still win. */
+  z-index: var(--z-popover);
+  background: var(--bg);
+  padding-top: 0.25rem;
+  /* No margin-bottom — the parent `.deck-editor-page` already supplies a 1rem
+     flex `gap` between the tab strip and the view below. Adding a margin here
+     stacked on top of that gap, doubling the space to 2rem above the toolbar
+     (and reading as a dead band above the search row once the toolbar goes
+     single-column on tablet/mobile). */
+}
+
+/* The active analysis view's content fills the column (no card chrome — it's a
+   full page-level view now, not a folded-in panel). */
+.deck-analysis-view {
+  min-width: 0;
+  /* Single tuning knob for the analysis-tab containment pass: the boards
+     (.deck-bento) cap their width to this and center, so content doesn't
+     sprawl edge-to-edge on a wide (~2000px) monitor. Adjust here to
+     widen/narrow all tabs at once. */
+  --analysis-max: 1320px;
+}
+
+/* Test hand action in the Deck-view toolbar (goldfishing acts on this list) —
+   reveals the standalone Test hand panel below the card list. */
+.deck-toolbar-test-hand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* Desktop: show the overflow ⋮ inside .deck-editor-actions so Delete
+   (and future destructive items) are reachable there too. */
+@media (min-width: 1025px) {
+  .deck-editor-overflow {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Hide the inline action row; the overflow trigger replaces it.
+     The deck toolbar's Export button is also hidden — Export lives in
+     the same overflow sheet so the page has a single, consistent
+     entry point for deck-wide actions. */
+  .deck-editor-actions,
+  .deck-toolbar-export {
+    display: none;
+  }
+
+  .deck-editor-mobile-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .deck-editor-overflow {
+    display: inline-flex;
+  }
+}

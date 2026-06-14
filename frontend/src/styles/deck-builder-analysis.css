@@ -1,0 +1,681 @@
+/* deck-builder-analysis.css — Analysis-view IA, saltiest list + shared stat-strip/panel chrome, bento container grid, panel-cascade animation, curve/donut/mana-prod/roles/type/bracket stats.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 2104-2782. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Analysis views (distinct-view IA) ───────────────────────────────────
+   The collapsible `.deck-stats` card wrapper and `.deck-analysis-surface-body`
+   were retired when the analysis surface became page-top distinct views; the
+   `.deck-stats-panel` / `.deck-overview-*` / saltiest /
+   bracket rules below are still used by the view content. The
+   `.deck-stats-header*` rules further down are now shared only by the live
+   Combos / Test-hand collapsible panels. */
+.deck-analysis-tabpanel {
+  /* The panel is focusable (tabIndex 0) for keyboard users arriving from the
+     tablist — suppress the default focus ring on the container itself; the
+     individual controls inside carry their own visible focus styles. */
+  outline: none;
+}
+
+/* A folded-in panel (Combos / Suggestions / Test hand) spans the whole grid
+   row — it brings its own internal layout and must not be squeezed into a
+   single auto-fill column. */
+.deck-analysis-slot {
+  grid-column: 1 / -1;
+}
+
+/* Embedded panels drop their own card chrome (the surface already provides
+   the bordered container) so they sit flush inside a tab. */
+.deck-combos-panel.is-embedded,
+.deck-analysis-panel.is-embedded,
+.deck-test-hand-panel.is-embedded {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+/* ── Saltiest cards (Overview tab) ── */
+.deck-saltiest-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.deck-saltiest-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.deck-saltiest-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Tappable → opens the card-detail carousel. Button reset. */
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.deck-saltiest-name:hover {
+  text-decoration: underline;
+}
+
+.deck-saltiest-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
+.deck-saltiest-score {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-saltiest-hint {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* All deck-view collapsible panel headers (Statistics / Combos / Test hand)
+   share this look. Mirrors `.deck-section-header` (used for SORCERY,
+   INSTANT, etc.) so every section in the deck view reads as one family:
+   accent-colored icon, serif uppercase title with light count, optional
+   meta on the right, chevron at the far right, separator line below.
+
+   When the panel is collapsed (no body to separate from) we drop the
+   bottom border + margin so the header reads as a clean strip. */
+.deck-stats-header,
+.deck-combos-header,
+.deck-test-hand-header {
+  display: grid;
+  /* Combos / test-hand keep the 4-col layout (icon · title · summary ·
+     trailing). The stats header overrides this below — it only has 3
+     children since the meta moved into the Overview panel. */
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 0.5px solid var(--border);
+  padding: 0.25rem 0.1rem 0.55rem;
+  margin: 0 0 0.55rem 0;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+
+/* 44px touch targets on coarse pointers for every disclosure header — Combos,
+   Test hand, Stats, and the Tune intent lanes (which reuse .deck-combos-header
+   chrome via CollapsibleLane). */
+@media (pointer: coarse) {
+  .deck-combos-header,
+  .deck-test-hand-header,
+  .deck-stats-header {
+    min-height: 44px;
+  }
+}
+
+/* Stats header has only icon · title · caret (meta moved into the
+   Overview panel). Title takes the slack so the caret stays pinned to
+   the panel's right edge on every breakpoint. */
+.deck-stats-header {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.deck-stats-header:hover .deck-stats-caret,
+.deck-combos-header:hover .deck-combos-header-chevron,
+.deck-test-hand-header:hover .deck-test-hand-header-chevron {
+  color: var(--accent);
+}
+
+.deck-stats-header:focus-visible,
+.deck-combos-header:focus-visible,
+.deck-test-hand-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* Icons (Sparkles for Combos, Hand for Test Hand, the lucide BarChart3 we
+   added for Stats) take the accent color, matching .deck-section-icon. */
+.deck-combos-header > svg:first-child,
+.deck-test-hand-header > svg:first-child,
+.deck-stats-header > svg:first-child {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Collapsed state — no body below, so no separator line. */
+.deck-stats-header[aria-expanded='false'],
+.deck-combos-panel.is-collapsed .deck-combos-header,
+.deck-test-hand-panel.is-collapsed .deck-test-hand-header {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0.25rem;
+}
+
+/* Static variant (desktop): the panel is permanently open and there's
+   no toggle button — render the header as a plain header strip with
+   no cursor pointer / hover affordance. */
+.deck-stats-header--static {
+  cursor: default;
+  /* Desktop: no caret, no meta — just icon · title. */
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.deck-stats-header--static:hover .deck-stats-caret {
+  color: inherit;
+}
+
+.deck-stats-title {
+  /* Matches the deck-section-title used for INSTANT / SORCERY etc. so
+     every collapsible section header in the deck view shares one style. */
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Deck-view glance strip: high-level stats that used to live behind the
+   Overview analysis tab, now inline above the card list. A dashboard-style
+   metric row — each stat stacks a bold value over a small muted uppercase
+   label, no separators. Values baseline-align so the numbers sit on one line
+   even when a label wraps; the whole row wraps on narrow screens. */
+.deck-stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  white-space: nowrap;
+}
+
+/* Stat tiles that drill into the cards behind them (cards / value / missing).
+   Reset the button chrome so they read as plain stats, with a subtle tappable
+   affordance on hover/focus. */
+.deck-stat-btn {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 6px);
+  transition: color var(--motion-fast) ease;
+}
+
+.deck-stat-btn:hover .deck-stat-value,
+.deck-stat-btn:focus-visible .deck-stat-value {
+  color: var(--accent);
+}
+
+.deck-stat-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-stat-value {
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+.deck-stat-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.deck-stat-missing .deck-stat-value,
+.deck-stat-missing .deck-stat-label {
+  color: var(--warn-text, #b85c00);
+}
+
+.deck-stats-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+/* Paired compact panels inside a board (curated Overview grid + the Stats/Tune
+   bento): spans the full row, then packs its children 2-up from ~18rem. auto-fit
+   means a lone surviving panel fills the whole width instead of orphaning an
+   empty second cell — the orphan guard the bento relies on. */
+.deck-stats-pair {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  align-items: stretch;
+  gap: clamp(0.85rem, 2.2cqi, 1.5rem);
+}
+
+.deck-stats-panel {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.875rem;
+}
+
+/* Span the whole surface row — for panels whose contents lay themselves out in
+   a multi-column grid (Cards to consider), so they fill the width instead of
+   sitting in one narrow auto-fill track. */
+.deck-stats-panel--wide {
+  grid-column: 1 / -1;
+}
+
+/* Grid items must be allowed to shrink below their content's min-content, or a
+   wide child (the Power tab's combos grid / bracket breakdown) blows the
+   single-column track out past the viewport on phones — panels render wider than
+   their container and spill off the right edge. The ≥640px template already uses
+   minmax(0,1fr); this covers the base single column + the nested pair sub-grid. */
+.deck-bento > *,
+.deck-stats-pair > * {
+  min-width: 0;
+}
+
+/* ── Bento boards (Stats / Tune analysis tabs) ───────────────────────────────
+   Each analysis tab is one dense, contained bento that reflows to its OWN
+   width (container queries), not just the viewport — so it fills desktop
+   width with 2 dense columns + spanning heroes, and collapses to a single
+   column on phones, with no dead space and no orphaned cells.
+
+   `container-type: inline-size` makes the board a query container; the
+   `@container` rules below drive the column count off the board's measured
+   width. The board still inherits the shared --analysis-max cap + centering
+   from .deck-analysis-view. */
+.deck-bento {
+  container-type: inline-size;
+  container-name: bento;
+  display: grid;
+  /* minmax(0, …) not 1fr: 1fr's floor is min-content, which lets a wide child
+     blow the single column past the container on phones. */
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  grid-auto-flow: row dense;
+  gap: clamp(0.85rem, 2.2cqi, 1.5rem);
+  max-width: var(--analysis-max, 1320px);
+  margin-inline: auto;
+}
+
+/* ≥640px container → two dense columns. Heroes / list-heavy panels span the
+   full row via .deck-stats-panel--wide; compact panels pair via
+   .deck-stats-pair (which is itself an orphan-guarded auto-fit sub-grid). */
+@container bento (min-width: 640px) {
+  .deck-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ≥1040px container → keep the 2-col rhythm but let it breathe with a more
+   generous gutter (2 dense columns + spanning hero is the target, not 3-col). */
+@container bento (min-width: 1040px) {
+  .deck-bento {
+    gap: clamp(1.1rem, 1.6cqi, 1.85rem);
+  }
+}
+
+/* ── Panel cascade animation ─────────────────────────────────────────────────
+   Staggered entrance for bento panels when analysis becomes ready. The
+   `.panel-cascade-enter` class is added by usePanelCascade / panelCascadeClass;
+   slot 0–5 drive the delay. Panels beyond index 5 share the last slot delay.
+   Reduced-motion: animation is suppressed entirely. */
+@keyframes panel-cascade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panel-cascade-enter {
+  animation: panel-cascade-in var(--motion-gentle) var(--ease-out-soft) both;
+}
+
+.panel-cascade-enter-0 {
+  animation-delay: 0ms;
+}
+.panel-cascade-enter-1 {
+  animation-delay: 40ms;
+}
+.panel-cascade-enter-2 {
+  animation-delay: 80ms;
+}
+.panel-cascade-enter-3 {
+  animation-delay: 120ms;
+}
+.panel-cascade-enter-4 {
+  animation-delay: 160ms;
+}
+.panel-cascade-enter-5 {
+  animation-delay: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-cascade-enter {
+    animation: none;
+  }
+}
+
+.deck-stats-panel-title {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem 0;
+}
+
+.deck-stats-empty {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Mana curve — used inside the stats panel as well as standalone. */
+.deck-curve {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3rem;
+  /* Scale with viewport height so the curve uses more vertical space on
+     taller screens, with a sensible floor/ceiling. */
+  height: clamp(120px, 26vh, 300px);
+  padding: 0.25rem 0 0;
+}
+
+.deck-curve-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  height: 100%;
+}
+
+.deck-curve-bar {
+  width: 80%;
+  display: flex;
+  flex-direction: column-reverse;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  overflow: hidden;
+}
+
+.deck-curve-bar-seg {
+  width: 100%;
+  min-height: 1px;
+}
+
+.deck-curve-bar-seg:last-child {
+  border-radius: 2px 2px 0 0;
+}
+
+.deck-curve-label,
+.deck-curve-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-curve-label {
+  color: var(--text-secondary);
+}
+
+/* Color donut + legend */
+.deck-donut {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.deck-donut svg {
+  flex: 0 0 auto;
+}
+
+.deck-donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 0.5rem;
+  row-gap: 0.2rem;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+}
+
+.deck-donut-legend li {
+  display: contents;
+}
+
+.deck-donut-swatch {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  align-self: center;
+}
+
+.deck-donut-pct {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Mana production */
+.deck-mana-prod {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deck-mana-prod-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+  margin-bottom: 0.2rem;
+}
+
+.deck-mana-prod-swatch {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+}
+
+.deck-mana-prod-name {
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.deck-mana-prod-meta {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-mana-prod-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.deck-mana-prod-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--motion-base) ease;
+}
+
+/* Roles */
+.deck-roles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.deck-roles-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.deck-roles-name {
+  font-weight: 600;
+}
+
+.deck-roles-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Role count when the deck is below its target for that role — the count
+   reads in the error color and gains the ▾ deficit marker (rendered in JSX).
+   Replaces the former inline `color: #d8442a` so it tracks the theme. */
+.deck-roles-count-short {
+  color: var(--err-text);
+}
+
+/* Layout-only hook on the shared <MeterBar> (components/shared/MeterBar.tsx),
+   which owns the track geometry. */
+.deck-roles-bar {
+  margin: 0.2rem 0 0.15rem;
+}
+
+.deck-roles-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Overlapping role-density one-liner above the per-role bars. Counts a card in
+   every role it fills, so totals run past the deck size — hence the caption. */
+.deck-roles-density {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.deck-roles-density-line {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-roles-density-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Types */
+.deck-stats-typelist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: var(--text-sm);
+}
+
+.deck-stats-typelist li {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-primary);
+}
+
+.deck-stats-typelist li span:last-child {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-stats-bracket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* UX-313: Bracket Fit lane moved to the Tune tab; these rules are no longer needed.
+   The aligned chip (.bracket-fit-aligned) stayed in BracketFitLane.tsx but now
+   renders inside the Tune lane, so no special Power-panel margin is required. */
+
+.deck-stats-bracket strong {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+}
+
+.deck-stats-bracket-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-stats-bracket-tag {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+/* UX-313: the target-bracket control moved to the PowerHero. The Bracket panel
+   shows only a small note + "Clear target" link when an override is active. */
+.deck-stats-bracket-override-note {
+  margin: 0;
+  margin-top: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-stats-bracket-clear-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

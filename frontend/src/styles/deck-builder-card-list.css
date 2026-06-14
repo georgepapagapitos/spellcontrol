@@ -1,0 +1,818 @@
+/* deck-builder-card-list.css — Card grid + section list view, deck rows, role badges, allocation chips, FLIP row enter/leave keyframes, row context menu.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 1288-2103. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Grid view ────────────────────────────────────────────────────────── */
+.deck-card-grid-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.deck-grid-section {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.6rem 0.85rem 0.85rem;
+}
+
+.deck-card-grid {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.65rem;
+}
+
+/* 1×/2×/3× card sizing — mirrors the collection grid's min-column
+   widths (desktop here; narrowed on mobile below). 3× is hidden on
+   phones by the toolbar, so no phone rule needed for it. */
+.deck-card-grid.grid-1x {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.deck-card-grid.grid-2x {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.deck-card-grid.grid-3x {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+@media (max-width: 1024px) {
+  .deck-card-grid.grid-1x {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+
+  .deck-card-grid.grid-2x {
+    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  }
+
+  .deck-card-grid.grid-3x {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+.deck-card-grid-cell {
+  position: relative;
+  display: flex;
+}
+
+/* Card badge cluster — bottom-right over the art, like the collection
+   grid. Sibling of the tile button (not nested) so the interactive
+   BinderBadge isn't a button-in-button. */
+.deck-card-grid-badges {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+}
+
+.deck-card-grid-role,
+.deck-card-grid-synergy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
+/* `.deck-row-role-<tone>` (shared with list view) supplies the text
+   color; the chip above supplies the dark plate so it reads on art. */
+.deck-card-grid-synergy {
+  color: var(--accent);
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.72rem;
+}
+
+.deck-card-grid-badges .card-list-binder-badge {
+  margin-left: 0;
+  padding: 0.2rem;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.deck-card-grid-badges .card-list-binder-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Scale the cluster up with the card at 2×/3× so it stays legible. */
+.deck-card-grid.grid-2x .deck-card-grid-badges,
+.deck-card-grid.grid-3x .deck-card-grid-badges {
+  gap: 0.3rem;
+}
+
+.deck-card-grid.grid-2x .deck-card-grid-role,
+.deck-card-grid.grid-2x .deck-card-grid-synergy {
+  min-width: 1.4rem;
+  height: 1.4rem;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.72rem;
+}
+
+.deck-card-grid.grid-2x .deck-card-grid-badges .card-list-binder-badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.deck-card-grid.grid-3x .deck-card-grid-role,
+.deck-card-grid.grid-3x .deck-card-grid-synergy {
+  min-width: 1.6rem;
+  height: 1.6rem;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.82rem;
+}
+
+.deck-card-grid.grid-3x .deck-card-grid-badges .card-list-binder-badge svg {
+  width: 20px;
+  height: 20px;
+}
+
+.deck-card-grid-tile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: 4.75% / 3.5%;
+  overflow: hidden;
+  border: 0;
+  background: var(--surface-raised);
+  cursor: pointer;
+  padding: 0;
+}
+
+/* No hover movement. Keep a visible keyboard-focus ring for a11y
+   (the tile is a button). */
+.deck-card-grid-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-card-grid-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.deck-card-grid-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  text-align: center;
+}
+
+.deck-card-grid-qty {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+/* Partner-commander handshake chip. Lives inside the .deck-card-grid-badges
+   cluster alongside the role/synergy/binder chips so the card-meta icons share
+   one flex row and never overlap. Matches the synergy/role chip plate. */
+.deck-card-grid-partner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+
+.deck-card-grid-missing {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--err-text);
+  border: 1.5px solid #fff;
+}
+
+/* Precise partial-allocation badge on grid tiles. Replaces the binary
+   "missing" dot when at least one slot in the row is bound to an owned
+   copy — so the user can see "3 of 4 owned" at a glance instead of a
+   generic warning. Warn tone for unowned, err tone for orphan. */
+.deck-card-grid-alloc {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  min-width: 1.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  border: 1px solid #fff;
+}
+.deck-card-grid-alloc-unowned {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+}
+.deck-card-grid-alloc-orphan {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+
+.deck-display-main {
+  min-width: 0;
+}
+
+/* "Search Scryfall for X" trigger under the deck list — mirrors the
+   collection page's standalone trigger so adding a card not in the
+   deck starts from the same in-deck search bar. */
+.deck-display-scryfall-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 0.85rem;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.deck-display-scryfall-trigger:hover,
+.deck-display-scryfall-trigger:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
+.deck-display-scryfall-trigger-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.deck-display-scryfall-trigger-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.deck-display-scryfall-trigger:hover .deck-display-scryfall-trigger-sub,
+.deck-display-scryfall-trigger:focus-visible .deck-display-scryfall-trigger-sub {
+  color: inherit;
+}
+
+/* The body holds only the deck composition (the `Deck` view). Kept as a block
+   so any future additions inside the main column reflow naturally. */
+.deck-display-body {
+  display: block;
+}
+
+/* Card list — sections flow as CSS multi-column items so a small section
+   (e.g. Commander) lets the next section start in the same column. The
+   prior auto-fill grid left huge blank gaps under short sections. */
+.deck-card-list {
+  column-width: 280px;
+  column-gap: 1rem;
+}
+
+.deck-section {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.55rem 0.85rem 0.75rem;
+  break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.deck-section-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem 0.1rem 0.55rem;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 0.45rem;
+}
+
+.deck-section-icon {
+  color: var(--accent);
+  font-size: var(--text-lg);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.deck-section-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.deck-section-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.deck-section-subtotal {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Add/Edit partner" control in the Commander section header. */
+.deck-section-partner-btn {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* "Partner" tag distinguishing the partner commander from the primary one,
+   shown inline after the name in the list view's Commander section. */
+.deck-row-partner-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  vertical-align: middle;
+}
+
+.deck-section-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Offset parent for absolutely-pinned FLIP leave-ghosts (use-list-flip). */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── FLIP list animation keyframes ───────────────────────────────────────── */
+
+@keyframes deck-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes deck-row-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row.is-entering {
+    animation: none;
+  }
+  .deck-row.is-leaving {
+    animation: none;
+  }
+}
+
+/* Single card row: qty | rarity pill | name | mana cost | price */
+.deck-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  padding: 0.2rem 0.25rem;
+  border-radius: var(--radius);
+  /* FLIP glide: the hook inverts the position then clears transform so this
+     transition takes over. Compose with any existing row hover — don't clobber. */
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+.deck-row.is-entering {
+  animation: deck-row-enter var(--motion-base) var(--ease-out-soft) both;
+}
+
+.deck-row.is-leaving {
+  animation: deck-row-leave var(--motion-base) var(--ease-out-soft) both;
+  pointer-events: none;
+}
+
+.deck-row-qty {
+  width: 1.4rem;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.deck-row-role-badge {
+  width: 1.25rem;
+  flex: 0 0 auto;
+}
+
+.deck-row-name {
+  flex: 1 1 auto;
+  /* Row of identity + trailing chips (partner/legality/alloc/foil/synergy/
+     inclusion). min-width: 0 lets it shrink below min-content so a long name
+     doesn't push the row past the viewport; the name-text child absorbs the
+     shrink by ellipsizing, leaving the chips intact at a fixed gap. */
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* The card name truncates with an ellipsis so the trailing chips never get
+   pushed off or forced to wrap; the full name stays available via title +
+   the tap-to-open preview. Chips keep their own margin-left (uniform 0.4rem)
+   so the flex row needs no gap. */
+.deck-row-name-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-row-menu {
+  width: 0.75rem;
+  flex: 0 0 auto;
+}
+
+/* "Not in collection" cue — tint the qty cell so the signal lives
+   inside an existing column, no layout shift, no extra glyph. Owned
+   rows keep the muted default colour; missing rows light up red. */
+.deck-row-qty-missing {
+  color: var(--err-text, #d8442a);
+}
+
+/* Inline allocation chip rendered next to the card name on partial
+   rows. Quiet by design — fully-allocated rows render nothing — so
+   the deck list still reads as a list. */
+.deck-row-alloc-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.02rem 0.4rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  vertical-align: baseline;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.deck-row-alloc-chip-unowned {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+}
+.deck-row-alloc-chip-orphan {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+}
+.deck-row-alloc-chip-claimed-elsewhere {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+/* Compact "in another deck" badge — mirrors the Layers + deck-color
+   treatment used on the Collection grid so a card visible in two places
+   reads the same in both. The label hides on narrow widths so the row
+   never overflows. */
+.deck-row-alloc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  vertical-align: baseline;
+  white-space: nowrap;
+  text-decoration: none;
+  background: var(--deck-color, var(--accent));
+  color: var(--on-accent);
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-row-alloc-badge:hover,
+.deck-row-alloc-badge:focus-visible {
+  filter: brightness(1.08);
+  outline: none;
+}
+
+.deck-row-alloc-badge svg {
+  flex: 0 0 auto;
+}
+
+.deck-row-alloc-badge-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  /* Drop the deck name on narrow widths — the Layers icon + tooltip
+     still convey the state without overflowing the row. */
+  .deck-row-alloc-badge-label {
+    display: none;
+  }
+  .deck-row-alloc-badge {
+    padding: 0.1rem 0.35rem;
+  }
+}
+
+/* Per-card price cell (T36) — sits right-aligned between the mana cost and
+   the ⋮ menu, muted so the name column stays the loudest thing in the row.
+   The row aggregate is shown (matches the section subtotals); per-copy price
+   lives in the title tooltip when qty > 1. min-width (not width) keeps small
+   amounts column-aligned while letting `$1,234.56` grow without bleeding
+   into the menu. Rows with an unknown price render this cell empty so the
+   menu column still lines up. */
+.deck-row-price {
+  min-width: 2.5rem;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.deck-row:hover,
+.deck-row:focus-visible {
+  background: var(--accent-light);
+  cursor: pointer;
+  outline: none;
+}
+
+.deck-row:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.deck-row-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Rarity pill — single letter, MTG-canonical colors that are never themed. */
+/* Two-letter functional-role label (RA/MR/SR/WI/CA/…). Plain coloured
+   text — no pill — so it sits quietly next to the qty column. Hue groups
+   by parent role; the letters convey the subtype variant. */
+.deck-row-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.deck-row-role-mana-producer,
+.deck-row-role-mana-rock,
+.deck-row-role-cost-reducer,
+.deck-row-role-ramp {
+  color: #4ca352;
+}
+
+.deck-row-role-counterspell,
+.deck-row-role-bounce,
+.deck-row-role-spot-removal,
+.deck-row-role-removal {
+  color: #d8442a;
+}
+
+.deck-row-role-bounce-wipe,
+.deck-row-role-boardwipe {
+  color: #d4a838;
+}
+
+.deck-row-role-tutor,
+.deck-row-role-wheel,
+.deck-row-role-cantrip,
+.deck-row-role-card-draw,
+.deck-row-role-card-advantage {
+  color: #3a85cc;
+}
+
+/* Multi-role indicator — small holo-foil dot. Conic-gradient mimics
+   the iridescent shimmer of a foil card so it reads as "special" in
+   both themes. The outer ring keeps the dot visible against light
+   surfaces where the gradient's lightest stops would otherwise wash out. */
+/* Kebab trigger + dropdown for per-row actions. The trigger only
+   appears on row hover or when the menu is open, so resting rows stay
+   uncluttered. */
+.deck-row-menu {
+  position: relative;
+  display: inline-block;
+  text-align: center;
+  line-height: 0;
+}
+
+.deck-row-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.deck-row-menu-icon {
+  display: block;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.deck-row-menu-trigger:hover,
+.deck-row-menu-trigger[data-open] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.deck-row-menu-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 11rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Popover enter (STYLE_GUIDE Motion pattern 4): fade + scale(0.98) + 2px
+   rise from the trigger corner; exit stays instant. Transform/opacity only,
+   so the viewport-aware measured positioning (flip-up etc.) is untouched.
+   The default origin matches the in-flow anchoring (below the trigger,
+   right-aligned); portaled menus override it inline per their placement. */
+.deck-row-menu-popover,
+.toolbar-popover-panel {
+  animation: menu-pop-in var(--motion-fast) var(--ease-out-soft);
+  transform-origin: top right;
+}
+
+@keyframes menu-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row-menu-popover,
+  .toolbar-popover-panel {
+    animation: none;
+  }
+}
+
+.deck-row-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-row-menu-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem 0.4rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 0.5px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.deck-row-menu-status strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.deck-row-menu-item:hover:not(:disabled) {
+  background: var(--accent-light);
+}
+
+.deck-row-menu-item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.deck-row-menu-item--danger {
+  color: var(--danger, #b94545);
+}
+
+.deck-row-menu-item--danger:hover:not(:disabled) {
+  background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+}
+
+.deck-row-role-multi-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 210deg,
+    #ff6ad5,
+    #c779d0,
+    #6dc9ff,
+    #94e3a4,
+    #ffe27a,
+    #ff8a5b,
+    #ff6ad5
+  );
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}

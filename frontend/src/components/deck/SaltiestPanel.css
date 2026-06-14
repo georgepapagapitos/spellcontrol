@@ -2,7 +2,7 @@
  * Co-located styles for SaltiestPanel.
  *
  * The base list/row/name/score/hint rules live in the global
- * styles/deck-builder.css as `.deck-saltiest-*`. This file adds the
+ * styles/deck-builder-analysis.css as `.deck-saltiest-*`. This file adds the
  * band-word chip, which is new to the extracted component.
  */
 

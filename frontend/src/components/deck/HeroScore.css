@@ -1,7 +1,7 @@
 /* HeroScore — PlanScore ring gauge + headline/byline.
    Band colors follow the established analysis-area convention
    (var(--success/...)) with a sensible fallback hex per band; --accent is the
-   themed "violet/accent" tier. See src/styles/deck-builder.css role-row colors
+   themed "violet/accent" tier. See src/styles/deck-builder-card-list.css role-row colors
    and STYLE_GUIDE.md (always theme vars, --text-* font scale, --radius-lg). */
 
 .hero-score {

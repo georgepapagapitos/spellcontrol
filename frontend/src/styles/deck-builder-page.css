@@ -1,0 +1,41 @@
+/* deck-builder-page.css — Page scaffold (header, subtitle, section card chrome) shared by DeckNewPage/GuidedBuildPage/DeckCustomizer.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 1-39. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+.deck-builder-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.deck-builder-header h1 {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.deck-builder-subtitle {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-top: 0.25rem;
+}
+
+/* Inline link in prose: drop the horizontal padding so it doesn't stack on
+   top of the sentence's word-space and create a visible gap before the link. */
+.deck-builder-subtitle .btn-link {
+  padding-inline: 0;
+}
+
+.deck-builder-section {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+}
+
+.deck-builder-section-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+}

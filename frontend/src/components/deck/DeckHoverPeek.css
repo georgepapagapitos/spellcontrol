@@ -3,7 +3,7 @@
    the look. Non-interactive — the row's click→sheet stays the real action.
 
    Co-located with DeckHoverPeek.tsx per the deck-component CSS convention (not
-   deck-builder.css). */
+   the central deck-builder-* stylesheets). */
 .deck-card-hover-peek {
   position: fixed;
   /* Above the deck list + its row menus (--z-menu 80, --z-panel 100), but below
