@@ -1,0 +1,541 @@
+/* play-effects.css — split from play.css (#refactor).
+   Per-panel micro-feedback animations: life pop, lethal flash, winner pulse, floating deltas, the life-keypad modal, and the SHARED pp-fade-in/pp-scale-in keyframes used by panel covers across the other files. */
+
+/* ── Polish: animated life, floating deltas, lethal flash, winner pulse ── */
+
+/* Life number sits inside a button (tap to open the keypad). The button
+   resets its own styling so the big numeral renders identically to the old
+   plain div. */
+.player-panel-life-btn {
+  /* IMPORTANT: do not use the `font` shorthand here — it would clobber the
+     font-size set on `.player-panel-life`. Reset only the button chrome. */
+  background: transparent;
+  border: none;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: 1;
+  pointer-events: auto;
+  z-index: 2;
+  border-radius: 999px;
+  /* The hit area is intentionally smaller than the visual digits — the
+     user must tap squarely in the middle of the number to open the
+     keypad. Stray taps fall through to the ±1 tap zones. */
+  width: clamp(1.5rem, 4vmin, 2.5rem);
+  height: clamp(1.5rem, 4vmin, 2.5rem);
+  padding: 0;
+  overflow: visible;
+  display: block;
+  text-align: center;
+}
+
+.player-panel-life-btn > .player-panel-life-num {
+  /* Anchor the rendered glyphs to the center of the small hit-area box,
+     letting them overflow the box in all directions at full font size.
+     Uses the individual `translate` CSS property (not the `transform`
+     shorthand) so the pop animation's `scale` composes with it instead
+     of clobbering the centering and jerking the digits. */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  white-space: nowrap;
+  /* Pointer-events off — the digits overflow the button bounds visually,
+     but only the button's own (small) hit-rect should trigger the keypad.
+     Taps on the digit overflow areas pass through to the ±1 tap zones. */
+  pointer-events: none;
+}
+
+.player-panel-life-num {
+  display: inline-block;
+  transform-origin: center;
+}
+
+.player-panel-life-num.is-pop {
+  animation: pp-pop 180ms ease-out;
+}
+
+@keyframes pp-pop {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 1.12;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+/* Smoother elimination: extend filter+opacity to a transition. The
+   `.is-eliminated` rule above already uses `transition: filter 200ms`,
+   so we strengthen it here with a slightly longer duration and an
+   opacity hint. */
+.player-panel {
+  transition:
+    filter 380ms ease,
+    opacity 380ms ease,
+    transform var(--motion-base) ease;
+}
+
+/* Lethal flash — applied for ~320ms when life crosses any lethal threshold
+   (life ≤ 0, poison ≥ 10, any commander damage ≥ 21). Pure visual; cleared
+   by a setTimeout in the component. */
+.player-panel.is-lethal-flash::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(220, 38, 38, 0.45);
+  pointer-events: none;
+  z-index: 3;
+  animation: pp-lethal-flash var(--motion-gentle) ease-out forwards;
+}
+
+@keyframes pp-lethal-flash {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Gentle winner pulse — breathes the inset gold glow we already apply. */
+.player-panel.is-winner {
+  animation: pp-winner-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pp-winner-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px var(--pp-accent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px var(--pp-accent),
+      inset 0 0 32px rgba(255, 224, 122, 0.45);
+  }
+}
+
+/* Floating delta chips — anchored at the tap position, drift up + fade. */
+.player-panel-floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+}
+
+/* Running-burst count — rendered inside each step button, beside the
+   existing + or − glyph so the glyph carries the sign and the small
+   number carries the magnitude. Font scales off the button's font-size
+   so it stays proportional across all layouts. */
+.player-panel-step-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.04em;
+}
+
+.player-panel-step-glyph {
+  display: inline-block;
+}
+
+.player-panel-step-count {
+  font-family: var(--font-mono);
+  /* Sits at ~85% of the button glyph — same family/weight, just slightly
+     smaller so the +/− still reads as the primary character. */
+  font-size: calc(0.85em);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.floating-delta.is-positive {
+  color: var(--pp-accent);
+}
+
+.floating-delta.is-negative {
+  color: #ff7a7a;
+}
+
+.floating-delta.is-zero {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Life keypad modal ── */
+
+.life-keypad {
+  /* In-panel cover (same model as counters / seat menu): fills the rotated
+     panel and expands from the centre where the life number sits, so it's
+     oriented to that seat on every layout. */
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
+    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
+  );
+  clip-path: circle(150% at 50% 50%);
+  animation: pp-keypad-open var(--motion-base) var(--ease-out-soft);
+}
+
+@keyframes pp-keypad-open {
+  from {
+    clip-path: circle(0% at 50% 50%);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: circle(150% at 50% 50%);
+    opacity: 1;
+  }
+}
+
+@keyframes pp-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pp-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.life-keypad-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.life-keypad-title {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.life-keypad-close {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.life-keypad-close:hover,
+.life-keypad-close:focus-visible {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.life-keypad-close:active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.life-keypad-display {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 10vmin, 4rem);
+  font-weight: 700;
+  text-align: center;
+  padding: 0.25rem 0;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.life-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.life-keypad-btn {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg, 1.25rem);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.life-keypad-btn:hover,
+.life-keypad-btn:focus-visible {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.life-keypad-btn:active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.life-keypad-btn.is-action {
+  color: var(--text-secondary);
+}
+
+.life-keypad-confirm {
+  background: var(--accent);
+  border: none;
+  color: var(--on-accent);
+  border-radius: 10px;
+  padding: 0.7rem 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background var(--motion-fast) ease;
+}
+
+.life-keypad-confirm:hover {
+  background: var(--accent-hover);
+}
+
+/* UX-322 — Delta-mode row: two side-by-side apply buttons (− and +). */
+.life-keypad-delta-row {
+  display: flex;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.life-keypad-confirm--delta {
+  flex: 1;
+  font-size: var(--text-sm);
+  /* Truncate if the preview label overflows a small panel */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.7rem var(--space-2);
+}
+
+/* Minus button: destructive-adjacent tone (neutral red-tinted) */
+.life-keypad-confirm--minus {
+  background: rgba(220, 38, 38, 0.75);
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-confirm--minus:hover {
+    background: rgba(220, 38, 38, 0.9);
+  }
+}
+
+/* Plus button: gain tone (green-tinted) */
+.life-keypad-confirm--plus {
+  background: rgba(34, 197, 94, 0.75);
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-confirm--plus:hover {
+    background: rgba(34, 197, 94, 0.9);
+  }
+}
+
+/* ── Pointer-capable affordances (desktop mouse, trackpads) ──
+   Gated by `(hover: hover)` so touch devices don't sticky-hover after a
+   tap. We intentionally omit hover effects on the tap zones and step
+   buttons themselves — the cursor change + active feedback is enough,
+   and the gradient/glow read as accidental glare on a colored seat. */
+@media (hover: hover) {
+  .player-panel-life-btn:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* ── Layout picker UI ── */
+
+.layout-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.layout-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.55rem;
+}
+
+.layout-option {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.layout-option:hover {
+  border-color: var(--border-strong);
+}
+
+.layout-option.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.layout-option-preview {
+  /* Aspect-ratio is set inline per layout (cols × rows) so the thumbnail
+     looks like a real miniature of the board: 2×2 pod = square, 2×3 = a
+     taller rectangle. The mini hub dot sits at --seam-pct from the top
+     edge so layouts with identical seat counts but different seams
+     (e.g. 6p 4v2 vs 2v4) read as distinct in the picker. */
+  position: relative;
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  /* Constrain height so tall layouts (3+ rows) don't blow the thumbnail
+     up; the aspect-ratio still applies, but max-height keeps the picker
+     compact. */
+  max-height: 130px;
+  align-self: center;
+}
+
+/* Mini hub dot at the seam — mirrors the floating game-board-menu-btn
+   on the actual board. */
+.layout-option-preview::after {
+  content: '';
+  position: absolute;
+  top: var(--seam-top-pct, 50%);
+  left: var(--seam-left-pct, 50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  border: 2px solid var(--bg);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.layout-option-cell {
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--pp-edge, #6aa6ff) 88%, transparent) 0%,
+    color-mix(in srgb, var(--pp-base, #4a5366) 96%, transparent) 100%
+  );
+  border-radius: 6px;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.layout-option-cell.is-empty {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+/* Big directional arrow = which way that seat reads. This is what makes
+   pod / sides / wide layouts visually distinct in the picker. */
+.layout-option-cell-face {
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.layout-option-cell-face svg {
+  width: clamp(14px, 4.5vmin, 26px);
+  height: clamp(14px, 4.5vmin, 26px);
+}
+
+/* Tiny seat index, tucked in the corner so it doesn't fight the arrow. */
+.layout-option-cell-seat {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-xs, 0.72rem);
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* Respect reduced-motion users — kill all decorative animations but keep
+   the lethal flash (it conveys important info) and shorten it. */
+@media (prefers-reduced-motion: reduce) {
+  .player-panel-life-num.is-pop,
+  .player-panel.is-winner,
+  .floating-delta,
+  .life-keypad {
+    animation: none !important;
+    clip-path: none;
+  }
+  .player-panel {
+    transition: none;
+  }
+  .floating-delta {
+    /* Still show the chip so feedback isn't lost — just don't animate it.
+       It will be removed by the lifetime sweep. */
+    opacity: 0.9;
+    transform: translate(-50%, -120%);
+  }
+  .player-panel.is-lethal-flash::after {
+    animation-duration: 180ms;
+  }
+}

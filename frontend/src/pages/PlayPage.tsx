@@ -1010,7 +1010,7 @@ function ResumeBanner({
  * End-game dialog with a real winner picker. If exactly one player is alive
  * it's pre-selected; the user can still pick "No winner" or override. The
  * picker is rendered on top of the game-board overlay (the body:has(.game-board)
- * z-index rule in play.css handles the layering).
+ * z-index rule in play-setup.css handles the layering).
  */
 function EndGameDialog({
   game,

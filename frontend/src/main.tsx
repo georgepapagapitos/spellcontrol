@@ -32,7 +32,15 @@ import './styles/admin-scanner.css';
 import './styles/holographic.css';
 import './styles/themes.css';
 import './styles/deck-builder.css';
-import './styles/play.css';
+// Split from the former styles/play.css — imported in original cascade order.
+import './styles/play-setup.css';
+import './styles/play-board.css';
+import './styles/play-panel-menus.css';
+import './styles/play-history-inline.css';
+import './styles/play-effects.css';
+import './styles/play-enhancements.css';
+import './styles/play-layout-editor.css';
+import './styles/play-counters-panel.css';
 import './styles/shared.css';
 import { bootstrapTheme, useThemeStore } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';

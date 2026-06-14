@@ -1,0 +1,481 @@
+/* play-history-inline.css — split from play.css (#refactor).
+   Game history timeline + life chart, the post-game history tab page, the host join-code banner, and the per-player color palette classes (.pp-color-*). */
+
+/* ── Game history (timeline + life chart) ───────────────────────────────── */
+
+.game-history-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.game-history-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.game-history-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-history-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.5rem;
+  padding: 0.2rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.game-history-tab {
+  flex: 1;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.game-history-tab:hover {
+  color: var(--text-primary);
+}
+
+.game-history-tab.is-active {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+
+.game-history-empty {
+  margin: 0.5rem 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.game-history-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 260px;
+  overflow-y: auto;
+  font-size: var(--text-sm);
+}
+
+.timeline-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.25rem 0.1rem;
+  color: var(--text-primary);
+}
+
+.timeline-dot {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.4rem;
+  border-radius: 999px;
+  background: var(--border-strong, var(--border));
+}
+
+.timeline-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.timeline-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.25;
+}
+
+.timeline-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timeline-action {
+  color: var(--text-secondary);
+}
+
+.timeline-source {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.timeline-delta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.4rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--text-xs);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.timeline-delta.is-up {
+  background: var(--ok-bg, rgba(31, 155, 92, 0.12));
+  color: var(--ok-text, #1d7a4a);
+  border-color: var(--ok-border, rgba(31, 155, 92, 0.4));
+}
+
+.timeline-delta.is-down {
+  background: var(--err-bg, rgba(200, 51, 43, 0.1));
+  color: var(--err-text, #b03228);
+  border-color: var(--err-border, rgba(200, 51, 43, 0.4));
+}
+
+.timeline-time {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.timeline-count {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-row.kind-start,
+.timeline-row.kind-end,
+.timeline-row.kind-reset {
+  color: var(--text-primary);
+}
+
+.timeline-row.kind-start .timeline-action,
+.timeline-row.kind-end .timeline-action,
+.timeline-row.kind-reset .timeline-action {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timeline-row.kind-eliminate .timeline-action {
+  color: var(--err-text, #b03228);
+}
+
+/* Life chart */
+
+.game-history-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.life-chart-svg {
+  width: 100%;
+  height: 140px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+}
+
+.life-chart-baseline {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.life-chart-zero {
+  stroke: var(--err-border, rgba(200, 51, 43, 0.5));
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.life-chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.25rem 0.5rem;
+  font-size: var(--text-xs);
+}
+
+.life-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.life-chart-swatch {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+}
+
+.life-chart-legend-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.life-chart-legend-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── Color palettes per player ─────────────────────────────────────────── */
+
+/* Per-color playmat palettes. Hand-tuned so white text reads cleanly over
+   each --pp-base, the --pp-edge top spotlight feels like a soft glow, and
+   the --pp-accent value is the saturated guild color used for the winner
+   ring and the host star. */
+.pp-color-w {
+  --pp-base: #c9a83a;
+  --pp-edge: #f0d970;
+  --pp-accent: #fff1bd;
+}
+
+.pp-color-u {
+  --pp-base: #1f5fb8;
+  --pp-edge: #4ea0e8;
+  --pp-accent: #a8d2ff;
+}
+
+.pp-color-b {
+  --pp-base: #3a2454;
+  --pp-edge: #6d4ca0;
+  --pp-accent: #c8a8f0;
+}
+
+.pp-color-r {
+  --pp-base: #b02a1c;
+  --pp-edge: #e25a3a;
+  --pp-accent: #ffaa88;
+}
+
+.pp-color-g {
+  --pp-base: #2f8442;
+  --pp-edge: #58c465;
+  --pp-accent: #b0eab8;
+}
+
+.pp-color-m {
+  --pp-base: #9c6a18;
+  --pp-edge: #e0b048;
+  --pp-accent: #ffe48a;
+}
+
+.pp-color-c {
+  --pp-base: #4a5366;
+  --pp-edge: #7d8aa3;
+  --pp-accent: #d0d8e8;
+}
+
+/* `.pp-seat` is a marker class for panels using the fallback palette. The
+   actual color values are set inline by GameBoard.tsx via
+   paletteForSeat(gameId, seat) — see frontend/src/lib/seat-palette.ts. We
+   don't define defaults here because the panel's own base rule already
+   supplies a neutral slate that the inline vars then override. */
+
+/* ── Code banner (host's join code) ─────────────────────────────────────── */
+
+.play-code-banner {
+  background: rgba(20, 24, 31, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-modal);
+}
+
+.play-code-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.play-code-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  letter-spacing: 0.3em;
+  color: #fff;
+  font-weight: 600;
+}
+
+.play-code-hint {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: var(--text-xs);
+}
+
+/* ── History view (setup-tab and history-tab share the page chrome) ────── */
+
+.play-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.play-records {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.play-records-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.play-records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.play-records-table th,
+.play-records-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.play-records-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.play-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.play-history-item {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.play-history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.play-history-format {
+  background: var(--accent-light);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.play-history-mode {
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  text-transform: capitalize;
+}
+
+.play-history-date {
+  flex: 1;
+}
+
+.play-history-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.play-history-winner {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.play-history-duration {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.play-history-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.play-history-players li.is-winner {
+  color: var(--warn-text);
+  font-weight: 500;
+}
+
+.play-history-player-name {
+  margin-right: 0.4rem;
+  color: var(--text-primary);
+}
+
+.play-history-player-deck {
+  color: var(--text-muted);
+  margin-right: 0.4rem;
+  font-style: italic;
+}
+
+.play-history-player-life {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
