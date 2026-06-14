@@ -110,7 +110,9 @@ function ThemePickerList({
               aria-pressed={active}
               onClick={() => onToggle(theme)}
             >
-              <span className="theme-chip-name">{theme.name}</span>
+              <span className="theme-chip-name card-name-chip-text" title={theme.name}>
+                {theme.name}
+              </span>
               <span className="theme-chip-count">{formatCount(theme.count)} decks</span>
             </button>
           );

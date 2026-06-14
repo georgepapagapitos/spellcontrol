@@ -80,11 +80,17 @@
   gap: 0.4rem;
 }
 
+.deck-tokens-chips > li {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .deck-tokens-chip {
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
   max-width: 100%;
+  min-width: 0;
   margin: 0;
   padding: 0.3rem 0.65rem;
   background: var(--surface-raised);
@@ -110,10 +116,6 @@
 }
 
 .deck-tokens-chip-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: var(--text-sm);
 }
 

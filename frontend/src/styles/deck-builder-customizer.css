@@ -19,6 +19,8 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
   background: var(--surface-raised);
@@ -46,6 +48,7 @@
 }
 
 .theme-chip-count {
+  flex: 0 0 auto;
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
@@ -726,6 +729,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.25rem 0.5rem 0.25rem 0.65rem;
   background: var(--surface);
   border: 0.5px solid var(--border);
