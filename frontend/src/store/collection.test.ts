@@ -18,6 +18,7 @@ import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
 import { useToastsStore } from './toasts';
 import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
+import { _resetForTests as resetPriceCache } from '../lib/card-prices';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 
 function enriched(
@@ -410,6 +411,116 @@ describe('refreshPrices', () => {
     await useCollectionStore.getState().refreshPrices();
     expect(useCollectionStore.getState().error).toBe('offline');
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
+  });
+});
+
+describe('refreshPrices — binder auto-move notifications (T21)', () => {
+  beforeEach(() => {
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    useToastsStore.getState().clear();
+  });
+
+  const highValueBinder = (over: Partial<BinderDef> = {}): BinderDef =>
+    makeBinder({
+      id: 'bhv',
+      name: 'High Value',
+      filterGroups: [{ filter: { priceMin: 50 } }],
+      ...over,
+    });
+
+  const priceResponse = (prices: Record<string, number>) =>
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        prices: Object.fromEntries(
+          Object.entries(prices).map(([id, usd]) => [id, { usd, pricedAt: 1000 }])
+        ),
+      }),
+    });
+
+  it('toasts a move INTO a binder when a price crosses the threshold', async () => {
+    vi.stubGlobal('fetch', priceResponse({ 't21-a': 60 }));
+    useCollectionStore.setState({
+      binders: [highValueBinder()],
+      cards: [enriched({ copyId: 'a', scryfallId: 't21-a', name: 'Sol Ring', purchasePrice: 40 })],
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toBe('Sol Ring moved to High Value (price ↑)');
+    expect(toasts[0].tone).toBe('info');
+    expect(toasts[0].actionLabel).toBe('View binder');
+  });
+
+  it('toasts a move OUT to Uncategorized when a price drops below the threshold', async () => {
+    vi.stubGlobal('fetch', priceResponse({ 't21-a': 40 }));
+    useCollectionStore.setState({
+      binders: [highValueBinder()],
+      cards: [enriched({ copyId: 'a', scryfallId: 't21-a', name: 'Sol Ring', purchasePrice: 60 })],
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toBe('Sol Ring left High Value (price ↓)');
+    // No destination binder to open → plain (actionless) toast.
+    expect(toasts[0].actionLabel).toBeUndefined();
+  });
+
+  it('does not toast when membership is unchanged', async () => {
+    vi.stubGlobal('fetch', priceResponse({ 't21-a': 70 }));
+    useCollectionStore.setState({
+      binders: [highValueBinder()],
+      cards: [enriched({ copyId: 'a', scryfallId: 't21-a', purchasePrice: 60 })], // stays >= 50
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+    expect(useToastsStore.getState().toasts).toHaveLength(0);
+  });
+
+  it('collapses into a single digest toast when more cards move than the cap', async () => {
+    const ids = ['t21-1', 't21-2', 't21-3', 't21-4', 't21-5'];
+    vi.stubGlobal('fetch', priceResponse(Object.fromEntries(ids.map((id) => [id, 60]))));
+    useCollectionStore.setState({
+      binders: [highValueBinder()],
+      cards: ids.map((id, i) =>
+        enriched({ copyId: `c${i}`, scryfallId: id, name: `Card ${i}`, purchasePrice: 40 })
+      ),
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toBe('5 cards moved between binders (prices updated)');
+    expect(toasts[0].actionLabel).toBe('View');
+  });
+
+  it('does not count deck-allocated copies as moves for hideDeckAllocated binders', async () => {
+    vi.stubGlobal('fetch', priceResponse({ 't21-a': 60 }));
+    useDecksStore.setState({
+      decks: [
+        {
+          id: 'd1',
+          name: 'Deck',
+          color: '#000',
+          cards: [{ slotId: 's1', card: { id: 'x', name: 'Sol Ring' }, allocatedCopyId: 'a' }],
+          sideboard: [],
+        } as unknown as ReturnType<typeof useDecksStore.getState>['decks'][number],
+      ],
+      hydrated: true,
+    });
+    useCollectionStore.setState({
+      binders: [highValueBinder({ hideDeckAllocated: false })],
+      cards: [enriched({ copyId: 'a', scryfallId: 't21-a', name: 'Sol Ring', purchasePrice: 40 })],
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+    expect(useToastsStore.getState().toasts).toHaveLength(0);
   });
 });
 
