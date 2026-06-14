@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickUsdFromPrices } from './scryfall-cache';
+import { pickUsdForFinish, pickUsdFromPrices } from './scryfall-cache';
 import type { ScryfallCard } from './types';
 
 const card = (prices: Record<string, string | null> | undefined): ScryfallCard =>
@@ -20,5 +20,31 @@ describe('pickUsdFromPrices', () => {
     expect(pickUsdFromPrices(card(undefined))).toBe(0);
     expect(pickUsdFromPrices(card({ usd: '0' }))).toBe(0);
     expect(pickUsdFromPrices(card({ usd: 'not-a-number' }))).toBe(0);
+  });
+});
+
+describe('pickUsdForFinish', () => {
+  const p = { usd: '1.50', usd_foil: '5.00', usd_etched: '12.00' };
+
+  it('picks the price matching the owned finish', () => {
+    expect(pickUsdForFinish(card(p), 'nonfoil')).toBe(1.5);
+    expect(pickUsdForFinish(card(p), 'foil')).toBe(5);
+    expect(pickUsdForFinish(card(p), 'etched')).toBe(12);
+  });
+
+  it('treats a missing/unknown finish as non-foil', () => {
+    expect(pickUsdForFinish(card(p))).toBe(1.5);
+    expect(pickUsdForFinish(card(p), 'weird')).toBe(1.5);
+  });
+
+  it('falls back across finishes when the owned finish has no price', () => {
+    // Foil price missing → foil falls back to etched, then nonfoil.
+    expect(pickUsdForFinish(card({ usd: '2', usd_etched: '8', usd_foil: null }), 'foil')).toBe(8);
+    expect(pickUsdForFinish(card({ usd: '2', usd_etched: null, usd_foil: null }), 'foil')).toBe(2);
+  });
+
+  it('returns 0 when nothing is priced', () => {
+    expect(pickUsdForFinish(card({ usd: null }), 'foil')).toBe(0);
+    expect(pickUsdForFinish(card(undefined), 'foil')).toBe(0);
   });
 });

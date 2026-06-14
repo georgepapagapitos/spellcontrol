@@ -6,7 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { existsSync } from 'fs';
-import { DB_PATH, getScryfallCache, pickUsdFromPrices } from './scryfall-cache';
+import { DB_PATH, getScryfallCache, pickUsdForFinish } from './scryfall-cache';
 import { closeDb, ensureSchema } from './db';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
@@ -587,11 +587,22 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
     const cards = await fetchCardsByIds(ids, cache);
 
     const now = Date.now();
-    const prices: Record<string, { usd: number; pricedAt: number }> = {};
+    // Return the price for EACH finish (the client picks the one matching the
+    // owned copy). The request is per-printing (scryfallId) and finish-agnostic
+    // because a single printing serves nonfoil + foil + etched copies; sending
+    // all three avoids a foil silently showing the non-foil price. `usd` is the
+    // non-foil baseline; a client that ignores the foil fields degrades to the
+    // old behaviour. Emit an entry if ANY finish has a price.
+    const prices: Record<
+      string,
+      { usd: number; usdFoil: number; usdEtched: number; pricedAt: number }
+    > = {};
     for (const card of cards) {
-      const usd = pickUsdFromPrices(card);
-      if (usd > 0) {
-        prices[card.id] = { usd, pricedAt: now };
+      const usd = pickUsdForFinish(card, 'nonfoil');
+      const usdFoil = pickUsdForFinish(card, 'foil');
+      const usdEtched = pickUsdForFinish(card, 'etched');
+      if (usd > 0 || usdFoil > 0 || usdEtched > 0) {
+        prices[card.id] = { usd, usdFoil, usdEtched, pricedAt: now };
       }
     }
 

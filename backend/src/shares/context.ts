@@ -10,7 +10,7 @@ import {
   userDecks,
 } from '../db/schema';
 import { shareCache, type ShareContext, type ShareDataView } from './cache';
-import { getScryfallCache, pickUsdFromPrices } from '../scryfall-cache';
+import { getScryfallCache, pickUsdForFinish } from '../scryfall-cache';
 
 /**
  * Stamp current market value onto shared cards from the backend Scryfall cache.
@@ -18,6 +18,7 @@ import { getScryfallCache, pickUsdFromPrices } from '../scryfall-cache';
  * synced row), so the stored rows carry no price. Cache-ONLY lookup — a share
  * render must never block on the Scryfall network. Cards the cache doesn't know
  * keep whatever price the row had (0 post-strip), so shares are best-effort.
+ * Finish-aware: a shared foil shows the foil price, not the non-foil one.
  * Mutates the card objects in place (they're about to be cached in shareCache).
  */
 function stampSharePrices(cards: unknown[]): void {
@@ -31,9 +32,9 @@ function stampSharePrices(cards: unknown[]): void {
   if (cached.size === 0) return;
   for (const c of cards) {
     if (!c || typeof c !== 'object') continue;
-    const card = c as { scryfallId?: string; purchasePrice?: number };
+    const card = c as { scryfallId?: string; finish?: string; purchasePrice?: number };
     const sc = card.scryfallId ? cached.get(card.scryfallId) : undefined;
-    if (sc) card.purchasePrice = pickUsdFromPrices(sc);
+    if (sc) card.purchasePrice = pickUsdForFinish(sc, card.finish);
   }
 }
 

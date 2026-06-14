@@ -347,6 +347,30 @@ describe('refreshPrices', () => {
     expect(body.scryfallIds.sort()).toEqual(['sf-hit', 'sf-miss']);
   });
 
+  it('stamps a foil copy with the foil price, not the non-foil one', async () => {
+    // Server returns a per-finish block for the printing; the foil copy must
+    // pick usdFoil, the non-foil copy usd — same scryfallId, different prices.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        prices: { sf1: { usd: 2, usdFoil: 9, usdEtched: 0, pricedAt: 7000 } },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: [
+        enriched({ copyId: 'nf', scryfallId: 'sf1', finish: 'nonfoil', purchasePrice: 0 }),
+        enriched({ copyId: 'fo', scryfallId: 'sf1', finish: 'foil', purchasePrice: 0 }),
+      ],
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    const byId = Object.fromEntries(useCollectionStore.getState().cards.map((c) => [c.copyId, c]));
+    expect(byId.nf.purchasePrice).toBe(2);
+    expect(byId.fo.purchasePrice).toBe(9);
+  });
+
   it('falls back to every unique collection id when called with no args', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

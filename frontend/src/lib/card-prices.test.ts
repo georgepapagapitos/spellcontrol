@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyPrices, getPrice, loadPrices, setPrices, _resetForTests } from './card-prices';
+import {
+  applyPrices,
+  getPrice,
+  loadPrices,
+  priceKey,
+  setPrices,
+  _resetForTests,
+} from './card-prices';
 
 beforeEach(() => {
   localStorage.clear();
@@ -48,5 +55,38 @@ describe('card-prices', () => {
     setPrices({ s1: { usd: 5, pricedAt: 1 } });
     const cards = [{ scryfallId: 's1', purchasePrice: 5, pricedAt: 1 }];
     expect(applyPrices(cards)).toBe(cards);
+  });
+
+  describe('finish-aware pricing', () => {
+    it('priceKey: non-foil is the bare id; foil/etched get their own key', () => {
+      expect(priceKey('s1')).toBe('s1');
+      expect(priceKey('s1', 'nonfoil')).toBe('s1');
+      expect(priceKey('s1', 'foil')).toBe('s1:foil');
+      expect(priceKey('s1', 'etched')).toBe('s1:etched');
+    });
+
+    it('a foil reads the foil price, not the non-foil one', () => {
+      setPrices({ s1: { usd: 2, pricedAt: 1 }, 's1:foil': { usd: 9, pricedAt: 1 } });
+      const out = applyPrices([
+        { scryfallId: 's1', finish: 'foil', purchasePrice: 0 },
+        { scryfallId: 's1', finish: 'nonfoil', purchasePrice: 0 },
+      ]);
+      expect(out[0].purchasePrice).toBe(9); // foil
+      expect(out[1].purchasePrice).toBe(2); // non-foil
+    });
+
+    it('a foil with no finish-specific entry falls back to the non-foil price (transitional)', () => {
+      // Legacy cache: only the bare non-foil entry exists, no foil key yet.
+      setPrices({ s1: { usd: 2, pricedAt: 1 } });
+      const out = applyPrices([{ scryfallId: 's1', finish: 'foil', purchasePrice: 0 }]);
+      expect(out[0].purchasePrice).toBe(2);
+    });
+
+    it('getPrice resolves the finish-specific entry', () => {
+      setPrices({ s1: { usd: 2, pricedAt: 1 }, 's1:etched': { usd: 30, pricedAt: 1 } });
+      expect(getPrice('s1')?.usd).toBe(2);
+      expect(getPrice('s1', 'etched')?.usd).toBe(30);
+      expect(getPrice('s1', 'foil')).toBeUndefined();
+    });
   });
 });
