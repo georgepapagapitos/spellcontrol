@@ -20,7 +20,15 @@ const STORE_NAME = 'pending';
 export type EntityKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
 
 export type Mutation =
-  | { op: 'upsert'; kind: EntityKind; id: string; data: unknown; importId?: string }
+  | {
+      op: 'upsert';
+      kind: EntityKind;
+      id: string;
+      data: unknown;
+      importId?: string;
+      /** Deck-only: server rev this device last saw, for reject-stale. See SyncUpsert. */
+      clientRev?: number;
+    }
   | { op: 'delete'; kind: EntityKind; id: string };
 
 export interface QueuedMutation {

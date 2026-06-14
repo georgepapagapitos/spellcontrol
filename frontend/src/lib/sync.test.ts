@@ -468,6 +468,125 @@ describe('persistKind helpers', () => {
   });
 });
 
+describe('deck reject-stale (clientRev)', () => {
+  it('tags a deck upsert with the live IDB rev as clientRev', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'old' }, rev: 7, deletedAt: null },
+    ]);
+    await persistDecksState([{ id: 'd-1', name: 'new' } as { id: string }]);
+    const upsert = (await queue.peekBatch(10)).find((b) => b.m.op === 'upsert');
+    expect((upsert?.m as { clientRev?: number }).clientRev).toBe(7);
+  });
+
+  it('sends clientRev 0 for a brand-new deck (no prior row → unconditional LWW)', async () => {
+    await persistDecksState([{ id: 'd-new' } as { id: string }]);
+    const upsert = (await queue.peekBatch(10)).find((b) => b.m.op === 'upsert');
+    expect((upsert?.m as { clientRev?: number }).clientRev).toBe(0);
+  });
+
+  it('never attaches clientRev to non-deck kinds', async () => {
+    await persistBindersState([{ id: 'b-1' } as { id: string }]);
+    const upsert = (await queue.peekBatch(10)).find((b) => b.m.op === 'upsert');
+    expect('clientRev' in (upsert!.m as object)).toBe(false);
+  });
+
+  it('forwards clientRev on deck upserts to the push wire', async () => {
+    await estore.putMany('deck', [{ id: 'd-1', data: { id: 'd-1' }, rev: 4, deletedAt: null }]);
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', n: 1 },
+      clientRev: 4,
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'deck', id: 'd-1', rev: 5, deletedAt: null }],
+      conflicts: [],
+      cursor: 5,
+    });
+    await startSync('user-1');
+    expect(mockPush).toHaveBeenCalledWith({
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', n: 1 }, clientRev: 4 }],
+      deletions: [],
+    });
+  });
+
+  it('on a conflict: drops the losing edit, adopts the server deck, and toasts', async () => {
+    const { useDecksStore } = await import('../store/decks');
+    const { useToastsStore } = await import('../store/toasts');
+    // Our local deck is at a stale rev; the server moved on (another device).
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'mine' }, rev: 4, deletedAt: null },
+    ]);
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', name: 'mine' },
+      clientRev: 4,
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        { kind: 'deck', id: 'd-1', serverRev: 9, serverData: { id: 'd-1', name: 'theirs' } },
+      ],
+      cursor: 9,
+    });
+    await startSync('user-1');
+
+    // The losing edit is gone from the durable queue (server won).
+    expect(await queue.size()).toBe(0);
+    // IDB now holds the server's version at the server rev (idempotent on re-pull).
+    const row = await estore.getById('deck', 'd-1');
+    expect(row?.rev).toBe(9);
+    expect((row?.data as { name: string }).name).toBe('theirs');
+    // The store was rehydrated to the server version.
+    expect(useDecksStore.getState().decks.find((d) => d.id === 'd-1')).toMatchObject({
+      name: 'theirs',
+    });
+    // The user was told it changed elsewhere.
+    expect(useToastsStore.getState().toasts.some((t) => /another device/i.test(t.message))).toBe(
+      true
+    );
+  });
+
+  it('on a conflict: drops the now-stale undo/redo history for that deck', async () => {
+    const { useDecksStore } = await import('../store/decks');
+    const { useDeckHistoryStore } = await import('../store/deck-history');
+    const deck = { id: 'd-1', name: 'v1' };
+    useDecksStore.setState({ decks: [deck], hydrated: true } as unknown as Parameters<
+      typeof useDecksStore.setState
+    >[0]);
+    await estore.putMany('deck', [{ id: 'd-1', data: deck, rev: 4, deletedAt: null }]);
+    // Record an undoable edit → there's now a history stack for d-1.
+    useDeckHistoryStore.getState().record('d-1', 'rename', () => {
+      useDecksStore.setState({ decks: [{ id: 'd-1', name: 'v2' }] } as unknown as Parameters<
+        typeof useDecksStore.setState
+      >[0]);
+    });
+    expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(true);
+
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', name: 'v2' },
+      clientRev: 4,
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        { kind: 'deck', id: 'd-1', serverRev: 9, serverData: { id: 'd-1', name: 'theirs' } },
+      ],
+      cursor: 9,
+    });
+    await startSync('user-1');
+
+    // Replaying a snapshot from before the remote edit would clobber it → dropped.
+    expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(false);
+  });
+});
+
 describe('card price stripping (prices are device-local, never synced)', () => {
   it('persistCardsState strips purchasePrice/pricedAt from the synced row + queue', async () => {
     await persistCardsState([
