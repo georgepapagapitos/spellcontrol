@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAnimatedNumber } from '../lib/use-animated-number';
 import { useCollectionStore } from '../store/collection';
+import { useAuth } from '../store/auth';
+import { getSyncState, onSyncedChange } from '../lib/sync';
 import { materializeBinders } from '../lib/materialize';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
@@ -18,7 +20,17 @@ export function CollectionPage() {
   const hydrating = useCollectionStore((s) => s.hydrating);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
+  const authStatus = useAuth((s) => s.status);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Re-render on sync-state transitions. On a fresh device the local cache is
+  // empty, so `hydrating` flips false with zero cards and the collection only
+  // streams in afterwards via the initial server pull — without this the page
+  // would flash its empty-state ("Add cards") before the cards arrive. We
+  // subscribe so the syncing→ready transition (and an empty account settling)
+  // re-evaluates the loading branch below.
+  const [, forceSyncTick] = useState(0);
+  useEffect(() => onSyncedChange(() => forceSyncTick((n) => n + 1)), []);
 
   // Deep-link: ?add=list opens the AddCardsSheet on the "Add from list" tab.
   // Both the open-flag and the initial tab are captured at mount via the lazy
@@ -91,12 +103,20 @@ export function CollectionPage() {
 
   const isEmpty = collectionCardCount === 0;
 
+  // Show a loading state — not the empty "Add cards" view — while an authed
+  // device is still pulling its collection from the server (the fresh-device
+  // window where local hydrate found nothing). As soon as the first row lands,
+  // `isEmpty` flips false and the real collection renders; a genuinely empty
+  // account falls through to the empty state once sync settles to 'ready'.
+  const loadingCollection =
+    hydrating || (isEmpty && authStatus === 'authed' && getSyncState() === 'syncing');
+
   return (
     <>
-      {hydrating ? (
-        <div className="page-loader" role="status" aria-live="polite">
+      {loadingCollection ? (
+        <div className="page-loader page-loader--message" role="status" aria-live="polite">
           <span className="spinner" aria-hidden="true" />
-          <span className="visually-hidden">Loading</span>
+          <span className="page-loader-message">Loading your collection…</span>
         </div>
       ) : (
         <>

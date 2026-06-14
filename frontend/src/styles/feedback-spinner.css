@@ -142,6 +142,18 @@
   margin: 0;
 }
 
+/* Labeled variant: stack a reassuring message under the spinner (e.g. while
+   the collection streams in from the server on a fresh device). */
+.page-loader--message {
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.page-loader-message {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
