@@ -61,8 +61,8 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 ## Where data lives
 
 - **User accounts** — Postgres on the backend (`users` table, bcrypt password hashes with 12 salt rounds, session JWTs in httpOnly cookies).
-- **Synced state (collection, binders, decks)** — Postgres on the backend (`user_data` table, JSONB columns, optimistic-concurrency `version`). Pulled on login, debounced-pushed on every change.
-- **Local cache** — `localStorage` (binders, decks, theme) and `IndexedDB` (collection cards) in the browser. Hydrated from the server snapshot after login; wiped on sign-out.
+- **Synced state (collection, binders, decks)** — Postgres on the backend, stored per row with a monotonic `rev`. The client syncs **deltas**: a durable mutation queue debounced-pushes per-row upserts/deletes (`POST /api/sync`), and a paged delta pull (`GET /api/sync?since=<cursor>`) applies remote changes in rev order. Conflict resolution is **last-write-wins per row** — no base-version check, no 409.
+- **Local cache** — `IndexedDB` (collection cards, decks, plus a per-row entity store and mutation queue) and `localStorage` (theme and lighter state) in the browser. Hydrated from the server after login; wiped on sign-out.
 - **Scryfall card data** — cached server-side in SQLite for 7 days. Shared across all users of the backend.
 
 ## Setup
@@ -78,10 +78,11 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 ### Local development
 
 ```bash
-npm install                              # root dev tools (concurrently, husky, prettier)
-npm install --prefix packages/game-core  # shared reducer — installs + builds its dist
-npm install --prefix frontend            # resolves the @spellcontrol/game-core file: dep
-npm install --prefix backend             # resolves the @spellcontrol/game-core file: dep
+npm install                                  # root dev tools (concurrently, husky, prettier)
+npm install --prefix packages/game-core      # shared reducer — installs + builds its dist
+npm install --prefix packages/binder-routing # shared binder routing engine — installs + builds its dist
+npm install --prefix frontend                # resolves the @spellcontrol/* file: deps
+npm install --prefix backend                 # resolves the @spellcontrol/* file: deps
 npm run db:up                            # dev Postgres on :5432 (docker-compose.dev.yml)
 npm run dev                              # backend on :3737, frontend on :5173
 ```
@@ -178,7 +179,7 @@ The backend reads:
 
 ## Architecture
 
-The repo is a monorepo with three packages: `backend/`, `frontend/`, and the shared `packages/game-core/`.
+The repo is a monorepo with four packages: `backend/`, `frontend/`, and two shared ones — `packages/game-core/` and `packages/binder-routing/`.
 
 **Backend** — Node + Express 5 + TypeScript. Postgres (via Drizzle) stores user accounts and synced state. A SQLite cache (via better-sqlite3) holds Scryfall card data with a 7-day TTL. Format-specific parsers in `src/parsers/` handle import detection and normalization.
 
@@ -186,25 +187,27 @@ The repo is a monorepo with three packages: `backend/`, `frontend/`, and the sha
 
 **game-core** (`packages/game-core/`) — a zero-dependency, isomorphic package owning the multiplayer game-state reducer (`applyAction`, `createGameState`, loss/win logic, `GameState`/`GameAction` types). It is the single source of truth: the backend runs it for authoritative online sessions and the frontend runs it for local + optimistic play. Both consume it as a `file:` dependency (`@spellcontrol/game-core`) — `backend → game-core ← frontend`, with game-core a leaf. It builds a dual CJS (backend) + ESM (frontend bundle) output with shared types, has its own test suite (80% coverage gate), and there is no second copy to keep in lockstep.
 
+**binder-routing** (`packages/binder-routing/`) — the second shared package, same shape (zero-dependency, isomorphic, dual CJS + ESM, its own 80%-gated test suite). It owns the binder routing engine: card-to-binder rule matching, filtering, sorting, and materialization. Consumed via `file:` dependency (`@spellcontrol/binder-routing`) by the frontend (live binder views) and the backend (shared-binder projections).
+
 ## API
 
 All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 
-| Method   | Path                         | Purpose                                                                                          |
-| -------- | ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| `GET`    | `/health`                    | Liveness + cache stats                                                                           |
-| `GET`    | `/api/sets`                  | Cached Scryfall set list (1h browser cache)                                                      |
-| `POST`   | `/api/import`                | Multipart `file` or JSON `{ text }`. Returns enriched cards, format detection, unresolved names  |
-| `POST`   | `/api/import-deck`           | Same shape as `/api/import` but parses commander / companion / sideboard sections                |
-| `GET`    | `/api/cards/:name/printings` | All printings of a card (for finish / treatment swaps)                                           |
-| `POST`   | `/api/refresh-prices`        | Refresh prices for a list of cards without re-importing                                          |
-| `POST`   | `/api/auth/register`         | Create a user. `{ username, password }` → session cookie. 5/hr per IP                            |
-| `POST`   | `/api/auth/login`            | Sign in. `{ username, password }` → session cookie. 10 / 15 min per IP                           |
-| `POST`   | `/api/auth/logout`           | Clears the session cookie                                                                        |
-| `GET`    | `/api/auth/me`               | Returns the current user, or 401                                                                 |
-| `DELETE` | `/api/auth/me`               | Permanently deletes the account and all synced data (auth required)                              |
-| `GET`    | `/api/sync`                  | Returns the user's collection / binders / decks snapshot + version (auth required)               |
-| `PUT`    | `/api/sync`                  | Pushes a new snapshot. `{ collection, binders, decks, baseVersion }`. 409 on stale `baseVersion` |
+| Method   | Path                         | Purpose                                                                                             |
+| -------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`                    | Liveness + cache stats                                                                              |
+| `GET`    | `/api/sets`                  | Cached Scryfall set list (1h browser cache)                                                         |
+| `POST`   | `/api/import`                | Multipart `file` or JSON `{ text }`. Returns enriched cards, format detection, unresolved names     |
+| `POST`   | `/api/import-deck`           | Same shape as `/api/import` but parses commander / companion / sideboard sections                   |
+| `GET`    | `/api/cards/:name/printings` | All printings of a card (for finish / treatment swaps)                                              |
+| `POST`   | `/api/refresh-prices`        | Refresh prices for a list of cards without re-importing                                             |
+| `POST`   | `/api/auth/register`         | Create a user. `{ username, password }` → session cookie. 5/hr per IP                               |
+| `POST`   | `/api/auth/login`            | Sign in. `{ username, password }` → session cookie. 10 / 15 min per IP                              |
+| `POST`   | `/api/auth/logout`           | Clears the session cookie                                                                           |
+| `GET`    | `/api/auth/me`               | Returns the current user, or 401                                                                    |
+| `DELETE` | `/api/auth/me`               | Permanently deletes the account and all synced data (auth required)                                 |
+| `GET`    | `/api/sync?since=<cursor>`   | Paged delta pull — rows changed since the cursor rev, in rev order, with tombstones (auth required) |
+| `POST`   | `/api/sync`                  | Delta push. `{ upserts, deletions }` per-row; server stamps the new `rev`. Last-write-wins per row  |
 
 `EnrichedCard` combines import-row data (`copyId`, `name`, `setCode`, `collectorNumber`, `rarity`, `scryfallId`, `purchasePrice`, `finish`, `sourceCategory`, `sourceFormat`) with optional per-copy fields (`condition`, `language`, `altered`, `proxy`, `misprint`) and Scryfall enrichment (`cmc`, `typeLine`, `colorIdentity`, `colors`, `edhrecRank`, images, `finishes`, `layout`, `borderColor`, `legalities`, `oracleText`, `frameEffects`, `fullArt`, `manaCost`, `promoTypes`, `imageNormalBack` for DFCs).
 
