@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // UX-102 guard: the motion language is a fixed set of semantic tokens defined
-// once in global.css (see STYLE_GUIDE.md § Motion), and the old per-feature
+// once in tokens.css (see STYLE_GUIDE.md § Motion), and the old per-feature
 // spinner/shimmer keyframe clones were collapsed into the single shared
 // `spin` / `skeleton-shimmer` keyframes. This test fails loudly if a token
 // definition goes missing, a duplicate keyframe creeps back in, or a retired
@@ -26,9 +26,9 @@ function cssFiles(dir: string): string[] {
 }
 
 describe('motion tokens (UX-102)', () => {
-  const globalCss = readFileSync(join(srcRoot, 'styles', 'global.css'), 'utf8');
+  const tokensCss = readFileSync(join(srcRoot, 'styles', 'tokens.css'), 'utf8');
 
-  it('defines the six motion tokens + --ease-drawer in global.css', () => {
+  it('defines the six motion tokens + --ease-drawer in tokens.css', () => {
     for (const token of [
       '--motion-fast',
       '--motion-base',
@@ -39,8 +39,8 @@ describe('motion tokens (UX-102)', () => {
       '--ease-drawer',
     ]) {
       expect(
-        new RegExp(`${token}\\s*:`).test(globalCss),
-        `${token} should be defined in global.css`
+        new RegExp(`${token}\\s*:`).test(tokensCss),
+        `${token} should be defined in tokens.css`
       ).toBe(true);
     }
   });
@@ -60,19 +60,19 @@ describe('shared keyframes are declared exactly once (UX-102)', () => {
     return hits;
   }
 
-  it('declares @keyframes spin exactly once (in global.css)', () => {
+  it('declares @keyframes spin exactly once (in feedback-spinner.css)', () => {
     const hits = declarations('spin');
     expect(hits, `expected one @keyframes spin, found: ${hits.join(', ')}`).toHaveLength(1);
-    expect(hits[0]).toContain('global.css');
+    expect(hits[0]).toContain('feedback-spinner.css');
   });
 
-  it('declares @keyframes skeleton-shimmer exactly once (in global.css)', () => {
+  it('declares @keyframes skeleton-shimmer exactly once (in footer-card-preview.css)', () => {
     const hits = declarations('skeleton-shimmer');
     expect(
       hits,
       `expected one @keyframes skeleton-shimmer, found: ${hits.join(', ')}`
     ).toHaveLength(1);
-    expect(hits[0]).toContain('global.css');
+    expect(hits[0]).toContain('footer-card-preview.css');
   });
 
   // The per-feature spinner/shimmer keyframe clones were retired in favor of

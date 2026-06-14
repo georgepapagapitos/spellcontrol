@@ -1,0 +1,202 @@
+/* tokens.css — split from global.css (#refactor).
+   Design tokens — the single :root custom-property block (colors, type scale, spacing, shadows, motion, z-index, safe-area/keyboard insets, MTG rarity colors). Themes in themes.css override these. Read by themes-contrast.test.ts. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* ── Semantic UI tokens (fallback) ────────────────────────────────────── */
+  /* Themes in styles/themes.css override these via [data-theme="..."].
+     Mana pip colors live in lib/colors.ts and rarity colors below — those
+     are MTG-canonical and never themed. */
+
+  /* Fallback color-scheme — themes override per-guild. Pinned to light so
+     a user whose OS is in dark mode doesn't get black-square form controls
+     during the brief pre-theme-bootstrap window. */
+  color-scheme: light;
+
+  --bg: #eaecf0;
+  --surface: #f4f6fa;
+  --surface-raised: #fafcff;
+  --border: #b8c4d8;
+  --border-strong: #8fa1bc;
+
+  --text-primary: #1a2438;
+  --text-secondary: #4a5670;
+  /* Muted text — WCAG AA (≥4.5:1) against bg/surface/surface-raised; verified by
+     themes-contrast.test.ts. Mirrors the azorius (default light) theme. */
+  --text-muted: #5b6b82;
+
+  --accent: #2c5d99;
+  --accent-hover: #3d72b4;
+  --accent-light: rgba(44, 93, 153, 0.16);
+  --on-accent: #fafcff;
+
+  --warn-bg: #3a2f18;
+  --warn-border: #8a6820;
+  --warn-text: #e8c878;
+
+  --err-bg: #3a1d1f;
+  --err-border: #8a3838;
+  --err-text: #f0a8a8;
+
+  /* Positive/informational accents — tuned pale for dark surfaces (like
+     --warn-text / --err-text above); the light themes override with deeper
+     hues. Used by the deck-analysis score tiles and the synergy Engine panel
+     (payoff = success, role headers = info). */
+  --success: #5cc488;
+  --info: #7aa5e8;
+
+  /* ── Typography ───────────────────────────────────────────────────────── */
+  --font-serif: 'Eczar', 'Georgia', serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+
+  /* Type scale — 8 steps. Use these instead of raw rem values so adjacent
+     sizes don't drift apart by a single pixel and look like accidents. */
+  --text-xs: 0.72rem; /* micro labels, badges, footnotes */
+  --text-sm: 0.82rem; /* small body, hints, secondary meta */
+  --text-base: 0.95rem; /* primary body text */
+  --text-md: 1.05rem; /* emphasized body, modal titles */
+  --text-lg: 1.25rem; /* section titles */
+  --text-xl: 1.5rem; /* page titles, taglines */
+  --text-2xl: 2rem; /* large numerals / glyphs / stat & score values */
+  --text-3xl: 2.25rem; /* hero titles (binder / deck names) — the top step */
+  /* Not a scale step — the iOS-zoom-safe floor for form controls. Mobile
+     Safari zooms the page on focus for any control under 16px (1rem at the
+     default root size) and never zooms back. Used only by the mobile input
+     rule in "Responsive enhancements" below. */
+  --text-input: 1rem;
+
+  /* ── Spacing ──────────────────────────────────────────────────────────── */
+  /* 4px-base spacing scale. New code uses these for margin/padding/gap; legacy
+     freehand rems get snapped opportunistically when a surface is touched. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* ── Effects ──────────────────────────────────────────────────────────── */
+  --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.22);
+  --overlay: rgba(0, 0, 0, 0.6);
+  --overlay-sheet: rgba(0, 0, 0, 0.4);
+  --pip-border: rgba(255, 255, 255, 0.15);
+
+  /* ── Motion ───────────────────────────────────────────────────────────── */
+  /* Motion language tokens — see STYLE_GUIDE.md § Motion for when to use
+     which. Semantic names only (never numeric suffixes). */
+  --motion-fast: 120ms; /* hovers, presses, popover enter */
+  --motion-base: 200ms; /* fades, drawer exits, toast leave */
+  --motion-gentle: 320ms; /* sheet exits, emphasis one-shots */
+  --motion-drawer: 500ms; /* full-screen sheet rise (entry only) */
+  /* Default entrance/move curve — the house "soft settle" (absorbed the old
+     inline near-twins 0.2,0.8,0.2,1 / 0.2,0.7,0.2,1 / 0.2,0.8,0.3,1). */
+  --ease-out-soft: cubic-bezier(0.2, 0.9, 0.3, 1);
+  /* Overshoot — counters, celebration one-shots only. */
+  --ease-pop: cubic-bezier(0.2, 0.9, 0.25, 1.4);
+  /* Smooth, fairly even glide with a soft (near-flat) landing — for larger
+     surfaces that should read as travelling the full distance and settling
+     (e.g. the card-preview drawer rise) rather than snapping. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ── Shape ────────────────────────────────────────────────────────────── */
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  --page-max: 1400px;
+  /* Height of the sticky Collection hub-tabs strip — also the offset the
+     Collection search row pins below, so the two stack flush. Single
+     source of truth for both rules. */
+  --hub-tabs-sticky-h: 2.9rem;
+
+  /* ── Z-index scale ───────────────────────────────────────────────────── */
+  --z-dropdown: 50;
+  --z-popover: 60;
+  --z-menu: 80;
+  --z-panel: 100;
+  --z-sheet-bg: 110;
+  --z-sheet-fg: 111;
+  --z-suggest: 200;
+  --z-modal: 1000;
+  --z-overlay: 1100;
+  /* Keyboard-docked tray (mobile commander search) — portaled to <body>, so it
+     must clear modal content/overlay it may be opened from inside. */
+  --z-keyboard-tray: 1200;
+  --z-tooltip: 9999;
+
+  /* ── Safe-area insets ─────────────────────────────────────────────────────
+     Single source of truth for system-chrome padding. Resolves to 0 on
+     desktop browsers and most mobile browsers; non-zero in a Capacitor
+     WebView and on iOS Safari with viewport-fit=cover (set in index.html).
+     Two helpers built on top:
+       --overlay-pad-{top,bottom}: padding for backdrops that center a
+         child modal. max(base, safe + cushion) keeps web behavior
+         unchanged while clearing the status bar / home gesture on native.
+       --vh-safe: dvh minus the top+bottom insets — use this in place of
+         100dvh inside lightboxes / sheets whose geometry is computed from
+         the viewport height, so their math stays correct on native.
+     Add new overlays by using these vars rather than env() inline. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --overlay-pad-top: max(3rem, calc(var(--safe-top) + 1rem));
+  --overlay-pad-bottom: max(3rem, calc(var(--safe-bottom) + 1rem));
+  --vh-safe: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+
+  /* ── Keyboard inset ───────────────────────────────────────────────────────
+     Pixels the on-screen keyboard occupies, published by lib/keyboard.ts.
+     ~0 on native (the WebView resizes) and on browsers honoring
+     interactive-widget=resizes-content; the real gap on iOS Safari. Surfaces
+     pinned to the bottom edge (sheets, the toast viewport) dock at
+     `var(--keyboard-inset)` so they ride above the keyboard; scroll regions
+     add it to `scroll-padding-bottom` so focused inputs scroll clear. */
+  --keyboard-inset: 0px;
+
+  /* ── Magic colors (MTG-canonical, do not retheme) ─────────────────────── */
+  --rarity-mythic-from: #ffd090;
+  --rarity-mythic-to: #e88020;
+  --rarity-mythic-border: #b84800;
+  --rarity-mythic-text: #5a2000;
+
+  --rarity-rare-from: #f0d860;
+  --rarity-rare-to: #c8a020;
+  --rarity-rare-border: #906800;
+  --rarity-rare-text: #403000;
+
+  --rarity-uncommon-from: #b8c0d0;
+  --rarity-uncommon-to: #8090a8;
+  --rarity-uncommon-border: #405878;
+  --rarity-uncommon-text: #1a2838;
+
+  --rarity-common-from: #c0c0c0;
+  --rarity-common-to: #909090;
+  --rarity-common-border: #404040;
+  --rarity-common-text: #181818;
+
+  --rarity-land-from: #b8966a;
+  --rarity-land-to: #7a5024;
+  --rarity-land-border: #4a2c08;
+  --rarity-land-text: #2a1400;
+
+  /* Flat single-color rarity tints — for tinting a glyph (the keyrune set
+     symbol on card rows) rather than filling a chip. The colored tiers reuse
+     the canonical gradient endpoints above; common follows the theme's
+     secondary text color so an untinted glyph reads as neutral metadata in
+     both light and dark themes. */
+  --rarity-common: var(--text-secondary);
+  --rarity-uncommon: var(--rarity-uncommon-to);
+  --rarity-rare: var(--rarity-rare-to);
+  --rarity-mythic: var(--rarity-mythic-to);
+}

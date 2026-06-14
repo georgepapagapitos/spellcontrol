@@ -1,0 +1,454 @@
+/* binder-hero.css — split from global.css (#refactor).
+   Binder hero header + toolbar + summary bar: hero variants, browse-pages/expander, drift banner, inline toggle, overflow ⋮. */
+
+.binder-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: var(--space-1) 0 0.85rem;
+  padding-left: 10px;
+  border-left: 3px solid var(--binder-color, var(--accent));
+}
+
+@media (max-width: 600px) {
+  .binder-hero {
+    margin: 0.15rem 0 0.4rem;
+  }
+}
+
+/* Hero variants with right-aligned actions: text on the left, action
+   pill(s) on the right. Stack at narrow widths so actions get full
+   touch targets and don't crowd the title. */
+.collection-hero,
+.decks-index-hero,
+.binders-index-hero,
+.play-page-hero,
+.binder-hero--with-actions {
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.collection-hero-text,
+.decks-index-hero-text,
+.binders-index-hero-text,
+.play-page-hero-text,
+.binder-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.collection-hero-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-self: flex-end;
+}
+
+.collection-hero-action {
+  align-self: flex-end;
+}
+
+.binder-hero-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-self: flex-end;
+}
+
+@media (max-width: 600px) {
+  .collection-hero,
+  .decks-index-hero,
+  .binder-hero--with-actions {
+    align-items: stretch;
+  }
+
+  .collection-hero-actions,
+  .collection-hero-action,
+  .decks-index-actions,
+  .binder-hero-actions {
+    width: 100%;
+  }
+
+  .collection-hero-actions > .pill-btn,
+  .collection-hero-action {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .binder-hero-actions > .pill-btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+.binder-hero-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.binder-hero-crumb-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  transition: color var(--motion-fast);
+}
+
+.binder-hero-crumb-link:hover,
+.binder-hero-crumb-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.binder-hero-crumb-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.binder-hero-crumb-current {
+  color: var(--text-secondary);
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binder-hero-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.binder-hero-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.binder-summary {
+  display: flex;
+  /* Center every item on the row's cross axis. The row mixes different
+     font sizes, a bordered pill, and the tall view-mode toggle, so
+     baseline alignment left them visually staggered — center stays
+     consistent across breakpoints, wrapping, and long sort chains. */
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.25rem 0 1rem;
+  padding-left: 2px;
+  flex-wrap: wrap;
+}
+/* Separator dot between the Browse-pages button and the sort pill. */
+.binder-summary-sep {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.binder-summary-overcap {
+  color: var(--warn, #c98a3a);
+  font-weight: 600;
+}
+
+/* Pushes the Collapse-all/Expand-all button to the far right of the
+   binder-summary line so it doesn't claim its own row. */
+.binder-summary-collapse {
+  margin-left: auto;
+  font-size: var(--text-sm);
+}
+
+/* The view-mode toggle anchors itself to the right of the summary
+   line. When Collapse all sits beside it, only Collapse all gets the
+   auto margin (otherwise both items split the slack and the buttons
+   end up centered). */
+.binder-summary-viewmode {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.binder-summary-collapse + .binder-summary-viewmode {
+  margin-left: 0.6rem;
+}
+
+/* "Browse pages" — primary action in the binder summary bar: a compact
+   rect button (below-hero shape rule) with accent fill and an icon. */
+.binder-summary-browse-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast);
+}
+
+.binder-summary-browse-pages:hover,
+.binder-summary-browse-pages:focus-visible {
+  background: var(--accent-hover);
+  outline: none;
+}
+
+/* "+N more pages" expander at the bottom of a section's inline grid. */
+.binder-section-show-more {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.binder-section-show-more:hover,
+.binder-section-show-more:focus-visible {
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Binder hero UX-305: secondary actions collapse into ⋮ at ≤600px. */
+.binder-hero-actions-overflow {
+  display: none;
+}
+
+/* The ⋮ popover must clear the sticky toolbar below the hero. */
+.binder-hero-actions-overflow .overflow-menu-popover {
+  z-index: var(--z-menu);
+}
+
+@media (max-width: 600px) {
+  .binder-hero-action-secondary {
+    display: none;
+  }
+  .binder-hero-actions-overflow {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+}
+
+/* Drift banner — informational tone, same accent-light palette as
+   `.success-banner`. Sits above the binder section list when membership has
+   shifted (or no baseline exists). */
+.binder-drift {
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--accent-hover);
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 1rem;
+}
+
+.binder-drift-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Inline toggle — chevron + summary text, sized in line with the surrounding
+   button family. Uses the same `.section-chevron` element as binder section
+   headers so the rotate-on-collapse animation comes from one source. */
+.binder-drift-toggle {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.binder-drift-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.binder-drift.collapsed .binder-drift-toggle .section-chevron {
+  transform: rotate(-90deg);
+}
+
+.binder-drift-summary {
+  flex: 1;
+}
+
+.binder-drift-when {
+  color: var(--text-muted);
+}
+
+.binder-drift-details {
+  margin-top: 0.6rem;
+  display: grid;
+  gap: 0.75rem;
+  border-top: 0.5px dashed var(--accent);
+  padding-top: 0.6rem;
+}
+
+.binder-drift-list ul {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+
+.binder-drift-list li {
+  padding: 2px 0;
+  color: var(--text-secondary);
+}
+
+.binder-drift-list-title {
+  font-weight: 600;
+  color: var(--accent-hover);
+}
+
+.binder-drift-list--added .binder-drift-list-title::before {
+  content: '+ ';
+}
+
+.binder-drift-list--removed .binder-drift-list-title::before {
+  content: '− ';
+  color: var(--err-text);
+}
+
+.binder-drift-card-name {
+  color: var(--text-primary);
+}
+
+.binder-drift-card-reason {
+  color: var(--text-muted);
+}
+
+.binder-toolbar {
+  /* Mirrors .deck-toolbar — a single horizontal row with controls on the
+     left (view mode) and a flex-grow search on the right. The previous
+     column layout with align-items: stretch was making the inline-flex
+     .toolbar-viewmode pill stretch to full width, which looked like a
+     bug. Wraps onto two rows on narrow viewports. */
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.binder-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-family: inherit;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+.pill-btn:hover,
+.pill-btn:focus-visible {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.pill-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6) — was translateY(1px),
+   unified on the canonical scale press so touch gets acknowledgment too. */
+.pill-btn:active {
+  transform: scale(0.97);
+}
+
+.pill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pill-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.pill-btn-primary:hover,
+.pill-btn-primary:focus-visible {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--on-accent);
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.page-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}

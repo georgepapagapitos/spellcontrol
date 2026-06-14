@@ -1,0 +1,359 @@
+/* auth.css — split from global.css (#refactor).
+   Auth page (full-viewport centered card): login/register tabs, Google OAuth button, guest dismiss link, OAuth callback intent link. */
+
+/* Auth page — full-viewport centered card. Uses theme tokens so it re-skins
+ * with the active guild. */
+/* Scroll container, not a fixed centered box: register mode is taller than
+   the short viewports/keyboard-open states, so the page MUST be able to
+   scroll. The card centers via `margin: auto` (not align/justify center,
+   which clip overflow and stranded the bottom of the form — the bug this
+   redesign fixes). Padding carries safe-area + keyboard insets on native. */
+/* Fixed-height scroll viewport — NOT min-height. `body { overflow:hidden }`
+   clips the page, and #root has no height cap, so a min-height page just
+   grows past the viewport into the clipped region (the bug: register mode
+   was cut off with no scroll). height:100dvh pins it to the viewport so its
+   own overflow-y scrolls — a safety net for short screens / keyboard open.
+   In the normal case the form is tight enough that it never triggers. */
+.auth-page {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-5) + var(--keyboard-inset) + var(--safe-bottom))
+    calc(var(--space-4) + var(--safe-left));
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  margin: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 26px 24px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+  animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card {
+    animation: none;
+  }
+}
+
+/* Serif wordmark — matches the WelcomePage brand block so the two first-run
+   surfaces read as siblings. */
+.auth-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+}
+
+.auth-subtitle {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+/* Honesty sentence: appears when there are local guest cards waiting to be
+   promoted. Sits between the subtitle and the mode tabs. */
+.auth-merge-notice {
+  margin: -12px 0 16px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-light);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
+/* The mode switcher is the shared <Tabs> primitive (components/Tabs.tsx,
+   `fitted` variant); this hook only positions it inside the card. */
+.auth-tabs {
+  margin-bottom: 16px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.auth-field span {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.auth-field input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  appearance: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.auth-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.auth-input-wrap input {
+  padding-right: 40px;
+}
+
+.auth-reveal {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-reveal:hover {
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+.auth-reveal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.auth-field input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+.auth-hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.auth-hint-error {
+  color: var(--err-text);
+}
+
+.auth-rules {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.auth-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  transition: color var(--motion-fast) ease;
+}
+
+.auth-rule-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  line-height: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.auth-rule.is-met {
+  color: var(--text-secondary);
+}
+
+.auth-rule.is-met .auth-rule-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.auth-rule.is-error {
+  color: var(--err-text);
+}
+
+.auth-rule.is-error .auth-rule-mark {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+.auth-rule-note .auth-rule-mark {
+  background: transparent;
+  border-color: var(--border);
+}
+
+.auth-error {
+  background: var(--err-bg);
+  border: 1px solid var(--err-border);
+  color: var(--err-text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+}
+
+.auth-submit {
+  appearance: none;
+  background: var(--accent);
+  color: white;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: var(--text-base);
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Anchor variant for the OAuth callback "Open SpellControl" intent link. */
+.auth-submit-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.auth-callback-card .auth-subtitle {
+  margin-bottom: 20px;
+}
+
+.auth-callback-card .auth-back {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-top: 18px;
+}
+
+/* "Continue with Google" button — neutral surface so the coloured G mark
+   carries the branding, matching the auth-field/auth-submit metrics. */
+.auth-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  appearance: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.auth-google:hover:not(:disabled) {
+  background: var(--bg);
+  border-color: var(--border-strong);
+}
+
+.auth-google:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.auth-google svg {
+  flex-shrink: 0;
+}
+
+/* "─ or ─" separator between the Google button and the password form. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Dismiss link — guests can use the app without an account, so the auth
+   screen is always escapable. */
+.auth-back {
+  align-self: center;
+  margin-top: 12px;
+  padding: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.auth-back:hover {
+  color: var(--text-primary);
+}

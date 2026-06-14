@@ -1,0 +1,1693 @@
+/* collection.css — split from global.css (#refactor).
+   Collection page: card list/grid/compact rows, type chips, hero meta, filters dialog, set/color filters, bulk-select bar, mana-cost glyphs, pagination, price-freshness line. */
+
+/* ── Collection card list (Collection page) ─────────────────────────────── */
+.card-list {
+  margin-top: 1rem;
+}
+
+/* Type chip row above the toolbar */
+.collection-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.collection-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.collection-type-chip:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.collection-type-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text, #fff);
+}
+
+.collection-type-chip .chip-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: var(--text-md);
+  line-height: 1;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+/* Sticky search row — the only persistent piece of the collection
+   toolbar. Type / color / rarity / binder / set filters all live in
+   the CollectionFiltersPopover anchored to the SearchPill, so this row
+   stays compact. Bleeds full-width with negative margins so the page
+   padding doesn't show a gutter behind the sticky bar; matching
+   positive padding restores inner content alignment. */
+.collection-toolbar-row {
+  position: sticky;
+  /* `.app-main` is the sole scroll container and the header is a
+     non-scrolling flex sibling *outside* it (see Layout.tsx), so the
+     scrollport's top edge already sits flush under the header at every
+     breakpoint. The base `top` is 0; under the Collection hub the rule
+     below offsets it so it pins beneath the sticky hub-tabs strip. */
+  top: 0;
+  /* Sticky page chrome → --z-popover (same tier as .collection-hub-tabs it
+     pins beneath); below the app frame + hero menus. See STYLE_GUIDE. */
+  z-index: var(--z-popover);
+  background: var(--bg);
+  padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Under the Collection hub the search row pins beneath the sticky hub-tabs
+   strip rather than at the very top, so the two stack flush. Scoped to the
+   hub so a `.collection-toolbar-row` used elsewhere keeps `top: 0`. */
+.collection-hub-tabs ~ * .collection-toolbar-row {
+  top: var(--hub-tabs-sticky-h);
+}
+
+/* Collection hero meta — totals + Stats button sit under the Collection
+   h1, mirroring how the binders/decks index shows a count under its hero. */
+.collection-hero-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quiet honesty line under the totals — when the collection's prices were
+   last sourced from Scryfall. Inherits the mono/muted hero-meta treatment;
+   just a step smaller so it reads as a footnote, not a second stat. */
+.collection-hero-priced-at {
+  font-size: var(--text-xs);
+  margin-top: 0.15rem;
+}
+
+/* Subtle text link styled to sit inline with the totals meta — same
+   feel as the dotted-underline binder/deck context links in the card
+   preview, but with the small BarChart3 icon to signal that it opens
+   a drawer rather than navigating. Replaces the standalone Stats pill
+   so the row no longer competes with the hero's primary action pills
+   ("Add card" / "Import cards") for visual weight. */
+.collection-hero-stats-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  border-bottom: 1px dotted color-mix(in srgb, var(--accent) 50%, transparent);
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.collection-hero-stats-link:hover,
+.collection-hero-stats-link:focus-visible {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.collection-hero-stats-link svg {
+  flex-shrink: 0;
+}
+
+/* CollectionFiltersDialog — centered modal triggered by the filter
+   icon in the SearchPill. Portal'd to <body> with a backdrop + body
+   scroll lock so the page underneath can't drift. Same dialog
+   treatment on every breakpoint; width scales down on narrow screens. */
+.collection-filters-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Rendered through the shared Modal (backdrop, entrance/exit motion, focus
+   trap, scroll lock all come from there — the old bespoke root/backdrop/
+   pop-keyframe were retired with UX-201). Only the panel itself is styled
+   here. margin-block auto re-centers it vertically inside the top-aligned
+   .modal-backdrop, collapsing to 0 (top-aligned + scrollable) if it ever
+   outgrows the viewport. */
+.collection-filters-dialog {
+  width: 100%;
+  max-width: 28rem;
+  max-height: min(90vh, 44rem);
+  margin-block: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: calc(var(--radius) * 2);
+  box-shadow: var(--shadow-sheet);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Scale the dialog up on roomier viewports — the type/color chip grids
+   breathe better with extra horizontal space, but we don't want a giant
+   sparse modal on small desktops, so the cap climbs in steps. */
+@media (min-width: 768px) {
+  .collection-filters-dialog {
+    max-width: 32rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .collection-filters-dialog {
+    max-width: 36rem;
+  }
+}
+
+.collection-filters-dialog-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.collection-filters-dialog-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.collection-filters-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.collection-filters-dialog-close:hover,
+.collection-filters-dialog-close:focus-visible {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.collection-filters-dialog-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.9rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.collection-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.collection-filters-section-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Inside the dialog, type chips wrap freely — the dialog sets its own
+   width so the mobile horizontal-scroll override is irrelevant here. */
+.collection-filters-section .collection-type-chips {
+  flex-wrap: wrap;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+}
+
+/* Set-picker results render inline inside the dialog instead of an
+   absolute popover — an overlaid dropdown gets clipped by the body's
+   `overflow-y: auto`, and would be hidden the moment the picker sits
+   anywhere but at the top of the dialog. Inline flows naturally with
+   the body scroll; focusing the input also scrollIntoView's the picker
+   so the results land in the visible area. */
+.collection-filters-section .set-filter-results {
+  position: static;
+  margin-top: 0.4rem;
+  box-shadow: none;
+  max-height: 16rem;
+}
+
+.collection-filters-dialog-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.collection-filters-dialog-clear {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius);
+}
+
+.collection-filters-dialog-clear:hover:not(:disabled),
+.collection-filters-dialog-clear:focus-visible:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  outline: none;
+}
+
+.collection-filters-dialog-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.collection-filters-dialog-done {
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0.5rem 1.25rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.collection-filters-dialog-done:hover,
+.collection-filters-dialog-done:focus-visible {
+  filter: brightness(1.05);
+  outline: none;
+}
+
+.collection-toolbar-stats-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.1rem;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+.collection-toolbar-stats-btn:hover,
+.collection-toolbar-stats-btn:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.collection-toolbar-stats-btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 640px) {
+  .collection-toolbar-stats-btn {
+    padding: 0 0.6rem;
+  }
+}
+
+.set-filter-picker {
+  position: relative;
+  width: 100%;
+  max-width: 24rem;
+}
+
+.set-filter-pill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.9rem;
+  padding: 0.15rem 0.45rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: text;
+  transition: border-color var(--motion-fast);
+}
+
+.set-filter-pill:focus-within {
+  border-color: var(--accent);
+}
+
+.set-filter-pill > input {
+  flex: 1 1 5rem;
+  min-width: 4rem;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: 0.15rem 0.25rem;
+}
+
+.set-filter-pill > input::placeholder {
+  color: var(--text-muted);
+}
+
+.set-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.15rem 0.1rem 0.45rem;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  max-width: 100%;
+}
+
+.set-filter-chip-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  object-fit: contain;
+  filter: brightness(0.6);
+}
+
+.set-filter-chip-label {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.set-filter-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-base);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.set-filter-chip-x:hover,
+.set-filter-chip-x:focus-visible {
+  background: var(--accent);
+  color: var(--accent-text, #fff);
+  outline: none;
+}
+
+.set-filter-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover);
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.set-filter-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.set-filter-result.is-highlight {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.set-filter-result-icon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: brightness(0.6);
+}
+
+.set-filter-result.is-highlight .set-filter-result-icon {
+  filter: none;
+}
+
+.set-filter-result-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-filter-result-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.color-filter-row {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.color-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  cursor: pointer;
+  opacity: 0.55;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+}
+
+.color-filter-btn:hover {
+  opacity: 0.85;
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6) — transform is already in
+   this class's transition list. */
+.color-filter-btn:active {
+  transform: scale(0.97);
+}
+
+.color-filter-btn.is-active {
+  opacity: 1;
+}
+
+.color-filter-btn.is-active .color-pip-mana {
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 50%;
+}
+
+.collection-select {
+  height: 2.1rem;
+  padding: 0.3rem 1.9rem 0.3rem 0.85rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  max-width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+}
+
+.collection-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.card-list-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.6rem;
+}
+
+/* Group + Sort + view toggle sit together on the right side of the summary
+   line, adjacent to the rows they affect. This is a *control row* (pickers, no
+   single primary), so it WRAPS rather than clips — adding another control (e.g.
+   "Group by") must never push the row past the viewport on a phone. See the
+   "Toolbars & action rows" rule in STYLE_GUIDE.md. */
+.card-list-summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── UX-301/306 additions ──────────────────────────────────────────────────
+   Active-filter chip row, sticky controls row, result count, and
+   selection copy count. Added for Wave-3 UX overhaul. */
+
+/* Active-filter chips — scrolls with content (non-sticky); appears between
+   the search bar and the sort/group controls. Wraps gracefully on narrow
+   viewports (≤600px hard floor). Rectangles per the STYLE_GUIDE "Shape
+   language" rule: chips here are actionable (they have a × to clear), so
+   they use var(--radius) rounded-rect, not 999px pills. */
+.collection-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.collection-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.2rem var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.collection-filter-chip-label {
+  /* Max 200px avoids a single very-long chip from dominating the row */
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-filter-chip-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--motion-fast);
+  /* 24px touch target on coarse pointers */
+  min-width: 1rem;
+  min-height: 1rem;
+}
+
+@media (pointer: coarse) {
+  .collection-filter-chip-clear {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+  }
+}
+
+.collection-filter-chip-clear:hover,
+.collection-filter-chip-clear:focus-visible {
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* "Clear all" text button — quieter than individual × buttons so it reads
+   as a secondary escape hatch, not the primary action. */
+.collection-filter-chips-clear-all {
+  background: transparent;
+  border: 0;
+  padding: 0.2rem var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: opacity var(--motion-fast);
+}
+
+.collection-filter-chips-clear-all:hover {
+  opacity: 0.8;
+}
+
+.collection-filter-chips-clear-all:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* "Save as binder" button — same row as filter chips, styled like
+   collection-filter-chips-clear-all but with a leading icon. */
+.collection-save-as-binder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: 0;
+  padding: 0.2rem var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: opacity var(--motion-fast);
+}
+
+.collection-save-as-binder-btn:hover {
+  opacity: 0.8;
+}
+
+.collection-save-as-binder-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Sticky sort/group/view controls row — pins below the search bar so
+   controls stay reachable while scrolling through thousands of rows.
+   The --collection-search-sticky-h token is the approximate rendered
+   height of .collection-toolbar-row (input row padding + pill height).
+   Under the Collection hub the offset stacks beneath --hub-tabs-sticky-h
+   as well. Same --z-popover tier as the search row above it. */
+.card-list-controls-sticky {
+  position: sticky;
+  top: var(--collection-search-sticky-h, 3.7rem);
+  z-index: var(--z-popover);
+  background: var(--bg);
+  /* Match the search row's bleed so the two bars look unified. */
+  margin-left: calc(var(--page-gutter, 1rem) * -1);
+  margin-right: calc(var(--page-gutter, 1rem) * -1);
+  padding-left: var(--page-gutter, 1rem);
+  padding-right: var(--page-gutter, 1rem);
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+
+/* Under the Collection hub tabs the sticky stack is deeper. */
+.collection-hub-tabs ~ * .card-list-controls-sticky {
+  top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h, 3.7rem));
+}
+
+/* Result count — only rendered when filters reduce the visible set. */
+.card-list-result-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  /* Space it from the controls at its right */
+  margin-right: auto;
+}
+
+/* Bulk-select action bar — appears above the list only while one or more
+   rows are checked. Mirrors the summary line's compact, surface-tinted
+   look so it reads as part of the same toolbar stack. */
+.card-list-bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  font-size: var(--text-sm);
+}
+
+.card-list-bulk-count {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-list-bulk-toolbar .binder-name-input {
+  width: auto;
+  min-width: 12rem;
+}
+
+/* The bar's actions are .toolbar-pill (same language as the Sort/view
+   controls above). toolbar-pill has no disabled/variant states of its
+   own, so the few this bar needs are layered on here, scoped to the bar. */
+.card-list-bulk-toolbar .toolbar-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Destructive action: neutral until intent, then the app's error tint —
+   keeps the bar calm rather than a permanently-red button. */
+.card-list-bulk-danger:hover:not(:disabled),
+.card-list-bulk-danger:focus-visible:not(:disabled) {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+/* "Done" is the bar's primary (exit) action — accent-filled like the
+   active select toggle / view-toggle segment so it anchors the row. */
+.card-list-bulk-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.card-list-bulk-done:hover,
+.card-list-bulk-done:focus-visible {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.card-list-set-code {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.card-list-cn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Primary card-type glyph in a collection list/compact row's meta line
+   (E30). A single mana-font type icon (creature / instant / land / …) — the
+   most space-efficient at-a-glance type signal, so it stays visible even on
+   the 32px compact row and narrow phones where the SET/#CN tokens drop. The
+   readable type name rides as the accessible label + tooltip. */
+i.ms.card-list-type {
+  flex-shrink: 0;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+/* Rarity-tinted set symbol (keyrune, via components/shared/SetSymbol) — the
+   printing-identity glyph on collection/binder rows (T36). Tinted with the
+   flat --rarity-* tokens instead of keyrune's baked-in colors so the tints
+   track the app's rarity palette and themes. Like the type glyph above it
+   stays visible at every width — including the <768px compact rows where the
+   SET/#CN text tokens drop — so two printings of the same card name are
+   never pixel-identical. */
+i.ss.set-symbol {
+  flex-shrink: 0;
+  font-size: var(--text-base);
+  line-height: 1;
+  color: var(--rarity-common);
+}
+
+i.ss.set-symbol--uncommon {
+  color: var(--rarity-uncommon);
+}
+
+i.ss.set-symbol--rare {
+  color: var(--rarity-rare);
+}
+
+i.ss.set-symbol--mythic {
+  color: var(--rarity-mythic);
+}
+
+/* Page-number chip — shown on binder list rows so the user can find a
+   card in physical storage without leaving the list. */
+.card-list-page {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* "In a deck" indicator next to the card name. Pairs with the binder
+   badge below — same chip shape, both keyed to the theme's --accent so
+   they re-skin per guild palette. The deck icon and the binder badge's
+   color swatch carry the visual distinction. */
+.card-list-deck-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--deck-color, var(--accent)) 18%, transparent);
+  color: var(--deck-color, var(--accent));
+  border: 0.5px solid color-mix(in srgb, var(--deck-color, var(--accent)) 35%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+  vertical-align: 1px;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.card-list-deck-badge:hover,
+.card-list-deck-badge:focus-visible {
+  background: color-mix(in srgb, var(--deck-color, var(--accent)) 28%, transparent);
+  border-color: var(--deck-color, var(--accent));
+  outline: none;
+}
+
+.card-list-deck-badge--multi {
+  cursor: default;
+}
+
+.card-list-deck-badge-count {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* "In a binder" indicator. Same chip as the deck badge so they read as
+   a set; the binder's own color appears as the swatch dot so different
+   binders are still distinguishable at a glance. */
+.card-list-binder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--binder-color, var(--accent)) 18%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--binder-color, var(--accent)) 35%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+  vertical-align: 1px;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.card-list-binder-badge:hover,
+.card-list-binder-badge:focus-visible {
+  background: color-mix(in srgb, var(--binder-color, var(--accent)) 28%, transparent);
+  border-color: var(--binder-color, var(--accent));
+  outline: none;
+}
+
+.card-list-binder-badge--multi {
+  cursor: default;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+}
+
+.card-list-binder-badge--multi:hover {
+  background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+}
+
+/* Mana cost glyphs (rendered via mana-font) */
+.mana-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-base);
+}
+
+/* mana-font centers ms-cost glyphs via line-height, which leaves the generic
+   numeral glyphs (ms-1, ms-2, … ms-x) sitting slightly high in their circle —
+   their vertical metrics differ from the colored mana symbols, so a {1}{W}
+   cost shows the "1" off-center next to a centered W. Flex-center the
+   single-glyph cost symbols (the same fix the color-pip pips already use).
+   Split/hybrid symbols render two half-glyphs via ::before + ::after, so they
+   stay on mana-font's default layout. */
+.mana-cost .ms-cost:not(.ms-split) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Shared mana-cost treatment for list rows — the deck list and the
+   collection list both render mana as a dedicated, right-aligned cell that
+   sits vertically centred in the row. Pass this class to <ManaCost> at both
+   call sites (DeckDisplay row + CardListTable row) so the two stay in lockstep.
+   The .mana-cost base bumps the span to --text-base; we pin it down to
+   --text-xs so the icons read a touch smaller than the row text. flex: 0 0 auto
+   keeps it a fixed cell; the neighbouring flex:1 name column pushes it right. */
+.mana-cost-row {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.mana-cost-row .ms {
+  /* Size mana icons to this wrapper (em-scaling intentional). */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1em;
+}
+
+.mana-cost-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mana-cost-sep {
+  color: var(--text-muted);
+  margin: 0 4px;
+  font-weight: 600;
+}
+
+/* Grid view */
+
+.collection-grid {
+  gap: 0.65rem;
+}
+
+.collection-grid-item {
+  position: relative;
+  aspect-ratio: 488 / 680;
+  border-radius: 4.5% / 3.2%;
+  overflow: hidden;
+  background: var(--surface);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.collection-grid-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.collection-grid-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.collection-grid-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
+  background: var(--surface-raised);
+}
+
+/* Bottom-left corner cluster on a grid tile — the qty badge plus, when the
+   same card name appears as more than one printing in the current rows, a
+   small set-code chip that disambiguates otherwise-identical art crops
+   (T36). Mirrors .collection-grid-badges (the bottom-right cluster). */
+.collection-grid-corner {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+}
+
+.collection-grid-corner .collection-grid-qty {
+  position: static;
+}
+
+.collection-grid-set {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.collection-grid-qty {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.collection-grid-qty-x {
+  opacity: 0.7;
+  margin-right: 0.15em;
+  font-weight: 600;
+}
+
+.collection-grid-badges {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 2;
+}
+
+.collection-grid-badges .card-list-deck-badge,
+.collection-grid-badges .card-list-binder-badge {
+  margin-left: 0;
+  padding: 0.22rem;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.collection-grid-badges .card-list-deck-badge {
+  border-color: color-mix(in srgb, var(--deck-color, var(--accent)) 55%, transparent);
+  color: var(--deck-color, var(--accent));
+}
+
+/* In the grid badge cluster the deck pill stays a fixed icon-size dot —
+   per-deck names are surfaced via the title/aria-label, so the ×N count
+   we show in list view would just clutter the thumbnail. */
+.collection-grid-badges .card-list-deck-badge-count {
+  display: none;
+}
+
+.collection-grid-badges svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Grid badges are interactive (a single binder/deck renders as a
+   button/link) but the opaque grid background above overrides the base
+   :hover/:focus-visible styles, leaving no feedback. Restore an explicit
+   affordance — lift + brighten on hover, and a focus ring that reads
+   against the card art behind it regardless of binder/deck color. */
+.collection-grid-badges .card-list-deck-badge,
+.collection-grid-badges .card-list-binder-badge {
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+.collection-grid-badges .card-list-binder-badge:hover,
+.collection-grid-badges .card-list-binder-badge:focus-visible {
+  background: rgba(0, 0, 0, 0.92);
+  border-color: var(--binder-color, var(--accent));
+  transform: scale(1.15);
+  outline: none;
+}
+
+.collection-grid-badges .card-list-deck-badge:hover,
+.collection-grid-badges .card-list-deck-badge:focus-visible {
+  background: rgba(0, 0, 0, 0.92);
+  border-color: var(--deck-color, var(--accent));
+  transform: scale(1.15);
+  outline: none;
+}
+
+.collection-grid-badges .card-list-deck-badge:focus-visible,
+.collection-grid-badges .card-list-binder-badge:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.85),
+    0 0 0 4px #fff;
+}
+
+.collection-grid-item.grid-2x .collection-grid-badges {
+  bottom: 6px;
+  right: 6px;
+  gap: 0.3rem;
+}
+
+.collection-grid-item.grid-2x .collection-grid-badges .card-list-deck-badge,
+.collection-grid-item.grid-2x .collection-grid-badges .card-list-binder-badge {
+  padding: 0.3rem;
+}
+
+.collection-grid-item.grid-2x .collection-grid-badges svg {
+  width: 17px;
+  height: 17px;
+}
+
+.collection-grid-item.grid-3x .collection-grid-badges {
+  bottom: 8px;
+  right: 8px;
+  gap: 0.4rem;
+}
+
+.collection-grid-item.grid-3x .collection-grid-badges .card-list-deck-badge,
+.collection-grid-item.grid-3x .collection-grid-badges .card-list-binder-badge {
+  padding: 0.4rem;
+}
+
+.collection-grid-item.grid-3x .collection-grid-badges svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* On phones the default (1x) badges are too small to read or tap
+   comfortably. Bump size + tap target; the grid-2x/3x rules above are
+   higher-specificity and already large, so they're unaffected. */
+@media (max-width: 640px) {
+  .collection-grid-badges {
+    bottom: 6px;
+    right: 6px;
+    gap: 0.3rem;
+  }
+
+  .collection-grid-badges .card-list-deck-badge,
+  .collection-grid-badges .card-list-binder-badge {
+    padding: 0.32rem;
+  }
+
+  .collection-grid-badges svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.collection-grid-item.grid-2x .collection-grid-qty {
+  font-size: var(--text-base);
+  padding: 0.25rem 0.65rem;
+  bottom: 6px;
+  left: 6px;
+}
+
+.collection-grid-item.grid-3x .collection-grid-qty {
+  font-size: var(--text-lg);
+  padding: 0.3rem 0.75rem;
+  bottom: 8px;
+  left: 8px;
+}
+
+/* Foil grid-thumbnail styles moved to src/styles/holographic.css */
+/* List view */
+.collection-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+/* "Group by" section header, rendered inside the first row's measured cell so
+   the virtualizer folds its height into the row offset (see CardListTable). */
+.collection-list-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: var(--surface);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.collection-list-section-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.collection-list-section-label {
+  text-transform: uppercase;
+}
+
+.collection-list-section-count {
+  margin-left: auto;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* Full-width "Group by" header row in grid view. Height is fixed and mirrored
+   by GRID_SECTION_HEADER_H in CardListTable so the virtualizer estimate stays
+   exact. Shares the pip/label/count children with the list header. */
+.collection-grid-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.25rem 0.35rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.collection-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: inset 0 -1px 0 var(--border);
+  cursor: pointer;
+}
+
+/* The last row's divider would double up against the container's own
+   bottom border (visible as a stray extra line at the rounded corner). */
+.collection-list-row.is-last-row {
+  box-shadow: none;
+}
+
+.collection-list-row:hover {
+  background: var(--surface);
+}
+
+.collection-list-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.collection-list-thumb {
+  width: 36px;
+  height: 50px;
+  border-radius: 3px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.collection-list-thumb-placeholder {
+  border: 1px solid var(--border);
+}
+
+/* Select-mode toggle — a .toolbar-pill (matches the Sort menu + view
+   toggle it sits beside). Active = selection mode is on; it fills with
+   accent like the segmented view toggle's active segment so an enabled
+   mode reads at a glance. Theme-aware (--on-accent, not hardcoded #fff). */
+.card-list-select-toggle[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.card-list-select-toggle[aria-pressed='true']:hover,
+.card-list-select-toggle[aria-pressed='true']:focus-visible {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* While select mode is on, the whole row/card is the toggle target — kill
+   pointer events on the inner content (links, badges) so a click anywhere
+   selects rather than navigating, and never opens preview. */
+.collection-list-row.is-selectable,
+.collection-grid-item.is-selectable {
+  cursor: pointer;
+}
+
+.collection-list-row.is-selectable > *,
+.collection-grid-item.is-selectable > * {
+  pointer-events: none;
+}
+
+.collection-list-row.is-selected {
+  background: var(--surface-raised);
+}
+
+.collection-grid-item.is-selected {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+/* Leading check indicator — replaces the old always-on checkbox. Only
+   rendered while select mode is on; sized to hold the list thumbnail
+   column straight. */
+.collection-list-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  color: #fff;
+}
+
+.collection-list-check[data-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Grid check badge — overlaid on the card corner so selection reads at a
+   glance against the art. */
+.collection-grid-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.collection-grid-check[data-checked='true'] {
+  background: var(--accent);
+  border-color: #fff;
+}
+
+.collection-list-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collection-list-name {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collection-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+
+.collection-list-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.collection-list-qty {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.collection-list-price {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Compact density: text-only rows, no thumbnail, name + meta on a single
+   line, tight vertical padding. Used by the binder's compact list mode. */
+.collection-list.is-compact .collection-list-row {
+  gap: 0.5rem;
+  padding: 0.3rem 0.7rem;
+}
+
+.collection-list.is-compact .collection-list-thumb {
+  display: none;
+}
+
+.collection-list.is-compact .collection-list-main {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.collection-list.is-compact .collection-list-name {
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.collection-list.is-compact .collection-list-meta {
+  font-size: var(--text-xs);
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* Note: the rarity-tinted set glyph (.set-symbol) and the type glyph
+   (.card-list-type) are deliberately NOT in this hide list — they are the
+   printing-identity floor that keeps two printings of the same card name
+   distinguishable on the narrowest compact rows (T36). Only the wider text
+   tokens and badge pills drop below 768px. */
+.collection-list.is-compact .foil-badge-pill,
+.collection-list.is-compact .card-list-deck-badge,
+.collection-list.is-compact .card-list-binder-badge,
+.collection-list.is-compact .card-list-set-code,
+.collection-list.is-compact .card-list-cn {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .collection-list.is-compact .card-list-set-code,
+  .collection-list.is-compact .card-list-cn {
+    display: inline-block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .collection-list.is-compact .foil-badge-pill,
+  .collection-list.is-compact .card-list-deck-badge,
+  .collection-list.is-compact .card-list-binder-badge {
+    display: inline-flex;
+  }
+}
+
+.collection-list.is-compact .collection-list-right {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.collection-list.is-compact .collection-list-qty,
+.collection-list.is-compact .collection-list-price {
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 1024px) {
+  .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* No flex-wrap on mobile: the search pill is flex-shrinkable, so
+     letting the filter trigger pin to the right side of the same row
+     reads better than dropping it onto a new line. */
+  .collection-toolbar-row {
+    flex-wrap: nowrap;
+  }
+
+  .collection-list-thumb {
+    width: 32px;
+    height: 44px;
+  }
+
+  .pagination {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .pagination-controls {
+    justify-content: center;
+  }
+
+  .pagination-status {
+    text-align: center;
+  }
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.pagination-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.pagination-status {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.pagination-pagesize {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.pagination-pagesize select {
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pagination-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.55rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--motion-fast);
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* Press feedback (STYLE_GUIDE § Motion pattern 6). */
+.pagination-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.pagination-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text, #fff);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  padding: 0 0.25rem;
+  color: var(--text-muted);
+}
+
+/* Quiet price-freshness line below the collection table. */
+.price-freshness-line {
+  margin: 1rem 0 0;
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.price-refresh-icon {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.price-refresh-icon:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.price-refresh-icon:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.price-refresh-icon.is-busy svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .price-refresh-icon.is-busy svg {
+    animation: none;
+  }
+}

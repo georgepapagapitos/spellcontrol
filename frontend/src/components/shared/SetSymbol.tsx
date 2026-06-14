@@ -9,7 +9,7 @@ import { rarityTint } from '@/lib/set-symbols';
  *
  * Tinting: collector-app standard (ManaBox/Delver/Moxfield) — the glyph is
  * colored by the printing's rarity. We use flat theme-token tints
- * (`--rarity-*` in global.css) via our own `set-symbol--*` classes rather
+ * (`--rarity-*` in styles/tokens.css) via our own `set-symbol--*` classes rather
  * than keyrune's baked-in `ss-uncommon`/`ss-rare`/`ss-mythic` colors, so the
  * colors track the app's rarity tokens and stay legible at row-glyph sizes.
  */

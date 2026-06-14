@@ -1,0 +1,168 @@
+/* stats-breakdown.css — split from global.css (#refactor).
+   Shared stats UI: stat grid, color-identity mana pip, breakdown bars (MeterBar), warnings. */
+
+/* Stats */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.stat {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+}
+
+.stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  color: var(--text-primary);
+}
+
+.breakdown-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+
+.breakdown-title {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.85rem;
+  font-weight: 600;
+}
+
+.breakdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.breakdown-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.breakdown-row-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.breakdown-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdown-row-count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.breakdown-row-pct {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.breakdown-icon {
+  width: 22px;
+  height: 22px;
+  font-size: var(--text-md);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+/* Color-identity pip — shared between the stats breakdown, binder section
+   headers, and the collection color-filter buttons. Wraps mana-font's
+   ms-cost circle, widening it slightly and shrinking the glyph since several
+   icons (W/U/B/R) otherwise overflow ms-cost's default 1.3em box. Override
+   --pip-size to scale; default matches body text. */
+.color-pip-mana {
+  --pip-glyph-size: 0.78em;
+  font-size: var(--pip-size, var(--text-base));
+  line-height: 1;
+  flex-shrink: 0;
+}
+.color-pip-mana.ms-cost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1;
+}
+.color-pip-mana.ms-cost::before {
+  font-size: var(--pip-glyph-size);
+  line-height: 1;
+}
+.color-pip-mana--md {
+  --pip-size: var(--text-md);
+}
+.color-pip-mana--lg {
+  --pip-size: var(--text-lg);
+}
+
+.breakdown-icon-rarity {
+  font-size: var(--text-md);
+}
+
+.breakdown-icon-rarity.rarity-mythic {
+  color: var(--rarity-mythic-to);
+}
+
+.breakdown-icon-rarity.rarity-rare {
+  color: var(--rarity-rare-to);
+}
+
+.breakdown-icon-rarity.rarity-uncommon {
+  color: var(--rarity-uncommon-to);
+}
+
+.breakdown-icon-rarity.rarity-common {
+  color: var(--text-secondary);
+}
+
+/* Breakdown bars render via the shared <MeterBar>/<StackedBar> primitive
+   (components/shared/MeterBar.tsx) — no local track styles. */
+
+/* Warnings */
+.warn-banner {
+  font-size: var(--text-sm);
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 1rem;
+  font-family: var(--font-mono);
+}

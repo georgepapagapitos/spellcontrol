@@ -1,0 +1,1379 @@
+/* binder-card-management.css — split from global.css (#refactor).
+   Binder card add/edit sheets: BinderCardEditor, manual-order bar, CardPickerSheet, AddToBinderSheet, add-card sheet, unified Add-cards modal (Search/Upload/Scan tabs), inline Scryfall search/triggers, binder mode toggle, import-binder. */
+
+/* ── BinderCardEditor ─────────────────────────────────────────────────────── */
+
+.binder-card-editor-manual-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0.5rem 1.5rem 0;
+  font-style: italic;
+}
+
+.binder-card-editor-tabs {
+  display: flex;
+  border-bottom: 0.5px solid var(--border);
+  padding: 0 1.5rem;
+}
+
+.binder-card-editor-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 0.6rem 0.75rem;
+  margin-bottom: -0.5px;
+}
+
+.binder-card-editor-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.binder-card-editor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sort-value-order-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sort-value-order-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.sort-value-order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  font-size: var(--text-sm);
+}
+
+.sort-value-order-chip:active {
+  cursor: grabbing;
+}
+
+.sort-value-order-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sort-value-order-chip.dragging {
+  background: var(--surface3, var(--surface-raised));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.sort-value-order-num {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.sort-value-order-label {
+  flex-shrink: 0;
+}
+
+.sort-value-order-list-action {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sort-value-order-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1;
+  min-height: calc(var(--text-sm) + 0.5rem + 2px);
+}
+
+.sort-value-order-reset:hover {
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}
+
+.sort-value-order-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.binder-card-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.binder-card-editor-row:last-child {
+  border-bottom: none;
+}
+
+.binder-card-editor-row.dragging {
+  background: var(--surface-raised);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius);
+  opacity: 0.85;
+  z-index: 1;
+}
+
+.binder-card-editor-row--excluded {
+  opacity: 0.55;
+}
+
+.binder-card-editor-row--excluded .binder-card-editor-name {
+  text-decoration: line-through;
+}
+
+.binder-card-editor-drag {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: grab;
+  padding: 0 0.25rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.binder-card-editor-drag:active {
+  cursor: grabbing;
+}
+
+.binder-card-editor-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.binder-card-editor-status-dot.rarity-mythic {
+  background: #c25a10;
+}
+.binder-card-editor-status-dot.rarity-rare {
+  background: #9a7410;
+}
+.binder-card-editor-status-dot.rarity-uncommon {
+  background: #4a6890;
+}
+.binder-card-editor-status-dot.rarity-common {
+  background: #888;
+}
+
+.binder-card-editor-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.binder-card-editor-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.binder-card-editor-foil {
+  color: var(--accent);
+}
+
+.binder-card-editor-pinned-tag {
+  color: var(--accent);
+  font-size: var(--text-xs);
+}
+
+.binder-card-editor-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-base);
+  line-height: 1;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+.binder-card-editor-remove:hover {
+  color: var(--text-primary);
+}
+
+.binder-card-editor-restore {
+  background: none;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.binder-card-editor-restore:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.binder-card-editor-section-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 1rem 0 0.4rem;
+}
+
+.binder-card-editor-empty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.binder-card-editor-order-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.binder-card-editor-order-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── Manual order bar (above binder toolbar) ─────────────────────────────── */
+
+.binder-manual-order-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 1rem;
+  background: var(--surface-raised);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.sort-mode-badge {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.binder-manual-order-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ── CardPickerSheet ─────────────────────────────────────────────────────── */
+
+.card-picker-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+}
+
+.card-picker-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-sheet);
+}
+
+.card-picker-sheet {
+  position: absolute;
+  /* Dock above the on-screen keyboard (0 unless a browser floats it, e.g.
+     iOS Safari) so a focused search field inside the sheet stays visible. */
+  bottom: var(--keyboard-inset);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-top: 0.5px solid var(--border);
+  box-shadow: var(--shadow-sheet);
+  /* Cap height against the safe viewport so the sheet's top edge clears
+     the status bar even when fully expanded; pad the bottom so its inner
+     content sits above the home gesture. Both are no-ops on web. Subtract
+     the keyboard inset so the sheet shrinks rather than slide behind it. */
+  max-height: calc(var(--vh-safe) * 0.85 - var(--keyboard-inset));
+  padding-bottom: var(--safe-bottom);
+  display: flex;
+  flex-direction: column;
+  animation: binder-sheet-slide 220ms var(--ease-out-soft);
+}
+
+@media (min-width: 1024px) {
+  .card-picker-sheet {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    width: 480px;
+    max-height: 70vh;
+    border-radius: var(--radius-lg);
+    animation: none;
+  }
+}
+
+/* Symmetric exit for the bottom-sheet presentation (useSheetExit's
+   .is-closing) — shared by CardPickerSheet, AddCardSheet, AddToBinderSheet
+   and BulkMoveToBinderSheet, which all enter with binder-sheet-slide. */
+.card-picker-sheet.is-closing {
+  animation: binder-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
+}
+
+/* Desktop renders these as a centered panel with no entry animation (and a
+   centering transform the fall keyframe would clobber) — the components
+   never set .is-closing there, but pin it to none as a belt-and-braces
+   guard since this selector outweighs the desktop animation: none above. */
+@media (min-width: 1024px) {
+  .card-picker-sheet.is-closing {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-picker-sheet,
+  .card-picker-sheet.is-closing {
+    animation: none;
+  }
+}
+
+/* Drag-handle affordance for bottom sheets. Convention: only render this
+   on sheets that can be dismissed by a gesture (tap-backdrop and/or
+   swipe-down). Non-dismissable sheets (e.g. an opening-hand prompt that
+   requires Keep / Mulligan) must NOT include this — users read the
+   handle as "drag down to dismiss" and get stuck when it doesn't work. */
+.card-picker-handle {
+  width: 2.25rem;
+  height: 4px;
+  margin: 0.5rem auto 0.25rem;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+@media (min-width: 1024px) {
+  .card-picker-handle {
+    display: none;
+  }
+}
+
+.card-picker-header {
+  padding: 0.75rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.card-picker-title {
+  font-size: var(--text-lg);
+  font-weight: normal;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.card-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  padding: 0.45rem 0.75rem;
+}
+
+.card-picker-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.card-picker-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.card-picker-row:last-child {
+  border-bottom: none;
+}
+
+.card-picker-rarity {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.card-picker-rarity.rarity-mythic {
+  background: #c25a10;
+}
+.card-picker-rarity.rarity-rare {
+  background: #9a7410;
+}
+.card-picker-rarity.rarity-uncommon {
+  background: #4a6890;
+}
+.card-picker-rarity.rarity-common {
+  background: #888;
+}
+
+.card-picker-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.card-picker-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-picker-added {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-picker-add {
+  font-size: var(--text-xs);
+  padding: 0.2rem 0.6rem;
+  flex-shrink: 0;
+}
+
+.card-picker-empty {
+  padding: 1.5rem 1rem;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.card-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 1rem;
+  border-top: 0.5px solid var(--border);
+  background: var(--surface-raised);
+}
+
+/* ── AddToBinderSheet ─────────────────────────────────────────────────────── */
+
+.add-to-binder-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.add-to-binder-card-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0.15rem 0 0;
+}
+
+.add-to-binder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.add-to-binder-row:last-child {
+  border-bottom: none;
+}
+
+.add-to-binder-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.add-to-binder-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.add-to-binder-btn {
+  font-size: var(--text-xs);
+  padding: 0.2rem 0.6rem;
+  flex-shrink: 0;
+}
+
+.add-to-binder-added {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.add-to-binder-current {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-style: italic;
+}
+
+.add-to-binder-mismatch {
+  font-size: var(--text-xs);
+  color: var(--warn-text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.add-to-binder-mode-hint {
+  font-size: var(--text-xs);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+/* ── Add card sheet ──────────────────────────────────────────────── */
+
+.add-card-sheet .card-picker-header {
+  gap: 0.35rem;
+}
+
+.add-card-sheet-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.add-card-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.5rem 0.75rem;
+}
+
+.add-card-sheet-body .card-search-results {
+  max-height: none;
+}
+
+.add-card-sheet-error {
+  color: var(--err-text);
+}
+
+.add-card-sheet-added {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Unified Add-cards modal (Search / Upload / Scan tabs) ───────
+   Hosts AddCardSearchPanel + UploadPanel + the scan launcher in one
+   modal so the Collection page has a single "Add cards" entry point.
+   Uses the standard .modal shell (mobile full-bleed, ≤720px centered
+   on desktop) with a tab strip injected between header and body. */
+
+.add-cards-modal {
+  max-width: 920px;
+  /* Entrance/exit come from the structural .modal-backdrop > [role='dialog']
+     rules (the ONE dialog motion, UX-201) — the component only routes its
+     dismiss paths through useSheetExit('modal-panel-out') so every close
+     plays that shared exit. No bespoke keyframes here. */
+}
+
+.add-cards-modal-header {
+  padding-bottom: 0.85rem;
+}
+
+.add-cards-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.65rem 1.5rem 0;
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.add-cards-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.add-cards-tab:hover:not([aria-selected='true']) {
+  color: var(--text-primary);
+}
+
+.add-cards-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.add-cards-tab-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Zero the body padding because each panel handles its own gutters —
+   UploadPanel has its own internal grid spacing, the search panel
+   uses card-picker-search/body padding, and the scan tab centres
+   itself with its own padding. */
+.add-cards-modal-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-cards-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-cards-panel[hidden] {
+  display: none;
+}
+
+/* The search/precon panel fills its tab and delegates scrolling to its own
+   .add-card-sheet-body, so the input/header stay pinned and only the results
+   scroll — without this the modal-body AND the inner body both scrolled (the
+   "dual scroll" in the Add-cards sheet). */
+.add-card-search-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.add-cards-panel-search,
+.add-cards-panel-upload,
+.add-cards-panel-product {
+  padding: 1rem 1.5rem 1.25rem;
+}
+
+.add-cards-panel-search .add-card-search-input-wrap,
+.add-cards-panel-product .add-card-search-input-wrap {
+  padding-bottom: 0.5rem;
+}
+
+.add-cards-panel-search .add-card-sheet-body,
+.add-cards-panel-product .add-card-sheet-body {
+  padding: 0;
+}
+
+/* The scan tab is a one-shot launcher: centred icon, brief copy,
+   prominent CTA. Banners stack below the CTA. */
+.add-cards-panel-scan {
+  padding: 2rem 1.5rem;
+}
+
+.scan-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.scan-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.scan-tab-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.scan-tab-desc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.scan-tab-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.scan-tab-banner {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Mobile / phones: tighten chrome so as much of the body shows above the
+   on-screen keyboard as possible. Tabs scroll horizontally if they ever
+   overflow (they don't at 3 tabs but the rule keeps the layout robust
+   against future additions or very narrow displays). */
+@media (max-width: 720px) {
+  .add-cards-modal {
+    max-width: 100%;
+  }
+
+  .add-cards-tabs {
+    padding: 0.5rem 1rem 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .add-cards-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .add-cards-tab {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .add-cards-panel-search,
+  .add-cards-panel-upload {
+    padding: 0.75rem 1rem 1rem;
+  }
+
+  .add-cards-panel-scan {
+    padding: 1.5rem 1rem;
+  }
+}
+
+/* ── Inline Scryfall search (collection add-from-Scryfall) ────── */
+
+.inline-card-search {
+  max-width: 540px;
+  margin: 1rem auto 0;
+  text-align: left;
+}
+
+/* ── Scryfall trigger: the trailing "card" in grid view ──────────
+   Reuses .collection-grid-item so it is pixel-identical in size to a
+   real card (same 1fr column, same 488/680 aspect). */
+.collection-grid-scryfall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  text-align: center;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.collection-grid-scryfall:hover,
+.collection-grid-scryfall:focus-visible,
+.collection-grid-scryfall.is-open {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
+.collection-grid-scryfall-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.collection-grid-scryfall-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+}
+
+/* ── Scryfall trigger: the trailing row in list / compact view ───── */
+.collection-list-scryfall {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.5rem 0.85rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+/* Standalone (list/compact): its own element below the bordered list
+   container with clear breathing room — not crammed inside it. */
+.collection-list-scryfall--standalone {
+  margin-top: 0.85rem;
+}
+
+.collection-list-scryfall:hover,
+.collection-list-scryfall:focus-visible,
+.collection-list-scryfall.is-open {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
+.collection-list-scryfall-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.collection-list-scryfall-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.collection-list-scryfall-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.collection-list-scryfall:hover .collection-list-scryfall-sub,
+.collection-list-scryfall:focus-visible .collection-list-scryfall-sub,
+.collection-list-scryfall.is-open .collection-list-scryfall-sub {
+  color: inherit;
+}
+
+/* Reveal-more (replaces inner scrollbars — the page scrolls). */
+.inline-card-search-more {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.inline-card-search-more:hover,
+.inline-card-search-more:focus-visible {
+  background: var(--accent-light);
+  color: var(--accent);
+  outline: none;
+}
+
+.inline-card-search-more--printings {
+  margin-top: 0.4rem;
+  font-size: var(--text-xs);
+}
+
+.inline-card-search-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.inline-card-search-head-title {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-card-search-hide {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.inline-card-search-hide:hover,
+.inline-card-search-hide:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.inline-card-search-status {
+  margin: 0.6rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.inline-card-search-error {
+  color: var(--err-text);
+}
+
+.inline-card-search-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.inline-card-search-item + .inline-card-search-item {
+  border-top: 0.5px solid var(--border);
+}
+
+.inline-card-search-item:hover {
+  background: var(--surface-raised);
+}
+
+.inline-card-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+}
+
+.inline-card-search-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: filter var(--motion-fast);
+}
+
+.inline-card-search-add:hover,
+.inline-card-search-add:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
+.inline-card-search-thumb {
+  width: 34px;
+  aspect-ratio: 488 / 680;
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-raised);
+}
+
+.inline-card-search-thumb--ph {
+  border: 0.5px solid var(--border);
+}
+
+/* Thumbnail + name together act as the tap target that opens the full-size
+   carousel preview. Transparent button so it reads as part of the row, not a
+   control — only the hover/focus affordance hints it's interactive. */
+.inline-card-search-preview-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.inline-card-search-preview-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.inline-card-search-preview-trigger:hover .inline-card-search-name {
+  color: var(--accent);
+}
+
+.inline-card-search-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  transition: color var(--motion-fast);
+}
+
+/* The row-level printing picker reused inside the preview panel — drop the
+   row's left indent (there's no add-button gutter here) and give it a card
+   surface so it reads as a contained sub-panel. */
+.card-preview-printings {
+  margin-top: 0.5rem;
+}
+
+.card-preview-printings .inline-card-search-printings {
+  padding: 0.5rem 0.6rem 0.65rem;
+  border-radius: var(--radius);
+}
+
+.inline-card-search-mana {
+  flex-shrink: 0;
+}
+
+.inline-card-search-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+}
+
+.inline-card-search-added {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.inline-card-search-owned {
+  color: var(--text-muted);
+}
+
+.inline-card-search-printings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  padding: 0.2rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.inline-card-search-printings-toggle:hover,
+.inline-card-search-printings-toggle:focus-visible,
+.inline-card-search-printings-toggle.is-open {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.inline-card-search-printings {
+  padding: 0.5rem 0.55rem 0.65rem 2rem;
+  background: var(--surface-raised);
+}
+
+.inline-card-search-printing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.inline-card-search-printing {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.inline-card-search-printing:hover {
+  background: var(--surface);
+}
+
+.inline-card-search-printing.is-selected {
+  background: var(--accent-light);
+  color: var(--text-primary);
+}
+
+.inline-card-search-printing-set {
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.inline-card-search-printing-set-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.inline-card-search-printing-price {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.inline-card-search-finish-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+}
+
+.inline-card-search-finishes {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.inline-card-search-finish {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.inline-card-search-finish.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.inline-card-search-add-printing {
+  padding: 0.35rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--motion-fast);
+}
+
+.inline-card-search-add-printing:hover,
+.inline-card-search-add-printing:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
+/* ── Binder mode toggle (new binder form) ────────────────────── */
+
+.binder-mode-toggle {
+  display: flex;
+  margin: 0 1.25rem 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.binder-mode-pill {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.binder-mode-pill:not(:first-child) {
+  border-left: 1px solid var(--border);
+}
+
+.binder-mode-pill:hover:not(.active) {
+  background: var(--surface-raised);
+}
+
+.binder-mode-pill.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+@media (max-width: 480px) {
+  .binder-mode-toggle {
+    margin: 0 1rem 0.25rem;
+  }
+}
+
+/* ── Import binder (inside BinderEditor) ─────────────────────── */
+
+.import-binder-textarea {
+  min-height: 160px;
+  resize: vertical;
+  font-size: var(--text-sm);
+}
+
+.import-binder-file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  font-size: var(--text-sm);
+}
+
+.import-binder-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* BackLink — chevron + label, sits above a detail-page hero. Same
+   gesture in the same place on every detail surface so the exit is
+   predictable across the app. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  /* `align-self: flex-start` so the link hugs its text when it sits
+     inside a flex/grid column (e.g. `.deck-editor-page`). Without it,
+     a flex item with `display: inline-flex` still stretches across the
+     full cross-axis width, and the hover background painted a band
+     across the whole row instead of just the label. */
+  align-self: flex-start;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.35rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  outline: none;
+}
+
+/* Danger-zone variant for /settings sections: tinted left edge so the
+   destructive section reads at a glance without colour-shifting the
+   whole card body. */
+.settings-card--danger {
+  border-color: color-mix(in srgb, var(--err-text) 30%, var(--border));
+  border-left: 3px solid var(--err-text);
+}
+
+.settings-card--danger .settings-card-title {
+  color: var(--err-text);
+}

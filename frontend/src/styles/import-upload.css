@@ -1,0 +1,824 @@
+/* import-upload.css — split from global.css (#refactor).
+   Import & upload UI: upload panel, unified import panel, import history, collection-breakdown drawer, paste textarea. */
+
+/* ── Upload panel ───────────────────────────────────────────────────────── */
+.upload-panel {
+  margin-bottom: 1.5rem;
+}
+
+.upload-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.upload-action svg {
+  flex-shrink: 0;
+}
+
+.upload-action:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.upload-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-action-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text, #fff);
+}
+
+.upload-action-primary:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: brightness(1.05);
+  color: var(--accent-text, #fff);
+}
+
+.upload-action-primary.is-active {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.upload-action-danger {
+  color: var(--danger, #b94545);
+}
+
+.upload-action-danger:hover:not(:disabled) {
+  background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+  border-color: var(--danger, #b94545);
+  color: var(--danger, #b94545);
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .upload-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Unified import panel ──────────────────────────────────────────────── */
+.import-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.import-grid.has-history {
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+}
+
+/* Collection breakdown drawer — slides in from the right with the
+   Colors / Types / Rarity sections. Triggered by the Stats button in
+   the sticky collection toolbar. */
+.stats-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.stats-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-sheet);
+  animation: binder-sheet-fade 160ms ease-out;
+}
+
+.stats-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100%);
+  background: var(--surface);
+  border-left: 0.5px solid var(--border-strong);
+  box-shadow: var(--shadow-sheet);
+  display: flex;
+  flex-direction: column;
+  /* Pattern B — sheet child. Pad the top so the header clears the status
+     bar; the body already pads its own bottom for the home gesture. */
+  padding-top: var(--safe-top);
+  animation: stats-drawer-slide 220ms var(--ease-out-soft);
+}
+
+@keyframes stats-drawer-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Mirror of stats-drawer-slide for dismissal — the drawer slides back off
+   to the right instead of vanishing, so close is symmetric with open on
+   every path (backdrop / ✕ / Escape). Driven by the .is-closing class via
+   useSheetExit; exits read a touch quicker than entrances (Motion pattern 2:
+   side drawer — 220ms in, --motion-base out). */
+@keyframes stats-drawer-slide-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.stats-drawer.is-closing {
+  animation: stats-drawer-slide-out var(--motion-base) var(--ease-out-soft) forwards;
+}
+
+.stats-drawer-backdrop.is-closing {
+  animation: fade-out var(--motion-base) ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-drawer,
+  .stats-drawer-backdrop,
+  .stats-drawer.is-closing,
+  .stats-drawer-backdrop.is-closing {
+    animation: none;
+  }
+}
+
+.stats-drawer-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.stats-drawer-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.stats-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.stats-drawer-close:hover,
+.stats-drawer-close:focus-visible {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.stats-drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.85rem 1rem calc(1rem + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.import-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.import-history {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+  max-height: 480px;
+}
+
+.import-history > .import-history-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.import-history-empty {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.import-history-footer {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.import-history-title {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.65rem;
+  font-weight: 600;
+}
+
+.import-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.import-history-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+}
+
+.import-history-check {
+  display: flex;
+  align-items: center;
+  padding-top: 3px;
+  cursor: pointer;
+}
+
+.import-history-check input[type='checkbox'],
+.field-checkbox input[type='checkbox'],
+.commander-owned-toggle input[type='checkbox'],
+.filter-popover-row input[type='checkbox'],
+.collection-group-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.import-history-check input[type='checkbox']:hover:not(:disabled),
+.field-checkbox input[type='checkbox']:hover:not(:disabled),
+.commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
+.filter-popover-row input[type='checkbox']:hover:not(:disabled),
+.collection-group-checkbox:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.import-history-check input[type='checkbox']:checked,
+.field-checkbox input[type='checkbox']:checked,
+.commander-owned-toggle input[type='checkbox']:checked,
+.filter-popover-row input[type='checkbox']:checked,
+.collection-group-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.import-history-check input[type='checkbox']:checked::after,
+.field-checkbox input[type='checkbox']:checked::after,
+.commander-owned-toggle input[type='checkbox']:checked::after,
+.filter-popover-row input[type='checkbox']:checked::after,
+.collection-group-checkbox:checked::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.import-history-check input[type='checkbox']:focus-visible,
+.field-checkbox input[type='checkbox']:focus-visible,
+.commander-owned-toggle input[type='checkbox']:focus-visible,
+.filter-popover-row input[type='checkbox']:focus-visible,
+.collection-group-checkbox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.import-history-check input[type='checkbox']:disabled,
+.field-checkbox input[type='checkbox']:disabled,
+.commander-owned-toggle input[type='checkbox']:disabled,
+.collection-group-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.import-history-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.import-history-name {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.import-history-name-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.import-history-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.import-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.import-card-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.import-card-title {
+  font-size: var(--text-md);
+  font-weight: normal;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.import-card-tagline {
+  font-size: var(--text-lg);
+  color: var(--accent);
+  margin: 0 0 1rem;
+  font-style: italic;
+  letter-spacing: -0.005em;
+}
+
+.import-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+}
+
+.staged-files {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface1);
+  padding: 0.75rem;
+  margin: 0 0 0.85rem;
+}
+
+.staged-files-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: 0.5rem;
+}
+
+.staged-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  max-height: 160px;
+  overflow-y: auto;
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.staged-files-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.staged-files-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staged-files-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.staged-files-remove:hover:not(:disabled) {
+  background: var(--surface1);
+  color: var(--text-primary);
+}
+
+.staged-files-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.binder-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: 0.5rem;
+}
+
+.binder-import-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.binder-import-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface1);
+}
+
+.binder-import-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.binder-import-row-main .binder-name-input {
+  width: 100%;
+}
+
+.binder-import-row-file {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-dropzone {
+  position: relative;
+}
+
+.file-dropzone.is-dragging {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+  border-radius: var(--radius);
+}
+
+.file-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface1) 85%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: var(--radius);
+}
+
+.file-drop-message {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--accent);
+  padding: 0.75rem 1.25rem;
+  background: var(--surface-raised);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+}
+
+.import-card-desc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.import-textarea {
+  margin-top: 0;
+  min-height: 96px;
+}
+
+.import-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.import-card-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.import-card-hint a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.import-card-hint a:hover {
+  color: var(--accent-hover);
+}
+
+.import-card-restore {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+/* Single CTA inside an empty state (e.g. the empty-collection "Add cards").
+   The parent centers inline content; this just gives the button its icon gap. */
+.empty-state-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.samples-intro-list {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.samples-intro-list li {
+  padding: 2px 0;
+}
+
+.link-warn {
+  color: var(--warn-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+.link-warn:hover {
+  color: var(--warn-border);
+}
+
+.kbd-inline {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.kbd-inline-danger {
+  color: var(--err-text);
+  border-color: var(--err-border);
+  background: var(--err-bg);
+}
+
+.delete-imports-list {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.delete-imports-list li {
+  padding: 2px 0;
+}
+
+@media (max-width: 1024px) {
+  .import-card {
+    padding: 1rem;
+  }
+
+  .import-card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .import-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .import-card-footer .btn-primary {
+    width: 100%;
+  }
+
+  .import-grid.has-history {
+    grid-template-columns: 1fr;
+  }
+
+  .import-history {
+    max-height: none;
+  }
+}
+
+.upload-card {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.upload-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.upload-card.loading {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.upload-card-paste {
+  cursor: default;
+  align-items: stretch;
+  text-align: left;
+}
+
+.upload-card-paste:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.upload-card-paste .upload-icon,
+.upload-card-paste .upload-text {
+  text-align: center;
+}
+
+.upload-icon {
+  font-size: var(--text-2xl);
+  margin-bottom: 0.3rem;
+}
+
+.upload-text {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.upload-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.paste-textarea {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  width: 100%;
+  min-height: 100px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  margin-top: 0.5rem;
+}
+
+.paste-textarea:focus {
+  border-color: var(--accent);
+}
+
+.paste-textarea:disabled {
+  opacity: 0.5;
+}
+
+/* Keep placeholder at desktop size on mobile too — the input itself has to
+   stay at 16px to suppress iOS auto-zoom on focus, but the hint text
+   shouldn't dominate the textarea at rest. */
+.paste-textarea::placeholder {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
+.upload-card-paste .btn {
+  margin-top: 0.5rem;
+  align-self: center;
+}

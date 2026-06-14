@@ -1,0 +1,1298 @@
+/* footer-card-preview.css — split from global.css (#refactor).
+   Site footer + card-preview hero carousel (track/slide/flipper/info panel/links) + binder pages flipbook. Contains @keyframes fade/sheet/skeleton-shimmer (skeleton-shimmer read by motion-tokens.test.ts). */
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.footer {
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 0.5px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.footer p {
+  margin-bottom: 0.4rem;
+}
+
+.footer a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+
+.footer a:hover {
+  color: var(--text-primary);
+}
+
+.footer-fineprint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Keyboard-shortcuts discovery chip — desktop / fine-pointer only.
+   Hidden on coarse-pointer devices (touch) and ≤1024px where a hardware
+   keyboard is not expected. The chip uses the same kbd styling as the overlay
+   so it reads as a preview of what `?` does. */
+.footer-shortcuts-chip {
+  display: none; /* hidden by default; revealed at the desktop breakpoint below */
+  appearance: none;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.footer-shortcuts-chip:hover {
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+}
+
+.footer-shortcuts-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.footer-shortcuts-kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.footer-shortcuts-label {
+  /* label is part of the chip but needs no extra styling beyond the chip color */
+}
+
+/* Show the chip only on fine-pointer desktop viewports ≥1024px */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .footer-shortcuts-chip {
+    display: inline-flex;
+  }
+}
+
+/* ── Card preview (hero carousel + sticky info panel) ──────────────────── */
+.card-preview-backdrop {
+  /* --slide-size is owned by .card-preview-track (it depends on the track's
+     actual rendered size via container queries — see that rule). The
+     backdrop only owns layout-independent tokens like --slide-spacing. */
+  --slide-spacing: 0.5rem;
+  position: fixed;
+  inset: 0;
+  /* Dim scrim. The sheet above is transparent, so this layer supplies the
+     dim that lifts the rising card + panel off the collection grid behind.
+     It fades in on open / out on close (.is-closing) but does NOT slide —
+     only the card and info panel travel, which reads cleaner than the old
+     full-surface drawer. */
+  background: var(--overlay);
+  animation: fade-in 0.3s var(--ease-drawer) backwards;
+  z-index: var(--z-overlay);
+}
+
+.card-preview-sheet {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  will-change: transform;
+  /* Pattern B — sheet child. Pad the top so the card slot + close button clear
+     the status bar on native (zero on web). We deliberately do NOT pad the
+     bottom here: the info panel is the grid's bottom row and owns its own
+     `padding-bottom: max(0.9rem, var(--safe-bottom))`, which keeps its text
+     above the home gesture while letting its opaque background bleed to the
+     true device edge. A sheet-level `padding-bottom: var(--safe-bottom)` would
+     lift that background up and expose a safe-area-tall strip of dim scrim +
+     the page behind it below the panel (invisible on web where safe-bottom=0). */
+  padding-top: var(--safe-top);
+  /* Transparent: the sheet is just the transform carrier. Only its opaque
+     children — the card image and the info panel — visibly rise; the dim
+     behind them is .card-preview-backdrop, which stays put. */
+  background: transparent;
+  /* True bottom-sheet rise on open, modeled on ManaBox: the card + flip row
+     + info panel translate up from fully off-screen together — no scale,
+     no per-element fade. Longer + a smoother, fairly even
+     curve with a soft landing (not a front-loaded ease-out) so the eye
+     actually tracks the drawer gliding the full distance and settling,
+     instead of it covering most of the travel in the first ~80ms and
+     reading as a snap. Runs once on mount (the component remounts each
+     time the preview opens). `backwards` pins the off-screen start before
+     the first frame for a clean entrance, then releases transform control
+     when the one-shot ends so the swipe-down-dismiss inline translateY
+     still works (its value is 0 at mount, so there's no conflict). */
+  animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
+  /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
+     horizontal pans are owned by the nested .card-preview-track
+     (which sets its own touch-action: pan-x). Telling the browser
+     "no native vertical pan here" prevents the touch from leaking
+     to underlying scrollers on iOS Safari during an up-swipe. */
+  touch-action: pan-x;
+}
+
+.card-preview-sheet:not(.is-dragging) {
+  transition: transform 0.22s var(--ease-out-soft);
+}
+
+.card-preview-close {
+  position: absolute;
+  top: max(0.75rem, var(--safe-top));
+  right: max(0.75rem, var(--safe-right));
+  z-index: 2;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: var(--text-xl);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background var(--motion-fast),
+    transform var(--motion-fast);
+}
+
+.card-preview-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.card-preview-close:active {
+  transform: scale(0.92);
+}
+
+/* Floating prev/next buttons that overlay the carousel sheet on the left
+   and right edges. Non-essential — swipe and keyboard arrows still work —
+   but they make the carousel discoverable for mouse users and reachable
+   for switch / pointer-only AT. Hidden until hover/focus on coarse-pointer
+   devices so they don't clutter touch UX. */
+/* Overlay sharing the card track's grid cell — so the arrows sit in the
+   vertical middle of the card area above the panel, not mid-screen. When the
+   panel expands and the track shrinks, this layer shrinks with it and the
+   arrows recenter, staying clear of the panel's card name. pointer-events
+   pass through the gaps so card swipe/tap still works between the buttons. */
+.carousel-nav-layer {
+  grid-row: 1;
+  grid-column: 1;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+  /* Mirror the track's bottom padding so the arrows center on the card, not
+     on the raw cell (the track offsets the card up by this much). */
+  padding-bottom: 1.25rem;
+  pointer-events: none;
+}
+
+.carousel-nav {
+  pointer-events: auto;
+  z-index: 3;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background 0.15s,
+    opacity 0.15s,
+    transform var(--motion-fast);
+}
+
+.carousel-nav:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.carousel-nav:active {
+  transform: scale(0.94);
+}
+
+.carousel-nav:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.carousel-nav:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+/* Small screens: shrink arrows and pull them closer to the edge so they
+   don't block card content on narrow viewports. Insets move to the layer's
+   padding (the buttons are flex children now, not absolutely positioned). */
+@media (max-width: 768px) {
+  .carousel-nav-layer {
+    padding-left: max(0.4rem, var(--safe-left));
+    padding-right: max(0.4rem, var(--safe-right));
+  }
+  .carousel-nav {
+    width: 2rem;
+    height: 2rem;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0.6;
+  }
+  .carousel-nav:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Touch-only: hide until the user explicitly focuses one (keyboard
+   navigation). Touch users have swipe + tap-peeking-neighbor and don't
+   need persistent thumb-blocking buttons. */
+@media (hover: none) and (pointer: coarse) {
+  .carousel-nav {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .carousel-nav:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.card-preview-grabber {
+  position: absolute;
+  top: max(0.5rem, var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: 2.5rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  /* Only show on touch devices where swipe-down-to-dismiss works. */
+  display: none;
+}
+
+@media (hover: none) {
+  .card-preview-grabber {
+    display: block;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Backdrop dismissal — mirrors fade-in so the scrim fades out as the sheet
+   slides back down (.is-closing). */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* Full-height bottom-sheet rise. Pure transform (no opacity/scale) so
+   the translucent sheet reads as one cohesive surface gliding up and
+   progressively covering the grid — the way ManaBox does it — rather
+   than a fade. Shared by the card preview and the binder-pages flipbook
+   (their sheets are structurally the same surface). */
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Mirror of sheet-rise for dismissal — the sheet slides back off-screen
+   instead of vanishing, so close is symmetric with open on every path
+   (button / Escape / backdrop / tap / swipe-fling). Driven by the
+   .is-closing class (see useSheetExit); transform sits in the CSS
+   Animation origin so it overrides the swipe gesture's inline
+   translateY during the exit. A touch quicker than the 0.5s rise —
+   exits reading slightly faster than entrances feels responsive.
+   `from` reads --sheet-exit-from (set by useSheetExit while closing):
+   a swipe-dismiss seeds it with the finger-release offset so the sheet
+   continues sliding down from there instead of snapping back to 0 first;
+   non-drag paths (button / Escape / backdrop) leave it 0 and fall from
+   the top exactly as before. */
+@keyframes sheet-fall {
+  from {
+    transform: translateY(var(--sheet-exit-from, 0px));
+  }
+
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.card-preview-sheet.is-closing,
+.binder-pages-sheet.is-closing {
+  animation: sheet-fall 0.34s var(--ease-drawer) forwards;
+}
+
+.card-preview-backdrop.is-closing,
+.binder-pages-backdrop.is-closing {
+  animation: fade-out 0.34s var(--ease-drawer) forwards;
+}
+
+.card-preview-track {
+  /* Explicit cell so the carousel-nav-layer can share it (same row/column)
+     and overlay the card area without auto-placement pushing the track down
+     a row. Matches its previous auto-placement (the `1fr` row). */
+  grid-row: 1;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--slide-spacing);
+  width: 100%;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Keep vertical touches free for our swipe-down-to-dismiss handler. */
+  touch-action: pan-x;
+  /* Breathing room between the card art and whatever sits below it
+     (flip-row, deck chip, or the info panel). */
+  padding-bottom: 1.25rem;
+  scrollbar-width: none;
+  /* Size containment: the track is the `1fr` row of .card-preview-sheet's
+     grid, so its size is determined by the grid layout (not its content) —
+     safe for `container-type: size`. Making the track a size container
+     lets the slide (and the centering spacers below) size against the
+     track's *actual* rendered dimensions via cqw/cqh. That replaces the
+     old fixed `13rem` chrome estimate, which clipped the top of the card
+     on mobile whenever the info panel grew taller than expected (binder
+     pills + deck allocations + role line). Now the slide just shrinks. */
+  container-type: size;
+  /* The card image is the hero of this view. Three constraints compete
+     for the slide width:
+       (a) track height (via 100cqh × 488/680) — never produce a card
+           taller than the row, so the top can't clip behind
+           overflow:hidden when the bottom chrome grows. 488/680 is the
+           Magic card face aspect ratio.
+       (b) track width (via 100cqw) — never wider than the track itself.
+       (c) clamp(460,56vw,620) — desktop reading ceiling. 620 is the
+           resolution-honest max since the hero renders Scryfall `large`
+           (672w via imageLarge); beyond that even `large` upscales.
+     min() picks the smallest, so the card stays whole on every viewport.
+     Defined on the track (not the slide) so the centering spacers below
+     share one source of truth. cqh/cqw on the track ITSELF is invalid
+     (a container can't query itself), but --slide-size is substituted at
+     each use site — descendants of the track (slide + ::before/::after)
+     resolve cqh/cqw against the track, which is exactly what we want. */
+  --slide-size: min(calc(100cqh * 488 / 680), 100cqw, clamp(460px, 56vw, 620px));
+}
+
+/* Centering spacers: each pseudo is a flex item that occupies half the
+   leftover width, so the first and last slide can scroll into the
+   horizontal centre. Replaces the old `padding-inline` math — same idea,
+   but the pseudos are descendants of the track so they can resolve cqw
+   against it, sharing the --slide-size token with the slides instead of
+   duplicating the formula. They have no scroll-snap-align, so the
+   scroll-snap-type still only snaps to real slides. */
+.card-preview-track::before,
+.card-preview-track::after {
+  content: '';
+  flex: 0 0 calc((100cqw - var(--slide-size)) / 2);
+  align-self: stretch;
+  pointer-events: none;
+}
+
+/* Flip-row already supplies its own vertical padding, so collapse the
+   track's bottom buffer when it is present — otherwise the gap doubles. */
+.card-preview-sheet:has(.card-preview-flip-row) .card-preview-track {
+  padding-bottom: 0.25rem;
+}
+
+.card-preview-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Responsive breathing room around the hero card. Applied to the TRACK
+   (not the sheet) on purpose: the track is the container-type:size query
+   container, so padding shrinks its content box → 100cqh/100cqw shrink →
+   --slide-size shrinks → the padding renders as a gutter around the card,
+   never as an inset on the info panel/label below. Tablet + desktop (≥601)
+   get top headroom; mobile (≤600) also gets side gutters so the card isn't
+   edge-to-edge. Don't fold this into the sheet or "optimize" it away. */
+@media (min-width: 601px) {
+  .card-preview-track {
+    padding-top: 1.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .card-preview-track {
+    padding-top: 0.75rem;
+    padding-inline: 0.75rem;
+  }
+}
+
+.card-preview-slide {
+  flex: 0 0 var(--slide-size);
+  min-width: 0;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+/* The slide is the perspective container; the frame inside is what tilts.
+   --rx / --ry come from useHolographic on hover (active foil slide only).
+   --slide-scale is bumped to 1.08 on the active slide. Both default to safe
+   values so non-foil and inactive slides render flat. */
+.card-preview-slide {
+  perspective: 1400px;
+}
+
+.card-preview-slide.is-active {
+  /* No scale-up — active slide is identified by position, not size. */
+  --slide-scale: 1;
+}
+
+.card-preview-image-frame {
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  border-radius: 14px;
+  background: transparent;
+  position: relative;
+  perspective: 1400px;
+  transform: scale(var(--slide-scale, 1)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-origin: center;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 240ms ease;
+}
+
+/* The flipper handles the 180° rotateY for back-face cards. It's nested
+   inside the frame so it composes cleanly with the frame's tilt transform
+   without fighting it. The drop shadow lives HERE, not on the static frame:
+   the shadow must rotate (foreshorten) with the card during a flip, or a
+   full-size card-shaped shadow stays painted behind the edge-on card — a
+   ghost "static outline" mid-flip. (The faces can't carry it either: their
+   clip-path would clip the shadow away.) */
+.card-preview-flipper {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transform-style: preserve-3d;
+  transition: transform 0.65s var(--ease-out-soft);
+}
+
+.card-preview-flipper.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.card-preview-face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Use clip-path instead of overflow:hidden — the latter creates a paint
+     boundary that can override backface-visibility in some browsers, which
+     ends up showing the mirrored front face when the flipper is at 180°. */
+  clip-path: inset(0 round 14px);
+}
+
+.card-preview-face-back {
+  transform: rotateY(180deg);
+}
+
+.card-preview-flip-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  /* Always reserved so single-faced and transform cards take the same
+     vertical space — flipping between them must not shift the panel. */
+  min-height: 2.85rem;
+  padding: 0.35rem 1rem;
+  pointer-events: none;
+}
+
+.card-preview-flip-row > * {
+  pointer-events: auto;
+}
+
+.card-preview-flip-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.card-preview-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.card-preview-flip-btn:active {
+  transform: scale(0.96);
+}
+
+/* Destructive action (e.g. Delete) in the icon bar. */
+.card-preview-flip-btn.is-danger {
+  color: #ff8a8a;
+  border-color: rgba(255, 138, 138, 0.4);
+}
+
+.card-preview-flip-btn.is-danger:hover {
+  background: rgba(255, 138, 138, 0.16);
+}
+
+/* While the cursor is moving, the hook lerps every frame — disable the
+   transition so we don't double-smooth (which feels laggy). The hook
+   writes --rx / --ry on whichever frame is active, foil or not. */
+.card-preview-image-frame[style*='--rx'] {
+  transition: none;
+}
+
+.card-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Placeholder shown while the card art loads. Sits inside the clipped
+   face so it inherits the rounded card silhouette; a slow diagonal sheen
+   keeps it alive without being busy. Fades out as the image fades in. */
+.card-preview-image-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0.11) 50%,
+      rgba(255, 255, 255, 0) 65%
+    ),
+    rgba(20, 22, 28, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Diagonal sheen sweep for any loading placeholder (hero card art or a
+   binder pocket thumbnail). Pure background-position so it composites
+   cheaply. */
+@keyframes skeleton-shimmer {
+  from {
+    background-position:
+      180% 0,
+      0 0;
+  }
+
+  to {
+    background-position:
+      -60% 0,
+      0 0;
+  }
+}
+
+/* Holographic foil engine moved to src/styles/holographic.css */
+@media (prefers-reduced-motion: reduce) {
+  .card-preview-image-frame {
+    transform: scale(var(--slide-scale, 1));
+    transition: none;
+  }
+  .card-preview-sheet,
+  .binder-pages-sheet,
+  .card-preview-backdrop,
+  .binder-pages-backdrop {
+    animation: none;
+  }
+  .card-preview-image-skeleton,
+  .binder-pages-cell-skeleton {
+    animation: none;
+  }
+}
+
+.card-preview-image-fallback {
+  padding: 2rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.card-preview-panel {
+  background: rgba(15, 15, 18, 0.92);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+  padding: 0.5rem 1.1rem;
+  padding-bottom: max(0.9rem, var(--safe-bottom));
+  color: #fff;
+  /* One fixed, vh-capped height. The panel always shows its full content; when
+     that content is taller than the height, the inner region scrolls in place
+     (no chevron, no expand/collapse). vh-capped so the card never gets crushed
+     on short / landscape screens — because the panel scrolls, trimming its
+     height never clips content (unlike the old collapsed snapshot, which had to
+     stay flat to avoid a mid-word clip). border-box so height includes padding;
+     flex column so the inner region owns the scroll. The sheet's 1fr track
+     absorbs whatever the panel doesn't take and the card sizes itself via its
+     container query. Tunable: bump the rem to show more at rest (shrinks the
+     card), the vh to give short screens more card. */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: min(15rem, 44vh);
+  overflow: hidden;
+}
+
+/* Fit-to-content contexts: the panel shrinks to whatever the card needs and
+   hands the freed vertical space back to the card. SAFE here only because
+   these sources render the *same fields on every card* (set / condition /
+   price / printing-picker) — so the panel height never changes between cards
+   and the hero can't shift mid-swipe. Capped so a rare overflowing card still
+   scrolls (the inner region owns the scroll).
+
+   NOTE: variable-content sources (deck, suggestion) deliberately do NOT live
+   here — auto height + variable content = the hero resizing as you swipe (the
+   jank). They get a stable fixed frame instead (base rule above + the
+   suggestion override below). */
+.card-preview-panel[data-source='collection'],
+.card-preview-panel[data-source='binder'],
+.card-preview-panel[data-source='search'],
+.card-preview-panel[data-source='playtest'] {
+  height: auto;
+  max-height: min(15rem, 44vh);
+}
+
+/* `suggestion` is the shared deck-analysis preview source (Engine / Optimize /
+   Combos / Gap / Suggestions). Its content is variable (the role line is
+   optional and can wrap), so it needs a stable fixed frame — but it carries
+   far less than a deck card's synergy list, so the base 15rem overshot it
+   (a big empty box, worst on tablet/mobile). Give it its own shorter fixed
+   height; overflow still scrolls via the inner region. */
+.card-preview-panel[data-source='suggestion'] {
+  height: min(12rem, 42vh);
+}
+
+/* Desktop has ample vertical room, so shrink the info panel a touch and hand
+   that height back to the hero card/grid (which sizes off the track's cqh).
+   Mobile/tablet keep the taller base above (more at-rest content, less
+   scrolling on small screens). Panel still scrolls, so nothing clips. */
+@media (min-width: 1024px) {
+  .card-preview-panel {
+    height: min(13rem, 40vh);
+  }
+  .card-preview-panel[data-source='collection'],
+  .card-preview-panel[data-source='binder'],
+  .card-preview-panel[data-source='search'],
+  .card-preview-panel[data-source='playtest'] {
+    height: auto;
+    max-height: min(13rem, 40vh);
+  }
+  .card-preview-panel[data-source='suggestion'] {
+    height: min(10.5rem, 38vh);
+  }
+}
+
+.card-preview-panel-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  /* Always scrollable: the full info is present and reached by scrolling. */
+  overflow-y: auto;
+}
+
+/* Caller-injected panel slots (renderPanelMeta / renderPanelExtra). Full width,
+   and left-aligned to override the panel's centered default — the injected
+   content (deck synergy list, printing picker) reads naturally left-aligned
+   rather than centered like the card's identity fields. */
+.card-preview-slot {
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+}
+
+/* The renderPanelMeta block (deck role/inclusion/warning/synergy) is short,
+   identity-adjacent content — keep it hugging its width and centered like the
+   name/type/set lines, not stretched full-width like the list slots above. */
+.card-preview-slot--meta {
+  width: auto;
+  max-width: 100%;
+}
+
+.card-preview-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+
+.card-preview-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Type line + mana cost, just under the name — shown in every carousel
+   context (the card's identity at a glance, paired with the centered name). */
+.card-preview-typeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.card-preview-type {
+  overflow-wrap: anywhere;
+}
+
+.card-preview-mana {
+  /* Pin to the type-line size — the shared .mana-cost base bumps to --text-base. */
+  font-size: var(--text-sm);
+}
+
+.card-preview-mana .ms {
+  /* Match the type-line text size. em-scaling is intentional. */
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1em;
+}
+
+/* Physical-copy condition (NM/LP/…), appended to the meta line for owned
+   collection copies. Quiet — it's secondary to rarity/price. */
+.card-preview-condition {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.card-preview-context {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  /* Allow the line to wrap so every binder/deck pill stays visible on
+     narrow viewports instead of being truncated under an ellipsis. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+/* Inline pill linking out to a binder or deck from the card preview's
+   context line. Tinted with the target binder's / deck's own color so a
+   glance is enough to tell which container the card belongs to. */
+.card-preview-context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.45rem;
+  margin: 0 0.05rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pill-color, var(--accent)) 18%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--pill-color, var(--accent)) 45%, transparent);
+  color: var(--pill-color, var(--accent));
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  vertical-align: middle;
+  transition:
+    background var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.card-preview-context-pill:hover,
+.card-preview-context-pill:focus-visible {
+  background: color-mix(in srgb, var(--pill-color, var(--accent)) 28%, transparent);
+  border-color: var(--pill-color, var(--accent));
+  outline: none;
+}
+
+.card-preview-context-pill svg {
+  flex-shrink: 0;
+}
+
+.card-preview-meta {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-mono);
+  line-height: 1.45;
+}
+
+.card-preview-rarity {
+  text-transform: capitalize;
+  font-weight: 600;
+}
+.card-preview-rarity.rarity-mythic {
+  color: #ff8a3d;
+}
+.card-preview-rarity.rarity-rare {
+  color: #f0c040;
+}
+.card-preview-rarity.rarity-uncommon {
+  color: #b8d0e8;
+}
+.card-preview-rarity.rarity-common {
+  color: #d8d8d8;
+}
+
+/* Deck role spelled out in full — the touch-friendly counterpart to the
+   cryptic 2-letter badge on the deck row. Shown only when showRole is set. */
+.card-preview-role {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.78);
+  font-family: var(--font-mono);
+}
+
+.card-preview-set {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.card-preview-set-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  object-fit: contain;
+  filter: invert(1);
+  opacity: 0.95;
+  flex-shrink: 0;
+}
+
+.card-preview-set-code {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.card-preview-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.card-preview-ext-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
+  padding-bottom: 1px;
+  transition: color 0.15s;
+}
+
+.card-preview-ext-link:hover,
+.card-preview-ext-link:focus-visible {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.card-preview-ext-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.card-preview-ext-link-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.card-preview-counter {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}
+
+@media (min-width: 600px) {
+  .card-preview-backdrop {
+    /* Spacing scales with viewport width so only ~1 neighbor peeks per side
+       on wide desktop monitors instead of 2-3 — keeps the "active vs dim"
+       contrast focused. (slide-size keeps its phone clamp; the 460px cap
+       already lands in the right reading range at desktop sizes.) */
+    --slide-spacing: clamp(3rem, 16vw, 12rem);
+  }
+
+  .card-preview-panel-inner {
+    max-width: 100%;
+  }
+}
+
+/* ── Binder pages flipbook (full-section page-flipper popup) ────────────── */
+.binder-pages-backdrop {
+  /* --slide-size is owned by .binder-pages-track (it depends on the
+     track's actual rendered size via container queries — see that rule).
+     Mirrors .card-preview-backdrop for consistency. */
+  --slide-spacing: 0.5rem;
+  position: fixed;
+  inset: 0;
+  /* Dim scrim, same as .card-preview-backdrop: the sheet above is
+     transparent, so this layer supplies the dim and also carries the
+     sizing var (--page-w-ratio drives --slide-size). Fades in/out; does
+     not slide. */
+  background: var(--overlay);
+  animation: fade-in 0.3s var(--ease-drawer) backwards;
+  z-index: var(--z-overlay);
+}
+
+.binder-pages-sheet {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  /* Pattern B — sheet child (see .card-preview-sheet). Top-only: the info
+     panel (bottom `auto` row) owns its own `padding-bottom: max(0.9rem,
+     var(--safe-bottom))`, so a sheet-level bottom inset would double up and
+     expose a safe-area-tall strip of scrim below the panel on native. */
+  padding-top: var(--safe-top);
+  will-change: transform;
+  /* Transparent — see .card-preview-sheet. Only the opaque binder page and
+     info panel visibly rise; the dim is .binder-pages-backdrop. */
+  background: transparent;
+  /* Bottom-sheet rise on open — identical to .card-preview-sheet (shared
+     keyframe + easing token). Runs once on mount (the component remounts
+     each time the flipbook opens); `backwards` pins the off-screen start
+     before the first frame, then releases transform control so the
+     swipe-down-dismiss inline translateY still works (0 at mount, so no
+     conflict). */
+  animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
+  /* Same touch contract as .card-preview-sheet — vertical = JS, horizontal
+     = native pan-x on the nested track. */
+  touch-action: pan-x;
+}
+
+.binder-pages-sheet:not(.is-dragging) {
+  transition: transform 0.22s var(--ease-out-soft);
+}
+
+.binder-pages-track {
+  display: flex;
+  /* Explicitly pin to the `1fr` row (panel pins to row 2). Without this,
+     the track is auto-placed — and because .carousel-nav-layer (grid-row:1)
+     sits BEFORE the track in the DOM here (unlike CardPreview, where it's
+     last), auto-placement bumped the track into the `auto` row 2, which —
+     since container-type:size means its content adds no height — collapsed
+     it to its 8px padding (100cqh→0 → --slide-size→0 → zero-width slides). */
+  grid-row: 1;
+  grid-column: 1;
+  /* This track is the sheet's `1fr` grid row; the panel is the `auto`
+     row directly below it. The slide is just the page grid (the per-slide
+     label is gone). Center it vertically in the remaining space.
+     min-height:0 lets the `1fr` actually shrink so the page is bounded by
+     --slide-size, not by the intrinsic slide height. */
+  align-items: center;
+  gap: var(--slide-spacing);
+  width: 100%;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  /* Same breathing room as .card-preview-track (kept in lockstep so the two
+     carousels feel identical): 1.25rem bottom here, plus the top/side padding
+     in the media blocks below. Safe now that the track is pinned to grid-row 1
+     (a real 1fr height) — the earlier collapse was the row-placement bug, not
+     this padding. */
+  padding-bottom: 1.25rem;
+  scrollbar-width: none;
+  /* Size containment so the slide can bound itself against the track's
+     actual rendered height (cqh). Same rationale as .card-preview-track —
+     the panel's height is variable (binder name + context line wrapping
+     into pills), so a fixed `10rem` chrome budget was always going to
+     drift. With cqh the slide just shrinks if the panel grows. */
+  container-type: size;
+  /* Width constraints (min() picks the smallest):
+       (a) track width (100cqw) — never wider than the track.
+       (b) track height (100cqh) × --page-w-ratio. The page fills the
+           track's content box (no reserve — the page label is gone, and the
+           breathing room comes from the track padding, exactly like
+           .card-preview-track's `calc(100cqh * 488/680)`). The multiplier
+           --page-w-ratio = cols×5 / rows×7 varies by pocket count
+           (9-/4-pocket → 5:7, 12-pocket → 20:21).
+       (c) clamp(460,64vw,820) — desktop ceiling. Higher than the card's
+           620 because a 3×3 page is inherently larger than one card; the
+           padding/spacing match, the max-size ceiling is page-appropriate.
+     Defined on the track so the centering spacers below share it. */
+  --slide-size: min(100cqw, calc(100cqh * var(--page-w-ratio, 0.72)), clamp(460px, 64vw, 820px));
+}
+
+/* Breathing room around the page grid — kept identical to .card-preview-track
+   so the two carousels are consistent. Padding lives on the TRACK (the
+   container-type:size query container): it shrinks 100cqh/100cqw → --slide-size
+   → the page, rendering as a gutter around the grid, never an inset on the
+   panel. Tablet + desktop (≥601) get top headroom; mobile (≤600) also gets side
+   gutters. */
+@media (min-width: 601px) {
+  .binder-pages-track {
+    padding-top: 1.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .binder-pages-track {
+    padding-top: 0.75rem;
+    padding-inline: 0.75rem;
+  }
+}
+
+/* Centering spacers — see .card-preview-track::before/::after. */
+.binder-pages-track::before,
+.binder-pages-track::after {
+  content: '';
+  flex: 0 0 calc((100cqw - var(--slide-size)) / 2);
+  align-self: stretch;
+  pointer-events: none;
+}
+
+.binder-pages-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* NOTE: no breathing-room padding on .binder-pages-track. Unlike
+   .card-preview-track, the binder page grid is height-driven with a FIXED
+   1.6rem label reserve baked into --slide-size:
+     min(100cqw, calc((100cqh - 1.6rem) * --page-w-ratio), …)
+   Padding on this size container shrinks 100cqh, and combined with the
+   page+label fit math it drives --slide-size to ~0 and collapses the grid
+   (the slides go zero-width, leaving only the page labels). If binder top
+   breathing room is wanted, add it to .binder-pages-sheet's padding-top
+   (outside the size container), never here. */
+.binder-pages-slide {
+  flex: 0 0 var(--slide-size);
+  min-width: 0;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.binder-pages-page {
+  display: grid;
+  /* Page aspect, columns, and rows come from inline style — varies by
+     pocket count. With grid-template-{columns,rows}: 1fr each, every
+     cell lands at the natural card aspect. Tight gap + padding so the
+     pockets sit close together the way they do in a real binder page. */
+  width: 100%;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(20, 20, 22, 0.6);
+  border: 0.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.binder-pages-cell {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Enables cqw units on overlays (e.g. the "in a deck" badge) so they
+     scale with cell width. */
+  container-type: inline-size;
+}
+
+.binder-pages-cell.is-allocated img,
+.binder-pages-cell.is-allocated .binder-pages-cell-fallback {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}
+
+.binder-pages-cell.empty {
+  cursor: default;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Per-pocket loading placeholder — the grid analogue of
+   .card-preview-image-skeleton (shared skeleton-shimmer keyframe). Fills
+   the cell behind the thumbnail until it loads so a rising page has
+   substance instead of empty pockets popping in. border-radius: inherit
+   matches the cell's clipped 5px corners. */
+.binder-pages-cell-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0) 65%
+    ),
+    rgba(20, 22, 28, 0.85);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.binder-pages-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+.binder-pages-cell-fallback {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-mono);
+  text-align: center;
+  padding: 4px;
+  pointer-events: none;
+}
+
+.binder-pages-panel {
+  /* Explicitly the `auto` row 2 (track pins to row 1) so DOM order /
+     the nav-layer can't bump it. */
+  grid-row: 2;
+  grid-column: 1;
+  /* In normal grid flow — the `auto` row of .binder-pages-sheet's
+     `grid-template-rows: 1fr auto`. (Was position:absolute over the
+     bottom, which forced the centered track to reserve ~2× the panel's
+     height from BOTH ends to avoid the page sliding under it. In flow,
+     the track is the remaining `1fr` and the page centers cleanly above
+     the panel — single-count reservation, ~5rem more page on desktop.) */
+  background: rgba(15, 15, 18, 0.92);
+  border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+  padding: 0.9rem 1.1rem;
+  padding-bottom: max(0.9rem, var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: #fff;
+}
+
+.binder-pages-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  /* One line, ellipsis — keeps the panel height stable so the carousel
+     above doesn't shrink mid-navigation when a longer binder name lands.
+     (Top/bottom clipping is no longer the risk it was: the track is a
+     size container and --slide-size is bound by 100cqh, so the slide
+     just resizes if the panel ever grows; the nowrap is purely a UX
+     stability choice now.) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.binder-pages-context {
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-mono);
+  /* Same determinism contract as .binder-pages-name. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.binder-pages-counter {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  margin-top: 0.15rem;
+}

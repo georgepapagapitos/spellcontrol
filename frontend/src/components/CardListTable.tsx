@@ -151,7 +151,7 @@ type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc' | 'release' |
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
 // Fixed height of a full-width "Group by" section header row in grid view.
-// Keep in sync with .collection-grid-section-header in global.css.
+// Keep in sync with .collection-grid-section-header in styles/collection.css.
 const GRID_SECTION_HEADER_H = 40;
 
 const COLOR_FILTERS: Array<{ key: string; label: string }> = [

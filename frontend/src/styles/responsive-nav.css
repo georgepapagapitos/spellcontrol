@@ -1,0 +1,731 @@
+/* responsive-nav.css — split from global.css (#refactor).
+   Breakpoint media queries (tablet/phone overrides, iOS zoom fix, reduced-motion, touch hover suppression) + all navigation: desktop top-nav links, collection hub tab strip, mobile bottom tab bar, native floating nav FAB. */
+
+/* ── Responsive enhancements ────────────────────────────────────────────── */
+/* Prevent iOS Safari / WKWebView auto-zoom on focus. Mobile Safari zooms the
+   page whenever a focused control's font-size is below 16px — and the page
+   never zooms back out, so it reads as a janky keyboard interaction. The body
+   token (--text-base ≈ 15.2px) is just under that line, so every field must
+   be pinned to exactly 16px on mobile. The `:not()` list keeps non-typing
+   controls (checkbox/radio/range/file/color) out of it; textarea is included
+   so the paste areas don't zoom either. */
+@media (max-width: 1024px) {
+  select,
+  textarea,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(
+      [type='color']
+    ) {
+    font-size: var(--text-input);
+  }
+}
+
+/* Tablet & smaller */
+@media (max-width: 900px) {
+  body {
+    padding: 0 0.85rem 1.25rem;
+    padding-left: max(0.85rem, var(--safe-left));
+    padding-right: max(0.85rem, var(--safe-right));
+  }
+
+  .site-header {
+    margin-left: -0.85rem;
+    margin-right: -0.85rem;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .site-header-inner {
+    height: 3rem;
+  }
+
+  .panel {
+    padding: 1rem 1rem;
+    gap: 1rem;
+  }
+
+  .stat {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .stat-value {
+    font-size: var(--text-xl);
+  }
+}
+
+/* Phone */
+@media (max-width: 1024px) {
+  body {
+    padding: 0 0.65rem 0.85rem;
+    padding-left: max(0.65rem, var(--safe-left));
+    padding-right: max(0.65rem, var(--safe-right));
+  }
+
+  .site-header {
+    margin-left: -0.65rem;
+    margin-right: -0.65rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+  }
+
+  .site-brand {
+    font-size: var(--text-base);
+  }
+
+  .site-brand-text {
+    display: none;
+  }
+
+  .upload-card {
+    min-height: 160px;
+    padding: 1.25rem 1rem;
+  }
+
+  /* Stats: tighter min so 2 columns fit on narrow screens */
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+    gap: 8px;
+  }
+
+  .breakdown-card {
+    padding: 0.75rem 0.85rem;
+  }
+
+  /* Binder toolbar: stack, search/input full width */
+  .binder-toolbar {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .search-pill {
+    flex: 1 1 100%;
+  }
+
+  .binder-toolbar .field-checkbox {
+    margin-left: auto;
+  }
+
+  input[type='text'] {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Mobile binder switcher: Material-style scrollable underline tabs.
+     Text-only labels — no chip backgrounds, no borders. Active tab gets
+     the binder's own color as the underline indicator; inactive tabs
+     show a small color dot to preserve identity at a glance. This is
+     dramatically more compact than the chip style on narrow phones. */
+  .binder-tab-row .tab {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 10px 6px 10px 0;
+    font-size: var(--text-base);
+    color: var(--text-secondary);
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Underline indicator slot. Color is filled by .active. */
+    box-shadow: inset 0 -2px 0 transparent;
+    transition:
+      box-shadow 0.15s,
+      color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+  }
+
+  .binder-tab-row .tab.active {
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: inset 0 -2px 0 var(--binder-color, var(--accent));
+  }
+
+  .binder-tab-row .tab-color-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 8px;
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+  }
+
+  .binder-tab-row .tab-count {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    margin-left: 2px;
+  }
+
+  /* The "+ New binder" / Export / Delete-all chips keep their chip look
+     so they don't visually masquerade as binder tabs in the strip. */
+  .binder-tab-row .tab.tab-new,
+  .binder-tab-row .tab.tab-export,
+  .binder-tab-row .tab.tab-delete-all {
+    background: var(--surface) !important;
+    border: 0.5px solid var(--border-strong) !important;
+    border-radius: var(--radius) !important;
+    padding: 6px 12px;
+    box-shadow: none;
+    align-self: center;
+    min-height: 36px;
+  }
+
+  .tab-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    min-width: 40px;
+    min-height: 36px;
+    font-size: var(--text-base);
+  }
+
+  /* On mobile the on-page binder strip is replaced by the bottom-nav
+     binder picker (BinderPickerSheet). Keep the desktop chip strip
+     completely out of the layout to avoid duplication. */
+  .binder-tab-row {
+    display: none;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    min-height: 36px;
+  }
+
+  /* Section header on mobile: let the chip + count sit inline next to
+     the title when there's room. Drops the prior forced
+     `flex-basis: 100%` on the count so it only wraps to its own row
+     when a longer sort breadcrumb actually fills the row. */
+  .section-header {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .section-meta {
+    white-space: nowrap;
+    font-size: var(--text-xs);
+  }
+
+  /* Page rows wrap on mobile so the viewport never scrolls horizontally.
+     Tapping a page number opens the dedicated BinderPagePreview sheet
+     for full-bleed page-by-page swiping — that's the canonical mobile
+     browse path, so the inline row only needs to lay pages out within
+     the available width. */
+  .page-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px 8px;
+  }
+
+  .page-wrap {
+    min-width: 0;
+  }
+
+  .grid-9,
+  .grid-4,
+  .grid-12 {
+    width: 100%;
+  }
+
+  /* Modal: full-bleed-ish on phones. The full-bleed look is intentional
+     (align-items: stretch + tight 0.5rem side padding) — but the top/
+     bottom edges still need to clear the system chrome on native, so the
+     padding floor here mirrors --overlay-pad-*'s pattern with a smaller
+     base. Web phones (no insets) get the original 0.75rem / 0.5rem look. */
+  .modal-backdrop {
+    padding: max(0.75rem, calc(var(--safe-top) + 0.5rem)) max(0.5rem, var(--safe-right))
+      max(0.75rem, calc(var(--safe-bottom) + 0.5rem)) max(0.5rem, var(--safe-left));
+    align-items: stretch;
+  }
+
+  .modal {
+    max-height: calc(var(--vh-safe) - 1.5rem);
+  }
+
+  .modal-header,
+  .modal-footer {
+    padding: 0.85rem 1rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+
+  /* Editor rows: stack cleanly */
+  .editor-row {
+    gap: 0.6rem;
+  }
+
+  .rule-row {
+    gap: 0.5rem;
+  }
+
+  /* Tooltip image: cap to viewport on small screens */
+  .tooltip-image {
+    width: min(200px, 60vw);
+  }
+
+  /* Footer is omitted on mobile; the Scryfall attribution is still
+     accessible from the desktop view and via the underlying API metadata. */
+  .footer {
+    display: none;
+  }
+}
+
+/* Very narrow phones */
+@media (max-width: 380px) {
+  .stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tab-count {
+    display: block;
+    margin-left: 0;
+    margin-top: 2px;
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Hover styles only where hover is real (avoid sticky :hover on touch) */
+@media (hover: none) {
+  .upload-card:hover {
+    border-color: var(--border-strong);
+    background: var(--surface);
+  }
+
+  .color-swatch:hover {
+    transform: none;
+  }
+}
+
+/* ── Top-nav links ─────────────────────────────────────────────────────── */
+.site-nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-4);
+}
+
+.site-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem var(--space-3);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--text-base);
+  font-weight: 500;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.site-nav-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 0.45rem;
+  line-height: 1.4;
+}
+
+.site-nav-link.active .site-nav-count {
+  color: var(--accent);
+  border-color: var(--accent-light);
+  background: var(--surface);
+}
+
+.site-nav-link:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.site-nav-link.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+@media (max-width: 1024px) {
+  /* The mobile tab bar replaces the inline nav links on phones. */
+  .site-nav-links {
+    display: none;
+  }
+}
+
+/* ── Collection hub tab strip ──────────────────────────────────────────────
+   Reuses .site-nav-link / .site-nav-count for the tab items; only the strip
+   wrapper is bespoke. Unlike .site-nav-links this stays visible on mobile
+   (it is the in-page section nav, not the header's primary nav). */
+/* Cards / Binders / Lists switcher — sticks to the top of the scroll region
+   so it never scrolls out of reach. On the Cards page the search row pins
+   flush beneath it (see `.collection-toolbar-row`), forming one 2-row
+   sticky toolbar; on Binders/Lists it pins on its own. Full-bleed to the
+   content edges, matching the search row. */
+.collection-hub-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  position: sticky;
+  top: 0;
+  /* Sticky section-nav chrome → --z-popover, below the fixed app frame
+     (.site-header is --z-panel) and any hero-opened menu (--z-menu), above
+     scrolling content. See STYLE_GUIDE "Z-index / layering". */
+  z-index: var(--z-popover);
+  height: var(--hub-tabs-sticky-h);
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) var(--space-4);
+  padding: 0 var(--page-gutter, 1rem);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
+.mobile-tab-bar {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  /* A normal flex child at the bottom of the non-scrolling shell — not
+     position:fixed. Deliberately NO var(--safe-bottom): on
+     Firefox/Chrome for Android that value is ~0 on load and jumps to a
+     non-zero gesture-area inset after the first scroll (when the URL bar
+     collapses), then stays. Tied to padding it shifts the centered icons
+     up and leaves permanent dead space below them on first scroll. The
+     bar is in normal flow inside a 100dvh shell that already excludes
+     system chrome, so the inset isn't needed. Fixed height (not
+     min-height) so nothing about the bar can change on scroll. */
+  .mobile-tab-bar {
+    display: flex;
+    flex: 0 0 auto;
+    height: 3.5rem;
+    padding: 0 0.4rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
+  /* The URL-bar quirk that motivated omitting var(--safe-bottom)
+     doesn't apply inside the Capacitor WebView — there's no URL bar to
+     collapse, and the inset reports a stable non-zero value for the
+     gesture/home-indicator area. Pad below the icons so they don't sit
+     under the system gesture strip. */
+  .capacitor .mobile-tab-bar {
+    height: calc(3.5rem + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .mobile-tab-bar-link {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-family: var(--font-serif);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    line-height: 1.1;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tab-bar-link.active {
+    color: var(--accent);
+  }
+
+  .mobile-tab-bar-glyph {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-tab-bar-icon {
+    display: block;
+  }
+
+  .mobile-tab-bar-label {
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+}
+
+/* ── Native floating nav FAB ────────────────────────────────────────────────
+   The native-only replacement for the bottom tab bar (components/NavFab.tsx).
+   A hamburger FAB locked to the bottom-right corner; tapping it raises the
+   destinations in a vertical stack above it (speed-dial style), each an
+   icon chip with a label pill. position:absolute inside the stable
+   .app-shell — never position:fixed — so the URL-bar shift can't catch it. */
+.nav-fab-root {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-panel);
+  /* The overlay layer is inert; only the FAB and (when open) the scrim and
+     fan items opt back into hit-testing. */
+  pointer-events: none;
+}
+
+/* Tap-catching scrim behind the open fan — also lightly dims the page.
+   position:fixed (not absolute) so it covers the true viewport: the app
+   sits inside `body`'s safe-area/gutter padding, and an absolute scrim
+   would stop ~10px short of each edge. A transient full-screen backdrop
+   is exactly the case where fixed is right — same as `.scanner-root`. */
+.nav-fab-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.nav-fab-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Tapping a destination navigates away — close the overlay instantly so its
+   retract animation doesn't play on top of the page just navigated to. The
+   animated close is kept for dismissals that stay on the page (X / scrim /
+   Escape). */
+.nav-fab-root.snap .nav-fab-scrim,
+.nav-fab-root.snap .nav-fab-item {
+  transition: none;
+}
+
+/* The FAB cluster — toggle button plus the stacked menu — locked bottom-right. */
+.nav-fab {
+  position: absolute;
+  width: 3.5rem;
+  height: 3.5rem;
+  bottom: calc(1rem + var(--safe-bottom));
+  right: calc(1rem + var(--safe-right));
+}
+
+.nav-fab-btn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--motion-fast) ease;
+}
+
+/* Tactile press feedback on the toggle. */
+.nav-fab-btn:active {
+  transform: scale(0.93);
+}
+
+/* Hamburger ↔ X — three bars that morph on toggle: the outer two slide to
+   the centre line and rotate into the cross, the middle bar fades out. */
+.nav-fab-burger {
+  position: relative;
+  width: 22px;
+  height: 16px;
+}
+
+.nav-fab-burger span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform 0.24s cubic-bezier(0.4, 0.1, 0.2, 1),
+    opacity var(--motion-fast) ease;
+}
+
+.nav-fab-burger span:nth-child(1) {
+  top: 0;
+}
+
+.nav-fab-burger span:nth-child(2) {
+  top: 7px;
+}
+
+.nav-fab-burger span:nth-child(3) {
+  top: 14px;
+}
+
+.nav-fab.open .nav-fab-burger span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.nav-fab.open .nav-fab-burger span:nth-child(2) {
+  opacity: 0;
+}
+
+.nav-fab.open .nav-fab-burger span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.nav-fab-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--on-accent);
+}
+
+/* The menu container is inert; items opt into hit-testing when open. */
+.nav-fab-menu {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Each destination: a label pill + icon chip in a row. Anchored so the icon
+   chip sits exactly over the FAB, then raised by `--stack` rows when open.
+   `--stack` counts up FROM the FAB — the item nearest it gets 1 and the
+   topmost gets the total count — so the column reads top-to-bottom in DOM
+   order while still stacking upward. The value is set inline per-item
+   from React (NavFab.tsx) so the layout adapts to a dynamic number of
+   items (e.g. the optional Scan action chip on devices that can scan).
+   `--menu-len` is the total item count, used to derive a stable
+   close-direction delay so retract always counts down from the top. */
+.nav-fab-item {
+  --pitch: 3.5rem;
+  /* Defaults to 4; NavFab.tsx sets --nav-fab-menu-len on the menu
+     container so this picks up the live item count, including the
+     optional Scan action chip. */
+  --menu-len: var(--nav-fab-menu-len, 4);
+  position: absolute;
+  /* (3.5rem FAB − 3rem chip) / 2 — centres the chip on the FAB. */
+  right: 0.25rem;
+  bottom: 0.25rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  font-family: var(--font-serif);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  /* Collapsed: parked on the FAB, hidden — scales out of the icon centre. */
+  transform-origin: calc(100% - 1.5rem) center;
+  transform: translateY(0) scale(0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.22s var(--ease-pop),
+    opacity 0.16s ease;
+  /* Close: items fold back top-down — the mirror of the open stagger
+     (the topmost item retracts first). */
+  transition-delay: calc((var(--menu-len) - var(--stack)) * 0.04s);
+}
+
+.nav-fab.open .nav-fab-item {
+  transform: translateY(calc(var(--stack) * var(--pitch) * -1)) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  /* Stagger: items nearest the FAB emerge first. */
+  transition-delay: calc((var(--stack) - 1) * 0.04s);
+}
+
+/* Action chip variant (e.g. Scan). Styled identically to nav items at
+   rest so the stack looks visually consistent. Press/tap fills the glyph
+   with the accent for tactile feedback (same as the active-route fill on
+   nav items). */
+.nav-fab-item-action:active:not(:disabled) .nav-fab-item-glyph,
+.nav-fab-item-action:focus-visible .nav-fab-item-glyph {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Only fire the hover fill where hover is a real input modality —
+   on touch (the FAB's actual habitat) sticky :hover would leave the
+   chip looking "active" after every tap. */
+@media (hover: hover) {
+  .nav-fab-item-action:hover:not(:disabled) .nav-fab-item-glyph {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+}
+
+.nav-fab-item-action:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.nav-fab-item-label {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.nav-fab-item-glyph {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  color: var(--text-secondary);
+}
+
+.nav-fab-item.active .nav-fab-item-glyph {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.nav-fab-item.active .nav-fab-item-label {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-fab-item,
+  .nav-fab-burger span {
+    transition-duration: 0.01s;
+  }
+
+  .nav-fab-item,
+  .nav-fab.open .nav-fab-item {
+    transition-delay: 0s;
+  }
+}
