@@ -113,10 +113,10 @@ The Android app is a [Capacitor](https://capacitorjs.com/) shell around the same
 
 Which backend the installed app talks to is baked in at build time via `VITE_API_BASE_URL`:
 
-| Build                     | `VITE_API_BASE_URL`            | Backend       | Database           |
-| ------------------------- | ------------------------------ | ------------- | ------------------ |
-| Native dev                | `http://localhost:3737`        | local backend | local dev Postgres |
-| Device check against prod | `https://api.spellcontrol.com` | production    | production (Neon)  |
+| Build                     | `VITE_API_BASE_URL`        | Backend       | Database           |
+| ------------------------- | -------------------------- | ------------- | ------------------ |
+| Native dev                | `http://localhost:3737`    | local backend | local dev Postgres |
+| Device check against prod | `https://spellcontrol.com` | production    | production (Neon)  |
 
 For everyday work, **build against the local backend** so the device runs on your dev stack and never touches production data:
 
@@ -134,9 +134,9 @@ cd android && ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Only build with `VITE_API_BASE_URL=https://api.spellcontrol.com` to validate a real device against production — that build reads and writes the live database.
+Only build with `VITE_API_BASE_URL=https://spellcontrol.com` to validate a real device against production — that build reads and writes the live database.
 
-**Service-worker gotcha:** the frontend is a PWA, so its service worker precaches the app shell in the WebView's Cache Storage. That cache survives `adb install -r` (a reinstall keeps app data), so a freshly installed APK can keep serving the _old_ bundle. After installing a new build, clear the app's data once — `adb shell pm clear com.spellcontrol.app`, or Settings → Apps → SpellControl → Storage → Clear data — then relaunch. The local cache (decks/collection) is a write-through cache and the server is the source of truth, so it re-downloads on next sign-in.
+**Stale-bundle gotcha:** the frontend is **not** a PWA — the service worker was retired (#482); the web app is a plain SPA and `register-pwa.ts` only _unregisters_ any SW a prior build left behind. But a WebView can still hold an old build's cached app shell in Cache Storage (or a lingering pre-#482 SW), and that cache survives `adb install -r` (a reinstall keeps app data), so a freshly installed APK can keep serving the _old_ bundle. After installing a new build, clear the app's data once — `adb shell pm clear com.spellcontrol.app`, or Settings → Apps → SpellControl → Storage → Clear data — then relaunch. The local cache (decks/collection) is a write-through cache and the server is the source of truth, so it re-downloads on next sign-in.
 
 ### Deployment
 
