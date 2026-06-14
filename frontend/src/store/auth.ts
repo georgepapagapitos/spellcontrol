@@ -6,6 +6,32 @@ import { markEverVisited } from '../lib/first-run';
 
 export type AuthStatus = 'unknown' | 'loading' | 'authed' | 'guest';
 
+// Remember the signed-in identity locally so being OFFLINE doesn't look like
+// being signed OUT. `/api/auth/me` can't be reached without a network, but a
+// network failure is not a sign-out — only a real 401 is. We keep just the
+// display identity here; the session cookie remains the actual credential and
+// re-validates on the next online bootstrap. Cleared on a real 401 / logout /
+// delete so a revoked session can't linger.
+const AUTH_USER_KEY = 'spellcontrol:auth-user';
+
+function loadStoredUser(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeUser(user: AuthUser | null): void {
+  try {
+    if (user) localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(AUTH_USER_KEY);
+  } catch {
+    /* localStorage unavailable — offline identity just won't persist */
+  }
+}
+
 interface AuthState {
   user: AuthUser | null;
   status: AuthStatus;
@@ -67,7 +93,9 @@ interface AuthState {
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
-  user: null,
+  // Seed from the remembered identity so an offline launch shows the user as
+  // signed in immediately (status stays 'unknown' until bootstrap resolves).
+  user: loadStoredUser(),
   status: 'unknown',
   error: null,
   autoLinkedAt: null,
@@ -76,12 +104,22 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ status: 'loading' });
     try {
       const me = await authApi.fetchMe();
-      if (me) set({ user: me.user, status: 'authed', error: null, autoLinkedAt: me.autoLinkedAt });
-      else set({ user: null, status: 'guest', autoLinkedAt: null });
+      if (me) {
+        storeUser(me.user);
+        set({ user: me.user, status: 'authed', error: null, autoLinkedAt: me.autoLinkedAt });
+      } else {
+        // A real 401 — the session is gone. Forget the cached identity.
+        storeUser(null);
+        set({ user: null, status: 'guest', autoLinkedAt: null });
+      }
     } catch {
-      // Network failure — treat as guest so the login screen shows. The user
-      // can retry by attempting to log in.
-      set({ user: null, status: 'guest', autoLinkedAt: null });
+      // Network failure is NOT a sign-out. If we remember a signed-in identity,
+      // stay authed in offline mode (local data + account preserved); the
+      // cookie re-validates on the next online bootstrap. Only fall back to the
+      // login screen when there's no remembered user.
+      const remembered = loadStoredUser();
+      if (remembered) set({ user: remembered, status: 'authed', error: null, autoLinkedAt: null });
+      else set({ user: null, status: 'guest', autoLinkedAt: null });
     }
   },
 
@@ -89,6 +127,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ error: null });
     try {
       const user = await authApi.login(username, password);
+      storeUser(user);
       set({ user, status: 'authed', error: null });
       // Any intentional first auth choice satisfies the first-run gate.
       markEverVisited();
@@ -103,6 +142,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ error: null });
     try {
       const user = await authApi.register(username, password);
+      storeUser(user);
       set({ user, status: 'authed', error: null });
       markEverVisited();
       return true;
@@ -116,6 +156,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ error: null });
     try {
       const user = await authApi.exchangeGoogleCode(code);
+      storeUser(user);
       set({ user, status: 'authed', error: null });
       markEverVisited();
       return true;
@@ -138,6 +179,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ error: null });
     try {
       const user = await authApi.completeGoogleSignup(signupToken, username);
+      storeUser(user);
       set({ user, status: 'authed', error: null });
       markEverVisited();
       return { ok: true };
@@ -152,6 +194,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ error: null });
     try {
       const user = await authApi.linkGoogleWithPassword(signupToken, username, password);
+      storeUser(user);
       set({ user, status: 'authed', error: null });
       markEverVisited();
       return true;
@@ -175,6 +218,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       /* ignore */
     }
     await stopSyncAndWipeLocal();
+    storeUser(null);
     set({ user: null, status: 'guest', error: null });
   },
 
@@ -193,6 +237,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     // detaches subscribers (cancelling any pending debounced push) and clears
     // the zustand-persist + IndexedDB cache so nothing can re-push it.
     await stopSyncAndWipeLocal();
+    storeUser(null);
     set({ user: null, status: 'guest', error: null });
     return true;
   },
