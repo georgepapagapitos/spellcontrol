@@ -746,11 +746,19 @@ export const useCollectionStore = create<CollectionState>()(
           // still refresh; the in-flight isRefreshingPrices guard prevents overlap.
         }
 
+        // A fresh device that just synced has a whole collection of unpriced
+        // ($0) cards; show the progress pill on that first fill so it reads as
+        // "Refreshing prices" instead of a silent wall of $0 (the thing that
+        // looked broken). Routine daily staleness — where most cards are
+        // already priced — stays silent so the pill never flashes on a normal
+        // launch.
+        const noPrices = s.cards.every((c) => !((c.purchasePrice ?? 0) > 0));
+
         // Background best-effort: refreshPrices now re-throws on failure, but a
         // stale-price auto-refresh must never surface an error toast or an
         // unhandled rejection. The error is already logged + stored in `error`.
         try {
-          await get().refreshPrices();
+          await get().refreshPrices(undefined, { track: noPrices });
         } catch {
           // swallowed — the next stale check (or a manual refresh) retries.
         }
