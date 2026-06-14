@@ -183,7 +183,7 @@ tooltip; reuse this so they behave identically everywhere.
 
 ## Z-index / layering
 
-- **Always use the `--z-*` tokens** (in `global.css`), never raw integers:
+- **Always use the `--z-*` tokens** (in `styles/tokens.css`), never raw integers:
   `--z-dropdown` (50) · `--z-popover` (60) · `--z-menu` (80) · `--z-panel` (100)
   · `--z-sheet-bg`/`--z-sheet-fg` (110/111) · `--z-suggest` (200) · `--z-modal`
   (1000) · `--z-overlay` (1100) · `--z-tooltip` (9999).
@@ -227,7 +227,7 @@ surface with no entry animation closes instantly — that IS its symmetric
 exit (e.g. the desktop dropdown/centered-panel presentations of the mobile
 sheets skip the hook).
 
-### Tokens (global.css)
+### Tokens (styles/tokens.css)
 
 | Token             | Value                             | Use                                  |
 | ----------------- | --------------------------------- | ------------------------------------ |
@@ -328,7 +328,7 @@ check `matchMedia` and complete immediately under reduce (see
 - **No raw `px`/`rem` font sizes** — use the `--text-*` scale (`--text-xs`,
   `--text-sm`, `--text-base`, …). stylelint enforces this on `src/**/*.css`.
 - **Spacing scale:** a 4px-base `--space-*` scale (`--space-1` = 0.25rem …
-  `--space-8` = 4rem) lives in the `:root` token block of `global.css`. New code
+  `--space-8` = 4rem) lives in the `:root` token block of `styles/tokens.css`. New code
   uses these tokens for `margin`/`padding`/`gap` instead of freehand rems. Legacy
   off-scale values (0.35rem, 0.6rem, 0.85rem, …) are left alone and get snapped
   to the scale opportunistically — only when the surface is already being touched
@@ -376,6 +376,19 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 
 ## CSS file layout
 
+- **`src/styles/` holds the global (unscoped) stylesheets**, imported once in
+  `main.tsx` in cascade order. The former 13k-line `global.css` was split into
+  feature files — each is a contiguous slice of the original, so the cascade is
+  byte-for-byte unchanged. Find rules by feature name: `tokens.css` (the only
+  `:root` token block), `base-layout.css`, `import-upload.css`, `forms-banners.css`,
+  `binder-hero.css`, `search-controls.css`, `stats-breakdown.css`, `tabs.css`,
+  `binder-grid-slots.css`, `tooltip-legend.css`, `feedback-spinner.css`,
+  `binder-nav.css`, `modals-dialogs.css`, `binder-rules-editor.css`,
+  `footer-card-preview.css`, `binder-spread.css`, `responsive-nav.css`,
+  `collection.css`, `auth.css`, `settings-sync.css`, `binder-card-management.css`,
+  `admin-scanner.css`. Each file's header comment lists what's inside. **Import
+  order in `main.tsx` is load-bearing** (last-write-wins on equal specificity) —
+  add a new global stylesheet in the position its cascade needs, not alphabetically.
 - **Deck components use co-located CSS:** a component in
   `src/components/deck/*` imports its own `./X.css` (e.g.
   `DeckColorPanel.css`), not the central `src/styles/deck-builder.css`. Shared
@@ -393,7 +406,7 @@ plus an optional plain-English reason. Don't hand-roll a panel-specific decision
 chip; reuse this so the boards read as one system, not five badge styles.
 
 The vocabulary is a fixed **verdict → word → tone** map (tones are the status
-tokens from `global.css` — reuse them, never new hues):
+tokens from `styles/tokens.css` — reuse them, never new hues):
 
 | Verdict      | Word       | Tone    | Token         | Means                           |
 | ------------ | ---------- | ------- | ------------- | ------------------------------- |
@@ -541,7 +554,7 @@ adding its Key entry in the same PR.**
 **Skeleton while analysis is pending (UX-310).** The Tune and Power tabs render
 a skeleton placeholder while the async commander-deck analysis (`useCommanderBracketAnalysis`)
 hasn't yet produced its first result. The skeleton uses the shared
-`skeleton-shimmer` keyframe from `global.css` — do NOT redeclare it (the
+`skeleton-shimmer` keyframe from `styles/footer-card-preview.css` — do NOT redeclare it (the
 `motion-tokens.test.ts` guard enforces a single declaration). The CSS class
 family is `deck-analysis-skeleton` / `deck-analysis-skeleton-bar` / etc., in
 `styles/deck-builder.css`. The skeleton disappears as soon as any lane content
@@ -641,7 +654,7 @@ calls `show()` from `useShortcutRegistry`. It is `display:none` by default and
 revealed only at `≥1024px` + `(hover:hover) and (pointer:fine)` — i.e. desktop
 fine-pointer only. Do NOT add similar chips to page headers/toolbars.
 
-**`kbd` styling.** The overlay uses `.shortcuts-overlay-kbd` (from `global.css`).
+**`kbd` styling.** The overlay uses `.shortcuts-overlay-kbd` (from `styles/modals-dialogs.css`).
 The footer chip uses `.footer-shortcuts-kbd`. Both have the same visual treatment
 (mono, small-caps-border box) — don't hand-roll a third variant.
 

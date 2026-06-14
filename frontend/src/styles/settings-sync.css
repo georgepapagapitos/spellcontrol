@@ -1,0 +1,493 @@
+/* settings-sync.css — split from global.css (#refactor).
+   Header settings gear link + sync-status indicator pill + the /settings page (sections, rows, theme grid, danger zone). */
+
+/* Gear-icon Settings link in the desktop site header — sibling to the
+   primary nav links, simpler than a popover since the page handles
+   everything. */
+.site-nav-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.site-nav-settings:hover {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+}
+
+.site-nav-settings.active {
+  color: var(--accent);
+}
+
+@media (max-width: 1024px) {
+  .site-nav-settings-label {
+    display: none;
+  }
+}
+
+/* Header sync indicator — compact pill showing whether the device is
+   currently pushing/pulling, the last-synced timestamp (tooltip), or
+   "Local only" for guests. Pure status; sign-in lives in Settings, not
+   the header. Mirrors the .site-nav-count badge sizing so it tucks neatly
+   between the primary nav and the user controls. */
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1px 0.55rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sync-indicator-ready {
+  color: var(--text-secondary);
+}
+
+.sync-indicator-check {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.sync-indicator-syncing {
+  color: var(--accent);
+  border-color: var(--accent-light);
+  background: var(--accent-light);
+}
+
+.sync-indicator-local {
+  color: var(--text-muted);
+}
+
+.sync-indicator-offline {
+  color: var(--text-muted);
+  border-color: var(--border);
+  background: var(--surface-raised);
+}
+
+.sync-indicator-pending {
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+}
+
+.sync-indicator-error {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.sync-indicator-spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-light);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-indicator-spinner {
+    animation: none;
+  }
+}
+
+/* No tablet/mobile override needed: the header stays visible at all
+   widths now (only the duplicated nav links + Settings tab are hidden
+   below 1024px), so the indicator rides along unchanged. */
+
+/* Header-mounted compact indicator — wraps the pill in a router Link so
+   tapping leads to Settings. Strip link chrome; the pill itself is the
+   affordance. */
+.header-sync-indicator {
+  text-decoration: none;
+  cursor: pointer;
+}
+.header-sync-indicator:hover {
+  filter: brightness(0.92);
+}
+
+/* Global price-refresh progress pill. A manual refresh on a large collection
+   pages into many chunks and runs a while; this keeps "Refreshing prices
+   (3/12)…" visible after the user leaves Settings. It lives in the app shell
+   (NOT the header, which is display:none <1024px), so it shows identically on
+   desktop, mobile web, and native. Mirrors the toast viewport — fixed, centered,
+   --z-tooltip, pointer-events:none — but docks to the TOP (--safe-top clears the
+   native status bar) so it never collides with the bottom toasts or nav. Reuses
+   the syncing-pill color treatment + .sync-indicator-spinner. */
+.price-refresh-indicator {
+  position: fixed;
+  inset: calc(var(--safe-top) + 0.6rem) 1rem auto 1rem;
+  z-index: var(--z-tooltip);
+  pointer-events: none;
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  margin-inline: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--accent-light);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: var(--shadow-tooltip);
+  animation: price-refresh-pop 160ms ease-out;
+}
+
+@keyframes price-refresh-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .price-refresh-indicator {
+    animation: none;
+  }
+}
+
+/* Settings page — full route at /settings. Stacked sections with the
+   same card aesthetic used elsewhere (binder cards, breakdown cards). */
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-page-hero {
+  margin-bottom: 0.5rem;
+}
+
+.settings-page-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.settings-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.settings-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.settings-card-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.settings-card-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.settings-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* One row = label + description on the left, action button on the right.
+   Wraps below ~520px so the button doesn't squeeze the label. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.settings-card-body > .settings-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-row-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.1rem;
+}
+
+.settings-row-value {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+/* Inline flex so an InfoTip icon can sit right after the label text. */
+.settings-row-value--with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.settings-row-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 520px) {
+  .settings-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-row .pill-btn {
+    align-self: flex-end;
+  }
+}
+
+.settings-row-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.settings-row-meta code {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  background: var(--surface-raised);
+  padding: 0 0.3em;
+  border-radius: 3px;
+}
+
+.settings-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.settings-row-error {
+  color: var(--danger, #b00);
+}
+
+.settings-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.settings-share-kind {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+.settings-share-name--deleted {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.settings-share-url {
+  color: var(--text-muted);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.settings-share-url:hover,
+.settings-share-url:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+  .settings-share-row .settings-share-actions {
+    align-self: stretch;
+    justify-content: flex-end;
+  }
+}
+
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-toggle input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.settings-progress {
+  position: relative;
+  height: 6px;
+  margin-top: 0.4rem;
+  background: var(--surface-raised);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.settings-progress > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent, #4c8df6);
+  transition: width var(--motion-fast) linear;
+}
+
+.card-art-placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.card-art-placeholder-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.card-art-placeholder-mana {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+}
+
+.card-art-placeholder-type {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.card-art-placeholder-text {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.settings-theme-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.5rem;
+}
+
+.settings-theme-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'swatch name'
+    'swatch guild';
+  align-items: center;
+  gap: 0.1rem 0.65rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.settings-theme-option:hover {
+  border-color: var(--accent);
+}
+
+.settings-theme-option.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.settings-theme-swatch {
+  grid-area: swatch;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 50%;
+  border: 0.5px solid var(--border-strong);
+}
+
+.settings-theme-name {
+  grid-area: name;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.settings-theme-guild {
+  grid-area: guild;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Reuse pill-btn for the action buttons; just add a danger variant for
+   destructive actions like Sign out / Delete. */
+.pill-btn-danger {
+  color: var(--err-text);
+  border-color: color-mix(in srgb, var(--err-text) 40%, transparent);
+}
+
+.pill-btn-danger:hover,
+.pill-btn-danger:focus-visible {
+  background: var(--err-bg);
+  border-color: var(--err-text);
+  color: var(--err-text);
+}

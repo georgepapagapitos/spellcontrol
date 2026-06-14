@@ -9,7 +9,8 @@ import { dirname, join } from 'node:path';
 // env (see vitest.config.ts), so fs is available.
 const here = dirname(fileURLToPath(import.meta.url));
 const themesCss = readFileSync(join(here, 'themes.css'), 'utf8');
-const globalCss = readFileSync(join(here, 'global.css'), 'utf8');
+// The :root fallback token block lives in tokens.css (split from global.css).
+const tokensCss = readFileSync(join(here, 'tokens.css'), 'utf8');
 
 // UX-103 guard: `--text-muted` (muted text — tab-bar labels, meta lines, "Hold"
 // verdicts) must clear WCAG AA (4.5:1) against every surface it can sit on
@@ -104,7 +105,7 @@ describe('theme contrast (UX-103)', () => {
   }
 
   it(':root fallback --text-muted clears AA on its bg/surface/surfaceRaised', () => {
-    const root = globalCss.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const root = tokensCss.match(/:root\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     const bg = tokenIn(root, 'bg');
     const surface = tokenIn(root, 'surface');
     const surfaceRaised = tokenIn(root, 'surface-raised');

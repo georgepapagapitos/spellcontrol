@@ -1,0 +1,177 @@
+/* base-layout.css — split from global.css (#refactor).
+   App-shell layout + base element wiring (html/body/.app-shell/.app-main/.site-header) and Capacitor WebView touch polish. */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-serif);
+  background: var(--bg);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* App-shell layout: the shell is a fixed-height (100dvh) non-scrolling
+   flex column — header, the scrolling main region, and the mobile tab
+   bar — and .app-main is the single scroll container. Nothing is
+   position:fixed and the document never scrolls, so a mobile browser's
+   URL-bar show/hide animation cannot shift the tab bar. The shell height
+   tracks the dynamic viewport, so the bar stays glued to the visible
+   bottom edge with no jump. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  /* Containing block for the native nav FAB (components/NavFab.tsx): it is
+     position:absolute against this stable 100dvh box rather than
+     position:fixed, so the URL-bar shift this layout dodges can't reach it. */
+  position: relative;
+  /* Reserve the device's top safe-area strip (status bar / notch). Zero on
+     desktop and most mobile browsers; non-zero in a Capacitor WebView and
+     on iOS Safari with notched devices. */
+  padding-top: var(--safe-top);
+}
+
+.app-main {
+  flex: 1 1 auto;
+  /* min-height:0 lets this flex child shrink below its content so it can
+     actually scroll instead of expanding the shell. */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: clip;
+  /* Keep scroll/overscroll contained to this region — no chaining to the
+     shell and no browser overscroll glow/navigation. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Page horizontal gutter is exposed as a custom property so sticky
+     bars / bleed elements (.collection-toolbar-row, the index search
+     rows) can mirror it via negative margins and stay flush with the
+     content edge at every breakpoint. */
+  --page-gutter: 1rem;
+  padding: 0 var(--page-gutter) 2rem;
+  /* When a focused field is scrolled into view, keep it clear of the soft
+     keyboard (and leave a 1rem cushion). No-op when no keyboard is shown. */
+  scroll-padding-bottom: calc(var(--keyboard-inset) + 1rem);
+}
+
+/* Phones get a tighter gutter — every pixel of side padding eats ~9%
+   of content width at 360px viewports, and most pages already host
+   panels/cards with their own internal padding so the page-level
+   gutter is mostly empty space. */
+@media (max-width: 600px) {
+  .app-main {
+    --page-gutter: 0.5rem;
+  }
+}
+
+/* Native has no in-flow bottom tab bar — the nav FAB floats over content.
+   Reserve room at the bottom of the scroll region so the last row of any
+   page clears the docked FAB and the system gesture strip. */
+.capacitor .app-main {
+  padding-bottom: calc(5rem + var(--safe-bottom));
+}
+
+button {
+  font-family: var(--font-serif);
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: var(--font-serif);
+}
+
+/* ── Native (Capacitor WebView) touch polish ────────────────────────────
+   Strip the browser-grade touch chrome that looks wrong in a packaged
+   app: the blue/grey tap-highlight flash that paints behind every
+   tappable element (Play history toggle, collection grid cards), and the
+   long-press text-selection "carousel"/callout menu. Scoped to
+   `.capacitor` (set on <html> by lib/platform.ts) so the web build keeps
+   normal selection + accessibility affordances. Editable and explicitly
+   selectable elements opt back in below. */
+.capacitor,
+.capacitor * {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Re-enable selection/callout where it's genuinely useful — editable
+   fields and anything explicitly marked `.selectable`. */
+.capacitor input,
+.capacitor textarea,
+.capacitor [contenteditable='true'],
+.capacitor .selectable {
+  -webkit-touch-callout: default;
+  user-select: text;
+}
+
+.container {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding-top: var(--space-5);
+}
+
+.site-header {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+  padding: 0 var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-panel);
+}
+
+.site-header-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 3.25rem;
+}
+
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.site-brand:hover {
+  color: var(--accent-hover);
+}
+
+.site-brand-mark {
+  display: none;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+@media (max-width: 1024px) {
+  /* Top header is replaced by the bottom tab bar (web) or NavFab (native)
+     on tablet/mobile. Sign-in entry on small screens lives behind the
+     Settings tab, with a guest-mode dot on that tab to telegraph the
+     unfinished account state. */
+  .site-header {
+    display: none;
+  }
+  .container {
+    padding-top: var(--space-3);
+  }
+}
+
+.site-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

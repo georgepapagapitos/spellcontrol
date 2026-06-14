@@ -1,0 +1,1445 @@
+/* admin-scanner.css — split from global.css (#refactor).
+   Admin/debug page + ProgressBar + camera card-scanner overlay (video, queue sheet, in-sheet search, keyframes) + reduced-motion press-feedback override. */
+
+/* ── Admin / debug page ─────────────────────────────────────────────── */
+.admin-page {
+  padding: 1rem 0 4rem;
+}
+.admin-header h1 {
+  margin: 0 0 0.25rem;
+}
+.admin-sub {
+  color: var(--muted, #888);
+  font-size: var(--text-sm);
+  margin: 0.25rem 0;
+}
+.admin-sub code {
+  background: var(--surface-raised);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border, #333);
+  margin: 1rem 0;
+}
+.admin-tab {
+  background: none;
+  border: none;
+  padding: 0.5rem 0.9rem;
+  color: inherit;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-size: var(--text-sm);
+}
+.admin-tab:hover {
+  background: var(--surface-raised);
+}
+.admin-tab--active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+.admin-section {
+  margin: 1.25rem 0;
+}
+.admin-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-md);
+}
+.admin-section h3 {
+  margin: 1.25rem 0 0.35rem;
+  font-size: var(--text-base);
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+  vertical-align: top;
+}
+.admin-table th {
+  font-weight: 600;
+  color: var(--muted, #aaa);
+}
+.admin-table--dense td,
+.admin-table--dense th {
+  padding: 0.2rem 0.45rem;
+}
+.admin-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-xs);
+  color: var(--muted, #888);
+}
+.admin-err {
+  color: var(--err-text);
+  font-weight: 600;
+}
+.admin-row--err {
+  background: var(--err-bg);
+}
+.admin-row--err td {
+  color: var(--err-text);
+}
+.admin-warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--warn-border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+}
+.admin-subopt-info {
+  margin-top: 0.85rem;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-raised);
+}
+.admin-subopt-info > summary {
+  cursor: pointer;
+  user-select: none;
+}
+.admin-subopt-info > summary:hover {
+  color: var(--text-primary);
+}
+.admin-deck-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+}
+@media (max-width: 720px) {
+  .admin-deck-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.admin-deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+}
+.admin-deck-list li {
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.admin-deck-link {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.admin-deck-link:hover {
+  background: var(--surface-raised);
+}
+.admin-deck-link.is-active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.admin-deck-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.admin-deck-meta {
+  font-size: var(--text-xs);
+  color: var(--muted, #888);
+}
+.admin-claim-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: var(--text-xs);
+}
+.admin-search {
+  width: 100%;
+  max-width: 320px;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
+  background: var(--surface-raised);
+  color: inherit;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+}
+.admin-danger-h {
+  color: var(--err-text);
+}
+.admin-danger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-danger button {
+  background: var(--err-bg);
+  color: var(--err-text);
+  border: 1px solid var(--err-border);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-danger button:hover {
+  filter: brightness(1.15);
+}
+.admin-raw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-raw-actions button {
+  background: var(--surface-raised);
+  color: inherit;
+  border: 1px solid var(--border, #333);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-raw-actions button:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.admin-footer-note {
+  margin-top: 2rem;
+}
+
+/* ── ProgressBar ─────────────────────────────────────────────────────── */
+.progress-bar {
+  width: 100%;
+}
+
+/* Top-of-panel progress slot used by UploadPanel while a collection
+   import / backup restore runs. Same vertical rhythm as the success
+   / unresolved banners that follow it so the panel doesn't jump
+   when the bar appears. */
+.upload-progress {
+  margin-bottom: 0.75rem;
+}
+
+/* The track/fill (incl. the indeterminate sweep) is the shared <MeterBar>
+   primitive (components/shared/MeterBar.tsx) at size="md". */
+
+.progress-bar-msg {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 0.35rem;
+}
+
+/* ── Card scanner (camera-based import) ────────────────────────────────────
+ * Full-viewport overlay; video fills behind a card-shaped viewfinder.
+ * Mobile-first: the layout assumes a portrait phone but degrades cleanly
+ * to landscape and desktop. Z-index sits above the standard modal stack
+ * so it can be triggered from inside ImportSheet without conflicts.
+ */
+.scanner-root {
+  position: fixed;
+  inset: 0;
+  /* Full-screen capture overlay — above the modal stack. Token, not raw 1100. */
+  z-index: var(--z-overlay);
+  background: #000;
+  color: #fff;
+  /* The scanner is an always-dark overlay regardless of the app's light/dark
+     theme, so pin the subtree to a dark color-scheme — native chrome
+     (scrollbars, caret, any UA form controls) then renders dark instead of
+     following the app's `:root { color-scheme: light }`. */
+  color-scheme: dark;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Pin to the *small viewport* so the layout doesn't shift when the
+     mobile URL bar expands/collapses. `100svh` is the floor; `100dvh` would
+     stretch as the URL bar collapses and is jumpy on iOS Safari. Plain
+     `100vh` (used in older builds) was the bug — it includes the URL bar
+     area and overflows when it's visible, which is why the camera looked
+     "zoomed in" and the page scrolled. */
+  height: 100vh;
+  height: 100svh;
+  /* Block touchmove from leaking through to the body. */
+  overscroll-behavior: contain;
+  touch-action: none;
+  /* Honor iOS notch / Android nav bar. */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+.scanner-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Honest preview: show the entire camera feed at its true aspect ratio.
+     The viewfinder is positioned in JS to live *inside* the visible
+     video band, so the cover-cropping we used to do (which magnified
+     the feed and hid most of the sensor) is no longer useful. The
+     letterbox space outside the video is plain black — explicitly not
+     a UI element. */
+  object-fit: contain;
+  background: #000;
+}
+
+/* In the Capacitor WebView we don't use the <video> element at all — the
+   native camera-preview plugin renders behind the (transparent) WebView.
+   When the scanner is active we hide the rest of the app entirely so the
+   WebView paints only the scanner overlay (viewfinder, hints, buttons),
+   and everywhere else is transparent — letting the native preview show
+   through. The scanner is portalled to document.body so it lives outside
+   #root and stays visible. */
+.capacitor.scanner-active,
+.capacitor.scanner-active body {
+  background: transparent;
+}
+.capacitor.scanner-active #root {
+  visibility: hidden;
+}
+.capacitor .scanner-root {
+  background: transparent;
+}
+
+/* Tap-to-rescan surface: transparent full-bleed button beneath the corner
+   chrome (which sits at z-index ≥ 3). A bare-camera tap forces a capture so
+   the user can intentionally add another copy of the same card. */
+.scanner-capture-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scanner-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Transparent passthrough for the matched-card quad polygon, which is
+     drawn (and animated out) by JS on a successful scan. Kept around so the
+     outline stays above the video element regardless of stacking context. */
+}
+
+/* Floating close button (top-left). No fixed topbar anymore — the
+   camera feed is the canvas and chrome is anchored to the corners. */
+.scanner-close-btn {
+  position: absolute;
+  top: calc(0.75rem + var(--safe-top));
+  left: 0.75rem;
+  z-index: 3;
+}
+
+.scanner-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+.scanner-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.scanner-icon-btn:active {
+  transform: scale(0.95);
+}
+.scanner-icon-btn.active {
+  background: #fde68a;
+  color: #1a1a1a;
+  border-color: #fde68a;
+}
+
+/* Top-center running total pill. Shows the summed market value of every
+   card in the staging queue. Sized one step above the icon buttons so
+   it reads as the primary status, not a control. */
+.scanner-total-pill {
+  position: absolute;
+  top: calc(0.75rem + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Top-right vertical action stack: queue (with badge), torch, settings.
+   The container provides the grouped-pill background — children reuse
+   `.scanner-icon-btn` with an "inside-stack" override that drops their
+   own border + background so the group reads as one element. */
+.scanner-action-stack {
+  position: absolute;
+  top: calc(0.75rem + var(--safe-top));
+  right: 0.75rem;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.scanner-action-stack .scanner-icon-btn {
+  position: relative;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  backdrop-filter: none;
+}
+.scanner-action-stack .scanner-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+/* Numeric badge over the queue button. Animates in on every increment
+   so the user sees the count bump when a card is auto-added. Cyan
+   matches the existing scanner-accent (lockbox, sheet-count). */
+.scanner-stack-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #38bdf8;
+  color: #082f49;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(0, 0, 0, 0.85);
+  animation: scanner-count-pop var(--motion-gentle) var(--ease-pop);
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-stack-badge {
+    animation: none;
+  }
+}
+
+/* Pop animation for the stack-badge (queue counter). Kept as a shared
+   keyframe so any future count indicator can reuse it. Colors are
+   left to the badge rule to avoid coupling the animation to a palette. */
+@keyframes scanner-count-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.scanner-hint {
+  position: absolute;
+  top: 4.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  font-size: var(--text-sm, 0.875rem);
+  z-index: 3;
+  animation: scanner-hint-in 0.18s ease-out;
+}
+@keyframes scanner-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Bottom card panel — persistent summary of the most-recent scan.
+   Replaces the old transient toast: stays on screen until a new card
+   takes its place, so the user can review the read at their pace.
+   Layout: two stacked rows in a single blurred container.
+     Row 1: thumb + name + market price + chevron-into-queue
+     Row 2: set·collector + +qty button
+   The `tier-*` modifier glows the border by value tier — same colors
+   as the rest of the scanner so the visual language stays consistent. */
+.scanner-card-panel {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(0.75rem + var(--safe-bottom));
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  color: #f1f5f9;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  animation: scanner-card-panel-in 0.22s var(--ease-drawer);
+}
+.scanner-card-panel.tier-1 {
+  border-color: rgba(56, 189, 248, 0.55);
+}
+.scanner-card-panel.tier-2 {
+  border-color: rgba(167, 139, 250, 0.6);
+  box-shadow:
+    var(--shadow-modal),
+    0 0 18px rgba(167, 139, 250, 0.25);
+}
+.scanner-card-panel.tier-3 {
+  border-color: rgba(253, 224, 71, 0.7);
+  box-shadow:
+    var(--shadow-modal),
+    0 0 28px rgba(253, 224, 71, 0.4);
+}
+@keyframes scanner-card-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-card-panel {
+    animation: none;
+  }
+}
+
+.scanner-card-panel-main {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.scanner-card-panel-main:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.scanner-card-panel-main:active {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.scanner-card-panel-thumb {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 58px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1e293b;
+}
+.scanner-card-panel-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scanner-card-panel-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.scanner-card-panel-name {
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scanner-card-panel-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.scanner-card-panel-market {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #7dd3fc;
+  font-size: var(--text-xs);
+}
+.scanner-card-panel-amount {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.scanner-card-panel-chevron {
+  flex: 0 0 auto;
+  color: rgba(241, 245, 249, 0.6);
+}
+
+/* Variant-meta row: set·collector + the qty stepper. The +N button bumps
+   qty for the *currently displayed* card. */
+.scanner-card-panel-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: var(--text-xs);
+  color: rgba(241, 245, 249, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+/* set·collector — a button that opens the printing picker. The dotted
+   underline hints "tap to change" without shouting; otherwise it reads as
+   the plain meta text it replaced. */
+.scanner-card-panel-set {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  letter-spacing: 0.04em;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: underline dotted rgba(241, 245, 249, 0.35);
+  text-underline-offset: 3px;
+  transition: transform 0.1s ease;
+}
+.scanner-card-panel-set:hover {
+  color: #fff;
+  text-decoration-color: rgba(125, 211, 252, 0.8);
+}
+.scanner-card-panel-set:active {
+  transform: scale(0.98);
+}
+
+/* Finish toggle chips, shared by the scanner panel and the queue-sheet rows.
+   Only rendered when the printing has a foil/etched variant; tapping cycles
+   through the available finishes. The foil state gets a rainbow sheen, etched
+   a gold tint — so the chip telegraphs the selected finish at a glance. */
+.scanner-card-panel-finish,
+.scanner-finish-toggle {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(241, 245, 249, 0.85);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+.scanner-card-panel-finish:active,
+.scanner-finish-toggle:active {
+  transform: scale(0.96);
+}
+.scanner-card-panel-finish.finish-foil,
+.scanner-finish-toggle.finish-foil {
+  border-color: rgba(167, 139, 250, 0.6);
+  background: linear-gradient(
+    120deg,
+    rgba(56, 189, 248, 0.22),
+    rgba(167, 139, 250, 0.22),
+    rgba(244, 114, 182, 0.22)
+  );
+  color: #ede9fe;
+}
+.scanner-card-panel-finish.finish-etched,
+.scanner-finish-toggle.finish-etched {
+  border-color: rgba(253, 224, 71, 0.6);
+  background: rgba(253, 224, 71, 0.16);
+  color: #fde68a;
+}
+
+.scanner-card-panel-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+}
+.scanner-card-panel-add:hover {
+  background: rgba(56, 189, 248, 0.26);
+}
+.scanner-card-panel-add:active {
+  transform: scale(0.96);
+}
+
+.scanner-error {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.85);
+  text-align: center;
+}
+.scanner-error p {
+  max-width: 28ch;
+  line-height: 1.4;
+}
+.scanner-error-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* Starting state — full-bleed dark cover with a spinner while the native
+   preview spins up, so the corner chrome isn't floating over a black void. */
+.scanner-starting {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem;
+  background: #000;
+  color: rgba(241, 245, 249, 0.85);
+  text-align: center;
+}
+.scanner-starting p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.scanner-starting-spinner {
+  color: #7dd3fc;
+  animation: spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-starting-spinner {
+    animation: none;
+  }
+}
+
+/* (Old bottom-controls footer + manual capture button removed —
+   the new layout is auto-capture only, with chrome anchored to the
+   four corners and the bottom card panel taking the footer slot.) */
+
+/* --- Queue review sheet -------------------------------------------------
+   Slides up from the bottom of the scanner. Lives *inside* `.scanner-root`
+   so it inherits the dialog stacking context; the backdrop catches taps
+   to dismiss while the panel itself blocks pointer events from leaking
+   through to the viewfinder. */
+.scanner-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.scanner-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  animation: scanner-sheet-fade 0.18s ease-out;
+}
+.scanner-sheet-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 78%;
+  background: #0f172a;
+  color: #f1f5f9;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.55);
+  padding-bottom: var(--safe-bottom);
+  animation: scanner-sheet-slide 0.22s var(--ease-out-soft);
+}
+@keyframes scanner-sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scanner-sheet-slide {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+/* Mirror of scanner-sheet-slide for dismissal — the panel nudges back down
+   and fades while the scrim fades out, so close is symmetric with open on
+   every path (backdrop / ✕ / Escape / "Continue scanning"). Driven by the
+   .is-closing class via useSheetExit. */
+@keyframes scanner-sheet-slide-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+}
+.scanner-sheet-panel.is-closing {
+  animation: scanner-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
+}
+.scanner-sheet-backdrop.is-closing {
+  animation: fade-out var(--motion-gentle) ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scanner-sheet-backdrop,
+  .scanner-sheet-panel,
+  .scanner-sheet-backdrop.is-closing,
+  .scanner-sheet-panel.is-closing {
+    animation: none;
+  }
+}
+
+.scanner-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scanner-sheet-title {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.scanner-sheet-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: #38bdf8;
+  color: #082f49;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.scanner-sheet-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: rgba(241, 245, 249, 0.7);
+  font-size: var(--text-sm);
+}
+
+/* --- In-sheet Scryfall search ------------------------------------------
+   A search field pinned under the sheet header. When the user types, the
+   results render below it (in normal flow, capped + scrollable) so the
+   scanned list shrinks rather than getting overlaid. Adds route through the
+   queue's manual-add path. Dark surface to match the rest of the sheet. */
+.scanner-search {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scanner-search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  /* Solid (not translucent): a translucent fill reads white if anything behind
+     it ever paints light, so pin the pill to an explicit dark slate. */
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(241, 245, 249, 0.6);
+}
+.scanner-search-field:focus-within {
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(56, 189, 248, 0.08);
+}
+/* Specificity matters here: the global form rule
+   `select, input[type=number], input[type=text], input[type=search]` sets
+   `background: var(--bg); color: var(--text-primary); border/padding/radius` at
+   (0,1,1), which beats a lone `.scanner-search-input` (0,1,0) — so on a light
+   theme the input rendered with the theme's white `--bg`. Scoping with the
+   field class raises this to (0,2,0) so we win, and we explicitly null out the
+   leaked border/padding/radius so the input is a bare transparent field
+   sitting in the dark pill. */
+.scanner-search-field .scanner-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: #f1f5f9;
+  font: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.scanner-search-field .scanner-search-input::placeholder {
+  color: rgba(241, 245, 249, 0.5);
+}
+/* Autofill would otherwise repaint the field with the WebView's light/white
+   fill; pin it to the dark pill instead. */
+.scanner-search-input:-webkit-autofill,
+.scanner-search-input:-webkit-autofill:hover,
+.scanner-search-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1f5f9;
+  /* Opaque inset fill so an autofilled value can't show the WebView's white
+     autofill background through it. */
+  -webkit-box-shadow: 0 0 0 1000px #1e293b inset;
+  caret-color: #f1f5f9;
+}
+.scanner-search-results {
+  margin-top: 0.5rem;
+  max-height: 44vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scanner-search-status {
+  padding: 0.75rem 1rem;
+  font-size: var(--text-sm);
+  color: rgba(241, 245, 249, 0.65);
+  text-align: center;
+}
+.scanner-search-error {
+  color: #fca5a5;
+}
+.scanner-search-result {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  background: transparent;
+  color: #f1f5f9;
+  text-align: left;
+  cursor: pointer;
+}
+.scanner-search-result:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.scanner-search-result:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+.scanner-search-thumb {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 42px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #1e293b;
+}
+.scanner-search-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scanner-search-result-body {
+  flex: 1;
+  min-width: 0;
+}
+.scanner-search-result-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scanner-search-result-meta {
+  margin-top: 0.1rem;
+  font-size: var(--text-xs);
+  color: rgba(241, 245, 249, 0.6);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scanner-search-add {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+}
+.scanner-search-add.added {
+  border-color: rgba(80, 220, 130, 0.6);
+  background: rgba(80, 200, 120, 0.2);
+  color: #86efac;
+}
+.scanner-sheet-list {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.scanner-sheet-row {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.scanner-sheet-row:last-child {
+  border-bottom: none;
+}
+.scanner-sheet-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+.scanner-sheet-thumb {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 62px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1e293b;
+}
+.scanner-sheet-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scanner-sheet-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  padding: 0.2rem;
+  text-align: center;
+  line-height: 1.15;
+  color: rgba(241, 245, 249, 0.7);
+}
+.scanner-sheet-row-body {
+  flex: 1;
+  min-width: 0;
+}
+.scanner-sheet-row-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scanner-sheet-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+  font-size: var(--text-xs);
+  color: rgba(241, 245, 249, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+.scanner-sheet-row-price {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+  font-weight: 600;
+}
+.scanner-sheet-row-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+.scanner-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.scanner-qty-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  cursor: pointer;
+}
+.scanner-qty-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.scanner-qty-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.scanner-qty-value {
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+}
+.scanner-printing-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+.scanner-printing-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.scanner-printing-toggle.open {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #e0f2fe;
+}
+.scanner-sheet-remove {
+  width: 32px;
+  height: 32px;
+}
+.scanner-printing-picker {
+  margin-top: 0.5rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.scanner-printing-loading {
+  padding: 0.75rem 1rem;
+  font-size: var(--text-sm);
+  color: rgba(241, 245, 249, 0.65);
+  text-align: center;
+}
+.scanner-printing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+}
+.scanner-printing-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #f1f5f9;
+  cursor: pointer;
+  text-align: left;
+}
+.scanner-printing-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.scanner-printing-item.selected {
+  background: rgba(56, 189, 248, 0.2);
+  outline: 1px solid rgba(56, 189, 248, 0.4);
+}
+.scanner-printing-thumb {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 45px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #1e293b;
+}
+.scanner-printing-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scanner-printing-meta {
+  min-width: 0;
+}
+.scanner-printing-set {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.scanner-printing-setname {
+  font-size: var(--text-xs);
+  color: rgba(241, 245, 249, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scanner-sheet-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scanner-sheet-footer .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* --- Lists: per-list entries view ---------------------------------------
+   Reuses the collection list row/thumb/main/right scaffold; these add only
+   the bits unique to unowned list entries (the passive "you own N" badge
+   and the inline qty/note/target editors). */
+.list-add-search {
+  margin-bottom: 1rem;
+}
+
+.list-add-search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.list-add-search-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  outline: none;
+}
+
+.list-entry-row {
+  align-items: flex-start;
+  cursor: default;
+}
+
+.list-entry-owned {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.list-entry-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.list-entry-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.list-entry-note {
+  flex: 1;
+  min-width: 8rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.list-entry-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.list-entry-target-input {
+  width: 5rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.list-entry-actions {
+  gap: 0.3rem;
+}
+
+/* ---------- Admin panel (Settings page, role=admin only) ---------- */
+
+/* Horizontal scroll fallback so the actions column stays reachable on narrow
+   viewports instead of being clipped by the settings card. */
+.admin-users-table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-users-table {
+  width: 100%;
+  min-width: 26rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-users-table th,
+.admin-users-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.admin-users-table th {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.admin-users-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-users-table td,
+.admin-users-table th {
+  white-space: nowrap;
+}
+
+.admin-users-table td:last-child {
+  text-align: right;
+}
+
+.admin-role-pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+}
+
+.admin-role-pill.is-admin {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.admin-delete-actions {
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* ── Reduced motion: press-feedback buttons (UX-206) ─────────────────────────
+   The press still snaps to scale(0.97) — positional feedback, not motion —
+   but nothing eases. Explicit gate per STYLE_GUIDE (the global 0.001ms kill
+   is a backstop, not the mechanism). Lives at the end of the file so it wins
+   the equal-specificity cascade against every base rule above. */
+@media (prefers-reduced-motion: reduce) {
+  .pill-btn,
+  .btn,
+  .btn-link,
+  .btn-link-danger,
+  .btn-add-group,
+  .filter-popover-btn,
+  .sort-popover-btn,
+  .collection-toolbar-stats-btn,
+  .pagination-btn,
+  .color-filter-btn {
+    transition: none;
+  }
+}

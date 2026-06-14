@@ -1,0 +1,451 @@
+/* binder-nav.css — split from global.css (#refactor).
+   Binder navigation chrome: stat sublabel, binder tab row/group, active-binder overflow menu, mobile binder picker sheet, tab actions. */
+
+/* ── Stat sublabel ──────────────────────────────────────────────────────── */
+.stat-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+/* ── Binder tabs (extended for new dynamic-binder model) ────────────────── */
+.binder-tab-row {
+  align-items: stretch;
+  gap: 4px;
+}
+
+.binder-tab-group {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}
+
+.binder-tab-group .tab {
+  border-radius: var(--radius);
+}
+
+.binder-tab-group.active .tab {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* ── Active-binder overflow menu (replaces inline action strip) ─────────── */
+.binder-overflow {
+  position: relative;
+  display: flex;
+}
+
+.binder-overflow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--accent);
+  border-left: none;
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: 0 10px;
+  min-width: 36px;
+  cursor: pointer;
+  transition: background var(--motion-fast);
+}
+
+.binder-overflow-btn:hover,
+.binder-overflow-btn[aria-expanded='true'] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.binder-overflow-backdrop {
+  /* Hidden by default — only used as the bottom-sheet scrim on mobile. */
+  display: none;
+}
+
+.binder-overflow-handle {
+  display: none;
+}
+
+.binder-overflow-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 11rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 1024px) {
+  /* Mobile: the dropdown becomes a bottom action sheet. Full width,
+     large touch targets, scrim behind, slide-up animation. Mirrors the
+     iOS Action Sheet / Material Bottom Sheet pattern users already know
+     from native apps — and it can never be clipped by a scrolling
+     parent because it's anchored to the viewport. */
+  .binder-overflow-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-sheet);
+    z-index: var(--z-sheet-bg);
+    animation: binder-sheet-fade 160ms ease-out;
+  }
+
+  .binder-overflow-panel {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-sheet-fg);
+    min-width: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border: none;
+    border-top: 0.5px solid var(--border-strong);
+    box-shadow: var(--shadow-sheet);
+    padding: 0.5rem 0.5rem calc(0.75rem + var(--safe-bottom));
+    gap: 2px;
+    animation: binder-sheet-slide 220ms var(--ease-out-soft);
+  }
+
+  .binder-overflow-handle {
+    display: block;
+    width: 2.25rem;
+    height: 4px;
+    margin: 0.25rem auto 0.6rem;
+    border-radius: 999px;
+    background: var(--border);
+  }
+
+  .binder-overflow-item {
+    font-size: var(--text-base);
+    padding: 0.85rem 0.75rem;
+    min-height: 3rem;
+    gap: 0.75rem;
+  }
+
+  .binder-overflow-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Symmetric exit for the action sheet — slide back down + fade the scrim
+     (useSheetExit's .is-closing). Desktop never gets these classes: there
+     the panel is a plain dropdown with no entry animation, so close stays
+     instant (the component skips the hook outside this breakpoint). */
+  .binder-overflow-panel.is-closing {
+    animation: binder-sheet-slide-out var(--motion-gentle) var(--ease-drawer) forwards;
+  }
+
+  .binder-overflow-backdrop.is-closing {
+    animation: fade-out var(--motion-gentle) ease-out forwards;
+  }
+}
+
+@keyframes binder-sheet-slide {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Mirror of binder-sheet-slide for dismissal — shared by every bottom sheet
+   that enters with binder-sheet-slide (binder overflow action sheet, the
+   card-picker family). Driven by .is-closing via useSheetExit. */
+@keyframes binder-sheet-slide-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes binder-sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .binder-overflow-panel,
+  .binder-overflow-backdrop,
+  .binder-overflow-panel.is-closing,
+  .binder-overflow-backdrop.is-closing {
+    animation: none;
+  }
+}
+
+/* ── Mobile binder picker sheet (triggered by bottom-nav Binders icon) ─── */
+.binder-picker-root {
+  /* Hidden on desktop — the chip strip handles binder switching there. */
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .binder-picker-root {
+    display: block;
+  }
+
+  .binder-picker-backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-sheet);
+    z-index: var(--z-sheet-bg);
+    animation: binder-sheet-fade 160ms ease-out;
+  }
+
+  .binder-picker-sheet {
+    position: fixed;
+    /* Ride above the soft keyboard — see .card-picker-sheet. */
+    bottom: var(--keyboard-inset);
+    left: 0;
+    right: 0;
+    z-index: var(--z-sheet-fg);
+    background: var(--surface);
+    border-top: 0.5px solid var(--border-strong);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-sheet);
+    padding: 0.25rem 0.5rem calc(0.75rem + var(--safe-bottom));
+    max-height: calc(var(--vh-safe) * 0.75 - var(--keyboard-inset));
+    display: flex;
+    flex-direction: column;
+    animation: binder-sheet-slide 220ms var(--ease-out-soft);
+  }
+
+  .binder-picker-handle {
+    width: 2.25rem;
+    height: 4px;
+    margin: 0.25rem auto 0.5rem;
+    border-radius: 999px;
+    background: var(--border);
+  }
+
+  .binder-picker-title {
+    font-family: var(--font-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    padding: 0.25rem 0.5rem 0.6rem;
+    letter-spacing: -0.01em;
+  }
+
+  .binder-picker-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .binder-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius);
+    padding: 0.85rem 0.75rem;
+    min-height: 3.25rem;
+    text-align: left;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-base);
+    cursor: pointer;
+  }
+
+  .binder-picker-row:hover,
+  .binder-picker-row:focus-visible {
+    background: var(--surface-raised);
+    outline: none;
+  }
+
+  .binder-picker-row.active {
+    background: color-mix(in srgb, var(--binder-color, var(--accent)) 14%, transparent);
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--binder-color, var(--accent));
+  }
+
+  .binder-picker-row-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex: 0 0 12px;
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+  }
+
+  .binder-picker-row-name {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .binder-picker-row-count {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-sm);
+  }
+
+  .binder-picker-row.active .binder-picker-row-count {
+    color: var(--text-secondary);
+  }
+
+  .binder-picker-footer {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.5rem 0.25rem;
+    border-top: 0.5px solid var(--border);
+    margin-top: 0.25rem;
+  }
+
+  .binder-picker-footer .btn {
+    flex: 1 1 0;
+    text-align: center;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+}
+
+.binder-overflow-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.binder-overflow-item:hover:not(:disabled),
+.binder-overflow-item:focus-visible:not(:disabled) {
+  background: var(--accent-light);
+  outline: none;
+}
+
+.binder-overflow-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.binder-overflow-item--danger {
+  color: var(--err-text, #d8442a);
+}
+
+.tab-actions {
+  display: flex;
+  gap: 0;
+  border: 0.5px solid var(--accent);
+  border-left: none;
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.tab-action {
+  background: var(--surface);
+  border: none;
+  border-left: 0.5px solid var(--border);
+  padding: 0 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s;
+  font-family: var(--font-serif);
+}
+
+.tab-action:first-child {
+  border-left: none;
+}
+
+.tab-action:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+.tab-action:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tab-action.danger {
+  color: var(--err-text);
+}
+
+.tab-action.danger:hover {
+  background: var(--err-bg);
+}
+
+.tab-new {
+  border-style: dashed;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.tab-new:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tab-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tab-export:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tab-export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tab-delete-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.tab-delete-all:hover {
+  color: var(--err-text);
+  border-color: var(--err-border);
+  background: var(--err-bg);
+}
+
+.btn-danger {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+  font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled),
+.btn.btn-danger:hover:not(:disabled) {
+  background: var(--err-border);
+  border-color: var(--err-border);
+  color: var(--err-bg);
+}

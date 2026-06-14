@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // UX-105 guard: the spacing language is a fixed 4px-base scale defined once in
-// global.css (see STYLE_GUIDE.md § Color & spacing). New code spaces with
+// tokens.css (see STYLE_GUIDE.md § Color & spacing). New code spaces with
 // `var(--space-N)` instead of freehand rems; this test fails loudly if a scale
 // step's definition goes missing.
 //
@@ -14,9 +14,9 @@ import { dirname, join } from 'node:path';
 const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('spacing tokens (UX-105)', () => {
-  const globalCss = readFileSync(join(srcRoot, 'styles', 'global.css'), 'utf8');
+  const tokensCss = readFileSync(join(srcRoot, 'styles', 'tokens.css'), 'utf8');
 
-  it('defines all eight --space-* scale steps in global.css', () => {
+  it('defines all eight --space-* scale steps in tokens.css', () => {
     for (const token of [
       '--space-1',
       '--space-2',
@@ -28,8 +28,8 @@ describe('spacing tokens (UX-105)', () => {
       '--space-8',
     ]) {
       expect(
-        new RegExp(`${token}\\s*:`).test(globalCss),
-        `${token} should be defined in global.css`
+        new RegExp(`${token}\\s*:`).test(tokensCss),
+        `${token} should be defined in tokens.css`
       ).toBe(true);
     }
   });
