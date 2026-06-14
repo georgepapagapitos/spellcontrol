@@ -1,0 +1,316 @@
+/* play-layout-editor.css — split from play.css (#refactor).
+   Custom table-layout editor: the seat-facing picker, the "Custom…" layout tile, and the drag editor modal (.cle-*). */
+
+/* ════════════════════════════════════════════════════════════════════════
+   Custom table layout: per-seat facing + grid editor
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Seat menu: panel facing ── */
+.seat-menu-facing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.seat-menu-facing-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.seat-menu-facing-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.seat-menu-facing-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.seat-menu-facing-btn.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ── Layout picker: the "Custom…" tile ── */
+.layout-option-custom {
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 78px;
+}
+
+.layout-option-custom-glyph {
+  font-size: clamp(1.3rem, 5vmin, 1.7rem);
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.layout-option-custom-label {
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.layout-option-custom.is-selected .layout-option-custom-label {
+  color: var(--accent);
+}
+
+/* ── Custom layout editor modal ── */
+.cle-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) + 60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: pp-fade-in 160ms ease-out;
+}
+
+.cle {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-modal);
+  width: min(420px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  animation: pp-scale-in 160ms ease-out;
+}
+
+.cle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cle-title {
+  font-weight: 700;
+  font-size: var(--text-md);
+}
+
+.cle-close {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 50%;
+  width: 1.9rem;
+  height: 1.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cle-rows {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cle-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.cle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  /* Roughly a table's footprint; rows stretch within. */
+  min-height: 220px;
+}
+
+.cle-cell {
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted, var(--text-secondary));
+  font-size: clamp(1rem, 4vmin, 1.3rem);
+  cursor: pointer;
+  min-height: 44px;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.cle-cell.is-armed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cle-cell.is-over {
+  background: var(--accent-light);
+  border-style: solid;
+  border-color: var(--accent);
+}
+
+.cle-seat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border-radius: 8px;
+  padding: 0.4rem;
+  cursor: grab;
+  color: #fff;
+  touch-action: none;
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--pp-edge, #6aa6ff) 82%, transparent) 0%,
+    color-mix(in srgb, var(--pp-base, #4a5366) 92%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.cle-seat.is-selected {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.cle-seat.is-dragging {
+  opacity: 0.5;
+}
+
+.cle-seat-rot {
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cle-seat-name {
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 700;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.cle-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cle-tray-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cle-tray-chip {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cle-tray-chip.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.cle-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.cle-controls-name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.cle-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cle-ctrl {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-size: var(--text-xs, 0.72rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cle-ctrl:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cle-ctrl.is-danger {
+  color: var(--warn-text, #ff7a7a);
+  border-color: var(--warn-border, var(--border));
+}
+
+.cle-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.cle-status {
+  font-size: var(--text-xs, 0.72rem);
+  color: var(--text-secondary);
+}
+
+.cle-foot-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cle-backdrop,
+  .cle {
+    animation: none !important;
+  }
+}

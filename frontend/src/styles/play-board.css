@@ -1,0 +1,590 @@
+/* play-board.css — split from play.css (#refactor).
+   The fullscreen game board overlay + all player-panel structure (life, step buttons, tap zones, winner/eliminated/mine states) and its breakpoint scaling. */
+
+/* ── Active game: fullscreen board ─────────────────────────────────────── */
+
+.game-board {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  z-index: var(--z-overlay);
+  /* Soft canvas behind the rounded panels — picks up the app's surface
+     tone (lighter in light themes, deep navy in dark themes) so the board
+     blends with the rest of the app instead of a flat-black slate. */
+  background: var(--bg, #0c0f17);
+  color: #f4f6fa;
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  padding: calc(var(--safe-top) + 8px) calc(var(--safe-right) + 8px) calc(var(--safe-bottom) + 8px)
+    calc(var(--safe-left) + 8px);
+}
+
+.game-board-grid {
+  flex: 1;
+  display: grid;
+  /* Larger gap so the new panel border-radius is visible between cells
+     and the slate-canvas shows through as breathing room. */
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  /* The actual grid template and each panel's grid-column / grid-row are
+     set inline by GameBoard.tsx (reading from the BoardLayout registry)
+     so changing the registry never needs a CSS edit. */
+}
+
+/* ── Player panel ─────────────────────────────────────────────────────── */
+
+/* Cell wrapper around each panel. Establishes a container-query context
+   so the panel inside can size itself based on the cell's dimensions —
+   needed for sideways (90° / 270°) rotation where the panel renders with
+   swapped width/height to fit the cell after rotation. */
+.player-panel-cell {
+  container-type: size;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.player-panel {
+  /* Fills its cell by default; sideways override below uses absolute
+     positioning + swapped dimensions. */
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--pp-rot, 0deg));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  /* Rounded corners matched to the rest of the app's --radius-lg (12px).
+     Subtle drop shadow so the panel reads as a soft card rather than a
+     sharp slate block. */
+  border-radius: var(--radius-lg, 12px);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  /* Per-color playmat tones. --pp-base = bottom-right deep, --pp-edge =
+     top-left highlight, --pp-accent = saturated glow used for the winner
+     ring and host star. */
+  --pp-base: #2a3340;
+  --pp-edge: #4a5566;
+  --pp-accent: #b6c5dc;
+  background:
+    radial-gradient(ellipse at 30% 0%, var(--pp-edge) 0%, transparent 65%),
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--pp-base) 88%, white 12%) 0%,
+      var(--pp-base) 60%,
+      color-mix(in srgb, var(--pp-base) 78%, black 22%) 100%
+    );
+  /* Filter transitions for eliminated/lethal pulse. Transform is NOT
+     transitioned — when a layout switch fires, a panel that changes
+     rotation would animate while a panel that just changes grid cell
+     would snap (CSS grid placement isn't transitionable), giving an
+     inconsistent half-animated switch. Snap all panels together. */
+  transition: filter var(--motion-base) ease;
+}
+
+/* Sideways rotation (90° / 270°) — the panel is rendered with its
+   width and height swapped relative to the cell, then rotated, so the
+   rotated visual bounding box matches the cell exactly. Container
+   queries on the parent cell read the cell's pixel dimensions; we use
+   `100cqh` for the panel's width (=cell height) and `100cqw` for its
+   height (=cell width). */
+.player-panel[data-sideways] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100cqh;
+  height: 100cqw;
+  transform: translate(-50%, -50%) rotate(var(--pp-rot, 0deg));
+}
+
+.player-panel.is-eliminated {
+  filter: grayscale(0.9) brightness(0.55);
+}
+
+.player-panel.is-winner {
+  --pp-base: #7a5e14;
+  --pp-edge: #c9a23a;
+  --pp-accent: #ffe07a;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 2px var(--pp-accent);
+}
+
+.player-panel.is-mine::before {
+  /* Subtle inset highlight to mark "this is your seat" in online games.
+     Softer than the previous dashed rectangle. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+
+/* Empty-cell placeholder. Used for layouts that intentionally leave a slot
+   open (e.g. 5p in a 3×2 grid). Same shape as a player panel but reads as
+   "no player here" via a much dimmer palette. */
+.player-panel.is-empty {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  cursor: default;
+}
+
+.player-panel-content {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.65rem;
+  pointer-events: none;
+  min-height: 0;
+}
+
+@media (min-width: 600px) {
+  .player-panel-content {
+    padding: 0.75rem 0.9rem;
+  }
+}
+
+/* Corner overlays float on top of the centered life row. They sit at the
+   panel edges and never compete with the headline number. */
+.player-panel-corner {
+  position: absolute;
+  top: 0.5rem;
+  max-width: calc(100% - 3.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  pointer-events: none;
+}
+
+.player-panel-corner.is-tl {
+  left: 0.65rem;
+}
+
+@media (min-width: 600px) {
+  .player-panel-corner {
+    top: 0.7rem;
+  }
+  .player-panel-corner.is-tl {
+    left: 0.85rem;
+  }
+}
+
+/* The two tap zones cover the panel. They sit *under* the content layer
+   z-index-wise but pointer-events: none on the content lets taps pass
+   through to the zones except for interactive controls (buttons etc.,
+   which restore pointer-events). */
+.player-panel-tapzone {
+  position: absolute;
+  z-index: 1;
+  cursor: pointer;
+}
+
+/* Horizontal orientation: left half = −1, right half = +1. */
+.player-panel-tapzone.is-left,
+.player-panel-tapzone.is-right {
+  top: 0;
+  bottom: 0;
+  width: 50%;
+}
+
+.player-panel-tapzone.is-left {
+  left: 0;
+}
+
+.player-panel-tapzone.is-right {
+  right: 0;
+}
+
+/* Vertical orientation: top half = +1, bottom half = −1. */
+.player-panel-tapzone.is-top,
+.player-panel-tapzone.is-bottom {
+  left: 0;
+  right: 0;
+  height: 50%;
+}
+
+.player-panel-tapzone.is-top {
+  top: 0;
+}
+
+.player-panel-tapzone.is-bottom {
+  bottom: 0;
+}
+
+.player-panel-tapzone:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Re-enable interactivity on actual controls inside the content layer. */
+.player-panel-content button,
+.player-panel-content input,
+.player-panel-content form,
+.seat-menu {
+  pointer-events: auto;
+}
+
+.player-panel-name {
+  /* Button reset — it's a <button> (taps open the seat menu) styled as a label. */
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  letter-spacing: 0.01em;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.player-panel-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 600px) {
+  .player-panel-name {
+    font-size: var(--text-md);
+  }
+}
+
+.player-panel-host {
+  color: var(--pp-accent, #ffe07a);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+.player-panel-offline {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  margin-left: 0.2rem;
+}
+
+.player-panel-subtitle {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .game-board-3 .player-panel-subtitle,
+  .game-board-4 .player-panel-subtitle,
+  .game-board-5 .player-panel-subtitle,
+  .game-board-6 .player-panel-subtitle {
+    display: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .player-panel-subtitle {
+    display: none;
+  }
+}
+
+.player-panel-menu-btn {
+  background: rgba(0, 0, 0, 0.35);
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: var(--text-md);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease;
+}
+
+/* Per-player seat menu sits in the bottom-right corner of each panel (in
+   panel-local coords) so it stays far from the central game-menu hub at
+   the panel seams. For top-row panels (rotated 180°) bottom-right of the
+   panel renders at the screen's top-left corner — also clear of the hub. */
+.player-panel-menu-btn.is-corner-br {
+  position: absolute;
+  bottom: 0.25rem;
+  right: 0.35rem;
+  z-index: 3;
+}
+
+.player-panel-menu-btn:hover {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.player-panel-menu-btn:focus-visible {
+  background: rgba(0, 0, 0, 0.55);
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.player-panel-menu-btn:active {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.player-panel-life-wrap {
+  /* Fills the entire panel content area. The life numeral is absolutely
+     centered to 50% / 50% — independent of panel width, step-button
+     widths, or seat colSpan. The 3-player layout's wide Player 1 panel
+     and the single-column Player 2/3 panels all center identically. */
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-mono);
+  pointer-events: none;
+}
+
+.player-panel-life-wrap > .player-panel-life-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.player-panel-life-wrap > .player-panel-step-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.player-panel-life-wrap > .player-panel-step-btn:first-child {
+  left: 1.75rem;
+}
+
+.player-panel-life-wrap > .player-panel-step-btn:last-child {
+  right: 1.75rem;
+}
+
+@media (min-width: 600px) {
+  .player-panel-life-wrap > .player-panel-step-btn:first-child {
+    left: 2.5rem;
+  }
+  .player-panel-life-wrap > .player-panel-step-btn:last-child {
+    right: 2.5rem;
+  }
+}
+
+/* Multi-player panels: instead of pinning the − / + to the panel edges
+   (which leaves a big void next to a smaller numeral), anchor them to the
+   panel CENTRE and push them out by half the numeral's width (--life-half,
+   tracked to the per-count font clamp). They hug the number at any digit
+   count while it stays perfectly centred. */
+.game-board-3,
+.game-board-4 {
+  --life-half: 14vmin;
+}
+
+.game-board-5,
+.game-board-6 {
+  --life-half: 11vmin;
+}
+
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:first-child,
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:first-child,
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:first-child,
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:first-child {
+  left: 50%;
+  right: auto;
+  transform: translate(calc(-100% - var(--life-half, 11vmin)), -50%);
+}
+
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:last-child,
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:last-child,
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:last-child,
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:last-child {
+  right: 50%;
+  left: auto;
+  transform: translate(calc(100% + var(--life-half, 11vmin)), -50%);
+}
+
+/* Keep the centre-anchored X offset on press (the generic :active rule
+   resets transform to translateY only, which would snap the button to
+   centre — re-assert the offset here with higher specificity). */
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled),
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:first-child:active:not(:disabled) {
+  transform: translate(calc(-100% - var(--life-half, 11vmin)), -50%) scale(0.92);
+}
+
+.game-board-3 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
+.game-board-4 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
+.game-board-5 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled),
+.game-board-6 .player-panel-life-wrap > .player-panel-step-btn:last-child:active:not(:disabled) {
+  transform: translate(calc(100% + var(--life-half, 11vmin)), -50%) scale(0.92);
+}
+
+@media (min-width: 600px) {
+  .player-panel-life-wrap {
+    gap: 0.8rem;
+  }
+}
+
+.player-panel-life {
+  /* Life numeral dominates the panel — sized to fill, with step buttons
+     pushed to the outer edges so they read as accents, not equals. */
+  font-size: clamp(7.5rem, 34vmin, 20rem);
+  font-weight: 900;
+  line-height: 0.9;
+  color: #fff;
+  text-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.55),
+    0 0 48px rgba(0, 0, 0, 0.25);
+  letter-spacing: -0.04em;
+  pointer-events: none;
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+/* Tighter life font when 4 panels share the screen — each panel is half by
+   half the viewport, so we want a number that doesn't crowd the ±5 buttons
+   on a small phone. */
+.game-board-4 .player-panel-life,
+.game-board-3 .player-panel-life {
+  font-size: clamp(3.25rem, 16vmin, 13rem);
+}
+
+.game-board-5 .player-panel-life,
+.game-board-6 .player-panel-life {
+  font-size: clamp(2.5rem, 12vmin, 9rem);
+}
+
+@media (min-width: 1600px) {
+  .game-board-2 .player-panel-life {
+    font-size: clamp(7rem, 30vmin, 22rem);
+  }
+  .game-board-3 .player-panel-life,
+  .game-board-4 .player-panel-life {
+    font-size: clamp(5rem, 22vmin, 15rem);
+  }
+  .game-board-5 .player-panel-life,
+  .game-board-6 .player-panel-life {
+    font-size: clamp(4rem, 16vmin, 11rem);
+  }
+}
+
+.is-eliminated .player-panel-life {
+  text-decoration: line-through;
+}
+
+.is-winner .player-panel-life {
+  color: var(--pp-accent);
+}
+
+/* Step buttons mirror the life numeral — same color, same glow, sized to
+   read as bold ± companions to the number rather than tucked-away accents. */
+.player-panel-step-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  text-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.55),
+    0 0 28px rgba(0, 0, 0, 0.25);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: clamp(2.5rem, 10vmin, 6rem);
+  line-height: 0.9;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  letter-spacing: -0.04em;
+  flex: 0 0 auto;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform 80ms ease;
+}
+
+/* Scale step buttons down alongside the life numeral in tighter layouts. */
+.game-board-4 .player-panel-step-btn,
+.game-board-3 .player-panel-step-btn {
+  font-size: clamp(1.5rem, 5vmin, 4rem);
+}
+
+.game-board-5 .player-panel-step-btn,
+.game-board-6 .player-panel-step-btn {
+  font-size: clamp(1.2rem, 4vmin, 2.8rem);
+}
+
+@media (min-width: 1600px) {
+  .game-board-2 .player-panel-step-btn {
+    font-size: clamp(3rem, 11vmin, 7.5rem);
+  }
+  .game-board-3 .player-panel-step-btn,
+  .game-board-4 .player-panel-step-btn {
+    font-size: clamp(2.25rem, 8.5vmin, 5.5rem);
+  }
+  .game-board-5 .player-panel-step-btn,
+  .game-board-6 .player-panel-step-btn {
+    font-size: clamp(1.75rem, 6vmin, 4rem);
+  }
+}
+
+.player-panel-step-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.player-panel-step-btn:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.92);
+}
+
+@media (max-height: 480px) {
+  .player-panel-content {
+    padding: 0.4rem 0.55rem;
+  }
+}
+
+.player-panel-winner-tag,
+.player-panel-eliminated-tag {
+  position: absolute;
+  top: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--pp-accent);
+  border: 1px solid var(--pp-accent);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.player-panel-eliminated-tag {
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.25);
+}

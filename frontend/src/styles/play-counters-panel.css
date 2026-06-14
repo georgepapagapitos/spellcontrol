@@ -1,0 +1,390 @@
+/* play-counters-panel.css — split from play.css (#refactor).
+   Counter chips + popover cover, coarse-pointer touch-target floor (UX-320), elimination beat (UX-321/325), turn marker + Monarch/Initiative designation chips (UX-324) and their seat-menu sections. */
+
+/* ════════════════════════════════════════════════════════════════════════
+   Counter chips + popover (replaces the swipe-up counters drawer)
+   ════════════════════════════════════════════════════════════════════════ */
+
+.player-panel-counters {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.65rem;
+  z-index: 3;
+  display: flex;
+  gap: 0.35rem;
+  pointer-events: auto;
+}
+
+.pp-counter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    transform 80ms ease;
+}
+
+.pp-counter-chip:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.pp-counter-chip:active {
+  transform: scale(0.93);
+}
+
+.pp-counter-icon {
+  font-size: var(--text-xs, 0.72rem);
+  opacity: 0.85;
+}
+
+.pp-counter-chip.is-lethal {
+  background: rgba(220, 38, 38, 0.85);
+  border-color: rgba(255, 180, 180, 0.8);
+  animation: pp-counter-lethal 1.2s ease-in-out infinite;
+}
+
+@keyframes pp-counter-lethal {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+  }
+}
+
+/* Full-panel cover that expands from the chip corner (bottom-left) and
+   blots out the life total — no scrolling: the rows flex to fill. Lives
+   inside the rotated .player-panel so it's oriented exactly like that
+   seat's life number (each panel may differ). */
+.pp-counters-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--pp-edge, #4a5566) 70%, black 30%) 0%,
+    color-mix(in srgb, var(--pp-base, #2a3340) 92%, black 8%) 100%
+  );
+  /* Reveal grows out of the bottom-left corner where the chips sit. */
+  clip-path: circle(140% at 12% 88%);
+  animation: pp-counters-open 220ms var(--ease-out-soft);
+}
+
+@keyframes pp-counters-open {
+  from {
+    clip-path: circle(0% at 12% 88%);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: circle(140% at 12% 88%);
+    opacity: 1;
+  }
+}
+
+.pp-counters-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.pp-counters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+}
+
+.pp-counters-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+}
+
+.pp-counters-close {
+  background: var(--surface-raised, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  border-radius: 50%;
+  width: 1.6rem;
+  height: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Rows flex to fill the panel height instead of scrolling. Even a 6-player
+   pod (poison + 5 commander rows) divides the panel evenly with no
+   overflow. */
+.pp-counters-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.pp-counters-body .counter-row {
+  flex: 1 1 0;
+  min-height: 0;
+  /* Slightly tighter than the standalone row so many rows still fit. */
+  padding: 0.3rem 0.55rem;
+}
+
+.pp-counters-body .counter-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-counters-cover,
+  .seat-menu {
+    animation: none !important;
+    clip-path: none;
+  }
+  .pp-counter-chip.is-lethal {
+    animation: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UX-320 — Coarse-pointer 44 px touch-target floor (play surface)
+   Scoped to @media (pointer: coarse) so desktop density is unchanged.
+   Targets measured at < 44 px without this block:
+     counter-row-btn  1.8 rem ≈ 28.8 px
+     pp-counters-close 1.6 rem ≈ 25.6 px
+     seat-menu-close  no fixed size
+     game-menu-close  2 rem ≈ 32 px
+     pp-counter-chip  padding-only, no height
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+  /* Counter ± buttons inside the counters popover cover */
+  .counter-row-btn {
+    width: 2.75rem; /* 44 px at 16px base */
+    height: 2.75rem;
+  }
+
+  /* Close button on the counters cover */
+  .pp-counters-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Counter chips — pill shape, bump min-height so the tap area is tall enough */
+  .pp-counter-chip {
+    min-height: 2.75rem;
+    padding-inline: var(--space-3); /* widen the pill proportionally */
+  }
+
+  /* Seat-menu close button (no explicit size in base rule) */
+  .seat-menu-close {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Game-menu close button (2 rem base = 32 px) */
+  .game-menu-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Seam hub button — 2.6 rem ≈ 41.6 px below the 600 px breakpoint.
+     Centered on the seam via translate(-50%, -50%), so sizing is safe. */
+  .game-board-menu-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .pp-elim-undo-btn {
+    min-height: 2.75rem;
+    padding-inline: var(--space-4);
+  }
+}
+
+/* ── UX-321/325: Elimination beat ── */
+@keyframes pp-elim-beat {
+  0% {
+    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0);
+    filter: grayscale(0.9) brightness(0.55);
+  }
+  15% {
+    box-shadow:
+      inset 0 0 0 4px rgba(220, 38, 38, 0.8),
+      inset 0 0 40px rgba(220, 38, 38, 0.3);
+    filter: grayscale(0.3) brightness(0.75);
+  }
+  50% {
+    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.4);
+    filter: grayscale(0.7) brightness(0.6);
+  }
+  100% {
+    box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0);
+    filter: grayscale(0.9) brightness(0.55);
+  }
+}
+
+.player-panel.is-elim-beat {
+  /* 1.2s beat: spec calls for ~1.2s emphasis one-shot */
+  animation: pp-elim-beat 1200ms var(--ease-out-soft) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-panel.is-elim-beat {
+    animation: none;
+    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.5);
+  }
+}
+
+/* Inline undo button that appears on the eliminated panel during the beat */
+.pp-elim-undo-btn {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(14, 17, 24, 0.75);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: auto;
+  animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
+}
+
+/* ── UX-324: Turn marker + designations ─────────────────────────────────── */
+
+/**
+ * Active-turn ring: a bright neutral ring on the active player's panel.
+ * Neutral white (not a player color) so it reads on every palette. Overlays
+ * the existing box-shadow via a separate ::before pseudo. Rotated panels
+ * inherit the ring via CSS; no JS intervention needed.
+ *
+ * We do NOT transition the ring on/off (rotation-safe concern: the panel's
+ * transform is already not transitioned). The ring appears/disappears on the
+ * next render frame.
+ */
+.player-panel.is-active-turn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* Neutral bright ring — reads on any panel palette. 2.5px for clarity.
+     Not the accent color so the active-seat mark doesn't compete with the
+     "this is your seat" is-mine highlight or the is-winner ring. */
+  box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Reduced-motion: skip any gating animation (the ring itself is static). */
+@media (prefers-reduced-motion: reduce) {
+  .player-panel.is-active-turn::after {
+    /* Already static — nothing to gate here. Keep the rule explicit for
+       documentation and to future-proof if a pulse is ever added. */
+    animation: none;
+  }
+}
+
+/* Eliminated panels lose the ring — the seat is logically out. */
+.player-panel.is-eliminated.is-active-turn::after {
+  display: none;
+}
+
+/* ── Designation chips (Monarch / Initiative) ──────────────────────────── */
+
+/**
+ * Chip container sits at the top-right of the panel content area, inside
+ * the rotated .player-panel so it reads upright for that seat automatically.
+ * Positioned to avoid collision with the ⋯ seat-menu button (bottom-right)
+ * and the name (top-left).
+ */
+.pp-designation-chips {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  pointer-events: none; /* tap falls through to the panel — use seat menu to change */
+}
+
+.pp-designation-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 28px × 28px: large enough to read as a chip, small enough not to crowd. */
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  font-size: var(--text-base);
+  line-height: 1;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* Gentle entrance — not mandatory, gated for reduced-motion */
+@media (prefers-reduced-motion: no-preference) {
+  .pp-designation-chip {
+    animation: pp-fade-in var(--motion-base) var(--ease-out-soft);
+  }
+}
+
+/* ── Seat menu: turn + designation sections ─────────────────────────────── */
+
+.seat-menu-turn-section,
+.seat-menu-designations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Active-turn state: highlight the "Pass turn" button slightly */
+.seat-menu-action.is-active-turn {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* Designation-held state: tint the claim button so current state is clear */
+.seat-menu-action.is-designation-active {
+  background: rgba(255, 220, 80, 0.18);
+  border-color: rgba(255, 220, 80, 0.45);
+  color: rgba(255, 235, 120, 0.95);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-action.is-active-turn:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .seat-menu-action.is-designation-active:hover {
+    background: rgba(255, 220, 80, 0.26);
+  }
+}
