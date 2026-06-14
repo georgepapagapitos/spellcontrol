@@ -1,8 +1,19 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+beforeEach(() => {
+  // The hook defers `setIsDragging(true)` to requestAnimationFrame (off the
+  // touchmove critical path). Run it synchronously so the drag-state flip is
+  // observable within the same `act()` the gesture is driven in.
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+    cb(0);
+    return 0;
+  });
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 import { renderHook, act } from '@testing-library/react';
 import { useSwipeDownDismiss } from './use-swipe-down-dismiss';
@@ -89,6 +100,30 @@ describe('useSwipeDownDismiss', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
     // Dismiss hands the release offset to onDismiss for the exit keyframe.
     expect(onDismiss).toHaveBeenCalledWith(200);
+  });
+
+  it('does not strand isDragging when the gesture ends before the deferred frame', () => {
+    // Queue the rAF callback instead of running it, simulating a tap that
+    // commits a vertical lock then ends within the same frame.
+    let frame: FrameRequestCallback | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      frame = cb;
+      return 0;
+    });
+    const onDismiss = vi.fn();
+    const sheetRef = sheet();
+    const { result } = renderHook(() => useSwipeDownDismiss({ onDismiss, sheetRef }));
+    act(() => {
+      result.current.touchHandlers.onTouchStart(evt([touch(50, 0)]));
+      result.current.touchHandlers.onTouchMove(evt([touch(50, 200)]));
+      result.current.touchHandlers.onTouchEnd(evt([], [touch(50, 200)]));
+    });
+    // The deferred flip now fires — but the lock was reset on touchEnd, so it
+    // must be guarded out, leaving isDragging false (no stuck sheet).
+    act(() => {
+      frame?.(0);
+    });
+    expect(result.current.isDragging).toBe(false);
   });
 
   it('dismisses on a fast flick', () => {

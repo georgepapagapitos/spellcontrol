@@ -702,24 +702,14 @@
   overflow: hidden;
 }
 
-/* Fit-to-content contexts: the panel shrinks to whatever the card needs and
-   hands the freed vertical space back to the card. SAFE here only because
-   these sources render the *same fields on every card* (set / condition /
-   price / printing-picker) — so the panel height never changes between cards
-   and the hero can't shift mid-swipe. Capped so a rare overflowing card still
-   scrolls (the inner region owns the scroll).
-
-   NOTE: variable-content sources (deck, suggestion) deliberately do NOT live
-   here — auto height + variable content = the hero resizing as you swipe (the
-   jank). They get a stable fixed frame instead (base rule above + the
-   suggestion override below). */
-.card-preview-panel[data-source='collection'],
-.card-preview-panel[data-source='binder'],
-.card-preview-panel[data-source='search'],
-.card-preview-panel[data-source='playtest'] {
-  height: auto;
-  max-height: min(15rem, 44vh);
-}
+/* EVERY source uses the base fixed frame above — no per-source `height: auto`.
+   The earlier "fit-to-content" assumption (collection/binder/search render the
+   same fields on every card) was false: collection/binder render a per-card
+   context line whose binder/deck pills wrap to a variable number of rows, and
+   `search` renders a variable-height printing picker. With `height: auto` the
+   panel reflowed per card, which shrank the sheet's `1fr` track → `cqh` →
+   `--slide-size` → `scrollWidth` mid-swipe, so the hero card visibly JUMPED.
+   A fixed frame + inner scroll holds the height stable; tall cards scroll. */
 
 /* `suggestion` is the shared deck-analysis preview source (Engine / Optimize /
    Combos / Gap / Suggestions). Its content is variable (the role line is
@@ -738,13 +728,6 @@
 @media (min-width: 1024px) {
   .card-preview-panel {
     height: min(13rem, 40vh);
-  }
-  .card-preview-panel[data-source='collection'],
-  .card-preview-panel[data-source='binder'],
-  .card-preview-panel[data-source='search'],
-  .card-preview-panel[data-source='playtest'] {
-    height: auto;
-    max-height: min(13rem, 40vh);
   }
   .card-preview-panel[data-source='suggestion'] {
     height: min(10.5rem, 38vh);
