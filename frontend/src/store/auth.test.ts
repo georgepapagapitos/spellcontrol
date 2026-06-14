@@ -29,10 +29,33 @@ describe('bootstrap', () => {
     expect(useAuth.getState().status).toBe('guest');
   });
 
-  it('treats network failure as guest', async () => {
+  it('treats network failure as guest when no identity is remembered', async () => {
     vi.spyOn(authApi, 'fetchMe').mockRejectedValue(new Error('offline'));
     await useAuth.getState().bootstrap();
     expect(useAuth.getState().status).toBe('guest');
+  });
+
+  it('stays authed offline when a signed-in identity is remembered', async () => {
+    // Simulate a prior online sign-in having persisted the identity.
+    localStorage.setItem(
+      'spellcontrol:auth-user',
+      JSON.stringify({ id: 'u1', username: 'alice', role: 'user' })
+    );
+    vi.spyOn(authApi, 'fetchMe').mockRejectedValue(new Error('offline'));
+    await useAuth.getState().bootstrap();
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().user?.username).toBe('alice');
+  });
+
+  it('forgets the remembered identity on a real 401 (signed out elsewhere)', async () => {
+    localStorage.setItem(
+      'spellcontrol:auth-user',
+      JSON.stringify({ id: 'u1', username: 'alice', role: 'user' })
+    );
+    vi.spyOn(authApi, 'fetchMe').mockResolvedValue(null);
+    await useAuth.getState().bootstrap();
+    expect(useAuth.getState().status).toBe('guest');
+    expect(localStorage.getItem('spellcontrol:auth-user')).toBeNull();
   });
 
   it('threads autoLinkedAt from /me into the store', async () => {
