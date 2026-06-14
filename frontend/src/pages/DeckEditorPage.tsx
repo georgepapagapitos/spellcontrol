@@ -768,7 +768,7 @@ export function DeckEditorPage() {
     recordEdit(deck.id, `remove ${slot.card.name}`, () => removeCard(deck.id, slotId));
     pushToast({
       message: `Removed ${slot.card.name}`,
-      tone: 'info',
+      tone: 'success',
       actionLabel: 'Undo',
       onAction: () => undoEdit(deck.id),
     });
@@ -1369,7 +1369,7 @@ export function DeckEditorPage() {
         tone: 'success',
       });
     } catch {
-      pushToast({ message: 'Failed to apply budget swaps', tone: 'error' });
+      pushToast({ message: 'Could not apply budget swaps.', tone: 'error' });
     }
   };
 
@@ -1381,7 +1381,7 @@ export function DeckEditorPage() {
     );
     pushToast({
       message: `Removed ${slot.card.name} from sideboard`,
-      tone: 'info',
+      tone: 'success',
       actionLabel: 'Undo',
       onAction: () => undoEdit(deck.id),
     });
@@ -1513,7 +1513,7 @@ export function DeckEditorPage() {
   const handleSelectPartnerFromPicker = (card: ScryfallCard | null) => {
     if (!card) {
       recordEdit(deck.id, 'remove partner', () => setPartnerCommander(deck.id, null, null));
-      pushToast({ message: 'Partner commander removed', tone: 'success' });
+      pushToast({ message: 'Partner commander removed.', tone: 'success' });
       return;
     }
     const mainSlot = deck.cards.find((c) => c.card.name === card.name);
@@ -1583,7 +1583,7 @@ export function DeckEditorPage() {
         dropping.length === 1
           ? `Removed ${card.name}`
           : `Removed ${dropping.length} × ${card.name}`,
-      tone: 'info',
+      tone: 'success',
       actionLabel: 'Undo',
       onAction: () => undoEdit(deck.id),
     });
@@ -1603,7 +1603,7 @@ export function DeckEditorPage() {
       }
     });
     setEditingSlot(null);
-    pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'info' });
+    pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'success' });
   };
 
   const displayCards: DeckDisplayCard[] = deck.cards.map((c) => ({

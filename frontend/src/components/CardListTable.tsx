@@ -824,7 +824,7 @@ export function CardListTable({
       replaceAllCards(allCards.filter((c) => !removedIds.has(c.copyId)));
       pushToast({
         message: `Removed ${removed.length} ${removed.length === 1 ? 'copy' : 'copies'} of ${removed[0].name}`,
-        tone: 'info',
+        tone: 'success',
         actionLabel: 'Undo',
         onAction: () => replaceAllCards([...useCollectionStore.getState().cards, ...removed]),
       });

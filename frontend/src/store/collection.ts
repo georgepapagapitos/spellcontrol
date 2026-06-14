@@ -438,7 +438,8 @@ export const useCollectionStore = create<CollectionState>()(
         }
         if (replacedSnapshot) {
           toast.show({
-            message: 'Collection replaced on import',
+            message: 'Collection replaced on import.',
+            tone: 'success',
             actionLabel: 'Undo',
             onAction: () => {
               void get().restoreCollectionSnapshot(replacedSnapshot);
@@ -487,6 +488,7 @@ export const useCollectionStore = create<CollectionState>()(
         if (removedCount > 0) {
           toast.show({
             message: `Removed ${removedCount} card${removedCount === 1 ? '' : 's'}`,
+            tone: 'success',
             actionLabel: 'Undo',
             onAction: () => {
               void get().restoreCollectionSnapshot(snap);
@@ -651,7 +653,8 @@ export const useCollectionStore = create<CollectionState>()(
         // Offer one-shot undo of this hard-to-reverse wipe.
         if (snapshotHasContent(snap)) {
           toast.show({
-            message: 'Collection cleared',
+            message: 'Collection cleared.',
+            tone: 'success',
             actionLabel: 'Undo',
             onAction: () => {
               void get().restoreCollectionSnapshot(snap);

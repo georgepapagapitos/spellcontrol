@@ -265,15 +265,12 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const handleDeleteSelected = async () => {
     const ids = Array.from(selectedHistoryIds);
     if (ids.length === 0) return;
-    const totalCount = importHistory
-      .filter((h) => h.id && selectedHistoryIds.has(h.id))
-      .reduce((sum, h) => sum + h.count, 0);
     await deleteImports(ids);
     setSelectedHistoryIds(new Set());
     setConfirmingDeleteImports(false);
-    setSuccessMsg(
-      `Removed ${ids.length} import${ids.length === 1 ? '' : 's'} · ${totalCount.toLocaleString()} card${totalCount === 1 ? '' : 's'}`
-    );
+    // deleteImports() already surfaces a "Removed N cards" toast with Undo —
+    // clear any stale import banner rather than double-confirming inline.
+    setSuccessMsg(null);
   };
 
   const handlePickBackup = async () => {

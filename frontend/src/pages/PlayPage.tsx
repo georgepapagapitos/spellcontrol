@@ -9,6 +9,7 @@ import {
   usePlayStore,
   type LocalGameSetup,
 } from '../store/play';
+import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
@@ -212,8 +213,22 @@ export function PlayPage() {
               )}
               <OnlineSetup
                 decks={decks}
-                onHost={(opts) => void hostOnline(opts)}
-                onJoin={(code, opts) => void joinOnline(code, opts)}
+                onHost={(opts) =>
+                  void hostOnline(opts).catch((err) =>
+                    toast.show({
+                      message: err instanceof Error ? err.message : 'Could not create game.',
+                      tone: 'error',
+                    })
+                  )
+                }
+                onJoin={(code, opts) =>
+                  void joinOnline(code, opts).catch((err) =>
+                    toast.show({
+                      message: err instanceof Error ? err.message : 'Could not join game.',
+                      tone: 'error',
+                    })
+                  )
+                }
                 defaultName={user?.username ?? ''}
                 hasActive={!!online}
               />
