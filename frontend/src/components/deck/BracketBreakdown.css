@@ -84,10 +84,14 @@
 
 .bracket-breakdown-chip {
   display: flex;
+  max-width: 100%;
+  min-width: 0;
 }
 
 /* The chip is a button — tap it to preview the contributing card. */
 .bracket-breakdown-chip-btn {
+  max-width: 100%;
+  min-width: 0;
   padding: 0.1rem 0.45rem;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);

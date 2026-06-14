@@ -175,3 +175,15 @@ select {
   align-items: center;
   gap: var(--space-3);
 }
+
+/* Shared card-name chip text: one-line ellipsis so long Magic card names never
+   wrap or break a pill/chip. See STYLE_GUIDE "Card-name chips" — the full name
+   stays reachable via a title attr (desktop) + tap-opens-preview (touch). */
+.card-name-chip-text {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

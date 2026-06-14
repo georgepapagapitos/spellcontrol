@@ -55,9 +55,10 @@ export function SaltiestPanel({ cards, averageSalt }: SaltiestPanelProps): JSX.E
             <li key={c.name} className="deck-saltiest-row">
               <button
                 type="button"
-                className="deck-saltiest-name"
+                className="deck-saltiest-name card-name-chip-text"
                 onClick={() => openCarousel(c.name)}
                 aria-label={`Preview ${c.name}`}
+                title={c.name}
               >
                 {c.name}
               </button>

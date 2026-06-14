@@ -79,7 +79,9 @@ function CardChips({ names, deckCardsByName }: { names: string[]; deckCardsByNam
               onClick={() => void carousel.open(entries, name)}
               aria-label={`Preview ${name}`}
             >
-              {name}
+              <span className="card-name-chip-text" title={name}>
+                {name}
+              </span>
             </button>
           </li>
         ))}

@@ -605,7 +605,7 @@ function ComboRow({
           )}
         </span>
         <ColorIdentityPips identity={combo.identity} />
-        <span className="deck-combos-row-title" title={comboTitle}>
+        <span className="deck-combos-row-title card-name-chip-text" title={comboTitle}>
           {comboTitle}
         </span>
       </header>
@@ -762,7 +762,10 @@ function ComboRow({
           onClick={onAddMissing}
           aria-label={`Add ${missingCardName} to complete this combo`}
         >
-          <Plus width={11} height={11} aria-hidden /> Add {missingCardName}
+          <Plus width={11} height={11} aria-hidden />
+          <span className="card-name-chip-text" title={missingCardName}>
+            Add {missingCardName}
+          </span>
         </button>
       )}
     </li>
