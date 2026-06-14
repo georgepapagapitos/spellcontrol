@@ -400,17 +400,21 @@ describe('refreshPrices', () => {
       })
     );
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
-    await useCollectionStore.getState().refreshPrices();
+    // Re-throws so callers (SettingsPage) can show a truthful error toast...
+    await expect(useCollectionStore.getState().refreshPrices()).rejects.toThrow('rate limited');
+    // ...while still recording the error and clearing the spinner + progress.
     expect(useCollectionStore.getState().error).toBe('rate limited');
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
+    expect(useCollectionStore.getState().priceRefreshProgress).toBeNull();
   });
 
-  it('sets an error when the request throws', async () => {
+  it('re-throws and sets an error when the request throws', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
-    await useCollectionStore.getState().refreshPrices();
+    await expect(useCollectionStore.getState().refreshPrices()).rejects.toThrow('offline');
     expect(useCollectionStore.getState().error).toBe('offline');
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
+    expect(useCollectionStore.getState().priceRefreshProgress).toBeNull();
   });
 
   it('pages a >1000-printing collection into chunks and prices ALL of it', async () => {
@@ -627,6 +631,15 @@ describe('autoRefreshStalePrices', () => {
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
     await useCollectionStore.getState().autoRefreshStalePrices();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('swallows the refresh error so a background run never rejects', async () => {
+    // refreshPrices re-throws on failure (so SettingsPage can toast); the
+    // background auto-refresh must absorb it — no unhandled rejection on boot.
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    await expect(useCollectionStore.getState().autoRefreshStalePrices()).resolves.toBeUndefined();
+    expect(useCollectionStore.getState().error).toBe('offline');
   });
 
   it('skips when the browser reports offline', async () => {
