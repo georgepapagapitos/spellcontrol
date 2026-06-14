@@ -47,7 +47,12 @@ export function useMaxBoundaryScroll(trackRef: RefObject<HTMLElement | null>): v
     const onScroll = () => {
       if (correcting) return;
       const clamped = clampScrollOffset(track.scrollLeft, track.scrollWidth, track.clientWidth);
-      if (clamped !== track.scrollLeft) {
+      // >1px dead-zone: when `--slide-size` is fractional the clamp `max`
+      // (scrollWidth - clientWidth) and the last slide's scroll-snap point
+      // differ by a sub-pixel, so correcting every tiny delta makes the JS
+      // clamp and the CSS snap engine fight at the boundary (micro-oscillation
+      // that reads as swipe "wonk"). Only correct a real overshoot.
+      if (Math.abs(clamped - track.scrollLeft) > 1) {
         correcting = true;
         track.scrollLeft = clamped;
         const raf =

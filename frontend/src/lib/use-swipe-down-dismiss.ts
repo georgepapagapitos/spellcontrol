@@ -126,7 +126,24 @@ export function useSwipeDownDismiss({
         // catch 'v' mid-drag and jump the sheet by the accumulated delta.
         const verticalDismiss = vCommit && dy > Math.abs(dx) && (canStartDrag?.() ?? true);
         axisLockRef.current = verticalDismiss ? 'v' : 'h';
-        if (axisLockRef.current === 'v') setIsDragging(true);
+        if (axisLockRef.current === 'v') {
+          // Flipping `isDragging` re-renders the modal subtree (up to ~25
+          // mounted carousel slides). Doing it synchronously inside the
+          // committing touchmove drops the dismiss gesture's FIRST frame — the
+          // drag visibly "catches" as it starts. The offset is written
+          // imperatively to the sheet below regardless, so the is-dragging
+          // class (snap-back suppression) can safely land one frame later.
+          // Defer it to the next frame; guard on the lock still being 'v' so a
+          // tap that ends before the rAF fires can't strand the sheet in a
+          // dragging state (touchEnd resets the lock to null synchronously).
+          const raf =
+            typeof requestAnimationFrame === 'function'
+              ? requestAnimationFrame
+              : (cb: () => void) => setTimeout(cb, 0);
+          raf(() => {
+            if (axisLockRef.current === 'v') setIsDragging(true);
+          });
+        }
       }
     }
     if (axisLockRef.current === 'v') {
