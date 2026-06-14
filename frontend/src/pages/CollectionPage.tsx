@@ -18,6 +18,7 @@ export function CollectionPage() {
   const cards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
   const hydrating = useCollectionStore((s) => s.hydrating);
+  const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const error = useCollectionStore((s) => s.error);
   const setError = useCollectionStore((s) => s.setError);
   const authStatus = useAuth((s) => s.status);
@@ -131,9 +132,18 @@ export function CollectionPage() {
                 <span aria-label="Collection totals">
                   {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
                   ·{' '}
-                  <span title="Current market value (Scryfall)">
-                    {formatMoney(displayValue, { wholeDollars: true })}
-                  </span>
+                  {isRefreshingPrices && collectionValue === 0 ? (
+                    // The prominent total must not read as a real $0 while the
+                    // collection is still being priced — show progress instead.
+                    <span className="collection-hero-pricing" aria-live="polite">
+                      <span className="sync-indicator-spinner" aria-hidden="true" />
+                      Pricing…
+                    </span>
+                  ) : (
+                    <span title="Current market value (Scryfall)">
+                      {formatMoney(displayValue, { wholeDollars: true })}
+                    </span>
+                  )}
                 </span>
                 {!isEmpty && (
                   <>
