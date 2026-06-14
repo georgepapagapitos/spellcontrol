@@ -10075,6 +10075,55 @@ i.ss.set-symbol--mythic {
   filter: brightness(0.92);
 }
 
+/* Global price-refresh progress pill. A manual refresh on a large collection
+   pages into many chunks and runs a while; this keeps "Refreshing prices
+   (3/12)…" visible after the user leaves Settings. It lives in the app shell
+   (NOT the header, which is display:none <1024px), so it shows identically on
+   desktop, mobile web, and native. Mirrors the toast viewport — fixed, centered,
+   --z-tooltip, pointer-events:none — but docks to the TOP (--safe-top clears the
+   native status bar) so it never collides with the bottom toasts or nav. Reuses
+   the syncing-pill color treatment + .sync-indicator-spinner. */
+.price-refresh-indicator {
+  position: fixed;
+  inset: calc(var(--safe-top) + 0.6rem) 1rem auto 1rem;
+  z-index: var(--z-tooltip);
+  pointer-events: none;
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  margin-inline: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--accent-light);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: var(--shadow-tooltip);
+  animation: price-refresh-pop 160ms ease-out;
+}
+
+@keyframes price-refresh-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .price-refresh-indicator {
+    animation: none;
+  }
+}
+
 /* Settings page — full route at /settings. Stacked sections with the
    same card aesthetic used elsewhere (binder cards, breakdown cards). */
 .settings-page {

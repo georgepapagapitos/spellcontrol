@@ -180,7 +180,9 @@ export function SettingsPage() {
   async function handleRefreshPrices() {
     if (isRefreshingPrices || cardCount === 0) return;
     try {
-      await refreshPrices();
+      // track: surface the global "Refreshing prices (n/m)…" pill so progress
+      // stays visible after the user navigates away from Settings.
+      await refreshPrices(undefined, { track: true });
       toast.show({ message: 'Prices refreshed.', tone: 'success' });
     } catch (err) {
       toast.show({
