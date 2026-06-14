@@ -768,8 +768,10 @@
 .card-preview-name-row {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 0.5rem;
   min-height: 1.5rem;
+  max-width: 100%;
 }
 
 .card-preview-name {
@@ -778,10 +780,15 @@
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   min-width: 0;
+  text-align: center;
+  /* Wrap long / double-faced (`//`) names rather than single-line clipping.
+     Previously `white-space:nowrap` + a content-sized centered row let a long
+     name overflow the panel and clip on BOTH ends (the ellipsis never fired
+     because nothing constrained the element's width). The panel is now
+     fixed-height + inner-scroll, so wrapping never bobs the card; a rare
+     very-long name just adds a line that scrolls with the rest. */
+  overflow-wrap: anywhere;
 }
 
 /* Type line + mana cost, just under the name — shown in every carousel
