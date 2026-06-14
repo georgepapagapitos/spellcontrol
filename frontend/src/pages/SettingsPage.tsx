@@ -168,14 +168,10 @@ export function SettingsPage() {
   async function handleConfirmWipe() {
     setWipeBusy(true);
     try {
+      // clearCards() surfaces its own "Collection cleared" toast (with Undo) and
+      // swallows IDB errors internally, so there's nothing to confirm or catch here.
       await clearCards();
-      toast.show({ message: 'Collection cleared.', tone: 'success' });
       setWipeStep(0);
-    } catch (err) {
-      toast.show({
-        message: err instanceof Error ? err.message : 'Could not clear collection.',
-        tone: 'error',
-      });
     } finally {
       setWipeBusy(false);
     }
@@ -265,14 +261,6 @@ export function SettingsPage() {
 
   return (
     <div className="settings-page">
-      {/* Brand moment: phone/native users never see the top header (display:none
-          ≤1024px), so Settings is the only place to surface the product name.
-          Only shown on small screens where the header is hidden. */}
-      <div className="settings-brand-moment" aria-hidden="true">
-        <span className="settings-brand-name">SpellControl</span>
-        <span className="settings-brand-tagline">MTG binder &amp; deck planner</span>
-      </div>
-
       <header className="binder-hero settings-page-hero">
         <div className="settings-page-hero-text">
           <h1 className="binder-hero-name">Settings</h1>

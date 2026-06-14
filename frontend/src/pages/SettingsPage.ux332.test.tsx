@@ -1,11 +1,10 @@
 // @vitest-environment happy-dom
 /**
- * UX-332 / UX-335 / UX-336 — Settings page trust copy, InfoTips, and brand moment.
+ * UX-332 / UX-335 — Settings page trust copy and InfoTips.
  *
  * Verifies:
  *  - UX-332: guest-state account card explains that local data merges on sign-in.
  *  - UX-335: InfoTip for "deck allocations" renders; InfoTip for "binders and lists" renders.
- *  - UX-336: brand moment (settings-brand-moment) renders with product name.
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -86,15 +85,6 @@ function renderSettings() {
     </MemoryRouter>
   );
 }
-
-describe('UX-336 — Settings brand moment', () => {
-  it('renders a brand moment element with the product name', () => {
-    const { container } = renderSettings();
-    const moment = container.querySelector('.settings-brand-moment');
-    expect(moment).toBeTruthy();
-    expect(moment?.textContent).toContain('SpellControl');
-  });
-});
 
 describe('UX-332 — Settings account card honesty copy', () => {
   it('explains that local data merges on sign-in when the user is not signed in', () => {

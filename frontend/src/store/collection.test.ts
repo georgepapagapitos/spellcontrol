@@ -768,7 +768,7 @@ describe('destructive-op undo', () => {
       expect(useCollectionStore.getState().importHistory).toEqual([]);
       // …and an Undo affordance was surfaced.
       const t = undoToast();
-      expect(t?.message).toBe('Collection cleared');
+      expect(t?.message).toBe('Collection cleared.');
 
       t!.onAction!();
       await flush();
@@ -889,7 +889,7 @@ describe('destructive-op undo', () => {
 
       expect(useCollectionStore.getState().cards.map((c) => c.copyId)).toEqual(['new']);
       const t = undoToast();
-      expect(t?.message).toBe('Collection replaced on import');
+      expect(t?.message).toBe('Collection replaced on import.');
 
       t!.onAction!();
       await flush();

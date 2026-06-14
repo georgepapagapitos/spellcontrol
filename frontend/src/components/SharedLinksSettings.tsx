@@ -115,8 +115,8 @@ export function SharedLinksSettings() {
       toast.show({ message: 'Share link revoked.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Failed to revoke share.',
-        tone: 'warn',
+        message: err instanceof Error ? err.message : 'Could not revoke share.',
+        tone: 'error',
       });
     } finally {
       setRevokingToken(null);

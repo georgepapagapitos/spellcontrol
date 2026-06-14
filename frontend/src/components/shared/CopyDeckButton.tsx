@@ -19,7 +19,7 @@ export function CopyDeckButton({ data, variant = 'bar' }: Props) {
 
   function handleCopy() {
     const id = copySharedDeck(data);
-    toast.show({ message: 'Copied to your decks', tone: 'success' });
+    toast.show({ message: 'Copied to your decks.', tone: 'success' });
     void navigate(`/decks/${id}`);
   }
 

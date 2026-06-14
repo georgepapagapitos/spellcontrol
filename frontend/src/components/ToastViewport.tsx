@@ -12,7 +12,9 @@ export function ToastViewport() {
 
   return (
     <div className="toast-viewport" role="region" aria-label="Notifications">
-      <ol className="toast-list" aria-live="polite" ref={listRef}>
+      {/* Each toast announces itself via its per-item role (alert/status); the
+          list itself is not a live region to avoid double announcements. */}
+      <ol className="toast-list" ref={listRef}>
         {entries.map(({ toast: t, leaving, style }) => (
           <ToastItem
             key={t.id}
@@ -76,7 +78,8 @@ function ToastItem({
     <li
       ref={(el) => registerItem(toast.id, el)}
       className={`toast toast-${toast.tone}${leaving ? ' is-leaving' : ''}`}
-      role="status"
+      // Errors interrupt (assertive); everything else waits its turn (polite).
+      role={toast.tone === 'error' ? 'alert' : 'status'}
       style={style}
       onAnimationEnd={handleAnimationEnd}
     >
