@@ -412,6 +412,71 @@ describe('refreshPrices', () => {
     expect(useCollectionStore.getState().error).toBe('offline');
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
   });
+
+  it('pages a >1000-printing collection into chunks and prices ALL of it', async () => {
+    // The server caps each request at 1000 ids; without client paging a large
+    // collection only prices its first 1000 (and which 1000 is array-order
+    // dependent → cross-device $0 divergence). Echo a price for every id asked.
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: { body: string }) => {
+      const { scryfallIds } = JSON.parse(init.body) as { scryfallIds: string[] };
+      const prices = Object.fromEntries(scryfallIds.map((id) => [id, { usd: 5, pricedAt: 1000 }]));
+      return Promise.resolve({ ok: true, json: async () => ({ prices }) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: Array.from({ length: 1001 }, (_, i) =>
+        enriched({ copyId: `c${i}`, scryfallId: `sf${i}`, purchasePrice: 0 })
+      ),
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2); // 1000 + 1
+    const cards = useCollectionStore.getState().cards;
+    expect(cards).toHaveLength(1001);
+    expect(cards.every((c) => c.purchasePrice === 5)).toBe(true); // none left at $0
+  });
+
+  it('does not freeze a server-miss $0 card as fresh (keeps it stale to retry)', async () => {
+    // A card the server has no price for must stay stale, not be stamped fresh —
+    // otherwise a refresh run while the server cache was cold freezes it at $0
+    // forever (the cross-device blank-prices bug).
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ prices: {} }) })
+    );
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'x', scryfallId: 'sfx', purchasePrice: 0 })],
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    const card = useCollectionStore.getState().cards[0];
+    expect(card.purchasePrice).toBe(0);
+    expect(card.pricedAt).toBeUndefined(); // NOT stamped → still counts as stale
+  });
+
+  it('carries a POSITIVE last-known price over a transient server miss', async () => {
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ prices: {} }) })
+    );
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'p', scryfallId: 'sfp', purchasePrice: 7 })],
+    });
+
+    await useCollectionStore.getState().refreshPrices();
+
+    const card = useCollectionStore.getState().cards[0];
+    expect(card.purchasePrice).toBe(7); // kept, not flashed to $0
+    expect(typeof card.pricedAt).toBe('number'); // refreshed timestamp
+  });
 });
 
 describe('refreshPrices — binder auto-move notifications (T21)', () => {
