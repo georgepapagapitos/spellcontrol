@@ -40,6 +40,12 @@ export interface StoredRow {
   /** Entity payload — null when the row is a tombstone. */
   data: unknown;
   rev: number;
+  /**
+   * Last server rev this row was based on before a local edit dirtied it.
+   * `rev` is reset to 0 for pending writes, so reject-stale deck pushes need a
+   * separate base rev that survives the local edit.
+   */
+  syncedRev?: number;
   /** ms epoch; null on live rows. */
   deletedAt: number | null;
   /** Only set on card rows. */

@@ -26,6 +26,7 @@ export type Mutation =
       id: string;
       data: unknown;
       importId?: string;
+      clientRev?: number;
     }
   | { op: 'delete'; kind: EntityKind; id: string };
 
@@ -79,7 +80,11 @@ export async function enqueue(m: Mutation): Promise<void> {
       last.m.kind === m.kind &&
       last.m.id === m.id
     ) {
-      await cursor.update({ seq: last.seq, m });
+      const next =
+        last.m.kind === 'deck' && last.m.clientRev !== undefined
+          ? { ...m, clientRev: last.m.clientRev }
+          : m;
+      await cursor.update({ seq: last.seq, m: next });
       await tx.done;
       return;
     }
