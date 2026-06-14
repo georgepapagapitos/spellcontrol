@@ -26,6 +26,7 @@ import { createIndexedDbStorage } from '../lib/idb-storage';
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
+import { toast } from './toasts';
 
 /**
  * Persisted deck shape. Stores full ScryfallCard payloads so a saved deck
@@ -343,11 +344,30 @@ export const useDecksStore = create<DecksState>()(
         })),
 
       deleteDeck: (id) => {
+        // A deck is one whole synced row, so an undo is just re-inserting the
+        // captured deck (a compensating upsert under LWW) — mirrors clearCards.
+        const deck = useDecksStore.getState().decks.find((d) => d.id === id);
+        if (!deck) return;
         set((s) => ({ decks: s.decks.filter((d) => d.id !== id) }));
+        toast.show({
+          message: `Deleted ${deck.name}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          onAction: () => set((s) => ({ decks: [...s.decks, deck] })),
+        });
       },
 
       deleteAllDecks: () => {
+        const removed = useDecksStore.getState().decks;
+        if (removed.length === 0) return;
         set({ decks: [] });
+        toast.show({
+          message: `Deleted ${removed.length} deck${removed.length === 1 ? '' : 's'}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          // Keep any decks created during the toast window, then restore.
+          onAction: () => set((s) => ({ decks: [...removed, ...s.decks] })),
+        });
       },
 
       duplicateDeck: (id) => {

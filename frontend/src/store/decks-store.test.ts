@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useDecksStore, newDeckCard, selectDeck, effectiveBracket, type DeckCard } from './decks';
+import { useToastsStore } from './toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 
 function sfCard(name: string, id = 'sf-1'): ScryfallCard {
@@ -14,7 +15,10 @@ const store = () => useDecksStore.getState();
 
 beforeEach(() => {
   useDecksStore.setState({ decks: [] });
+  useToastsStore.getState().clear();
 });
+
+const undoToast = () => useToastsStore.getState().toasts.find((t) => t.actionLabel === 'Undo');
 
 describe('effectiveBracket', () => {
   it('prefers the manual override over the auto estimate', () => {
@@ -123,11 +127,46 @@ describe('useDecksStore — update / rename / delete', () => {
     expect(store().decks.map((d) => d.name)).toEqual(['B']);
   });
 
+  it('deleteDeck offers an Undo toast that restores the deck', () => {
+    const a = store().createDeck({ name: 'A', source: 'manual', commander: null });
+    store().deleteDeck(a);
+    const t = undoToast();
+    expect(t?.message).toBe('Deleted A');
+    t!.onAction!();
+    expect(store().decks.find((d) => d.id === a)?.name).toBe('A');
+  });
+
+  it('deleteDeck is a no-op (no toast) for an unknown id', () => {
+    store().createDeck({ name: 'A', source: 'manual', commander: null });
+    store().deleteDeck('nope');
+    expect(store().decks).toHaveLength(1);
+    expect(undoToast()).toBeUndefined();
+  });
+
   it('deleteAllDecks empties the list', () => {
     store().createDeck({ source: 'manual', commander: null });
     store().createDeck({ source: 'manual', commander: null });
     store().deleteAllDecks();
     expect(store().decks).toEqual([]);
+  });
+
+  it('deleteAllDecks offers an Undo toast that restores every deck', () => {
+    store().createDeck({ name: 'A', source: 'manual', commander: null });
+    store().createDeck({ name: 'B', source: 'manual', commander: null });
+    store().deleteAllDecks();
+    const t = undoToast();
+    expect(t?.message).toBe('Deleted 2 decks');
+    t!.onAction!();
+    expect(
+      store()
+        .decks.map((d) => d.name)
+        .sort()
+    ).toEqual(['A', 'B']);
+  });
+
+  it('deleteAllDecks on an empty list does nothing and shows no toast', () => {
+    store().deleteAllDecks();
+    expect(undoToast()).toBeUndefined();
   });
 });
 
