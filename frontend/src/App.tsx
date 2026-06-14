@@ -122,14 +122,21 @@ export default function App() {
   // date. Scryfall refreshes prices at most once a day, so this self-gates to
   // a daily, on-stale background refresh (no-op when offline / nothing stale /
   // attempted recently). Runs for guests and authed users alike — prices live
-  // device-local. The ref keeps it to one attempt per mount.
+  // device-local.
+  //
+  // Keyed on `hasCards` as well as `hydrating`, NOT a one-shot ref: on a fresh
+  // device the local cache is empty, so `hydrating` flips false with zero cards
+  // and that first attempt no-ops — the cards only arrive later via the server
+  // sync pull. Re-firing when the collection becomes non-empty is what lets a
+  // freshly-synced device price itself instead of sitting at $0 until a manual
+  // refresh. autoRefreshStalePrices is internally throttled (device-local 1h
+  // key + in-flight guard + stale check), so the extra firings are cheap no-ops.
   const hydrating = useCollectionStore((s) => s.hydrating);
-  const priceRefreshTried = useRef(false);
+  const hasCards = useCollectionStore((s) => s.cards.length > 0);
   useEffect(() => {
-    if (hydrating || priceRefreshTried.current) return;
-    priceRefreshTried.current = true;
+    if (hydrating) return;
     void useCollectionStore.getState().autoRefreshStalePrices();
-  }, [hydrating]);
+  }, [hydrating, hasCards]);
 
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
   // on every status change while still firing again if a different user logs in
