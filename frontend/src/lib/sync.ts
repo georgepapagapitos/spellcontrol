@@ -1,5 +1,7 @@
+import { App as CapacitorApp } from '@capacitor/app';
 import { logger } from '@/lib/logger';
 import { setApplyingServer } from './applying-server';
+import { isNativePlatform } from './platform';
 import { pullSync, pushSync, type SyncRow, type SyncUpsert, type SyncDeletion } from './auth-api';
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
@@ -42,6 +44,9 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let lastFocusPullAt = 0;
 let listenersAttached = false;
 let broadcastChannel: BroadcastChannel | null = null;
+// Capacitor `resume` listener handle (native only). The plugin's addListener is
+// async, so we hold the promise and remove the resolved handle on detach.
+let resumeListener: ReturnType<typeof CapacitorApp.addListener> | null = null;
 /**
  * True while we are writing server-sourced state into the Zustand stores.
  * Store subscribers must check this and skip enqueuing — those changes are
@@ -269,6 +274,18 @@ export async function flushSync(): Promise<void> {
     pushTimer = null;
   }
   await push();
+}
+
+/**
+ * Explicit user-driven refresh (pull-to-refresh): flush any pending local
+ * mutations, then pull server deltas. Awaitable so the UI can keep a spinner up
+ * until it settles. Bypasses the focus-pull throttle — this is an intentional
+ * gesture, not a passive lifecycle event.
+ */
+export async function refreshNow(): Promise<void> {
+  if (!currentOwnerId) return;
+  await push();
+  await pull();
 }
 
 // ── Mutation entry points (called from stores) ──────────────────────────────
@@ -620,6 +637,16 @@ function attachLifecycleListeners(): void {
   } else {
     window.addEventListener('storage', onStorageBroadcast);
   }
+
+  // Native: DOM focus/visibilitychange are unreliable in the Capacitor WebView,
+  // so a change made on another device wouldn't show until the app was killed
+  // and relaunched. The Capacitor `resume` event is the reliable "app
+  // foregrounded" signal — pull on it (throttled via onFocus) so returning to
+  // the app refreshes. onFocus's throttle also de-dupes if visibilitychange
+  // does fire alongside it.
+  if (isNativePlatform()) {
+    resumeListener = CapacitorApp.addListener('resume', onFocus);
+  }
 }
 
 function detachLifecycleListeners(): void {
@@ -638,6 +665,10 @@ function detachLifecycleListeners(): void {
     broadcastChannel = null;
   } else {
     window.removeEventListener('storage', onStorageBroadcast);
+  }
+  if (resumeListener) {
+    void resumeListener.then((h) => h.remove());
+    resumeListener = null;
   }
 }
 

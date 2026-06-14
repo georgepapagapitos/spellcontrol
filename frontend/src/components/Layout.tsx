@@ -9,6 +9,8 @@ import { ToastViewport } from './ToastViewport';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ScrollContainerContext } from '../lib/scroll-container';
 import { isNativePlatform } from '../lib/platform';
+import { PullToRefresh } from './PullToRefresh';
+import { refreshNow } from '../lib/sync';
 import {
   ShortcutRegistryProvider,
   isTypingTarget,
@@ -96,6 +98,7 @@ function LayoutShell() {
     <div className="app-shell">
       <Header />
       <main className="app-main" ref={setScrollEl}>
+        {isNativePlatform() && <PullToRefresh scrollEl={scrollEl} onRefresh={refreshNow} />}
         <ScrollContainerContext.Provider value={scrollEl}>
           <div className="container">
             <Outlet />
