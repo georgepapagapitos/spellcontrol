@@ -27,6 +27,10 @@ import { apiUrl } from '../lib/api-base';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
+import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
+import { buildAllocationMap } from '../lib/allocations';
+import { appNavigate } from '../lib/navigate-bridge';
+import { MAX_VISIBLE_TOASTS } from '../lib/toast-stack';
 import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
 import {
   captureCollectionSnapshot,
@@ -292,6 +296,51 @@ function remapBinderRefs(prevCards: EnrichedCard[], newCards: EnrichedCard[]): v
   if (binders.length === 0) return;
   const result = reconcileBinderRefs(binders, newCards, prevCards);
   if (result.changed) useCollectionStore.setState({ binders: result.binders });
+}
+
+/** Open a binder from a toast action: select its tab, then route to it. */
+function openBinder(binderId: string): void {
+  useCollectionStore.getState().setActiveTab(binderId);
+  appNavigate(`/collection/binders/${binderId}`);
+}
+
+/**
+ * Surface binder auto-moves that a price refresh caused (T21 / E5). Binders are
+ * rule-based, so a price crossing a threshold silently moves a card in or out —
+ * this tells the user it happened. Per-move toasts (coalescing identical ones)
+ * up to the viewport cap; beyond that, a single digest so a big refresh doesn't
+ * silently drop moves off the top of the stack. Info tone; moves INTO a binder
+ * carry a "View binder" action to the destination.
+ */
+function notifyBinderMoves(moves: BinderMove[]): void {
+  if (moves.length === 0) return;
+
+  if (moves.length > MAX_VISIBLE_TOASTS) {
+    toast.show({
+      message: `${moves.length} cards moved between binders (prices updated)`,
+      tone: 'info',
+      actionLabel: 'View',
+      onAction: () => appNavigate('/collection/binders'),
+    });
+    return;
+  }
+
+  for (const move of moves) {
+    const message = formatBinderMoveMessage(move);
+    const dest = move.toBinder;
+    if (dest) {
+      toast.show({
+        message,
+        tone: 'info',
+        actionLabel: 'View binder',
+        onAction: () => openBinder(dest.id),
+      });
+    } else {
+      // Left a binder for the Uncategorized remainder — no destination to open,
+      // so keep it a plain toast (which also lets identical moves coalesce).
+      toast.show({ message, tone: 'info' });
+    }
+  }
 }
 
 export const useCollectionStore = create<CollectionState>()(
@@ -601,7 +650,21 @@ export const useCollectionStore = create<CollectionState>()(
             if (!(key in entries)) entries[key] = { usd: c.purchasePrice ?? 0, pricedAt: now };
           }
           setPrices(entries);
-          set({ cards: applyPrices(get().cards) });
+          const beforeCards = get().cards;
+          const afterCards = applyPrices(beforeCards);
+          set({ cards: afterCards });
+
+          // Rule-based binders re-route silently when a price crosses a
+          // threshold — diff membership old↔new and tell the user what moved.
+          // Allocations are passed through so the diff matches the live view
+          // (copies hidden via hideDeckAllocated don't "move"). Device-local,
+          // no sync touched.
+          const allocated = new Set(buildAllocationMap(useDecksStore.getState().decks).keys());
+          notifyBinderMoves(
+            computeBinderMoves(beforeCards, afterCards, get().binders, {
+              allocatedCopyIds: allocated,
+            })
+          );
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Failed to refresh prices';
           logger.warn('[store] refreshPrices failed:', err);

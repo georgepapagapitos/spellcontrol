@@ -24,6 +24,7 @@ import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
 import { autoSyncOfflineData, registerOfflineSyncOnResume } from './lib/offline/auto-sync';
 import { initDeepLinks } from './lib/deep-links';
+import { setAppNavigator } from './lib/navigate-bridge';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
 
@@ -103,6 +104,13 @@ export default function App() {
   // Capacitor APK. The teardown drops the listener if React ever remounts
   // App (StrictMode, fast-refresh) so we don't double-handle URLs.
   useEffect(() => initDeepLinks(navigate), [navigate]);
+
+  // Hand the router to non-React callers (e.g. binder-move toasts fired from
+  // the collection store need to route to the destination binder on tap).
+  useEffect(() => {
+    setAppNavigator(navigate);
+    return () => setAppNavigator(null);
+  }, [navigate]);
 
   // Re-check the offline card catalog whenever the app returns to the
   // foreground. No-op on web; throttled so frequent resumes don't spam the
