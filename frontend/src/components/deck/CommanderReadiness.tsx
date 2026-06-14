@@ -12,7 +12,7 @@ import type { ReadinessScore } from '../../lib/commander-readiness';
  *   available  → "{percent}%"
  *
  * Shared by CommanderSearch and CommanderResultCard. Styles live in
- * deck-builder.css (`.commander-search-item-readiness`).
+ * deck-builder-commander.css (`.commander-search-item-readiness`).
  */
 export function ReadinessChip({ score }: { score: ReadinessScore | 'loading' | undefined }) {
   if (score === undefined) return null;

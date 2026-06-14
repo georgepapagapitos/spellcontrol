@@ -3,7 +3,7 @@
  *
  * The donut + production styles are replicated here under new `.deck-color-*`
  * class names (rather than depending on the global `.deck-donut` /
- * `.deck-mana-prod` selectors in styles/deck-builder.css, which stay untouched
+ * `.deck-mana-prod` selectors in styles/deck-builder-analysis.css, which stay untouched
  * for the in-transition parent). The Balance section reuses the standalone
  * <DeckColorBalance> component and its own co-located CSS.
  */

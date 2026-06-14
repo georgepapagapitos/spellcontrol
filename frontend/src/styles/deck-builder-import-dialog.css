@@ -1,0 +1,488 @@
+/* deck-builder-import-dialog.css — Import deck dialog (all steps) + generic OverflowMenu anchor + decks-index hero actions.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 6701-7186. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Import deck dialog ────────────────────────────────────────────── */
+
+.import-deck-modal {
+  max-width: 640px;
+}
+
+.import-deck-modal .modal-body {
+  min-height: 260px;
+  position: relative;
+}
+
+.import-deck-modal .modal-body.import-deck-dragover {
+  outline: 2px dashed var(--accent);
+  outline-offset: -8px;
+  border-radius: var(--radius);
+}
+
+.import-deck-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface1) 85%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: var(--radius);
+}
+
+.import-deck-drop-message {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--accent);
+  padding: 0.75rem 1.25rem;
+  background: var(--surface-raised);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+}
+
+.import-deck-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+
+.import-deck-name-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.import-deck-name-input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.import-deck-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.import-deck-review-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.85rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.import-deck-review-tag {
+  padding: 0.1rem 0.45rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.import-deck-warning {
+  margin: 0 0 0.85rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--warn-border, var(--border));
+  background: var(--warn-bg, var(--surface-raised));
+  color: var(--warn-text, var(--text-primary));
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.import-deck-warning-title {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.import-deck-unresolved-list {
+  list-style: disc;
+  margin: 0;
+  padding-left: 1.25rem;
+  max-height: 140px;
+  overflow-y: auto;
+  font-size: var(--text-xs);
+}
+
+.import-deck-unresolved-more {
+  list-style: none;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.import-deck-commander-section {
+  margin-top: 0.75rem;
+}
+
+.import-deck-section-title {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.import-deck-commander-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface1);
+}
+
+.import-deck-commander-selected .import-deck-commander-info {
+  flex: 1;
+}
+
+.import-deck-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.import-deck-format {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+
+.import-deck-format-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.import-deck-modal .paste-textarea {
+  min-height: 200px;
+}
+
+.import-deck-batch {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface1);
+  padding: 0.75rem;
+  margin: 0 0 0.85rem;
+}
+
+.import-deck-batch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: 0.5rem;
+}
+
+.import-deck-batch-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0.4rem 0.5rem;
+  max-height: 140px;
+  overflow-y: auto;
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.import-deck-batch-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.import-deck-batch-file-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-deck-batch-remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.import-deck-batch-remove:hover:not(:disabled) {
+  background: var(--surface1);
+  color: var(--text-primary);
+}
+
+.import-deck-batch-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.import-deck-batch-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.import-deck-batch-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.import-deck-batch-mode input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.import-deck-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.import-deck-summary-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface1);
+  padding: 0.6rem 0.75rem;
+}
+
+.import-deck-summary-item.is-failed {
+  border-color: var(--warn-border, var(--border));
+  background: var(--warn-bg, var(--surface-raised));
+}
+
+.import-deck-summary-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.import-deck-summary-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.import-deck-summary-file {
+  margin-top: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-deck-summary-warn {
+  color: var(--warn-text, var(--danger, var(--text-primary)));
+  font-size: var(--text-xs);
+  margin-top: 0.2rem;
+}
+
+.import-deck-draft-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.import-deck-draft-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.import-deck-draft-format {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.import-deck-draft-format:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.import-deck-draft-commander {
+  margin-top: 0.5rem;
+}
+
+.import-deck-modal .modal-footer .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.import-deck-modal .modal-footer .btn svg {
+  flex-shrink: 0;
+}
+
+.import-deck-loading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 200px;
+  padding: 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.import-deck-modal .commander-search {
+  max-height: 400px;
+}
+
+.import-deck-commander-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.import-deck-commander-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface1);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.import-deck-commander-option:hover {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+}
+
+/* Selected partner candidate in the opt-in partner picker. */
+.import-deck-commander-option.is-selected {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Partner section sits just under the commander section in review/batch. */
+.import-deck-partner-section {
+  margin-top: 0.85rem;
+}
+
+.import-deck-commander-art {
+  width: 48px;
+  height: 67px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.import-deck-commander-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.import-deck-commander-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.import-deck-commander-type {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.import-deck-search-link {
+  margin-top: 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.decks-index-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Generic kebab wrapper — anchors the popover (which is position:absolute). */
+.overflow-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The kebab is the left-most action, so open the menu rightward (the shared
+   .deck-row-menu-popover defaults to right:0, which would run off-screen). */
+.overflow-menu-popover {
+  left: 0;
+  right: auto;
+  /* Left-anchored, so the enter scale grows from the trigger's left corner. */
+  transform-origin: top left;
+  /* A transient menu must outrank the sticky chrome it opens over (STYLE_GUIDE
+     "Z-index / layering"). The hero's ⋮ opens down over the sticky
+     `.decks-index-search-row` (capped at --z-popover), so this sits one tier
+     up at --z-menu — same pairing as the deck editor's tabs/overflow. The
+     shared `.deck-row-menu-popover` base is --z-dropdown (fine in unclipped
+     rows); we lift only this hero instance. */
+  z-index: var(--z-menu);
+}
+
+/* The ⋮ overflow only appears on phones; desktop/tablet show the full pills. */
+.decks-index-actions-overflow {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .decks-index-action-secondary {
+    display: none;
+  }
+  .decks-index-actions-overflow {
+    display: inline-flex;
+    flex: 0 0 auto; /* stay compact; let the primary CTA take the rest of the row */
+  }
+}

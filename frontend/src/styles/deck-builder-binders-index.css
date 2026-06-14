@@ -1,0 +1,438 @@
+/* deck-builder-binders-index.css — Binders index page: grid/list/compact view modes, search/sort bar, binder cards, danger links.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 7364-7799. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Binders index page ────────────────────────────────────────────────────
+   Mirrors the decks index in shape so users get the same gesture
+   language across both surfaces (sort pill, view toggle, card grid).
+   Per-card color comes from the binder definition via the --binder-color
+   custom prop set inline on each card. */
+
+.binders-index-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/*
+ * `.binders-index-hero` and `.binders-index-hero-text` layout rules live in
+ * global.css alongside `.collection-hero` / `.decks-index-hero` so all index
+ * pages share one row-with-actions definition. Don't redefine here — the
+ * old `align-items: flex-start` was conflicting with the shared rule's
+ * `align-items: flex-end` and made the Binders title sit higher than Decks.
+ */
+
+.binders-index-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.binders-index-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Sticky search — sister rule to .decks-index-search-row and
+   .collection-toolbar-row. Only the search bar pins; the sort/view
+   row scrolls away with the list. */
+.binders-index-search-row {
+  position: sticky;
+  /* `.app-main` is the sole scroll container; the header sits outside
+     it, so the scrollport top is already under the header — pin at 0,
+     not the header height (see .collection-toolbar-row). */
+  top: 0;
+  /* Sticky chrome = content scaffolding: above scrolling content (cards +
+     their --z-dropdown row menus) but BELOW menus opened from the hero above
+     it, so a ⋮ overflow (--z-menu) floats on top instead of behind. Mirrors
+     `.deck-editor-view-tabs`. See STYLE_GUIDE "Z-index / layering". */
+  z-index: var(--z-popover);
+  background: var(--bg);
+  margin: 0 calc(var(--page-gutter, 1rem) * -1) 0.5rem;
+  padding: 0.75rem var(--page-gutter, 1rem) 0.65rem;
+}
+
+@media (max-width: 600px) {
+  .binders-index-search-row {
+    padding: 0.35rem var(--page-gutter, 0.5rem) 0.3rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.binders-index-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.binders-index-viewmode {
+  margin-left: auto;
+}
+
+.binders-index-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+/* Grid: vertical-card tiles with the binder color as a full-width
+   banner across the top, name + meta in a padded body below. Reads
+   as a tile of "this binder, in its own color" so users can tell
+   binders apart at a glance — distinct from the horizontal List row
+   on every breakpoint. Mirrors `.decks-index-list.is-grid`. */
+.binders-index-list.is-grid {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+/* In grid mode the color identity moves from the 4px left stripe to
+   the full-width top banner. Drop the left stripe so the banner sits
+   flush against a uniform border on every side — otherwise the
+   stripe creates a "T"-shape notch in the top-left of the tile.
+   No overflow: hidden here — the swatch self-rounds its own top
+   corners below, and clipping the card would also clip the kebab
+   menu's dropdown panel. */
+.binders-index-list.is-grid .binders-index-card {
+  border-left-width: 1px;
+}
+
+.binders-index-list.is-grid .binders-index-card-link {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  gap: 0;
+}
+
+/* In grid mode the binder color becomes the card header that holds
+   the name — an empty color block read as wasted space. The
+   standalone swatch dot is redundant here, so it collapses. */
+.binders-index-list.is-grid .binders-index-card-swatch {
+  display: none;
+}
+
+.binders-index-list.is-grid .binders-index-card-body {
+  padding: 0;
+}
+
+/* Name is the colored header band. White text + shadow stays legible
+   on any user-chosen binder color (pale gold through dark purple).
+   Right padding clears the absolutely-positioned 3-dot menu. */
+.binders-index-list.is-grid .binders-index-card-name {
+  background: var(--binder-color, var(--accent));
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-size: var(--text-lg);
+  padding: 0.85rem 2.6rem 0.85rem 0.95rem;
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+.binders-index-list.is-grid .binders-index-card-meta {
+  padding: 0.6rem 0.95rem 0.75rem;
+  margin-top: 0;
+}
+
+/* List: horizontal row — swatch dot on the left, name + meta on
+   the right. Distinct from Grid (color banner on top). */
+.binders-index-list.is-list {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+/* Compact: single-line dense rows. Name + Manual/Cap tag inline,
+   long "N cards · M pages" detail hidden — same density rhythm as
+   .decks-index-list.is-compact and .collection-list.is-compact. */
+.binders-index-list.is-compact {
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+}
+
+.binders-index-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--binder-color, var(--accent));
+  border-radius: var(--radius-lg);
+  transition: border-color var(--motion-fast) ease;
+}
+
+/* Lift the card above its siblings while its 3-dot popover is open so
+   the menu panel paints over the cards that follow it in the list
+   instead of slipping behind them. */
+.binders-index-card:has(.binders-index-card-menu-btn[aria-expanded='true']) {
+  z-index: var(--z-dropdown);
+}
+
+/* On hover, every side of the border tints to the binder's chosen color so
+   the card visually "lights up" in its own theme — not the global accent.
+   No transform on hover — that 1px lift was reading as a layout shift
+   between adjacent cards in the list. Border-color alone is enough
+   feedback and matches the Decks index card behavior. */
+.binders-index-card:hover {
+  border-color: var(--binder-color, var(--accent));
+}
+
+.binders-index-card-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.binders-index-card-swatch {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 0.5px solid var(--border-strong);
+}
+
+.binders-index-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.binders-index-card-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.binders-index-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.binders-index-card-tag {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+}
+
+.binders-index-list.is-compact .binders-index-card {
+  /* Clamp every li to the column width so long binder names ellipsis
+     instead of pushing the row past the right edge. `overflow: hidden`
+     used to live here too, but it clipped the absolutely-positioned
+     3-dot menu panel — long names are already truncated inside
+     `.binders-index-card-name` (text-overflow: ellipsis), so the
+     outer clip isn't needed. */
+  min-width: 0;
+}
+
+.binders-index-list.is-compact .binders-index-card-link {
+  padding: 0.3rem 0.75rem;
+  padding-right: 2.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.binders-index-list.is-compact .binders-index-card-body {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.binders-index-list.is-compact .binders-index-card-name {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.binders-index-list.is-compact .binders-index-card-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.binders-index-list.is-compact .binders-index-card-meta {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+/* Restore the inline " · " separator that originally lived inside
+   the combined "N cards · M pages" string — now that it's split into
+   two spans the flex gap alone leaves them too detached. The dot is
+   drawn from the pages span so it only shows when both spans are
+   present (and disappears cleanly in compact, where the cards span
+   is hidden). */
+.binders-index-card-pages::before,
+.binders-index-card-value::before {
+  content: '· ';
+  margin-right: 0.05rem;
+  color: var(--text-muted);
+}
+
+/* In compact mode we still want a single skim-worthy signal next to
+   the name — page count gives a quick "how big is this binder?" cue,
+   while the redundant cards detail is hidden. */
+.binders-index-list.is-compact .binders-index-card-cards,
+.binders-index-list.is-compact .binders-index-card-value {
+  display: none;
+}
+
+.binders-index-list.is-compact .binders-index-card-pages::before {
+  content: none;
+}
+
+/* Center the action menu vertically in compact rows (default
+   top: 0.4rem looks anchored to the top of a single-line row). We
+   stretch the wrapper to the full card height and let flex centering
+   handle the button — `top: 50% + translateY` was rounding off-center
+   when the inline content (name baseline) didn't sit at mid-card. */
+.binders-index-list.is-compact .binders-index-card-menu {
+  top: 0;
+  bottom: 0;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Shrink the 3-dot button in compact rows so its circular hover
+   background doesn't pop past the card's rounded right edge — the
+   default 1.9rem button is taller than the compact row's content. */
+.binders-index-list.is-compact .binders-index-card-menu-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.binders-index-card-menu {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+}
+
+.binders-index-card-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.binders-index-card-menu-btn:hover,
+.binders-index-card-menu-btn[aria-expanded='true'] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+/* Grid mode: the button sits on the colored header band, where the
+   default muted gray washes out. White icon + shadow keeps it visible
+   on any binder color; hover/open uses a dark scrim chip instead of
+   the light surface (which disappeared on pale banners). */
+.binders-index-list.is-grid .binders-index-card-menu-btn {
+  color: #fff;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
+}
+
+.binders-index-list.is-grid .binders-index-card-menu-btn:hover,
+.binders-index-list.is-grid .binders-index-card-menu-btn[aria-expanded='true'] {
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+.binders-index-card-menu-backdrop {
+  display: none;
+}
+
+.binders-index-card-menu-handle {
+  display: none;
+}
+
+.binders-index-card-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 10rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+}
+
+.binders-index-card-menu-item {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.binders-index-card-menu-item:hover:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+.binders-index-card-menu-item:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.binders-index-card-menu-item--danger {
+  color: var(--err-text);
+}
+
+.binders-index-card-menu-item--danger:hover {
+  background: var(--err-bg);
+}
+
+.binders-index-danger,
+.decks-index-danger {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.binders-index-danger-btn,
+.decks-index-danger-btn {
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+/* No mobile bottom-sheet treatment — the per-card menu uses the same
+   anchored popover at every breakpoint (matches the deck-editor and
+   decks-index 3-dot menus). The backdrop / handle nodes still render
+   in the JSX but stay `display: none` everywhere. */

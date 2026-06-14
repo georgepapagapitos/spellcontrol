@@ -1,0 +1,145 @@
+/* deck-builder-responsive.css — Tablet/mobile @media overrides for deck-builder selectors (card list, toolbar, options, commander-pick, decks-index, curve).
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 6558-6700. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Responsive ──────────────────────────────────────────────────────── */
+/* Tablet: stats sidebar drops below the list, the editor's add-cards
+   panel stacks beneath the deck, and the toolbar wraps to two rows.
+   Card list keeps two columns at 280px so a generated 100-card deck is
+   still browsable without endless vertical scroll. */
+@media (max-width: 1100px) {
+  /* `.deck-display` is a flex column at every width (see the base rule), so it
+     already stacks toolbar → stats → banner → body with no per-breakpoint grid
+     needed. (A vestigial `grid-template-areas` block used to live here from the
+     old stats-sidebar layout; it was inert dead CSS — `display` was never
+     `grid` — and was removed.) */
+
+  /* Totals (cards + value) are surfaced by the Statistics panel header
+     once the sidebar collapses above the deck — duplicating them in
+     the hero would be noise. Hide on tablet/mobile only. */
+  .deck-hero-totals {
+    display: none;
+  }
+
+  /* Tablet/mobile: flatten the per-section bordered cards into one
+     continuous panel. Each section keeps its header + rows for
+     organization but loses its own background/border/padding, so the
+     deck composition reads as a single contiguous list (echoing the
+     20q2 deck-generator's layout). Multi-column is also dropped — rows
+     stay full-width for legibility once the stats sidebar drops below. */
+  .deck-card-list {
+    column-count: 1;
+    column-width: auto;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.25rem 0.85rem;
+  }
+
+  .deck-card-list .deck-section {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 0;
+    display: block;
+  }
+
+  /* Thin divider between sections — replaces the inter-card whitespace
+     that the bordered cards used to create. The first section skips
+     the line so the panel doesn't open with a rule. */
+  .deck-card-list .deck-section + .deck-section {
+    border-top: 0.5px solid var(--border);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .deck-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .deck-toolbar-controls {
+    justify-content: flex-start;
+  }
+
+  .deck-toolbar-search {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .deck-builder-page {
+    gap: 1rem;
+  }
+
+  .deck-builder-section {
+    padding: 0.9rem 1rem;
+  }
+
+  .deck-builder-header h1 {
+    font-size: var(--text-xl);
+  }
+
+  .deck-builder-subtitle {
+    font-size: var(--text-xs);
+  }
+
+  /* Stack the build-settings controls vertically with full-width hit
+     targets — the inline row gets cramped under ~520px. */
+  .deck-builder-options {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .deck-builder-field {
+    justify-content: space-between;
+  }
+
+  /* Commander preview wraps so the Change button drops below on narrow
+     screens instead of squeezing the name. */
+  .commander-pick {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .commander-pick-body {
+    flex: 1 1 60%;
+  }
+
+  /* Stale override removed — the new commander pick uses the full card
+     image at the 488/680 portrait aspect, so we just let the parent
+     breakpoint at 600px handle the stack. */
+
+  /* Single-column card list, stats, decks index on mobile. */
+  .deck-card-list {
+    column-count: 1;
+    column-width: auto;
+  }
+  .decks-index-list {
+    grid-template-columns: 1fr;
+  }
+
+  .deck-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .deck-toolbar-controls {
+    justify-content: space-between;
+  }
+
+  .deck-toolbar-search {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .deck-curve {
+    height: clamp(110px, 30vh, 220px);
+  }
+}
+
+/* @media (max-width: 380px) {} — no longer hides the card image; the
+   stacked layout from the 600px breakpoint already shrinks gracefully. */

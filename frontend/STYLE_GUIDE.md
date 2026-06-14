@@ -389,13 +389,26 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   `admin-scanner.css`. Each file's header comment lists what's inside. **Import
   order in `main.tsx` is load-bearing** (last-write-wins on equal specificity) —
   add a new global stylesheet in the position its cascade needs, not alphabetically.
+- **The former 8.6k-line `deck-builder.css` was also split** into 26 contiguous,
+  feature-named `deck-builder-*.css` files (same byte-identical method as
+  `global.css`), imported in `main.tsx` in original cascade order. Find rules by
+  feature: `deck-builder-page`, `-commander`, `-settings`, `-display`,
+  `-card-list`, `-analysis`, `-decks-index`, `-editor`, `-customizer`, `-export`,
+  `-card-search`, `-test-hand`, `-combos`, `-tabs` (the shared `<Tabs>`
+  primitive), `-combos-list`, `-row-qty`, `-toast` (the global toast viewport),
+  `-binder-slot`, `-responsive` (tail-end `@media` overrides), `-import-dialog`,
+  `-deck-extras`, `-binders-index`, `-analysis-panel`, `-commander-profile`,
+  `-guided`, `-skeleton`. Each file's header lists its content + original line
+  range. **This was a pure mechanical slice — co-locating these page/shared
+  styles into component files is a deliberate follow-up (cascade-order changes,
+  needs a visual check), not done here.**
 - **Deck components use co-located CSS:** a component in
   `src/components/deck/*` imports its own `./X.css` (e.g.
-  `DeckColorPanel.css`), not the central `src/styles/deck-builder.css`. Shared
-  layout/page styles live in `deck-builder.css`; per-component rules belong with
-  the component. Because CSS isn't typecheck/lint-gated, a rule put in the wrong
-  file renders silently unstyled while CI stays green — verify visually or grep
-  the class name.
+  `DeckColorPanel.css`), not the central `deck-builder-*.css` files. Shared
+  layout/page styles live in the `deck-builder-*` slices; per-component rules
+  belong with the component. Because CSS isn't typecheck/lint-gated, a rule put
+  in the wrong file renders silently unstyled while CI stays green — verify
+  visually or grep the class name.
 
 ## Verdict badges
 
@@ -557,7 +570,7 @@ hasn't yet produced its first result. The skeleton uses the shared
 `skeleton-shimmer` keyframe from `styles/footer-card-preview.css` — do NOT redeclare it (the
 `motion-tokens.test.ts` guard enforces a single declaration). The CSS class
 family is `deck-analysis-skeleton` / `deck-analysis-skeleton-bar` / etc., in
-`styles/deck-builder.css`. The skeleton disappears as soon as any lane content
+`styles/deck-builder-skeleton.css`. The skeleton disappears as soon as any lane content
 slot (`improveSlot`, `powerHeroSlot`, etc.) arrives, or once
 `analysisState === 'ready'`. The pending signal is `!deck.gradeBracketSignature`
 (set only after the first successful analysis run).

@@ -1,0 +1,159 @@
+/* deck-builder-combos.css — Deck combos panel header/tabs/spinner.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 5260-5416. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Deck combos panel ───────────────────────────────────────────────── */
+.deck-combos-panel {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.deck-combos-panel.is-collapsed {
+  /* When collapsed the panel becomes a single header strip — no body padding,
+     just the toggle. Saves vertical space without giving up the slot. */
+  padding: 0.65rem 0.75rem;
+}
+
+.deck-combos-title {
+  /* Same chrome as INSTANT / SORCERY section headers so every collapsible
+     header in the deck view reads as one family. */
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.deck-combos-header-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.25rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-combos-header-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Trailing slot — the 4th grid column. Holds spinner (when loading) AND the
+   chevron together so the spinner toggling never re-flows the chevron's x
+   position. The chevron itself is always-rendered; only the spinner appears
+   conditionally beside it. */
+.deck-combos-header-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.deck-combos-header-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.deck-combos-header:hover .deck-combos-header-chevron {
+  color: var(--accent);
+}
+
+.deck-combos-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.deck-combos-panel.is-collapsed .deck-combos-body {
+  display: none;
+}
+
+.deck-combos-spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+  /* Slot is ALWAYS rendered (visibility toggled, not display) so the
+     trailing wrapper's width never changes between loading and idle.
+     Without this the summary column shrinks by the spinner's width every
+     time a request fires, shifting the rest of the header sideways. */
+  flex: 0 0 auto;
+}
+
+.deck-combos-spinner.is-idle {
+  visibility: hidden;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-combos-spinner {
+    animation: none;
+  }
+}
+
+.deck-combos-tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg);
+  padding: 0.2rem;
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+}
+
+.deck-combos-tab {
+  flex: 1;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.deck-combos-tab.active {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.deck-combos-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.05rem;
+  padding: 0 0.3rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-combos-tab.active .deck-combos-tab-count {
+  background: var(--accent);
+  color: var(--on-accent);
+}

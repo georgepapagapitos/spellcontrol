@@ -1,0 +1,172 @@
+/* deck-builder-toast.css — Global toast viewport (fixed stack, per-toast chrome, enter/leave animations).
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 6322-6491. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Toast viewport ────────────────────────────────────────────────── */
+.toast-viewport {
+  position: fixed;
+  /* Sit above whichever is taller: the device's home-gesture inset or the
+     on-screen keyboard. Keeps toasts visible while a form field is focused
+     and clear of the home indicator on notched devices. */
+  inset: auto 1rem calc(1rem + max(var(--safe-bottom), var(--keyboard-inset))) 1rem;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  /* Above --z-overlay (game board / playtest fullscreen) so toasts fired
+     during a game stay visible — at --z-modal they were occluded. */
+  z-index: var(--z-tooltip);
+}
+
+.toast-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.4rem;
+  max-width: 28rem;
+  width: 100%;
+  /* Offset parent for leaving toasts: a dismissed toast is pinned
+     absolutely at its last in-flow slot while `toast-leave` plays, so the
+     survivors reflow immediately and glide into the freed space. */
+  position: relative;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  animation: toast-slide-in 160ms var(--ease-out-soft);
+  /* Restack glide: when a neighbor leaves, use-toast-exits inverts the
+     survivor's jump with an inline transform and releases it into this
+     transition, so the stack glides instead of teleporting. */
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+
+/* Leaving: symmetric exit — fade + drop back the way it came in.
+   `forwards` holds the final (invisible) frame for the tick between
+   animationend and React unmounting the ghost. Pointer events die with the
+   dismissal so a mid-exit toast can't be clicked. */
+.toast.is-leaving {
+  animation: toast-leave var(--motion-base) var(--ease-out-soft) forwards;
+  pointer-events: none;
+}
+
+.toast-info {
+  /* Default tone — uses surface-raised; no extra rules needed. */
+}
+
+.toast-success {
+  border-color: var(--accent);
+}
+
+.toast-warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
+}
+
+.toast-error {
+  background: var(--err-bg);
+  border-color: var(--err-border);
+  color: var(--err-text);
+}
+
+.toast-message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Coalesced-count badge (e.g. "×3") shown when identical toasts pile up. */
+.toast-repeat {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.toast-action {
+  flex: 0 0 auto;
+  border: 0.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.toast-action:hover,
+.toast-action:focus-visible {
+  background: var(--accent);
+  color: var(--on-accent);
+  outline: none;
+}
+
+.toast-close {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius);
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+  color: var(--text-primary);
+  background: var(--surface);
+  outline: none;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The .toast.is-leaving selector must repeat here — it outspecifies a
+     bare `.toast` gate, which would leave the exit keyframe running.
+     use-toast-exits also checks matchMedia and unmounts dismissed toasts
+     immediately under reduce, so nothing ever waits on animationend. */
+  .toast,
+  .toast.is-leaving {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Below ~600px the price column eats the rest of the name; drop it. */
+@media (max-width: 600px) {
+  .deck-row-price {
+    display: none;
+  }
+}
