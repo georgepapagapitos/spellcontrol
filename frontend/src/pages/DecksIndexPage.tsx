@@ -7,7 +7,6 @@ import {
   MoreVertical,
   Package,
   Plus,
-  Trash2,
   Wand2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -342,19 +341,6 @@ export function DecksIndexPage() {
             items={[
               { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
               { label: 'Add precon', icon: Package, onClick: () => setShowProductSearch(true) },
-              // "Delete all decks" is a danger item — destructive actions live
-              // in the page kebab per STYLE_GUIDE. Only shown when there are
-              // multiple decks to delete. (UX-316)
-              ...(decks.length > 1
-                ? [
-                    {
-                      label: 'Delete all decks',
-                      icon: Trash2,
-                      onClick: () => setConfirmDeleteAll(true),
-                      danger: true,
-                    },
-                  ]
-                : []),
             ]}
           />
           <Link to="/decks/new" className="pill-btn pill-btn-primary">
@@ -618,7 +604,18 @@ export function DecksIndexPage() {
         </ul>
       )}
 
-      {/* "Delete all decks" moved to the hero ⋮ OverflowMenu (UX-316). */}
+      {decks.length > 1 && (
+        <div className="decks-index-danger">
+          <button
+            type="button"
+            className="btn-link decks-index-danger-btn"
+            onClick={() => setConfirmDeleteAll(true)}
+          >
+            Delete all decks
+          </button>
+        </div>
+      )}
+
       {shareDeck && (
         <ShareDialog
           kind="deck"

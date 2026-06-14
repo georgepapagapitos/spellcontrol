@@ -2,7 +2,8 @@
 /**
  * Tests for:
  *   UX-317 — Decks empty state three-door layout (Build / Import / Add precon).
- *   UX-316 — "Delete all decks" lives in the hero ⋮ OverflowMenu, not the footer.
+ *   "Delete all decks" is a danger link under the deck list (mirrors Binders),
+ *   shown only when there is more than one deck.
  */
 import 'fake-indexeddb/auto';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -10,10 +11,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Store stubs ─────────────────────────────────────────────────────────────
+// Mutable so individual tests can supply decks before rendering.
+const mockDeleteAllDecks = vi.fn();
+let mockDecks: unknown[] = [];
 vi.mock('../store/decks', () => ({
   useDecksStore: (
     sel: (s: { decks: unknown[]; deleteDeck: () => void; deleteAllDecks: () => void }) => unknown
-  ) => sel({ decks: [], deleteDeck: vi.fn(), deleteAllDecks: vi.fn() }),
+  ) => sel({ decks: mockDecks, deleteDeck: vi.fn(), deleteAllDecks: mockDeleteAllDecks }),
 }));
 
 // ── Heavy component stubs ───────────────────────────────────────────────────
@@ -71,8 +75,25 @@ function renderEmpty() {
   );
 }
 
+function makeDeck(id: string, name: string) {
+  return {
+    id,
+    name,
+    cards: [],
+    sideboard: [],
+    color: '#888',
+    format: 'commander',
+    source: 'manual',
+    updatedAt: 0,
+  };
+}
+
 describe('DecksIndexPage — empty state three doors (UX-317)', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    mockDecks = [];
+    mockDeleteAllDecks.mockClear();
+  });
   afterEach(() => localStorage.clear());
 
   it('shows the "No decks yet." tagline when decks is empty', () => {
@@ -119,14 +140,35 @@ describe('DecksIndexPage — empty state three doors (UX-317)', () => {
   });
 });
 
-describe('DecksIndexPage — "Delete all decks" in ⋮ menu (UX-316)', () => {
-  beforeEach(() => localStorage.clear());
+describe('DecksIndexPage — "Delete all decks" danger link (mirrors Binders)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockDecks = [];
+    mockDeleteAllDecks.mockClear();
+  });
   afterEach(() => localStorage.clear());
 
-  it('does NOT render a footer "Delete all decks" button when decks is empty', () => {
+  it('does NOT render the danger link when decks is empty', () => {
     renderEmpty();
-    // The old footer danger button should be gone.
-    const footerLinks = Array.from(document.querySelectorAll('.decks-index-danger-btn'));
-    expect(footerLinks).toHaveLength(0);
+    expect(document.querySelectorAll('.decks-index-danger-btn')).toHaveLength(0);
+  });
+
+  it('does NOT render the danger link with a single deck', () => {
+    mockDecks = [makeDeck('a', 'Solo')];
+    renderEmpty();
+    expect(document.querySelectorAll('.decks-index-danger-btn')).toHaveLength(0);
+  });
+
+  it('renders the danger link under the list and confirms before deleting all', () => {
+    mockDecks = [makeDeck('a', 'One'), makeDeck('b', 'Two')];
+    renderEmpty();
+    const btn = document.querySelector('.decks-index-danger-btn') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    // Confirm dialog appears; not deleted until confirmed.
+    expect(screen.getByTestId('confirm-dialog')).toBeTruthy();
+    expect(mockDeleteAllDecks).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Confirm'));
+    expect(mockDeleteAllDecks).toHaveBeenCalledTimes(1);
   });
 });
