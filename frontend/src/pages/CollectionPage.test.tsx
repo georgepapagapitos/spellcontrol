@@ -20,6 +20,13 @@ vi.mock('../components/CardListTable', () => ({
 }));
 vi.mock('../components/StatsBar', () => ({ StatsBar: () => null }));
 vi.mock('../components/ShareDialog', () => ({ ShareDialog: () => null }));
+// Controllable sync state so we can exercise the fresh-device "loading your
+// collection" branch without standing up the real sync engine.
+const syncMock = vi.hoisted(() => ({ state: 'idle' as 'idle' | 'syncing' | 'ready' }));
+vi.mock('../lib/sync', () => ({
+  getSyncState: () => syncMock.state,
+  onSyncedChange: () => () => {},
+}));
 // Stub AddCardsSheet to expose its initialTab for assertion without rendering
 // the full modal stack (CardScanner, UploadPanel, etc.).
 vi.mock('../components/AddCardsSheet', () => ({
@@ -32,6 +39,7 @@ vi.mock('../components/AddCardsSheet', () => ({
 
 import { CollectionPage } from './CollectionPage';
 import { useCollectionStore } from '../store/collection';
+import { useAuth } from '../store/auth';
 
 function renderPage(initialEntry = '/collection') {
   return render(
@@ -44,6 +52,33 @@ function renderPage(initialEntry = '/collection') {
 beforeEach(() => {
   // Reset collection store to empty/ready state.
   useCollectionStore.setState({ cards: [], binders: [], hydrating: false, error: null });
+  syncMock.state = 'idle';
+  useAuth.setState({ status: 'guest' });
+});
+
+describe('CollectionPage – collection load feedback', () => {
+  it('shows "Loading your collection…" while an authed device pulls (empty + syncing)', () => {
+    useAuth.setState({ status: 'authed' });
+    syncMock.state = 'syncing';
+    renderPage('/collection');
+    expect(screen.getByText('Loading your collection…')).toBeTruthy();
+  });
+
+  it('does NOT show the loading state for a guest with an empty collection', () => {
+    syncMock.state = 'syncing'; // guests never sync, but assert the auth gate
+    renderPage('/collection');
+    expect(screen.queryByText('Loading your collection…')).toBeNull();
+  });
+
+  it('does NOT show the loading state once cards have arrived (empty=false)', () => {
+    useAuth.setState({ status: 'authed' });
+    syncMock.state = 'syncing';
+    useCollectionStore.setState({
+      cards: [{ copyId: 'c1', scryfallId: 'sf1', name: 'Sol Ring' }] as never,
+    });
+    renderPage('/collection');
+    expect(screen.queryByText('Loading your collection…')).toBeNull();
+  });
 });
 
 describe('CollectionPage – AddCardsSheet deep-link (UX-333)', () => {
