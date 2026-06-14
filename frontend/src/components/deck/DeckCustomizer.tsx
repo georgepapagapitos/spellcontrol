@@ -685,7 +685,9 @@ function CardListGroup({
         <ul className="deck-customizer-pills">
           {values.map((name) => (
             <li key={name} className="deck-customizer-pill">
-              <span>{name}</span>
+              <span className="card-name-chip-text" title={name}>
+                {name}
+              </span>
               <button
                 type="button"
                 className="deck-customizer-pill-remove"

@@ -113,6 +113,17 @@ at 320px. If it can't shrink, it must wrap or collapse.
 Verify both at the **320px floor** in the Responsive section — that's where the
 clip shows up first.
 
+## Card-name chips
+
+Card-name chips render the name on **one line with ellipsis truncation** and
+never wrap. Put the truncating text node on the shared
+`.card-name-chip-text` utility, and make sure any pill/chip flex item that must
+shrink also has `max-width: 100%` and `min-width: 0` so the ellipsis can engage.
+
+The full card name must remain reachable: expose it with `title` on the name
+element for desktop hover, and keep any existing tap-to-preview/card carousel
+affordance for touch. `title` is never the sole path to the full name.
+
 ## Symbol key / Legend
 
 The card-symbol key is **one shared component** (`components/Legend.tsx`), driven

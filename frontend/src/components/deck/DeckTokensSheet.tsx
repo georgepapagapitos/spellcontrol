@@ -86,7 +86,9 @@ export function DeckTokensSheet({
                       aria-pressed={open}
                       onClick={() => setOpenId(open ? null : id)}
                     >
-                      <span className="deck-tokens-chip-name">{t.name}</span>
+                      <span className="deck-tokens-chip-name card-name-chip-text" title={t.name}>
+                        {t.name}
+                      </span>
                       <span className="deck-tokens-chip-count">×{t.producers.length}</span>
                     </button>
                   </li>
