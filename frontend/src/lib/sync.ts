@@ -48,11 +48,13 @@ let broadcastChannel: BroadcastChannel | null = null;
 // async, so we hold the promise and remove the resolved handle on detach.
 let resumeListener: ReturnType<typeof CapacitorApp.addListener> | null = null;
 /**
- * True while we are writing server-sourced state into the Zustand stores.
- * Store subscribers must check this and skip enqueuing — those changes are
- * already on the server and would loop forever if re-pushed.
+ * Suspend-rehydration depth. While > 0, applyServerRows skips the expensive
+ * in-memory store rehydration so a caller doing many sync writes in a row
+ * (a multi-page bootstrap pull, a bulk import) rehydrates ONCE at the end
+ * instead of once per write. A counter, not a boolean, so nested
+ * withSuspendedHydration scopes don't prematurely re-enable rehydration.
  */
-let suspendStoreHydration = false;
+let hydrationSuspendDepth = 0;
 
 // The applyingServer flag lives in its own module so subscribers can read it
 // synchronously without an import cycle. Re-exported so existing
@@ -427,6 +429,56 @@ export const persistDecksState = (decks: ReadonlyArray<{ id: string }>): Promise
 export const persistGamesState = (games: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('game', games as Array<{ id: string }>, (g) => g.id);
 
+/** Chunk size for persistCardsChunked — bounds peak memory of a bulk card write. */
+const CARD_PERSIST_CHUNK = 1000;
+
+/**
+ * Persist a known-changed set of card rows in bounded, yielding chunks.
+ *
+ * Unlike persistKind this skips the whole-kind getAllLive + per-row JSON diff:
+ * the caller already knows these rows changed and there are no deletions to
+ * compute (used by the price refresh). Doing a full-collection refresh
+ * (~12k copies) through saveCollection→persistKind built ~5-6 transient
+ * full-array copies (getAllLive array + Map + Set + 2× JSON.stringify per row +
+ * the IDB write + the queue batch) all at once, spiking the heap enough to OOM
+ * the native WebView. Chunking + a yield between chunks keeps peak memory to
+ * one chunk and unblocks the main thread. Rows are written at rev:0 and
+ * enqueued as upserts, identical to any other local mutation.
+ */
+export async function persistCardsChunked(
+  cards: ReadonlyArray<{ copyId: string; importId?: string }>
+): Promise<void> {
+  for (let i = 0; i < cards.length; i += CARD_PERSIST_CHUNK) {
+    const slice = cards.slice(i, i + CARD_PERSIST_CHUNK);
+    await estore.putMany(
+      'card',
+      slice.map((c) => ({
+        id: c.copyId,
+        data: c,
+        rev: 0,
+        deletedAt: null,
+        importId: c.importId ?? '',
+      }))
+    );
+    await queue.enqueueBatch(
+      slice.map((c) => ({
+        op: 'upsert' as const,
+        kind: 'card' as const,
+        id: c.copyId,
+        data: c,
+        importId: c.importId ?? '',
+      }))
+    );
+    // Yield between chunks so GC can reclaim the prior chunk and the UI thread
+    // isn't pinned for the whole write.
+    if (i + CARD_PERSIST_CHUNK < cards.length) await new Promise<void>((r) => setTimeout(r));
+  }
+  if (cards.length > 0) {
+    void refreshPending();
+    schedulePush();
+  }
+}
+
 // ── Pull / push ─────────────────────────────────────────────────────────────
 
 async function pull(): Promise<void> {
@@ -438,15 +490,27 @@ async function pull(): Promise<void> {
   // every page of this bootstrap pull even as the cursor advances.
   const fresh = cursor === 0;
   try {
-    while (true) {
-      const page = await pullSync(cursor, undefined, fresh);
-      if (page.rows.length > 0) {
-        await applyServerRows(page.rows);
-        saveCursor(page.cursor);
-        markSynced();
+    // Suspend per-page store rehydration for the whole (possibly many-page)
+    // pull and rehydrate the in-memory stores exactly ONCE at the end. Without
+    // this, a bootstrap pull of a large collection (~12k cards over 6 pages)
+    // rebuilt + re-materialized the entire collection on every page —
+    // O(pages) full fat-array copies + binder materializations that OOM'd the
+    // native WebView on load. applyServerRows still writes each page to IDB
+    // per-page; only the expensive in-memory hydration is deferred.
+    let appliedAny = false;
+    await withSuspendedHydration(async () => {
+      while (true) {
+        const page = await pullSync(cursor, undefined, fresh);
+        if (page.rows.length > 0) {
+          await applyServerRows(page.rows);
+          saveCursor(page.cursor);
+          markSynced();
+          appliedAny = true;
+        }
+        if (!page.hasMore) break;
       }
-      if (!page.hasMore) break;
-    }
+    });
+    if (appliedAny) await rehydrateStoresFromIdb();
     broadcastCursor();
     pullError = false;
     recomputeError();
@@ -598,7 +662,7 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
     }
   }
 
-  if (!suspendStoreHydration) {
+  if (hydrationSuspendDepth === 0) {
     await rehydrateStoresFromIdb();
   }
 }
@@ -609,12 +673,13 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
  * we'd rehydrate the in-memory stores after every persist; with it we wait
  * for the caller to drop the suspension and rehydrate once.
  *
- * Exposed (but currently unused) so a future bulk-import path can opt in.
+ * Used by the bootstrap pull (see pull()) and available to any future bulk
+ * write path. Re-entrant via the depth counter.
  */
 export function withSuspendedHydration<T>(fn: () => Promise<T>): Promise<T> {
-  suspendStoreHydration = true;
+  hydrationSuspendDepth++;
   return fn().finally(() => {
-    suspendStoreHydration = false;
+    hydrationSuspendDepth--;
   });
 }
 

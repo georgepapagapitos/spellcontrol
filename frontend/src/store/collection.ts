@@ -15,6 +15,7 @@ import type {
 import { useDecksStore } from './decks';
 import {
   saveCollection,
+  saveCardPrices,
   loadCollection,
   clearCollection,
   type ImportHistoryEntry,
@@ -576,7 +577,14 @@ export const useCollectionStore = create<CollectionState>()(
           set({ cards: updated });
 
           try {
-            await saveCollection(buildStored({ ...get() }));
+            // Persist only the cards whose price/pricedAt actually changed, in
+            // bounded chunks. The old saveCollection→persistKind path did a
+            // whole-kind getAllLive + 2× JSON.stringify per row + one giant IDB
+            // write + queue batch; on a ~12k-card collection that memory spike
+            // OOM'd the native WebView at boot (autoRefreshStalePrices fires on
+            // first hydration). saveCardPrices chunks + yields instead.
+            const changed = updated.filter((c) => requested.has(c.scryfallId));
+            await saveCardPrices(changed);
           } catch (err) {
             logger.warn('[store] Failed to persist refreshed prices:', err);
           }
