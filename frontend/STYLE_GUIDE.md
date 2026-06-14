@@ -399,9 +399,14 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   `-binder-slot`, `-responsive` (tail-end `@media` overrides), `-import-dialog`,
   `-deck-extras`, `-binders-index`, `-analysis-panel`, `-commander-profile`,
   `-guided`, `-skeleton`. Each file's header lists its content + original line
-  range. **This was a pure mechanical slice — co-locating these page/shared
-  styles into component files is a deliberate follow-up (cascade-order changes,
-  needs a visual check), not done here.**
+  range. **This was a pure mechanical slice. Settled ruling: these feature
+  slices are the permanent home — the ~9 single-component blocks among them
+  (CommanderSearch, DeckCustomizer, DeckTestHandPanel, DeckCombosPanel, etc.)
+  are NOT retroactively migrated into `Component.css`.** The split already made
+  them discoverable, and co-locating would change cascade order
+  (`deck-builder-responsive.css` `@media` overrides target some of those
+  selectors) for no real benefit. Co-located `Component.css` remains the rule
+  for *new* per-component stylesheets only.
 - **Deck components use co-located CSS:** a component in
   `src/components/deck/*` imports its own `./X.css` (e.g.
   `DeckColorPanel.css`), not the central `deck-builder-*.css` files. Shared
