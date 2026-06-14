@@ -84,6 +84,13 @@ interface CollectionState {
   isLoading: boolean;
   /** True while a /api/refresh-prices request is in flight. */
   isRefreshingPrices: boolean;
+  /**
+   * Chunk progress of an in-flight manual price refresh, so a global indicator
+   * can show "Refreshing prices (3/12)…" after the user navigates away from
+   * Settings. null when no refresh is running (or for a single-chunk run we
+   * still set it so the count reads 0/1→1/1). Device-local, not synced.
+   */
+  priceRefreshProgress: { done: number; total: number } | null;
   error: string | null;
 
   binders: BinderDef[];
@@ -357,6 +364,7 @@ export const useCollectionStore = create<CollectionState>()(
       hydrating: true,
       isLoading: false,
       isRefreshingPrices: false,
+      priceRefreshProgress: null,
       error: null,
       activeTab: 'uncategorized',
       editingBinder: null,
@@ -598,7 +606,8 @@ export const useCollectionStore = create<CollectionState>()(
             : Array.from(new Set(s.cards.map((c) => c.scryfallId).filter(Boolean)));
         if (ids.length === 0) return;
 
-        set({ isRefreshingPrices: true });
+        const totalChunks = Math.ceil(ids.length / 1000);
+        set({ isRefreshingPrices: true, priceRefreshProgress: { done: 0, total: totalChunks } });
         try {
           // The server caps each request at 1000 printings, so page through the
           // collection in chunks and merge. Without this, a large collection
@@ -634,6 +643,7 @@ export const useCollectionStore = create<CollectionState>()(
               >;
             };
             Object.assign(prices, batch_prices);
+            set({ priceRefreshProgress: { done: i / PRICE_CHUNK + 1, total: totalChunks } });
           }
 
           // Prices are device-local reference data — write them to the on-device
@@ -690,8 +700,13 @@ export const useCollectionStore = create<CollectionState>()(
           const msg = err instanceof Error ? err.message : 'Failed to refresh prices';
           logger.warn('[store] refreshPrices failed:', err);
           set({ error: msg });
+          // Re-throw so callers can tell success from failure. SettingsPage's
+          // handler shows a truthful success/error toast; the lone background
+          // caller (autoRefreshStalePrices) swallows it. Without this, a failed
+          // refresh resolved cleanly and lit the "Prices refreshed." toast.
+          throw err instanceof Error ? err : new Error(msg);
         } finally {
-          set({ isRefreshingPrices: false });
+          set({ isRefreshingPrices: false, priceRefreshProgress: null });
         }
       },
 
@@ -719,7 +734,14 @@ export const useCollectionStore = create<CollectionState>()(
           // still refresh; the in-flight isRefreshingPrices guard prevents overlap.
         }
 
-        await get().refreshPrices();
+        // Background best-effort: refreshPrices now re-throws on failure, but a
+        // stale-price auto-refresh must never surface an error toast or an
+        // unhandled rejection. The error is already logged + stored in `error`.
+        try {
+          await get().refreshPrices();
+        } catch {
+          // swallowed — the next stale check (or a manual refresh) retries.
+        }
       },
 
       clearCards: async () => {

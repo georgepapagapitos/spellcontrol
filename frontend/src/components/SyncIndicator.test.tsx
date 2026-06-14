@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncIndicator, HeaderSyncIndicator, formatRelativeTime } from './SyncIndicator';
 import { useAuth } from '../store/auth';
+import { useCollectionStore } from '../store/collection';
 import * as sync from '../lib/sync';
 
 function renderIndicator() {
@@ -17,6 +18,8 @@ let emit: () => void = () => {};
 beforeEach(() => {
   vi.restoreAllMocks();
   useAuth.setState({ user: null, status: 'guest', error: null, autoLinkedAt: null });
+  // Real store — reset the price-refresh pill state so it can't leak across tests.
+  useCollectionStore.setState({ priceRefreshProgress: null });
   vi.spyOn(sync, 'onSyncedChange').mockImplementation((fn: () => void) => {
     emit = fn;
     return () => {
@@ -334,5 +337,31 @@ describe('HeaderSyncIndicator', () => {
       emit();
     });
     expect(screen.queryByText('Offline')).toBeNull();
+  });
+
+  it('renders a "Refreshing prices (n/m)…" pill with spinner during a price refresh', () => {
+    authedHeader(); // happy sync path → falls through to the price pill
+    useCollectionStore.setState({ priceRefreshProgress: { done: 3, total: 12 } });
+    const { container } = renderHeaderIndicator();
+    expect(screen.getByText(/Refreshing prices \(3\/12\)/)).toBeTruthy();
+    expect(container.querySelector('.sync-indicator-spinner')).toBeTruthy();
+    expect(screen.getByRole('link').getAttribute('href')).toBe('/settings');
+  });
+
+  it('shows the refreshing-prices pill for guests too (no auth gate); single chunk omits the count', () => {
+    useAuth.setState({ status: 'guest' });
+    useCollectionStore.setState({ priceRefreshProgress: { done: 1, total: 1 } });
+    renderHeaderIndicator();
+    const el = screen.getByText(/Refreshing prices/);
+    expect(el.textContent).not.toMatch(/\(/); // total === 1 → no "(1/1)"
+  });
+
+  it('a sync signal (Saving) outranks the refreshing-prices pill', () => {
+    authedHeader();
+    vi.spyOn(sync, 'getPendingCount').mockReturnValue(2);
+    useCollectionStore.setState({ priceRefreshProgress: { done: 1, total: 3 } });
+    renderHeaderIndicator();
+    expect(screen.getByText(/Saving/)).toBeTruthy();
+    expect(screen.queryByText(/Refreshing prices/)).toBeNull();
   });
 });
