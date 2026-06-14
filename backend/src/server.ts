@@ -6,7 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { existsSync } from 'fs';
-import { ScryfallCache } from './cache';
+import { DB_PATH, getScryfallCache, pickUsdFromPrices } from './scryfall-cache';
 import { closeDb, ensureSchema } from './db';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
@@ -35,13 +35,12 @@ import {
 } from './products';
 import { productToDeckSections, productToPhysicalRows, countPhysicalCards } from './product-map';
 import { mergeCard } from './merge-card';
-import type { DeckImportResponse, EnrichedCard, ScryfallCard, UploadResponse } from './types';
+import type { DeckImportResponse, EnrichedCard, UploadResponse } from './types';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3737;
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'scryfall-cache.db');
 
 const app = express();
-const cache = new ScryfallCache(DB_PATH);
+const cache = getScryfallCache();
 
 // Trust the immediate nginx reverse-proxy so express-rate-limit uses the
 // real client IP (from X-Forwarded-For) rather than the proxy's internal IP.
@@ -610,17 +609,6 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
  * of resolvePrice — refresh does not know each row's foil flag, so we pick a
  * sensible single value and stamp it on every copy of the printing.
  */
-function pickUsdFromPrices(card: ScryfallCard): number {
-  const p = card.prices;
-  if (!p) return 0;
-  for (const raw of [p.usd, p.usd_etched, p.usd_foil]) {
-    if (!raw) continue;
-    const n = Number(raw);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return 0;
-}
-
 /**
  * Pulls the import text from whichever request shape was sent.
  */

@@ -15,12 +15,12 @@ import type {
 import { useDecksStore } from './decks';
 import {
   saveCollection,
-  saveCardPrices,
   loadCollection,
   clearCollection,
   type ImportHistoryEntry,
   type StoredCollection,
 } from '../lib/local-cards';
+import { applyPrices, setPrices } from '../lib/card-prices';
 import { buildBackup, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { apiUrl } from '../lib/api-base';
@@ -564,32 +564,25 @@ export const useCollectionStore = create<CollectionState>()(
             prices: Record<string, { usd: number; pricedAt: number }>;
           };
 
-          // Stamp pricedAt on every requested card — even those Scryfall had no
-          // price for. "We asked today, they had nothing" is a fresh result, so
-          // those cards stop counting as stale and the banner can hide.
+          // Prices are device-local reference data — write them to the on-device
+          // price cache (NOT the sync path) and re-merge onto the in-memory
+          // cards. No enqueue, no server push, no IDB-synced-row write: a price
+          // refresh must not touch sync at all (that was the ~12k-row re-push
+          // churn + the boot OOM).
           const requested = new Set(ids);
-          const stampedAt = Date.now();
-          const updated = get().cards.map((c) => {
-            const hit = prices[c.scryfallId];
-            if (hit) return { ...c, purchasePrice: hit.usd, pricedAt: hit.pricedAt };
-            if (requested.has(c.scryfallId)) return { ...c, pricedAt: stampedAt };
-            return c;
-          });
-
-          set({ cards: updated });
-
-          try {
-            // Persist only the cards whose price/pricedAt actually changed, in
-            // bounded chunks. The old saveCollection→persistKind path did a
-            // whole-kind getAllLive + 2× JSON.stringify per row + one giant IDB
-            // write + queue batch; on a ~12k-card collection that memory spike
-            // OOM'd the native WebView at boot (autoRefreshStalePrices fires on
-            // first hydration). saveCardPrices chunks + yields instead.
-            const changed = updated.filter((c) => requested.has(c.scryfallId));
-            await saveCardPrices(changed);
-          } catch (err) {
-            logger.warn('[store] Failed to persist refreshed prices:', err);
+          const now = Date.now();
+          const entries: Record<string, { usd: number; pricedAt: number }> = { ...prices };
+          // For requested cards Scryfall had no price for, carry over their
+          // current value with a fresh pricedAt — keeping the last-known price is
+          // friendlier than flashing $0, and it stops them counting as stale.
+          for (const c of get().cards) {
+            const id = c.scryfallId;
+            if (id && requested.has(id) && !prices[id] && !(id in entries)) {
+              entries[id] = { usd: c.purchasePrice ?? 0, pricedAt: now };
+            }
           }
+          setPrices(entries);
+          set({ cards: applyPrices(get().cards) });
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Failed to refresh prices';
           logger.warn('[store] refreshPrices failed:', err);
