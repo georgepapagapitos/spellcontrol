@@ -26,7 +26,7 @@ interface Props {
  * by-name search, the by-playstyle browser, the top-EDHREC suggestions, and the
  * guided build's playstyle list so every commander list reads the same. The
  * `.commander-result-grid` container reflows from a single column (phones /
- * native) to multiple columns as width allows. Styles live in deck-builder.css.
+ * native) to multiple columns as width allows. Styles live in deck-builder-commander.css.
  */
 export function CommanderResultCard({
   name,

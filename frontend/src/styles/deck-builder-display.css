@@ -1,0 +1,369 @@
+/* deck-builder-display.css — Deck display column + toolbar (summary/controls) and the pill-shaped toolbar controls (sort/filter/search/viewmode/role-legend).
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 921-1287. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Deck display ─────────────────────────────────────────────────────── */
+/* Distinct-view IA: the page-top hub tabs (in DeckEditorPage) switch which
+   single view renders here. The `Deck` view is toolbar → banner → card body;
+   the analysis views (`.deck-analysis-view`) replace it full-width. Either way
+   it's one stacked column at every breakpoint — the Mana side-column and the
+   two-column desktop grid were retired with the distinct-view redesign. */
+.deck-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Toolbar — title + meta on left, sort/search/actions on right. */
+.deck-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.deck-toolbar-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+/* The page header already renders the deck name (and lets the user
+   rename it). Showing it again inside the toolbar was redundant — the
+   stats meta line below carries the useful information. */
+.deck-toolbar-title {
+  display: none;
+}
+
+.deck-toolbar-meta {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-toolbar-missing {
+  color: var(--err-text, #d8442a);
+}
+
+.deck-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deck-toolbar-search {
+  min-width: 12rem;
+  max-width: 16rem;
+}
+
+/* ── Pill-shaped toolbar controls ─────────────────────────────────────── */
+.toolbar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  height: 2.1rem;
+  white-space: nowrap;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.toolbar-pill:hover,
+.toolbar-pill:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.toolbar-pill.open {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.toolbar-pill-label {
+  font-weight: 600;
+}
+
+.toolbar-pill-value {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.toolbar-pill-placeholder {
+  color: var(--text-muted);
+}
+
+.toolbar-popover {
+  position: relative;
+  display: inline-flex;
+}
+
+.toolbar-popover-panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 11rem;
+  max-width: calc(100vw - 2rem);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 0.3rem;
+  max-height: min(360px, calc(100vh - 4rem));
+  overflow-y: auto;
+}
+
+.toolbar-popover-panel--fixed {
+  top: unset;
+  left: unset;
+  right: unset;
+  bottom: unset;
+  width: max-content;
+  min-width: unset;
+}
+
+.toolbar-popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.toolbar-popover-item:hover,
+.toolbar-popover-item:focus-visible {
+  background: var(--accent-light);
+  outline: none;
+}
+
+.toolbar-popover-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.toolbar-popover-check {
+  width: 1rem;
+  display: inline-block;
+  text-align: center;
+  color: var(--accent);
+}
+
+/* Role-badge key — a collapsible disclosure inside the "Show" popover
+   that explains the cryptic 2-letter role abbreviations. */
+.deck-role-legend {
+  border-top: 0.5px solid var(--border);
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+}
+
+.deck-role-legend-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  font-family: inherit;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+}
+
+.deck-role-legend-trigger:hover,
+.deck-role-legend-trigger:focus-visible {
+  background: var(--accent-light);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.deck-role-legend-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.25rem 0.6rem 0.5rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.deck-role-legend-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.deck-role-legend-group-title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.deck-role-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.deck-role-legend-item .deck-row-role-badge {
+  width: 1.7rem;
+  flex: 0 0 auto;
+}
+
+/* The role badge a user just tapped, highlighted in the popover key so
+   they can find it without re-reading every row. */
+.deck-role-legend-item--active {
+  margin: 0 -0.35rem;
+  padding: 0.15rem 0.35rem;
+  background: var(--accent-light);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+/* Tap-to-reveal role badge. The badge is now a <button> so touch users
+   (no hover → no native tooltip) can tap it to open the role key. This
+   strips the native button chrome; the .deck-row-role-* and
+   .deck-card-grid-role rules still own the badge's actual look. Defined
+   before .deck-card-grid-role so that rule's plate background + padding
+   win the cascade for grid badges, while list badges fall back here. */
+.role-badge-btn {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.role-badge-pop-wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Compact tooltip shown when a role badge is tapped. The full legend
+   is in the toolbar "Show" popover via RoleBadgeLegend. */
+.role-badge-pop {
+  padding: 0.35rem 0.65rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Pill search input — magnifying-glass icon + flat input. */
+.toolbar-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem;
+  height: 2.1rem;
+  min-width: 11rem;
+  max-width: 18rem;
+  flex: 1 1 12rem;
+}
+
+.toolbar-search:focus-within {
+  border-color: var(--accent);
+}
+
+.toolbar-search-icon {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+input.toolbar-search-input {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  min-width: 0;
+  padding: 0;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.toolbar-search-input::-webkit-search-decoration,
+.toolbar-search-input::-webkit-search-cancel-button,
+.toolbar-search-input::-webkit-search-results-button,
+.toolbar-search-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.toolbar-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Segmented view-mode toggle (text | grid | list). */
+.toolbar-viewmode {
+  display: inline-flex;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.15rem;
+  gap: 0.1rem;
+  height: 2.1rem;
+}
+
+.toolbar-viewmode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.toolbar-viewmode-btn:hover,
+.toolbar-viewmode-btn:focus-visible {
+  color: var(--text-primary);
+  outline: none;
+}
+
+.toolbar-viewmode-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}

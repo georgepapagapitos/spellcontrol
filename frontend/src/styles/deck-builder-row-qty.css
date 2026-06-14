@@ -1,0 +1,67 @@
+/* deck-builder-row-qty.css — Click-to-edit quantity input on deck list rows.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 6257-6321. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Click-to-edit qty on deck rows ───────────────────────────────────── */
+/* When the row is editable the qty cell becomes a button-styled chip; on
+   hover/focus it gains an outline so users discover the affordance. The
+   resting state stays visually identical to the read-only qty so the deck
+   list does not look noisy. */
+.deck-row-qty-edit {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  /* Match the read-only .deck-row-qty cell so qty→badge and badge→name
+     gaps look balanced. */
+  width: 1.4rem;
+  text-align: right;
+  padding: 0.05rem 0.15rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.deck-row-qty-edit:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  outline: none;
+}
+
+.deck-row-qty-edit.deck-row-qty-missing {
+  color: var(--err-text);
+}
+
+input.deck-row-qty-input {
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  width: 1.75rem;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 0.05rem 0.2rem;
+  border-radius: var(--radius);
+  outline: none;
+  /* Hide native spin buttons — keyboard arrows still work, but the input
+     reads as a clean numeric chip in line with the rest of the row. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input.deck-row-qty-input::-webkit-inner-spin-button,
+input.deck-row-qty-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input.deck-row-qty-input.deck-row-qty-missing {
+  color: var(--err-text);
+}

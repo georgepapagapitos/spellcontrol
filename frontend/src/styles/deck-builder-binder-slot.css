@@ -1,0 +1,68 @@
+/* deck-builder-binder-slot.css — Allocated binder slot dim + deck-badge overlay.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 6492-6557. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Allocated binder slot ─────────────────────────────────────────────── */
+.slot.is-allocated {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  position: relative;
+}
+
+/* Icon-only "in a deck" badge pinned to the bottom-right of an allocated
+   slot, matching the deck/binder badge placement on the Collection grid
+   so both surfaces read the same. Slot is too narrow to fit a deck name
+   legibly, so the full name is exposed via the title attribute (and
+   aria-label) instead. Sized as a fraction of the slot width so it
+   scales with zoom. */
+.slot-deck-badge {
+  position: absolute;
+  bottom: 3%;
+  right: 3%;
+  width: 18cqw;
+  height: 18cqw;
+  min-width: 12px;
+  min-height: 12px;
+  max-width: 22px;
+  max-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--deck-color, var(--accent));
+  color: var(--on-accent);
+  text-decoration: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.slot-deck-badge svg {
+  display: block;
+  width: 60%;
+  height: 60%;
+}
+
+.slot-deck-badge:hover,
+.slot-deck-badge:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
+/* Hover-tooltip variant — anchored over the larger preview image, sized
+   to read at a glance without crowding the art. */
+.tooltip-image-wrap {
+  position: relative;
+  margin-top: 6px;
+}
+
+.tooltip-image-wrap .tooltip-image {
+  margin-top: 0;
+}
+
+.slot-deck-badge.tooltip-deck-badge {
+  top: auto;
+  bottom: 6px;
+  right: 6px;
+  left: auto;
+  width: 1.6rem;
+  height: 1.6rem;
+}

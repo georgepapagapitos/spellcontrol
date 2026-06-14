@@ -1,0 +1,105 @@
+/* deck-builder-settings.css — Build settings (bracket pills, deck-size field) + generation progress/error.
+ * Byte-identical contiguous slice of the former monolithic deck-builder.css (E28; method #634/#637).
+ * Original lines 818-920. Import order in main.tsx is load-bearing — see STYLE_GUIDE "CSS file layout". */
+/* ── Build settings ───────────────────────────────────────────────────── */
+.deck-builder-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: center;
+}
+
+.deck-builder-options-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.deck-builder-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.deck-builder-field-block-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.bracket-pill-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .bracket-pill-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.bracket-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.55rem 0.5rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.bracket-pill:hover,
+.bracket-pill:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.bracket-pill.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.bracket-pill-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.bracket-pill-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.bracket-pill.active .bracket-pill-sub {
+  color: var(--accent);
+}
+
+.deck-builder-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.deck-builder-field input[type='number'] {
+  width: 5rem;
+}
+
+/* ── Generation progress ──────────────────────────────────────────────── */
+.deck-builder-progress {
+  flex: 1 1 100%;
+  margin-top: 0.75rem;
+}
+
+.deck-builder-error {
+  margin-top: 0.75rem;
+}
