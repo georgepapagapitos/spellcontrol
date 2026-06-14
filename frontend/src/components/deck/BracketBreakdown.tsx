@@ -40,8 +40,9 @@ const SOFT_SCORE_TIP: ReactNode = (
     </p>
     <ul className="info-tip-list">
       <li>
-        <strong>Fast mana</strong> — rocks/rituals that make more mana than they cost (Sol Ring,
-        Mana Crypt). 8 pts each, max 40.
+        <strong>Fast mana</strong> — rocks/rituals that make more mana than they cost (Mana Crypt,
+        Jeweled Lotus). Sol Ring counts too, but the bracket system allows it in every bracket as a
+        precon staple, so it's not scored here. 8 pts each, max 40.
       </li>
       <li>
         <strong>Tutors</strong> — cards that search your library for anything (Demonic Tutor). They
