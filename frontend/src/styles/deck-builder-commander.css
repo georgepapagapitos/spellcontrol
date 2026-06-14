@@ -13,15 +13,14 @@
 /* ── Search results panel ──────────────────────────────────────────────
    Sits below the input and sizes to its content (one result → one short
    row), so there's no dead space. It only ever grows *downward*, so the
-   input above it never moves no matter how many results come back. The
-   max-height caps it and switches on internal scroll for long lists; dvh
-   shrinks that cap with the layout viewport when the keyboard opens, and
-   --keyboard-inset covers iOS Safari, where the keyboard floats instead
-   of resizing. Hosts results, a status line, or EDHREC suggestions. */
+   input above it never moves no matter how many results come back. Long
+   lists grow inline with the page instead of scrolling inside this panel;
+   the per-list "Show more" expanders keep the initial height short. Hosts
+   results, a status line, or EDHREC suggestions. */
 .commander-search-panel {
   margin-top: 0.75rem;
-  max-height: clamp(12rem, calc(55dvh - var(--keyboard-inset)), 26rem);
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   background: var(--surface-raised);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
@@ -492,14 +491,6 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
-}
-
-/* Browse mode grows inline with the page instead of scrolling inside the capped
-   dropdown box — no scroll container nested in the page scroll. The "Show more"
-   expander keeps the initial height short. */
-.commander-search-panel--browse {
-  max-height: none;
-  overflow: visible;
 }
 
 .commander-playstyle-more {

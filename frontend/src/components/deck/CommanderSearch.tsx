@@ -89,9 +89,8 @@ const OWNED_ONLY_KEY = 'commander-search-owned-only';
 const COLOR_FILTER_KEY = 'commander-search-color-filter';
 const SEARCH_MODE_KEY = 'commander-search-mode';
 
-// How many playstyle commanders to show before the "Show more" expander. Keeps
-// the browse panel short enough to grow inline (no nested scrollbar) until the
-// user opts into the full list.
+// How many commanders to show before the "Show more" expander. Keeps the
+// inline-growing panel short until the user opts into the full list.
 const PLAYSTYLE_PREVIEW_COUNT = 10;
 
 type SearchMode = 'name' | 'playstyle';
@@ -270,6 +269,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // on every filter change — we mirror that.)
   const [topCommanders, setTopCommanders] = useState<EDHRECTopCommander[]>([]);
   const [topLoading, setTopLoading] = useState(false);
+  const [showAllTopCommanders, setShowAllTopCommanders] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -294,6 +294,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // it without recomputing on every render. Declared before the search effect
   // so setLocalResults is in scope when the effect uses it.
   const [localResults, setLocalResults] = useState<EnrichedCard[]>([]);
+  const [showAllNameResults, setShowAllNameResults] = useState(false);
 
   // Reset local results when switching out of owned-only mode.
   const [prevOwnedOnly, setPrevOwnedOnly] = useState(ownedOnly);
@@ -408,6 +409,14 @@ export function CommanderSearch({ value, onSelect }: Props) {
 
     return [...owned, ...filler];
   }, [topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
+  const topResultKey = `${ownedOnly}|${[...colorFilter].sort().join('')}|${visibleTop
+    .map((c) => c.name)
+    .join('|')}`;
+  const [prevTopResultKey, setPrevTopResultKey] = useState(topResultKey);
+  if (prevTopResultKey !== topResultKey) {
+    setPrevTopResultKey(topResultKey);
+    setShowAllTopCommanders(false);
+  }
 
   // Eager-load readiness for the recommended pills — a small, bounded set (≤12)
   // shown without typing, so a sequential throttled fetch is affordable and the
@@ -542,6 +551,22 @@ export function CommanderSearch({ value, onSelect }: Props) {
       cancelled = true;
     };
   }, [searchMode, playstyleResults, ensureReadiness]);
+
+  const nameResults = ownedOnly ? localResults : results;
+  const nameResultKey = `${ownedOnly}|${query.trim()}|${nameResults
+    .map((card) => ('scryfallId' in card ? card.scryfallId : card.id))
+    .join('|')}`;
+  const [prevNameResultKey, setPrevNameResultKey] = useState(nameResultKey);
+  if (prevNameResultKey !== nameResultKey) {
+    setPrevNameResultKey(nameResultKey);
+    setShowAllNameResults(false);
+  }
+  const visibleRemoteResults = showAllNameResults
+    ? results
+    : results.slice(0, PLAYSTYLE_PREVIEW_COUNT);
+  const visibleLocalResults = showAllNameResults
+    ? localResults
+    : localResults.slice(0, PLAYSTYLE_PREVIEW_COUNT);
 
   // ── Selection handlers ────────────────────────────────────────────────
   const selectCard = (card: ScryfallCard) => {
@@ -751,39 +776,50 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // ── Search UI ─────────────────────────────────────────────────────────
   const listboxId = 'commander-search-listbox';
   const resultItems = (
-    <ul className="commander-result-grid" role="listbox" id={listboxId}>
-      {searchLoading && <li className="commander-search-loading">Searching…</li>}
-      {!ownedOnly &&
-        results.map((card) => (
-          <li key={card.id}>
-            <CommanderResultCard
-              name={card.name}
-              imageUrl={card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small}
-              colors={card.color_identity}
-              typeLine={card.type_line}
-              readiness={readiness.get(card.name.toLowerCase())}
-              onSelect={() => selectCard(card)}
-              onPeek={() => void ensureReadiness(card.name)}
-            />
-          </li>
-        ))}
-      {ownedOnly &&
-        localResults.map((card) => (
-          <li key={card.scryfallId}>
-            <CommanderResultCard
-              name={card.name}
-              imageUrl={card.imageSmall}
-              colors={card.colorIdentity ?? card.colors ?? []}
-              typeLine={card.typeLine ?? 'Legendary Creature'}
-              readiness={readiness.get(card.name.toLowerCase())}
-              onSelect={() => void selectOwnedCard(card)}
-              onPeek={() => void ensureReadiness(card.name)}
-            />
-          </li>
-        ))}
-    </ul>
+    <>
+      <ul className="commander-result-grid" role="listbox" id={listboxId}>
+        {searchLoading && <li className="commander-search-loading">Searching…</li>}
+        {!ownedOnly &&
+          visibleRemoteResults.map((card) => (
+            <li key={card.id}>
+              <CommanderResultCard
+                name={card.name}
+                imageUrl={card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small}
+                colors={card.color_identity}
+                typeLine={card.type_line}
+                readiness={readiness.get(card.name.toLowerCase())}
+                onSelect={() => selectCard(card)}
+                onPeek={() => void ensureReadiness(card.name)}
+              />
+            </li>
+          ))}
+        {ownedOnly &&
+          visibleLocalResults.map((card) => (
+            <li key={card.scryfallId}>
+              <CommanderResultCard
+                name={card.name}
+                imageUrl={card.imageSmall}
+                colors={card.colorIdentity ?? card.colors ?? []}
+                typeLine={card.typeLine ?? 'Legendary Creature'}
+                readiness={readiness.get(card.name.toLowerCase())}
+                onSelect={() => void selectOwnedCard(card)}
+                onPeek={() => void ensureReadiness(card.name)}
+              />
+            </li>
+          ))}
+      </ul>
+      {nameResults.length > PLAYSTYLE_PREVIEW_COUNT && (
+        <button
+          type="button"
+          className="commander-playstyle-more"
+          onClick={() => setShowAllNameResults((v) => !v)}
+        >
+          {showAllNameResults ? 'Show fewer' : `Show all ${nameResults.length}`}
+        </button>
+      )}
+    </>
   );
-  const hasResults = (ownedOnly ? localResults.length : results.length) > 0;
+  const hasResults = nameResults.length > 0;
 
   return (
     <div className="commander-search">
@@ -854,12 +890,10 @@ export function CommanderSearch({ value, onSelect }: Props) {
       )}
 
       {/* Results panel: search results when a query is active, EDHREC
-          suggestions otherwise. Sizes to its content (capped, then scrolls)
-          and only grows downward, so the input above never moves. */}
+          suggestions otherwise. Sizes to its content and grows inline with the
+          page, so long lists use page scroll instead of an inner scroll box. */}
       <div
-        className={`commander-search-panel${
-          searchMode === 'playstyle' ? ' commander-search-panel--browse' : ''
-        }`}
+        className="commander-search-panel"
         id="commander-search-panel"
         role="tabpanel"
         aria-labelledby={`sc-tab-${searchMode}`}
@@ -952,25 +986,39 @@ export function CommanderSearch({ value, onSelect }: Props) {
                   : 'No commanders found.'}
               </p>
             ) : (
-              <ul className="commander-result-grid">
-                {visibleTop.slice(0, 12).map((c) => {
-                  const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
-                  return (
-                    <li key={c.sanitized}>
-                      <CommanderResultCard
-                        name={c.name}
-                        colors={colors}
-                        readiness={readiness.get(c.name.toLowerCase())}
-                        disabled={searchLoading}
-                        onSelect={() =>
-                          void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
-                        }
-                        onPeek={() => void ensureReadiness(c.name)}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <ul className="commander-result-grid">
+                  {(showAllTopCommanders
+                    ? visibleTop
+                    : visibleTop.slice(0, PLAYSTYLE_PREVIEW_COUNT)
+                  ).map((c) => {
+                    const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
+                    return (
+                      <li key={c.sanitized}>
+                        <CommanderResultCard
+                          name={c.name}
+                          colors={colors}
+                          readiness={readiness.get(c.name.toLowerCase())}
+                          disabled={searchLoading}
+                          onSelect={() =>
+                            void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
+                          }
+                          onPeek={() => void ensureReadiness(c.name)}
+                        />
+                      </li>
+                    );
+                  })}
+                </ul>
+                {visibleTop.length > PLAYSTYLE_PREVIEW_COUNT && (
+                  <button
+                    type="button"
+                    className="commander-playstyle-more"
+                    onClick={() => setShowAllTopCommanders((v) => !v)}
+                  >
+                    {showAllTopCommanders ? 'Show fewer' : `Show all ${visibleTop.length}`}
+                  </button>
+                )}
+              </>
             )}
 
             <div className="commander-surprise">

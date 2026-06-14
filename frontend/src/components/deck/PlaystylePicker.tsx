@@ -15,6 +15,7 @@ interface Props {
 // Shared with CommanderSearch so "use my collection" stays one preference
 // across both the by-commander and by-play-style paths.
 const OWNED_ONLY_KEY = 'commander-search-owned-only';
+const PLAYSTYLE_PREVIEW_COUNT = 10;
 
 export function PlaystylePicker({ onSelectCommander }: Props) {
   const [style, setStyle] = useState<Playstyle | null>(null);
@@ -22,6 +23,7 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAllCommanders, setShowAllCommanders] = useState(false);
 
   const collectionCards = useCollectionStore((s) => s.cards);
   // De-dup by name via the shared `isCommanderEligible` (extractCommanderCandidates):
@@ -74,6 +76,14 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
     () => (ownedOnly ? commanders.filter((c) => ownedNames.has(c.name)) : commanders),
     [commanders, ownedOnly, ownedNames]
   );
+  const commanderResultKey = `${style?.id ?? ''}|${ownedOnly}|${visibleCommanders
+    .map((c) => c.name)
+    .join('|')}`;
+  const [prevCommanderResultKey, setPrevCommanderResultKey] = useState(commanderResultKey);
+  if (prevCommanderResultKey !== commanderResultKey) {
+    setPrevCommanderResultKey(commanderResultKey);
+    setShowAllCommanders(false);
+  }
 
   const handlePick = async (name: string) => {
     setResolving(name);
@@ -150,22 +160,36 @@ export function PlaystylePicker({ onSelectCommander }: Props) {
             : 'No commanders found.'}
         </p>
       ) : (
-        <ul className="commander-result-grid">
-          {visibleCommanders.map((c) => {
-            const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
-            return (
-              <li key={c.sanitized || c.name}>
-                <CommanderResultCard
-                  name={c.name}
-                  colors={colors}
-                  selecting={resolving === c.name}
-                  disabled={resolving !== null}
-                  onSelect={() => void handlePick(c.name)}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <ul className="commander-result-grid">
+            {(showAllCommanders
+              ? visibleCommanders
+              : visibleCommanders.slice(0, PLAYSTYLE_PREVIEW_COUNT)
+            ).map((c) => {
+              const colors = c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
+              return (
+                <li key={c.sanitized || c.name}>
+                  <CommanderResultCard
+                    name={c.name}
+                    colors={colors}
+                    selecting={resolving === c.name}
+                    disabled={resolving !== null}
+                    onSelect={() => void handlePick(c.name)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+          {visibleCommanders.length > PLAYSTYLE_PREVIEW_COUNT && (
+            <button
+              type="button"
+              className="commander-playstyle-more"
+              onClick={() => setShowAllCommanders((v) => !v)}
+            >
+              {showAllCommanders ? 'Show fewer' : `Show all ${visibleCommanders.length}`}
+            </button>
+          )}
+        </>
       )}
 
       {error && <p className="commander-search-error">{error}</p>}
