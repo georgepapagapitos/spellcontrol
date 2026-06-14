@@ -10,6 +10,32 @@ import {
   userDecks,
 } from '../db/schema';
 import { shareCache, type ShareContext, type ShareDataView } from './cache';
+import { getScryfallCache, pickUsdFromPrices } from '../scryfall-cache';
+
+/**
+ * Stamp current market value onto shared cards from the backend Scryfall cache.
+ * Card prices are device-local reference data now (they no longer ride the
+ * synced row), so the stored rows carry no price. Cache-ONLY lookup — a share
+ * render must never block on the Scryfall network. Cards the cache doesn't know
+ * keep whatever price the row had (0 post-strip), so shares are best-effort.
+ * Mutates the card objects in place (they're about to be cached in shareCache).
+ */
+function stampSharePrices(cards: unknown[]): void {
+  const ids = new Set<string>();
+  for (const c of cards) {
+    const id = c && typeof c === 'object' ? (c as { scryfallId?: unknown }).scryfallId : null;
+    if (typeof id === 'string' && id) ids.add(id);
+  }
+  if (ids.size === 0) return;
+  const cached = getScryfallCache().getMany([...ids]);
+  if (cached.size === 0) return;
+  for (const c of cards) {
+    if (!c || typeof c !== 'object') continue;
+    const card = c as { scryfallId?: string; purchasePrice?: number };
+    const sc = card.scryfallId ? cached.get(card.scryfallId) : undefined;
+    if (sc) card.purchasePrice = pickUsdFromPrices(sc);
+  }
+}
 
 /**
  * Resolve a share token to its full lookup context — the share row, the
@@ -83,6 +109,8 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
     binders: binders.map((r) => r.data).filter((d): d is unknown => d != null),
     decks: decks.map((r) => r.data).filter((d): d is unknown => d != null),
   };
+
+  stampSharePrices(data.collection.cards);
 
   const ctx: ShareContext = { share, ownerUsername, data };
   shareCache.set(token, ctx);

@@ -70,17 +70,6 @@ export async function saveCollection(data: StoredCollection): Promise<void> {
 }
 
 /**
- * Persist a set of cards whose price fields just changed, in bounded chunks.
- * Used by the price refresh, which can touch the whole collection (~12k copies)
- * at once — routing that through saveCollection→persistKind spiked memory enough
- * to OOM the native WebView. Only cards are written (a price refresh never
- * changes imports/lists), and there are no deletions to diff.
- */
-export async function saveCardPrices(cards: EnrichedCard[]): Promise<void> {
-  await sync.persistCardsChunked(cards);
-}
-
-/**
  * Read the local cache. Returns null when there's nothing stored — e.g.
  * a fresh install, or a logged-out / wiped device. Synthesizes the legacy
  * blob shape from the per-entity rows so consumers that destructured

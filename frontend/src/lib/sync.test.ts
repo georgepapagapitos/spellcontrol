@@ -30,7 +30,6 @@ import {
   persistGamesState,
   persistImportsState,
   persistListsState,
-  persistCardsChunked,
   recordUpsert,
   refreshNow,
   getPendingCount,
@@ -42,6 +41,7 @@ import { isNativePlatform } from './platform';
 import { App as CapacitorApp } from '@capacitor/app';
 import * as estore from './entity-store';
 import * as queue from './mutation-queue';
+import * as cardPrices from './card-prices';
 
 const mockPull = pullSync as unknown as ReturnType<typeof vi.fn>;
 const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
@@ -52,6 +52,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   estore._resetDbPromiseForTests();
   queue._resetDbPromiseForTests();
+  cardPrices._resetForTests();
   localStorage.clear();
   await estore.wipeAll();
   await queue.clear();
@@ -467,20 +468,41 @@ describe('persistKind helpers', () => {
   });
 });
 
-describe('persistCardsChunked', () => {
-  it('writes all rows to IDB and enqueues them across bounded chunks', async () => {
-    // 2500 cards at chunk size 1000 → 3 chunks. The point of the helper is that
-    // it never holds the whole set in one transaction/array; correctness here is
-    // that every row still lands in both IDB and the queue.
-    const cards = Array.from({ length: 2500 }, (_, i) => ({ copyId: `c${i}`, importId: '' }));
-    await persistCardsChunked(cards);
-    expect(await estore.getAllLive('card')).toHaveLength(2500);
-    expect(await queue.size()).toBe(2500);
+describe('card price stripping (prices are device-local, never synced)', () => {
+  it('persistCardsState strips purchasePrice/pricedAt from the synced row + queue', async () => {
+    await persistCardsState([
+      { copyId: 'c-1', importId: 'imp-1', scryfallId: 's-1', purchasePrice: 12.5, pricedAt: 123 },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    const stored = await estore.getById('card', 'c-1');
+    const data = stored?.data as Record<string, unknown>;
+    expect(data.scryfallId).toBe('s-1');
+    expect('purchasePrice' in data).toBe(false);
+    expect('pricedAt' in data).toBe(false);
+    const upsert = (await queue.peekBatch(10)).find((b) => b.m.op === 'upsert');
+    const qData = (upsert?.m as { data: Record<string, unknown> }).data;
+    expect('purchasePrice' in qData).toBe(false);
   });
 
-  it('is a no-op for an empty input (no push scheduled)', async () => {
-    await persistCardsChunked([]);
-    expect(await queue.size()).toBe(0);
+  it('a pulled card row carries no price; hydrate fills it from the device cache', async () => {
+    const { useCollectionStore } = await import('../store/collection');
+    cardPrices.setPrices({ 's-9': { usd: 7.25, pricedAt: 999 } });
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        {
+          kind: 'card',
+          id: 'c-9',
+          data: { copyId: 'c-9', scryfallId: 's-9' },
+          rev: 1,
+          deletedAt: null,
+          importId: '',
+        },
+      ],
+      cursor: 1,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    const card = useCollectionStore.getState().cards.find((c) => c.copyId === 'c-9');
+    expect(card?.purchasePrice).toBe(7.25);
   });
 });
 

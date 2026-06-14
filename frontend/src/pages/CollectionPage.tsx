@@ -121,8 +121,8 @@ export function CollectionPage() {
                 <span aria-label="Collection totals">
                   {displayCardCount.toLocaleString()} {collectionCardCount === 1 ? 'card' : 'cards'}{' '}
                   ·{' '}
-                  <span title="Total purchase cost recorded at time of import">
-                    paid {formatMoney(displayValue, { wholeDollars: true })}
+                  <span title="Current market value (Scryfall)">
+                    {formatMoney(displayValue, { wholeDollars: true })}
                   </span>
                 </span>
                 {!isEmpty && (
