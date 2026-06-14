@@ -401,8 +401,10 @@ describe('refreshPrices', () => {
     );
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
     // Re-throws so callers (SettingsPage) can show a truthful error toast...
-    await expect(useCollectionStore.getState().refreshPrices()).rejects.toThrow('rate limited');
-    // ...while still recording the error and clearing the spinner + progress.
+    await expect(
+      useCollectionStore.getState().refreshPrices(undefined, { track: true })
+    ).rejects.toThrow('rate limited');
+    // ...while still recording the error and clearing the spinner + tracked progress.
     expect(useCollectionStore.getState().error).toBe('rate limited');
     expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
     expect(useCollectionStore.getState().priceRefreshProgress).toBeNull();
@@ -441,6 +443,53 @@ describe('refreshPrices', () => {
     const cards = useCollectionStore.getState().cards;
     expect(cards).toHaveLength(1001);
     expect(cards.every((c) => c.purchasePrice === 5)).toBe(true); // none left at $0
+  });
+
+  it('surfaces chunk progress while a tracked (manual) refresh runs, then clears it', async () => {
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    const seen: Array<{ done: number; total: number } | null> = [];
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: { body: string }) => {
+      // Snapshot the live progress as each chunk's request is issued.
+      seen.push(useCollectionStore.getState().priceRefreshProgress);
+      const { scryfallIds } = JSON.parse(init.body) as { scryfallIds: string[] };
+      const prices = Object.fromEntries(scryfallIds.map((id) => [id, { usd: 5, pricedAt: 1000 }]));
+      return Promise.resolve({ ok: true, json: async () => ({ prices }) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: Array.from({ length: 1001 }, (_, i) =>
+        enriched({ copyId: `c${i}`, scryfallId: `sf${i}`, purchasePrice: 0 })
+      ),
+    });
+
+    await useCollectionStore.getState().refreshPrices(undefined, { track: true });
+
+    // 2 chunks: chunk 1's request sees 0/2, chunk 2's sees 1/2 (prior chunk done).
+    expect(seen).toEqual([
+      { done: 0, total: 2 },
+      { done: 1, total: 2 },
+    ]);
+    expect(useCollectionStore.getState().priceRefreshProgress).toBeNull(); // cleared after
+  });
+
+  it('leaves progress null for an untracked (background) refresh', async () => {
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    let sawProgress = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => {
+        if (useCollectionStore.getState().priceRefreshProgress !== null) sawProgress = true;
+        return Promise.resolve({ ok: true, json: async () => ({ prices: {} }) });
+      })
+    );
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+
+    await useCollectionStore.getState().refreshPrices(); // no track → silent
+
+    expect(sawProgress).toBe(false);
+    expect(useCollectionStore.getState().priceRefreshProgress).toBeNull();
   });
 
   it('does not freeze a server-miss $0 card as fresh (keeps it stale to retry)', async () => {

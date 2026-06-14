@@ -130,8 +130,13 @@ interface CollectionState {
    * Refreshes Scryfall market prices for the given scryfallIds (or every unique id
    * in the collection when called with no args). Updates purchasePrice and pricedAt
    * in place, persists, and toggles isRefreshingPrices around the request.
+   *
+   * Re-throws on failure so the caller can show a truthful toast. Pass
+   * `{ track: true }` for a user-initiated refresh to surface chunk progress
+   * (drives the global "Refreshing prices (n/m)…" pill); the silent background
+   * auto-refresh leaves it off so it never flashes on boot.
    */
-  refreshPrices: (scryfallIds?: string[]) => Promise<void>;
+  refreshPrices: (scryfallIds?: string[], opts?: { track?: boolean }) => Promise<void>;
   /**
    * Silently refreshes prices when they've gone stale (>24h old or missing),
    * delegating to refreshPrices(). Self-gating and safe to call on every boot:
@@ -596,7 +601,10 @@ export const useCollectionStore = create<CollectionState>()(
         return enriched.copyId;
       },
 
-      refreshPrices: async (scryfallIds) => {
+      refreshPrices: async (scryfallIds, opts) => {
+        // Only a user-initiated refresh surfaces the progress pill; the silent
+        // boot auto-refresh leaves `track` off so it never flashes on launch.
+        const track = opts?.track ?? false;
         const s = get();
         if (s.cards.length === 0) return;
 
@@ -607,7 +615,10 @@ export const useCollectionStore = create<CollectionState>()(
         if (ids.length === 0) return;
 
         const totalChunks = Math.ceil(ids.length / 1000);
-        set({ isRefreshingPrices: true, priceRefreshProgress: { done: 0, total: totalChunks } });
+        set({
+          isRefreshingPrices: true,
+          priceRefreshProgress: track ? { done: 0, total: totalChunks } : null,
+        });
         try {
           // The server caps each request at 1000 printings, so page through the
           // collection in chunks and merge. Without this, a large collection
@@ -643,7 +654,8 @@ export const useCollectionStore = create<CollectionState>()(
               >;
             };
             Object.assign(prices, batch_prices);
-            set({ priceRefreshProgress: { done: i / PRICE_CHUNK + 1, total: totalChunks } });
+            if (track)
+              set({ priceRefreshProgress: { done: i / PRICE_CHUNK + 1, total: totalChunks } });
           }
 
           // Prices are device-local reference data — write them to the on-device
