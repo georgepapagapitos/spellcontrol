@@ -6,18 +6,19 @@ import { pullSync, pushSync, type SyncRow, type SyncUpsert, type SyncDeletion } 
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
-import { applyPrices } from './card-prices';
+import { applyPrices, setPrices } from './card-prices';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
- * plus the price fields we strip before a card ever becomes a synced row.
- * Prices are global reference data held device-locally (see card-prices.ts), so
- * they must never enter the sync queue / IDB-synced row — otherwise a daily
- * price refresh re-pushes the whole collection.
+ * plus scryfallId + the price fields we strip before a card ever becomes a
+ * synced row. Prices are global reference data held device-locally (see
+ * card-prices.ts), so they must never enter the sync queue / IDB-synced row —
+ * otherwise a daily price refresh re-pushes the whole collection.
  */
 type EnrichedCardish = {
   copyId: string;
   importId?: string;
+  scryfallId?: string;
   purchasePrice?: number;
   pricedAt?: number;
 };
@@ -29,6 +30,26 @@ function stripCardPrice<T extends { purchasePrice?: number; pricedAt?: number }>
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { purchasePrice, pricedAt, ...rest } = card;
   return rest;
+}
+
+/**
+ * Seed the device-local price cache from cards about to be persisted, BEFORE
+ * their price is stripped for the synced row. This is the single chokepoint that
+ * keeps every card-entry path (import, add, move-from-list, restore, …) showing
+ * the right price after a reload — otherwise a freshly added card's price would
+ * be stripped from the synced row with no device-local copy, and read $0 on the
+ * next hydrate. Only positive prices are seeded: a placeholder $0 (e.g. a
+ * cache-miss card from a prior hydrate) must stay unseeded so it keeps counting
+ * as stale and gets a real price on the next refresh, rather than freezing at $0.
+ */
+function seedCardPrices(cards: ReadonlyArray<EnrichedCardish>): void {
+  const entries: Record<string, { usd: number; pricedAt: number }> = {};
+  for (const c of cards) {
+    if (c.scryfallId && typeof c.purchasePrice === 'number' && c.purchasePrice > 0) {
+      entries[c.scryfallId] = { usd: c.purchasePrice, pricedAt: c.pricedAt ?? Date.now() };
+    }
+  }
+  setPrices(entries);
 }
 
 /**
@@ -434,13 +455,17 @@ async function persistKind<T>(
 
 export const persistCardsState = (
   cards: ReadonlyArray<{ copyId: string; importId?: string }>
-): Promise<void> =>
-  persistKind(
+): Promise<void> => {
+  // Seed device-local prices from the live cards BEFORE stripping them, so every
+  // card-persist path (import/add/move/restore) keeps its price across reloads.
+  seedCardPrices(cards as EnrichedCardish[]);
+  return persistKind(
     'card',
     (cards as EnrichedCardish[]).map(stripCardPrice),
     (c) => c.copyId,
     (c) => c.importId ?? ''
   );
+};
 
 export const persistImportsState = (imports: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('import', imports as Array<{ id: string }>, (i) => i.id);

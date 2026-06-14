@@ -483,6 +483,15 @@ describe('card price stripping (prices are device-local, never synced)', () => {
     expect('purchasePrice' in qData).toBe(false);
   });
 
+  it('persistCardsState seeds the device price cache (covers add/import/restore/move centrally)', async () => {
+    await persistCardsState([
+      { copyId: 'c-1', importId: '', scryfallId: 's-1', purchasePrice: 8.5, pricedAt: 111 },
+      { copyId: 'c-2', importId: '', scryfallId: 's-2', purchasePrice: 0 }, // no price → not seeded
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    expect(cardPrices.getPrice('s-1')).toEqual({ usd: 8.5, pricedAt: 111 });
+    expect(cardPrices.getPrice('s-2')).toBeUndefined();
+  });
+
   it('a pulled card row carries no price; hydrate fills it from the device cache', async () => {
     const { useCollectionStore } = await import('../store/collection');
     cardPrices.setPrices({ 's-9': { usd: 7.25, pricedAt: 999 } });

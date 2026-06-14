@@ -54,9 +54,14 @@ export function setPrices(entries: Record<string, PriceEntry>): void {
   loadPrices();
   let changed = false;
   for (const [id, e] of Object.entries(entries)) {
+    const cur = cache.get(id);
+    if (cur && cur.usd === e.usd && cur.pricedAt === e.pricedAt) continue; // no-op
     cache.set(id, e);
     changed = true;
   }
+  // Only touch localStorage when something actually changed — `persistCardsState`
+  // re-seeds the whole collection's prices on every persist, and re-serializing
+  // a large map on an unrelated mutation (e.g. renaming a binder) would jank.
   if (changed) persist();
 }
 

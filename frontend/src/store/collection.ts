@@ -353,18 +353,6 @@ export const useCollectionStore = create<CollectionState>()(
         const stamped = response.cards.map((c) => ({ ...c, importId }));
         const collectionMode = mode === 'binder' ? 'merge' : mode;
         const newCards = collectionMode === 'merge' ? mergeCards(existing, stamped) : stamped;
-        // Seed the device-local price cache from the freshly enriched cards: the
-        // synced row gets stripped of price, so without this the imported cards
-        // would read $0 after the next reload until a price refresh ran.
-        const priceSeed: Record<string, { usd: number; pricedAt: number }> = {};
-        for (const c of stamped) {
-          if (c.scryfallId)
-            priceSeed[c.scryfallId] = {
-              usd: c.purchasePrice ?? 0,
-              pricedAt: c.pricedAt ?? uploadedAt,
-            };
-        }
-        setPrices(priceSeed);
         // A 'replace' import over a non-empty collection silently discards the
         // prior cards/history — snapshot it so we can offer an Undo. (First
         // imports and merges add rather than destroy, so they need none.)
