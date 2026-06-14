@@ -16,7 +16,7 @@ interface Props {
  *
  * Reduced-motion safe: the fade-in and art overlay are CSS-only and
  * gated with prefers-reduced-motion. No new keyframes — reuses the
- * shared `fade-in` from global.css.
+ * shared `fade-in` from styles/footer-card-preview.css.
  */
 export function GenerationTakeover({ commanderName, commanderImageUrl, message, percent }: Props) {
   // Resolve from CDN if we only have a name; direct URL wins immediately.
