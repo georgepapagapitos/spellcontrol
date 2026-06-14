@@ -76,16 +76,6 @@ export function CollectionPage() {
     revealKey: 'collection-hero-value',
   });
 
-  // Newest price stamp across the collection — the "Prices as of" honesty
-  // line. Derived once per cards-array identity, not per render.
-  const pricesAsOf = useMemo(() => {
-    let newest = 0;
-    for (const c of cards) {
-      if (c.pricedAt != null && c.pricedAt > newest) newest = c.pricedAt;
-    }
-    return newest > 0 ? newest : null;
-  }, [cards]);
-
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   const setMap = useSetMap();
@@ -161,16 +151,6 @@ export function CollectionPage() {
                   </>
                 )}
               </p>
-              {pricesAsOf != null && (
-                <p className="binder-hero-meta collection-hero-priced-at">
-                  Prices as of{' '}
-                  {new Date(pricesAsOf).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </p>
-              )}
             </div>
             <div className="collection-hero-actions">
               <button

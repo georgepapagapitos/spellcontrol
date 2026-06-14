@@ -236,6 +236,7 @@ export function CardListTable({
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
   // Import history powers the "Date added" sort (timestamp keyed by importId).
   const importHistory = useCollectionStore((s) => s.importHistory);
+  const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -1778,6 +1779,7 @@ export function CardListTable({
                   isLastRow={virtualRow.index === displayRows.length - 1}
                   selectMode={selectMode}
                   selected={selected}
+                  pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
                   onActivate={() =>
                     selectMode ? toggleRow(r.key) : setPreviewIndex(virtualRow.index)
                   }

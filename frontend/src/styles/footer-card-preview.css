@@ -878,6 +878,14 @@
   line-height: 1.45;
 }
 
+/* On-demand price freshness — quiet by design (the always-on hero "Prices as
+   of" line was retired; this is one of its replacement homes). */
+.card-preview-priced-at {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-mono);
+}
+
 .card-preview-rarity {
   text-transform: capitalize;
   font-weight: 600;

@@ -1,5 +1,5 @@
 import { logger } from '@/lib/logger';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '../store/auth';
@@ -10,6 +10,7 @@ import { THEMES } from '../lib/themes';
 import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { formatPricedDate, newestPricedAt } from '../lib/price-freshness';
 import {
   fetchIdentities,
   googleLinkUrl,
@@ -40,6 +41,7 @@ export function SettingsPage() {
 
   const cards = useCollectionStore((s) => s.cards);
   const cardCount = cards.length;
+  const pricesUpdated = useMemo(() => formatPricedDate(newestPricedAt(cards)), [cards]);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const refreshPrices = useCollectionStore((s) => s.refreshPrices);
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
@@ -518,6 +520,7 @@ export function SettingsPage() {
               <div className="settings-row-value">Refresh card prices</div>
               <div className="settings-row-hint">
                 Re-fetch USD prices from Scryfall for every card in your collection.
+                {pricesUpdated && ` Last updated ${pricesUpdated}.`}
               </div>
             </div>
             <button

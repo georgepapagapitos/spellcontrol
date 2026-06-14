@@ -93,14 +93,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Quiet honesty line under the totals — when the collection's prices were
-   last sourced from Scryfall. Inherits the mono/muted hero-meta treatment;
-   just a step smaller so it reads as a footnote, not a second stat. */
-.collection-hero-priced-at {
-  font-size: var(--text-xs);
-  margin-top: 0.15rem;
-}
-
 /* Subtle text link styled to sit inline with the totals meta — same
    feel as the dotted-underline binder/deck context links in the card
    preview, but with the small BarChart3 icon to signal that it opens
@@ -1454,6 +1446,32 @@ i.ss.set-symbol--mythic {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* Pending-price placeholder. em-sized so it tracks the price font-size at every
+   density (list / compact) — same footprint as "$0.00", no row reflow. The
+   block shape alone reads as "loading"; the sheen (shared skeleton-shimmer
+   keyframe) is a theme-safe neutral so it shows on light and dark. */
+.collection-list-price-skeleton {
+  display: inline-block;
+  width: 3em;
+  height: 0.8em;
+  border-radius: 4px;
+  vertical-align: middle;
+  background:
+    linear-gradient(110deg, transparent 35%, rgba(128, 128, 128, 0.22) 50%, transparent 65%),
+    color-mix(in srgb, var(--text-muted) 24%, transparent);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-list-price-skeleton {
+    animation: none;
+  }
 }
 
 /* Compact density: text-only rows, no thumbnail, name + meta on a single

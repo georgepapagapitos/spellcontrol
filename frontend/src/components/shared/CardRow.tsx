@@ -33,6 +33,9 @@ interface CardRowProps {
   /** Collection bulk-select affordances. */
   selectMode?: boolean;
   selected?: boolean;
+  /** While a price refresh is in flight and this card has no price yet, the
+   *  price slot shows a same-size shimmer instead of a misleading $0. */
+  pricePending?: boolean;
 }
 
 /**
@@ -56,6 +59,7 @@ export function CardRow({
   isLastRow = false,
   selectMode = false,
   selected = false,
+  pricePending = false,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   const type = getCardType({ typeLine: card.typeLine } as Parameters<typeof getCardType>[0]);
@@ -127,8 +131,18 @@ export function CardRow({
       <div className="collection-list-right">
         {menu}
         {qty > 1 && <div className="collection-list-qty">×{qty}</div>}
-        <div className="collection-list-price" title="Purchase cost recorded at import">
-          {formatMoney(card.purchasePrice * qty)}
+        <div
+          className="collection-list-price"
+          title={pricePending ? 'Updating price…' : 'Purchase cost recorded at import'}
+        >
+          {pricePending ? (
+            <>
+              <span className="collection-list-price-skeleton" aria-hidden="true" />
+              <span className="visually-hidden">Updating price</span>
+            </>
+          ) : (
+            formatMoney(card.purchasePrice * qty)
+          )}
         </div>
       </div>
     </div>

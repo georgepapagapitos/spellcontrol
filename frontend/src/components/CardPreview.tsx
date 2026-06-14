@@ -21,6 +21,7 @@ import type { EnrichedCard } from '../types';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
+import { formatPricedDate } from '../lib/price-freshness';
 import { CardImageFrame } from './CardImageFrame';
 import { foilFinishLabel } from '../lib/foil-style';
 import { ManaCost } from './ManaCost';
@@ -654,6 +655,14 @@ export function CardPreview({
                 </span>
               )}
             </div>
+            {(() => {
+              // Price freshness on demand — the always-on collection "Prices as
+              // of" line was retired; the card inspector is one of its homes.
+              const updated = formatPricedDate(current.pricedAt);
+              return updated ? (
+                <div className="card-preview-priced-at">Prices updated {updated}</div>
+              ) : null;
+            })()}
             {showRole &&
               (() => {
                 // Role decodes from the card name via the bundled tagger,
