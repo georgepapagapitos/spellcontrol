@@ -48,6 +48,14 @@ const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
 const mockIsNative = isNativePlatform as unknown as ReturnType<typeof vi.fn>;
 const mockAddListener = CapacitorApp.addListener as unknown as ReturnType<typeof vi.fn>;
 
+async function waitForLifecycleSyncToSettle(): Promise<void> {
+  await vi.waitFor(async () => {
+    const before = mockPull.mock.calls.length;
+    await refreshNow();
+    expect(mockPull.mock.calls.length).toBeGreaterThan(before);
+  });
+}
+
 beforeEach(async () => {
   vi.clearAllMocks();
   estore._resetDbPromiseForTests();
@@ -152,8 +160,8 @@ describe('native resume', () => {
 
     const before = mockPull.mock.calls.length;
     onResume(); // simulate the app coming back to the foreground
-    await Promise.resolve();
-    expect(mockPull.mock.calls.length).toBe(before + 1);
+    await vi.waitFor(() => expect(mockPull.mock.calls.length).toBe(before + 1));
+    await waitForLifecycleSyncToSettle();
   });
 
   it('does not register a resume listener on web', async () => {
@@ -631,8 +639,11 @@ describe('legibility signals', () => {
     expect(isOnline()).toBe(true);
     window.dispatchEvent(new Event('offline'));
     expect(isOnline()).toBe(false);
+    const before = mockPull.mock.calls.length;
     window.dispatchEvent(new Event('online'));
     expect(isOnline()).toBe(true);
+    await vi.waitFor(() => expect(mockPull.mock.calls.length).toBe(before + 1));
+    await waitForLifecycleSyncToSettle();
   });
 });
 
