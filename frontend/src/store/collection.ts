@@ -600,25 +600,41 @@ export const useCollectionStore = create<CollectionState>()(
 
         set({ isRefreshingPrices: true });
         try {
-          const res = await fetch(apiUrl('/api/refresh-prices'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scryfallIds: ids }),
-          });
-          if (!res.ok) {
-            const body = (await res.json().catch(() => ({}))) as { error?: string };
-            throw new Error(body.error || `HTTP ${res.status}`);
-          }
+          // The server caps each request at 1000 printings, so page through the
+          // collection in chunks and merge. Without this, a large collection
+          // only ever prices its first 1000 unique printings — and *which* 1000
+          // depends on array order, so an imported device and a synced device
+          // price different subsets and show $0 on different cards (the
+          // cross-device price divergence). priceLimiter is 30 req/min, so even
+          // a ~20k-printing collection (20 requests) stays well under the cap.
+          const PRICE_CHUNK = 1000;
           // The server returns a price per FINISH for each printing (foil and
           // non-foil of the same printing differ); each value is already
           // fallback-resolved server-side. `usdFoil`/`usdEtched` are absent from
           // a pre-finish server — those cards just degrade to the non-foil price.
-          const { prices } = (await res.json()) as {
-            prices: Record<
-              string,
-              { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
-            >;
-          };
+          const prices: Record<
+            string,
+            { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
+          > = {};
+          for (let i = 0; i < ids.length; i += PRICE_CHUNK) {
+            const batch = ids.slice(i, i + PRICE_CHUNK);
+            const res = await fetch(apiUrl('/api/refresh-prices'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ scryfallIds: batch }),
+            });
+            if (!res.ok) {
+              const body = (await res.json().catch(() => ({}))) as { error?: string };
+              throw new Error(body.error || `HTTP ${res.status}`);
+            }
+            const { prices: batch_prices } = (await res.json()) as {
+              prices: Record<
+                string,
+                { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
+              >;
+            };
+            Object.assign(prices, batch_prices);
+          }
 
           // Prices are device-local reference data — write them to the on-device
           // price cache (NOT the sync path) and re-merge onto the in-memory
@@ -639,15 +655,20 @@ export const useCollectionStore = create<CollectionState>()(
             if (p.usdEtched && p.usdEtched > 0)
               entries[priceKey(id, 'etched')] = { usd: p.usdEtched, pricedAt: p.pricedAt };
           }
-          // For requested copies Scryfall had no price for, carry over their
-          // current value (keyed by their own finish) with a fresh pricedAt —
-          // keeping the last-known price beats flashing $0, and it stops them
-          // counting as stale.
+          // For requested copies the server returned no price for, carry over a
+          // POSITIVE last-known value (keyed by their own finish) with a fresh
+          // pricedAt so a transient server miss doesn't flash $0. A copy whose
+          // current price is $0 (never priced, or the server cache was cold when
+          // this device last refreshed) is deliberately left UNSEEDED: stamping
+          // it fresh would mark it "not stale" and freeze it at $0 forever, so
+          // it must stay stale and get retried on the next refresh.
           for (const c of get().cards) {
             const id = c.scryfallId;
             if (!id || !requested.has(id)) continue;
             const key = priceKey(id, c.finish);
-            if (!(key in entries)) entries[key] = { usd: c.purchasePrice ?? 0, pricedAt: now };
+            if (!(key in entries) && (c.purchasePrice ?? 0) > 0) {
+              entries[key] = { usd: c.purchasePrice as number, pricedAt: now };
+            }
           }
           setPrices(entries);
           const beforeCards = get().cards;
