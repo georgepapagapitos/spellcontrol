@@ -6,7 +6,7 @@ import { pullSync, pushSync, type SyncRow, type SyncUpsert, type SyncDeletion } 
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
-import { applyPrices, setPrices } from './card-prices';
+import { applyPrices, setPrices, priceKey } from './card-prices';
 import { toast } from '../store/toasts';
 
 /**
@@ -20,6 +20,7 @@ type EnrichedCardish = {
   copyId: string;
   importId?: string;
   scryfallId?: string;
+  finish?: string;
   purchasePrice?: number;
   pricedAt?: number;
 };
@@ -47,7 +48,12 @@ function seedCardPrices(cards: ReadonlyArray<EnrichedCardish>): void {
   const entries: Record<string, { usd: number; pricedAt: number }> = {};
   for (const c of cards) {
     if (c.scryfallId && typeof c.purchasePrice === 'number' && c.purchasePrice > 0) {
-      entries[c.scryfallId] = { usd: c.purchasePrice, pricedAt: c.pricedAt ?? Date.now() };
+      // Key by printing+finish so a foil copy's price doesn't overwrite the
+      // non-foil entry for the same printing (and vice versa).
+      entries[priceKey(c.scryfallId, c.finish)] = {
+        usd: c.purchasePrice,
+        pricedAt: c.pricedAt ?? Date.now(),
+      };
     }
   }
   setPrices(entries);

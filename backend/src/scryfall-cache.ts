@@ -23,17 +23,33 @@ export function getScryfallCache(): ScryfallCache {
 }
 
 /**
- * Highest non-zero USD price across nonfoil / etched / foil for a cached card.
- * Returns 0 when Scryfall has no USD price. (Moved here from server.ts so the
- * shares projection can reuse it.)
+ * Finish-aware USD price for a cached card: prefer the price for the owned
+ * finish, then fall back across the others. Same ordering as `mergeCard`'s
+ * import-time `resolvePrice` (the single source of truth for "which finish's
+ * price to show") — keep them identical. Returns 0 when Scryfall has no usable
+ * USD price for any finish.
  */
-export function pickUsdFromPrices(card: ScryfallCard): number {
+export function pickUsdForFinish(card: ScryfallCard, finish?: string): number {
   const p = card.prices;
   if (!p) return 0;
-  for (const raw of [p.usd, p.usd_etched, p.usd_foil]) {
+  const order =
+    finish === 'etched'
+      ? [p.usd_etched, p.usd_foil, p.usd]
+      : finish === 'foil'
+        ? [p.usd_foil, p.usd_etched, p.usd]
+        : [p.usd, p.usd_etched, p.usd_foil];
+  for (const raw of order) {
     if (!raw) continue;
     const n = Number(raw);
     if (Number.isFinite(n) && n > 0) return n;
   }
   return 0;
+}
+
+/**
+ * Back-compat alias: the non-foil-first pick. Equivalent to
+ * `pickUsdForFinish(card, 'nonfoil')`.
+ */
+export function pickUsdFromPrices(card: ScryfallCard): number {
+  return pickUsdForFinish(card, 'nonfoil');
 }

@@ -20,10 +20,20 @@
 const LS_KEY = 'spellcontrol:card-prices';
 
 export interface PriceEntry {
-  /** USD market price; 0 when Scryfall has no price for this printing. */
+  /** USD market price; 0 when Scryfall has no price for this printing+finish. */
   usd: number;
   /** Epoch ms when this entry was last sourced/checked. */
   pricedAt: number;
+}
+
+/**
+ * Cache key for a printing's price. Price depends on FINISH (a foil and a
+ * non-foil of the same printing have different prices), so foil/etched copies
+ * get their own key. Non-foil stays the bare `scryfallId` — that's the legacy
+ * key, so existing cached entries keep working and only foils need repopulating.
+ */
+export function priceKey(scryfallId: string, finish?: string): string {
+  return finish && finish !== 'nonfoil' ? `${scryfallId}:${finish}` : scryfallId;
 }
 
 let cache = new Map<string, PriceEntry>();
@@ -65,9 +75,9 @@ export function setPrices(entries: Record<string, PriceEntry>): void {
   if (changed) persist();
 }
 
-export function getPrice(scryfallId: string): PriceEntry | undefined {
+export function getPrice(scryfallId: string, finish?: string): PriceEntry | undefined {
   loadPrices();
-  return cache.get(scryfallId);
+  return cache.get(priceKey(scryfallId, finish));
 }
 
 /** Test-only: reset the in-memory cache + loaded flag. */
@@ -79,22 +89,28 @@ export function _resetForTests(): void {
 /**
  * Return cards with `purchasePrice`/`pricedAt` filled from the device-local
  * cache. The synced card row carries NO price, so this is what gives an
- * in-memory card a usable price for display / sort / routing:
- *   - cache hit → use it;
- *   - no cache entry but the card still carries a price (legacy synced row from
- *     before prices moved off-row, before the first refresh) → keep it;
+ * in-memory card a usable price for display / sort / routing. The lookup is
+ * FINISH-AWARE (a foil reads the foil price):
+ *   - exact finish hit (`scryfallId:finish` for foil/etched) → use it;
+ *   - else the bare-`scryfallId` non-foil entry (legacy cache, or a foil whose
+ *     finish-specific price hasn't been refreshed yet) → use it as a stopgap;
+ *   - else the card's own carried price (legacy synced row from before prices
+ *     moved off-row) → keep it;
  *   - otherwise → 0 (Scryfall has no current price → honest $0).
  * `purchasePrice` is ALWAYS a number on the way out, so reducers/formatters
  * never see `undefined`/`NaN`. A new array is returned only when something
  * changed, so a no-op merge keeps the reference and downstream `useMemo`s skip.
  */
 export function applyPrices<
-  T extends { scryfallId: string; purchasePrice?: number; pricedAt?: number },
+  T extends { scryfallId: string; finish?: string; purchasePrice?: number; pricedAt?: number },
 >(cards: T[]): T[] {
   loadPrices();
   let mutated = false;
   const out = cards.map((c) => {
-    const e = cache.get(c.scryfallId);
+    // Exact finish, then the bare non-foil entry as a transitional fallback.
+    const e =
+      cache.get(priceKey(c.scryfallId, c.finish)) ??
+      (c.finish && c.finish !== 'nonfoil' ? cache.get(c.scryfallId) : undefined);
     const usd = e ? e.usd : (c.purchasePrice ?? 0);
     const pricedAt = e ? e.pricedAt : c.pricedAt;
     if (c.purchasePrice === usd && c.pricedAt === pricedAt) return c;

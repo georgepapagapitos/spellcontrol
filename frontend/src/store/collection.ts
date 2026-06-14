@@ -20,7 +20,7 @@ import {
   type ImportHistoryEntry,
   type StoredCollection,
 } from '../lib/local-cards';
-import { applyPrices, setPrices } from '../lib/card-prices';
+import { applyPrices, setPrices, priceKey } from '../lib/card-prices';
 import { buildBackup, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { apiUrl } from '../lib/api-base';
@@ -560,8 +560,15 @@ export const useCollectionStore = create<CollectionState>()(
             const body = (await res.json().catch(() => ({}))) as { error?: string };
             throw new Error(body.error || `HTTP ${res.status}`);
           }
+          // The server returns a price per FINISH for each printing (foil and
+          // non-foil of the same printing differ); each value is already
+          // fallback-resolved server-side. `usdFoil`/`usdEtched` are absent from
+          // a pre-finish server — those cards just degrade to the non-foil price.
           const { prices } = (await res.json()) as {
-            prices: Record<string, { usd: number; pricedAt: number }>;
+            prices: Record<
+              string,
+              { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
+            >;
           };
 
           // Prices are device-local reference data — write them to the on-device
@@ -571,15 +578,27 @@ export const useCollectionStore = create<CollectionState>()(
           // churn + the boot OOM).
           const requested = new Set(ids);
           const now = Date.now();
-          const entries: Record<string, { usd: number; pricedAt: number }> = { ...prices };
-          // For requested cards Scryfall had no price for, carry over their
-          // current value with a fresh pricedAt — keeping the last-known price is
-          // friendlier than flashing $0, and it stops them counting as stale.
+          // Fan each printing's per-finish prices out to finish-keyed entries.
+          // Only positive values are written — a $0 finish (Scryfall has none)
+          // stays unkeyed so the card keeps counting as stale rather than
+          // freezing at $0.
+          const entries: Record<string, { usd: number; pricedAt: number }> = {};
+          for (const [id, p] of Object.entries(prices)) {
+            if (p.usd > 0) entries[priceKey(id, 'nonfoil')] = { usd: p.usd, pricedAt: p.pricedAt };
+            if (p.usdFoil && p.usdFoil > 0)
+              entries[priceKey(id, 'foil')] = { usd: p.usdFoil, pricedAt: p.pricedAt };
+            if (p.usdEtched && p.usdEtched > 0)
+              entries[priceKey(id, 'etched')] = { usd: p.usdEtched, pricedAt: p.pricedAt };
+          }
+          // For requested copies Scryfall had no price for, carry over their
+          // current value (keyed by their own finish) with a fresh pricedAt —
+          // keeping the last-known price beats flashing $0, and it stops them
+          // counting as stale.
           for (const c of get().cards) {
             const id = c.scryfallId;
-            if (id && requested.has(id) && !prices[id] && !(id in entries)) {
-              entries[id] = { usd: c.purchasePrice ?? 0, pricedAt: now };
-            }
+            if (!id || !requested.has(id)) continue;
+            const key = priceKey(id, c.finish);
+            if (!(key in entries)) entries[key] = { usd: c.purchasePrice ?? 0, pricedAt: now };
           }
           setPrices(entries);
           set({ cards: applyPrices(get().cards) });

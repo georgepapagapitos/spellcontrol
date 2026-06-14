@@ -1,29 +1,19 @@
 import crypto from 'crypto';
 import type { ImportRow } from './parsers/types';
 import type { EnrichedCard, ScryfallCard } from './types';
+import { pickUsdForFinish } from './scryfall-cache';
 
 // Always prefer Scryfall's market price over whatever the import file claimed.
 // CSV "purchase price" columns vary wildly (some are list price, some are
 // what the user paid years ago, some are blank) and we've decided to ignore
 // them entirely for display. Returns 0 when Scryfall has no price for any
 // finish — callers can treat that as "unpriced" rather than a real $0 value.
+// Finish-aware ordering lives in `pickUsdForFinish` (shared with the price
+// refresh + share-projection paths) so a foil never silently shows the
+// non-foil price.
 function resolvePrice(row: ImportRow, scryfall: ScryfallCard | undefined): number {
-  const p = scryfall?.prices;
-  if (p) {
-    const finish = row.finish ?? 'nonfoil';
-    const candidates =
-      finish === 'etched'
-        ? [p.usd_etched, p.usd_foil, p.usd]
-        : finish === 'foil'
-          ? [p.usd_foil, p.usd_etched, p.usd]
-          : [p.usd, p.usd_etched, p.usd_foil];
-    for (const raw of candidates) {
-      if (!raw) continue;
-      const n = Number(raw);
-      if (Number.isFinite(n) && n > 0) return n;
-    }
-  }
-  return 0;
+  if (!scryfall) return 0;
+  return pickUsdForFinish(scryfall, row.finish ?? 'nonfoil');
 }
 
 /**
