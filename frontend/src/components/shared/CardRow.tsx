@@ -136,10 +136,9 @@ export function CardRow({
           title={pricePending ? 'Updating price…' : 'Purchase cost recorded at import'}
         >
           {pricePending ? (
-            <>
-              <span className="collection-list-price-skeleton" aria-hidden="true" />
-              <span className="visually-hidden">Updating price</span>
-            </>
+            <span className="collection-list-price-pending" aria-label="Price updating">
+              —
+            </span>
           ) : (
             formatMoney(card.purchasePrice * qty)
           )}
