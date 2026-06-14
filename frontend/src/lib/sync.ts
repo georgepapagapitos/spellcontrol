@@ -7,7 +7,6 @@ import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from './card-prices';
-import { toast } from '../store/toasts';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
@@ -444,15 +443,6 @@ async function persistKind<T>(
       id,
       data: r,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
-      // Deck reject-stale: carry the rev this device last saw (from the live IDB
-      // row) so the server only writes if it still matches. A new deck (no row)
-      // or an unpushed edit (row already reset to rev 0) sends clientRev 0 =
-      // unconditional LWW — back-compat-safe, never a wrong reject.
-      // ponytail: rapid edits before a push degrade clientRev to 0 (the row was
-      // already stamped 0 by the first edit), falling back to LWW for that
-      // window. Acceptable — a true cross-device conflict from a clean rev still
-      // rejects; coalesce-preserving the rev only if that window ever matters.
-      ...(kind === 'deck' ? { clientRev: existing?.rev ?? 0 } : {}),
     });
   }
   if (changedRows.length > 0) await estore.putMany(kind, changedRows);
@@ -565,7 +555,6 @@ async function push(): Promise<void> {
             id: m.id,
             data: m.data,
             ...(m.kind === 'card' && m.importId !== undefined ? { importId: m.importId } : {}),
-            ...(m.kind === 'deck' && m.clientRev !== undefined ? { clientRev: m.clientRev } : {}),
           });
         } else {
           deletions.push({ kind: m.kind, id: m.id });
@@ -593,32 +582,6 @@ async function push(): Promise<void> {
       await queue.ack(batch.map((b) => b.seq));
       void refreshPending();
 
-      // Deck reject-stale conflicts: the server kept its row (another device
-      // wrote it after the rev we sent). Our losing edit was already dropped by
-      // the ack above; now adopt the server's version. applyServerRows writes
-      // each winning deck to IDB at its serverRev, drops the now-stale undo/redo
-      // stack for that deck, and rehydrates the store — exactly what a pulled
-      // deck row does. Then a "changed on another device" toast so the swap
-      // isn't silent.
-      if (result.conflicts && result.conflicts.length > 0) {
-        await applyServerRows(
-          result.conflicts.map((c) => ({
-            kind: c.kind,
-            id: c.id,
-            data: c.serverData,
-            rev: c.serverRev,
-            deletedAt: null,
-          }))
-        );
-        const n = result.conflicts.length;
-        toast.show({
-          message:
-            n === 1
-              ? 'A deck changed on another device — showing the latest version.'
-              : `${n} decks changed on another device — showing the latest versions.`,
-          tone: 'info',
-        });
-      }
       // NEVER do `saveCursor(result.cursor)` here. The POST response's cursor is
       // the server's global max rev *after our writes* — adopting it as our pull
       // cursor would skip any lower-rev rows other devices wrote that we haven't

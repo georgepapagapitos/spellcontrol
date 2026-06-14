@@ -26,8 +26,6 @@ export type Mutation =
       id: string;
       data: unknown;
       importId?: string;
-      /** Deck-only: server rev this device last saw, for reject-stale. See SyncUpsert. */
-      clientRev?: number;
     }
   | { op: 'delete'; kind: EntityKind; id: string };
 
