@@ -6,7 +6,6 @@ import { NavFab } from './NavFab';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
-import { PriceRefreshIndicator } from './PriceRefreshIndicator';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { ScrollContainerContext } from '../lib/scroll-container';
 import { isNativePlatform } from '../lib/platform';
@@ -112,10 +111,6 @@ function LayoutShell() {
           always-visible bottom tab bar (the more discoverable pattern for
           the open web). */}
       {isNativePlatform() ? <NavFab /> : <MobileTabBar />}
-      {/* Top-docked progress pill for a user-initiated price refresh — shown on
-          every platform (the header is hidden <1024px), so the user isn't left
-          wondering after navigating away from Settings. */}
-      <PriceRefreshIndicator />
       <ToastViewport />
       {open && <KeyboardShortcutsOverlay groups={overlayGroups} onClose={hide} />}
     </div>
