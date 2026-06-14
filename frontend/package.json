@@ -8,8 +8,9 @@
   },
   "scripts": {
     "refresh-tags": "node scripts/refresh-tagger.mjs --force",
-    "predev": "node scripts/refresh-tagger.mjs",
-    "prebuild": "node scripts/refresh-tagger.mjs",
+    "build:shared": "npm --prefix ../packages/game-core run build && npm --prefix ../packages/binder-routing run build",
+    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs",
+    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs",
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
