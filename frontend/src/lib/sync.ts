@@ -7,6 +7,7 @@ import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from './card-prices';
+import { toast } from '../store/toasts';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
@@ -31,6 +32,11 @@ function stripCardPrice<T extends { purchasePrice?: number; pricedAt?: number }>
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { purchasePrice, pricedAt, ...rest } = card;
   return rest;
+}
+
+function baseRevFor(row: estore.StoredRow | undefined): number {
+  if (!row) return 0;
+  return row.syncedRev ?? (row.rev > 0 ? row.rev : 0);
 }
 
 /**
@@ -357,11 +363,13 @@ export async function recordUpsert(
   // row (prices live in card-prices.ts, never on the sync path).
   const syncData =
     kind === 'card' ? stripCardPrice(data as { purchasePrice?: number; pricedAt?: number }) : data;
+  const syncedRev = baseRevFor(await estore.getById(kind, id));
   await estore.putMany(kind, [
     {
       id,
       data: syncData,
       rev: 0, // local-only marker; server will assign a real rev on push
+      ...(syncedRev > 0 ? { syncedRev } : {}),
       deletedAt: null,
       ...(kind === 'card' ? { importId: importId ?? '' } : {}),
     },
@@ -372,6 +380,7 @@ export async function recordUpsert(
     id,
     data: syncData,
     ...(kind === 'card' ? { importId: importId ?? '' } : {}),
+    ...(kind === 'deck' && syncedRev > 0 ? { clientRev: syncedRev } : {}),
   });
   void refreshPending();
   schedulePush();
@@ -430,10 +439,12 @@ async function persistKind<T>(
       existing.deletedAt == null &&
       JSON.stringify(existing.data) === JSON.stringify(r);
     if (unchanged) continue;
+    const syncedRev = baseRevFor(existing);
     changedRows.push({
       id,
       data: r,
       rev: 0,
+      ...(syncedRev > 0 ? { syncedRev } : {}),
       deletedAt: null,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
     });
@@ -443,6 +454,7 @@ async function persistKind<T>(
       id,
       data: r,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
+      ...(kind === 'deck' && syncedRev > 0 ? { clientRev: syncedRev } : {}),
     });
   }
   if (changedRows.length > 0) await estore.putMany(kind, changedRows);
@@ -555,6 +567,7 @@ async function push(): Promise<void> {
             id: m.id,
             data: m.data,
             ...(m.kind === 'card' && m.importId !== undefined ? { importId: m.importId } : {}),
+            ...(m.kind === 'deck' && m.clientRev !== undefined ? { clientRev: m.clientRev } : {}),
           });
         } else {
           deletions.push({ kind: m.kind, id: m.id });
@@ -562,6 +575,28 @@ async function push(): Promise<void> {
       }
 
       const result = await pushSync({ upserts, deletions });
+
+      if (result.conflicts && result.conflicts.length > 0) {
+        await applyServerRows(
+          result.conflicts.map((c) => ({
+            kind: c.kind,
+            id: c.id,
+            data: c.serverData,
+            rev: c.serverRev,
+            deletedAt: c.serverData == null ? Date.now() : null,
+          }))
+        );
+        toast.show({
+          message:
+            result.conflicts.length === 1
+              ? 'Deck changed on another device. Kept the server version.'
+              : `${result.conflicts.length} decks changed on another device. Kept the server versions.`,
+          tone: 'info',
+        });
+        for (const c of result.conflicts) {
+          if (c.serverRev > serverRevHint) serverRevHint = c.serverRev;
+        }
+      }
 
       // Stamp the canonical server revs onto local rows. For upserts, the
       // local row exists in IDB with rev=0 — replace its rev so a subsequent
@@ -572,7 +607,7 @@ async function push(): Promise<void> {
         if (a.deletedAt != null) continue;
         const existing = await estore.getById(a.kind, a.id);
         if (existing) {
-          (byKind[a.kind] ??= []).push({ ...existing, rev: a.rev });
+          (byKind[a.kind] ??= []).push({ ...existing, rev: a.rev, syncedRev: a.rev });
         }
       }
       for (const [kind, rows] of Object.entries(byKind)) {
@@ -640,6 +675,7 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
         id: r.id,
         data: r.data,
         rev: r.rev,
+        syncedRev: r.rev,
         deletedAt: null,
         ...(r.kind === 'card' ? { importId: r.importId ?? '' } : {}),
       });

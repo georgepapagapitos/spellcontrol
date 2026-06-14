@@ -33,6 +33,7 @@ export interface SyncUpsert {
   id: string;
   data: unknown;
   importId?: string;
+  clientRev?: number;
 }
 export interface SyncDeletion {
   kind: SyncKind;
@@ -45,6 +46,12 @@ export interface SyncPushResult {
     id: string;
     rev: number;
     deletedAt: number | null;
+  }>;
+  conflicts?: Array<{
+    kind: 'deck';
+    id: string;
+    serverRev: number;
+    serverData: unknown;
   }>;
   cursor: number;
 }

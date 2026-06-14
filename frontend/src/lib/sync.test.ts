@@ -48,6 +48,14 @@ const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
 const mockIsNative = isNativePlatform as unknown as ReturnType<typeof vi.fn>;
 const mockAddListener = CapacitorApp.addListener as unknown as ReturnType<typeof vi.fn>;
 
+async function waitForLifecycleSyncToSettle(): Promise<void> {
+  await vi.waitFor(async () => {
+    const before = mockPull.mock.calls.length;
+    await refreshNow();
+    expect(mockPull.mock.calls.length).toBeGreaterThan(before);
+  });
+}
+
 beforeEach(async () => {
   vi.clearAllMocks();
   estore._resetDbPromiseForTests();
@@ -152,8 +160,8 @@ describe('native resume', () => {
 
     const before = mockPull.mock.calls.length;
     onResume(); // simulate the app coming back to the foreground
-    await Promise.resolve();
-    expect(mockPull.mock.calls.length).toBe(before + 1);
+    await vi.waitFor(() => expect(mockPull.mock.calls.length).toBe(before + 1));
+    await waitForLifecycleSyncToSettle();
   });
 
   it('does not register a resume listener on web', async () => {
@@ -376,6 +384,60 @@ describe('push', () => {
     expect(arg.deletions.map((d) => `${d.kind}:${d.id}`)).toEqual(['binder:b-1']);
   });
 
+  it('forwards deck clientRev from the durable queue', async () => {
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', name: 'changed' },
+      clientRev: 12,
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'deck', id: 'd-1', rev: 13, deletedAt: null }],
+      cursor: 13,
+    });
+    await startSync('user-1');
+    expect(mockPush).toHaveBeenCalledWith({
+      upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'changed' }, clientRev: 12 }],
+      deletions: [],
+    });
+  });
+
+  it('adopts server-winning decks and acks stale deck conflicts', async () => {
+    await estore.putMany('deck', [
+      {
+        id: 'd-1',
+        data: { id: 'd-1', name: 'mine' },
+        rev: 0,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+    ]);
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', name: 'mine' },
+      clientRev: 5,
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        { kind: 'deck', id: 'd-1', serverRev: 6, serverData: { id: 'd-1', name: 'server' } },
+      ],
+      cursor: 0,
+    });
+    await startSync('user-1');
+    expect(await queue.size()).toBe(0);
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({
+      data: { id: 'd-1', name: 'server' },
+      rev: 6,
+      syncedRev: 6,
+      deletedAt: null,
+    });
+  });
+
   it('keeps the queue intact when the network throws', async () => {
     await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
     mockPush.mockRejectedValueOnce(new Error('offline'));
@@ -437,6 +499,34 @@ describe('persistKind helpers', () => {
     await persistBindersState([{ id: 'b-1', name: 'same' } as { id: string }]);
     const ops = (await queue.peekBatch(10)).map((b) => `${b.m.op}:${b.m.id}`);
     expect(ops).toEqual(['upsert:b-1']);
+  });
+
+  it('captures a deck base rev before resetting the local row to rev 0', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'old' }, rev: 11, deletedAt: null },
+    ]);
+    await persistDecksState([{ id: 'd-1', name: 'changed' } as { id: string }]);
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({ rev: 0, syncedRev: 11 });
+    const batch = await queue.peekBatch(10);
+    expect(batch[0].m).toMatchObject({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      clientRev: 11,
+    });
+  });
+
+  it('preserves the original deck base rev across repeated local edits before push', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'old' }, rev: 11, deletedAt: null },
+    ]);
+    await persistDecksState([{ id: 'd-1', name: 'changed once' } as { id: string }]);
+    await persistDecksState([{ id: 'd-1', name: 'changed twice' } as { id: string }]);
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({ rev: 0, syncedRev: 11 });
+    const batch = await queue.peekBatch(10);
+    expect(batch.map((b) => (b.m.op === 'upsert' ? b.m.clientRev : undefined))).toEqual([11, 11]);
   });
 
   it('persistCardsState includes importId on the upsert row', async () => {
@@ -549,8 +639,11 @@ describe('legibility signals', () => {
     expect(isOnline()).toBe(true);
     window.dispatchEvent(new Event('offline'));
     expect(isOnline()).toBe(false);
+    const before = mockPull.mock.calls.length;
     window.dispatchEvent(new Event('online'));
     expect(isOnline()).toBe(true);
+    await vi.waitFor(() => expect(mockPull.mock.calls.length).toBe(before + 1));
+    await waitForLifecycleSyncToSettle();
   });
 });
 
@@ -578,6 +671,18 @@ describe('recordUpsert / recordDelete', () => {
     expect(row?.importId).toBe('imp-1');
     const batch = await queue.peekBatch(10);
     expect((batch[0].m as { importId?: string }).importId).toBe('imp-1');
+  });
+
+  it('recordUpsert uses the pre-edit deck rev as clientRev', async () => {
+    const { recordUpsert } = await import('./sync');
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'old' }, rev: 21, deletedAt: null },
+    ]);
+    await recordUpsert('deck', 'd-1', { id: 'd-1', name: 'new' });
+    const row = await estore.getById('deck', 'd-1');
+    expect(row).toMatchObject({ rev: 0, syncedRev: 21 });
+    const batch = await queue.peekBatch(10);
+    expect(batch[0].m).toMatchObject({ op: 'upsert', kind: 'deck', id: 'd-1', clientRev: 21 });
   });
 
   it('recordDelete removes the IDB row + enqueues a delete op', async () => {

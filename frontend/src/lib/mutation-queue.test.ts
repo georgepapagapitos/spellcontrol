@@ -38,6 +38,20 @@ describe('enqueue', () => {
     expect((batch[0].m as { data: { v: number } }).data.v).toBe(3);
   });
 
+  it('coalesces deck upserts without replacing the original clientRev', async () => {
+    await enqueue({ op: 'upsert', kind: 'deck', id: 'd-1', data: { v: 1 }, clientRev: 7 });
+    await enqueue({ op: 'upsert', kind: 'deck', id: 'd-1', data: { v: 2 }, clientRev: 0 });
+    const batch = await peekBatch(10);
+    expect(batch).toHaveLength(1);
+    expect(batch[0].m).toMatchObject({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { v: 2 },
+      clientRev: 7,
+    });
+  });
+
   it('does not coalesce across different ids', async () => {
     await enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { v: 1 } });
     await enqueue({ op: 'upsert', kind: 'binder', id: 'b-2', data: { v: 1 } });
