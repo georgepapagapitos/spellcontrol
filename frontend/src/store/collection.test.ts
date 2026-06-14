@@ -705,6 +705,44 @@ describe('autoRefreshStalePrices', () => {
       else Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     }
   });
+
+  it('shows the progress pill when the whole collection is unpriced (fresh device)', async () => {
+    // Capture priceRefreshProgress at fetch time — the pill is live during the
+    // run, then cleared. A freshly-synced device is unpriced everywhere.
+    let progressDuringFetch: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      progressDuringFetch = useCollectionStore.getState().priceRefreshProgress;
+      return { ok: true, json: async () => ({ prices: {} }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: [
+        enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 0 }),
+        enriched({ copyId: 'c2', scryfallId: 'sf2', purchasePrice: 0 }),
+      ],
+    });
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(progressDuringFetch).not.toBeNull();
+    expect(useCollectionStore.getState().priceRefreshProgress).toBeNull(); // cleared after
+  });
+
+  it('stays silent (no pill) when some cards are already priced (routine staleness)', async () => {
+    let progressDuringFetch: unknown = 'unset';
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      progressDuringFetch = useCollectionStore.getState().priceRefreshProgress;
+      return { ok: true, json: async () => ({ prices: {} }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    // Stale (priced back at epoch) but a real price exists → a normal daily
+    // refresh, not a fresh fill, so the pill must not flash.
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 2, pricedAt: 1 })],
+    });
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(progressDuringFetch).toBeNull();
+  });
 });
 
 describe('backup snapshot / restore', () => {
