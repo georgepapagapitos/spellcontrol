@@ -179,14 +179,7 @@ describe('estimateBracket — hard floors', () => {
   });
 
   it('3+-card combo → no hard floor, only soft score', () => {
-    const r = estimateBracket(
-      ['Forest'],
-      [combo(4, true, 3)],
-      4,
-      undefined,
-      undefined,
-      new Set()
-    );
+    const r = estimateBracket(['Forest'], [combo(4, true, 3)], 4, undefined, undefined, new Set());
     expect(r.breakdown.twoCardComboCount).toBe(0);
     expect(r.breakdown.multiCardComboCount).toBe(1);
     expect(r.hardFloors.filter((f) => f.reason.includes('combo'))).toHaveLength(0);

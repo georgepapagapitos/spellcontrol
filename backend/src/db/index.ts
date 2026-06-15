@@ -183,6 +183,7 @@ export async function ensureSchema(): Promise<void> {
       legalities JSONB NOT NULL,
       card_count INTEGER NOT NULL,
       bracket INTEGER,
+      bracket_tag TEXT,
       updated_at BIGINT NOT NULL
     );
     /* Migrate from the original text-only prerequisites column if it exists. */

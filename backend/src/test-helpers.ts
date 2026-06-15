@@ -166,6 +166,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       legalities JSONB NOT NULL,
       card_count INTEGER NOT NULL,
       bracket INTEGER,
+      bracket_tag TEXT,
       updated_at BIGINT NOT NULL
     );
     CREATE TABLE combo_cards (
