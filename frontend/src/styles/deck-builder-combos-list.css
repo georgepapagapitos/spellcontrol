@@ -279,7 +279,7 @@
   margin-top: auto;
   background: transparent;
   border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 0.18rem 0.55rem;
   font-family: inherit;
   font-size: var(--text-xs);
