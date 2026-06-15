@@ -233,7 +233,7 @@
 .binder-card-editor-restore {
   background: none;
   border: 0.5px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--text-xs);
@@ -289,7 +289,7 @@
   font-size: var(--text-xs);
   color: var(--accent);
   border: 0.5px solid var(--accent);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   padding: 0.1rem 0.5rem;
   white-space: nowrap;
 }
