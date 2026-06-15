@@ -130,7 +130,9 @@ export function CardRow({
       )}
       <div className="collection-list-right">
         {menu}
-        {qty > 1 && <div className="collection-list-qty">×{qty}</div>}
+        <div className="collection-list-qty" aria-hidden={qty <= 1}>
+          {qty > 1 ? `×${qty}` : ''}
+        </div>
         <div
           className="collection-list-price"
           title={pricePending ? 'Updating price…' : 'Purchase cost recorded at import'}
