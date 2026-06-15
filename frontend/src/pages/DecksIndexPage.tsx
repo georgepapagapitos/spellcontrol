@@ -596,6 +596,9 @@ export function DecksIndexPage() {
                   canRegenerate={deck.source === 'generated' && !!deck.commander}
                   onRegenerate={() => handleRegenerate(deck)}
                   onShare={() => setShareDeck(deck)}
+                  onCompare={
+                    decks.length >= 2 ? () => navigate(`/decks/compare?a=${deck.id}`) : undefined
+                  }
                   onDelete={() => handleDelete(deck)}
                 />
               </li>
@@ -632,11 +635,13 @@ function DeckCardMenu({
   canRegenerate,
   onRegenerate,
   onShare,
+  onCompare,
   onDelete,
 }: {
   canRegenerate: boolean;
   onRegenerate: () => void;
   onShare?: () => void;
+  onCompare?: () => void;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -704,6 +709,21 @@ function DeckCardMenu({
               }}
             >
               Share
+            </button>
+          )}
+          {onCompare && (
+            <button
+              type="button"
+              role="menuitem"
+              className="decks-index-card-menu-item"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setOpen(false);
+                onCompare();
+              }}
+            >
+              Compare
             </button>
           )}
           <button

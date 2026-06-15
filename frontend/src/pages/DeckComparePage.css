@@ -1,0 +1,323 @@
+.deck-compare-page {
+  padding: var(--space-4);
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+.deck-compare-heading {
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+/* ── Loading skeleton ─────────────────────────────────────────────────── */
+.deck-compare-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.deck-compare-skeleton-bar {
+  display: block;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: deck-compare-shimmer 1.2s ease-in-out infinite;
+}
+.deck-compare-skeleton-bar.is-headline {
+  height: 1.5rem;
+  width: 40%;
+}
+.deck-compare-skeleton-bar.is-body {
+  height: 8rem;
+  width: 100%;
+}
+@keyframes deck-compare-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-compare-skeleton-bar {
+    animation: none;
+  }
+}
+
+/* ── Picker row ───────────────────────────────────────────────────────── */
+.deck-compare-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.deck-compare-vs {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+.deck-compare-empty {
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+.deck-compare-empty-title {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  margin-bottom: var(--space-2);
+}
+.deck-compare-empty-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Summary + sections ───────────────────────────────────────────────── */
+.deck-compare-summary {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+}
+.deck-compare-section {
+  border-top: 1px solid var(--border);
+  padding: var(--space-4) 0;
+}
+.deck-compare-section-title {
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+
+/* ── 2-up layout (desktop side-by-side, phone stacked) ────────────────── */
+.deck-compare-2up {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.deck-compare-col {
+  min-width: 0;
+}
+.deck-compare-deck-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+@media (max-width: 640px) {
+  .deck-compare-2up {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Card delta groups ────────────────────────────────────────────────── */
+.deck-compare-diff-group {
+  margin-bottom: var(--space-4);
+}
+.deck-compare-diff-group-title {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+.deck-compare-diff-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.deck-compare-diff-row {
+  display: grid;
+  grid-template-columns: 3px auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  border-radius: var(--radius);
+}
+.deck-compare-diff-row:nth-child(even) {
+  background: var(--surface-raised);
+}
+.deck-compare-diff-bar {
+  align-self: stretch;
+  border-radius: var(--radius);
+  margin-block: var(--space-1);
+}
+.deck-compare-diff-glyph {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  width: 1ch;
+  text-align: center;
+}
+.deck-compare-diff-name {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deck-compare-diff-qty {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tones — the accent bar + glyph color is additive to the text glyph/word. */
+.deck-compare-diff-row.is-added .deck-compare-diff-bar,
+.deck-compare-diff-row.is-added .deck-compare-diff-glyph {
+  background: transparent;
+  color: var(--success);
+}
+.deck-compare-diff-row.is-added .deck-compare-diff-bar {
+  background: var(--success);
+}
+.deck-compare-diff-row.is-removed .deck-compare-diff-bar {
+  background: var(--err-text);
+}
+.deck-compare-diff-row.is-removed .deck-compare-diff-glyph {
+  color: var(--err-text);
+}
+.deck-compare-diff-row.is-changed .deck-compare-diff-bar {
+  background: var(--warn-border);
+}
+.deck-compare-diff-row.is-changed .deck-compare-diff-glyph {
+  color: var(--warn-text);
+}
+
+.deck-compare-show-more {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  min-height: 44px;
+  transition: color var(--motion-fast);
+}
+.deck-compare-show-more:hover {
+  color: var(--text-primary);
+}
+
+/* ── Stat chips ───────────────────────────────────────────────────────── */
+.deck-compare-stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.deck-compare-stat-chip {
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.deck-compare-stat-chip-label {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.deck-compare-stat-chip-value {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Signed delta tag — color is additive; the sign character carries meaning. */
+.deck-compare-delta-tag {
+  font-variant-numeric: tabular-nums;
+}
+.deck-compare-delta-tag.is-added {
+  color: var(--success);
+}
+.deck-compare-delta-tag.is-removed {
+  color: var(--err-text);
+}
+
+/* ── Composition grid (types | roles) ─────────────────────────────────── */
+.deck-compare-comp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.deck-compare-comp-col {
+  min-width: 0;
+}
+.deck-compare-comp-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+@media (min-width: 640px) {
+  .deck-compare-comp-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.deck-compare-delta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  min-height: 32px;
+}
+.deck-compare-delta-label {
+  color: var(--text-secondary);
+}
+.deck-compare-delta-counts {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.deck-compare-tagger-notice {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  padding: var(--space-2);
+}
+
+/* ── Bracket + price ──────────────────────────────────────────────────── */
+.deck-compare-bracket-num {
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+.deck-compare-grade {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.deck-compare-price-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.deck-compare-price-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.deck-compare-price-name {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.deck-compare-price-amount {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.deck-compare-price-delta {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.deck-compare-price-delta.is-added {
+  color: var(--success);
+}
+.deck-compare-price-delta.is-removed {
+  color: var(--err-text);
+}
+@media (max-width: 640px) {
+  .deck-compare-price-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
