@@ -56,7 +56,7 @@ interface ReferenceDeck {
   tutorCards: string[];
   removalCount: number;
   boardwipeCount: number;
-  completedCombos: Array<{ bracket: number }>;
+  completedCombos: Array<{ bracket: number | null; cardCount?: number; bracketTag?: string }>;
 }
 
 /**
@@ -344,6 +344,25 @@ const REFERENCE_DECKS: ReferenceDeck[] = [
     boardwipeCount: 0,
     completedCombos: [{ bracket: 5 }, { bracket: 4 }],
   },
+  // ── P0 regression: bare combo deck ───────────────────────────────────────
+  // A deck with one 2-card infinite combo, no GCs, no fast mana → B3 minimum.
+  // Before the fix this estimated B2 because combo.bracket was always null and
+  // parseInt('unknown') = NaN caused the combo to be silently dropped.
+  {
+    name: 'Bare combo deck (one 2-card infinite, no GCs, no fast mana)',
+    expectedBracket: 3,
+    sourceCitation: 'Official RC: zero intentional 2-card infinite combos required for B2',
+    notes: 'Verifies the P0 fix: a null-bracket 2-card combo must floor at B3, not B2.',
+    cards: ['Forest', ...Array(97).fill('Plains')],
+    averageCmc: 3.5,
+    gameChangerNames: [],
+    mldCards: [],
+    extraTurnCards: [],
+    tutorCards: [],
+    removalCount: 2,
+    boardwipeCount: 0,
+    completedCombos: [{ bracket: null, cardCount: 2 }],
+  },
 ];
 
 function runFixture(deck: ReferenceDeck) {
@@ -358,12 +377,14 @@ function runFixture(deck: ReferenceDeck) {
 
   const combos: DetectedCombo[] = deck.completedCombos.map((c, i) => ({
     comboId: `${deck.name}-combo-${i}`,
-    cards: ['A', 'B'],
+    cards: (c.cardCount ?? 2) <= 2 ? ['A', 'B'] : ['A', 'B', 'C'],
     results: ['Win'],
     isComplete: true,
     missingCards: [],
     deckCount: 1,
-    bracket: String(c.bracket),
+    bracket: c.bracket,
+    bracketTag: c.bracketTag ?? null,
+    cardCount: c.cardCount ?? 2,
   }));
 
   return estimateBracket(

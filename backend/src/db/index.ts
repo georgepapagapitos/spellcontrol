@@ -209,6 +209,7 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (combo_id, oracle_id)
     );
     ALTER TABLE combo_cards ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE combos ADD COLUMN IF NOT EXISTS bracket_tag TEXT;
     CREATE INDEX IF NOT EXISTS combo_cards_oracle_idx ON combo_cards(oracle_id);
     CREATE TABLE IF NOT EXISTS combo_ingest_runs (
       id TEXT PRIMARY KEY,

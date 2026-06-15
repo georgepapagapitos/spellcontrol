@@ -118,7 +118,7 @@ function makePool(cards: EDHRECCard[]): EDHRECCommanderData {
 
 function combo(
   comboId: string,
-  bracket: number,
+  bracket: number | null,
   cards: string[],
   isComplete = true
 ): DetectedCombo {
@@ -129,7 +129,9 @@ function combo(
     isComplete,
     missingCards: [],
     deckCount: 100,
-    bracket: String(bracket),
+    bracket,
+    bracketTag: null,
+    cardCount: cards.length,
   };
 }
 

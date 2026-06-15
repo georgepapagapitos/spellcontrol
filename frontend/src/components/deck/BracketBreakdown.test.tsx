@@ -32,8 +32,8 @@ function makeEstimation(overrides: Partial<BracketEstimation> = {}): BracketEsti
       massLandDenialNames: ['Armageddon'],
       extraTurnCount: 0,
       extraTurnNames: [],
-      earlyComboCount: 0,
-      lateComboCount: 1,
+      twoCardComboCount: 1,
+      multiCardComboCount: 0,
       fastManaCount: 3,
       fastManaNames: ['Mana Crypt', 'Mana Vault', 'Chrome Mox'],
       tutorCount: 2,
@@ -92,7 +92,7 @@ describe('BracketBreakdown', () => {
     expect(screen.getByText('Armageddon')).toBeTruthy();
 
     // Combo floor surfaces a count note
-    expect(screen.getByText(/1 late-game combo detected/)).toBeTruthy();
+    expect(screen.getByText(/1 two-card combo detected/)).toBeTruthy();
   });
 
   it('renders soft-score components with contributing names', () => {

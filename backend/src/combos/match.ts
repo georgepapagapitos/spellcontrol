@@ -33,6 +33,7 @@ export interface ComboInput {
   legalities: Record<string, string>;
   cardCount: number;
   bracket: number | null;
+  bracketTag?: string | null;
   cards: ComboCardRef[];
 }
 
@@ -46,6 +47,7 @@ export interface ComboSummary {
   popularity: number;
   cardCount: number;
   bracket: number | null;
+  bracketTag?: string | null;
   cards: ComboCardRef[];
 }
 
@@ -153,6 +155,7 @@ function toSummary(combo: ComboInput): ComboSummary {
     popularity: combo.popularity,
     cardCount: combo.cardCount,
     bracket: combo.bracket,
+    bracketTag: combo.bracketTag ?? null,
     cards: combo.cards,
   };
 }

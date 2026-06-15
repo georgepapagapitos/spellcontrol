@@ -143,4 +143,30 @@ describe('estimateBracket — distribution invariants', () => {
       estimateBracket(fourGc.names, [], 3.2, undefined, undefined, fourGc.gcNames).bracket
     ).toBeGreaterThanOrEqual(4);
   });
+
+  it('any deck with a complete 2-card combo never estimates B1 or B2 (P0 regression)', () => {
+    const twoCardCombo: DetectedCombo = {
+      comboId: 'test-2card',
+      cards: ['A', 'B'],
+      results: ['Win'],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 1,
+      bracket: null,
+      bracketTag: null,
+      cardCount: 2,
+    };
+    // Grid: vary gc/fastMana/cmc — the 2-card combo floor should always hold at ≥B3.
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const gc of [0, 1])
+      for (const fm of [0, 3])
+        for (const cmc of [2.5, 3.5]) {
+          const { names, gcNames } = deck({ gc, fastMana: fm });
+          const r = estimateBracket(names, [twoCardCombo], cmc, undefined, undefined, gcNames);
+          counts[r.bracket]++;
+        }
+    // No deck with a 2-card combo should ever be B1 or B2.
+    expect(counts[1]).toBe(0);
+    expect(counts[2]).toBe(0);
+  });
 });

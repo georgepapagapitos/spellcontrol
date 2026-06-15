@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import crypto from 'crypto';
 import * as schema from '../db/schema';
 import { setDbForTesting, closeDb } from '../db';
-import { ingestCombos, parseVariant, streamSpellbookVariants } from './ingest';
+import { ingestCombos, parseVariant, streamSpellbookVariants, bracketTagToNumber } from './ingest';
 import { testDatabaseUrl } from '../test-helpers';
 
 /** Builds a minimal Response-shaped object whose `body` is a WHATWG
@@ -164,6 +164,64 @@ describe('parseVariant', () => {
     });
     expect(parsed!.cards).toHaveLength(1);
   });
+
+  it('reads bracketTag, not bracket — variant with bracketTag R yields bracket 4', () => {
+    const result = parseVariant({
+      id: 'x',
+      uses: [{ card: { name: 'Card', oracleId: 'oa' } }],
+      bracketTag: 'R',
+      bracket: undefined,
+    });
+    expect(result?.bracket).toBe(4);
+    expect(result?.bracketTag).toBe('R');
+  });
+
+  it('variant with bracketTag B is excluded (returns null)', () => {
+    expect(
+      parseVariant({
+        id: 'x',
+        uses: [{ card: { name: 'Card', oracleId: 'oa' } }],
+        bracketTag: 'B',
+      })
+    ).toBeNull();
+  });
+
+  it('variant with no bracketTag yields bracket null', () => {
+    const result = parseVariant({
+      id: 'x',
+      uses: [{ card: { name: 'Card', oracleId: 'oa' } }],
+      bracketTag: undefined,
+    });
+    expect(result?.bracket).toBeNull();
+    expect(result?.bracketTag).toBeNull();
+  });
+
+  it('old numeric v.bracket field is ignored in favour of bracketTag', () => {
+    const result = parseVariant({
+      id: 'x',
+      uses: [{ card: { name: 'Card', oracleId: 'oa' } }],
+      bracket: 3,
+      bracketTag: undefined,
+    });
+    expect(result?.bracket).toBeNull(); // bracketTagToNumber(undefined) = null; v.bracket ignored
+  });
+});
+
+describe('bracketTagToNumber', () => {
+  it.each<[unknown, number | null]>([
+    ['R', 4],
+    ['S', 4],
+    ['P', 3],
+    ['O', 3],
+    ['C', 2],
+    ['E', null],
+    ['B', null], // banned → null (excluded at parse, never stored)
+    ['X', null], // unknown letter
+    [undefined, null],
+    [42, null], // wrong type
+  ])('bracketTagToNumber(%s) → %s', (tag, expected) => {
+    expect(bracketTagToNumber(tag)).toBe(expected);
+  });
 });
 
 let pool: Pool;
@@ -190,6 +248,7 @@ describe('ingestCombos (db)', () => {
         legalities JSONB NOT NULL,
         card_count INTEGER NOT NULL,
         bracket INTEGER,
+        bracket_tag TEXT,
         updated_at BIGINT NOT NULL
       );
       CREATE TABLE combo_cards (
@@ -316,5 +375,76 @@ describe('ingestCombos (db)', () => {
     const runs = await pool.query('SELECT * FROM combo_ingest_runs WHERE id = $1', [result.runId]);
     expect(runs.rows[0].finished_at).not.toBeNull();
     expect(runs.rows[0].error).toBeNull();
+  });
+
+  it('bracketTag S variant persisted with bracket 4 and bracket_tag S', async () => {
+    await ingestCombos([
+      {
+        id: 'tag-s',
+        identity: 'U',
+        uses: [{ card: { name: 'Card A', oracleId: 'xa' } }],
+        produces: [{ feature: { name: 'Win the game' } }],
+        legalities: { commander: true },
+        popularity: 1,
+        bracketTag: 'S',
+      },
+    ]);
+    const row = await pool.query("SELECT bracket, bracket_tag FROM combos WHERE id = 'tag-s'");
+    expect(row.rows[0].bracket).toBe(4);
+    expect(row.rows[0].bracket_tag).toBe('S');
+  });
+
+  it('bracketTag E variant persisted with bracket null', async () => {
+    await ingestCombos([
+      {
+        id: 'tag-e',
+        identity: 'G',
+        uses: [{ card: { name: 'Card B', oracleId: 'xb' } }],
+        produces: [{ feature: { name: 'Infinite mana' } }],
+        legalities: { commander: true },
+        popularity: 1,
+        bracketTag: 'E',
+      },
+    ]);
+    const row = await pool.query("SELECT bracket, bracket_tag FROM combos WHERE id = 'tag-e'");
+    expect(row.rows[0].bracket).toBeNull();
+    expect(row.rows[0].bracket_tag).toBe('E');
+  });
+
+  it('bracketTag B variant is excluded from ingest (skipped)', async () => {
+    const result = await ingestCombos([
+      {
+        id: 'tag-b',
+        identity: 'UB',
+        uses: [{ card: { name: 'Card C', oracleId: 'xc' } }],
+        produces: [{ feature: { name: 'Win the game' } }],
+        legalities: { commander: false },
+        popularity: 1,
+        bracketTag: 'B',
+      },
+    ]);
+    expect(result.skipped).toBe(1);
+    const row = await pool.query("SELECT * FROM combos WHERE id = 'tag-b'");
+    expect(row.rows).toHaveLength(0);
+  });
+
+  it('old numeric v.bracket field is ignored (proves dead path)', async () => {
+    await ingestCombos([
+      {
+        id: 'old-bracket',
+        identity: 'W',
+        uses: [{ card: { name: 'Card D', oracleId: 'xd' } }],
+        produces: [{ feature: { name: 'Win the game' } }],
+        legalities: { commander: true },
+        popularity: 1,
+        bracket: 3,
+        bracketTag: undefined,
+      },
+    ]);
+    const row = await pool.query(
+      "SELECT bracket, bracket_tag FROM combos WHERE id = 'old-bracket'"
+    );
+    expect(row.rows[0].bracket).toBeNull(); // bracketTagToNumber(undefined) = null
+    expect(row.rows[0].bracket_tag).toBeNull();
   });
 });

@@ -248,10 +248,18 @@ function comboCardNames(combo: DetectedCombo): string[] {
   return combo.cards;
 }
 
-/** Combos that floor at bracket >= 4 (the "early" combos). */
+/** Combos that floor at bracket >= 4 (the "early" combos — require cutting to reach B3). */
 function isEarlyCombo(combo: DetectedCombo): boolean {
-  const b = parseInt(combo.bracket, 10);
-  return !isNaN(b) && b >= 4;
+  // A combo is "early" (floors at B4+) when it carries an R or S bracketTag, or
+  // has an explicit bracket >= 4 assigned by the estimator. A 2-card combo with
+  // bracket 3 and no R/S tag only floors at B3, so cutting it is not required to
+  // reach B3 and is not counted as "early" here.
+  const b = combo.bracket;
+  if (b == null) return false;
+  if (b >= 4) return true;
+  // R/S bracketTag = Spellbook's signal for near-guaranteed early assembly → B4.
+  if (combo.bracketTag === 'R' || combo.bracketTag === 'S') return true;
+  return false;
 }
 
 // ── Replacement matching ──────────────────────────────────────────────────────

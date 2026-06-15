@@ -175,6 +175,7 @@ export const combos = pgTable('combos', {
   legalities: jsonb('legalities').notNull().$type<Record<string, string>>(),
   cardCount: integer('card_count').notNull(),
   bracket: integer('bracket'),
+  bracketTag: text('bracket_tag'),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 });
 

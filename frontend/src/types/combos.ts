@@ -30,6 +30,7 @@ export interface ComboSummary {
   popularity: number;
   cardCount: number;
   bracket: number | null;
+  bracketTag?: string | null;
   cards: ComboCardRef[];
 }
 
@@ -56,5 +57,6 @@ export interface ComboDetail {
   legalities: Record<string, string>;
   cardCount: number;
   bracket: number | null;
+  bracketTag?: string | null;
   cards: Array<ComboCardRef & { position: number }>;
 }

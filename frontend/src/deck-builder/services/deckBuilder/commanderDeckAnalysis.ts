@@ -232,7 +232,9 @@ export function comboMatchesToDetected(
     isComplete: true,
     missingCards: [],
     deckCount: m.combo.popularity,
-    bracket: m.combo.bracket != null ? String(m.combo.bracket) : 'unknown',
+    bracket: m.combo.bracket,
+    bracketTag: m.combo.bracketTag ?? null,
+    cardCount: m.combo.cardCount,
   }));
 }
 

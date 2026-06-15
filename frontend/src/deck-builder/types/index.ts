@@ -258,8 +258,10 @@ export interface EDHRECCombo {
   results: string[];
   deckCount: number;
   rank: number;
-  bracket: string;
+  bracket: number | null;
+  bracketTag?: string | null;
   prereqCount: number;
+  cardCount: number;
 }
 
 export interface DetectedCombo {
@@ -269,7 +271,9 @@ export interface DetectedCombo {
   isComplete: boolean;
   missingCards: string[];
   deckCount: number;
-  bracket: string;
+  bracket: number | null;
+  bracketTag?: string | null;
+  cardCount: number;
 }
 
 export interface GapAnalysisCard {

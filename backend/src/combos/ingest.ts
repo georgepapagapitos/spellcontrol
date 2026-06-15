@@ -52,6 +52,7 @@ interface ParsedCombo {
   legalities: Record<string, string>;
   cardCount: number;
   bracket: number | null;
+  bracketTag: string | null;
   cards: Array<{ oracleId: string; cardName: string; quantity: number; position: number }>;
 }
 
@@ -272,6 +273,9 @@ export function parseVariant(raw: unknown): ParsedCombo | null {
   });
   if (cards.length === 0) return null;
 
+  // Exclude banned-in-Commander variants — they can't appear in a legal deck.
+  if (v.bracketTag === 'B') return null;
+
   const produces: string[] = [];
   const producesRaw = Array.isArray(v.produces) ? v.produces : [];
   for (const entry of producesRaw) {
@@ -295,7 +299,8 @@ export function parseVariant(raw: unknown): ParsedCombo | null {
       typeof v.popularity === 'number' && Number.isFinite(v.popularity) ? v.popularity : 0,
     legalities,
     cardCount: cards.length,
-    bracket: typeof v.bracket === 'number' ? v.bracket : null,
+    bracketTag: typeof v.bracketTag === 'string' ? v.bracketTag : null,
+    bracket: bracketTagToNumber(v.bracketTag),
     cards,
   };
 }
@@ -329,6 +334,34 @@ function parsePrerequisites(v: SpellbookVariant): ParsedPrerequisites | null {
   if (easy.length > 0) out.easy = easy;
   if (notableParts.length > 0) out.notable = notableParts.join('\n\n');
   return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
+ * Maps Spellbook's bracketTag letter to the numeric bracket floor stored in the DB.
+ * R/S = near-guaranteed early assembly; P/O = late-game 2-card; C = precon-adjacent;
+ * E = "ends the game" non-infinite — not a combo floor driver, return null so the
+ * estimator's 2-card count rule (not the tag) drives the floor for real combos.
+ * B = Banned in Commander — excluded from ingest (parse returns null → variant skipped).
+ */
+export function bracketTagToNumber(tag: unknown): number | null {
+  switch (tag) {
+    case 'R':
+      return 4; // Ruthless: fast/infinite-turns/MLD
+    case 'S':
+      return 4; // Spicy: competitive/casual bridge
+    case 'P':
+      return 3; // Powerful: upgraded/optimized
+    case 'O':
+      return 3; // Oddball: hard to classify
+    case 'C':
+      return 2; // Core: precon-adjacent
+    case 'E':
+      return null; // Exhibition: non-infinite finisher; card count drives floor
+    case 'B':
+      return null; // Banned: excluded at ingest (see guard below)
+    default:
+      return null;
+  }
 }
 
 /** Adapter: any plain Iterable becomes an AsyncIterable. Lets ingestCombos
@@ -397,6 +430,7 @@ export async function ingestCombos(
             legalities: p.legalities,
             cardCount: p.cardCount,
             bracket: p.bracket,
+            bracketTag: p.bracketTag ?? null,
             updatedAt: startedAt,
           }))
         );

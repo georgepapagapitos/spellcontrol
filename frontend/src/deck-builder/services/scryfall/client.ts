@@ -754,6 +754,75 @@ export function getCachedCard(name: string): ScryfallCard | undefined {
   return cached ? freshCopy(cached) : undefined;
 }
 
+/**
+ * Official Commander Game Changers list (Feb 9, 2026 — 53 cards).
+ * Used as the offline fallback when is:gamechanger cannot be queried live.
+ * Update when the RC publishes a new list and the live query is reachable to verify.
+ * Canonical names must match Scryfall exactly (commas in "Narset, Parter of Veils" etc.).
+ */
+const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
+  // White
+  'Drannith Magistrate',
+  'Enlightened Tutor',
+  'Farewell',
+  'Humility',
+  "Serra's Sanctum",
+  'Smothering Tithe',
+  "Teferi's Protection",
+  // Blue
+  'Consecrated Sphinx',
+  'Cyclonic Rift',
+  'Fierce Guardianship',
+  'Force of Will',
+  'Gifts Ungiven',
+  'Intuition',
+  'Mystical Tutor',
+  'Narset, Parter of Veils',
+  'Rhystic Study',
+  "Thassa's Oracle",
+  // Black
+  'Ad Nauseam',
+  "Bolas's Citadel",
+  'Braids, Cabal Minion',
+  'Demonic Tutor',
+  'Imperial Seal',
+  'Necropotence',
+  'Opposition Agent',
+  'Orcish Bowmasters',
+  'Tergrid, God of Fright',
+  'Vampiric Tutor',
+  // Red
+  'Gamble',
+  "Jeska's Will",
+  'Underworld Breach',
+  // Green
+  'Biorhythm',
+  'Crop Rotation',
+  "Gaea's Cradle",
+  'Natural Order',
+  'Seedborn Muse',
+  'Survival of the Fittest',
+  'Worldly Tutor',
+  // Multicolor
+  'Aura Shards',
+  'Coalition Victory',
+  'Grand Arbiter Augustin IV',
+  'Notion Thief',
+  // Colorless / Lands
+  'Ancient Tomb',
+  'Chrome Mox',
+  'Field of the Dead',
+  'Glacial Chasm',
+  'Grim Monolith',
+  "Lion's Eye Diamond",
+  'Mana Vault',
+  "Mishra's Workshop",
+  'Mox Diamond',
+  'Panoptic Mirror',
+  'The One Ring',
+  'The Tabernacle at Pendrell Vale',
+]);
+
 // Cached set of game changer card names from Scryfall
 let gameChangerNamesCache: Set<string> | null = null;
 let gameChangerCacheTimestamp = 0;
@@ -790,23 +859,32 @@ async function liveGetGameChangerNames(): Promise<Set<string>> {
     }
   }
 
-  gameChangerNamesCache = names;
+  if (names.size === 0) {
+    // First-page network failure → fall back to hardcoded list so the live path
+    // also degrades gracefully rather than zeroing the GC floor.
+    logger.debug('[Scryfall] GC live fetch returned empty; using hardcoded fallback');
+    gameChangerNamesCache = new Set(HARDCODED_GAME_CHANGERS);
+  } else {
+    // Union: hardcoded list as a floor so mid-TTL RC additions aren't silently lost.
+    // Live Scryfall wins on any overlap (same card name = same value anyway).
+    gameChangerNamesCache = new Set([...HARDCODED_GAME_CHANGERS, ...names]);
+  }
   gameChangerCacheTimestamp = Date.now();
-  logger.debug(`[Scryfall] Cached ${names.size} game changer card names`);
-  return names;
+  logger.debug(`[Scryfall] Cached ${gameChangerNamesCache.size} game changer card names`);
+  return gameChangerNamesCache;
 }
 
 /**
- * Offline game-changer names: the empty set. The slim payload doesn't carry the
- * `is:gamechanger` bit (Scryfall computes it dynamically), so deck-gen treats no
- * card as a game changer rather than blocking on an impossible network call.
- * Acceptable degradation per the offline-mode contract.
+ * Offline game-changer names: seeded from the hardcoded Feb 2026 RC list so
+ * native/offline users get correct GC floors without a network call.
  */
 async function offlineGetGameChangerNames(): Promise<Set<string>> {
   if (gameChangerNamesCache && Date.now() - gameChangerCacheTimestamp < GC_CACHE_TTL) {
     return gameChangerNamesCache;
   }
-  gameChangerNamesCache = new Set();
+  // Seed from the hardcoded Feb 2026 RC list so native/offline users get
+  // correct GC floors without a network call.
+  gameChangerNamesCache = new Set(HARDCODED_GAME_CHANGERS);
   gameChangerCacheTimestamp = Date.now();
   return gameChangerNamesCache;
 }

@@ -30,15 +30,22 @@ beforeEach(() => {
   mockGetRole.mockReset().mockReturnValue(null);
 });
 
-function combo(bracket: number | string, isComplete = true): DetectedCombo {
+function combo(
+  bracketNum: number | null = null,
+  isComplete = true,
+  cardCount = 2,
+  bracketTag?: string
+): DetectedCombo {
   return {
-    comboId: `c-${bracket}`,
-    cards: ['A', 'B'],
+    comboId: `c-${bracketNum}`,
+    cards: cardCount <= 2 ? ['A', 'B'] : ['A', 'B', 'C'],
     results: ['Win'],
     isComplete,
     missingCards: [],
     deckCount: 1,
-    bracket: String(bracket),
+    bracket: bracketNum,
+    bracketTag: bracketTag ?? null,
+    cardCount,
   };
 }
 
@@ -105,22 +112,92 @@ describe('estimateBracket — hard floors', () => {
     expect(r.breakdown.massLandDenialCount).toBe(1);
   });
 
-  it('1 early-game combo (bracket ≥4) → bracket 3 floor', () => {
-    const r = estimateBracket(['Forest'], [combo(4)], 4, undefined, undefined, new Set());
+  // ── Root P0 bug regression ────────────────────────────────────────────────
+
+  it('P0 REGRESSION: complete 2-card combo with null bracket → B3 floor (was B2)', () => {
+    const r = estimateBracket(['Forest'], [combo(null)], 4, undefined, undefined, new Set());
     expect(r.bracket).toBeGreaterThanOrEqual(3);
-    expect(r.breakdown.earlyComboCount).toBe(1);
+    expect(r.breakdown.twoCardComboCount).toBe(1);
+    expect(r.hardFloors.some((f) => f.bracket === 3)).toBe(true);
   });
 
-  it('2+ early-game combos → bracket 4 floor', () => {
-    const r = estimateBracket(['Forest'], [combo(4), combo(5)], 4, undefined, undefined, new Set());
-    expect(r.bracket).toBeGreaterThanOrEqual(4);
-    expect(r.breakdown.earlyComboCount).toBe(2);
-  });
-
-  it('late-game combos (bracket 3) → bracket 3 floor', () => {
+  it('2-card combo with low acceleration → B3 floor', () => {
     const r = estimateBracket(['Forest'], [combo(3)], 4, undefined, undefined, new Set());
     expect(r.bracket).toBeGreaterThanOrEqual(3);
-    expect(r.breakdown.lateComboCount).toBe(1);
+    expect(r.breakdown.twoCardComboCount).toBe(1);
+  });
+
+  it('2-card combo with accel score >= 4 (5 fast mana) → B4 floor', () => {
+    const fastManaCards = [
+      'Mana Crypt',
+      'Chrome Mox',
+      'Mox Diamond',
+      "Lion's Eye Diamond",
+      'Grim Monolith',
+    ];
+    const r = estimateBracket(
+      [...fastManaCards, 'Forest'],
+      [combo(3)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+    expect(r.breakdown.twoCardComboCount).toBe(1);
+  });
+
+  it('2-card combo with bracketTag R → B4 floor regardless of acceleration', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(4, true, 2, 'R')],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+  });
+
+  it('3+-card combo → no hard floor, only soft score', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(4, true, 3)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.twoCardComboCount).toBe(0);
+    expect(r.breakdown.multiCardComboCount).toBe(1);
+    expect(r.hardFloors.filter((f) => f.reason.includes('combo'))).toHaveLength(0);
+    expect(r.bracket).toBe(2);
+  });
+
+  it('incomplete combos still ignored', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(4, false), combo(null, false)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.twoCardComboCount).toBe(0);
+    expect(r.bracket).toBe(2);
+  });
+
+  it('2+ two-card combos with low acceleration → B4 floor (multiple win lines)', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(3), combo(null)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+    expect(r.breakdown.twoCardComboCount).toBe(2);
   });
 
   it('1–2 extra turn spells do not trigger a bracket floor (RC: chaining is the issue)', () => {
@@ -141,38 +218,13 @@ describe('estimateBracket — hard floors', () => {
     expect(r.bracket).toBe(2);
   });
 
-  it('3+ extra turn spells trigger the bracket-2 floor (chain-likely)', () => {
+  it('3+ extra turn spells trigger the bracket-4 floor (chain-likely, RC: B4 behavior)', () => {
     const names = ['Time Warp', 'Temporal Mastery', 'Walk the Aeons'];
     mockIsExtraTurn.mockImplementation((name: string) => names.includes(name));
     const r = estimateBracket([...names, 'Forest'], undefined, 4, undefined, undefined, new Set());
     expect(r.breakdown.extraTurnCount).toBe(3);
-    expect(r.bracket).toBeGreaterThanOrEqual(2);
-  });
-
-  it('incomplete combos do not contribute to floors', () => {
-    const r = estimateBracket(
-      ['Forest'],
-      [combo(4, false), combo(5, false)],
-      4,
-      undefined,
-      undefined,
-      new Set()
-    );
-    expect(r.breakdown.earlyComboCount).toBe(0);
-    expect(r.bracket).toBe(2);
-  });
-
-  it('combos with non-numeric bracket are ignored', () => {
-    const r = estimateBracket(
-      ['Forest'],
-      [combo('unknown'), combo('NaN')],
-      4,
-      undefined,
-      undefined,
-      new Set()
-    );
-    expect(r.breakdown.earlyComboCount).toBe(0);
-    expect(r.breakdown.lateComboCount).toBe(0);
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+    expect(r.hardFloors.some((f) => f.bracket === 4 && f.reason.includes('extra turn'))).toBe(true);
   });
 
   it('stacks multiple floors and uses the highest', () => {
@@ -186,7 +238,7 @@ describe('estimateBracket — hard floors', () => {
       undefined,
       new Set()
     );
-    // MLD (4) wins over extra turn (2)
+    // MLD (4) wins
     expect(r.bracket).toBeGreaterThanOrEqual(4);
   });
 
