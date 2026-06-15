@@ -505,3 +505,48 @@ export function findStealableCopy(
     donorCard: located.card,
   };
 }
+
+/**
+ * What adding a card to a deck should do, given the live collection + decks.
+ * The single source of truth shared by every add path (collection search panel,
+ * Coach/Engine lanes, quantity stepper) so they behave identically. The path
+ * inconsistency was the core "allocation feels weird" complaint: the search
+ * panel silently added an owned card as a missing/proxy slot when its only copy
+ * sat in another deck, while the Coach lane confirmed a move — same action, two
+ * outcomes depending on where you clicked.
+ *
+ *  - `bind`: a free owned copy exists → claim it. Seamless, no cross-deck change.
+ *  - `auto-move`: no free copy, but one sits in another deck's main/sideboard →
+ *    pull it here and leave the donor a gap. Seamless + reversible (Undo).
+ *  - `confirm`: the only owned copy is another deck's COMMANDER — significant
+ *    enough that the caller surfaces the steal-confirm sheet instead of silently
+ *    gutting a commander.
+ *  - `proxy`: the card isn't owned → add an unowned slot (a truthful "missing").
+ */
+export type AddPlan =
+  | { kind: 'bind'; copyId: string }
+  | { kind: 'auto-move'; stealable: StealableCopy }
+  | { kind: 'confirm'; stealable: StealableCopy }
+  | { kind: 'proxy' };
+
+export function planCardAdd(
+  cardName: string,
+  preferredScryfallId: string | undefined,
+  collection: EnrichedCard[],
+  decks: Deck[],
+  recipientDeckId: string
+): AddPlan {
+  const allocations = buildAllocationMap(decks);
+  const claim = pickCollectionCopy(cardName, collection, allocations, preferredScryfallId);
+  if (claim) return { kind: 'bind', copyId: claim.copyId };
+  const stealable = findStealableCopy(
+    cardName,
+    collection,
+    decks,
+    recipientDeckId,
+    preferredScryfallId
+  );
+  if (!stealable) return { kind: 'proxy' };
+  const risky = stealable.donorZone === 'commander' || stealable.donorZone === 'partner';
+  return { kind: risky ? 'confirm' : 'auto-move', stealable };
+}

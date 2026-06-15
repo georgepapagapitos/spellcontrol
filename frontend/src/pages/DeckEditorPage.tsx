@@ -67,6 +67,7 @@ import {
   buildAllocationMap,
   pickCollectionCopy,
   findStealableCopy,
+  planCardAdd,
   useCollectionByCopyId,
   type StealableCopy,
   type DonorOutcome,
@@ -1026,46 +1027,81 @@ export function DeckEditorPage() {
     }
   };
 
-  // Apply an Optimize plan: cut the selected removals (by name → slot) and add
-  // the selected additions (resolved from Scryfall + allocated against the
-  // collection). Removals run first so the freed copies can be reallocated.
-  // Raw add: resolve name → full card, claim a free collection copy if any, add
-  // to the mainboard (or sideboard). The size-aware `handleAddEngineCard` and the
-  // deck-size prompt's actions (replace / sideboard / add-anyway) all route here.
+  // The single brain for adding an already-resolved card to this deck — used by
+  // every add path (collection search panel, Coach/Engine lanes, size-aware
+  // prompt) so they behave identically. `planCardAdd` decides:
+  //  - bind a free owned copy,
+  //  - auto-move a copy from another deck's main/sideboard (leave the donor a
+  //    gap, atomic Undo) — seamless, the "it just updates other decks" case,
+  //  - confirm in the steal sheet when the only copy is another deck's commander
+  //    (don't silently gut a commander),
+  //  - or add an unowned/proxy slot when the card isn't owned.
+  // `notify` toasts on a plain add; the auto-move path always shows its Undo toast.
+  const allocateAndAdd = (
+    card: ScryfallCard,
+    zone: 'main' | 'sideboard',
+    notify: boolean
+  ): void => {
+    if (!deck) return;
+    const plan = planCardAdd(
+      card.name,
+      card.id,
+      collectionCards,
+      useDecksStore.getState().decks,
+      deck.id
+    );
+    if (plan.kind === 'confirm') {
+      setPendingSteal({ card, stealable: plan.stealable, recipient: { mode: 'add', zone } });
+      return;
+    }
+    if (plan.kind === 'auto-move') {
+      const s = plan.stealable;
+      executeReallocation({
+        donorDeckId: s.donorDeckId,
+        recipientDeckId: deck.id,
+        recipientApply: () =>
+          zone === 'sideboard'
+            ? addSideboardCard(deck.id, card, s.copyId)
+            : addCard(deck.id, card, s.copyId),
+        donorApply: () =>
+          applyDonorOutcome(
+            s.donorDeckId,
+            s.donorZone,
+            s.donorSlotId,
+            s.donorCard,
+            'leave-gap',
+            null
+          ),
+        label: `Moved ${card.name} here from ${s.donorDeckName}`,
+      });
+      return;
+    }
+    const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
+    recordEdit(
+      deck.id,
+      zone === 'sideboard' ? `add ${card.name} to sideboard` : `add ${card.name}`,
+      () =>
+        zone === 'sideboard'
+          ? addSideboardCard(deck.id, card, allocatedId)
+          : addCard(deck.id, card, allocatedId)
+    );
+    if (notify)
+      pushToast({
+        message: zone === 'sideboard' ? `Added ${card.name} to sideboard` : `Added ${card.name}`,
+        tone: 'success',
+      });
+  };
+
+  // Resolve a card by name (Scryfall) then route through allocateAndAdd. Used by
+  // the Optimize plan and the Coach/Engine lanes (which only have a card name).
   const addResolvedCard = async (cardName: string, zone: 'main' | 'sideboard' = 'main') => {
     if (!deck) return;
     setAddingEngineNames((prev) => new Set(prev).add(cardName));
     try {
       const scry = await getCardByName(cardName);
       if (!scry) return;
-      const allocations = buildAllocationMap(useDecksStore.getState().decks);
-      const claim = pickCollectionCopy(cardName, collectionCards, allocations, scry.id);
-      // No free copy, but the user might own one that's in another deck. Surface
-      // the move explicitly rather than silently adding an unowned/proxy slot.
-      if (!claim) {
-        const stealable = findStealableCopy(
-          cardName,
-          collectionCards,
-          useDecksStore.getState().decks,
-          deck.id,
-          scry.id
-        );
-        if (stealable) {
-          setPendingSteal({ card: scry, stealable, recipient: { mode: 'add', zone } });
-          return; // wait for the user's decision in StealConfirmSheet
-        }
-      }
-      if (zone === 'sideboard') {
-        recordEdit(deck.id, `add ${cardName} to sideboard`, () =>
-          addSideboardCard(deck.id, scry, claim?.copyId ?? null)
-        );
-        pushToast({ message: `Added ${cardName} to sideboard`, tone: 'success' });
-        haptics.tap();
-      } else {
-        recordEdit(deck.id, `add ${cardName}`, () => addCard(deck.id, scry, claim?.copyId ?? null));
-        pushToast({ message: `Added ${cardName}`, tone: 'success' });
-        haptics.tap();
-      }
+      allocateAndAdd(scry, zone, true);
+      haptics.tap();
     } catch {
       pushToast({ message: `Couldn't add ${cardName}`, tone: 'error' });
     } finally {
@@ -1552,24 +1588,79 @@ export function DeckEditorPage() {
     const delta = qty - current.length;
     if (delta === 0) return;
     if (delta > 0) {
-      // Reuse the live allocations between iterations so two adds don't
-      // try to claim the same collection copy. The whole batch is one undo entry.
       const label = delta === 1 ? `add ${card.name}` : `add ${delta} × ${card.name}`;
-      recordEdit(deck.id, label, () => {
-        const allocations = buildAllocationMap(useDecksStore.getState().decks);
-        for (let i = 0; i < delta; i++) {
-          const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
-          const allocatedId = claim?.copyId ?? null;
-          if (allocatedId) {
-            allocations.set(allocatedId, {
-              deckId: deck.id,
-              deckName: deck.name,
-              deckColor: deck.color,
-              cardName: card.name,
-            });
+      // If the batch fits in free owned copies (the common case), keep it a
+      // single in-deck undo entry. If it needs pulling copies from other decks,
+      // those are cross-deck moves the per-deck history can't represent — fall
+      // through to the snapshot-restore path below.
+      const allocNow = buildAllocationMap(useDecksStore.getState().decks);
+      const freeCount = collectionCards.filter(
+        (c) => c.name === card.name && !allocNow.has(c.copyId)
+      ).length;
+      if (delta <= freeCount) {
+        // Reuse the live allocations between iterations so two adds don't
+        // try to claim the same collection copy. The whole batch is one undo entry.
+        recordEdit(deck.id, label, () => {
+          const allocations = buildAllocationMap(useDecksStore.getState().decks);
+          for (let i = 0; i < delta; i++) {
+            const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
+            const allocatedId = claim?.copyId ?? null;
+            if (allocatedId) {
+              allocations.set(allocatedId, {
+                deckId: deck.id,
+                deckName: deck.name,
+                deckColor: deck.color,
+                cardName: card.name,
+              });
+            }
+            addCard(deck.id, card, allocatedId);
           }
-          addCard(deck.id, card, allocatedId);
+        });
+        return;
+      }
+      // Some copies must come from other decks. Snapshot every touched deck up
+      // front and offer one Undo that restores them all. Apply copy-by-copy so
+      // each step re-plans against fresh state (donors update as we pull).
+      const before = useDecksStore.getState().decks;
+      const touched = new Set<string>([deck.id]);
+      for (let i = 0; i < delta; i++) {
+        const plan = planCardAdd(
+          card.name,
+          card.id,
+          collectionCards,
+          useDecksStore.getState().decks,
+          deck.id
+        );
+        if (plan.kind === 'auto-move') {
+          const s = plan.stealable;
+          touched.add(s.donorDeckId);
+          addCard(deck.id, card, s.copyId);
+          applyDonorOutcome(
+            s.donorDeckId,
+            s.donorZone,
+            s.donorSlotId,
+            s.donorCard,
+            'leave-gap',
+            null
+          );
+        } else {
+          // bind (free) / proxy (unowned) / confirm (commander): in a batch we
+          // never pop a sheet per copy or silently gut a commander — bind a free
+          // copy, otherwise add it as an unowned slot.
+          addCard(deck.id, card, plan.kind === 'bind' ? plan.copyId : null);
         }
+      }
+      const snaps = [...touched].map((id) => before.find((d) => d.id === id) ?? null);
+      pushToast({
+        message: delta === 1 ? `Added ${card.name}` : `Added ${delta} × ${card.name}`,
+        tone: 'success',
+        actionLabel: 'Undo',
+        onAction: () => {
+          [...touched].forEach((id, idx) => {
+            const snap = snaps[idx];
+            if (snap) replaceDeck(id, snap);
+          });
+        },
       });
       return;
     }
@@ -2173,9 +2264,13 @@ export function DeckEditorPage() {
               deckId={deck.id}
               commanderColorIdentity={commanderColorIdentity}
               existingCardCounts={existingCardCounts}
-              onAdd={({ card, allocatedCopyId }) => {
+              onAdd={({ card }) => {
                 if (addZone === 'side') {
-                  addSideboardCard(deck.id, card, allocatedCopyId);
+                  // allocateAndAdd resolves the copy itself (free / auto-move /
+                  // proxy) — the panel's own pick only ever sees free copies, so
+                  // routing through it is what makes "add an owned card whose copy
+                  // is in another deck" Just Work instead of silently proxying.
+                  allocateAndAdd(card, 'sideboard', false);
                   return;
                 }
                 // A full Commander deck would overfill — open the intelligent
@@ -2185,7 +2280,7 @@ export function DeckEditorPage() {
                   setPendingAdd(card.name);
                   return;
                 }
-                addCard(deck.id, card, allocatedCopyId);
+                allocateAndAdd(card, 'main', false);
               }}
               onPreviewFit={(card) => setAuditionCard(card)}
               onClose={() => setShowAddPanel(false)}
