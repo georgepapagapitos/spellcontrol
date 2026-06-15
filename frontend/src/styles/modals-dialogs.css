@@ -862,7 +862,7 @@
 .card-edit-current-badge {
   font-size: var(--text-xs);
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--accent-light);
   color: var(--accent);
   white-space: nowrap;
