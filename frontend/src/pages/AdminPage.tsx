@@ -290,8 +290,7 @@ export function AdminPage() {
             <>
               <p className="admin-warn">
                 <strong>{fixableCount} slot(s) fixable</strong> — a free copy of the preferred
-                printing exists, so re-running the remap rebinds them. Basic lands are excluded
-                (fungible across printings).
+                printing exists, so re-running the remap rebinds them.
               </p>
               <div className="admin-danger" style={{ marginBottom: '0.85rem' }}>
                 <button
