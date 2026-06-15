@@ -321,7 +321,7 @@
 .settings-share-kind {
   display: inline-block;
   padding: 0.05rem 0.45rem;
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--surface-raised);
   color: var(--text-muted);
   font-size: var(--text-xs);
