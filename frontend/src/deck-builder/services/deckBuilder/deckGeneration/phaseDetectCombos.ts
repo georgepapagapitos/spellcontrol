@@ -41,6 +41,8 @@ export function detectCombosPhase(state: GenerationState): DetectedCombo[] | und
           missingCards,
           deckCount: combo.deckCount,
           bracket: combo.bracket,
+          bracketTag: combo.bracketTag ?? null,
+          cardCount: combo.cardCount,
         };
       })
       .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);

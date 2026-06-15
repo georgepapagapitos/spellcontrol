@@ -1384,14 +1384,18 @@ export async function fetchCommanderCombos(commanderName: string): Promise<EDHRE
     const combos: EDHRECCombo[] = rawCombos.map((entry) => {
       // Store href for later detail fetches
       if (entry.href) comboHrefMap.set(entry.combo.comboId, entry.href);
+      const cards = entry.cardviews.map((cv) => ({ name: cv.name, id: cv.id }));
+      const rawBracket = entry.combo.comboVote?.bracket;
       return {
         comboId: entry.combo.comboId,
-        cards: entry.cardviews.map((cv) => ({ name: cv.name, id: cv.id })),
+        cards,
         results: entry.combo.results || [],
         deckCount: entry.combo.count || 0,
         rank: entry.combo.rank || 0,
-        bracket: entry.combo.comboVote?.bracket || 'unknown',
+        bracket: typeof rawBracket === 'number' ? rawBracket : null,
+        bracketTag: null,
         prereqCount: entry.combo.nonCardPrerequisiteCount || 0,
+        cardCount: cards.length,
       };
     });
 

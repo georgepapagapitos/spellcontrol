@@ -81,7 +81,7 @@ describe('buildCardInclusionMap', () => {
 });
 
 describe('comboMatchesToDetected', () => {
-  it('maps only inDeck combos as complete and stringifies bracket', () => {
+  it('maps only inDeck combos as complete with numeric bracket and cardCount', () => {
     const resp: ComboMatchResponse = {
       inDeck: [
         {
@@ -131,7 +131,8 @@ describe('comboMatchesToDetected', () => {
       cards: ['Card A', 'Card B'],
       isComplete: true,
       missingCards: [],
-      bracket: '4',
+      bracket: 4,
+      cardCount: 2,
       deckCount: 1234,
     });
     expect(comboMatchesToDetected(null)).toEqual([]);

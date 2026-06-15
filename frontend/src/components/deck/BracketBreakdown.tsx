@@ -105,10 +105,8 @@ function floorChips(reason: string, breakdown: BracketEstimation['breakdown']): 
 function comboFloorNote(reason: string, breakdown: BracketEstimation['breakdown']): string | null {
   const r = reason.toLowerCase();
   if (!r.includes('combo')) return null;
-  if (r.includes('early')) {
-    return `${breakdown.earlyComboCount} early-game combo${breakdown.earlyComboCount === 1 ? '' : 's'} detected`;
-  }
-  return `${breakdown.lateComboCount} late-game combo${breakdown.lateComboCount === 1 ? '' : 's'} detected`;
+  const count = breakdown.twoCardComboCount;
+  return `${count} two-card combo${count === 1 ? '' : 's'} detected`;
 }
 
 /** One row in the soft-score table: component name, value/max, detail, chips. */

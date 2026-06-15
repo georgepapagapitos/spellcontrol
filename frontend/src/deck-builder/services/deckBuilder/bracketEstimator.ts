@@ -29,8 +29,8 @@ export interface BracketBreakdown {
   massLandDenialNames: string[];
   extraTurnCount: number;
   extraTurnNames: string[];
-  earlyComboCount: number;
-  lateComboCount: number;
+  twoCardComboCount: number;
+  multiCardComboCount: number;
   fastManaCount: number;
   fastManaNames: string[];
   tutorCount: number;
@@ -203,6 +203,18 @@ export function isStaxPiece(name: string): boolean {
 
 // ── Estimation ─────────────────────────────────────────────────────────────
 
+/**
+ * Deck-relative assembly speed score, mirroring ScrollVault's acceleration model.
+ * B4 threshold is score >= 4.
+ * - fastMana.length >= 5: +3; 3–4: +2; <3: +0
+ * - tutors.length  >= 6: +2; 4–5: +1; <4: +0
+ */
+function accelerationScore(fastMana: string[], tutors: string[]): number {
+  const fastScore = fastMana.length >= 5 ? 3 : fastMana.length >= 3 ? 2 : 0;
+  const tutorScore = tutors.length >= 6 ? 2 : tutors.length >= 4 ? 1 : 0;
+  return fastScore + tutorScore;
+}
+
 export function estimateBracket(
   allCardNames: string[],
   detectedCombos: DetectedCombo[] | undefined,
@@ -233,16 +245,18 @@ export function estimateBracket(
 
   // ── 2. Classify combos ──
 
-  let earlyComboCount = 0;
-  let lateComboCount = 0;
+  let twoCardComboCount = 0;
+  let multiCardComboCount = 0;
 
   if (detectedCombos) {
     for (const combo of detectedCombos) {
       if (!combo.isComplete) continue;
-      const bracketNum = parseInt(combo.bracket, 10);
-      if (isNaN(bracketNum)) continue;
-      if (bracketNum >= 4) earlyComboCount++;
-      else if (bracketNum === 3) lateComboCount++;
+      const is2Card = combo.cardCount <= 2;
+      if (is2Card) {
+        twoCardComboCount++;
+      } else {
+        multiCardComboCount++;
+      }
     }
   }
 
@@ -283,40 +297,44 @@ export function estimateBracket(
     });
   }
 
-  if (earlyComboCount >= 2) {
-    hardFloors.push({
-      bracket: 4,
-      reason: `${earlyComboCount} early-game infinite combos`,
-      detail:
-        'Multiple ways to win out of nowhere before opponents can set up. This is competitive-level power.',
-    });
-  } else if (earlyComboCount === 1) {
-    hardFloors.push({
-      bracket: 3,
-      reason: '1 early-game infinite combo',
-      detail:
-        'An infinite combo that can fire early means games can end before everyone gets to play.',
-    });
-  }
+  if (twoCardComboCount > 0) {
+    // Deck-relative speed: can the deck assemble a 2-card combo before ~turn 6?
+    // R/S bracketTag = Spellbook's signal that the combo is near-guaranteed early.
+    // High acceleration (fastMana + tutors) escalates the same combo to B4.
+    const accel = accelerationScore(fastMana, tutors);
+    const hasReliableTag = detectedCombos?.some(
+      (c) => c.isComplete && c.cardCount <= 2 && (c.bracketTag === 'R' || c.bracketTag === 'S')
+    );
+    const isEarlyAssembly = accel >= 4 || hasReliableTag;
 
-  if (lateComboCount > 0) {
-    hardFloors.push({
-      bracket: 3,
-      reason: `${lateComboCount} late-game combo${lateComboCount > 1 ? 's' : ''}`,
-      detail:
-        'Infinite combos that need setup are generally accepted, but they still bump the power level.',
-    });
+    if (isEarlyAssembly) {
+      hardFloors.push({
+        bracket: 4,
+        reason: `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
+        detail:
+          'This combo can fire before opponents can respond — equivalent to competitive power.',
+      });
+    } else {
+      hardFloors.push({
+        bracket: 3,
+        reason: `${twoCardComboCount} two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
+        detail:
+          'An infinite combo with two cards bumps the power level — even if the deck isn’t optimized to assemble it quickly.',
+      });
+    }
   }
+  // 3+-card combos: soft score only (no hard floor). They already contributed to
+  // fastMana/tutor counts which drive the soft score.
 
   if (extraTurns.length >= EXTRA_TURN_FLOOR_THRESHOLD) {
     // Per RC: 1–2 extra-turn spells is fine in any bracket. Floor only triggers
-    // at 3+ as that strongly implies an extra-turn strategy (chaining), which
-    // is what bracket 2 actually restricts.
+    // at 3+ as that strongly implies an extra-turn strategy (chaining),
+    // which is Bracket 4 behavior per the RC rules.
     hardFloors.push({
-      bracket: 2,
+      bracket: 4,
       reason: `${extraTurns.length} extra turn spells (chain-likely)`,
       detail:
-        'Three or more extra-turn spells suggests the deck is built to chain them — the bracket-2 restriction.',
+        'Three or more extra-turn spells signals a deck built to chain them — Bracket 4 behavior per the RC rules.',
     });
   }
 
@@ -398,8 +416,8 @@ export function estimateBracket(
       massLandDenialNames: massLandDenial,
       extraTurnCount: extraTurns.length,
       extraTurnNames: extraTurns,
-      earlyComboCount,
-      lateComboCount,
+      twoCardComboCount,
+      multiCardComboCount,
       fastManaCount: fastMana.length,
       fastManaNames: fastMana,
       tutorCount: tutors.length,
