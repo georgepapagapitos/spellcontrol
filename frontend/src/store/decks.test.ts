@@ -258,10 +258,10 @@ describe('remapAllocations', () => {
     expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('right-printing-copy');
   });
 
-  it('does NOT churn a basic-land binding to a different printing (fungible)', () => {
-    // Basic lands have no meaningful printing preference. Remap must keep
-    // whatever copy is bound instead of reshuffling it onto the slot's
-    // arbitrary generator-default printing.
+  it('upgrades a basic-land binding to the slot preferred printing when free', () => {
+    // Special-art / foil basics ARE a meaningful choice. A Plains slot that
+    // prefers a specific printing must claim that copy (e.g. a Secret Lair
+    // basic) when a free one exists, not sit on an arbitrary other printing.
     useDecksStore.setState({
       decks: [
         baseDeck({
@@ -286,7 +286,7 @@ describe('remapAllocations', () => {
     ];
     useDecksStore.getState().remapAllocations(collection);
 
-    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('bound-copy');
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('preferred-copy');
   });
 
   it('keeps wrong-printing binding when no preferred-printing copy is free', () => {
@@ -711,9 +711,9 @@ describe('allocation invariants', () => {
     const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
     const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
 
-    // Card universe: non-basics (printing is meaningful intent) plus a basic
-    // land (printing fungible — exercises the basic-land short-circuit in
-    // every pass). Each name has two printings.
+    // Card universe: non-basics plus a basic land — printing is meaningful
+    // intent for both now (special-art basics are a real choice). Each name
+    // has two printings.
     const NONBASIC = ['Sol Ring', 'Mana Crypt', 'Lightning Bolt'];
     const NAMES = [...NONBASIC, 'Plains'];
     const PRINTINGS: Record<string, [string, string]> = {

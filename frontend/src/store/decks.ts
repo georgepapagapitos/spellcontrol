@@ -15,12 +15,7 @@ import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnal
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { SynergyAnalysis } from '@/deck-builder/services/synergy/analysis';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
-import {
-  dedupeDeckAllocations,
-  isBasicLandName,
-  pickCollectionCopy,
-  type AllocationInfo,
-} from '../lib/allocations';
+import { dedupeDeckAllocations, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
@@ -708,14 +703,13 @@ export const useDecksStore = create<DecksState>()(
           const needsPick: SlotRef[] = [];
           for (const slot of slots) {
             const current = slot.currentCopyId ? byCopyId.get(slot.currentCopyId) : undefined;
-            // Basic lands are fungible — any printing satisfies the slot's
-            // preference, so the current binding is "OK" regardless of
-            // scryfallId. Without this, every basic-land slot churns to
-            // whatever printing pass 2 happens to find first.
+            // A slot's preferred printing is honored for every card, basics
+            // included — special-art / foil basics (e.g. Secret Lair Mountains)
+            // are a deliberate choice. Pass 3 below keeps the current binding
+            // when no copy of the preferred printing is free, so this never
+            // churns a generic basic the user owns only one printing of.
             const printingOk =
-              !slot.scryfallId ||
-              isBasicLandName(slot.cardName) ||
-              (current ? current.scryfallId === slot.scryfallId : false);
+              !slot.scryfallId || (current ? current.scryfallId === slot.scryfallId : false);
             if (
               slot.currentCopyId &&
               current &&
@@ -736,9 +730,9 @@ export const useDecksStore = create<DecksState>()(
           // pre-fix randomness left slots on whatever Plains was cheap.
           const stillNeedsPick: SlotRef[] = [];
           for (const slot of needsPick) {
-            // No preferred printing or basic land → skip the printing-match
-            // upgrade and let pass 3/4 distribute across whatever's free.
-            if (!slot.scryfallId || isBasicLandName(slot.cardName)) {
+            // No preferred printing → skip the printing-match upgrade and let
+            // pass 3/4 distribute across whatever's free.
+            if (!slot.scryfallId) {
               stillNeedsPick.push(slot);
               continue;
             }
