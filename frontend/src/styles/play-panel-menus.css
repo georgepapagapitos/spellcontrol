@@ -331,7 +331,7 @@
 
 @media (min-width: 600px) {
   .game-menu {
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     width: min(32rem, 100%);
     max-height: 82dvh;
@@ -512,7 +512,7 @@
   padding: 0.45rem 0.55rem 0.45rem 0.7rem;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   font-size: var(--text-sm);
   color: var(--text-primary);
   min-width: 0;
@@ -563,7 +563,7 @@
   padding: 0.45rem 0.7rem;
   background: transparent;
   border: 1px dashed var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--text-secondary);
   font-size: var(--text-sm);
   font-weight: 600;

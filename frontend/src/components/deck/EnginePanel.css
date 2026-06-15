@@ -127,7 +127,7 @@
 .engine-suggestion-art {
   flex: 0 0 auto;
   width: 2.4rem;
-  border-radius: 0.3rem;
+  border-radius: var(--radius);
   overflow: hidden;
   line-height: 0;
   /* Placeholder shown when the thumbnail can't load (offline / 404) so the

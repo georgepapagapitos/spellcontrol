@@ -92,13 +92,13 @@
   color: var(--warn-text);
   border: 1px solid var(--warn-border);
   padding: 0.5rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: var(--text-sm);
 }
 .admin-subopt-info {
   margin-top: 0.85rem;
   border: 0.5px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 0.5rem 0.75rem;
   background: var(--surface-raised);
 }
@@ -126,7 +126,7 @@
   max-height: 70vh;
   overflow-y: auto;
   border: 1px solid var(--border, #333);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
 }
 .admin-deck-list li {
   border-bottom: 1px solid var(--border, #2a2a2a);
@@ -172,7 +172,7 @@
   background: var(--surface-raised);
   color: inherit;
   border: 1px solid var(--border, #333);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .admin-danger-h {
   color: var(--err-text);
@@ -187,7 +187,7 @@
   color: var(--err-text);
   border: 1px solid var(--err-border);
   padding: 0.4rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .admin-danger button:hover {
@@ -203,7 +203,7 @@
   color: inherit;
   border: 1px solid var(--border, #333);
   padding: 0.4rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .admin-raw-actions button:hover {
@@ -560,7 +560,7 @@
   flex: 0 0 auto;
   width: 42px;
   height: 58px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: #1e293b;
 }
@@ -955,7 +955,7 @@
   max-height: 44vh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -1062,7 +1062,7 @@
   flex: 0 0 auto;
   width: 44px;
   height: 62px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: #1e293b;
 }
@@ -1180,7 +1180,7 @@
 }
 .scanner-printing-picker {
   margin-top: 0.5rem;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   max-height: 240px;
@@ -1206,7 +1206,7 @@
   gap: 0.55rem;
   width: 100%;
   padding: 0.35rem 0.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: none;
   background: transparent;
   color: #f1f5f9;

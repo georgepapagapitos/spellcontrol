@@ -32,7 +32,7 @@
   padding: 0.2rem;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
 }
 
 .game-history-tab {
@@ -43,7 +43,7 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
   padding: 0.35rem 0.5rem;
-  border-radius: 0.35rem;
+  border-radius: var(--radius);
   cursor: pointer;
   transition:
     background-color var(--motion-fast) ease,
@@ -195,7 +195,7 @@
   height: 140px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   padding: 0.25rem;
 }
 
