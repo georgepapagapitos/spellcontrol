@@ -95,12 +95,16 @@ function seedCardPrices(cards: ReadonlyArray<EnrichedCardish>): void {
  *   3. The helper diffs the new in-memory shape against IDB, writes the
  *      changed rows to entity-store, and enqueues per-row upserts/deletes.
  *   4. A debounced push() drains the queue, POSTs to /api/sync, and stamps
- *      the canonical server revs back onto the local rows.
+ *      the canonical server revs back onto the local rows. (Signed-in web
+ *      clients skip the durable queue and write through immediately via
+ *      webPush; native + logged-out guests keep the debounced queue.)
  *
  * Every pull is paged delta `GET /api/sync?since=<cursor>`; tombstones in
  * the response remove the row locally so a deletion on one device shows up
  * on every other device the next time it pulls. No whole-blob PUT, no
- * baseVersion, no 409 — last-write-wins per row.
+ * baseVersion, no 409. Last-write-wins per row for every kind except decks:
+ * when clientRev > 0 the server may reject a stale deck write and return it
+ * as a conflict in-band; the client re-applies the server version locally.
  */
 
 const CURSOR_KEY = 'spellcontrol-sync-cursor';
@@ -285,7 +289,7 @@ export async function hydrateLocal(): Promise<void> {
  * the saved cursor and applies them. Idempotent — calling it twice for the
  * same user is a no-op-ish (it just re-pulls).
  */
-export async function startSync(userId?: string, _accountLabel?: string): Promise<void> {
+export async function startSync(userId?: string): Promise<void> {
   syncedState = 'syncing';
   emit();
 
