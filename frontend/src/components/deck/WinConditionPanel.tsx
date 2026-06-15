@@ -5,12 +5,23 @@ import type {
   WinConditionAnalysis,
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
+import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 
 export interface WinConditionPanelProps {
   analysis: WinConditionAnalysis;
 }
 
-function WinConRow({ wincon, primary }: { wincon: WinCondition; primary: boolean }): JSX.Element {
+function WinConRow({
+  wincon,
+  primary,
+  onTapCard,
+}: {
+  wincon: WinCondition;
+  primary: boolean;
+  onTapCard: (entries: CarouselEntry[], tappedName: string) => void;
+}): JSX.Element {
+  const entries = wincon.evidence.map((name) => ({ name, label: wincon.label }));
+
   return (
     <div className={`win-con-row${primary ? ' win-con-row--primary' : ''}`}>
       <div className="win-con-row-head">
@@ -23,7 +34,16 @@ function WinConRow({ wincon, primary }: { wincon: WinCondition; primary: boolean
         <ul className="win-con-evidence" aria-label={`Evidence for ${wincon.label}`}>
           {wincon.evidence.map((name) => (
             <li key={name} className="win-con-evidence-item">
-              {name}
+              <button
+                type="button"
+                className="win-con-evidence-button"
+                onClick={() => void onTapCard(entries, name)}
+                aria-label={`Preview ${name}`}
+              >
+                <span className="card-name-chip-text" title={name}>
+                  {name}
+                </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -38,6 +58,8 @@ function WinConRow({ wincon, primary }: { wincon: WinCondition; primary: boolean
  * fallback message.
  */
 export function WinConditionPanel({ analysis }: WinConditionPanelProps): JSX.Element {
+  const carousel = useCardCarousel('Win conditions');
+
   if (analysis.noClearWinCondition) {
     return (
       <section className="win-con-panel" aria-label="Win condition analysis">
@@ -55,15 +77,18 @@ export function WinConditionPanel({ analysis }: WinConditionPanelProps): JSX.Ele
 
   return (
     <section className="win-con-panel" aria-label="Win condition analysis">
-      {analysis.primary && <WinConRow wincon={analysis.primary} primary />}
+      {analysis.primary && (
+        <WinConRow wincon={analysis.primary} primary onTapCard={carousel.open} />
+      )}
       {analysis.secondary.length > 0 && (
         <>
           <h3 className="win-con-secondary-title">Backup paths</h3>
           {analysis.secondary.map((wc) => (
-            <WinConRow key={wc.category} wincon={wc} primary={false} />
+            <WinConRow key={wc.category} wincon={wc} primary={false} onTapCard={carousel.open} />
           ))}
         </>
       )}
+      {carousel.preview}
     </section>
   );
 }
