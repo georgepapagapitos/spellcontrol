@@ -22,7 +22,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat, ThemeResult, BuildReport } from '@/deck-builder/types';
-import { producedManaColors, isManaSourceType, deckColorIdentity } from '@/lib/mana-sources';
+import { buildManaData, classifyType, tallyNames, type TypeGroup } from '@/lib/build-mana-data';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -96,18 +96,8 @@ import { SortDirArrow } from '../SortDirArrow';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
-const CLASSIFY_PRIORITY = [
-  'Land',
-  'Creature',
-  'Planeswalker',
-  'Battle',
-  'Sorcery',
-  'Instant',
-  'Artifact',
-  'Enchantment',
-] as const;
-type TypeGroup = (typeof CLASSIFY_PRIORITY)[number];
-
+// classifyType / tallyNames / TypeGroup live in lib/build-mana-data (shared
+// with the deck-compare page); DISPLAY_ORDER is DeckDisplay's own row ordering.
 const DISPLAY_ORDER: TypeGroup[] = [
   'Planeswalker',
   'Creature',
@@ -118,31 +108,6 @@ const DISPLAY_ORDER: TypeGroup[] = [
   'Battle',
   'Land',
 ];
-
-function classifyType(card: ScryfallCard): TypeGroup {
-  const tl = (card.type_line || '').toLowerCase();
-  for (const group of CLASSIFY_PRIORITY) {
-    if (tl.includes(group.toLowerCase())) return group;
-  }
-  return 'Artifact';
-}
-
-/** Collapse a list of cards to unique name → copy count (keeping one
- *  representative card object so the drill-down carousel renders without
- *  re-fetching), sorted by count desc then name. */
-function tallyNames(
-  cards: ScryfallCard[]
-): Array<{ name: string; count: number; card: ScryfallCard }> {
-  const m = new Map<string, { count: number; card: ScryfallCard }>();
-  for (const c of cards) {
-    const e = m.get(c.name);
-    if (e) e.count += 1;
-    else m.set(c.name, { count: 1, card: c });
-  }
-  return [...m.entries()]
-    .map(([name, { count, card }]) => ({ name, count, card }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 type CurrencyCode = 'USD' | 'EUR';
@@ -1280,130 +1245,11 @@ export function DeckDisplay({
         card: t.card,
       }));
   }, [allCards, currency]);
-  const averageCmc = useMemo(() => {
-    const nonLand = allCards.filter((c) => !(c.type_line || '').toLowerCase().includes('land'));
-    if (nonLand.length === 0) return 0;
-    return nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length;
-  }, [allCards]);
-  const manaCurve = useMemo(() => {
-    const out: Record<number, number> = {};
-    for (const c of allCards) {
-      if ((c.type_line || '').toLowerCase().includes('land')) continue;
-      const cmc = Math.min(7, Math.round(c.cmc ?? 0));
-      out[cmc] = (out[cmc] ?? 0) + 1;
-    }
-    return out;
-  }, [allCards]);
-
-  // Color / production / type breakdowns power the Mana view, which renders
-  // either as a persistent desktop column (below) or the surface's Mana tab.
-  const colorDist = useMemo(() => {
-    const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
-    let total = 0;
-    for (const c of allCards) {
-      if ((c.type_line || '').toLowerCase().includes('land')) continue;
-      const ci = c.color_identity ?? [];
-      if (ci.length === 0) {
-        counts.C += 1;
-        total += 1;
-        continue;
-      }
-      for (const k of ci) {
-        counts[k] = (counts[k] ?? 0) + 1;
-        total += 1;
-      }
-    }
-    return { counts, total };
-  }, [allCards]);
-  const manaProduction = useMemo(() => {
-    const counts: Record<string, number> = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
-    // Per-color source cards; tallyNames dedupes them by name → copy count for
-    // the drill-down carousel (10x Plains is one entry, ×10) while `counts`
-    // still reflects every physical copy.
-    const sources: Record<string, ScryfallCard[]> = { W: [], U: [], B: [], R: [], G: [], C: [] };
-
-    // The deck's color identity, used to clamp commander-identity fixers
-    // (Command Tower, Arcane Signet) — see lib/mana-sources.
-    const identity = deckColorIdentity(allCards, [commander, partnerCommander]);
-
-    let totalSources = 0;
-    for (const c of allCards) {
-      // One-shot rituals aren't part of the mana base; a permanent that
-      // produces mana — land, rock, dork — is.
-      if (!isManaSourceType(c)) continue;
-      const colors = producedManaColors(c, identity);
-      if (colors.length === 0) continue;
-      totalSources += 1;
-      for (const k of colors) {
-        counts[k] = (counts[k] ?? 0) + 1;
-        (sources[k] ??= []).push(c);
-      }
-    }
-    const sourcesByColor = Object.fromEntries(
-      Object.entries(sources).map(([k, v]) => [k, tallyNames(v)])
-    );
-    return { counts, totalSources, sourcesByColor };
-  }, [allCards, commander, partnerCommander]);
-  const typeBreakdown = useMemo(() => {
-    const out: Record<TypeGroup, number> = {
-      Land: 0,
-      Creature: 0,
-      Planeswalker: 0,
-      Battle: 0,
-      Sorcery: 0,
-      Instant: 0,
-      Artifact: 0,
-      Enchantment: 0,
-    };
-    for (const c of allCards) {
-      out[classifyType(c)] += 1;
-    }
-    return out;
-  }, [allCards]);
-  // Per-bucket card lists powering the Mana tab drill-downs (tap a stat → a
-  // carousel of the exact cards behind it). Bucketed to match the displayed
-  // counts: curve/color exclude lands and bucket CMC at 7+ like `manaCurve` /
-  // `colorDist`; types span every card like `typeBreakdown`.
-  const manaDrilldowns = useMemo(() => {
-    const byCmc: Record<number, ScryfallCard[]> = {};
-    const byType: Record<string, ScryfallCard[]> = {};
-    const byColor: Record<string, ScryfallCard[]> = {};
-    for (const c of allCards) {
-      const isLand = (c.type_line || '').toLowerCase().includes('land');
-      if (!isLand) {
-        const cmc = Math.min(7, Math.round(c.cmc ?? 0));
-        (byCmc[cmc] ??= []).push(c);
-        const ci = c.color_identity ?? [];
-        if (ci.length === 0) (byColor.C ??= []).push(c);
-        else for (const k of ci) (byColor[k] ??= []).push(c);
-      }
-      (byType[classifyType(c)] ??= []).push(c);
-    }
-    const tally = (m: Record<string | number, ScryfallCard[]>) =>
-      Object.fromEntries(Object.entries(m).map(([k, v]) => [k, tallyNames(v)]));
-    return {
-      cardsByCmc: tally(byCmc) as Record<number, Array<{ name: string; count: number }>>,
-      cardsByType: tally(byType),
-      cardsByColor: tally(byColor),
-    };
-  }, [allCards]);
-  // Normalized for DeckColorPanel/DeckManaPanel (which want `total`).
+  // Mana curve / color demand+production / type breakdown / drill-downs — the
+  // shared pure builder so this view and the deck-compare page agree exactly.
   const manaData = useMemo(
-    () => ({
-      manaCurve,
-      averageCmc,
-      colorDist,
-      manaProduction: {
-        counts: manaProduction.counts,
-        total: manaProduction.totalSources,
-        sourcesByColor: manaProduction.sourcesByColor,
-      },
-      typeBreakdown,
-      cardsByCmc: manaDrilldowns.cardsByCmc,
-      cardsByType: manaDrilldowns.cardsByType,
-      cardsByColor: manaDrilldowns.cardsByColor,
-    }),
-    [manaCurve, averageCmc, colorDist, manaProduction, typeBreakdown, manaDrilldowns]
+    () => buildManaData(allCards, commander, partnerCommander),
+    [allCards, commander, partnerCommander]
   );
 
   const exportText = useMemo(
@@ -1583,7 +1429,7 @@ export function DeckDisplay({
                 </span>
               )}
               <span className="deck-stat">
-                <span className="deck-stat-value">{averageCmc.toFixed(2)}</span>
+                <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
                 <span className="deck-stat-label">avg CMC</span>
               </span>
               {valueEntries.length > 0 ? (

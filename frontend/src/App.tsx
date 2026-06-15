@@ -19,6 +19,7 @@ import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
 import { WelcomePage } from './pages/WelcomePage';
+import { DeckComparePage } from './pages/DeckComparePage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -215,6 +216,7 @@ export default function App() {
           <Route path="/decks" element={<DecksIndexPage />} />
           <Route path="/decks/new" element={<DeckNewPage />} />
           <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
+          <Route path="/decks/compare" element={<DeckComparePage />} />
           <Route path="/decks/:id" element={<DeckEditorPage />} />
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/play" element={<PlayPage />} />
