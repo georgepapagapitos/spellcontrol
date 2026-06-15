@@ -51,6 +51,13 @@ describe('cleanFilter', () => {
     expect(cleanFilter(f)).toEqual(f);
   });
 
+  it('preserves oracleTagChips through cleanFilter (regression guard)', () => {
+    const f: BinderFilter = {
+      oracleTagChips: { chips: [{ value: 'mana-rock', negate: false }], joiners: [] },
+    };
+    expect(cleanFilter(f)).toEqual(f);
+  });
+
   it('drops blank chips and empty fields as before', () => {
     expect(
       cleanFilter({
