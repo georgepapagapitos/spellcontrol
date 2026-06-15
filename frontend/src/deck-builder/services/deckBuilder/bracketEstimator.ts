@@ -166,6 +166,13 @@ const STAX_FLOOR_BRACKET_3_THRESHOLD = 3;
 const STAX_FLOOR_BRACKET_4_THRESHOLD = 5;
 
 /**
+ * The estimator's default/minimum auto-assigned bracket: Core (2), not Exhibition (1).
+ * See the rationale at the `floor` computation in `estimateBracket`. Bracket 1 is a
+ * theme-build intent, never inferred from card power, so the estimator floors here.
+ */
+const CORE_BASELINE = 2;
+
+/**
  * True when `name` is a canonical stax / lock piece (the same curated pool the
  * estimator counts for its stax floors). Exposed so the Bracket Fit replacement
  * finder can refuse to swap in another stax piece — which would re-trigger the
@@ -329,7 +336,17 @@ export function estimateBracket(
     });
   }
 
-  const floor = hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : 1;
+  // Default floor is Core (2), NOT Exhibition (1). Per the official RC Commander
+  // Brackets system, Bracket 2 "Core" is the baseline for the vast majority of
+  // homebrewed/precon-level decks ("the average current preconstructed deck is at
+  // a Core level"), while Bracket 1 "Exhibition" is a deliberate theme-over-winning
+  // build that card content alone cannot detect. So a deck with no power signals is
+  // Core, not Exhibition — the estimator never auto-assigns Bracket 1. (Exhibition
+  // is reachable only as a user-declared intent, e.g. a manual bracket override.)
+  //   - https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-february-9-2026
+  //   - https://edhrec.com/articles/adapting-your-decks-to-core-bracket-2
+  const floor =
+    hardFloors.length > 0 ? Math.max(...hardFloors.map((f) => f.bracket)) : CORE_BASELINE;
 
   // ── 5. Soft score (0-100) ──
 

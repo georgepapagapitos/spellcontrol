@@ -828,6 +828,28 @@ export function buildBracketFitPlan(
   const detected = estimation.bracket;
   const fullInput: BracketFitInput = { ...input, estimation };
 
+  // Exhibition (Bracket 1) is a theme-first build intent, not a power tier the
+  // estimator can confirm: every deck floors at Core (2) (see bracketEstimator
+  // CORE_BASELINE). A bracket-1 target can never be "reached" by cuts, so instead
+  // of an unsatisfiable downshift we give actionable cuts toward the Core floor and
+  // explain that Exhibition is about building around a theme over winning.
+  if (target === 1) {
+    const EXHIBITION_TUNES_TO = 2;
+    const base =
+      detected <= EXHIBITION_TUNES_TO
+        ? alignedPlan(EXHIBITION_TUNES_TO, detected)
+        : computeDownshiftPlanWithTarget(fullInput, EXHIBITION_TUNES_TO);
+    return {
+      ...base,
+      targetBracket: 1,
+      summary: 'Exhibition (Bracket 1) is a theme-first build, not a power level you tune down to.',
+      note:
+        detected <= EXHIBITION_TUNES_TO
+          ? 'Your deck already sits at the Core (Bracket 2) floor. Exhibition is about building around a concept over winning — a deckbuilding choice the power estimate can’t measure.'
+          : 'These cuts bring the deck down to the Core (Bracket 2) floor. Reaching Exhibition itself is a theme-build choice the power estimate can’t measure.',
+    };
+  }
+
   // B4 == B5 at deckbuilding level. Treat target 5 like 4 for building.
   // If target is 5 and the deck already estimates at 4+, it's "too weak" only in
   // the combo-completion sense (the build ceiling); if it's at 5, it's aligned.

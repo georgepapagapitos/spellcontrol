@@ -197,13 +197,38 @@ function makeInput(o: InputOverrides): BracketFitInput {
 
 describe('buildBracketFitPlan — aligned', () => {
   it('returns aligned with no moves when estimated === target', () => {
-    // No signals → estimated bracket 1.
+    // No signals → estimated bracket 2 (Core), the estimator's baseline.
     const input = makeInput({ allCardNames: ['Forest', 'Plains'] });
-    const plan = buildBracketFitPlan(1, input.estimation, input)!;
+    expect(input.estimation.bracket).toBe(2);
+    const plan = buildBracketFitPlan(2, input.estimation, input)!;
     expect(plan.direction).toBe('aligned');
     expect(plan.moves).toEqual([]);
     expect(plan.achievable).toBe(true);
-    expect(plan.note).toContain('Bracket 1');
+    expect(plan.note).toContain('Bracket 2');
+  });
+
+  it('treats an Exhibition (1) target as a theme-build explainer, not a downshift', () => {
+    // The estimator floors at Core (2), so Exhibition can't be reached by cuts.
+    // A power-neutral deck targeting 1 gets an aligned-style Exhibition note.
+    const input = makeInput({ allCardNames: ['Forest', 'Plains'] });
+    const plan = buildBracketFitPlan(1, input.estimation, input)!;
+    expect(plan.targetBracket).toBe(1);
+    expect(plan.moves).toEqual([]);
+    expect(plan.summary).toContain('Exhibition');
+    expect(plan.note).toContain('Core');
+  });
+
+  it('an Exhibition (1) target on a powered deck gives cuts toward the Core floor', () => {
+    // A deck above Core targeting Exhibition gets actionable cuts down to Core (2),
+    // with an honest note that Exhibition itself is a theme-build choice.
+    const gcs = ['GC1', 'GC2', 'GC3', 'GC4'];
+    const gcNames = new Set(gcs);
+    const input = makeInput({ allCardNames: [...gcs, 'Forest'], gameChangerNames: gcNames });
+    expect(input.estimation.bracket).toBeGreaterThan(2);
+    const plan = buildBracketFitPlan(1, input.estimation, input)!;
+    expect(plan.targetBracket).toBe(1);
+    expect(plan.moves.length).toBeGreaterThan(0);
+    expect(plan.summary).toContain('Exhibition');
   });
 });
 
@@ -391,8 +416,10 @@ describe('downshift — extra turns', () => {
     expect(input.estimation.bracket).toBe(2); // 3 ET → floor 2
     const plan = computeDownshiftPlan(input, 1);
     const etCuts = plan.moves.filter((m) => m.signal === 'extra-turn');
+    // The queue still cuts exactly 1 extra turn (to drop below the 3-chain threshold),
+    // but Exhibition (1) is unreachable — the deck floors at Core (2).
     expect(etCuts).toHaveLength(1);
-    expect(plan.achievable).toBe(true);
+    expect(plan.achievable).toBe(false);
   });
 
   it('target == 2, 3 extra turns → no cut needed (floor == target)', () => {
@@ -410,25 +437,38 @@ describe('downshift — extra turns', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('downshift — soft bump', () => {
-  it('cuts fast mana to drop a soft-bumped bracket back to target', () => {
-    // 5 fast mana → softScore 40; plus low curve to push soft >= 66 and bump
-    // floor 1 → 2. Target 1 requires cutting fast mana until soft drops below 66.
+  it('cuts fast mana to drop a soft-bumped bracket back to the Core floor (2)', () => {
+    // 5 fast mana (40) + low curve (20) + interaction (15) → softScore 75, which
+    // promotes the Core (2) baseline to Upgraded (3). Downshifting to Core cuts
+    // fast mana until the soft score drops below the 66 promotion threshold.
     const fast = ['Mana Crypt', 'Mana Vault', 'Grim Monolith', 'Chrome Mox', 'Mox Diamond'];
     const input = makeInput({
       allCardNames: [...fast, 'Forest'],
       averageCmc: 1.0, // lowCurve bonus = (3.5-1)*15 = capped at 20
+      roleCounts: { removal: 1 }, // tiny-deck interaction → +15 soft → promotes to 3
     });
-    // floor 1, soft = 40 + 20 = 60 < 66 → no bump → bracket 1. Adjust: add interaction.
-    // Instead, assert the engine reaches target via fast-mana cuts when bumped.
-    if (input.estimation.bracket > 1) {
-      const plan = computeDownshiftPlan(input, 1);
-      const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
-      expect(estimate(remaining, [], 1.0).bracket).toBeLessThanOrEqual(1);
-      expect(plan.moves.some((m) => m.signal === 'fast-mana')).toBe(true);
-    } else {
-      // Not bumped in this fixture — trivially aligned-ish, nothing to assert.
-      expect(input.estimation.bracket).toBe(1);
-    }
+    expect(input.estimation.bracket).toBe(3);
+
+    const plan = computeDownshiftPlan(input, 2);
+    const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
+    expect(plan.moves.some((m) => m.signal === 'fast-mana')).toBe(true);
+    expect(estimate(remaining, [], 1.0).bracket).toBeLessThanOrEqual(2);
+    expect(plan.achievable).toBe(true);
+  });
+
+  it('cannot reach Exhibition (1) by cuts — the estimator floors at Core (2)', () => {
+    // Exhibition is a theme-build intent, not a power level reachable by tuning.
+    // A bracket-1 downshift cuts the power cards but bottoms out at Core (2).
+    const fast = ['Mana Crypt', 'Mana Vault', 'Grim Monolith', 'Chrome Mox', 'Mox Diamond'];
+    const input = makeInput({
+      allCardNames: [...fast, 'Forest'],
+      averageCmc: 1.0,
+      roleCounts: { removal: 1 },
+    });
+    const plan = computeDownshiftPlan(input, 1);
+    const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
+    expect(estimate(remaining, [], 1.0).bracket).toBe(2);
+    expect(plan.achievable).toBe(false);
   });
 });
 
@@ -438,10 +478,11 @@ describe('downshift — soft bump', () => {
 
 describe('downshift — verify loop recomputes averageCmc after cuts', () => {
   it('re-estimates with the post-cut non-land average, not the stale pre-cut value', () => {
-    // Deck: 5 fast mana (cmc 0) + 1 filler (cmc 5). Real non-land average = 5/6.
-    // Cutting any fast-mana 0-drop raises the true average, shrinking the soft
-    // curve bonus. The verify loop must score the *remaining* deck with that
-    // higher average — otherwise it scores a lower (stale) average and over-cuts.
+    // Deck: 5 fast mana (cmc 0) + 1 filler (cmc 5), plus tiny-deck interaction so the
+    // Core (2) baseline is soft-promoted to Upgraded (3). Cutting any fast-mana 0-drop
+    // raises the true average, shrinking the soft curve bonus. The verify loop must
+    // score the *remaining* deck with that higher average — otherwise it scores a
+    // lower (stale) average and over-cuts past the Core target.
     const fast = ['Mana Crypt', 'Mana Vault', 'Grim Monolith', 'Chrome Mox', 'Mox Diamond'];
     const cards = [...fast, 'Filler'];
     const cardCmcMap: Record<string, { cmc: number; isLand: boolean }> = {
@@ -453,38 +494,40 @@ describe('downshift — verify loop recomputes averageCmc after cuts', () => {
       Filler: { cmc: 5, isLand: false },
     };
     const avg0 = 5 / 6;
-    const input = makeInput({ allCardNames: cards, averageCmc: avg0, cardCmcMap });
+    const input = makeInput({
+      allCardNames: cards,
+      averageCmc: avg0,
+      cardCmcMap,
+      roleCounts: { removal: 1 },
+    });
+    expect(input.estimation.bracket).toBe(3);
 
-    // Only run the assertion when the fixture is actually soft-bumped above 1.
-    if (input.estimation.bracket > 1) {
-      const plan = computeDownshiftPlan(input, 1);
-      const remaining = cards.filter((n) => !plan.moves.some((m) => m.name === n));
-      // Re-estimate the surviving deck with its TRUE post-cut average (recomputed
-      // exactly as the engine should) — it must already be at/below target, i.e.
-      // the engine stopped at the right point and did not over-cut.
-      const nonLand = remaining.filter((n) => !cardCmcMap[n]?.isLand);
-      const trueAvg = nonLand.length
-        ? nonLand.reduce((s, n) => s + (cardCmcMap[n]?.cmc ?? 0), 0) / nonLand.length
-        : avg0;
-      expect(estimate(remaining, [], trueAvg).bracket).toBeLessThanOrEqual(1);
-      expect(plan.achievable).toBe(true);
-    } else {
-      expect(input.estimation.bracket).toBe(1);
-    }
+    const plan = computeDownshiftPlan(input, 2);
+    const remaining = cards.filter((n) => !plan.moves.some((m) => m.name === n));
+    // Re-estimate the surviving deck with its TRUE post-cut average (recomputed
+    // exactly as the engine should) — it must already be at/below the Core target,
+    // i.e. the engine stopped at the right point and did not over-cut.
+    const nonLand = remaining.filter((n) => !cardCmcMap[n]?.isLand);
+    const trueAvg = nonLand.length
+      ? nonLand.reduce((s, n) => s + (cardCmcMap[n]?.cmc ?? 0), 0) / nonLand.length
+      : avg0;
+    expect(estimate(remaining, [], trueAvg).bracket).toBeLessThanOrEqual(2);
+    expect(plan.achievable).toBe(true);
   });
 
   it('falls back to the supplied averageCmc when no cardCmcMap is given', () => {
-    // Same fixture without a cmc map → the loop uses the stale average but still
-    // reaches the target (the property under test is no crash + correct target).
+    // Same fixture without a cmc map → the loop uses the supplied average but still
+    // reaches the Core target (the property under test is no crash + correct target).
     const fast = ['Mana Crypt', 'Mana Vault', 'Grim Monolith', 'Chrome Mox', 'Mox Diamond'];
-    const input = makeInput({ allCardNames: [...fast, 'Filler'], averageCmc: 1.0 });
-    if (input.estimation.bracket > 1) {
-      const plan = computeDownshiftPlan(input, 1);
-      const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
-      expect(estimate(remaining, [], 1.0).bracket).toBeLessThanOrEqual(1);
-    } else {
-      expect(input.estimation.bracket).toBe(1);
-    }
+    const input = makeInput({
+      allCardNames: [...fast, 'Filler'],
+      averageCmc: 1.0,
+      roleCounts: { removal: 1 },
+    });
+    expect(input.estimation.bracket).toBe(3);
+    const plan = computeDownshiftPlan(input, 2);
+    const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
+    expect(estimate(remaining, [], 1.0).bracket).toBeLessThanOrEqual(2);
   });
 });
 
@@ -520,12 +563,9 @@ describe('downshift — verify loop minimality', () => {
 
 describe('downshift — not achievable', () => {
   it('marks achievable=false with a note when target unreachable', () => {
-    // Many GCs + MLD + early combos, target 1: even after cutting all removable
-    // signal cards, combos/MLD removal helps, but if everything is removable the
-    // bracket can reach 1. To force unreachable we keep a non-removable-by-this-
-    // engine soft state. Simplest: GCs only, target 1 — cutting all GCs drops to 1.
-    // So instead construct an actually-unreachable case is hard since all our
-    // signals are removable. We assert the achievable flag tracks the verify loop:
+    // Exhibition (1) is genuinely unreachable by cuts: the estimator floors at
+    // Core (2). Even after cutting every removable power card, the deck bottoms
+    // out at Bracket 2, so a bracket-1 downshift reports not-achievable.
     const gcs = ['GC1', 'GC2', 'GC3', 'GC4', 'GC5'];
     const gcNames = new Set(gcs);
     const input = makeInput({
@@ -534,10 +574,11 @@ describe('downshift — not achievable', () => {
       cardInclusionMap: Object.fromEntries(gcs.map((g, i) => [g, i])),
     });
     const plan = computeDownshiftPlan(input, 1);
-    // All GCs removable → reachable.
     const remaining = input.allCardNames.filter((n) => !plan.moves.some((m) => m.name === n));
-    expect(estimate(remaining, [], 3.5, undefined, gcNames).bracket).toBeLessThanOrEqual(1);
-    expect(plan.achievable).toBe(true);
+    // All GCs cut, but the Core (2) floor means target 1 is not reached.
+    expect(estimate(remaining, [], 3.5, undefined, gcNames).bracket).toBe(2);
+    expect(plan.achievable).toBe(false);
+    expect(plan.note).toBeTruthy();
   });
 });
 
@@ -972,8 +1013,9 @@ describe('offline degraded', () => {
 describe('robustness', () => {
   it('empty deck produces no moves and does not crash', () => {
     const input = makeInput({ allCardNames: [] });
-    const plan = buildBracketFitPlan(2, input.estimation, input);
-    // estimated 1, target 2 → too-weak, no pool → degraded, no crash.
+    // Empty deck estimates to the Core (2) baseline; target 3 → too-weak, no pool
+    // → degraded, no crash.
+    const plan = buildBracketFitPlan(3, input.estimation, input);
     expect(plan).not.toBeNull();
     expect(plan!.direction).toBe('too-weak');
   });
