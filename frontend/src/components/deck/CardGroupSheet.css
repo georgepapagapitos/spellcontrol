@@ -207,7 +207,7 @@
   width: 100%;
   aspect-ratio: 5 / 7;
   object-fit: cover;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--surface-raised);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   transition: transform var(--motion-fast) ease;
@@ -268,7 +268,7 @@
   width: 100%;
   padding: 0.4rem 0.5rem;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: none;
   color: var(--text-primary);
   cursor: pointer;

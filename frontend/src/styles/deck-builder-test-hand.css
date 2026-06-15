@@ -391,7 +391,7 @@
   padding: 0.4rem 0.3rem;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .deck-test-hand-sim-stat strong {
