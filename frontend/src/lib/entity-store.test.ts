@@ -6,7 +6,6 @@ import {
   getAllLive,
   getById,
   putMany,
-  putTombstone,
   deleteMany,
   wipeAll,
   deleteLegacyDatabasesOnce,
@@ -77,18 +76,6 @@ describe('getById', () => {
     await putMany('binder', [{ id: 'b-1', data: null, rev: 5, deletedAt: 1700000000000 }]);
     const row = await getById('binder', 'b-1');
     expect(row?.deletedAt).toBe(1700000000000);
-  });
-});
-
-describe('putTombstone', () => {
-  it('writes a tombstone row that hides from getAllLive', async () => {
-    await putMany('binder', [{ id: 'b-1', data: { id: 'b-1' }, rev: 1, deletedAt: null }]);
-    await putTombstone('binder', 'b-1', 7, 1700000123000);
-    expect(await getAllLive('binder')).toEqual([]);
-    const row = await getById('binder', 'b-1');
-    expect(row?.deletedAt).toBe(1700000123000);
-    expect(row?.rev).toBe(7);
-    expect(row?.data).toBeNull();
   });
 });
 

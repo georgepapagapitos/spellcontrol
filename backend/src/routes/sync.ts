@@ -22,8 +22,9 @@ export const syncRouter: Router = Router();
  * device on its next pull — replacing the prior whole-blob model that could
  * resurrect deletions from a stale device.
  *
- * No `baseVersion`, no document-level optimistic concurrency, no 409. The
- * server is authoritative per row. Last-write-wins by `rev`.
+ * No `baseVersion`, no 409 (HTTP always 200). Last-write-wins per row for
+ * every kind except decks, which use per-row optimistic concurrency via
+ * `clientRev`: a stale write is rejected in-band and returned in `conflicts[]`.
  *
  * Deleting an import cascades to all `user_cards` rows with that `import_id`
  * inside the same transaction — each cascaded card gets its own tombstone row
@@ -320,9 +321,8 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     //    client sends the rev it last saw (clientRev > 0) we only write if the
     //    stored rev still matches; otherwise we report the server's current row
     //    as a conflict and leave it untouched (server wins, client re-pulls).
-    //    clientRev 0/absent (every pre-clientRev client) keeps the unconditional
-    //    last-write-wins every other kind uses — so this path is dormant and
-    //    behaviour-neutral until the client starts sending clientRev. ──
+    //    clientRev 0/absent keeps the unconditional last-write-wins every other
+    //    kind uses — back-compat for non-deck kinds and any pre-clientRev client. ──
     for (const [id, d] of deckUpserts) {
       if (d.clientRev > 0) {
         const upd = await client.query(

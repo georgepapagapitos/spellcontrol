@@ -19,7 +19,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import { logger } from '@/lib/logger';
 
-export const DB_NAME = 'spellcontrol-sync';
+const DB_NAME = 'spellcontrol-sync';
 const DB_VERSION = 1;
 
 export type EntityKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
@@ -106,25 +106,9 @@ export async function putMany(kind: EntityKind, rows: StoredRow[]): Promise<void
 }
 
 /**
- * Apply a tombstone (no payload kept on the client — once we know a row was
- * deleted the local data is dead weight). Uses the server's `rev`/`deletedAt`
- * so the cursor advances past this tombstone on its next pull.
- */
-export async function putTombstone(
-  kind: EntityKind,
-  id: string,
-  rev: number,
-  deletedAt: number
-): Promise<void> {
-  const db = await getDB();
-  await db.put(storeName(kind), { id, data: null, rev, deletedAt });
-}
-
-/**
- * Apply many tombstones in ONE transaction per kind — the batched form of
- * putTombstone. Applying server deletions one-at-a-time opened a fresh IDB
- * transaction per row, which crawled when a delta carried thousands of
- * tombstones (large/heavily-edited accounts catching up).
+ * Apply many tombstones in ONE transaction per kind. Applying server deletions
+ * one-at-a-time opened a fresh IDB transaction per row, which crawled when a
+ * delta carried thousands of tombstones (large/heavily-edited accounts catching up).
  */
 export async function putTombstones(
   kind: EntityKind,

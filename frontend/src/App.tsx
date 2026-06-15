@@ -160,10 +160,7 @@ export default function App() {
     if (status !== 'authed' || !userId) return;
     if (syncStartedFor.current === userId) return;
     syncStartedFor.current = userId;
-    // `username` is read at the time startSync is invoked; the dialog uses
-    // it for display only, so it's fine if it's missing during the first
-    // tick after sign-in (renders "this account").
-    void startSync(userId, username).catch((err) => {
+    void startSync(userId).catch((err) => {
       logger.warn('[sync] startSync failed:', err);
       // Backstop: hydration is owned by the sync layer, but a failure here
       // (network down, wipeLocal throwing, etc.) must NOT leave the UI stuck
