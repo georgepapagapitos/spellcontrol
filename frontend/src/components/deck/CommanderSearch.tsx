@@ -977,7 +977,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
             </p>
             <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
 
-            {topLoading ? (
+            {topLoading && visibleTop.length === 0 ? (
               <p className="commander-suggestions-empty">Loading…</p>
             ) : visibleTop.length === 0 ? (
               <p className="commander-suggestions-empty">
@@ -987,7 +987,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
               </p>
             ) : (
               <>
-                <ul className="commander-result-grid">
+                <ul className="commander-result-grid" aria-busy={topLoading}>
                   {(showAllTopCommanders
                     ? visibleTop
                     : visibleTop.slice(0, PLAYSTYLE_PREVIEW_COUNT)
