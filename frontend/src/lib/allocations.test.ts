@@ -298,6 +298,27 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
     ).toBe('b');
   });
 
+  it('claims the exact printing for basic lands — special-art basics are not fungible', () => {
+    // A Secret Lair foil Mountain the deck wants, plus a plain one. The deck
+    // slot must claim the SL copy, not the cheaper plain Mountain.
+    const sl = card({
+      copyId: 'sl',
+      name: 'Mountain',
+      scryfallId: 'sf-SLD',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 11,
+    });
+    const plain = card({
+      copyId: 'plain',
+      name: 'Mountain',
+      scryfallId: 'sf-M20',
+      foil: false,
+      purchasePrice: 0.1,
+    });
+    expect(pickCollectionCopy('Mountain', [plain, sl], allocated, 'sf-SLD')?.copyId).toBe('sl');
+  });
+
   it('passes through to original behavior when preferredScryfallId is undefined', () => {
     const foil = card({
       copyId: 'a',
@@ -341,7 +362,7 @@ describe('findSuboptimalPrintings', () => {
     });
   });
 
-  it('ignores basic lands — their printing is fungible', () => {
+  it('flags basic lands bound to the wrong printing — special-art basics are a real choice', () => {
     const d = deck({
       id: 'd1',
       name: 'A',
@@ -351,7 +372,9 @@ describe('findSuboptimalPrintings', () => {
       card({ copyId: 'wrong-copy', name: 'Plains', scryfallId: 'sf-other', setCode: 'M20' }),
       card({ copyId: 'right-copy', name: 'Plains', scryfallId: 'sf-pref', setCode: 'ECL' }),
     ];
-    expect(findSuboptimalPrintings([d], collection)).toHaveLength(0);
+    const out = findSuboptimalPrintings([d], collection);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ cardName: 'Plains', preferredScryfallId: 'sf-pref' });
   });
 
   it('marks preferredFree=true when a free copy of the preferred printing exists', () => {

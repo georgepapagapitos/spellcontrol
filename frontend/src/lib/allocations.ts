@@ -204,10 +204,11 @@ export function pickCollectionCopy(
   const free = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
   if (free.length === 0) return null;
   let candidates = free;
-  // Basic lands are fungible — a slot for "Swamp" never has a real
-  // preference for printing, so ignore preferredScryfallId for them and
-  // let the finish/price tiebreakers spread across whatever the user owns.
-  if (preferredScryfallId && !isBasicLandName(cardName)) {
+  // Honor an exact-printing preference as a hard filter when the user owns it
+  // — applies to basics too: special-art / foil basics (e.g. a Secret Lair
+  // Mountain) are a real, deliberate choice, not fungible. Falls back to the
+  // finish/price tiebreakers when no copy of the preferred printing is free.
+  if (preferredScryfallId) {
     const printingMatches = free.filter((c) => c.scryfallId === preferredScryfallId);
     if (printingMatches.length > 0) candidates = printingMatches;
   }
@@ -344,8 +345,6 @@ export function findSuboptimalPrintings(
     allocatedCopyId: string | null
   ): void => {
     if (!allocatedCopyId || !preferredScryfallId) return;
-    // Basic lands are fungible — never flag them as "wrong printing".
-    if (isBasicLandName(cardName)) return;
     const copy = byCopyId.get(allocatedCopyId);
     if (!copy || copy.scryfallId === preferredScryfallId) return;
     if (!ownedPrintings.has(`${cardName} ${preferredScryfallId}`)) return;
@@ -480,9 +479,10 @@ export function findStealableCopy(
   });
   if (stealable.length === 0) return null;
 
-  // Honor an exact-printing preference as a hard filter (non-basics only),
-  // mirroring pickCollectionCopy; fall back to all stealable copies otherwise.
-  if (preferredScryfallId && !isBasicLandName(cardName)) {
+  // Honor an exact-printing preference as a hard filter (basics included —
+  // special-art basics are a real choice), mirroring pickCollectionCopy; fall
+  // back to all stealable copies otherwise.
+  if (preferredScryfallId) {
     const printingMatches = stealable.filter((c) => c.scryfallId === preferredScryfallId);
     if (printingMatches.length > 0) stealable = printingMatches;
   }
