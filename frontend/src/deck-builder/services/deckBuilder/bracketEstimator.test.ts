@@ -60,10 +60,10 @@ describe('estimateBracket — output shape', () => {
     expect(r.softScore).toBeLessThanOrEqual(100);
   });
 
-  it('returns Exhibition (bracket 1) for an empty / vanilla deck', () => {
+  it('returns Core (bracket 2) for an empty / vanilla deck — Exhibition is never auto-assigned', () => {
     const r = estimateBracket([], undefined, 4, undefined, undefined, new Set());
-    expect(r.bracket).toBe(1);
-    expect(r.label).toBe('Exhibition');
+    expect(r.bracket).toBe(2);
+    expect(r.label).toBe('Core');
     expect(r.hardFloors).toHaveLength(0);
   });
 });
@@ -137,7 +137,8 @@ describe('estimateBracket — hard floors', () => {
     );
     expect(r.breakdown.extraTurnCount).toBe(2);
     expect(r.hardFloors.find((f) => f.reason.includes('extra turn'))).toBeUndefined();
-    expect(r.bracket).toBe(1);
+    // No hard floor → Core (2) baseline (not Exhibition).
+    expect(r.bracket).toBe(2);
   });
 
   it('3+ extra turn spells trigger the bracket-2 floor (chain-likely)', () => {
@@ -158,7 +159,7 @@ describe('estimateBracket — hard floors', () => {
       new Set()
     );
     expect(r.breakdown.earlyComboCount).toBe(0);
-    expect(r.bracket).toBe(1);
+    expect(r.bracket).toBe(2);
   });
 
   it('combos with non-numeric bracket are ignored', () => {
@@ -200,7 +201,8 @@ describe('estimateBracket — hard floors', () => {
     );
     expect(r.breakdown.staxPieceCount).toBe(2);
     expect(r.hardFloors.find((f) => f.reason.includes('stax'))).toBeUndefined();
-    expect(r.bracket).toBe(1);
+    // No hard floor → Core (2) baseline.
+    expect(r.bracket).toBe(2);
   });
 
   it('3–4 stax pieces trigger the bracket-3 floor (deliberate plan)', () => {
@@ -325,9 +327,10 @@ describe('estimateBracket — soft score promotion', () => {
       new Set()
     );
     expect(r.softScore).toBeGreaterThanOrEqual(66);
-    // No hard floor (no game changers, no MLD, no combos, no extra turns)
-    // Floor would be 1, promoted to 2.
-    expect(r.bracket).toBe(2);
+    // No hard floor (no game changers, no MLD, no combos, no extra turns) → Core (2)
+    // baseline, promoted +1 to Upgraded (3) by the high soft score. A turbo low-curve
+    // fast-mana shell genuinely plays above Core.
+    expect(r.bracket).toBe(3);
   });
 
   it('promotes floor ≥ 4 to bracket 5 when softScore ≥ 80', () => {
@@ -382,6 +385,7 @@ describe('estimateBracket — soft score promotion', () => {
       new Set()
     );
     expect(r.softScore).toBeLessThan(66);
-    expect(r.bracket).toBe(1);
+    // Below the promotion threshold → stays at the Core (2) baseline.
+    expect(r.bracket).toBe(2);
   });
 });

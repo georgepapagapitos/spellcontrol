@@ -23,7 +23,9 @@ export function assembleBuildReport(input: {
 
   const report: BuildReport = {
     targetBracket: customization.targetBracket,
-    estimatedBracket: generated.bracketEstimation?.bracket ?? 1,
+    // Core (2) is the baseline when no estimation ran — the estimator never
+    // auto-assigns Exhibition (1). See bracketEstimator CORE_BASELINE.
+    estimatedBracket: generated.bracketEstimation?.bracket ?? 2,
     dataSource: generated.dataSource ?? 'base',
     builtFromCollection,
   };

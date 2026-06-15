@@ -86,14 +86,22 @@ function n(count: number, prefix: string): string[] {
 }
 
 const REFERENCE_DECKS: ReferenceDeck[] = [
-  // ── Bracket 1: Exhibition ────────────────────────────────────────────────
+  // ── Bracket 2: Core (the default for power-neutral decks) ─────────────────
+  // The estimator never auto-assigns Bracket 1 (Exhibition) — per the official RC
+  // system, "the average current preconstructed deck is at a Core level" and
+  // Exhibition is a deliberate theme-over-winning intent that card content alone
+  // can't detect. So a deck with no power signals is Core (2), not Exhibition (1).
+  // (A theme deck like Bear Tribal IS Exhibition in spirit, but the estimator can't
+  // know that — it reads power, not intent — so it conservatively reports Core.)
   {
-    name: 'Bear Tribal (theme)',
-    expectedBracket: 1,
+    name: 'Bear Tribal (theme, power-neutral)',
+    expectedBracket: 2,
     sourceCitation:
-      'RC Bracket 1: ultra-casual, theme over power, no Game Changers, 9+ turns to win',
+      'RC: Bracket 2 Core is the baseline for power-neutral homebrews; Exhibition (1) ' +
+      'is a theme-intent build the estimator cannot infer from cards.',
     notes:
-      'Pure tribal — mid-curve creatures, almost no interaction, no GCs, no fast mana, no combos.',
+      'Pure tribal — mid-curve creatures, almost no interaction, no GCs, no fast mana, ' +
+      'no combos. Plays as Exhibition socially, but reads as Core to a power estimate.',
     cards: [
       'Ayula, Queen Among Bears',
       ...n(60, 'Bear'),
@@ -109,23 +117,19 @@ const REFERENCE_DECKS: ReferenceDeck[] = [
     boardwipeCount: 0,
     completedCombos: [],
   },
-  // ── Bracket 1: Precon shell (post Feb 2026 decoupling) ───────────────────
-  // RC's Feb 2026 update explicitly decoupled precons from Bracket 2 — a
-  // precon shell with no obvious power-ups now sits in 1-or-2 territory.
-  // Our static algorithm can't distinguish playstyle, so we conservatively
-  // call it 1. This fixture is also the canary for the two RC-misalignment
-  // bugs the parent PR fixes: Sol Ring as fast mana, and one extra turn
-  // tripping the bracket-2 floor (RC: 1-2 extra turns is fine).
+  // The canary for THIS fix (the "select bracket 2 → builds a bracket 1" bug): a
+  // Core-pool precon shell with Sol Ring + a single Time Warp. No GCs, no chained
+  // extra turns, no combos → Core (2). Previously mis-estimated as Exhibition (1).
   {
     name: 'Atraxa Superfriends precon-style (with Sol Ring + 1 Time Warp)',
-    expectedBracket: 1,
+    expectedBracket: 2,
     sourceCitation:
-      'RC Feb 2026 update: precons decoupled from Bracket 2. Sol Ring allowed in 1-2; ' +
-      'extra turns: "one or two in the deck is fine" — only chaining is restricted.',
+      'RC Feb 2026 update: precons decoupled from automatic Bracket 2 but remain Core in ' +
+      'power; Sol Ring allowed in 1-2; extra turns: "one or two is fine" — only chaining restricted.',
     notes:
-      'Tests two former RC-misalignment bugs: (a) Sol Ring contributing to fast-mana ' +
-      'soft score, and (b) a single Time Warp forcing the bracket-2 hard floor. ' +
-      'Both are now corrected.',
+      'Tests three RC-alignment guarantees: (a) Sol Ring does not inflate fast-mana soft ' +
+      'score, (b) a single Time Warp does not force a floor, and (c) a power-neutral precon ' +
+      'shell estimates as Core (2), not Exhibition (1).',
     cards: [
       'Atraxa, Praetors’ Voice',
       'Sol Ring',
@@ -143,6 +147,28 @@ const REFERENCE_DECKS: ReferenceDeck[] = [
     gameChangerNames: [],
     mldCards: [],
     extraTurnCards: ['Time Warp'],
+    tutorCards: [],
+    removalCount: 6,
+    boardwipeCount: 2,
+    completedCombos: [],
+  },
+  // A vanilla midrange homebrew — the most common real-world case, and the exact
+  // shape an EDHREC "/core" pool produces. Moderate curve, real interaction, zero
+  // power markers → Core (2). This is the deck the user requested at "bracket 2".
+  {
+    name: 'Generic midrange homebrew (core pool)',
+    expectedBracket: 2,
+    sourceCitation:
+      'RC: Bracket 2 Core = "the average current preconstructed deck"; most self-built ' +
+      'decks with no Game Changers and no combos land here.',
+    notes:
+      'avgCmc ~3.2, ~8 interaction pieces, no GCs/fast mana/combos/stax/extra turns. ' +
+      'Soft score stays well below the promotion threshold → Core (2).',
+    cards: ['Some Commander', ...n(62, 'Midrange Card'), ...n(37, 'Land')],
+    averageCmc: 3.2,
+    gameChangerNames: [],
+    mldCards: [],
+    extraTurnCards: [],
     tutorCards: [],
     removalCount: 6,
     boardwipeCount: 2,

@@ -82,14 +82,15 @@ describe('assembleBuildReport', () => {
     expect(report.dataSource).toBe('theme+bracket');
   });
 
-  it('defaults estimatedBracket to 1 and dataSource to base when absent', () => {
+  it('defaults estimatedBracket to Core (2) and dataSource to base when absent', () => {
     const report = assembleBuildReport({
       generated: makeGenerated(),
       customization: makeCustomization(),
       collectionNames: new Set(),
     });
 
-    expect(report.estimatedBracket).toBe(1);
+    // Core (2) is the baseline — the estimator never auto-assigns Exhibition (1).
+    expect(report.estimatedBracket).toBe(2);
     expect(report.dataSource).toBe('base');
   });
 
