@@ -173,6 +173,7 @@ describe('native resume', () => {
 
 describe('refreshNow', () => {
   it('flushes pending mutations then pulls', async () => {
+    mockIsNative.mockReturnValue(true); // durable queue is native-only
     await startSync('user-1');
     await recordUpsert('binder', 'b-ref', { id: 'b-ref' }); // queue something to flush
     mockPush.mockClear();
@@ -459,6 +460,10 @@ describe('push', () => {
 });
 
 describe('persistKind helpers', () => {
+  // The durable mutation queue is native-only; web write-through is covered in
+  // its own describe below.
+  beforeEach(() => mockIsNative.mockReturnValue(true));
+
   it('persistBindersState writes upserts for each row and tombstones the missing ones', async () => {
     await estore.putMany('binder', [
       { id: 'b-1', data: { id: 'b-1', name: 'old' }, rev: 1, deletedAt: null },
@@ -560,6 +565,7 @@ describe('persistKind helpers', () => {
 
 describe('card price stripping (prices are device-local, never synced)', () => {
   it('persistCardsState strips purchasePrice/pricedAt from the synced row + queue', async () => {
+    mockIsNative.mockReturnValue(true); // asserts the durable queue op
     await persistCardsState([
       { copyId: 'c-1', importId: 'imp-1', scryfallId: 's-1', purchasePrice: 12.5, pricedAt: 123 },
     ] as unknown as Array<{ copyId: string; importId?: string }>);
@@ -607,6 +613,7 @@ describe('card price stripping (prices are device-local, never synced)', () => {
 
 describe('legibility signals', () => {
   it('getPendingCount reflects the durable queue depth', async () => {
+    mockIsNative.mockReturnValue(true); // durable queue is native-only
     await startSync('user-1');
     expect(getPendingCount()).toBe(0);
     // A mutation enqueues but the push is debounced, so it stays pending.
@@ -654,6 +661,10 @@ describe('isApplyingServer', () => {
 });
 
 describe('recordUpsert / recordDelete', () => {
+  // These assert the native durable-queue path; web write-through has its own
+  // describe below.
+  beforeEach(() => mockIsNative.mockReturnValue(true));
+
   it('recordUpsert writes IDB + enqueues a single op', async () => {
     const { recordUpsert } = await import('./sync');
     await recordUpsert('binder', 'b-1', { id: 'b-1', name: 'A' });
@@ -693,6 +704,99 @@ describe('recordUpsert / recordDelete', () => {
     expect(await estore.getById('binder', 'b-1')).toBeUndefined();
     const batch = await queue.peekBatch(10);
     expect(batch[0].m).toEqual({ op: 'delete', kind: 'binder', id: 'b-1' });
+  });
+});
+
+describe('web guest (signed-out) keeps the durable queue', () => {
+  it('a guest mutation enqueues (to promote on sign-in) and does not POST', async () => {
+    // web (default), no startSync → no owner → durable queue, no write-through.
+    await recordUpsert('binder', 'b-g', { id: 'b-g' });
+    const batch = await queue.peekBatch(10);
+    expect(batch.map((b) => `${b.m.op}:${b.m.id}`)).toEqual(['upsert:b-g']);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+});
+
+describe('web write-through (no durable outbox)', () => {
+  // isNativePlatform defaults to false (web). Write-through is gated on a
+  // signed-in owner — a guest still uses the durable queue — so sign in first.
+  beforeEach(async () => {
+    await startSync('user-1');
+  });
+
+  type PushBody = {
+    upserts: Array<{ kind: string; id: string; clientRev?: number }>;
+    deletions: Array<{ kind: string; id: string }>;
+  };
+
+  it('recordUpsert POSTs straight to the server and stamps the server rev — no queue', async () => {
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-1', rev: 5, deletedAt: null }],
+      cursor: 5,
+    });
+    await recordUpsert('binder', 'b-1', { id: 'b-1', name: 'A' });
+    const row = await estore.getById('binder', 'b-1');
+    expect(row?.data).toEqual({ id: 'b-1', name: 'A' });
+    expect(row?.rev).toBe(5); // applyPushResult stamped the canonical rev
+    expect(await queue.peekBatch(10)).toHaveLength(0); // no durable outbox
+    const body = mockPush.mock.calls[0][0] as PushBody;
+    expect(body.upserts.map((u) => u.id)).toEqual(['b-1']);
+    expect(body.deletions).toEqual([]);
+  });
+
+  it('a failed write reverts an edited row to its pre-edit value and flags the error', async () => {
+    await estore.putMany('binder', [
+      { id: 'b-1', data: { id: 'b-1', name: 'old' }, rev: 3, deletedAt: null },
+    ]);
+    mockPush.mockRejectedValueOnce(new Error('offline'));
+    await recordUpsert('binder', 'b-1', { id: 'b-1', name: 'new' });
+    const row = await estore.getById('binder', 'b-1');
+    expect(row?.data).toEqual({ id: 'b-1', name: 'old' }); // reverted
+    expect(row?.rev).toBe(3);
+    expect(await queue.peekBatch(10)).toHaveLength(0);
+    expect(hasSyncError()).toBe(true);
+  });
+
+  it('a failed write removes an optimistically-added new row', async () => {
+    mockPush.mockRejectedValueOnce(new Error('offline'));
+    await recordUpsert('binder', 'b-new', { id: 'b-new' });
+    expect(await estore.getById('binder', 'b-new')).toBeUndefined();
+  });
+
+  it('persistKind sends the whole delta (upsert + tombstone) in one POST', async () => {
+    await estore.putMany('binder', [
+      { id: 'b-2', data: { id: 'b-2', name: 'old' }, rev: 2, deletedAt: null },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-1', rev: 9, deletedAt: null }],
+      cursor: 9,
+    });
+    await persistBindersState([{ id: 'b-1', name: 'new' } as { id: string }]);
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    const body = mockPush.mock.calls[0][0] as PushBody;
+    expect(body.upserts.map((u) => u.id)).toEqual(['b-1']);
+    expect(body.deletions.map((d) => d.id)).toEqual(['b-2']);
+    expect(await queue.peekBatch(10)).toHaveLength(0);
+  });
+
+  it('adopts a server deck conflict (reject-stale works on web too)', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'mine' }, rev: 4, deletedAt: null },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        { kind: 'deck', id: 'd-1', serverRev: 6, serverData: { id: 'd-1', name: 'theirs' } },
+      ],
+      cursor: 6,
+    });
+    await recordUpsert('deck', 'd-1', { id: 'd-1', name: 'mine edited' });
+    const row = await estore.getById('deck', 'd-1');
+    expect(row?.data).toEqual({ id: 'd-1', name: 'theirs' }); // server version won
+    expect(row?.rev).toBe(6);
+    // it sent our pre-edit base rev as clientRev so the server could reject-stale
+    const body = mockPush.mock.calls[0][0] as PushBody;
+    expect(body.upserts[0].clientRev).toBe(4);
   });
 });
 
