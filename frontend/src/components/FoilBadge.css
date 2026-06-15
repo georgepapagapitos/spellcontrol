@@ -19,9 +19,10 @@
     0 0 4px rgba(255, 255, 255, 0.35);
 }
 
-/* Standalone pip nudged off the preceding text. */
+/* Standalone pip nudged off the preceding text/chip. */
 .collection-list-name > .foil-badge,
-.card-picker-meta > .foil-badge {
+.card-picker-meta > .foil-badge,
+.deck-row-name > .foil-badge {
   margin-left: 0.4rem;
 }
 

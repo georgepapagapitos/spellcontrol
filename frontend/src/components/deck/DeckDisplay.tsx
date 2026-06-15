@@ -3261,38 +3261,43 @@ function DeckCardRow({
                 deep-link is the deferred follow-up). */}
             {row.printings.map((p) => (
               <li key={p.key} className="deck-printing-sub">
-                <SetSymbol
-                  className="deck-printing-sub-symbol"
-                  setCode={p.setCode}
-                  rarity={p.rarity}
-                  title={setSymbolTitle({
-                    setCode: p.setCode,
-                    setName: p.setName,
-                    collectorNumber: p.collectorNumber,
-                    rarity: p.rarity,
-                  })}
-                />
-                <span className="deck-printing-sub-set">
-                  {(p.setCode || '—').toUpperCase()}
-                  {p.collectorNumber && (
-                    <span className="deck-printing-sub-cn"> · #{p.collectorNumber}</span>
+                {/* Per-printing count, in the same left column as the row's
+                    aggregate qty — so it reads as a breakdown (7 + 7 + 8 = 22). */}
+                <span className="deck-printing-sub-qty">{p.qty}</span>
+                <span className="deck-printing-sub-indent" aria-hidden />
+                <span className="deck-printing-sub-id">
+                  <SetSymbol
+                    className="deck-printing-sub-symbol"
+                    setCode={p.setCode}
+                    rarity={p.rarity}
+                    title={setSymbolTitle({
+                      setCode: p.setCode,
+                      setName: p.setName,
+                      collectorNumber: p.collectorNumber,
+                      rarity: p.rarity,
+                    })}
+                  />
+                  <span className="deck-printing-sub-set">
+                    {(p.setCode || '—').toUpperCase()}
+                    {p.collectorNumber && (
+                      <span className="deck-printing-sub-cn"> · #{p.collectorNumber}</span>
+                    )}
+                  </span>
+                  {p.foil && (
+                    <span
+                      className="deck-printing-sub-foil"
+                      title={p.finish === 'etched' ? 'Etched foil' : 'Foil'}
+                    >
+                      {p.finish === 'etched' ? 'Etched' : 'Foil'}
+                    </span>
                   )}
                 </span>
-                {p.foil && (
-                  <span
-                    className="deck-printing-sub-foil"
-                    title={p.finish === 'etched' ? 'Etched foil' : 'Foil'}
-                  >
-                    {p.finish === 'etched' ? 'Etched' : 'Foil'}
-                  </span>
-                )}
                 <span className="deck-printing-sub-spacer" />
                 {p.price > 0 && (
                   <span className="deck-printing-sub-price">
                     {formatMoney(p.price, { currency })}
                   </span>
                 )}
-                <span className="deck-printing-sub-qty">{p.qty}</span>
               </li>
             ))}
           </ul>
