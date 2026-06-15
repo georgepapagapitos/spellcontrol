@@ -767,7 +767,11 @@
 
 .card-preview-name-row {
   display: flex;
-  align-items: baseline;
+  /* center, not baseline: the row holds only the name, and baseline alignment
+     under-sizes the row when a long / `//` name wraps to two lines (it sizes to
+     the first line's baseline), so the second line overflowed below the row and
+     overlapped the type line under it. */
+  align-items: center;
   justify-content: center;
   gap: 0.5rem;
   min-height: 1.5rem;
