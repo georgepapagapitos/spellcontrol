@@ -74,4 +74,31 @@ describe('fillWithScryfall', () => {
     expect(sentQuery).toContain('game:arena');
     expect(sentQuery).toContain('set:mkm');
   });
+
+  it('treats available-only as a hard collection constraint', async () => {
+    searchCards.mockResolvedValue({
+      data: [sc({ name: 'Unowned Bomb' }), sc({ name: 'Owned Free' })],
+    });
+    const used = new Set<string>();
+
+    const out = await fillWithScryfall(
+      't:creature',
+      [],
+      2,
+      used,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      new Set(['Owned Free']),
+      'USD',
+      false,
+      '',
+      'available'
+    );
+
+    expect(out.map((c) => c.name)).toEqual(['Owned Free']);
+    expect(used.has('Unowned Bomb')).toBe(false);
+  });
 });

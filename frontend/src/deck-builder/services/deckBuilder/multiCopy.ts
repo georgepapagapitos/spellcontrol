@@ -1,10 +1,16 @@
 // Multi-copy card pipeline ("A deck can have any number of cards named ...").
 // Self-contained; extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
-import type { ScryfallCard, MaxRarity } from '@/deck-builder/types';
+import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { fetchMultiCopyCardNames, getCardByName } from '@/deck-builder/services/scryfall/client';
 import { fetchAverageDeckMultiCopies } from '@/deck-builder/services/edhrec/client';
-import { exceedsMaxPrice, exceedsMaxRarity, isOwnedRarityExempt } from './deckFilters';
+import {
+  constrainsToCollection,
+  exceedsMaxPrice,
+  exceedsMaxRarity,
+  isOwnedRarityExempt,
+  notInCollection,
+} from './deckFilters';
 
 // ============================================================
 // Multi-copy card support ("A deck can have any number of...")
@@ -35,6 +41,8 @@ export async function resolveMultiCopyCards(
   maxRarity: MaxRarity,
   currency: 'USD' | 'EUR' = 'USD',
   collectionNames?: Set<string>,
+  collectionAvailableCounts?: Map<string, number>,
+  collectionStrategy: CollectionStrategy = 'full',
   ignoreOwnedRarity: boolean = false
 ): Promise<MultiCopyResult[]> {
   // Step 1: Fetch the set of all multi-copy cards from Scryfall (cached after first call)
@@ -56,6 +64,11 @@ export async function resolveMultiCopyCards(
   const results: MultiCopyResult[] = [];
 
   for (const cardName of matches) {
+    if (constrainsToCollection(collectionStrategy) && notInCollection(cardName, collectionNames)) {
+      logger.debug(`[DeckGen] "${cardName}" skipped for collection-only multi-copy`);
+      continue;
+    }
+
     const maxCopies = multiCopyCards.get(cardName)!; // null = unlimited
 
     let quantity: number;
@@ -85,7 +98,13 @@ export async function resolveMultiCopyCards(
 
     // Step 6: If already in deck as must-include, reduce count
     const existingCount = usedNames.has(cardName) ? 1 : 0;
-    const copiesToAdd = finalQuantity - existingCount;
+    let copiesToAdd = finalQuantity - existingCount;
+    if (collectionStrategy === 'available') {
+      copiesToAdd = Math.min(
+        copiesToAdd,
+        Math.max(0, (collectionAvailableCounts?.get(cardName) ?? 0) - existingCount)
+      );
+    }
     if (copiesToAdd <= 0) {
       logger.debug(`[DeckGen] "${cardName}" already in deck, no extra copies needed`);
       continue;

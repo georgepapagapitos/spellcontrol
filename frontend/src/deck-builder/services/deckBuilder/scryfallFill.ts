@@ -7,6 +7,7 @@ import { BudgetTracker } from './budgetTracker';
 import {
   exceedsMaxPrice,
   exceedsMaxRarity,
+  constrainsToCollection,
   notInCollection,
   isOwnedBudgetExempt,
   isOwnedRarityExempt,
@@ -61,7 +62,8 @@ export async function fillWithScryfall(
       if (result.length >= count) break;
       if (usedNames.has(card.name)) continue; // Commander format is always singleton
       if (bannedCards.has(card.name)) continue; // Skip banned cards
-      if (collectionStrategy === 'full' && notInCollection(card.name, collectionNames)) continue;
+      if (constrainsToCollection(collectionStrategy) && notInCollection(card.name, collectionNames))
+        continue;
       const ownedExempt = isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget);
       if (!ownedExempt) {
         const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
