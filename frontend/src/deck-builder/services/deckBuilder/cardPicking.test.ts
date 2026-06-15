@@ -4,6 +4,7 @@ import {
   isHighSynergyCard,
   mergeWithAllNonLand,
   pickFromPrefetched,
+  pickFromPrefetchedWithCurve,
 } from './cardPicking';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 
@@ -106,5 +107,73 @@ describe('pickFromPrefetched', () => {
     const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
     const picked = pickFromPrefetched(cards, map, 2, new Set(), []);
     expect(picked).toHaveLength(2);
+  });
+
+  it('treats available-only as a hard collection constraint', () => {
+    const cards = [
+      ec({ name: 'Unowned Bomb', inclusion: 99 }),
+      ec({ name: 'Owned Free', inclusion: 10 }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    const used = new Set<string>();
+    const picked = pickFromPrefetched(
+      cards,
+      map,
+      2,
+      used,
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      new Set(['Owned Free']),
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'available'
+    );
+
+    expect(picked.map((c) => c.name)).toEqual(['Owned Free']);
+    expect(used.has('Unowned Bomb')).toBe(false);
+  });
+
+  it('treats available-only as a hard collection constraint in curve-aware picks', () => {
+    const cards = [
+      ec({ name: 'Unowned Bomb', inclusion: 99, primary_type: 'Creature' }),
+      ec({ name: 'Owned Free', inclusion: 10, primary_type: 'Creature' }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name, type_line: 'Creature' })]));
+    const used = new Set<string>();
+    const picked = pickFromPrefetchedWithCurve(
+      cards,
+      map,
+      2,
+      used,
+      [],
+      { 3: 2 },
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      new Set(['Owned Free']),
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'available'
+    );
+
+    expect(picked.map((c) => c.name)).toEqual(['Owned Free']);
+    expect(used.has('Unowned Bomb')).toBe(false);
   });
 });

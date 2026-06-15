@@ -39,6 +39,7 @@ export interface GenerationContext {
   customization: Customization;
   selectedThemes?: ThemeResult[];
   collectionNames?: Set<string>;
+  collectionAvailableCounts?: Map<string, number>;
   optimizeDeckCards?: string[];
   onProgress?: (message: string, percent: number) => void;
 }

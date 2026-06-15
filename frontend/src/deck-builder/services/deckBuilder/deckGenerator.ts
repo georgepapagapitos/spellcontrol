@@ -46,6 +46,7 @@ import {
   fitsColorIdentity,
   exceedsMaxPrice,
   exceedsMaxRarity,
+  constrainsToCollection,
   notInCollection,
   isOwnedBudgetExempt,
   isOwnedRarityExempt,
@@ -294,7 +295,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
   // Log collection mode
   if (context.collectionNames) {
     logger.debug(
-      `[DeckGen] Collection mode (${collectionStrategy}${collectionStrategy === 'partial' ? `, ${collectionOwnedPercent}%` : ''}): ${collectionStrategy === 'full' ? 'restricting to' : 'prioritizing'} ${context.collectionNames.size} owned cards`
+      `[DeckGen] Collection mode (${collectionStrategy}${collectionStrategy === 'partial' ? `, ${collectionOwnedPercent}%` : ''}): ${constrainsToCollection(collectionStrategy) ? 'restricting to' : 'prioritizing'} ${context.collectionNames.size} owned cards`
     );
   }
 
@@ -468,7 +469,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
       // Skip combo-sourced cards not in collection when using full collection mode
       if (
-        collectionStrategy === 'full' &&
+        constrainsToCollection(collectionStrategy) &&
         mustIncludeSources.get(name) === 'combo' &&
         notInCollection(name, context.collectionNames)
       ) {
@@ -1007,6 +1008,8 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       maxRarity,
       currency,
       context.collectionNames,
+      context.collectionAvailableCounts,
+      collectionStrategy,
       ignoreOwnedRarity
     );
 
@@ -1776,6 +1779,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         maxCmc,
         budgetTracker,
         context.collectionNames,
+        context.collectionAvailableCounts,
         currency,
         arenaOnly,
         scryfallQuery,
@@ -2086,6 +2090,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         maxCmc,
         budgetTracker,
         context.collectionNames,
+        context.collectionAvailableCounts,
         currency,
         arenaOnly,
         scryfallQuery,
@@ -2302,7 +2307,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
         if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
         if (
-          collectionStrategy === 'full' &&
+          constrainsToCollection(collectionStrategy) &&
           notInCollection(edhrecCard.name, context.collectionNames)
         )
           continue;
@@ -2351,7 +2356,7 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
 
           if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
           if (
-            collectionStrategy === 'full' &&
+            constrainsToCollection(collectionStrategy) &&
             notInCollection(edhrecCard.name, context.collectionNames)
           )
             continue;
@@ -2707,7 +2712,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         if (trulyMissing.length !== 1) continue;
         const name = trulyMissing[0];
         if (bannedCards.has(name) || !scryfallCardMap.has(name)) continue;
-        if (collectionStrategy === 'full' && notInCollection(name, context.collectionNames))
+        if (
+          constrainsToCollection(collectionStrategy) &&
+          notInCollection(name, context.collectionNames)
+        )
           continue;
         enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
         const ids = enablerCombos.get(name) ?? [];
@@ -2769,7 +2777,11 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
       const missingResolved = trulyMissing
         .filter((n) => !bannedCards.has(n))
         .filter(
-          (n) => !(collectionStrategy === 'full' && notInCollection(n, context.collectionNames))
+          (n) =>
+            !(
+              constrainsToCollection(collectionStrategy) &&
+              notInCollection(n, context.collectionNames)
+            )
         )
         .map((n) => scryfallCardMap.get(n))
         .filter((c): c is ScryfallCard => !!c);
@@ -2830,7 +2842,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
                 !usedNames.has(c.name) &&
                 !bannedCards.has(c.name) &&
                 scryfallCardMap.has(c.name) &&
-                !(collectionStrategy === 'full' && notInCollection(c.name, context.collectionNames))
+                !(
+                  constrainsToCollection(collectionStrategy) &&
+                  notInCollection(c.name, context.collectionNames)
+                )
             )
             .sort((a, b) => b.inclusion - a.inclusion)[0];
           if (!replacement) continue;

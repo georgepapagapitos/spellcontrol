@@ -3,6 +3,7 @@ import {
   fitsColorIdentity,
   exceedsMaxPrice,
   exceedsMaxRarity,
+  constrainsToCollection,
   notInCollection,
   isOwnedBudgetExempt,
   isOwnedRarityExempt,
@@ -77,6 +78,12 @@ describe('exceedsMaxRarity', () => {
 });
 
 describe('collection predicates', () => {
+  it('treats full and available as hard collection constraints', () => {
+    expect(constrainsToCollection('full')).toBe(true);
+    expect(constrainsToCollection('available')).toBe(true);
+    expect(constrainsToCollection('partial')).toBe(false);
+  });
+
   it('notInCollection is false when no collection is provided', () => {
     expect(notInCollection('Sol Ring', undefined)).toBe(false);
   });

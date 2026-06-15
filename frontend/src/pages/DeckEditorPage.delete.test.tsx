@@ -375,6 +375,22 @@ describe('DeckEditorPage — Delete in ⋮ overflow (UX-316)', () => {
     expect(deleteItem).toBeTruthy();
     expect(deleteItem.className).toContain('deck-editor-overflow-item--danger');
   });
+
+  it('keeps Playtest out of the desktop ⋮ menu because the action row already shows it', () => {
+    renderEditor();
+    const [desktopTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(desktopTrigger);
+
+    expect(screen.queryByRole('menuitem', { name: 'Playtest' })).toBeNull();
+  });
+
+  it('keeps Playtest in the mobile ⋮ menu where there is no inline Playtest button', () => {
+    renderEditor();
+    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(mobileTrigger);
+
+    expect(screen.getByRole('menuitem', { name: 'Playtest' })).toBeTruthy();
+  });
 });
 
 describe('DeckEditorPage — one-shot BuildReportSheet (UX-316)', () => {

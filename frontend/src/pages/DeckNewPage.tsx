@@ -16,6 +16,7 @@ import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
+import { buildAvailableCollection } from '../lib/collection-availability';
 import { saveGeneratedDeck } from '../lib/save-generated-deck';
 import type { ScryfallCard, DeckFormat, EDHRECTheme, ThemeResult } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -201,14 +202,12 @@ export function DeckNewPage() {
       }
 
       let collectionNames: Set<string> | undefined;
+      let collectionAvailableCounts: Map<string, number> | undefined;
       if (customization.collectionMode) {
         if (customization.collectionStrategy === 'available') {
-          // Only include card names that have at least one copy not claimed by another deck.
-          const claimed = new Map(buildAllocationMap(decks));
-          collectionNames = new Set<string>();
-          for (const card of collectionCards) {
-            if (!claimed.has(card.copyId)) collectionNames.add(card.name);
-          }
+          const available = buildAvailableCollection(collectionCards, decks);
+          collectionNames = available.names;
+          collectionAvailableCounts = available.counts;
         } else {
           collectionNames = new Set(collectionCards.map((c) => c.name));
         }
@@ -240,6 +239,7 @@ export function DeckNewPage() {
         customization,
         selectedThemes: themesForGenerator,
         collectionNames,
+        collectionAvailableCounts,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });
 

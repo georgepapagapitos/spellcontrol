@@ -1,6 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import { countColorPips } from './landGenerator';
+import { describe, expect, it, vi } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+function card(name: string): ScryfallCard {
+  return {
+    id: `id-${name}`,
+    oracle_id: `oracle-${name}`,
+    name,
+    cmc: 0,
+    type_line: 'Basic Land',
+    oracle_text: '',
+    color_identity: [],
+    keywords: [],
+    rarity: 'common',
+    set: 'tst',
+    set_name: 'Test',
+    prices: {},
+    legalities: { commander: 'legal' },
+  };
+}
 
 function sc(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -20,6 +37,25 @@ function sc(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
     ...overrides,
   };
 }
+
+vi.mock('@/deck-builder/services/scryfall/client', () => ({
+  CHANNEL_LANDS: {},
+  getCardsByNames: vi.fn(async () => new Map()),
+  upgradeCardPrintings: vi.fn(async () => {}),
+  isChannelLand: vi.fn(() => false),
+  isMdfcLand: vi.fn(() => false),
+  getCardByName: vi.fn(async (name: string) => card(name)),
+  getCachedCard: vi.fn((name: string) => card(name)),
+  getCardPrice: vi.fn(() => null),
+  getFrontFaceTypeLine: vi.fn((c: ScryfallCard) => c.type_line),
+  searchCards: vi.fn(async () => ({ data: [] })),
+}));
+
+vi.mock('@/deck-builder/services/tagger/client', () => ({
+  isTapland: vi.fn(() => false),
+}));
+
+import { countColorPips, generateLands } from './landGenerator';
 
 describe('countColorPips', () => {
   it('counts colored mana symbols, ignoring generic', () => {
@@ -50,5 +86,34 @@ describe('countColorPips', () => {
   it('sums pips across the whole card list', () => {
     const pips = countColorPips([sc({ mana_cost: '{G}' }), sc({ mana_cost: '{G}{W}' })]);
     expect(pips).toEqual({ G: 2, W: 1 });
+  });
+});
+
+describe('generateLands', () => {
+  it('caps basic lands to available free copies in available-only mode', async () => {
+    const lands = await generateLands(
+      [],
+      ['W'],
+      5,
+      new Set(),
+      5,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      new Set(['Plains']),
+      new Map([['Plains', 1]]),
+      'USD',
+      false,
+      '',
+      undefined,
+      'available'
+    );
+
+    expect(lands.map((c) => c.name)).toEqual(['Plains']);
   });
 });

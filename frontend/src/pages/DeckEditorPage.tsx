@@ -1901,7 +1901,6 @@ export function DeckEditorPage() {
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
-            onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
             onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
@@ -2516,7 +2515,7 @@ function DeckEditorOverflowMenu({
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
-  onPlaytest: () => void;
+  onPlaytest?: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
   /** Present only when there's an edit to undo; carries the action label. */
@@ -2589,17 +2588,19 @@ function DeckEditorOverflowMenu({
             {(onUndo || onRedo) && (
               <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
             )}
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onPlaytest();
-              }}
-            >
-              Playtest
-            </button>
+            {onPlaytest && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onPlaytest();
+                }}
+              >
+                Playtest
+              </button>
+            )}
             {onTokens && (
               <button
                 type="button"
