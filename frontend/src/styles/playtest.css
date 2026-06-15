@@ -719,7 +719,7 @@ body:has(.playtest-page) .modal-backdrop {
   width: 70%;
   aspect-ratio: 5 / 7;
   background: linear-gradient(135deg, #3a4a6a 0%, #1a2a4a 100%);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .playtest-zone-tile__empty {

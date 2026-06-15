@@ -183,7 +183,7 @@
   flex: 0 0 auto;
   width: 2.6rem;
   height: 3.6rem;
-  border-radius: calc(var(--radius) * 0.6);
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface);
   display: block;

@@ -270,7 +270,7 @@
   background: transparent;
   border: 0;
   padding: 0.5rem 0.6rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
   /* Long undo/redo labels (a card name) wrap inside the row rather than
      widening the menu or clipping. */

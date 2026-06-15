@@ -120,7 +120,7 @@
   appearance: none;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 9px 11px;
   font-size: var(--text-base);
   color: var(--text-primary);
@@ -242,7 +242,7 @@
   border: 1px solid var(--err-border);
   color: var(--err-text);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: var(--text-sm);
 }
 
@@ -251,7 +251,7 @@
   background: var(--accent);
   color: white;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 10px 14px;
   font-size: var(--text-base);
   font-weight: 500;
@@ -297,7 +297,7 @@
   appearance: none;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 10px 14px;
   font-size: var(--text-base);
   font-weight: 500;

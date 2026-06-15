@@ -352,7 +352,7 @@
   display: inline-block;
   min-width: 1.6em;
   padding: 0.15rem 0.45rem;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-primary);

@@ -277,7 +277,7 @@
   row-gap: 0.15rem;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 0.65rem 0.85rem;
   color: var(--text-primary);
   text-align: left;
@@ -379,7 +379,7 @@
   gap: 0.5rem;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 0.45rem 0.55rem 0.45rem 0.7rem;
   min-width: 0;
 }

@@ -52,7 +52,7 @@
 .tab-mode-badge {
   font-size: var(--text-xs);
   padding: 0.05rem 0.3rem;
-  border-radius: 3px;
+  border-radius: var(--radius);
   background: var(--surface-3);
   color: var(--text-muted);
   text-transform: uppercase;

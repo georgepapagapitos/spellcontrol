@@ -128,7 +128,7 @@
   display: block;
   width: 100%;
   aspect-ratio: 488 / 680;
-  border-radius: 0.55rem;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
