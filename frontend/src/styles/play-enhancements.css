@@ -192,7 +192,7 @@
 .win-celebration-dismiss {
   margin-top: 0.9rem;
   padding: 0.55rem 1.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
@@ -428,7 +428,7 @@
   background: var(--accent-light);
   border: 1px solid var(--accent);
   color: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 0.2rem 0.7rem;
   font-size: var(--text-xs, 0.72rem);
   font-weight: 700;

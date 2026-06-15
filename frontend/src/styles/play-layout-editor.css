@@ -230,7 +230,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 0.35rem 0.8rem;
   font-size: var(--text-sm);
   font-weight: 600;
