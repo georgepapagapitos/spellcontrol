@@ -68,6 +68,7 @@ import {
   pickCollectionCopy,
   findStealableCopy,
   planCardAdd,
+  planUseMyCopies,
   useCollectionByCopyId,
   type StealableCopy,
   type DonorOutcome,
@@ -1025,6 +1026,50 @@ export function DeckEditorPage() {
       );
       pushToast({ message: `Using your copy of ${card.name}`, tone: 'success' });
     }
+  };
+
+  // Bulk resolver behind the deck's "Use my copies (N)" banner: pull every
+  // owned-but-elsewhere mainboard card into this deck at once. planUseMyCopies
+  // picks each donor copy (skipping commanders); we apply the binds + leave each
+  // donor a gap, snapshot every touched deck, and offer one Undo restoring them
+  // all — cross-deck moves can't live in per-deck history (same shape as the
+  // multi-deck path of handleSetQty).
+  const handleUseMyCopies = (): void => {
+    if (!deck) return;
+    const before = useDecksStore.getState().decks;
+    const plan = planUseMyCopies(deck, collectionCards, before);
+    if (plan.binds.length === 0) {
+      if (plan.skippedCommander > 0)
+        pushToast({
+          message: `${plan.skippedCommander} ${plan.skippedCommander === 1 ? 'card is a commander' : 'cards are commanders'} in another deck — use "Use my copy" on the row to move it.`,
+          tone: 'info',
+        });
+      return;
+    }
+    const touched = new Set<string>([deck.id]);
+    for (const b of plan.binds) {
+      touched.add(b.donorDeckId);
+      setCardAllocation(deck.id, b.slotId, b.copyId);
+      applyDonorOutcome(b.donorDeckId, b.donorZone, b.donorSlotId, b.donorCard, 'leave-gap', null);
+    }
+    const snaps = [...touched].map((id) => before.find((d) => d.id === id) ?? null);
+    const n = plan.binds.length;
+    const skipNote =
+      plan.skippedCommander > 0
+        ? ` ${plan.skippedCommander} commander ${plan.skippedCommander === 1 ? 'copy' : 'copies'} left — move from its row.`
+        : '';
+    pushToast({
+      message: `Using ${n} of your ${n === 1 ? 'copy' : 'copies'} — pulled from your other decks.${skipNote}`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => {
+        [...touched].forEach((id, idx) => {
+          const snap = snaps[idx];
+          if (snap) replaceDeck(id, snap);
+        });
+      },
+    });
+    haptics.tap();
   };
 
   // The single brain for adding an already-resolved card to this deck — used by
@@ -1989,6 +2034,7 @@ export function DeckEditorPage() {
             onMoveToAnotherDeck={decks.length > 1 ? setMoveCard : undefined}
             onReleaseCopy={setReleaseCard}
             onUseOwnCopy={handleUseOwnCopy}
+            onUseMyCopies={handleUseMyCopies}
             collectionByCopyId={collectionById}
             binderByCopyId={binderByCopyId}
             onAddFromSearch={(q) => {

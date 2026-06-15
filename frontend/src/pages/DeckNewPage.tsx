@@ -254,7 +254,9 @@ export function DeckNewPage() {
         collectionCards,
         createDeck
       );
-      navigate(`/decks/${id}`);
+      // justGenerated → the editor auto-shows the build report once (incl. the
+      // "committed to other decks" conflict note), matching the guided build.
+      navigate(`/decks/${id}`, { state: { justGenerated: true } });
     } catch (e) {
       logger.error('[DeckBuilder] generation failed:', e);
       setError(e instanceof Error ? e.message : 'Could not build the deck.');

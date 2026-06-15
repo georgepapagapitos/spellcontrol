@@ -318,6 +318,12 @@ export interface DeckDisplayProps {
    * steal-confirm flow).
    */
   onUseOwnCopy?: (card: ScryfallCard) => void;
+  /**
+   * Bulk resolver for the "Use my copies (N)" banner: claim every owned-but-
+   * elsewhere mainboard card at once (pulling each from its other deck). When
+   * omitted, the banner is not shown.
+   */
+  onUseMyCopies?: () => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /** Binder(s) each collection copy is filed in, keyed by copyId — drives
@@ -863,6 +869,7 @@ export function DeckDisplay({
   onMoveToAnotherDeck,
   onReleaseCopy,
   onUseOwnCopy,
+  onUseMyCopies,
   collectionByCopyId,
   binderByCopyId,
   exportOpen: exportOpenProp,
@@ -1218,6 +1225,22 @@ export function DeckDisplay({
     }
     return { count, price };
   }, [cards, collectionByCopyId, currency]);
+  // Owned-but-elsewhere count — mainboard cards you own where every copy is in
+  // another deck. Drives the "Use my copies (N)" resolver banner. Uses the same
+  // cross-deck context as the per-row chips so the number matches the rows.
+  const claimedElsewhereCount = useMemo(() => {
+    if (!crossDeck.copiesByName || !crossDeck.otherDeckAllocations) return 0;
+    let n = 0;
+    for (const dc of cards) {
+      const status = classifyAllocation(dc.allocatedCopyId ?? null, collectionByCopyId, {
+        cardName: dc.card.name,
+        copiesByName: crossDeck.copiesByName,
+        allocations: crossDeck.otherDeckAllocations,
+      });
+      if (status === 'claimed-elsewhere') n += 1;
+    }
+    return n;
+  }, [cards, collectionByCopyId, crossDeck]);
   // Tally of the unallocated (missing) cards — the tappable "missing" stat opens
   // a carousel of these so the count doubles as a shopping list.
   const missingTally = useMemo(() => {
@@ -1494,6 +1517,23 @@ export function DeckDisplay({
                     {formatConfig.label}
                   </span>
                 )}
+              </div>
+            )}
+
+            {onUseMyCopies && claimedElsewhereCount > 0 && (
+              <div className="deck-claimed-banner">
+                <Layers width={16} height={16} strokeWidth={2} aria-hidden />
+                <span className="deck-claimed-banner-text">
+                  {claimedElsewhereCount} {claimedElsewhereCount === 1 ? 'card' : 'cards'} here{' '}
+                  {claimedElsewhereCount === 1 ? 'is' : 'are'} in your other decks
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm deck-claimed-banner-btn"
+                  onClick={onUseMyCopies}
+                >
+                  Use my {claimedElsewhereCount === 1 ? 'copy' : 'copies'}
+                </button>
               </div>
             )}
 
