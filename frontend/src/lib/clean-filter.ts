@@ -45,6 +45,7 @@ export function cleanFilter(f: BinderFilter): BinderFilter {
   if (cleanField(f.supertypeChips)) out.supertypeChips = cleanField(f.supertypeChips);
   if (cleanField(f.subtypeChips)) out.subtypeChips = cleanField(f.subtypeChips);
   if (cleanField(f.oracleChips)) out.oracleChips = cleanField(f.oracleChips);
+  if (cleanField(f.oracleTagChips)) out.oracleTagChips = cleanField(f.oracleTagChips);
   if (cleanField(f.finishes)) out.finishes = cleanField(f.finishes);
   if (cleanField(f.layouts)) out.layouts = cleanField(f.layouts);
   if (cleanField(f.treatments)) out.treatments = cleanField(f.treatments);
