@@ -76,8 +76,9 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
 
       {claimedConflicts != null && claimedConflicts > 0 && (
         <p className="build-report-conflict-note">
-          {claimedConflicts} card{claimedConflicts === 1 ? ' is' : 's are'} committed to other decks
-          — open them in the deck view and use Similar Cards to swap in free alternatives.
+          {claimedConflicts} card{claimedConflicts === 1 ? ' you own is' : 's you own are'}{' '}
+          committed to other decks — use “Use my copies” on the deck to pull them in, or swap in
+          free alternatives.
         </p>
       )}
 

@@ -50,6 +50,37 @@
   font-weight: 500;
 }
 
+/* ── "Use my copies" resolver banner ──────────────────────────────── */
+/* Owned-but-elsewhere cards: a one-tap pull-them-in CTA. Informational accent
+   tone (not warn) — these cards are owned, just checked out to other decks. */
+.deck-claimed-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--accent-light);
+  border: 0.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.deck-claimed-banner > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.deck-claimed-banner-text {
+  min-width: 0;
+}
+
+.deck-claimed-banner-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 /* ── Deck identity theme chips ────────────────────────────────────── */
 /* The themes the deck leans into, shown as chips under the Overview stats.
    Archetype + pacing live as label/value rows in the same panel; this is the
