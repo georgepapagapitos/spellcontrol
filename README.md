@@ -48,6 +48,7 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 - **Mana cost** — exact match on the normalized cost string.
 - **Type line** — IS / IS NOT substring chips against the Scryfall type line.
 - **Oracle text** — IS / IS NOT substring chips against rules text.
+- **Oracle tags** — IS / IS NOT against Scryfall's curated card tags (otags) — pick a concept like _Mana rock_ or _Removal_ from a closed list. More precise than oracle text for semantic concepts (e.g. _Mana rock_ won't mismatch "addition" the way text "add" does). Resolved offline from the bundled tagger snapshot.
 - **Commander** — Any / Is / Is not. _Is_ matches commander-eligible cards: legendary creatures, plus cards whose text says "can be your commander" (planeswalker-commanders), that are legal in the Commander format. _Is not_ matches everything else.
 - **Sets** — multi-select from sets in your collection.
 - **Price** — min / max in USD.

@@ -9,6 +9,7 @@ import { useConfirm } from '../lib/use-confirm';
 import { findPriorImports } from '../lib/reimport';
 import type { ImportHistoryEntry } from '../lib/local-cards';
 import { summarizeImportRouting } from '../lib/import-routing';
+import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { Modal } from './Modal';
 import { useCanScan } from '../lib/use-can-scan';
 
@@ -74,8 +75,11 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const canScan = useCanScan();
 
-  const cards = useCollectionStore((s) => s.cards);
+  const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  // Decorate with oracle tags so "where did my import go?" respects tag rules
+  // (no-op unless a binder uses one).
+  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const isLoading = useCollectionStore((s) => s.isLoading);
   const error = useCollectionStore((s) => s.error);
   const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);

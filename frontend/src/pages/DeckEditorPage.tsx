@@ -1,6 +1,7 @@
 import { Coins, Copy, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../lib/haptics';
+import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import {
   useLocation,
   useNavigate,
@@ -137,8 +138,11 @@ export function DeckEditorPage() {
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const decks = useDecksStore((s) => s.decks);
-  const collectionCards = useCollectionStore((s) => s.cards);
+  const rawCollectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
+  // Decorate with oracle tags so the per-card binder badge respects tag rules
+  // (no-op unless a binder uses one).
+  const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);

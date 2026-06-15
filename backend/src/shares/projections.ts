@@ -23,6 +23,7 @@ import {
   type BinderDef,
   type EnrichedCard,
 } from '@spellcontrol/binder-routing';
+import { anyBinderUsesTagRules, decorateCardsWithTags } from './card-tags';
 
 export interface PublicCard {
   name: string;
@@ -338,13 +339,16 @@ export function projectBinder(
   const col = asRecord(collection);
   const rawCards = col && Array.isArray(col.cards) ? col.cards : [];
 
+  // Decorate with Scryfall oracle tags so a binder whose rule reads an otag
+  // (e.g. "mana-rock") projects the same membership the owner sees. Only pays
+  // the cost (and loads the snapshot) when a binder actually uses a tag rule.
+  const cards = anyBinderUsesTagRules(binders)
+    ? decorateCardsWithTags(rawCards as EnrichedCard[])
+    : (rawCards as EnrichedCard[]);
+
   let materialized;
   try {
-    const result = materializeBinders(
-      rawCards as EnrichedCard[],
-      binders as unknown as BinderDef[],
-      { search: '' }
-    );
+    const result = materializeBinders(cards, binders as unknown as BinderDef[], { search: '' });
     materialized = result.binders.find((b) => b.def.id === binderId);
   } catch {
     // Malformed binder/card JSONB — treat as not found rather than 500.

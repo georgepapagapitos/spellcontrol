@@ -8,6 +8,7 @@ import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
+import { useCardsWithTags, groupsUseTags, cardTagLabel } from '../lib/card-tags';
 import { cleanFilter } from '../lib/clean-filter';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
@@ -119,6 +120,7 @@ function isFilterEmpty(f: BinderFilter): boolean {
     f.supertypeChips,
     f.subtypeChips,
     f.oracleChips,
+    f.oracleTagChips,
     f.finishes,
     f.layouts,
     f.treatments,
@@ -153,6 +155,7 @@ function hasCollapsedFieldValue(f: BinderFilter): boolean {
   if (f.borderColors && f.borderColors.chips.length > 0) return true;
   if (f.legalities && f.legalities.chips.length > 0) return true;
   if (f.oracleChips && f.oracleChips.chips.length > 0) return true;
+  if (f.oracleTagChips && f.oracleTagChips.chips.length > 0) return true;
   if (f.typeTokenChips && f.typeTokenChips.chips.length > 0) return true;
   if (f.supertypeChips && f.supertypeChips.chips.length > 0) return true;
   if (f.subtypeChips && f.subtypeChips.chips.length > 0) return true;
@@ -391,10 +394,13 @@ export function BinderEditor() {
   // Over-capacity check uses the same estimate the editor shows: when
   // "keep all printings together" is on, count the printings it pulls in too,
   // so the warning doesn't silently under-count.
+  // Decorate with oracle tags so the live count reflects a draft tag rule
+  // (gated on the *draft* groups, since the binder isn't committed yet).
+  const taggedCards = useCardsWithTags(cards, groupsUseTags(groups));
   const binderMatchCount = useMemo(() => {
     if (fixedCapacity === null) return 0;
-    return countBinderMatches(cards, groups, keepPrintingsTogether).total;
-  }, [cards, groups, fixedCapacity, keepPrintingsTogether]);
+    return countBinderMatches(taggedCards, groups, keepPrintingsTogether).total;
+  }, [taggedCards, groups, fixedCapacity, keepPrintingsTogether]);
 
   if (!isOpen) return null;
 
@@ -1676,6 +1682,7 @@ function FilterGroupFields({
             subtypeSuggestions={typeSuggestions}
             oracleSuggestions={oracleSuggestions}
             showTypeRows
+            showOracleTags
             showFinish
             variant="binder"
           />
@@ -1714,6 +1721,19 @@ function autoSummary(f: BinderFilter): string {
   push(chipNames(f.borderColors));
   push(chipNames(f.legalities));
   push(chipNames(f.oracleChips));
+  // Tags summarize with their friendly label (e.g. "mana-rock" → "Mana rock").
+  {
+    const tagIs = f.oracleTagChips?.chips
+      .filter((c) => !c.negate)
+      .map((c) => cardTagLabel(c.value));
+    if (tagIs && tagIs.length > 0) {
+      push(
+        tagIs.length <= 2
+          ? tagIs.join(', ')
+          : `${tagIs.slice(0, 2).join(', ')} +${tagIs.length - 2}`
+      );
+    }
+  }
 
   if (f.commanderEligible === true) parts.push('Commander');
   else if (f.commanderEligible === false) parts.push('Not commander');
@@ -1755,6 +1775,7 @@ function cloneChips(f: BinderFilter): Partial<BinderFilter> {
     supertypeChips: dup(f.supertypeChips),
     subtypeChips: dup(f.subtypeChips),
     oracleChips: dup(f.oracleChips),
+    oracleTagChips: dup(f.oracleTagChips),
     finishes: dup(f.finishes),
     layouts: dup(f.layouts),
     treatments: dup(f.treatments),

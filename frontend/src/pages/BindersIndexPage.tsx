@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useAllocations } from '../lib/allocations';
 import { materializeBinders } from '../lib/materialize';
+import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
@@ -70,8 +71,10 @@ function readStoredView(): BindersViewMode {
 }
 
 export function BindersIndexPage() {
-  const cards = useCollectionStore((s) => s.cards);
+  const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
+  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
