@@ -72,9 +72,9 @@ function DiffGroup({ tone, deltas }: { tone: Tone; deltas: CardDelta[] }) {
   const listId = `dcp-${tone}-list`;
   return (
     <div className="deck-compare-diff-group">
-      <h4 className="deck-compare-diff-group-title">
+      <h3 className="deck-compare-diff-group-title">
         {t.word} ({deltas.length})
-      </h4>
+      </h3>
       <ul className="deck-compare-diff-list" id={listId} role="list">
         {visible.map((d) => (
           <DiffCardRow key={d.card.oracle_id || d.card.name} delta={d} tone={tone} />
@@ -115,18 +115,19 @@ function DiffStatChip({
   const toneCls = delta > 0 ? 'is-added' : delta < 0 ? 'is-removed' : '';
   const signed = `${delta > 0 ? '+' : delta < 0 ? '−' : '±'}${fmt(Math.abs(delta))}`;
   return (
-    <div className="deck-compare-stat-chip">
-      <span className="deck-compare-stat-chip-label">{label}</span>
-      <span className="deck-compare-stat-chip-value">
-        <span aria-hidden="true">
+    <div
+      className="deck-compare-stat-chip"
+      role="group"
+      aria-label={`${label}: ${fmt(a)} to ${fmt(b)}, ${dir}`}
+    >
+      <span className="deck-compare-stat-chip-label" aria-hidden="true">
+        {label}
+      </span>
+      <span className="deck-compare-stat-chip-value" aria-hidden="true">
+        <span>
           {fmt(a)} → {fmt(b)}
         </span>{' '}
-        <span
-          className={`deck-compare-delta-tag ${toneCls}`}
-          aria-label={`${label} ${dir} to ${fmt(b)}`}
-        >
-          {signed}
-        </span>
+        <span className={`deck-compare-delta-tag ${toneCls}`}>{signed}</span>
       </span>
     </div>
   );
@@ -156,6 +157,8 @@ function DeltaRow({ label, a, b }: { label: string; a: number; b: number }) {
   );
 }
 
+const NONE_OPTION: SelectOption<string> = { value: '', label: 'Select a deck' };
+
 const TYPE_LABEL: Record<string, string> = {
   creatures: 'Creatures',
   instants: 'Instants',
@@ -179,12 +182,21 @@ export function DeckComparePage() {
   const deckA = decks.find((d) => d.id === aId) ?? null;
   const deckB = decks.find((d) => d.id === bId) ?? null;
 
-  const options: SelectOption<string>[] = useMemo(
+  // Each picker excludes the deck already chosen on the other side, so you
+  // can't compare a deck against itself. The leading sentinel clears a side.
+  const optionsA = useMemo(
     () => [
-      { value: '', label: 'Select a deck' },
-      ...decks.map((d) => ({ value: d.id, label: d.name })),
+      NONE_OPTION,
+      ...decks.filter((d) => d.id !== bId).map((d) => ({ value: d.id, label: d.name })),
     ],
-    [decks]
+    [decks, bId]
+  );
+  const optionsB = useMemo(
+    () => [
+      NONE_OPTION,
+      ...decks.filter((d) => d.id !== aId).map((d) => ({ value: d.id, label: d.name })),
+    ],
+    [decks, aId]
   );
 
   const setSide = (side: 'a' | 'b') => (id: string) =>
@@ -215,7 +227,7 @@ export function DeckComparePage() {
   const heading = deckA && deckB ? `${deckA.name} vs ${deckB.name}` : 'Compare decks';
 
   return (
-    <div className="deck-compare-page">
+    <div className="deck-compare-page" aria-busy={!hydrated}>
       <h1 className="deck-compare-heading">{heading}</h1>
 
       {!hydrated ? (
@@ -228,7 +240,7 @@ export function DeckComparePage() {
           <div className="deck-compare-picker-row">
             <SelectMenu
               value={aId}
-              options={options}
+              options={optionsA}
               onChange={setSide('a')}
               ariaLabel="Deck A"
               placeholder="Deck A"
@@ -238,7 +250,7 @@ export function DeckComparePage() {
             </span>
             <SelectMenu
               value={bId}
-              options={options}
+              options={optionsB}
               onChange={setSide('b')}
               ariaLabel="Deck B"
               placeholder="Deck B"
@@ -265,9 +277,17 @@ export function DeckComparePage() {
                 <h2 id="dcp-cards-heading" className="deck-compare-section-title">
                   What changed
                 </h2>
-                <DiffGroup tone="added" deltas={diff.cards.added} />
-                <DiffGroup tone="removed" deltas={diff.cards.removed} />
-                <DiffGroup tone="changed" deltas={diff.cards.changed} />
+                <DiffGroup key={`${aId}-${bId}-added`} tone="added" deltas={diff.cards.added} />
+                <DiffGroup
+                  key={`${aId}-${bId}-removed`}
+                  tone="removed"
+                  deltas={diff.cards.removed}
+                />
+                <DiffGroup
+                  key={`${aId}-${bId}-changed`}
+                  tone="changed"
+                  deltas={diff.cards.changed}
+                />
                 {diff.cards.added.length === 0 &&
                   diff.cards.removed.length === 0 &&
                   diff.cards.changed.length === 0 && (
@@ -282,10 +302,12 @@ export function DeckComparePage() {
                 </h2>
                 <div className="deck-compare-stat-chips">
                   <DiffStatChip label="Size" a={diff.stats.size.a} b={diff.stats.size.b} />
+                  {/* Sourced from buildManaData (not the diff engine) so this
+                      matches the avg-CMC the curve panels below display. */}
                   <DiffStatChip
                     label="Avg CMC"
-                    a={diff.stats.curve.averageCmc.a}
-                    b={diff.stats.curve.averageCmc.b}
+                    a={manaA.averageCmc}
+                    b={manaB.averageCmc}
                     decimals={1}
                   />
                   <DiffStatChip
@@ -304,11 +326,11 @@ export function DeckComparePage() {
                 </h2>
                 <div className="deck-compare-2up">
                   <div className="deck-compare-col">
-                    <p className="deck-compare-deck-label">{deckA.name}</p>
+                    <h3 className="deck-compare-deck-label">{deckA.name}</h3>
                     <DeckCurvePhases manaCurve={manaA.manaCurve} averageCmc={manaA.averageCmc} />
                   </div>
                   <div className="deck-compare-col">
-                    <p className="deck-compare-deck-label">{deckB.name}</p>
+                    <h3 className="deck-compare-deck-label">{deckB.name}</h3>
                     <DeckCurvePhases manaCurve={manaB.manaCurve} averageCmc={manaB.averageCmc} />
                   </div>
                 </div>
@@ -353,7 +375,7 @@ export function DeckComparePage() {
                 </h2>
                 <div className="deck-compare-2up">
                   <div className="deck-compare-col">
-                    <p className="deck-compare-deck-label">{deckA.name}</p>
+                    <h3 className="deck-compare-deck-label">{deckA.name}</h3>
                     <DeckColorPanel
                       colorDist={manaA.colorDist}
                       manaProduction={manaA.manaProduction}
@@ -361,7 +383,7 @@ export function DeckComparePage() {
                     />
                   </div>
                   <div className="deck-compare-col">
-                    <p className="deck-compare-deck-label">{deckB.name}</p>
+                    <h3 className="deck-compare-deck-label">{deckB.name}</h3>
                     <DeckColorPanel
                       colorDist={manaB.colorDist}
                       manaProduction={manaB.manaProduction}
@@ -378,7 +400,7 @@ export function DeckComparePage() {
                 </h2>
                 <div className="deck-compare-2up">
                   <div className="deck-compare-col">
-                    <p className="deck-compare-deck-label">{deckA.name}</p>
+                    <h3 className="deck-compare-deck-label">{deckA.name}</h3>
                     <p className="deck-compare-bracket-num">
                       {diff.bracket.a.bracket != null ? `B${diff.bracket.a.bracket}` : '—'}
                       {diff.bracket.a.gradeLetter && (
@@ -391,7 +413,7 @@ export function DeckComparePage() {
                     />
                   </div>
                   <div className="deck-compare-col">
-                    <p className="deck-compare-deck-label">{deckB.name}</p>
+                    <h3 className="deck-compare-deck-label">{deckB.name}</h3>
                     <p className="deck-compare-bracket-num">
                       {diff.bracket.b.bracket != null ? `B${diff.bracket.b.bracket}` : '—'}
                       {diff.bracket.b.gradeLetter && (

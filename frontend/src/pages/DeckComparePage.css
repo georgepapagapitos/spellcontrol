@@ -102,11 +102,16 @@
 }
 .deck-compare-col {
   min-width: 0;
+  /* DeckCurvePhases sizes its chart with `24cqi`, so the column must be an
+     inline-size container (as .deck-bento is in the deck editor). */
+  container-type: inline-size;
 }
+/* Rendered as an <h3> for heading hierarchy, but styled as a small column label. */
 .deck-compare-deck-label {
   font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: var(--space-2);
+  margin: 0 0 var(--space-2);
 }
 @media (max-width: 640px) {
   .deck-compare-2up {

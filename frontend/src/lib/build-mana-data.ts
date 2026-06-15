@@ -30,7 +30,9 @@ const CLASSIFY_PRIORITY = [
 ] as const;
 export type TypeGroup = (typeof CLASSIFY_PRIORITY)[number];
 
-function classifyType(card: ScryfallCard): TypeGroup {
+/** Leading card type ("Creature", "Land", …); default Artifact. Shared with
+ *  DeckDisplay so the editor and compare view classify identically. */
+export function classifyType(card: ScryfallCard): TypeGroup {
   const tl = (card.type_line || '').toLowerCase();
   for (const group of CLASSIFY_PRIORITY) {
     if (tl.includes(group.toLowerCase())) return group;
@@ -41,7 +43,9 @@ function classifyType(card: ScryfallCard): TypeGroup {
 /** Collapse a list of cards to unique name → copy count (keeping one
  *  representative card object so the drill-down carousel renders without
  *  re-fetching), sorted by count desc then name. */
-function tallyNames(cards: ScryfallCard[]): CardTally[] {
+export function tallyNames(
+  cards: ScryfallCard[]
+): Array<{ name: string; count: number; card: ScryfallCard }> {
   const m = new Map<string, { count: number; card: ScryfallCard }>();
   for (const c of cards) {
     const e = m.get(c.name);

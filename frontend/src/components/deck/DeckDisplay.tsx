@@ -22,7 +22,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat, ThemeResult, BuildReport } from '@/deck-builder/types';
-import { buildManaData } from '@/lib/build-mana-data';
+import { buildManaData, classifyType, tallyNames, type TypeGroup } from '@/lib/build-mana-data';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -94,18 +94,8 @@ import { SortDirArrow } from '../SortDirArrow';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
-const CLASSIFY_PRIORITY = [
-  'Land',
-  'Creature',
-  'Planeswalker',
-  'Battle',
-  'Sorcery',
-  'Instant',
-  'Artifact',
-  'Enchantment',
-] as const;
-type TypeGroup = (typeof CLASSIFY_PRIORITY)[number];
-
+// classifyType / tallyNames / TypeGroup live in lib/build-mana-data (shared
+// with the deck-compare page); DISPLAY_ORDER is DeckDisplay's own row ordering.
 const DISPLAY_ORDER: TypeGroup[] = [
   'Planeswalker',
   'Creature',
@@ -116,31 +106,6 @@ const DISPLAY_ORDER: TypeGroup[] = [
   'Battle',
   'Land',
 ];
-
-function classifyType(card: ScryfallCard): TypeGroup {
-  const tl = (card.type_line || '').toLowerCase();
-  for (const group of CLASSIFY_PRIORITY) {
-    if (tl.includes(group.toLowerCase())) return group;
-  }
-  return 'Artifact';
-}
-
-/** Collapse a list of cards to unique name → copy count (keeping one
- *  representative card object so the drill-down carousel renders without
- *  re-fetching), sorted by count desc then name. */
-function tallyNames(
-  cards: ScryfallCard[]
-): Array<{ name: string; count: number; card: ScryfallCard }> {
-  const m = new Map<string, { count: number; card: ScryfallCard }>();
-  for (const c of cards) {
-    const e = m.get(c.name);
-    if (e) e.count += 1;
-    else m.set(c.name, { count: 1, card: c });
-  }
-  return [...m.entries()]
-    .map(([name, { count, card }]) => ({ name, count, card }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 type CurrencyCode = 'USD' | 'EUR';
