@@ -59,7 +59,7 @@
   padding: 0.3rem 0;
   background: none;
   border: none;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius);
   color: inherit;
   font: inherit;
   text-align: left;
