@@ -10,6 +10,7 @@ import { areAllGroupsEmpty } from '../lib/rules';
 import { countBinderMatches } from '../lib/binder-counts';
 import { useCardsWithTags, groupsUseTags, cardTagLabel } from '../lib/card-tags';
 import { cleanFilter } from '../lib/clean-filter';
+import { STARTER_TEMPLATES, type StarterTemplate } from '../lib/binder-templates';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { SelectMenu } from './SelectMenu';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
@@ -51,56 +52,8 @@ const DEFAULT_EDHREC_TOP_N = 100;
 const EMPTY_FILTER: BinderFilter = {};
 const newGroup = (): BinderFilterGroup => ({ filter: {} });
 
-// ── Starter templates ──────────────────────────────────────────────────────
-// Pre-fill patterns for new binders. Each template supplies a BinderFilter
-// patch + a human-readable label. Templates only appear on a NEW binder's
-// FIRST rule group when that group has no rule content yet.
-interface StarterTemplate {
-  id: string;
-  label: string;
-  description: string;
-  filter: Partial<BinderFilter>;
-}
-
-const STARTER_TEMPLATES: StarterTemplate[] = [
-  {
-    id: 'value',
-    label: 'Cards worth $1+',
-    description: 'Price ≥ $1',
-    filter: { priceMin: 1 },
-  },
-  {
-    id: 'rares',
-    label: 'Rares & mythics',
-    description: 'Rarity: rare or mythic',
-    filter: {
-      rarities: {
-        chips: [
-          { value: 'rare', negate: false },
-          { value: 'mythic', negate: false },
-        ],
-        joiners: ['OR'],
-      },
-    },
-  },
-  {
-    id: 'one-color',
-    label: 'One color',
-    description: 'Single-color cards — pick your color after',
-    filter: {
-      colors: {
-        chips: [{ value: 'W', negate: false }],
-        joiners: [],
-      },
-    },
-  },
-  {
-    id: 'set',
-    label: 'A set binder',
-    description: 'All cards from a specific set — choose the set after',
-    filter: { setCodes: [] },
-  },
-];
+// Starter templates (pre-fill patterns for a new binder's first rule group)
+// live in lib/binder-templates.ts — see STARTER_TEMPLATES import above.
 
 /** True when the filter has at least one active rule field. */
 function isFilterEmpty(f: BinderFilter): boolean {
@@ -1324,6 +1277,10 @@ function FilterGroupCard({
     }
   }, [autofocus, onAutofocusHandled]);
 
+  // Bumped when the "A set binder" template is tapped → FilterGroupFields opens
+  // its "More rules" section and scrolls the Sets picker into view.
+  const [revealSetsSignal, setRevealSetsSignal] = useState(0);
+
   const summary = autoSummary(group.filter);
   const fallback = `Rule group ${index + 1}`;
   const displayLabel = group.name?.trim() || summary || fallback;
@@ -1371,10 +1328,13 @@ function FilterGroupCard({
       {shouldShowTemplates && (
         <StarterTemplates
           onApply={(tpl) => {
-            onPatchFilter(tpl.filter);
+            if (tpl.filter) onPatchFilter(tpl.filter);
             // Pre-fill the group name with the template label if the user
             // hasn't typed anything yet.
             if (!group.name?.trim()) onSetName(tpl.label);
+            // Action-only template: reveal the Sets picker rather than applying
+            // an (empty, match-everything) constraint.
+            if (tpl.revealSets) setRevealSetsSignal((n) => n + 1);
           }}
         />
       )}
@@ -1384,6 +1344,7 @@ function FilterGroupCard({
         ownedSets={ownedSets}
         typeSuggestions={typeSuggestions}
         oracleSuggestions={oracleSuggestions}
+        revealSetsSignal={revealSetsSignal}
       />
     </fieldset>
   );
@@ -1406,9 +1367,10 @@ function StarterTemplates({ onApply }: { onApply: (tpl: StarterTemplate) => void
             type="button"
             className="starter-template-btn"
             onClick={() => onApply(tpl)}
-            title={tpl.description}
           >
-            {tpl.label}
+            <span className="starter-template-label">{tpl.label}</span>
+            {/* Description is visible (not a hover title) so it works on touch. */}
+            <span className="starter-template-desc">{tpl.description}</span>
           </button>
         ))}
       </div>
@@ -1436,15 +1398,19 @@ function FilterGroupFields({
   ownedSets,
   typeSuggestions,
   oracleSuggestions,
+  revealSetsSignal = 0,
 }: {
   filter: BinderFilter;
   onPatch: (p: Partial<BinderFilter>) => void;
   ownedSets: { code: string; label: string }[];
   typeSuggestions: string[];
   oracleSuggestions: string[];
+  /** Bumped by the "A set binder" template — open this section + reveal Sets. */
+  revealSetsSignal?: number;
 }) {
   const patch = onPatch;
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
+  const setsRowRef = useRef<HTMLDivElement>(null);
 
   // Auto-open the expander when a collapsed field already has a value.
   const [moreOpen, setMoreOpen] = useState(() => hasCollapsedFieldValue(filter));
@@ -1459,6 +1425,24 @@ function FilterGroupFields({
     setPrevCollapsedHasValue(collapsedHasValue);
     if (collapsedHasValue && !moreOpen) setMoreOpen(true);
   }
+
+  // "A set binder" template: open the section (render-phase rising-edge, same
+  // pattern as collapsedHasValue above) so the lint-discouraged setState-in-
+  // effect isn't needed. The DOM scroll stays in an effect (it needs the
+  // committed layout). Signal 0 = initial mount → no auto-open/scroll, so
+  // editing an existing binder is unaffected.
+  const [prevRevealSignal, setPrevRevealSignal] = useState(revealSetsSignal);
+  if (revealSetsSignal !== prevRevealSignal) {
+    setPrevRevealSignal(revealSetsSignal);
+    if (!moreOpen) setMoreOpen(true);
+  }
+  useEffect(() => {
+    if (revealSetsSignal === 0) return;
+    const raf = requestAnimationFrame(() => {
+      setsRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [revealSetsSignal]);
 
   return (
     <>
@@ -1622,7 +1606,7 @@ function FilterGroupFields({
           </div>
 
           {/* Sets */}
-          <div className="rule-row">
+          <div className="rule-row" ref={setsRowRef}>
             <span className="rule-label">Sets</span>
             <SetMultiSelect
               options={ownedSets}

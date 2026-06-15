@@ -21,14 +21,12 @@ interface SampleBinderTemplate {
 }
 
 /**
- * Three binders, each one a *compound* filter so the demo highlights what
- * the rule editor can actually do — stacking type + legality, type + oracle
- * text, CMC + oracle chips. Routing is first-match-wins (see
- * `materialize.ts`), so order is chosen so each binder catches cards
- * without starving the next.
+ * Three binders, each showing off a different rule pattern. Routing is
+ * first-match-wins (see `materialize.ts`), so order is chosen so each binder
+ * catches cards without starving the next.
  *
  *   1. Commanders         — typeChip 'legendary creature' + commander legal
- *   2. Removal & counters — oracle text chips (multi-value OR)
+ *   2. Removal & counters — Scryfall oracle tags 'removal' OR 'counterspell'
  *   3. Mana rocks         — Scryfall oracle tag 'mana-rock'
  */
 export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
@@ -72,15 +70,15 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
       filterGroups: [
         {
           filter: {
-            // "destroy target OR exile target OR counter target spell" —
-            // any one substring matches.
-            oracleChips: {
+            // Scryfall otags — precise "this card is removal / a counterspell"
+            // semantics, vs the old oracle-text substrings ("destroy target"…)
+            // that missed wording variants and caught false positives.
+            oracleTagChips: {
               chips: [
-                { value: 'destroy target', negate: false },
-                { value: 'exile target', negate: false },
-                { value: 'counter target spell', negate: false },
+                { value: 'removal', negate: false },
+                { value: 'counterspell', negate: false },
               ],
-              joiners: ['OR', 'OR'],
+              joiners: ['OR'],
             },
           },
         },
