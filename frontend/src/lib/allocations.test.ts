@@ -6,6 +6,7 @@ import {
   classifyAllocation,
   findSuboptimalPrintings,
   findStealableCopy,
+  planCardAdd,
   type AllocationInfo,
 } from './allocations';
 import type { EnrichedCard } from '../types';
@@ -567,6 +568,92 @@ describe('findStealableCopy', () => {
     const res = findStealableCopy('Sol Ring', collection, decks, 'd1');
     expect(res?.copyId).toBe('in-donor');
     expect(res?.donorDeckId).toBe('d2');
+  });
+});
+
+describe('planCardAdd', () => {
+  function dc(slotId: string, name: string, allocatedCopyId: string | null): DeckCard {
+    return { slotId, card: { name } as ScryfallCard, allocatedCopyId };
+  }
+
+  it('binds a free owned copy when one is available', () => {
+    const decks = [deck({ id: 'd1' })];
+    const collection = [card({ copyId: 'free', name: 'Sol Ring' })];
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1')).toEqual({
+      kind: 'bind',
+      copyId: 'free',
+    });
+  });
+
+  it('proxies when the card is not owned', () => {
+    expect(planCardAdd('Sol Ring', undefined, [], [deck({ id: 'd1' })], 'd1')).toEqual({
+      kind: 'proxy',
+    });
+  });
+
+  it('auto-moves a copy held in another deck mainboard', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({ id: 'd2', name: 'Donor', cards: [dc('s-x', 'Sol Ring', 'shared')] }),
+    ];
+    const collection = [card({ copyId: 'shared', name: 'Sol Ring' })];
+    const plan = planCardAdd('Sol Ring', undefined, collection, decks, 'd1');
+    expect(plan.kind).toBe('auto-move');
+    expect(plan.kind === 'auto-move' && plan.stealable.donorDeckId).toBe('d2');
+  });
+
+  it('auto-moves a copy held in another deck sideboard', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({ id: 'd2', name: 'Donor', sideboard: [dc('sb-1', 'Sol Ring', 'sb')] }),
+    ];
+    const collection = [card({ copyId: 'sb', name: 'Sol Ring' })];
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1').kind).toBe('auto-move');
+  });
+
+  it('asks to confirm when the only copy is another deck commander (risky)', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({
+        id: 'd2',
+        name: 'Donor',
+        commander: { name: 'Sol Ring' } as never,
+        commanderAllocatedCopyId: 'cmd',
+      }),
+    ];
+    const collection = [card({ copyId: 'cmd', name: 'Sol Ring' })];
+    const plan = planCardAdd('Sol Ring', undefined, collection, decks, 'd1');
+    expect(plan.kind).toBe('confirm');
+    expect(plan.kind === 'confirm' && plan.stealable.donorZone).toBe('commander');
+  });
+
+  it('asks to confirm when the only copy is another deck partner commander', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({
+        id: 'd2',
+        name: 'Donor',
+        partnerCommander: { name: 'Sol Ring' } as never,
+        partnerCommanderAllocatedCopyId: 'pcmd',
+      }),
+    ];
+    const collection = [card({ copyId: 'pcmd', name: 'Sol Ring' })];
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1').kind).toBe('confirm');
+  });
+
+  it('prefers binding a free copy over moving one from another deck', () => {
+    const decks = [
+      deck({ id: 'd1', name: 'Current' }),
+      deck({ id: 'd2', name: 'Donor', cards: [dc('s-x', 'Sol Ring', 'in-donor')] }),
+    ];
+    const collection = [
+      card({ copyId: 'in-donor', name: 'Sol Ring' }),
+      card({ copyId: 'free', name: 'Sol Ring' }),
+    ];
+    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1')).toEqual({
+      kind: 'bind',
+      copyId: 'free',
+    });
   });
 });
 
