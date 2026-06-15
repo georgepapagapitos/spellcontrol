@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import {
+  constrainsToCollection,
   notInCollection,
   isOwnedBudgetExempt,
   exceedsMaxPrice,
@@ -30,7 +31,7 @@ export async function stapleManaRocksPhase(state: GenerationState): Promise<void
       if (state.usedNames.has(staple.name) || state.bannedCards.has(staple.name)) continue;
       // Respect collection-only mode
       if (
-        state.cfg.collectionStrategy === 'full' &&
+        constrainsToCollection(state.cfg.collectionStrategy) &&
         notInCollection(staple.name, state.context.collectionNames)
       )
         continue;

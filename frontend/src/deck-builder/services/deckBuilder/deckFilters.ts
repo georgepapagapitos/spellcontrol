@@ -1,7 +1,7 @@
 // Card-eligibility predicates used during deck generation.
 // Pure functions — no shared state, no side effects. Extracted verbatim from
 // deckGenerator.ts so they can be unit-tested in isolation.
-import type { ScryfallCard, MaxRarity } from '@/deck-builder/types';
+import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
 // Check if a card's color identity fits within the commander's color identity
@@ -40,6 +40,13 @@ export function notInCollection(
 ): boolean {
   if (!collectionNames) return false;
   return !collectionNames.has(cardName);
+}
+
+// Strategies that promise the generated deck is constrained to the provided
+// collectionNames set. For "available", callers pass only names with free
+// unclaimed copies, so it must be just as strict as "full".
+export function constrainsToCollection(strategy: CollectionStrategy): boolean {
+  return strategy === 'full' || strategy === 'available';
 }
 
 // Check if an owned card is exempt from budget constraints

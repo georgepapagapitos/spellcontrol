@@ -1447,9 +1447,11 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-list-qty {
+  min-width: 2.4ch;
   font-family: var(--font-mono);
   font-weight: 700;
   color: var(--text-primary);
+  text-align: right;
 }
 
 .collection-list-price {

@@ -17,6 +17,7 @@ import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { saveGeneratedDeck } from '../lib/save-generated-deck';
+import { buildAvailableCollection } from '../lib/collection-availability';
 import type { ScryfallCard, EDHRECTheme, ThemeResult, DeckCategory } from '@/deck-builder/types';
 
 interface Step {
@@ -179,11 +180,20 @@ export function GuidedBuildPage() {
       }
 
       let collectionNames: Set<string> | undefined;
+      let collectionAvailableCounts: Map<string, number> | undefined;
       if (customization.collectionMode) {
-        collectionNames = new Set(collectionCards.map((c) => c.name));
+        if (customization.collectionStrategy === 'available') {
+          const available = buildAvailableCollection(collectionCards, decks);
+          collectionNames = available.names;
+          collectionAvailableCounts = available.counts;
+        } else {
+          collectionNames = new Set(collectionCards.map((c) => c.name));
+        }
         if (collectionNames.size === 0) {
           setError(
-            'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
+            customization.collectionStrategy === 'available'
+              ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards" mode.'
+              : 'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
           );
           setIsBuilding(false);
           setProgress(null);
@@ -207,6 +217,7 @@ export function GuidedBuildPage() {
         customization,
         selectedThemes: themesForGenerator,
         collectionNames,
+        collectionAvailableCounts,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });
 

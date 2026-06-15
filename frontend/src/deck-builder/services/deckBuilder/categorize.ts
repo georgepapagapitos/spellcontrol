@@ -22,6 +22,7 @@ import {
   fitsColorIdentity,
   exceedsMaxPrice,
   exceedsMaxRarity,
+  constrainsToCollection,
   notInCollection,
   isOwnedRarityExempt,
   notOnArena,
@@ -134,7 +135,10 @@ export function collectSwapCandidates(
     for (const edhrecCard of pool) {
       if (usedNames.has(edhrecCard.name) || bannedCards.has(edhrecCard.name)) continue;
       if (seen.has(edhrecCard.name)) continue;
-      if (collectionStrategy === 'full' && notInCollection(edhrecCard.name, collectionNames))
+      if (
+        constrainsToCollection(collectionStrategy) &&
+        notInCollection(edhrecCard.name, collectionNames)
+      )
         continue;
 
       const scryfallCard = cardMap.get(edhrecCard.name);

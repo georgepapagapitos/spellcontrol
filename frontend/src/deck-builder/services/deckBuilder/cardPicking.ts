@@ -10,6 +10,7 @@ import {
   fitsColorIdentity,
   exceedsMaxPrice,
   exceedsMaxRarity,
+  constrainsToCollection,
   notInCollection,
   isOwnedBudgetExempt,
   isOwnedRarityExempt,
@@ -126,7 +127,10 @@ export function pickFromPrefetched(
     // Full mode or no collection: simple linear pick
     for (const edhrecCard of candidates) {
       if (result.length >= count) break;
-      if (collectionStrategy === 'full' && notInCollection(edhrecCard.name, collectionNames))
+      if (
+        constrainsToCollection(collectionStrategy) &&
+        notInCollection(edhrecCard.name, collectionNames)
+      )
         continue;
       tryPick(edhrecCard);
     }
@@ -249,7 +253,10 @@ export function pickFromPrefetchedWithCurve(
       if (isGC && gameChangerCount.value >= maxGameChangers) continue;
 
       // Collection filtering
-      if (collectionStrategy === 'full' && notInCollection(edhrecCard.name, collectionNames))
+      if (
+        constrainsToCollection(collectionStrategy) &&
+        notInCollection(edhrecCard.name, collectionNames)
+      )
         continue;
       if (isPartialMode && enforceQuotas) {
         const isOwned = collectionNames!.has(edhrecCard.name);

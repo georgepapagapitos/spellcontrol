@@ -23,6 +23,7 @@ import { isTapland } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from './budgetTracker';
 import { pickFromPrefetched } from './cardPicking';
 import { fillWithScryfall } from './scryfallFill';
+import { constrainsToCollection, notInCollection } from './deckFilters';
 
 // Basic land names to filter out from EDHREC suggestions
 export const BASIC_LAND_NAMES = new Set([
@@ -98,6 +99,7 @@ export async function generateLands(
   maxCmc: number | null = null,
   budgetTracker: BudgetTracker | null = null,
   collectionNames?: Set<string>,
+  collectionAvailableCounts?: Map<string, number>,
   currency: 'USD' | 'EUR' = 'USD',
   arenaOnly: boolean = false,
   scryfallQuery: string = '',
@@ -110,6 +112,9 @@ export async function generateLands(
   priorityBoosts?: Map<string, number>
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
+  const enforceAvailableCounts = collectionStrategy === 'available';
+  const availableCount = (name: string): number =>
+    enforceAvailableCounts ? (collectionAvailableCounts?.get(name) ?? 0) : Infinity;
 
   // Filter out basic lands from EDHREC suggestions - we add those separately
   const nonBasicEdhrecLands = edhrecLands.filter((land) => !BASIC_LAND_NAMES.has(land.name));
@@ -256,7 +261,12 @@ export async function generateLands(
     format === 99 &&
     colorIdentity.length >= 2 &&
     !usedNames.has('Command Tower') &&
-    !bannedCards.has('Command Tower')
+    !bannedCards.has('Command Tower') &&
+    !(
+      constrainsToCollection(collectionStrategy) &&
+      notInCollection('Command Tower', collectionNames)
+    ) &&
+    availableCount('Command Tower') > 0
   ) {
     try {
       const commandTower = await getCardByName('Command Tower', true);
@@ -314,7 +324,7 @@ export async function generateLands(
 
     for (const color of colorsWithBasics) {
       const basicName = basicTypes[color];
-      const countForColor = landsPerColor[color];
+      const countForColor = Math.min(landsPerColor[color], availableCount(basicName));
 
       // Try to get cached basic land first (prefetched at start of deck generation)
       let basicCard = getCachedCard(basicName);
@@ -343,7 +353,8 @@ export async function generateLands(
       }
     }
     if (wastesCard) {
-      for (let j = 0; j < basicsNeeded; j++) {
+      const countForColor = Math.min(basicsNeeded, availableCount('Wastes'));
+      for (let j = 0; j < countForColor; j++) {
         lands.push({ ...wastesCard, id: `${wastesCard.id}-${j}-C` });
       }
     }
