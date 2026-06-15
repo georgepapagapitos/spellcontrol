@@ -108,7 +108,7 @@
 .tooltip-image {
   margin-top: 6px;
   width: 200px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   display: block;
 }
 
@@ -149,7 +149,7 @@
   padding: 12px 14px;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   overflow-y: auto;
 }

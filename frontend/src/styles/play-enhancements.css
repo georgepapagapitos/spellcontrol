@@ -128,7 +128,7 @@
   align-items: center;
   gap: 0.35rem;
   padding: 1.75rem 2.5rem;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: rgba(14, 17, 24, 0.92);
   border: 1px solid var(--win-accent, rgba(255, 224, 122, 0.6));
   box-shadow:
@@ -192,7 +192,7 @@
 .win-celebration-dismiss {
   margin-top: 0.9rem;
   padding: 0.55rem 1.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
@@ -222,7 +222,7 @@
   justify-content: center;
   min-height: 4.5rem;
   margin-bottom: 0.7rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
   border: 1px solid var(--border);
 }
@@ -286,7 +286,7 @@
 .game-tools-die-face {
   min-width: 1.6rem;
   padding: 0.12rem 0.35rem;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
@@ -319,7 +319,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 0.6rem 0.5rem;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -370,7 +370,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 0.45rem 0.5rem;
   font-family: var(--font-mono);
   font-size: var(--text-md);
@@ -397,7 +397,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 0.7rem 0.9rem;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -428,7 +428,7 @@
   background: var(--accent-light);
   border: 1px solid var(--accent);
   color: var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 0.2rem 0.7rem;
   font-size: var(--text-xs, 0.72rem);
   font-weight: 700;

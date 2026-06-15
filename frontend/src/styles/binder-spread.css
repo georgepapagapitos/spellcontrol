@@ -113,7 +113,7 @@
   min-width: 0;
   background: color-mix(in srgb, var(--surface-raised) 18%, transparent);
   border: 1.5px dashed color-mix(in srgb, var(--border) 40%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   pointer-events: none;
 }
 

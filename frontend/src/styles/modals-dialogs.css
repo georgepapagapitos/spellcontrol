@@ -352,7 +352,7 @@
   display: inline-block;
   min-width: 1.6em;
   padding: 0.15rem 0.45rem;
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -862,7 +862,7 @@
 .card-edit-current-badge {
   font-size: var(--text-xs);
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--accent-light);
   color: var(--accent);
   white-space: nowrap;

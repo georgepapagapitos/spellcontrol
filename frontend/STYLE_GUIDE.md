@@ -48,6 +48,23 @@ the circular icon-only button are the **only** labelled pills allowed below the
 hero; a one-off labelled pill that _isn't_ part of this toolbar-control family
 still reads as a tag — don't.
 
+**The class name does not decide the shape — the element's _role_ does.** A
+class called `.format-pill`, `.theme-chip`, `.game-menu-pill`, or `.bracket-pill`
+is still a **rect** if it's a `<button>` that does something below the hero
+(toggle, radio, action). Read the JSX, not the selector: a clickable that
+mutates state is a rect; a non-actionable `<span>` that only displays state is a
+pill; a compact toolbar picker/disclosure carrying the toolbar-pill signature
+(`--surface`/`--surface-raised` bg + `0.5px --border-strong`) is a pill. When the
+name and the role disagree, the role wins (the names predate this rule).
+
+**Segmented controls split container vs option.** The wrapper
+(`div[role="radiogroup"]`, e.g. `.binder-mode-toggle`) is a **container** →
+`var(--radius-lg)`. Its inner option buttons are **rects** (`var(--radius)`)
+unless the segmented control is a genuine _toolbar view-mode toggle_ that lives in
+a control row (then the whole `.toolbar-pill` segmented family is `999px`, e.g.
+`.pick-mode-toggle`). A radio/segmented selector inside a form or settings panel
+is not that — its options are rects.
+
 **Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
 button is an \*\*accent-fill rect with a leading lucide icon at `width/height={14}`
 

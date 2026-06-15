@@ -290,7 +290,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 0;
   min-height: 0;
   display: flex;
@@ -327,7 +327,7 @@
   background: var(--accent);
   border: none;
   color: var(--on-accent);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 0.7rem 0;
   font-size: var(--text-md);
   font-weight: 600;
@@ -409,7 +409,7 @@
 .layout-option {
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 0.6rem;
   cursor: pointer;
   display: flex;
@@ -444,7 +444,7 @@
   gap: 4px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 4px;
   /* Constrain height so tall layouts (3+ rows) don't blow the thumbnail
      up; the aspect-ratio still applies, but max-height keeps the picker
@@ -475,7 +475,7 @@
     color-mix(in srgb, var(--pp-edge, #6aa6ff) 88%, transparent) 0%,
     color-mix(in srgb, var(--pp-base, #4a5366) 96%, transparent) 100%
   );
-  border-radius: 6px;
+  border-radius: var(--radius);
   position: relative;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
   display: flex;

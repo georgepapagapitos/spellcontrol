@@ -95,7 +95,7 @@
   padding: 0.3rem 0.65rem;
   background: var(--surface-raised);
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius);
   font: inherit;
   color: var(--text-primary);
   cursor: pointer;
