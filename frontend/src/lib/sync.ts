@@ -2,7 +2,14 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { logger } from '@/lib/logger';
 import { setApplyingServer } from './applying-server';
 import { isNativePlatform } from './platform';
-import { pullSync, pushSync, type SyncRow, type SyncUpsert, type SyncDeletion } from './auth-api';
+import {
+  pullSync,
+  pushSync,
+  type SyncRow,
+  type SyncUpsert,
+  type SyncDeletion,
+  type SyncPushResult,
+} from './auth-api';
 import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
@@ -37,6 +44,18 @@ function stripCardPrice<T extends { purchasePrice?: number; pricedAt?: number }>
 function baseRevFor(row: estore.StoredRow | undefined): number {
   if (!row) return 0;
   return row.syncedRev ?? (row.rev > 0 ? row.rev : 0);
+}
+
+/**
+ * Whether a mutation should go to the durable IDB outbox + debounced drain
+ * (vs. immediate server write-through). True for native (offline-capable), and
+ * for a not-yet-signed-in web guest — a guest's local edits must persist and
+ * promote to the server on sign-in (the "build logged-out, then sign in" flow,
+ * e.g. copying a shared deck). A signed-in web client is a thin online client:
+ * it writes straight through with no durable outbox.
+ */
+function shouldQueueLocally(): boolean {
+  return isNativePlatform() || !currentOwnerId;
 }
 
 /**
@@ -363,7 +382,8 @@ export async function recordUpsert(
   // row (prices live in card-prices.ts, never on the sync path).
   const syncData =
     kind === 'card' ? stripCardPrice(data as { purchasePrice?: number; pricedAt?: number }) : data;
-  const syncedRev = baseRevFor(await estore.getById(kind, id));
+  const prior = await estore.getById(kind, id);
+  const syncedRev = baseRevFor(prior);
   await estore.putMany(kind, [
     {
       id,
@@ -374,16 +394,21 @@ export async function recordUpsert(
       ...(kind === 'card' ? { importId: importId ?? '' } : {}),
     },
   ]);
-  await queue.enqueue({
+  const mut: queue.Mutation = {
     op: 'upsert',
     kind,
     id,
     data: syncData,
     ...(kind === 'card' ? { importId: importId ?? '' } : {}),
     ...(kind === 'deck' && syncedRev > 0 ? { clientRev: syncedRev } : {}),
-  });
-  void refreshPending();
-  schedulePush();
+  };
+  if (shouldQueueLocally()) {
+    await queue.enqueue(mut);
+    void refreshPending();
+    schedulePush();
+  } else {
+    await webPush([mut], new Map([[`${kind}:${id}`, prior]]));
+  }
 }
 
 /**
@@ -394,10 +419,16 @@ export async function recordUpsert(
  * arrive on the next pull and rehydrateStores drops them locally).
  */
 export async function recordDelete(kind: EntityKind, id: string): Promise<void> {
+  const prior = await estore.getById(kind, id);
   await estore.deleteMany(kind, [id]);
-  await queue.enqueue({ op: 'delete', kind, id });
-  void refreshPending();
-  schedulePush();
+  const mut: queue.Mutation = { op: 'delete', kind, id };
+  if (shouldQueueLocally()) {
+    await queue.enqueue(mut);
+    void refreshPending();
+    schedulePush();
+  } else {
+    await webPush([mut], new Map([[`${kind}:${id}`, prior]]));
+  }
 }
 
 /**
@@ -465,9 +496,17 @@ async function persistKind<T>(
   for (const id of toDelete) muts.push({ op: 'delete', kind, id });
 
   if (muts.length > 0) {
-    await queue.enqueueBatch(muts);
-    void refreshPending();
-    schedulePush();
+    if (shouldQueueLocally()) {
+      await queue.enqueueBatch(muts);
+      void refreshPending();
+      schedulePush();
+    } else {
+      // Web: no durable outbox. localById holds the pre-edit rows (read before
+      // the optimistic IDB writes above), so it doubles as the revert snapshot.
+      const priors = new Map<string, estore.StoredRow | undefined>();
+      for (const m of muts) priors.set(`${m.kind}:${m.id}`, localById.get(m.id));
+      await webPush(muts, priors);
+    }
   }
 }
 
@@ -544,6 +583,123 @@ async function pull(): Promise<void> {
   }
 }
 
+/**
+ * Reflect a /api/sync push response onto local state: adopt any deck conflicts
+ * the server reported (reject-stale — keep the server version, drop ours, toast),
+ * then stamp the canonical server revs onto our just-written local rows so a
+ * later pull re-delivering them is an idempotent no-op. Returns the highest
+ * server rev seen (used only as a cross-tab broadcast hint — never as a pull
+ * cursor; see the note in push()). Shared by the native queue drain (push) and
+ * the web write-through path (webPush).
+ */
+async function applyPushResult(result: SyncPushResult): Promise<number> {
+  let hint = 0;
+  if (result.conflicts && result.conflicts.length > 0) {
+    await applyServerRows(
+      result.conflicts.map((c) => ({
+        kind: c.kind,
+        id: c.id,
+        data: c.serverData,
+        rev: c.serverRev,
+        deletedAt: c.serverData == null ? Date.now() : null,
+      }))
+    );
+    toast.show({
+      message:
+        result.conflicts.length === 1
+          ? 'Deck changed on another device. Kept the server version.'
+          : `${result.conflicts.length} decks changed on another device. Kept the server versions.`,
+      tone: 'info',
+    });
+    for (const c of result.conflicts) {
+      if (c.serverRev > hint) hint = c.serverRev;
+    }
+  }
+
+  // Stamp the canonical server revs onto local rows. For upserts, the local row
+  // exists in IDB with rev=0 — replace its rev so a subsequent pull doesn't
+  // re-deliver it. For deletions / cascades, the local row is already gone (the
+  // mutator removed it) so there's nothing to update.
+  const byKind: Record<string, estore.StoredRow[]> = {};
+  for (const a of result.applied) {
+    if (a.deletedAt != null) continue;
+    const existing = await estore.getById(a.kind, a.id);
+    if (existing) {
+      (byKind[a.kind] ??= []).push({ ...existing, rev: a.rev, syncedRev: a.rev });
+    }
+  }
+  for (const [kind, rows] of Object.entries(byKind)) {
+    await estore.putMany(kind as EntityKind, rows);
+  }
+
+  if (result.cursor > hint) hint = result.cursor;
+  return hint;
+}
+
+/**
+ * Web (online-only) outbound write. In place of the native durable queue +
+ * debounced drain, web POSTs the batch straight to the server and reflects the
+ * result. On failure (offline / server error) it reverts the optimistic local
+ * rows to their pre-edit snapshot and rebuilds the in-memory stores, then toasts
+ * — web has no durable outbox, so an unsaved change must not silently linger.
+ */
+async function webPush(
+  muts: queue.Mutation[],
+  priors: Map<string, estore.StoredRow | undefined>
+): Promise<void> {
+  const upserts: SyncUpsert[] = [];
+  const deletions: SyncDeletion[] = [];
+  for (const m of muts) {
+    if (m.op === 'upsert') {
+      upserts.push({
+        kind: m.kind,
+        id: m.id,
+        data: m.data,
+        ...(m.kind === 'card' && m.importId !== undefined ? { importId: m.importId } : {}),
+        ...(m.kind === 'deck' && m.clientRev !== undefined ? { clientRev: m.clientRev } : {}),
+      });
+    } else {
+      deletions.push({ kind: m.kind, id: m.id });
+    }
+  }
+  try {
+    const result = await pushSync({ upserts, deletions });
+    const hint = await applyPushResult(result);
+    broadcastCursor(hint);
+    pushError = false;
+    recomputeError();
+    markSynced();
+  } catch (err) {
+    logger.warn('[sync] web write failed; reverting optimistic change:', err);
+    const restoreByKind = new Map<EntityKind, estore.StoredRow[]>();
+    const removeByKind = new Map<EntityKind, string[]>();
+    for (const m of muts) {
+      const prior = priors.get(`${m.kind}:${m.id}`);
+      if (prior) {
+        const arr = restoreByKind.get(m.kind) ?? [];
+        arr.push(prior);
+        restoreByKind.set(m.kind, arr);
+      } else {
+        const arr = removeByKind.get(m.kind) ?? [];
+        arr.push(m.id);
+        removeByKind.set(m.kind, arr);
+      }
+    }
+    for (const [kind, rows] of restoreByKind) await estore.putMany(kind, rows);
+    for (const [kind, ids] of removeByKind) await estore.deleteMany(kind, ids);
+    await rehydrateStoresFromIdb();
+    toast.show({
+      message:
+        typeof navigator !== 'undefined' && !navigator.onLine
+          ? "You're offline — changes can't be saved."
+          : 'Change could not be saved. Please try again.',
+      tone: 'error',
+    });
+    pushError = true;
+    recomputeError();
+  }
+}
+
 async function push(): Promise<void> {
   if (isPushing || !currentOwnerId) {
     if (isPushing) pushPending = true;
@@ -575,44 +731,8 @@ async function push(): Promise<void> {
       }
 
       const result = await pushSync({ upserts, deletions });
-
-      if (result.conflicts && result.conflicts.length > 0) {
-        await applyServerRows(
-          result.conflicts.map((c) => ({
-            kind: c.kind,
-            id: c.id,
-            data: c.serverData,
-            rev: c.serverRev,
-            deletedAt: c.serverData == null ? Date.now() : null,
-          }))
-        );
-        toast.show({
-          message:
-            result.conflicts.length === 1
-              ? 'Deck changed on another device. Kept the server version.'
-              : `${result.conflicts.length} decks changed on another device. Kept the server versions.`,
-          tone: 'info',
-        });
-        for (const c of result.conflicts) {
-          if (c.serverRev > serverRevHint) serverRevHint = c.serverRev;
-        }
-      }
-
-      // Stamp the canonical server revs onto local rows. For upserts, the
-      // local row exists in IDB with rev=0 — replace its rev so a subsequent
-      // pull doesn't re-deliver it. For deletions / cascades, the local row
-      // is already gone (the mutator removed it) so there's nothing to update.
-      const byKind: Record<string, estore.StoredRow[]> = {};
-      for (const a of result.applied) {
-        if (a.deletedAt != null) continue;
-        const existing = await estore.getById(a.kind, a.id);
-        if (existing) {
-          (byKind[a.kind] ??= []).push({ ...existing, rev: a.rev, syncedRev: a.rev });
-        }
-      }
-      for (const [kind, rows] of Object.entries(byKind)) {
-        await estore.putMany(kind as EntityKind, rows);
-      }
+      const hint = await applyPushResult(result);
+      if (hint > serverRevHint) serverRevHint = hint;
 
       await queue.ack(batch.map((b) => b.seq));
       void refreshPending();
@@ -624,8 +744,9 @@ async function push(): Promise<void> {
       // stranded a deleted collection mid-converge). The cursor may only advance
       // via pull(), which applies every row in rev order. Our own just-pushed
       // rows are stamped into IDB above, so the next pull re-delivering them is a
-      // cheap idempotent no-op.
-      if (result.cursor > serverRevHint) serverRevHint = result.cursor;
+      // cheap idempotent no-op. (applyPushResult already folded result.cursor
+      // into the returned hint, so serverRevHint reflects it without adopting it
+      // as our pull cursor.)
       markSynced();
     }
     // Nudge peer tabs to pull (we wrote new revs), but pass the server hint
