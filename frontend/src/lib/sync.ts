@@ -641,31 +641,72 @@ async function applyPushResult(result: SyncPushResult): Promise<number> {
 }
 
 /**
+ * Build the /api/sync POST body from a batch of mutations. For deck upserts the
+ * optimistic-concurrency `clientRev` is re-derived from the LIVE IDB `syncedRev`
+ * at send time — never the value baked when the edit was enqueued. A second
+ * same-device edit to a deck, made before the first push's ack stamped the new
+ * `syncedRev`, would otherwise carry a stale base rev: the server's strict
+ * `rev = clientRev` check would reject it as a cross-device conflict, firing a
+ * spurious "changed on another device" toast and silently dropping the edit —
+ * all on one device. Reading the freshly-stamped `syncedRev` here keeps each
+ * dependent push chained to the rev our own prior push produced. A genuine
+ * cross-device conflict still trips: that base never got stamped forward locally.
+ */
+async function buildOutbound(
+  muts: queue.Mutation[]
+): Promise<{ upserts: SyncUpsert[]; deletions: SyncDeletion[] }> {
+  const upserts: SyncUpsert[] = [];
+  const deletions: SyncDeletion[] = [];
+  for (const m of muts) {
+    if (m.op === 'upsert') {
+      const upsert: SyncUpsert = {
+        kind: m.kind,
+        id: m.id,
+        data: m.data,
+        ...(m.kind === 'card' && m.importId !== undefined ? { importId: m.importId } : {}),
+      };
+      if (m.kind === 'deck') {
+        const rev = baseRevFor(await estore.getById('deck', m.id));
+        if (rev > 0) upsert.clientRev = rev;
+      }
+      upserts.push(upsert);
+    } else {
+      deletions.push({ kind: m.kind, id: m.id });
+    }
+  }
+  return { upserts, deletions };
+}
+
+/**
+ * Serialize web write-throughs. Without the native durable queue's single-drain
+ * lock, two rapid edits to the same deck would POST concurrently, both reading
+ * the same pre-ack `syncedRev` → the second self-conflicts. Chaining them lets
+ * each push's ack stamp the new `syncedRev` before the next reads it (see
+ * buildOutbound). Errors are swallowed off the chain so one failure doesn't
+ * wedge later writes; callers still await their own run for its own result.
+ */
+let webPushChain: Promise<void> = Promise.resolve();
+function webPush(
+  muts: queue.Mutation[],
+  priors: Map<string, estore.StoredRow | undefined>
+): Promise<void> {
+  const run = webPushChain.then(() => webPushInner(muts, priors));
+  webPushChain = run.catch(() => {});
+  return run;
+}
+
+/**
  * Web (online-only) outbound write. In place of the native durable queue +
  * debounced drain, web POSTs the batch straight to the server and reflects the
  * result. On failure (offline / server error) it reverts the optimistic local
  * rows to their pre-edit snapshot and rebuilds the in-memory stores, then toasts
  * — web has no durable outbox, so an unsaved change must not silently linger.
  */
-async function webPush(
+async function webPushInner(
   muts: queue.Mutation[],
   priors: Map<string, estore.StoredRow | undefined>
 ): Promise<void> {
-  const upserts: SyncUpsert[] = [];
-  const deletions: SyncDeletion[] = [];
-  for (const m of muts) {
-    if (m.op === 'upsert') {
-      upserts.push({
-        kind: m.kind,
-        id: m.id,
-        data: m.data,
-        ...(m.kind === 'card' && m.importId !== undefined ? { importId: m.importId } : {}),
-        ...(m.kind === 'deck' && m.clientRev !== undefined ? { clientRev: m.clientRev } : {}),
-      });
-    } else {
-      deletions.push({ kind: m.kind, id: m.id });
-    }
-  }
+  const { upserts, deletions } = await buildOutbound(muts);
   try {
     const result = await pushSync({ upserts, deletions });
     const hint = await applyPushResult(result);
@@ -718,21 +759,7 @@ async function push(): Promise<void> {
       const batch = await queue.peekBatch(500);
       if (batch.length === 0) break;
 
-      const upserts: SyncUpsert[] = [];
-      const deletions: SyncDeletion[] = [];
-      for (const { m } of batch) {
-        if (m.op === 'upsert') {
-          upserts.push({
-            kind: m.kind,
-            id: m.id,
-            data: m.data,
-            ...(m.kind === 'card' && m.importId !== undefined ? { importId: m.importId } : {}),
-            ...(m.kind === 'deck' && m.clientRev !== undefined ? { clientRev: m.clientRev } : {}),
-          });
-        } else {
-          deletions.push({ kind: m.kind, id: m.id });
-        }
-      }
+      const { upserts, deletions } = await buildOutbound(batch.map((b) => b.m));
 
       const result = await pushSync({ upserts, deletions });
       const hint = await applyPushResult(result);
