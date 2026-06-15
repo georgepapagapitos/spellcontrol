@@ -20,7 +20,7 @@
   align-items: center;
   gap: 0.22rem;
   padding: 0.18rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius);
   background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
@@ -266,7 +266,7 @@
   align-items: center;
   gap: var(--space-1);
   padding: 0.4rem 0.9rem;
-  border-radius: 999px;
+  border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(14, 17, 24, 0.75);
   color: rgba(255, 255, 255, 0.9);
