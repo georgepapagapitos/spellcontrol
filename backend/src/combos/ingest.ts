@@ -358,7 +358,7 @@ export function bracketTagToNumber(tag: unknown): number | null {
     case 'E':
       return null; // Exhibition: non-infinite finisher; card count drives floor
     case 'B':
-      return null; // Banned: excluded at ingest (see guard below)
+      return null; // Banned: excluded at ingest (see guard in parseVariant above)
     default:
       return null;
   }

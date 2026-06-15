@@ -127,7 +127,8 @@ describe('estimateBracket — hard floors', () => {
     expect(r.breakdown.twoCardComboCount).toBe(1);
   });
 
-  it('2-card combo with accel score >= 4 (5 fast mana) → B4 floor', () => {
+  it('2-card combo with accel score >= 4 (5 fast mana + 4 tutors) → B4 floor', () => {
+    // accelerationScore: fastMana>=5 → +3, tutors>=4 → +1 = 4 (hits the B4 threshold).
     const fastManaCards = [
       'Mana Crypt',
       'Chrome Mox',
@@ -135,14 +136,20 @@ describe('estimateBracket — hard floors', () => {
       "Lion's Eye Diamond",
       'Grim Monolith',
     ];
+    const tutorCards = ['Demonic Tutor', 'Vampiric Tutor', 'Imperial Seal', 'Mystical Tutor'];
+    const tutorSet = new Set(tutorCards);
+    mockHasTag.mockImplementation((n: string, tag: string) => tag === 'tutor' && tutorSet.has(n));
+    mockGetRole.mockImplementation((n: string) => (tutorSet.has(n) ? 'cardDraw' : null));
     const r = estimateBracket(
-      [...fastManaCards, 'Forest'],
+      [...fastManaCards, ...tutorCards, 'Forest'],
       [combo(3)],
       4,
       undefined,
       undefined,
       new Set()
     );
+    expect(r.breakdown.fastManaCount).toBe(5);
+    expect(r.breakdown.tutorCount).toBe(4);
     expect(r.bracket).toBeGreaterThanOrEqual(4);
     expect(r.breakdown.twoCardComboCount).toBe(1);
   });
@@ -151,6 +158,18 @@ describe('estimateBracket — hard floors', () => {
     const r = estimateBracket(
       ['Forest'],
       [combo(4, true, 2, 'R')],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+  });
+
+  it('2-card combo with bracketTag S → B4 floor regardless of acceleration', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(4, true, 2, 'S')],
       4,
       undefined,
       undefined,
@@ -187,7 +206,7 @@ describe('estimateBracket — hard floors', () => {
     expect(r.bracket).toBe(2);
   });
 
-  it('2+ two-card combos with low acceleration → B4 floor (multiple win lines)', () => {
+  it('2+ slow two-card combos with low acceleration → B3 floor (no R2 escalation)', () => {
     const r = estimateBracket(
       ['Forest'],
       [combo(3), combo(null)],
@@ -196,8 +215,11 @@ describe('estimateBracket — hard floors', () => {
       undefined,
       new Set()
     );
-    expect(r.bracket).toBeGreaterThanOrEqual(4);
+    // R2 override: multiple slow 2-card combos without acceleration/R/S tag stay at B3.
+    expect(r.bracket).toBe(3);
     expect(r.breakdown.twoCardComboCount).toBe(2);
+    expect(r.hardFloors.some((f) => f.bracket === 3)).toBe(true);
+    expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(false);
   });
 
   it('1–2 extra turn spells do not trigger a bracket floor (RC: chaining is the issue)', () => {

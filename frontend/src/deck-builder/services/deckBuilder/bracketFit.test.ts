@@ -415,7 +415,7 @@ describe('downshift — extra turns', () => {
       allCardNames: [...et, 'Forest'],
       cardInclusionMap: { 'Time Warp': 1, 'Temporal Manipulation': 2, 'Capture of Jingzhou': 3 },
     });
-    expect(input.estimation.bracket).toBe(2); // 3 ET → floor 2
+    expect(input.estimation.bracket).toBe(4); // 3 ET → B4 floor (RC: chaining = B4)
     const plan = computeDownshiftPlan(input, 1);
     const etCuts = plan.moves.filter((m) => m.signal === 'extra-turn');
     // The queue still cuts exactly 1 extra turn (to drop below the 3-chain threshold),
@@ -424,12 +424,25 @@ describe('downshift — extra turns', () => {
     expect(plan.achievable).toBe(false);
   });
 
-  it('target == 2, 3 extra turns → no cut needed (floor == target)', () => {
+  it('target == 4, 3 extra turns → no cut needed (floor == target)', () => {
     const et = ['Time Warp', 'Temporal Manipulation', 'Capture of Jingzhou'];
     et.forEach((n) => EXTRA_TURNS.add(n));
     const input = makeInput({ allCardNames: [...et, 'Forest'] });
-    const plan = computeDownshiftPlan(input, 2);
+    // 3 ET now floors at B4, so targeting B4 requires no cuts.
+    const plan = computeDownshiftPlan(input, 4);
     expect(plan.moves).toHaveLength(0);
+    expect(plan.achievable).toBe(true);
+  });
+
+  it('target == 2, 3 extra turns → requires cuts (floor is B4, must cut to B3 then soft-promote down)', () => {
+    const et = ['Time Warp', 'Temporal Manipulation', 'Capture of Jingzhou'];
+    et.forEach((n) => EXTRA_TURNS.add(n));
+    const input = makeInput({ allCardNames: [...et, 'Forest'] });
+    // B4 floor vs target B2 — must cut at least 1 ET to drop the floor.
+    const plan = computeDownshiftPlan(input, 2);
+    const etCuts = plan.moves.filter((m) => m.signal === 'extra-turn');
+    expect(etCuts.length).toBeGreaterThanOrEqual(1);
+    // After cutting 1 ET the floor drops; B2 is achievable (Core baseline).
     expect(plan.achievable).toBe(true);
   });
 });

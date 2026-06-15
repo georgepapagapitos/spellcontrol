@@ -307,14 +307,12 @@ export function estimateBracket(
     );
     const isEarlyAssembly = accel >= 4 || hasReliableTag;
 
-    if (isEarlyAssembly || twoCardComboCount >= 2) {
+    if (isEarlyAssembly) {
       hardFloors.push({
         bracket: 4,
         reason: `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
         detail:
-          twoCardComboCount >= 2
-            ? 'Multiple ways to win out of nowhere. Competitive-level power.'
-            : 'This combo can fire before opponents can respond — equivalent to competitive power.',
+          'This combo can fire before opponents can respond — equivalent to competitive power.',
       });
     } else {
       hardFloors.push({
