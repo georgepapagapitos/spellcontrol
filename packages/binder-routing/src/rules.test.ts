@@ -306,6 +306,45 @@ describe('cardMatchesFilter', () => {
     });
   });
 
+  describe('oracleTagChips (Scryfall otags)', () => {
+    it('matches when the card carries the tag', () => {
+      const rock = makeCard({ tags: ['mana-rock', 'ramp'] });
+      expect(cardMatchesFilter(rock, { oracleTagChips: chip('mana-rock') })).toBe(true);
+      expect(cardMatchesFilter(rock, { oracleTagChips: chip('removal') })).toBe(false);
+    });
+    it('is case-insensitive on the tag value', () => {
+      const rock = makeCard({ tags: ['mana-rock'] });
+      expect(cardMatchesFilter(rock, { oracleTagChips: chip('MANA-ROCK') })).toBe(true);
+    });
+    it('untagged / unloaded cards match nothing (no tags array)', () => {
+      expect(
+        cardMatchesFilter(makeCard({ tags: undefined }), { oracleTagChips: chip('mana-rock') })
+      ).toBe(false);
+      expect(cardMatchesFilter(makeCard({ tags: [] }), { oracleTagChips: chip('mana-rock') })).toBe(
+        false
+      );
+    });
+    it('IS NOT excludes tagged cards', () => {
+      const rock = makeCard({ tags: ['mana-rock'] });
+      const dork = makeCard({ tags: ['mana-dork'] });
+      expect(cardMatchesFilter(rock, { oracleTagChips: chip('mana-rock', true) })).toBe(false);
+      expect(cardMatchesFilter(dork, { oracleTagChips: chip('mana-rock', true) })).toBe(true);
+    });
+    it('OR across tag chips', () => {
+      const dork = makeCard({ tags: ['mana-dork'] });
+      expect(cardMatchesFilter(dork, { oracleTagChips: chips('mana-rock', 'mana-dork') })).toBe(
+        true
+      );
+    });
+    it('ANDs with other fields', () => {
+      const artifactRock = makeCard({ typeLine: 'Artifact', tags: ['mana-rock'] });
+      const creatureRock = makeCard({ typeLine: 'Creature', tags: ['mana-rock'] });
+      const f: BinderFilter = { typeChips: chip('artifact'), oracleTagChips: chip('mana-rock') };
+      expect(cardMatchesFilter(artifactRock, f)).toBe(true);
+      expect(cardMatchesFilter(creatureRock, f)).toBe(false);
+    });
+  });
+
   describe('mana cost', () => {
     it('exact match, whitespace insensitive', () => {
       const card = makeCard({ manaCost: '{2}{G}{W}' });
@@ -462,6 +501,9 @@ describe('isFilterEmpty', () => {
     expect(isFilterEmpty({ supertypeChips: chip('legendary') })).toBe(false);
     expect(isFilterEmpty({ typeTokenChips: chip('creature') })).toBe(false);
     expect(isFilterEmpty({ subtypeChips: chip('angel') })).toBe(false);
+  });
+  it('false when oracleTagChips is set', () => {
+    expect(isFilterEmpty({ oracleTagChips: chip('mana-rock') })).toBe(false);
   });
   it('treats blank chip values as empty', () => {
     expect(isFilterEmpty({ typeChips: chip('   ') })).toBe(true);

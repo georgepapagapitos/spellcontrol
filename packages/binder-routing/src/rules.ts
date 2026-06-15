@@ -27,6 +27,7 @@ interface CompiledFilter {
   supertypeChips?: CompiledExpression;
   subtypeChips?: CompiledExpression;
   oracleChips?: CompiledExpression;
+  tagChips?: CompiledExpression;
   finishes?: CompiledExpression;
   layouts?: CompiledExpression;
   treatments?: CompiledExpression;
@@ -52,6 +53,7 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
   out.supertypeChips = compileExpression(filter.supertypeChips);
   out.subtypeChips = compileExpression(filter.subtypeChips);
   out.oracleChips = compileExpression(filter.oracleChips);
+  out.tagChips = compileExpression(filter.oracleTagChips);
   out.finishes = compileExpression(filter.finishes);
   out.layouts = compileExpression(filter.layouts);
   out.treatments = compileExpression(filter.treatments);
@@ -111,6 +113,7 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
       return false;
   }
   if (f.oracleChips && !substringMatchesExpression(card.oracleText, f.oracleChips)) return false;
+  if (f.tagChips && !setMatchesExpression(card.tags, f.tagChips)) return false;
 
   // CMC: cmc === undefined means unknown — exclude from any cmc-bounded filter,
   // mirroring the collection predicate in CardListTable.tsx.
@@ -241,6 +244,7 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     isExpressionEmpty(filter.supertypeChips) &&
     isExpressionEmpty(filter.subtypeChips) &&
     isExpressionEmpty(filter.oracleChips) &&
+    isExpressionEmpty(filter.oracleTagChips) &&
     isExpressionEmpty(filter.finishes) &&
     isExpressionEmpty(filter.layouts) &&
     isExpressionEmpty(filter.treatments) &&

@@ -29,7 +29,7 @@ interface SampleBinderTemplate {
  *
  *   1. Commanders         — typeChip 'legendary creature' + commander legal
  *   2. Removal & counters — oracle text chips (multi-value OR)
- *   3. Mana rocks         — typeChip 'artifact' + oracle text 'add'
+ *   3. Mana rocks         — Scryfall oracle tag 'mana-rock'
  */
 export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
   {
@@ -104,12 +104,10 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
       filterGroups: [
         {
           filter: {
-            typeChips: {
-              chips: [{ value: 'artifact', negate: false }],
-              joiners: [],
-            },
-            oracleChips: {
-              chips: [{ value: 'add', negate: false }],
+            // Scryfall otag: precise "produces mana" semantics — far better than
+            // oracle text 'add', which also catches "addition"/"additional".
+            oracleTagChips: {
+              chips: [{ value: 'mana-rock', negate: false }],
               joiners: [],
             },
           },

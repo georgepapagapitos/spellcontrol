@@ -8,10 +8,12 @@
  * NumberRangeInput directly. FilterFieldEditor covers the rows that are
  * structurally identical in both consumers.
  */
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import type { BinderFilter, ChipExpression } from '../types';
 import { SUPERTYPES, TYPES } from '../lib/card-types';
+import { cardTagLabel, listCardTags, useCardTagsReady } from '../lib/card-tags';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
+import { InfoTip } from './InfoTip';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -131,6 +133,13 @@ export interface FilterFieldEditorProps {
    */
   showTypeRows?: boolean;
   /**
+   * Show the "Oracle tags" row (Scryfall otag picker). Binder-only — the
+   * collection filter dialog matches against `s.cards`, which isn't decorated
+   * with tags, so it stays off there. When true, the tag snapshot is loaded
+   * lazily on mount.
+   */
+  showOracleTags?: boolean;
+  /**
    * Show the Finish row. Collection page passes true (physical copy field).
    * BinderEditor renders its own Finishes row and passes false (or omits).
    */
@@ -159,7 +168,7 @@ export interface FilterFieldEditorProps {
  * No expand/collapse logic — callers control their own visibility.
  */
 /** Row wrapper for BinderEditor variant (inline label at 180 px). */
-function BinderRow({ label, children }: { label: string; children: ReactNode }) {
+function BinderRow({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="rule-row">
       <span className="rule-label">{label}</span>
@@ -169,7 +178,7 @@ function BinderRow({ label, children }: { label: string; children: ReactNode }) 
 }
 
 /** Row wrapper for CollectionFiltersDialog variant (label stacks above). */
-function DialogRow({ label, children }: { label: string; children: ReactNode }) {
+function DialogRow({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <section className="collection-filters-section">
       <div className="collection-filters-section-label">{label}</div>
@@ -184,11 +193,18 @@ export function FilterFieldEditor({
   subtypeSuggestions = [],
   oracleSuggestions = [],
   showTypeRows = false,
+  showOracleTags = false,
   showFinish = false,
   variant = 'binder',
 }: FilterFieldEditorProps) {
   const isBinder = variant === 'binder';
   const Row = isBinder ? BinderRow : DialogRow;
+
+  const tagsReady = useCardTagsReady(showOracleTags);
+  const tagOptions = useMemo(
+    () => (tagsReady ? listCardTags().map((t) => ({ value: t, label: cardTagLabel(t) })) : []),
+    [tagsReady]
+  );
 
   return (
     <>
@@ -202,6 +218,30 @@ export function FilterFieldEditor({
           placeholder={isBinder ? 'e.g. flying, draw a card' : 'e.g. flying, draw a card…'}
         />
       </Row>
+
+      {/* Oracle tags (Scryfall otags) — precise semantic concepts that beat
+          oracle-text substrings (e.g. "mana-rock" vs the word "add"). */}
+      {showOracleTags && (
+        <Row
+          label={
+            <>
+              Oracle tags{' '}
+              <InfoTip
+                label="oracle tags filter"
+                text="Scryfall's community-curated card tags (otags) — pick a concept like 'Mana rock' or 'Removal' and the binder catches every card Scryfall tags that way. More precise than oracle text: 'Mana rock' won't mismatch the word 'addition' the way text 'add' does."
+              />
+            </>
+          }
+        >
+          <ChipExpressionBuilder
+            options={tagOptions}
+            value={value.oracleTagChips ?? EMPTY_EXPR}
+            onChange={(next) => onPatch({ oracleTagChips: next })}
+            defaultJoiner="OR"
+            placeholder={tagsReady ? 'Add tag…' : 'Loading tags…'}
+          />
+        </Row>
+      )}
 
       {/* Format/Legality */}
       <Row label={isBinder ? 'Legalities' : 'Format'}>

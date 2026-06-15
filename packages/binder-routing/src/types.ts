@@ -59,6 +59,14 @@ export interface EnrichedCard {
   legalities?: Record<string, string>;
   finishes?: string[];
   promoTypes?: string[];
+  /**
+   * Scryfall oracle tags (otags) for this card, e.g. ['mana-rock', 'ramp'].
+   * Reference data, NOT persisted/synced — the caller decorates cards from a
+   * name-keyed tag snapshot just before materializing. Absent/empty means the
+   * snapshot wasn't loaded (or the card is untagged); a tag rule then matches
+   * nothing for this card rather than erroring.
+   */
+  tags?: string[];
 }
 
 export type SortField =
@@ -132,6 +140,13 @@ export interface BinderFilter {
   /** Subtype chips. Substring match against joined subtypes (e.g. "Angel", "Equipment"). */
   subtypeChips?: ChipExpression;
   oracleChips?: ChipExpression;
+  /**
+   * Scryfall oracle-tag chips (e.g. "mana-rock", "removal"). Each chip names a
+   * tag from the bundled tagger snapshot; a card matches if `card.tags` contains
+   * it. Far more precise than oracle-text substrings for semantic concepts —
+   * "mana-rock" beats the word "add", which also catches "addition".
+   */
+  oracleTagChips?: ChipExpression;
   setCodes?: string[];
   priceMin?: number;
   priceMax?: number;

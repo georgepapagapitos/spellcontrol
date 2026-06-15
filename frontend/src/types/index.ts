@@ -91,6 +91,13 @@ export interface EnrichedCard {
   /** Promo treatments — specialty foil variants like "textured", "surgefoil", "halofoil",
    *  "gilded", "oilslick", "neonink", "raisedfoil", "confettifoil", "stepandrepeat". */
   promoTypes?: string[];
+  /**
+   * Scryfall oracle tags (otags) for this card, e.g. ['mana-rock', 'ramp'].
+   * Reference data decorated onto cards at materialize time from the bundled
+   * tagger snapshot (see `lib/card-tags.ts`) — NEVER persisted or synced (it's
+   * derived from the card name). Absent until the snapshot loads.
+   */
+  tags?: string[];
 }
 
 /**
@@ -323,6 +330,8 @@ export interface BinderFilter {
   subtypeChips?: ChipExpression;
   /** Oracle-text chips. Substring match. */
   oracleChips?: ChipExpression;
+  /** Scryfall oracle-tag chips (e.g. "mana-rock"). Set-membership match against card.tags. */
+  oracleTagChips?: ChipExpression;
   setCodes?: string[];
   priceMin?: number;
   priceMax?: number;

@@ -6,6 +6,7 @@ import { useCollectionStore } from '../store/collection';
 import { useAuth } from '../store/auth';
 import { getSyncState, onSyncedChange } from '../lib/sync';
 import { materializeBinders } from '../lib/materialize';
+import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
@@ -15,8 +16,10 @@ import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
 
 export function CollectionPage() {
-  const cards = useCollectionStore((s) => s.cards);
+  const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
+  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const error = useCollectionStore((s) => s.error);

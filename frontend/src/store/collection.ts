@@ -28,6 +28,7 @@ import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
+import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
 import { appNavigate } from '../lib/navigate-bridge';
 import { MAX_VISIBLE_TOASTS } from '../lib/toast-stack';
@@ -703,8 +704,20 @@ export const useCollectionStore = create<CollectionState>()(
           // (copies hidden via hideDeckAllocated don't "move"). Device-local,
           // no sync touched.
           const allocated = new Set(buildAllocationMap(useDecksStore.getState().decks).keys());
+          // Decorate with oracle tags so moves into/out of a tag-ruled binder
+          // are detected (no-op unless a binder uses one). Tags are name-derived
+          // and price-invariant, so this only matters when a tag binder's
+          // membership hinges on routing priority against a price-ruled binder.
+          const moveBinders = get().binders;
+          let beforeForMoves = beforeCards;
+          let afterForMoves = afterCards;
+          if (bindersUseTags(moveBinders)) {
+            await ensureCardTags();
+            beforeForMoves = decorateWithTags(beforeCards);
+            afterForMoves = decorateWithTags(afterCards);
+          }
           notifyBinderMoves(
-            computeBinderMoves(beforeCards, afterCards, get().binders, {
+            computeBinderMoves(beforeForMoves, afterForMoves, moveBinders, {
               allocatedCopyIds: allocated,
             })
           );

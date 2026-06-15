@@ -19,6 +19,7 @@ const BinderCardEditor = lazy(() =>
 );
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
+import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
@@ -47,8 +48,11 @@ function readStoredBinderView(): BinderViewMode {
 
 export function BinderPage() {
   const { id: routeId } = useParams<{ id: string }>();
-  const cards = useCollectionStore((s) => s.cards);
+  const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  // Decorate with Scryfall oracle tags so "tag IS mana-rock" rules resolve.
+  // No-op (returns rawCards by reference) unless a binder uses a tag rule.
+  const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const hydrating = useCollectionStore((s) => s.hydrating);
   const search = useCollectionStore((s) => s.search);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
