@@ -35,6 +35,8 @@ import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scry
 import { ManaCost } from '../ManaCost';
 import { ManaSymbol } from '../shared/ManaSymbol';
 import { MeterBar } from '../shared/MeterBar';
+import { SetSymbol } from '../shared/SetSymbol';
+import { setSymbolTitle } from '@/lib/set-symbols';
 import { typeIcon } from '../../lib/card-types';
 import { formatMoney } from '../../lib/format-money';
 import { Modal } from '../Modal';
@@ -433,10 +435,36 @@ export interface DeckDisplayProps {
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
+/**
+ * One distinct printing inside an aggregated {@link Row}. Built only so a row
+ * whose copies span more than one printing (e.g. three different Secret Lair
+ * Mountains) can expand into per-printing sub-rows — the data is otherwise
+ * collapsed by name. `printings.length <= 1` means "uniform stack, nothing to
+ * expand". Keyed by the slot's printing (`ScryfallCard.id`), so it reflects the
+ * printing the deck actually holds, not a default-by-name lookup.
+ */
+interface PrintingGroup {
+  /** Scryfall printing id (or set|collector fallback) — the dedup key. */
+  key: string;
+  card: ScryfallCard;
+  qty: number;
+  slotIds: string[];
+  price: number;
+  setCode: string;
+  setName?: string;
+  collectorNumber: string;
+  rarity?: string;
+  foil: boolean;
+  finish: EnrichedCard['finish'];
+}
+
 interface Row {
   name: string;
   qty: number;
   card: ScryfallCard;
+  /** Distinct printings this row aggregates. Only meaningful (and only
+   *  rendered as an expand disclosure) when length > 1. */
+  printings: PrintingGroup[];
   cmc: number;
   price: number;
   colorKey: string;
@@ -558,6 +586,9 @@ function buildRows(
   crossDeck?: CrossDeckCtx
 ): Row[] {
   const map = new Map<string, Row>();
+  // Per-name → per-printing buckets, attached to each Row as `printings` at the
+  // end so a multi-printing stack can expand into sub-rows.
+  const printingMaps = new Map<string, Map<string, PrintingGroup>>();
   // Tracks whether a row's image was sourced from an owned printing — if so,
   // we don't downgrade it to a deck-stored fallback later.
   const ownedImage = new Set<string>();
@@ -581,6 +612,41 @@ function buildRows(
     const existing = map.get(card.name);
     const status = classify(dc);
     const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
+
+    // Per-printing bucket (keyed by the slot's printing). Only the owned copy
+    // that actually matches this printing upgrades its set/finish display.
+    const pkey = card.id || `${card.set}|${card.collector_number ?? ''}`;
+    const matchOwned = owned && owned.scryfallId === card.id ? owned : undefined;
+    let pmap = printingMaps.get(card.name);
+    if (!pmap) {
+      pmap = new Map<string, PrintingGroup>();
+      printingMaps.set(card.name, pmap);
+    }
+    const pg = pmap.get(pkey);
+    if (pg) {
+      pg.qty += 1;
+      pg.price += priceOf(card, currency);
+      if (dc.slotId) pg.slotIds.push(dc.slotId);
+      if (matchOwned?.foil) {
+        pg.foil = true;
+        pg.finish = matchOwned.finish;
+      }
+    } else {
+      pmap.set(pkey, {
+        key: pkey,
+        card,
+        qty: 1,
+        slotIds: dc.slotId ? [dc.slotId] : [],
+        price: priceOf(card, currency),
+        setCode: matchOwned?.setCode || card.set || '',
+        setName: matchOwned?.setName || card.set_name,
+        collectorNumber: matchOwned?.collectorNumber || card.collector_number || '',
+        rarity: card.rarity,
+        foil: matchOwned?.foil ?? false,
+        finish: matchOwned?.finish ?? 'nonfoil',
+      });
+    }
+
     if (existing) {
       existing.qty += 1;
       existing.price += priceOf(card, currency);
@@ -621,6 +687,7 @@ function buildRows(
       name: card.name,
       qty: 1,
       card,
+      printings: [],
       cmc: card.cmc ?? 0,
       price: priceOf(card, currency),
       colorKey: colorKeyOf(card),
@@ -647,7 +714,16 @@ function buildRows(
       collectorNumber: owned?.collectorNumber || card.collector_number || '',
     });
   }
-  return [...map.values()];
+  const rows = [...map.values()];
+  for (const r of rows) {
+    const pm = printingMaps.get(r.name);
+    r.printings = pm
+      ? [...pm.values()].sort(
+          (a, b) => b.qty - a.qty || a.collectorNumber.localeCompare(b.collectorNumber)
+        )
+      : [];
+  }
+  return rows;
 }
 
 function statusSeverity(s: AllocationStatus): number {
@@ -960,6 +1036,7 @@ export function DeckDisplay({
         name: c.name,
         qty: 1,
         card: c,
+        printings: [],
         cmc: c.cmc ?? 0,
         price: priceOf(c, currency),
         colorKey: colorKeyOf(c),
@@ -2824,6 +2901,11 @@ function DeckCardRow({
   const canRemove = !!onRemoveCard && row.slotIds.length > 0;
   const canEditQty = !!onSetQty && row.slotIds.length > 0;
   const [editingQty, setEditingQty] = useState(false);
+  // Only stacks that actually span >1 printing get an expand affordance — a
+  // uniform "Mountain ×22" has nothing to reveal.
+  const multiPrinting = row.printings.length > 1;
+  const [expanded, setExpanded] = useState(false);
+  const subListId = `printings-${row.slotIds[0] ?? row.name}`;
 
   const handleRemoveOne = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
@@ -2853,287 +2935,370 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
-  const rowClass = `deck-row` + (entering ? ' is-entering' : '') + (leaving ? ' is-leaving' : '');
+  const rowClass =
+    `deck-row` +
+    (entering ? ' is-entering' : '') +
+    (leaving ? ' is-leaving' : '') +
+    (multiPrinting && expanded ? ' is-expanded' : '');
 
   return (
-    <li
-      className={rowClass}
-      data-peek-name={row.name}
-      onClick={leaving ? undefined : onClick}
-      role={leaving ? undefined : 'button'}
-      tabIndex={leaving ? -1 : 0}
-      aria-hidden={leaving ? true : undefined}
-      ref={itemRef}
-      style={leavingStyle}
-      onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
-      onKeyDown={
-        leaving
-          ? undefined
-          : (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onClick();
+    <>
+      <li
+        className={rowClass}
+        data-peek-name={row.name}
+        onClick={leaving ? undefined : onClick}
+        role={leaving ? undefined : 'button'}
+        tabIndex={leaving ? -1 : 0}
+        aria-hidden={leaving ? true : undefined}
+        ref={itemRef}
+        style={leavingStyle}
+        onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
+        onKeyDown={
+          leaving
+            ? undefined
+            : (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onClick();
+                }
               }
-            }
-      }
-    >
-      {canEditQty && editingQty ? (
-        <input
-          type="number"
-          min={0}
-          max={99}
-          autoFocus
-          defaultValue={row.qty}
-          className={`deck-row-qty-input${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-          aria-label={`Quantity of ${row.name} in deck`}
-          onClick={(e) => e.stopPropagation()}
-          onFocus={(e) => e.currentTarget.select()}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === 'Enter') commitQty(e.currentTarget.value);
-            if (e.key === 'Escape') setEditingQty(false);
-          }}
-          onBlur={(e) => commitQty(e.target.value)}
-        />
-      ) : canEditQty ? (
-        <button
-          type="button"
-          className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-          aria-label={allocationAriaLabel(row, { editable: true })}
-          title={allocationTitle(row, { editable: true })}
-          onClick={startEditQty}
-        >
-          {row.qty}
-        </button>
-      ) : (
-        <span
-          className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-          aria-label={allocationAriaLabel(row, { editable: false })}
-          title={allocationTitle(row, { editable: false })}
-        >
-          {row.qty}
-        </span>
-      )}
-      {showPrefs.roles &&
-        (roleBadge ? (
-          <RoleBadge card={row.card} variant="row" />
-        ) : (
-          <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
-        ))}
-      <span className="deck-row-name" title={row.card.type_line}>
-        <span className="deck-row-name-text" title={row.name}>
-          {row.name}
-        </span>
-        {row.isPartner && (
-          <span className="deck-row-partner-tag" title="Partner commander">
-            <Handshake width={12} height={12} strokeWidth={2.4} aria-hidden />
-            <span className="deck-row-partner-label">Partner</span>
-          </span>
-        )}
-        {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
-        <AllocationChip row={row} />
-        {row.foil && <FoilBadge card={row} />}
-        {synergyReasons && synergyReasons.length > 0 && (
-          <span
-            className="deck-row-synergy"
-            title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
-            aria-label={`Synergy: ${synergyReasons.join('; ')}`}
-          >
-            <span className="deck-row-synergy-icon" aria-hidden>
-              ✦
-            </span>
-          </span>
-        )}
-        {typeof inclusionPct === 'number' && (
-          <span
-            className="deck-row-inclusion"
-            title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
-            aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
-          >
-            {Math.round(inclusionPct)}%
-          </span>
-        )}
-      </span>
-      {showPrefs.mana &&
-        (mana ? (
-          <ManaCost cost={mana} className="mana-cost-row" />
-        ) : (
-          <span className="mana-cost-row" aria-hidden />
-        ))}
-      {showPrefs.price &&
-        (row.price > 0 ? (
-          <span
-            className="deck-row-price"
-            title={
-              row.qty > 1 ? `${formatMoney(row.price / row.qty, { currency })} each` : undefined
-            }
-          >
-            {formatMoney(row.price, { currency })}
-          </span>
-        ) : (
-          // Unknown/zero price — keep the cell so the menu column stays
-          // aligned across rows (mirrors the empty mana-cost placeholder).
-          <span className="deck-row-price" aria-hidden />
-        ))}
-      <div className="deck-row-menu" ref={menuRef}>
-        <button
-          type="button"
-          className="deck-row-menu-trigger"
-          aria-label="Card actions"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          data-open={menuOpen || undefined}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen((v) => !v);
-          }}
-        >
-          <MoreVertical
-            className="deck-row-menu-icon"
-            width={14}
-            height={14}
-            strokeWidth={2}
-            aria-hidden
+        }
+      >
+        {canEditQty && editingQty ? (
+          <input
+            type="number"
+            min={0}
+            max={99}
+            autoFocus
+            defaultValue={row.qty}
+            className={`deck-row-qty-input${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+            aria-label={`Quantity of ${row.name} in deck`}
+            onClick={(e) => e.stopPropagation()}
+            onFocus={(e) => e.currentTarget.select()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') commitQty(e.currentTarget.value);
+              if (e.key === 'Escape') setEditingQty(false);
+            }}
+            onBlur={(e) => commitQty(e.target.value)}
           />
-        </button>
-        {menuOpen && (
-          <div role="menu" className="deck-row-menu-popover">
-            {onEditCard && row.slotIds.length > 0 && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onEditCard(row.slotIds[0], row.card);
-                }}
-              >
-                Edit printing
-              </button>
-            )}
-            {canEditQty && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onSetQty!(row.card, row.qty + 1);
-                }}
-              >
-                Add another copy
-              </button>
-            )}
+        ) : canEditQty ? (
+          <button
+            type="button"
+            className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+            aria-label={allocationAriaLabel(row, { editable: true })}
+            title={allocationTitle(row, { editable: true })}
+            onClick={startEditQty}
+          >
+            {row.qty}
+          </button>
+        ) : (
+          <span
+            className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+            aria-label={allocationAriaLabel(row, { editable: false })}
+            title={allocationTitle(row, { editable: false })}
+          >
+            {row.qty}
+          </span>
+        )}
+        {showPrefs.roles &&
+          (roleBadge ? (
+            <RoleBadge card={row.card} variant="row" />
+          ) : (
+            <span className="deck-row-role-badge deck-row-role-empty" aria-hidden />
+          ))}
+        <span className="deck-row-name" title={row.card.type_line}>
+          <span className="deck-row-name-text" title={row.name}>
+            {row.name}
+          </span>
+          {multiPrinting && (
             <button
               type="button"
-              role="menuitem"
-              className="deck-row-menu-item"
-              disabled={!canRemove}
-              onClick={handleRemoveOne}
+              className="deck-row-printings-toggle"
+              aria-expanded={expanded}
+              aria-controls={subListId}
+              aria-label={
+                expanded
+                  ? `Collapse ${row.name} printings`
+                  : `Show ${row.printings.length} printings of ${row.name}`
+              }
+              title={
+                expanded
+                  ? `Collapse ${row.name} printings`
+                  : `Show ${row.printings.length} printings of ${row.name}`
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
             >
-              {row.qty > 1 ? 'Remove one copy' : 'Remove from deck'}
+              <span className="deck-row-printings-count">{row.printings.length} printings</span>
+              <ChevronDown
+                className="deck-row-printings-chevron"
+                width={12}
+                height={12}
+                strokeWidth={2.4}
+                aria-hidden
+              />
             </button>
-            {row.qty > 1 && (
+          )}
+          {row.isPartner && (
+            <span className="deck-row-partner-tag" title="Partner commander">
+              <Handshake width={12} height={12} strokeWidth={2.4} aria-hidden />
+              <span className="deck-row-partner-label">Partner</span>
+            </span>
+          )}
+          {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
+          <AllocationChip row={row} />
+          {row.foil && <FoilBadge card={row} />}
+          {synergyReasons && synergyReasons.length > 0 && (
+            <span
+              className="deck-row-synergy"
+              title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
+              aria-label={`Synergy: ${synergyReasons.join('; ')}`}
+            >
+              <span className="deck-row-synergy-icon" aria-hidden>
+                ✦
+              </span>
+            </span>
+          )}
+          {typeof inclusionPct === 'number' && (
+            <span
+              className="deck-row-inclusion"
+              title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
+              aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
+            >
+              {Math.round(inclusionPct)}%
+            </span>
+          )}
+        </span>
+        {showPrefs.mana &&
+          (mana ? (
+            <ManaCost cost={mana} className="mana-cost-row" />
+          ) : (
+            <span className="mana-cost-row" aria-hidden />
+          ))}
+        {showPrefs.price &&
+          (row.price > 0 ? (
+            <span
+              className="deck-row-price"
+              title={
+                row.qty > 1 ? `${formatMoney(row.price / row.qty, { currency })} each` : undefined
+              }
+            >
+              {formatMoney(row.price, { currency })}
+            </span>
+          ) : (
+            // Unknown/zero price — keep the cell so the menu column stays
+            // aligned across rows (mirrors the empty mana-cost placeholder).
+            <span className="deck-row-price" aria-hidden />
+          ))}
+        <div className="deck-row-menu" ref={menuRef}>
+          <button
+            type="button"
+            className="deck-row-menu-trigger"
+            aria-label="Card actions"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            data-open={menuOpen || undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((v) => !v);
+            }}
+          >
+            <MoreVertical
+              className="deck-row-menu-icon"
+              width={14}
+              height={14}
+              strokeWidth={2}
+              aria-hidden
+            />
+          </button>
+          {menuOpen && (
+            <div role="menu" className="deck-row-menu-popover">
+              {onEditCard && row.slotIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onEditCard(row.slotIds[0], row.card);
+                  }}
+                >
+                  Edit printing
+                </button>
+              )}
+              {canEditQty && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onSetQty!(row.card, row.qty + 1);
+                  }}
+                >
+                  Add another copy
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
                 className="deck-row-menu-item"
-                disabled={!canRemove && !canEditQty}
-                onClick={handleRemoveAll}
+                disabled={!canRemove}
+                onClick={handleRemoveOne}
               >
-                Remove all {row.qty} copies
+                {row.qty > 1 ? 'Remove one copy' : 'Remove from deck'}
               </button>
-            )}
-            {onMoveToZone && moveLabel && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onMoveToZone(row.slotIds[0]);
-                }}
-              >
-                {moveLabel}
-              </button>
-            )}
-            {onUseOwnCopy && row.claimedElsewhereQty > 0 && row.slotIds.length > 0 && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onUseOwnCopy(row.card);
-                }}
-              >
-                Use my copy
-              </button>
-            )}
-            {onMoveToAnotherDeck && !row.isPartner && row.slotIds.length > 0 && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onMoveToAnotherDeck(row.card);
-                }}
-              >
-                Move to another deck…
-              </button>
-            )}
-            {onReleaseCopy && row.allocatedQty > 0 && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onReleaseCopy(row.card);
-                }}
-              >
-                Release copy
-              </button>
-            )}
-            {onMakeCommander && canMakeCommander?.(row.card) && row.slotIds.length > 0 && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onMakeCommander(row.slotIds[0], row.card);
-                }}
-              >
-                Make commander
-              </button>
-            )}
-            {onMakePartner && canMakePartner?.(row.card) && row.slotIds.length > 0 && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-row-menu-item"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpen(false);
-                  onMakePartner(row.slotIds[0], row.card);
-                }}
-              >
-                Make partner
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </li>
+              {row.qty > 1 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  disabled={!canRemove && !canEditQty}
+                  onClick={handleRemoveAll}
+                >
+                  Remove all {row.qty} copies
+                </button>
+              )}
+              {onMoveToZone && moveLabel && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onMoveToZone(row.slotIds[0]);
+                  }}
+                >
+                  {moveLabel}
+                </button>
+              )}
+              {onUseOwnCopy && row.claimedElsewhereQty > 0 && row.slotIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onUseOwnCopy(row.card);
+                  }}
+                >
+                  Use my copy
+                </button>
+              )}
+              {onMoveToAnotherDeck && !row.isPartner && row.slotIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onMoveToAnotherDeck(row.card);
+                  }}
+                >
+                  Move to another deck…
+                </button>
+              )}
+              {onReleaseCopy && row.allocatedQty > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onReleaseCopy(row.card);
+                  }}
+                >
+                  Release copy
+                </button>
+              )}
+              {onMakeCommander && canMakeCommander?.(row.card) && row.slotIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onMakeCommander(row.slotIds[0], row.card);
+                  }}
+                >
+                  Make commander
+                </button>
+              )}
+              {onMakePartner && canMakePartner?.(row.card) && row.slotIds.length > 0 && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="deck-row-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    onMakePartner(row.slotIds[0], row.card);
+                  }}
+                >
+                  Make partner
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </li>
+      {multiPrinting && expanded && !leaving && (
+        <li className="deck-row-printings-wrap">
+          <ul id={subListId} className="deck-row-printings-list">
+            {/* Informational rows — they surface the distinct printings the
+                stack hides. Changing a printing stays on the aggregated row's
+                "Edit printing" / "Use my copy" menu (a per-printing carousel
+                deep-link is the deferred follow-up). */}
+            {row.printings.map((p) => (
+              <li key={p.key} className="deck-printing-sub">
+                <SetSymbol
+                  className="deck-printing-sub-symbol"
+                  setCode={p.setCode}
+                  rarity={p.rarity}
+                  title={setSymbolTitle({
+                    setCode: p.setCode,
+                    setName: p.setName,
+                    collectorNumber: p.collectorNumber,
+                    rarity: p.rarity,
+                  })}
+                />
+                <span className="deck-printing-sub-set">
+                  {(p.setCode || '—').toUpperCase()}
+                  {p.collectorNumber && (
+                    <span className="deck-printing-sub-cn"> · #{p.collectorNumber}</span>
+                  )}
+                </span>
+                {p.foil && (
+                  <span
+                    className="deck-printing-sub-foil"
+                    title={p.finish === 'etched' ? 'Etched foil' : 'Foil'}
+                  >
+                    {p.finish === 'etched' ? 'Etched' : 'Foil'}
+                  </span>
+                )}
+                <span className="deck-printing-sub-spacer" />
+                {p.price > 0 && (
+                  <span className="deck-printing-sub-price">
+                    {formatMoney(p.price, { currency })}
+                  </span>
+                )}
+                <span className="deck-printing-sub-qty">{p.qty}</span>
+              </li>
+            ))}
+          </ul>
+        </li>
+      )}
+    </>
   );
 }
 
