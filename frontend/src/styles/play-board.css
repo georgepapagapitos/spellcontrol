@@ -513,7 +513,7 @@
   text-shadow:
     0 2px 12px rgba(0, 0, 0, 0.55),
     0 0 28px rgba(0, 0, 0, 0.25);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 0.1rem 0.6rem;
   font-size: clamp(2.5rem, 10vmin, 6rem);
   line-height: 0.9;
