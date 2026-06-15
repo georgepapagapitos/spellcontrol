@@ -385,7 +385,13 @@ describe('push', () => {
     expect(arg.deletions.map((d) => `${d.kind}:${d.id}`)).toEqual(['binder:b-1']);
   });
 
-  it('forwards deck clientRev from the durable queue', async () => {
+  it('sends a deck clientRev re-derived from the live IDB syncedRev', async () => {
+    // The clientRev is the row's current syncedRev at SEND time, not the value
+    // baked into the queued mutation — so a same-device edit chained off our own
+    // prior push uses the rev that push produced, never a stale base.
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'changed' }, rev: 0, syncedRev: 12, deletedAt: null },
+    ]);
     await queue.enqueue({
       op: 'upsert',
       kind: 'deck',
@@ -402,6 +408,50 @@ describe('push', () => {
       upserts: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'changed' }, clientRev: 12 }],
       deletions: [],
     });
+  });
+
+  it('re-derives the deck clientRev from the stamped syncedRev across separate pushes (no self-conflict)', async () => {
+    // Single-device regression: a second deck edit, enqueued before the first
+    // push's ack stamped the new syncedRev, has a STALE baked clientRev. At send
+    // time the driver must use the freshly-stamped syncedRev instead, or the
+    // server reject-stales our own write as a phantom "another device" conflict.
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', n: 1 }, rev: 0, syncedRev: 100, deletedAt: null },
+    ]);
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', n: 1 },
+      clientRev: 100,
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'deck', id: 'd-1', rev: 106, deletedAt: null }],
+      cursor: 106,
+    });
+    await startSync('user-1'); // drains edit 1 → ack stamps syncedRev 106
+
+    // Edit 2 lands in the queue still carrying the now-stale baked clientRev 100.
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', n: 2 }, rev: 0, syncedRev: 106, deletedAt: null },
+    ]);
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'deck',
+      id: 'd-1',
+      data: { id: 'd-1', n: 2 },
+      clientRev: 100,
+    });
+    mockPush.mockClear();
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'deck', id: 'd-1', rev: 107, deletedAt: null }],
+      cursor: 107,
+    });
+    await flushSync();
+    const body = mockPush.mock.calls[0][0] as {
+      upserts: Array<{ id: string; clientRev?: number }>;
+    };
+    expect(body.upserts[0].clientRev).toBe(106); // re-derived, NOT the baked stale 100
   });
 
   it('adopts server-winning decks and acks stale deck conflicts', async () => {
@@ -777,6 +827,58 @@ describe('web write-through (no durable outbox)', () => {
     expect(body.upserts.map((u) => u.id)).toEqual(['b-1']);
     expect(body.deletions.map((d) => d.id)).toEqual(['b-2']);
     expect(await queue.peekBatch(10)).toHaveLength(0);
+  });
+
+  it('two rapid same-deck edits do not self-conflict on one device', async () => {
+    // The reported bug: editing a deck twice quickly on web fired "Deck changed
+    // on another device" and dropped the second edit — with NO other device. The
+    // two write-throughs raced, both sending the same pre-ack base rev; the
+    // server reject-staled the loser. The fix serializes web writes and derives
+    // each clientRev from the syncedRev the prior write stamped.
+    const { useToastsStore } = await import('../store/toasts');
+    useToastsStore.getState().clear();
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', n: 0 }, rev: 100, syncedRev: 100, deletedAt: null },
+    ]);
+
+    // Faithful server stand-in: strict rev = clientRev reject-stale, like the
+    // real backend (UPDATE ... WHERE rev = $clientRev). A mismatch → conflict.
+    let serverRev = 100;
+    let serverData: unknown = { id: 'd-1', n: 0 };
+    mockPush.mockImplementation(
+      async ({
+        upserts,
+      }: {
+        upserts: Array<{ kind: string; id: string; data: unknown; clientRev?: number }>;
+      }) => {
+        const u = upserts[0];
+        if (u.kind === 'deck' && u.clientRev !== undefined && u.clientRev !== serverRev) {
+          return {
+            applied: [],
+            conflicts: [{ kind: 'deck', id: u.id, serverRev, serverData }],
+            cursor: serverRev,
+          };
+        }
+        serverRev += 1;
+        serverData = u.data;
+        return {
+          applied: [{ kind: 'deck', id: u.id, rev: serverRev, deletedAt: null }],
+          cursor: serverRev,
+        };
+      }
+    );
+
+    // Fire both edits without awaiting the first — rapid typing on web.
+    const p1 = recordUpsert('deck', 'd-1', { id: 'd-1', n: 1 });
+    const p2 = recordUpsert('deck', 'd-1', { id: 'd-1', n: 2 });
+    await Promise.all([p1, p2]);
+
+    // No phantom-conflict toast, and the second edit won (converged, not dropped).
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts.some((t) => /another device/i.test(t.message))).toBe(false);
+    const row = await estore.getById('deck', 'd-1');
+    expect((row?.data as { n: number }).n).toBe(2);
+    expect(row).toMatchObject({ rev: 102, syncedRev: 102 });
   });
 
   it('adopts a server deck conflict (reject-stale works on web too)', async () => {
