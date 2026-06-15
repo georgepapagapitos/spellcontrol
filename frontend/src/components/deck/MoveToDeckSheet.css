@@ -85,7 +85,7 @@
   padding: 0.5rem;
   border: 0.5px solid var(--border);
   border-left: 3px solid var(--deck-color, var(--accent));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--surface-raised);
   cursor: pointer;
   text-align: left;
