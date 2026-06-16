@@ -28,6 +28,7 @@ import { initDeepLinks } from './lib/deep-links';
 import { setAppNavigator } from './lib/navigate-bridge';
 import { AutoLinkBanner } from './components/AutoLinkBanner';
 import { useFirstRunGate } from './lib/use-first-run-gate';
+import { hasEverVisited } from './lib/first-run';
 
 // Fallback for the OAuth App Link landing path. In the happy path Android
 // intercepts https://spellcontrol.com/oauth/callback and hands the URL to
@@ -198,13 +199,26 @@ export default function App() {
       <AutoLinkBanner />
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
-        <Route path="/welcome" element={<WelcomePage />} />
+        {/* Root: the public marketing landing for first-time/logged-out
+            visitors (and search-engine crawlers — empty storage + guest auth),
+            otherwise straight into the app. Rendered outside <Layout> so the
+            landing has no app chrome. Canonical homepage URL is `/`. */}
+        <Route
+          path="/"
+          element={
+            status === 'guest' && !hasEverVisited() ? (
+              <WelcomePage />
+            ) : (
+              <Navigate to="/collection" replace />
+            )
+          }
+        />
+        {/* Legacy onboarding path → single canonical landing URL. */}
+        <Route path="/welcome" element={<Navigate to="/" replace />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
         <Route element={<Layout />}>
-          <Route index element={<Navigate to="/collection" replace />} />
-
           <Route path="/collection" element={<CollectionHubLayout />}>
             <Route index element={<CollectionPage />} />
             <Route path="binders" element={<BindersIndexPage />} />
