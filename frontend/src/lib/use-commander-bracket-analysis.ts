@@ -15,7 +15,11 @@ interface Args {
   /** Whether the deck's format has a commander (gates the whole feature). */
   hasCommander: boolean;
   colorIdentity: string[];
-  updateDeck: (id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>) => void;
+  updateDeck: (
+    id: string,
+    updates: Partial<Omit<Deck, 'id' | 'createdAt'>>,
+    silent?: boolean
+  ) => void;
   /**
    * The user's target bracket (Deck.bracketOverride). Folded into the analysis
    * signature so the Bracket Fit plan recomputes when the target changes — not
@@ -147,21 +151,27 @@ export function useCommanderBracketAnalysis(args: Args): void {
             return;
           }
           failedSignatureRef.current = null;
-          updateDeck(deckId, {
-            deckGrade: result.deckGrade,
-            bracketEstimation: result.bracketEstimation,
-            roleTargets: result.roleTargets,
-            gapAnalysis: result.gapAnalysis,
-            cardInclusionMap: result.cardInclusionMap,
-            planScore: result.planScore,
-            optimizeSwaps: result.optimizeSwaps,
-            costPlan: result.costPlan,
-            synergyAnalysis: result.synergyAnalysis,
-            winConditions: result.winConditions,
-            // null when no target set / non-commander — clears a stale plan.
-            bracketFit: result.bracketFit ?? null,
-            gradeBracketSignature: signature,
-          });
+          updateDeck(
+            deckId,
+            {
+              deckGrade: result.deckGrade,
+              bracketEstimation: result.bracketEstimation,
+              roleTargets: result.roleTargets,
+              gapAnalysis: result.gapAnalysis,
+              cardInclusionMap: result.cardInclusionMap,
+              planScore: result.planScore,
+              optimizeSwaps: result.optimizeSwaps,
+              costPlan: result.costPlan,
+              synergyAnalysis: result.synergyAnalysis,
+              winConditions: result.winConditions,
+              // null when no target set / non-commander — clears a stale plan.
+              bracketFit: result.bracketFit ?? null,
+              gradeBracketSignature: signature,
+              // silent: derived analysis, not a user edit — don't bump updatedAt
+              // (else merely viewing a deck marks it "edited just now").
+            },
+            true
+          );
         })
         .catch(() => {
           if (reqIdRef.current !== myReqId) return;

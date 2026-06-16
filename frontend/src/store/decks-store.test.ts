@@ -106,6 +106,15 @@ describe('useDecksStore — update / rename / delete', () => {
     expect(d.updatedAt).toBeGreaterThanOrEqual(before);
   });
 
+  it('updateDeck with silent=true does not bump updatedAt (background analysis writes)', () => {
+    const id = store().createDeck({ source: 'manual', commander: null });
+    const before = store().decks[0].updatedAt;
+    store().updateDeck(id, { deckGrade: { letter: 'A' } as never }, true);
+    const d = store().decks[0];
+    expect(d.deckGrade).toEqual({ letter: 'A' });
+    expect(d.updatedAt).toBe(before);
+  });
+
   it('updateDeck leaves other decks untouched', () => {
     const a = store().createDeck({ name: 'A', source: 'manual', commander: null });
     store().createDeck({ name: 'B', source: 'manual', commander: null });
