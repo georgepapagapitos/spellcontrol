@@ -85,14 +85,38 @@ const FAST_MANA = new Set([
 ]);
 
 /**
- * Bracket-2 floor for extra turns kicks in only at 3+. Per RC guidance,
- * one or two extra-turn spells in a deck is fine across any bracket —
- * what bracket 2 actually restricts is *chaining* (building around
- * repeatedly playing extra turns). A deck with 3+ extra-turn spells
- * strongly implies an extra-turn strategy.
+ * Extra-turn floor kicks in at 3+ spells. Per RC guidance, one or two extra-turn
+ * spells is fine in any bracket; 3+ implies a deliberate extra-turn sub-theme.
+ *
+ * It floors at Bracket 3, NOT 4. A flat *count* of three one-shot extra-turn
+ * spells can't distinguish genuine infinite *chaining* (a Bracket 4 behavior)
+ * from a deck that just runs a few Time Walks as finishers (Bracket 3). The
+ * truly degenerate case — an infinite-extra-turns engine — is a Spellbook combo
+ * tagged R/S and is already caught by the two-card combo path below, so this
+ * count-based signal only needs to catch the residual "lots of extra turns, no
+ * detected infinite engine" case, which is a Bracket 3 power bump. Empirical
+ * calibration (E48, 48 known-bracket decks) confirmed the only deck to trip this
+ * floor was already Bracket 4+ via Game Changers, so softening 4→3 regressed
+ * nothing while removing a latent false-Bracket-4 on casual extra-turn decks.
  *   - https://edhrec.com/articles/what-does-it-look-like-to-chain-extra-turns-in-commander
  */
 const EXTRA_TURN_FLOOR_THRESHOLD = 3;
+const EXTRA_TURN_FLOOR_BRACKET = 3;
+
+/**
+ * Cards the upstream Scryfall `mass-land-denial` oracle tag mislabels — they are
+ * not mass land denial, but the tag (108 cards) sweeps in a planeswalker, a
+ * spot-land-destruction walker, an untap-lock walker, and a spell-tax artifact.
+ * Because mass land denial is the single harshest floor (→ Bracket 4), one bad
+ * tag turns a Bracket 2 precon into Bracket 4 (audit/E48: Gideon floored the
+ * Silverquill precon). Guard the known false positives here.
+ */
+const MLD_FALSE_POSITIVES = new Set([
+  'Gideon, Champion of Justice', // -15 exiles all *other* permanents — a one-sided wipe, not land denial
+  'Ajani Vengeant', // -2 destroys a *single* land — spot, not mass
+  'Dovin Baan', // -7 locks untap of permanents — not land-specific
+  'Damping Sphere', // taxes spells / slows fast mana — a tax, not land denial
+]);
 
 /**
  * Interaction-percentage thresholds (proportion of non-land cards that are
@@ -126,6 +150,13 @@ const COMMANDER_NONLAND_COUNT = 63;
  *  - 3+ pieces → bracket 3 floor (deliberate stax presence)
  *  - 5+ pieces → bracket 4 floor (stax-focused strategy)
  */
+// Only genuine *lock / resource-denial* pieces floor the bracket. We deliberately
+// exclude single-bodied "hatebears" / spell-tax creatures (Thalia, Esper Sentinel,
+// Aven Mindcensor, Archon of Emeria, Eidolon of Rhetoric, Spirit of the Labyrinth,
+// Vryn Wingmare, Glowrider, Notion Thief): these appear in plenty of casual Bracket
+// 2 decks, and counting three of them as a "stax strategy" over-rated white/blue
+// fair decks to Bracket 3 (audit P2 #8). What stays here are effects that, in
+// numbers, actually lock the game (tap-down, sphere taxes, artifact/ability denial).
 const STAX_PIECES = new Set([
   // Tap-down / mana denial (otag:stasis subset)
   'Winter Orb',
@@ -135,18 +166,11 @@ const STAX_PIECES = new Set([
   'Damping Field',
   'Smoke',
   'Imi Statue',
-  // Resource taxes
+  // Sphere / cost-tax stax staples
   'Sphere of Resistance',
   'Thorn of Amethyst',
   'Lodestone Golem',
   'Damping Sphere',
-  'Thalia, Guardian of Thraben',
-  'Esper Sentinel',
-  'Archon of Emeria',
-  'Eidolon of Rhetoric',
-  'Spirit of the Labyrinth',
-  'Vryn Wingmare',
-  'Glowrider',
   'Rule of Law',
   // Cumulative-upkeep / artifact stax
   'Smokestack',
@@ -157,9 +181,6 @@ const STAX_PIECES = new Set([
   'Stony Silence',
   'Collector Ouphe',
   'Linvala, Keeper of Silence',
-  // Search / commander-strategy hate
-  'Aven Mindcensor',
-  'Notion Thief',
 ]);
 
 const STAX_FLOOR_BRACKET_3_THRESHOLD = 3;
@@ -231,13 +252,19 @@ export function estimateBracket(
   const fastMana: string[] = [];
   const tutors: string[] = [];
   const staxPieces: string[] = [];
+  // Counterspells whose only interaction role is countering (not also tagged
+  // removal/boardwipe). getCardRole never emits a "counterspell" role, so these
+  // are otherwise invisible to the interaction-density soft signal — which badly
+  // undercounted blue control decks (audit P2 #6). Counted once, deduped.
+  const counterspells = new Set<string>();
 
   for (const name of allCardNames) {
     if (gameChangerNames.has(name)) gameChangers.push(name);
-    if (isMassLandDenial(name)) massLandDenial.push(name);
+    if (isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name)) massLandDenial.push(name);
     if (isExtraTurn(name)) extraTurns.push(name);
     if (FAST_MANA.has(name)) fastMana.push(name);
     if (STAX_PIECES.has(name)) staxPieces.push(name);
+    if (hasTag(name, 'counterspell') && getCardRole(name) === null) counterspells.add(name);
     // Only count as tutor if primary role is cardDraw — cards like Cultivate
     // have the tutor tag but their primary role is ramp, not tutoring.
     if (hasTag(name, 'tutor') && getCardRole(name) === 'cardDraw') tutors.push(name);
@@ -262,9 +289,9 @@ export function estimateBracket(
 
   // ── 3. Interaction count (removal + counterspell + boardwipe) ──
 
-  const interactionCount = roleCounts
-    ? (roleCounts['removal'] ?? 0) + (roleCounts['boardwipe'] ?? 0)
-    : 0;
+  const interactionCount =
+    (roleCounts ? (roleCounts['removal'] ?? 0) + (roleCounts['boardwipe'] ?? 0) : 0) +
+    counterspells.size;
 
   // ── 4. Hard floor rules ──
 
@@ -302,8 +329,16 @@ export function estimateBracket(
     // R/S bracketTag = Spellbook's signal that the combo is near-guaranteed early.
     // High acceleration (fastMana + tutors) escalates the same combo to B4.
     const accel = accelerationScore(fastMana, tutors);
+    // Only 'R' (Ruthless) — Spellbook's tag for genuinely fast / infinite-turns
+    // combos — auto-escalates to B4. 'S' (Spicy) is the casual↔competitive bridge:
+    // it covers slow, fragile two-creature combos (e.g. Lightning Runner +
+    // Aetherwind Basker, Exquisite Blood + Sanguine Bond) that sit at Bracket 3,
+    // and treating 'S' as a fast-combo signal over-rated casual decks to Bracket 4
+    // (E48 calibration: living-energy/creative-energy/goth-girl). cEDH decks still
+    // reach B4 via 'R' tags or high acceleration, so dropping 'S' here regressed no
+    // high-power deck in the 48-deck reference set.
     const hasReliableTag = detectedCombos?.some(
-      (c) => c.isComplete && c.cardCount <= 2 && (c.bracketTag === 'R' || c.bracketTag === 'S')
+      (c) => c.isComplete && c.cardCount <= 2 && c.bracketTag === 'R'
     );
     const isEarlyAssembly = accel >= 4 || hasReliableTag;
 
@@ -327,14 +362,16 @@ export function estimateBracket(
   // fastMana/tutor counts which drive the soft score.
 
   if (extraTurns.length >= EXTRA_TURN_FLOOR_THRESHOLD) {
-    // Per RC: 1–2 extra-turn spells is fine in any bracket. Floor only triggers
-    // at 3+ as that strongly implies an extra-turn strategy (chaining),
-    // which is Bracket 4 behavior per the RC rules.
+    // Per RC: 1–2 extra-turn spells is fine in any bracket. 3+ implies a deliberate
+    // extra-turn sub-theme — a Bracket 3 power bump. True infinite-turn *chaining*
+    // (Bracket 4) is a Spellbook combo caught by the two-card combo path above; a
+    // flat count can't prove chaining, so this floors at 3, not 4 (see
+    // EXTRA_TURN_FLOOR_BRACKET).
     hardFloors.push({
-      bracket: 4,
-      reason: `${extraTurns.length} extra turn spells (chain-likely)`,
+      bracket: EXTRA_TURN_FLOOR_BRACKET,
+      reason: `${extraTurns.length} extra turn spells`,
       detail:
-        'Three or more extra-turn spells signals a deck built to chain them — Bracket 4 behavior per the RC rules.',
+        'Several extra-turn spells signal a deliberate extra-turns sub-theme, which bumps the power level.',
     });
   }
 
