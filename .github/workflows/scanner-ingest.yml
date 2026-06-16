@@ -53,7 +53,12 @@ jobs:
     timeout-minutes: 240
 
     steps:
+      # lfs: true so card-embeddings.bin checks out as the real binary (not a
+      # pointer) and Git LFS is initialized — the regenerated DB must commit
+      # back through the LFS filter, and the size report needs real bytes.
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - uses: actions/setup-node@v6
         with:

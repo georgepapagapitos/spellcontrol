@@ -377,7 +377,14 @@ export function getMatcher(dataDir: string): Promise<Matcher | null> {
       logger.warn(`[matcher] data files missing under ${dataDir} — scanner endpoint disabled`);
       return null;
     }
-    return createMatcher({ dataDir });
+    // A load failure (e.g. an LFS-pointer stub for card-embeddings.bin →
+    // "bad magic") must resolve to null so the route returns a clear 503,
+    // not reject — a cached rejected promise would 500 every request for the
+    // life of the process.
+    return createMatcher({ dataDir }).catch((err) => {
+      logger.error('[matcher] failed to load — scanner endpoint disabled:', err);
+      return null;
+    });
   })();
   return matcherPromise;
 }
