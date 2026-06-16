@@ -167,9 +167,6 @@ vi.mock('../components/deck/SwapThisCard', () => ({
 vi.mock('../components/deck/SimilarCardsStrip', () => ({
   SimilarCardsStrip: () => <div />,
 }));
-vi.mock('../components/deck/StealConfirmSheet', () => ({
-  StealConfirmSheet: () => <div />,
-}));
 vi.mock('../components/deck/MoveToDeckSheet', () => ({
   MoveToDeckSheet: () => <div />,
 }));

@@ -513,7 +513,7 @@ export function findStealableCopy(
  *
  * An add NEVER moves a physical copy out of another deck — decks list what they
  * want freely. Pulling a copy in is always a separate, conscious choice (the
- * per-row "Use my copy" / Shared-copies review → StealConfirmSheet). So:
+ * per-row "Use my copy" / the Shared-copies review's "Move here…"). So:
  *
  *  - `bind`: a free owned copy exists → claim it.
  *  - `list`: no free copy → add the slot unbound. classifyAllocation then renders
