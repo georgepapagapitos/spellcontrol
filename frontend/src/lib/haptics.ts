@@ -85,4 +85,11 @@ export const haptics = {
     if (isNativePlatform()) nativeNotify(NotificationType.Error);
     else webVibrate([30, 30, 30]);
   },
+
+  /** Step-up bump — fired when the hold-ramp advances to a larger step size. */
+  bump(): void {
+    if (!enabled) return;
+    if (isNativePlatform()) nativeImpact(ImpactStyle.Medium);
+    else webVibrate(25);
+  },
 };
