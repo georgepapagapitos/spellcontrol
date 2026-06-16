@@ -324,3 +324,77 @@ describe('filterCostPlanByOwnership', () => {
     expect(out.ownedSkippedCount).toBe(2);
   });
 });
+
+// ── budget suggestion quality (T43 PR-0a) ───────────────────────────────
+
+describe('buildCostPlan suggestion quality', () => {
+  it('does not offer a cheaper candidate below the inclusion floor', () => {
+    const cards = [card({ name: 'Pricey', usd: '20', deckRole: 'ramp' })];
+    const recs = [
+      rec({ name: 'Fringe', role: 'ramp', inclusion: 0, price: '0.10' }), // too fringe
+    ];
+    const plan = buildCostPlan(cards, 'Cmdr', undefined, recs);
+    expect(plan.spellRows).toHaveLength(0);
+  });
+
+  it('still offers a cheaper candidate that clears the inclusion floor', () => {
+    const cards = [card({ name: 'Pricey', usd: '20', deckRole: 'ramp' })];
+    const recs = [rec({ name: 'Solid', role: 'ramp', inclusion: 40, price: '0.50' })];
+    const plan = buildCostPlan(cards, 'Cmdr', undefined, recs);
+    expect(plan.spellRows.map((r) => r.suggestionName)).toEqual(['Solid']);
+  });
+
+  it('falls back to the primary-type bucket for a spell with no deckRole', () => {
+    const cards = [card({ name: 'Roleless', usd: '20', type_line: 'Creature' })]; // no deckRole
+    // A roleless recommendation lands in the `type:creature` bucket.
+    const recs = [
+      rec({ name: 'Cheap Beater', inclusion: 30, price: '0.50', primaryType: 'Creature' }),
+    ];
+    const plan = buildCostPlan(cards, 'Cmdr', undefined, recs);
+    expect(plan.spellRows.map((r) => r.suggestionName)).toEqual(['Cheap Beater']);
+  });
+
+  it('never downgrades a fetchland/dual into a lower-fixing land', () => {
+    const fetch = card({
+      name: 'Flooded Strand',
+      usd: '20',
+      type_line: 'Land',
+      oracle_text:
+        'Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.',
+    });
+    const recs = [
+      // cheap but worse fixing (one color) — must be rejected
+      rec({
+        name: 'Tapland Basic',
+        primaryType: 'Land',
+        inclusion: 40,
+        price: '0.25',
+        producedColors: ['U'],
+      }),
+      // cheap dual that preserves 2-color fixing — acceptable
+      rec({
+        name: 'Cheap Dual',
+        primaryType: 'Land',
+        inclusion: 40,
+        price: '1.00',
+        producedColors: ['W', 'U'],
+      }),
+    ];
+    const plan = buildCostPlan([fetch], 'Cmdr', undefined, recs);
+    expect(plan.landRows.map((r) => r.suggestionName)).toEqual(['Cheap Dual']);
+  });
+
+  it('does not reject a land candidate that has no color data (degrades gracefully)', () => {
+    const dual = card({
+      name: 'Hallowed Fountain',
+      usd: '15',
+      type_line: 'Land',
+      produced_mana: ['W', 'U'],
+    });
+    // Candidate with unknown fixing (producedColors absent) must still be offered
+    // rather than dropped — otherwise a missing-enrichment pool kills all swaps.
+    const recs = [rec({ name: 'Mystery Land', primaryType: 'Land', inclusion: 40, price: '1.00' })];
+    const plan = buildCostPlan([dual], 'Cmdr', undefined, recs);
+    expect(plan.landRows.map((r) => r.suggestionName)).toEqual(['Mystery Land']);
+  });
+});
