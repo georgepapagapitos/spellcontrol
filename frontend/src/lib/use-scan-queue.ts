@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import type { ScannedEntry } from '../components/ScannerQueueSheet';
@@ -69,6 +71,51 @@ function applyEntryPatch(
   return queue.map((e, i) => (i === idx ? { ...cur, id: newId, card, finish } : e));
 }
 
+interface ScanQueueState {
+  queue: ScannedEntry[];
+  upsert: (card: ScryfallCard) => void;
+  patch: (id: string, patch: { card?: ScryfallCard; finish?: Finish }) => void;
+  remove: (id: string) => void;
+  clear: () => void;
+  changeQty: (id: string, delta: number) => void;
+}
+
+/**
+ * The scan queue lives in a persisted store rather than component state so it
+ * survives the scanner unmounting — the user can leave the scanner to check
+ * their collection and come back to the same queue, and an accidental app
+ * kill mid-session doesn't lose their scans. It's cleared explicitly (the
+ * "Clear all" button, per-row removal, or a successful add-to-collection),
+ * never implicitly on close.
+ *
+ * Device-local only — this is pre-collection staging, not synced data (keep
+ * it off the sync path, like the other reference/transient caches).
+ */
+export const useScanQueueStore = create<ScanQueueState>()(
+  persist(
+    (set) => ({
+      queue: [],
+      upsert: (card) => set((s) => ({ queue: upsertCard(s.queue, card) })),
+      patch: (id, p) => set((s) => ({ queue: applyEntryPatch(s.queue, id, p) })),
+      remove: (id) => set((s) => ({ queue: s.queue.filter((e) => e.id !== id) })),
+      clear: () => set({ queue: [] }),
+      changeQty: (id, delta) =>
+        set((s) => ({
+          queue: s.queue
+            .map((e) => (e.id === id ? { ...e, qty: e.qty + delta } : e))
+            .filter((e) => e.qty > 0),
+        })),
+    }),
+    {
+      name: 'spellcontrol-scan-queue',
+      storage: createJSONStorage(() => localStorage),
+      // ponytail: persists the full ScryfallCard per row to localStorage. A
+      // scan session is bounded (add-to-collection clears it), so size is a
+      // non-issue; move to IndexedDB if sessions ever hold hundreds of cards.
+    }
+  )
+);
+
 export interface UseScanQueueResult {
   /** Current queue, in insertion order. */
   queue: ScannedEntry[];
@@ -135,12 +182,18 @@ export interface UseScanQueueResult {
  * printing or toggle the finish on a row via the queue sheet / panel.
  */
 export function useScanQueue(): UseScanQueueResult {
-  const [queue, setQueue] = useState<ScannedEntry[]>([]);
+  const queue = useScanQueueStore((s) => s.queue);
+  const upsert = useScanQueueStore((s) => s.upsert);
+  const patch = useScanQueueStore((s) => s.patch);
+  const remove = useScanQueueStore((s) => s.remove);
+  const clear = useScanQueueStore((s) => s.clear);
+  const changeQtyAction = useScanQueueStore((s) => s.changeQty);
   /**
    * Printing id of the last accepted scan, used to dedupe back-to-back
    * identical captures. Lives in a ref so reading/writing it doesn't
    * trigger a re-render and the value is current inside `addScan`'s
-   * synchronous check.
+   * synchronous check. Deliberately NOT persisted: reopening the scanner
+   * should accept the next scan even of a card already in the queue.
    */
   const lastIdRef = useRef<string | null>(null);
 
@@ -155,43 +208,50 @@ export function useScanQueue(): UseScanQueueResult {
     return sum;
   }, [queue]);
 
-  const addScan = useCallback((card: ScryfallCard, force = false): AddScanResult => {
-    if (!force && lastIdRef.current === card.id) return 'duplicate';
-    lastIdRef.current = card.id;
-    setQueue((prev) => upsertCard(prev, card));
-    return 'accepted';
-  }, []);
+  const addScan = useCallback(
+    (card: ScryfallCard, force = false): AddScanResult => {
+      if (!force && lastIdRef.current === card.id) return 'duplicate';
+      lastIdRef.current = card.id;
+      upsert(card);
+      return 'accepted';
+    },
+    [upsert]
+  );
 
-  const addManual = useCallback((card: ScryfallCard) => {
-    // A manual add interleaves with live scanning; clear the cursor so the
-    // matcher's "same card still in frame" dedupe restarts cleanly.
-    lastIdRef.current = null;
-    setQueue((prev) => upsertCard(prev, card));
-  }, []);
+  const addManual = useCallback(
+    (card: ScryfallCard) => {
+      // A manual add interleaves with live scanning; clear the cursor so the
+      // matcher's "same card still in frame" dedupe restarts cleanly.
+      lastIdRef.current = null;
+      upsert(card);
+    },
+    [upsert]
+  );
 
-  const removeFromQueue = useCallback((id: string) => {
-    setQueue((prev) => prev.filter((s) => s.id !== id));
-    lastIdRef.current = null;
-  }, []);
+  const removeFromQueue = useCallback(
+    (id: string) => {
+      remove(id);
+      lastIdRef.current = null;
+    },
+    [remove]
+  );
 
   const clearQueue = useCallback(() => {
-    setQueue([]);
+    clear();
     lastIdRef.current = null;
-  }, []);
+  }, [clear]);
 
-  const changeQty = useCallback((id: string, delta: number) => {
-    setQueue((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, qty: e.qty + delta } : e)).filter((e) => e.qty > 0)
-    );
-  }, []);
+  const changeQty = useCallback(
+    (id: string, delta: number) => changeQtyAction(id, delta),
+    [changeQtyAction]
+  );
 
-  const changePrinting = useCallback((id: string, newCard: ScryfallCard) => {
-    setQueue((prev) => applyEntryPatch(prev, id, { card: newCard }));
-  }, []);
+  const changePrinting = useCallback(
+    (id: string, newCard: ScryfallCard) => patch(id, { card: newCard }),
+    [patch]
+  );
 
-  const changeFinish = useCallback((id: string, finish: Finish) => {
-    setQueue((prev) => applyEntryPatch(prev, id, { finish }));
-  }, []);
+  const changeFinish = useCallback((id: string, finish: Finish) => patch(id, { finish }), [patch]);
 
   return {
     queue,
