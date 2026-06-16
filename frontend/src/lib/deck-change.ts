@@ -430,6 +430,29 @@ export function fromSwap({
 }
 
 /**
+ * Promote an already-built **incoming** add Change into a real `type:'swap'`
+ * Change against `outName` — the in-deck card being CUT to make room. Reuses every
+ * field the source adapter already computed (reason, ownership, inclusion, role,
+ * cmc, image), so the swap row carries the incoming card as its primary art and
+ * `outName` as the dimmed offender on the left (the dual-art `<DeckCardRow>` swap
+ * branch lights up on `type:'swap'` + `inName`).
+ *
+ * This is the general counterpart to {@link fromSwap}: `fromSwap` needs a resolved
+ * `ScryfallCard`, but the in-context swap surfaces ("Swap this card" / "Similar
+ * cards") already hold a built Change — including **thin EDHREC gap rows that
+ * carry no `ScryfallCard`** (the row resolves art by name). The apply path is
+ * unchanged: callers still read `change.name` (the incoming card).
+ */
+export function toSwapAgainst(incoming: Change, outName: string): Change {
+  return {
+    ...incoming,
+    type: 'swap',
+    id: `swap:${outName}->${incoming.name}`,
+    inName: outName,
+  };
+}
+
+/**
  * Adapt a {@link CostSwapRow} (budget cost-optimizer suggestion) into a budget-lane
  * swap Change. `name` is the INCOMING cheaper card; `inName` is the OUTGOING expensive
  * card being replaced. `deltaPrice` is negative (savings = cost reduction). Ownership

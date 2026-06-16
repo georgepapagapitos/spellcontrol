@@ -9,6 +9,7 @@ import {
   fromSubstituteRow,
   fromBracketFitMove,
   fromSwap,
+  toSwapAgainst,
   fromCostSwapRow,
   fromComboCompletion,
   mergeImprove,
@@ -409,6 +410,47 @@ describe('fromSwap', () => {
     expect(c.imageUrl).toBe('https://img/only-small');
     expect(c.lane).toBe('upgrade');
     expect(c.ownership).toBeUndefined();
+  });
+});
+
+describe('toSwapAgainst', () => {
+  it('promotes a thin add Change into a swap against the cut card, reusing its metadata', () => {
+    // A thin EDHREC gap row — no resolved ScryfallCard, art resolves by name.
+    const incoming = fromGapCard(
+      {
+        name: 'Cultivate',
+        price: '$1.50',
+        inclusion: 71,
+        synergy: 0.3,
+        typeLine: 'Sorcery',
+        cmc: 3,
+        role: 'ramp',
+        roleLabel: 'Ramp',
+        imageUrl: 'https://img/cultivate',
+      } satisfies GapAnalysisCard,
+      'owned'
+    );
+    const swap = toSwapAgainst(incoming, 'Rampant Growth');
+
+    expect(swap.type).toBe('swap');
+    expect(swap.name).toBe('Cultivate'); // primary = coming IN
+    expect(swap.inName).toBe('Rampant Growth'); // offender = being CUT
+    expect(swap.id).toBe('swap:Rampant Growth->Cultivate');
+    // every computed field on the incoming row survives the promotion
+    expect(swap.ownership).toBe('owned');
+    expect(swap.inclusion).toBe(71);
+    expect(swap.roleLabel).toBe('Ramp');
+    expect(swap.imageUrl).toBe('https://img/cultivate');
+    expect(swap.reason).toBe(incoming.reason);
+    expect(swap.card).toBeUndefined(); // still a thin row — no ScryfallCard needed
+  });
+
+  it('does not mutate the incoming Change', () => {
+    const incoming = add({ name: 'Cultivate' });
+    const swap = toSwapAgainst(incoming, 'Rampant Growth');
+    expect(incoming.type).toBe('add');
+    expect(incoming.inName).toBeUndefined();
+    expect(swap).not.toBe(incoming);
   });
 });
 
