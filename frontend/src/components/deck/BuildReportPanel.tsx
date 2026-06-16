@@ -63,6 +63,7 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
     ownedPercentActual,
     ownedPercentTarget,
     basicsPadded,
+    collectionRelaxed,
     roleGaps,
     claimedConflicts,
     generationMode,
@@ -96,6 +97,13 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
           {isPartial && typeof ownedPercentTarget === 'number' && (
             <span className="build-report-muted"> (target {ownedPercentTarget}%)</span>
           )}
+        </p>
+      )}
+
+      {typeof collectionRelaxed === 'number' && collectionRelaxed > 0 && (
+        <p className="build-report-line">
+          added <strong>{collectionRelaxed}</strong> card{collectionRelaxed === 1 ? '' : 's'} from
+          outside your collection to complete the deck
         </p>
       )}
 

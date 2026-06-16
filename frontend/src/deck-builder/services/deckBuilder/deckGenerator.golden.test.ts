@@ -173,6 +173,7 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
 }));
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
+import { searchCards } from '@/deck-builder/services/scryfall/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -304,5 +305,44 @@ describe('generateDeck — invariants', () => {
     const deck = await generateDeck(baseContext());
     const total = Object.values(deck.categories).flat().length;
     expect(total).toBe(99);
+  });
+});
+
+describe('generateDeck — collection relaxation (T43 PR-3)', () => {
+  it('pulls cards from OUTSIDE an exhausted owned-only collection before padding basics', async () => {
+    // Owned-only ('full') with a tiny collection that cannot fill the deck.
+    const ctx = baseContext();
+    ctx.customization = customization({ collectionMode: true, collectionStrategy: 'full' });
+    (ctx as { collectionNames?: Set<string> }).collectionNames = new Set([
+      'Test Commander',
+      'Creature_1',
+      'Creature_2',
+      'Instant_1',
+      'Sorcery_1',
+    ]);
+
+    // Scryfall returns UNOWNED cards. The collection-gated fill steps skip them;
+    // only the relaxation step ('prefer') keeps them.
+    const relaxed = Array.from({ length: 16 }, (_, i) =>
+      mkSC(`Relaxed_${i + 1}`, 'Creature', (i % 5) + 1)
+    );
+    const mocked = vi.mocked(searchCards);
+    mocked.mockResolvedValue({ data: relaxed } as unknown as Awaited<
+      ReturnType<typeof searchCards>
+    >);
+    clearGenerationCache();
+    try {
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      // The deck is still complete, and the gap was filled with real unowned
+      // cards (surfaced) rather than entirely with basic lands.
+      expect(deck.collectionRelaxedCount ?? 0).toBeGreaterThan(0);
+      expect(names).toContain('Relaxed_1');
+    } finally {
+      mocked.mockResolvedValue({ data: [] } as unknown as Awaited<ReturnType<typeof searchCards>>);
+      clearGenerationCache();
+    }
   });
 });

@@ -65,6 +65,11 @@ export function assembleBuildReport(input: {
     report.basicsPadded = basicsPadded;
   }
 
+  // Cards pulled from outside the collection to complete an owned-only build.
+  if (generated.collectionRelaxedCount && generated.collectionRelaxedCount > 0) {
+    report.collectionRelaxed = generated.collectionRelaxedCount;
+  }
+
   // Per-role "wanted N, got M" gaps where the deck fell short of target.
   const roleTargets = generated.roleTargets;
   if (roleTargets) {

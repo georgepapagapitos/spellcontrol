@@ -2303,6 +2303,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Track how many basic lands are added as filler when collection is too small
   let basicLandFillCount = 0;
+  // Names of genuinely-unowned cards pulled in to complete an exhausted owned-only
+  // pool (relaxation before basic padding). The surfaced count is derived from how
+  // many of these SURVIVE the later combo audit / fixup passes (which can evict
+  // them), so it never overstates what actually came from outside the collection.
+  const relaxedNames = new Set<string>();
+  let collectionRelaxedCount = 0;
 
   // If we have too few cards, fill shortage — budget is best-effort here,
   // deck size and structure are non-negotiable
@@ -2585,6 +2591,45 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       }
 
       logger.debug(`[DeckGen] Filled ${filled} cards from Scryfall shortfall`);
+    }
+
+    // Relax the collection constraint before padding with basics. In owned-only
+    // modes ('full'/'available') the steps above gate every pick to owned cards,
+    // so an exhausted collection would otherwise pad the rest with basic lands.
+    // Instead, pull the next-best in-color cards from OUTSIDE the collection to
+    // keep the deck a real, complete deck — surfaced in the build report so the
+    // user knows some cards came from outside their collection. ('prefer' drops
+    // the hard collection gate in fillWithScryfall; basics stay the last resort.)
+    currentCount = countAllCards();
+    if (currentCount < targetDeckSize && constrainsToCollection(collectionStrategy)) {
+      const relaxNeeded = targetDeckSize - currentCount;
+      const relaxedCards = await fillWithScryfall(
+        '(t:creature OR t:instant OR t:sorcery OR t:artifact OR t:enchantment)',
+        colorIdentity,
+        relaxNeeded,
+        usedNames,
+        bannedCards,
+        shortagePriceCap,
+        maxRarity,
+        maxCmc,
+        null,
+        context.collectionNames,
+        currency,
+        arenaOnly,
+        scryfallQuery,
+        'prefer',
+        ignoreOwnedBudget,
+        ignoreOwnedRarity
+      );
+      categories.synergy.push(...relaxedCards);
+      for (const c of relaxedCards) {
+        if (notInCollection(c.name, context.collectionNames)) relaxedNames.add(c.name);
+      }
+      if (relaxedCards.length > 0) {
+        logger.debug(
+          `[DeckGen] Collection exhausted — relaxed to ${relaxedCards.length} cards from outside it`
+        );
+      }
     }
 
     // If STILL short, add basic lands as absolute last resort
@@ -3169,6 +3214,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
 
+  // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
+  // fixup passes above (they can evict cards added to categories.synergy), so
+  // the report never overstates what actually came from outside the collection.
+  if (relaxedNames.size > 0) {
+    const finalNames = new Set(
+      Object.values(categories)
+        .flat()
+        .map((c) => c.name)
+    );
+    for (const n of relaxedNames) if (finalNames.has(n)) collectionRelaxedCount += 1;
+  }
+
   return {
     commander,
     partnerCommander,
@@ -3183,6 +3240,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery && !context.collectionNames && basicLandFillCount > 0
         ? basicLandFillCount
         : undefined,
+    collectionRelaxedCount: collectionRelaxedCount > 0 ? collectionRelaxedCount : undefined,
     typeTargets,
     dataSource: state.dataSource,
     generationMode: mode,
