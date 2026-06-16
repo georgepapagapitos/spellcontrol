@@ -37,6 +37,7 @@ import { paletteForIndex, paletteForSeat } from '../../lib/seat-palette';
 import { useAnimatedNumber } from '../../lib/use-animated-number';
 import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
+import { HOLD_DWELL_MS, HOLD_REPEAT_MS, holdStepFor } from '../../lib/hold-ramp';
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { usePlayStore } from '../../store/play';
@@ -439,11 +440,11 @@ function PlayerPanel({
   }, [player.eliminated]);
 
   const adjust = useCallback(
-    (delta: number) => {
+    (delta: number, skipTap = false) => {
       if (disabled) return;
       dispatch({ type: 'life', seat: player.seat, delta, actorSeat: player.seat });
       pushDelta(delta, lastPointerRef.current.x, lastPointerRef.current.y);
-      haptics.tap();
+      if (!skipTap) haptics.tap();
     },
     [disabled, dispatch, player.seat, pushDelta]
   );
@@ -454,7 +455,7 @@ function PlayerPanel({
   // firing a life tap.
   const tapHandlers = useTapAndHold({
     onTap: (delta: number) => adjust(delta),
-    onHoldTick: (delta: number) => adjust(delta),
+    onHoldTick: (delta: number, gearUp: boolean) => adjust(delta, gearUp),
     onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
     rotation,
@@ -758,7 +759,7 @@ function PlayerPanel({
 
 interface TapAndHoldOpts {
   onTap: (arg: number) => void;
-  onHoldTick: (arg: number) => void;
+  onHoldTick: (arg: number, gearUp: boolean) => void;
   onPointerStart?: (e: React.PointerEvent) => void;
   onPointerMove?: (e: React.PointerEvent) => void;
   onSwipeUp?: () => void;
@@ -774,8 +775,13 @@ const SWIPE_AXIS_RATIO = 1.5;
 /**
  * Hook that returns a getHandlers(arg) factory which produces the pointer
  * event handlers for a tap-and-hold zone. A single click fires `onTap(arg)`;
- * a long press (>=350ms) starts a repeater that fires `onHoldTick(arg)` every
- * 130ms until pointer-up or pointer-leave.
+ * a long press (>=HOLD_DWELL_MS) starts a repeater that fires
+ * `onHoldTick(delta, gearUp)` every HOLD_REPEAT_MS, where `delta` ramps up
+ * over time via `holdStepFor`: ×1 initially, ×5 after 1.5 s from repeater
+ * start, ×10 after 3.5 s from repeater start (i.e. after the dwell, not from
+ * pointer-down). A haptic bump fires — before the tick — each time the step
+ * size increases; `gearUp` is true on that tick so the caller can skip the
+ * redundant light tap.
  *
  * Also detects vertical swipes: if the pointer moves >40px vertically (and
  * predominantly vertically) before lift, the hold timer is cancelled and
@@ -800,6 +806,8 @@ function useTapAndHold({
   const heldRef = useRef(false);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const swipedRef = useRef(false);
+  const holdStartRef = useRef<number>(0);
+  const prevStepRef = useRef<number>(1);
 
   const clear = () => {
     if (holdTimer.current) clearTimeout(holdTimer.current);
@@ -828,9 +836,21 @@ function useTapAndHold({
       clear();
       holdTimer.current = setTimeout(() => {
         heldRef.current = true;
-        onHoldTick(arg);
-        repeatTimer.current = setInterval(() => onHoldTick(arg), 130);
-      }, 350);
+        holdStartRef.current = performance.now();
+        prevStepRef.current = 1;
+        // First tick at step 1 (elapsed ≈ 0) — never a gear-up.
+        onHoldTick(Math.sign(arg) * holdStepFor(0), false);
+        repeatTimer.current = setInterval(() => {
+          const elapsed = performance.now() - holdStartRef.current;
+          const step = holdStepFor(elapsed);
+          const gearUp = step > prevStepRef.current;
+          if (gearUp) {
+            haptics.bump();
+            prevStepRef.current = step;
+          }
+          onHoldTick(Math.sign(arg) * step, gearUp);
+        }, HOLD_REPEAT_MS);
+      }, HOLD_DWELL_MS);
     },
     onPointerMove: (e: React.PointerEvent) => {
       onPointerMove?.(e);
@@ -964,7 +984,7 @@ function CounterRow({
 }) {
   const tapHandlers = useTapAndHold({
     onTap: onChange,
-    onHoldTick: onChange,
+    onHoldTick: (delta) => onChange(delta),
     disabled,
   });
   return (
