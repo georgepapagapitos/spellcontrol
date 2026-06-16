@@ -203,6 +203,13 @@ export function isStaxPiece(name: string): boolean {
   return STAX_PIECES.has(name);
 }
 
+// Mass-land-denial as the bracket floor counts it: a tagged MLD card minus the
+// curated false-positives. Exported so generation can gate on the exact same
+// signal the estimator uses (one source of truth for the floor).
+export function isMassLandDenialFloor(name: string): boolean {
+  return isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name);
+}
+
 /**
  * Tutor handling — known divergence from current strict-RC text.
  *
@@ -275,7 +282,7 @@ export function estimateBracket(
 
   for (const name of allCardNames) {
     if (gameChangerNames.has(name)) gameChangers.push(name);
-    if (isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name)) massLandDenial.push(name);
+    if (isMassLandDenialFloor(name)) massLandDenial.push(name);
     if (isExtraTurn(name)) extraTurns.push(name);
     if (FAST_MANA.has(name)) fastMana.push(name);
     if (STAX_PIECES.has(name)) staxPieces.push(name);

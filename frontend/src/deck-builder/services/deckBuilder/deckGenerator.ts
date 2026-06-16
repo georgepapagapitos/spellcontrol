@@ -57,6 +57,7 @@ import {
 } from './deckFilters';
 import { calculateTargetCounts } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
+import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
   pickFromPrefetchedWithCurve,
   mergeWithAllNonLand,
@@ -1427,6 +1428,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           strictRoles
         )
       : getComboBoosts();
+    // Bracket band guardrail: cap per-card floor signals (game changers, MLD,
+    // extra turns, stax) so the deck lands at/under the target bracket by
+    // construction instead of overshooting and being patched post-gen. undefined
+    // (zero per-pick overhead) when no bracket is targeted or the target is high
+    // enough that no ceiling binds.
+    const bracketCeil = bracketCeilings(targetBracket);
+    const bracketGuard = ceilingsAreOpen(bracketCeil)
+      ? undefined
+      : new BracketGuard(bracketCeil, state.gameChangerNames);
     const creatures = pickFromPrefetchedWithCurve(
       creaturePool,
       cardMap,
@@ -1452,7 +1462,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      bracketGuard
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1537,7 +1548,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      bracketGuard
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -1594,7 +1606,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      bracketGuard
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -1651,7 +1664,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      bracketGuard
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -1708,7 +1722,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      bracketGuard
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -1766,7 +1781,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionStrategy,
         collectionOwnedPercent,
         ignoreOwnedBudget,
-        ignoreOwnedRarity
+        ignoreOwnedRarity,
+        bracketGuard
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
