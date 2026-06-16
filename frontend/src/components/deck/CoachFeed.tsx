@@ -5,6 +5,7 @@ import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { NextBestMove as NextBestMoveComponent } from './NextBestMove';
 import { VerdictBadge } from './VerdictBadge';
+import { InfoTip } from '../InfoTip';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
@@ -629,6 +630,36 @@ export function CoachFeed({
               </button>
             )}
           </div>
+
+          {/* Budget confidence legend — budget filter only */}
+          {activeFilter === 'budget' && filteredAdds.length > 0 && (
+            <div className="coach-feed-budget-strip">
+              <span className="coach-feed-budget-summary">
+                Badges rate how close each cheaper pick is to the card it replaces
+              </span>
+              <InfoTip
+                label="budget confidence"
+                text={
+                  <>
+                    <p className="info-tip-lead">
+                      How close each cheaper pick is to the card it replaces:
+                    </p>
+                    <ul className="info-tip-list">
+                      <li>
+                        <strong>Drop-in</strong> — near-identical; swap freely.
+                      </li>
+                      <li>
+                        <strong>Sidegrade</strong> — a lateral trade, a bit less played.
+                      </li>
+                      <li>
+                        <strong>Budget</strong> — a real downgrade for the savings.
+                      </li>
+                    </ul>
+                  </>
+                }
+              />
+            </div>
+          )}
 
           {/* Bracket strip — bracket-fit filter only */}
           {activeFilter === 'bracket-fit' && bracketFit && bracketFit.direction !== 'aligned' && (

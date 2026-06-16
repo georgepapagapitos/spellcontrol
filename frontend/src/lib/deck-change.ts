@@ -69,8 +69,10 @@ export interface Change {
   inName?: string;
   inCard?: ScryfallCard;
 
-  /** Data-grounded "why" — already the verdict/category copy per surface. */
-  reason: string;
+  /** Data-grounded "why" — already the verdict/category copy per surface.
+   *  Optional: budget-swap rows convey tier + savings via the confidence badge
+   *  and price delta instead, so they carry no reason. */
+  reason?: string;
 
   /**
    * Ownership at render time. Re-derive live; never cache from a persisted
@@ -460,18 +462,15 @@ export function toSwapAgainst(incoming: Change, outName: string): Change {
  * card makes the swap free, so it badges and ranks like any other owned move.
  */
 export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): Change {
-  const reasonByConfidence: Record<string, string> = {
-    'drop-in': `Drop-in replacement, saves $${row.savings.toFixed(2)}`,
-    sidegrade: `Sidegrade, saves $${row.savings.toFixed(2)}`,
-    budget: `Budget pick, saves $${row.savings.toFixed(2)}`,
-  };
+  // The confidence tier now renders as a VerdictBadge and the savings as the
+  // row's price delta, so a reason string would just duplicate both. See the
+  // budget confidence badge in DeckCardRow.
   return {
     id: `budget:${row.currentName}`,
     type: 'swap',
     lane: 'budget',
     name: row.suggestionName,
     inName: row.currentName,
-    reason: reasonByConfidence[row.confidence] ?? `Saves $${row.savings.toFixed(2)}`,
     ownership,
     deltaPrice: -row.savings,
     confidence: row.confidence,

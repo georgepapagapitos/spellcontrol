@@ -2,8 +2,16 @@ import type { JSX } from 'react';
 import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
-import { VerdictBadge } from './VerdictBadge';
+import { VerdictBadge, type VerdictTone } from './VerdictBadge';
 import type { Change } from '@/lib/deck-change';
+
+/** Budget-swap confidence tier → badge tone + word (STYLE_GUIDE: success/info/warn).
+ *  How close the cheaper suggestion is to the card it replaces. */
+const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
+  'drop-in': { tone: 'success', label: 'Drop-in' },
+  sidegrade: { tone: 'info', label: 'Sidegrade' },
+  budget: { tone: 'warn', label: 'Budget' },
+};
 import { useCardThumb } from '@/lib/card-thumbs';
 import { formatMoney } from '@/lib/format-money';
 
@@ -192,6 +200,12 @@ export function DeckCardRow({
               tone="neutral"
               label="In other deck"
               title="Owned, but every copy is in another deck"
+            />
+          )}
+          {change.lane === 'budget' && change.confidence && CONFIDENCE_BADGE[change.confidence] && (
+            <VerdictBadge
+              tone={CONFIDENCE_BADGE[change.confidence].tone}
+              label={CONFIDENCE_BADGE[change.confidence].label}
             />
           )}
         </span>

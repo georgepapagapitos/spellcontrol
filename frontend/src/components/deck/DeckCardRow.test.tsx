@@ -68,6 +68,27 @@ describe('DeckCardRow', () => {
     expect(syn.classList.contains('is-accent')).toBe(true);
   });
 
+  it('renders the budget confidence tier as a toned VerdictBadge chip', () => {
+    const { unmount } = render(
+      <DeckCardRow change={add({ lane: 'budget', confidence: 'drop-in', reason: undefined })} />
+    );
+    const dropIn = screen.getByText('Drop-in');
+    expect(dropIn.classList.contains('verdict-chip')).toBe(true);
+    expect(dropIn.classList.contains('is-success')).toBe(true);
+    unmount();
+
+    render(
+      <DeckCardRow change={add({ lane: 'budget', confidence: 'budget', reason: undefined })} />
+    );
+    const budget = screen.getByText('Budget');
+    expect(budget.classList.contains('is-warn')).toBe(true);
+  });
+
+  it('shows no confidence chip for non-budget lanes', () => {
+    render(<DeckCardRow change={add({ lane: 'upgrade', confidence: 'drop-in' })} />);
+    expect(screen.queryByText('Drop-in')).toBeNull();
+  });
+
   it('renders the role label as a neutral VerdictBadge chip', () => {
     render(<DeckCardRow change={add({ roleLabel: 'Ramp' })} />);
     const role = screen.getByText('Ramp');
